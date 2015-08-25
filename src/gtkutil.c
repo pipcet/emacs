@@ -1678,7 +1678,6 @@ create_dialog (widget_value *wv,
 
 struct xg_dialog_data
 {
-  GMainLoop *loop;
   int response;
   GtkWidget *w;
   guint timerid;
@@ -1694,8 +1693,16 @@ xg_dialog_response_cb (GtkDialog *w,
 		       gpointer user_data)
 {
   struct xg_dialog_data *dd = user_data;
+  static struct input_event event;
+
   dd->response = response;
-  g_main_loop_quit (dd->loop);
+
+  event.kind = ASCII_KEYSTROKE_EVENT;
+  event.code = 'g';
+  event.modifiers = ctrl_modifier;
+  event.frame_or_window = Fselected_frame();
+
+  kbd_buffer_store_event(&event);
 }
 
 
@@ -1707,11 +1714,7 @@ pop_down_dialog (void *arg)
   struct xg_dialog_data *dd = arg;
 
   block_input ();
-  if (dd->w) gtk_widget_destroy (dd->w);
   if (dd->timerid != 0) g_source_remove (dd->timerid);
-
-  g_main_loop_quit (dd->loop);
-  g_main_loop_unref (dd->loop);
 
   unblock_input ();
 }
@@ -1755,7 +1758,6 @@ xg_dialog_run (struct frame *f, GtkWidget *w)
   gtk_window_set_destroy_with_parent (GTK_WINDOW (w), TRUE);
   gtk_window_set_modal (GTK_WINDOW (w), TRUE);
 
-  dd.loop = g_main_loop_new (NULL, FALSE);
   dd.response = GTK_RESPONSE_CANCEL;
   dd.w = w;
   dd.timerid = 0;
@@ -1769,9 +1771,11 @@ xg_dialog_run (struct frame *f, GtkWidget *w)
   gtk_widget_show (w);
 
   record_unwind_protect_ptr (pop_down_dialog, &dd);
+  record_unwind_protect_void (block_input);
 
   (void) xg_maybe_add_timer (&dd);
-  g_main_loop_run (dd.loop);
+  unblock_input ();
+  Frecursive_edit ();
 
   dd.w = 0;
   unbind_to (count, Qnil);
