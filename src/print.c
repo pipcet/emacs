@@ -1995,8 +1995,23 @@ print_object (Lisp_Object obj, Lisp_Object printcharfun, bool escapeflag)
 
         case Lisp_Misc_Finalizer:
           print_c_string ("#<finalizer", printcharfun);
-          if (NILP (XFINALIZER (obj)->function))
-            print_c_string (" used", printcharfun);
+          if (XFINALIZER (obj)->save_type == SAVE_OBJECT)
+            {
+              if (NILP (XFINALIZER (obj)->u.function))
+                print_c_string (" used", printcharfun);
+            }
+          else if (XFINALIZER (obj)->save_type == SAVE_TYPE_PTR_PTR)
+            {
+              int len;
+
+              len = sprintf (buf, " %p",
+                             XFINALIZER (obj)->u.fptr_ptr.function);
+              strout (buf, len, len, printcharfun);
+
+              len = sprintf (buf, " %p",
+                             XFINALIZER (obj)->u.fptr_ptr.argument);
+              strout (buf, len, len, printcharfun);
+            }
 	  printchar ('>', printcharfun);
           break;
 

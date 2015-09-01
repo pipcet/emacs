@@ -3721,14 +3721,15 @@ mark_finalizer_list (struct Lisp_Finalizer *head)
        finalizer != head;
        finalizer = finalizer->next)
     {
-      finalizer->base.gcmarkbit = true;
-      mark_object (finalizer->function);
+      finalizer->gcmarkbit = true;
+      if (finalizer->save_type == SAVE_OBJECT)
+        mark_object (finalizer->u.function);
     }
 }
 
 /* Move doomed finalizers to list DEST from list SRC.  A doomed
    finalizer is one that is not GC-reachable and whose
-   finalizer->function is non-nil.  */
+   finalizer->u.function is non-nil.  */
 
 static void
 queue_doomed_finalizers (struct Lisp_Finalizer *dest,
@@ -3738,7 +3739,9 @@ queue_doomed_finalizers (struct Lisp_Finalizer *dest,
   while (finalizer != src)
     {
       struct Lisp_Finalizer *next = finalizer->next;
-      if (!finalizer->base.gcmarkbit && !NILP (finalizer->function))
+      if (!finalizer->gcmarkbit &&
+          ((finalizer->save_type == SAVE_OBJECT && !NILP (finalizer->u.function)) ||
+           (finalizer->save_type == SAVE_TYPE_PTR_PTR && finalizer->u.fptr_ptr.function)))
         {
           unchain_finalizer (finalizer);
           finalizer_insert (dest, finalizer);
@@ -3766,6 +3769,30 @@ run_finalizer_function (Lisp_Object function)
 }
 
 static void
+run_finalizer (struct Lisp_Finalizer *finalizer)
+{
+  if (finalizer->save_type == SAVE_OBJECT)
+    {
+      Lisp_Object function = finalizer->u.function;
+      if (!NILP (function))
+        {
+          finalizer->u.function = Qnil;
+          run_finalizer_function (function);
+        }
+    }
+  else if (finalizer->save_type == SAVE_TYPE_PTR_PTR)
+    {
+      void (*f) (void *) = finalizer->u.fptr_ptr.function;
+      void *arg = finalizer->u.fptr_ptr.argument;
+
+      finalizer->u.fptr_ptr.function = NULL;
+      finalizer->u.fptr_ptr.argument = NULL;
+
+      f(arg);
+    }
+}
+
+static void
 run_finalizers (struct Lisp_Finalizer *finalizers)
 {
   struct Lisp_Finalizer *finalizer;
@@ -3774,14 +3801,9 @@ run_finalizers (struct Lisp_Finalizer *finalizers)
   while (finalizers->next != finalizers)
     {
       finalizer = finalizers->next;
-      eassert (finalizer->base.type == Lisp_Misc_Finalizer);
+      eassert (finalizer->type == Lisp_Misc_Finalizer);
       unchain_finalizer (finalizer);
-      function = finalizer->function;
-      if (!NILP (function))
-	{
-	  finalizer->function = Qnil;
-	  run_finalizer_function (function);
-	}
+      run_finalizer (finalizer);
     }
 }
 
@@ -3796,10 +3818,52 @@ FUNCTION.  FUNCTION will be run once per finalizer object.  */)
 {
   Lisp_Object val = allocate_misc (Lisp_Misc_Finalizer);
   struct Lisp_Finalizer *finalizer = XFINALIZER (val);
-  finalizer->function = function;
+  finalizer->save_type = SAVE_OBJECT;
+  finalizer->u.function = function;
   finalizer->prev = finalizer->next = NULL;
   finalizer_insert (&finalizers, finalizer);
   return val;
+}
+
+Lisp_Object
+make_c_finalizer (void (*function) (void *), void *argument)
+{
+  Lisp_Object val = allocate_misc (Lisp_Misc_Finalizer);
+  struct Lisp_Finalizer *finalizer = XFINALIZER (val);
+  finalizer->save_type = SAVE_TYPE_PTR_PTR;
+  finalizer->u.fptr_ptr.function = function;
+  finalizer->u.fptr_ptr.argument = argument;
+  finalizer->prev = finalizer->next = NULL;
+  finalizer_insert (&finalizers, finalizer);
+  return val;
+}
+
+DEFUN ("run-finalizer", Frun_finalizer, Srun_finalizer, 1, 1, 0,
+       doc: /* Run ARGUMENT.  */)
+  (Lisp_Object argument)
+{
+  struct Lisp_Finalizer *finalizer = XFINALIZER (argument);
+  run_finalizer (finalizer);
+  return Qnil;
+}
+
+
+
+void *finalizer_arg (Lisp_Object object, void (*function) (void *))
+{
+  struct Lisp_Finalizer *finalizer;
+
+  if (NILP (object))
+    return NULL;
+
+  finalizer = XFINALIZER (object);
+  if (finalizer->save_type != SAVE_TYPE_PTR_PTR)
+    return NULL;
+
+  if (finalizer->u.fptr_ptr.function != function)
+    return NULL;
+
+  return finalizer->u.fptr_ptr.argument;
 }
 
 
@@ -6249,7 +6313,8 @@ mark_object (Lisp_Object arg)
 
         case Lisp_Misc_Finalizer:
           XMISCANY (obj)->gcmarkbit = true;
-          mark_object (XFINALIZER (obj)->function);
+          if (XFINALIZER (obj)->save_type == SAVE_OBJECT)
+            mark_object (XFINALIZER (obj)->u.function);
           break;
 
 	default:

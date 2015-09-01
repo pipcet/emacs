@@ -2178,7 +2178,18 @@ XSAVE_OBJECT (Lisp_Object obj, int n)
 /* A finalizer sentinel.  */
 struct Lisp_Finalizer
   {
-    struct Lisp_Misc_Any base;
+    ENUM_BF (Lisp_Misc_Type) type : 16;	/* = Lisp_Misc_Finalizer */
+    bool_bf gcmarkbit : 1;
+    unsigned spacer : 32 - (16 + 1 + SAVE_TYPE_BITS);
+
+    /* V->data may hold up to SAVE_VALUE_SLOTS entries.  The type of
+       V's data entries are determined by V->save_type.  E.g., if
+       V->save_type == SAVE_TYPE_PTR_OBJ, V->data[0] is a pointer,
+       V->data[1] is an integer, and V's other data entries are unused.
+
+       If V->save_type == SAVE_TYPE_MEMORY, V->data[0].pointer is the address of
+       a memory area containing V->data[1].integer potential Lisp_Objects.  */
+    ENUM_BF (Lisp_Save_Type) save_type : SAVE_TYPE_BITS;
 
     /* Circular list of all active weak references.  */
     struct Lisp_Finalizer *prev;
@@ -2186,8 +2197,19 @@ struct Lisp_Finalizer
 
     /* Call FUNCTION when the finalizer becomes unreachable, even if
        FUNCTION contains a reference to the finalizer; i.e., call
-       FUNCTION when it is reachable _only_ through finalizers.  */
-    Lisp_Object function;
+       FUNCTION when it is reachable _only_ through finalizers.
+
+       If save_type is SAVE_TYPE_PTR_PTR, call C function FUNCTION
+       with argument ARGUMENT.  */
+    union
+      {
+        Lisp_Object function;
+        struct
+          {
+            void (*function) (void *);
+            void *argument;
+          } fptr_ptr;
+      } u;
   };
 
 /* A miscellaneous object, when it's on the free list.  */
