@@ -3215,10 +3215,10 @@ The debugger is entered when that frame exits, if the flag is non-nil.  */)
   return flag;
 }
 
-DEFUN ("backtrace", Fbacktrace, Sbacktrace, 0, 0, "",
+DEFUN ("backtrace", Fbacktrace, Sbacktrace, 0, 1, "",
        doc: /* Print a trace of Lisp function calls currently active.
 Output stream used is value of `standard-output'.  */)
-  (void)
+  (Lisp_Object hash)
 {
   union specbinding *pdl = backtrace_top ();
   Lisp_Object tem;
@@ -3234,6 +3234,15 @@ Output stream used is value of `standard-output'.  */)
 	{
 	  Fprin1 (Fcons (backtrace_function (pdl), *backtrace_args (pdl)),
 		  Qnil);
+          if (hash && backtrace_pform (pdl))
+            {
+              Lisp_Object line = Fgethash (backtrace_pform (pdl), hash, Qnil);
+
+              if (!NILP (line))
+                {
+                  Fprin1 (line, Qnil);
+                }
+            }
 	  write_string ("\n");
 	}
       else
