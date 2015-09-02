@@ -268,7 +268,7 @@ Invalid data in documentation file -- %c followed by code %03o",
   if (definition)
     {
       read_bytecode_pointer = (unsigned char *) get_doc_string_buffer + offset;
-      return Fread (Qlambda);
+      return Fread (Qlambda, Qnil);
     }
 
   if (unibyte)
