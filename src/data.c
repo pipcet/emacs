@@ -1534,7 +1534,7 @@ usage: (setq-default [VAR VALUE]...)  */)
 
   while (CONSP (args_left))
     {
-      val = eval_sub (Fcar (XCDR (args_left)));
+      val = eval_sub (Fcar (XCDR (args_left)), XCDR (args_left));
       symbol = XCAR (args_left);
       Fset_default (symbol, val);
       args_left = Fcdr (XCDR (args_left));

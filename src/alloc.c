@@ -5415,7 +5415,7 @@ garbage_collect_1 (void *end)
     return Qnil;
 
   /* Record this function, so it appears on the profiler's backtraces.  */
-  record_in_backtrace (Qautomatic_gc, 0, 0);
+  record_in_backtrace (Qautomatic_gc, 0, 0, Qnil, Qnil);
 
   check_cons_list ();
 

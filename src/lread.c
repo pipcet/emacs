@@ -1734,7 +1734,7 @@ readevalloop_eager_expand_eval (Lisp_Object val, Lisp_Object macroexpand)
                                                 macroexpand);
     }
   else
-      val = eval_sub (call2 (macroexpand, val, Qt));
+      val = eval_sub (call2 (macroexpand, val, Qt), Qnil);
   return val;
 }
 
@@ -1904,7 +1904,7 @@ readevalloop (Lisp_Object readcharfun,
       if (!NILP (macroexpand))
         val = readevalloop_eager_expand_eval (val, macroexpand);
       else
-        val = eval_sub (val);
+        val = eval_sub (val, Qnil);
 
       if (printflag)
 	{
@@ -3556,7 +3556,7 @@ read_list (bool flag, Lisp_Object readcharfun, Lisp_Object hash)
   while (1)
     {
       int ch;
-      EMACS_INT start_position = readchar_count - 1;
+      EMACS_INT start_position = readchar_count;
 
       elt = read1 (readcharfun, &ch, first_in_list, hash);
 

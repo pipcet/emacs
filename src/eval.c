@@ -133,6 +133,20 @@ backtrace_function (union specbinding *pdl)
   return pdl->bt.function;
 }
 
+Lisp_Object
+backtrace_form (union specbinding *pdl)
+{
+  eassert (pdl->kind == SPECPDL_BACKTRACE);
+  return pdl->bt.form;
+}
+
+Lisp_Object
+backtrace_pform (union specbinding *pdl)
+{
+  eassert (pdl->kind == SPECPDL_BACKTRACE);
+  return pdl->bt.pform;
+}
+
 static ptrdiff_t
 backtrace_nargs (union specbinding *pdl)
 {
@@ -339,7 +353,7 @@ usage: (or CONDITIONS...)  */)
 
   while (CONSP (args))
     {
-      val = eval_sub (XCAR (args));
+      val = eval_sub (XCAR (args), args);
       if (!NILP (val))
 	break;
       args = XCDR (args);
@@ -359,7 +373,7 @@ usage: (and CONDITIONS...)  */)
 
   while (CONSP (args))
     {
-      val = eval_sub (XCAR (args));
+      val = eval_sub (XCAR (args), args);
       if (NILP (val))
 	break;
       args = XCDR (args);
@@ -378,10 +392,10 @@ usage: (if COND THEN ELSE...)  */)
 {
   Lisp_Object cond;
 
-  cond = eval_sub (XCAR (args));
+  cond = eval_sub (XCAR (args), args);
 
   if (!NILP (cond))
-    return eval_sub (Fcar (XCDR (args)));
+    return eval_sub (Fcar (XCDR (args)), XCDR (args));
   return Fprogn (XCDR (XCDR (args)));
 }
 
@@ -402,7 +416,7 @@ usage: (cond CLAUSES...)  */)
   while (CONSP (args))
     {
       Lisp_Object clause = XCAR (args);
-      val = eval_sub (Fcar (clause));
+      val = eval_sub (Fcar (clause), clause);
       if (!NILP (val))
 	{
 	  if (!NILP (XCDR (clause)))
@@ -424,7 +438,7 @@ usage: (progn BODY...)  */)
 
   while (CONSP (body))
     {
-      val = eval_sub (XCAR (body));
+      val = eval_sub (XCAR (body), body);
       body = XCDR (body);
     }
 
@@ -453,9 +467,9 @@ usage: (prog1 FIRST BODY...)  */)
   args_left = args;
   val = args;
 
-  val = eval_sub (XCAR (args_left));
+  val = eval_sub (XCAR (args_left), args_left);
   while (CONSP (args_left = XCDR (args_left)))
-    eval_sub (XCAR (args_left));
+    eval_sub (XCAR (args_left), args_left);
 
   return val;
 }
@@ -467,7 +481,7 @@ remaining args, whose values are discarded.
 usage: (prog2 FORM1 FORM2 BODY...)  */)
   (Lisp_Object args)
 {
-  eval_sub (XCAR (args));
+  eval_sub (XCAR (args), args);
   return Fprog1 (XCDR (args));
 }
 
@@ -491,7 +505,7 @@ usage: (setq [SYM VAL]...)  */)
 
       do
 	{
-	  val = eval_sub (Fcar (XCDR (args_left)));
+	  val = eval_sub (Fcar (XCDR (args_left)), XCDR (args_left));
 	  sym = XCAR (args_left);
 
 	  /* Like for eval_sub, we do not check declared_special here since
@@ -555,7 +569,7 @@ usage: (function ARG)  */)
 	  && (EQ (QCdocumentation, XCAR (tmp))))
 	{ /* Handle the special (:documentation <form>) to build the docstring
 	     dynamically.  */
-	  Lisp_Object docstring = eval_sub (Fcar (XCDR (tmp)));
+	  Lisp_Object docstring = eval_sub (Fcar (XCDR (tmp)), XCDR (tmp));
 	  CHECK_STRING (docstring);
 	  cdr = Fcons (XCAR (cdr), Fcons (docstring, XCDR (XCDR (cdr))));
 	}
@@ -715,14 +729,14 @@ usage: (defvar SYMBOL &optional INITVALUE DOCSTRING)  */)
       XSYMBOL (sym)->declared_special = 1;
 
       if (NILP (tem))
-	Fset_default (sym, eval_sub (XCAR (tail)));
+	Fset_default (sym, eval_sub (XCAR (tail), tail));
       else
 	{ /* Check if there is really a global binding rather than just a let
 	     binding that shadows the global unboundness of the var.  */
 	  union specbinding *binding = default_toplevel_binding (sym);
 	  if (binding && EQ (specpdl_old_value (binding), Qunbound))
 	    {
-	      set_specpdl_old_value (binding, eval_sub (XCAR (tail)));
+	      set_specpdl_old_value (binding, eval_sub (XCAR (tail), tail));
 	    }
 	}
       tail = XCDR (tail);
@@ -776,7 +790,7 @@ usage: (defconst SYMBOL INITVALUE [DOCSTRING])  */)
   if (CONSP (Fcdr (XCDR (XCDR (args)))))
     error ("Too many arguments");
 
-  tem = eval_sub (Fcar (XCDR (args)));
+  tem = eval_sub (Fcar (XCDR (args)), XCDR (args));
   if (!NILP (Vpurify_flag))
     tem = Fpurecopy (tem);
   Fset_default (sym, tem);
@@ -835,7 +849,7 @@ usage: (let* VARLIST BODY...)  */)
       else
 	{
 	  var = Fcar (elt);
-	  val = eval_sub (Fcar (Fcdr (elt)));
+	  val = eval_sub (Fcar (Fcdr (elt)), Fcdr (elt));
 	}
 
       if (!NILP (lexenv) && SYMBOLP (var)
@@ -896,7 +910,7 @@ usage: (let VARLIST BODY...)  */)
       else if (! NILP (Fcdr (Fcdr (elt))))
 	signal_error ("`let' bindings can have only one value-form", elt);
       else
-	temps [argnum++] = eval_sub (Fcar (Fcdr (elt)));
+	temps [argnum++] = eval_sub (Fcar (Fcdr (elt)), Fcdr (elt));
     }
 
   lexenv = Vinternal_interpreter_environment;
@@ -940,7 +954,7 @@ usage: (while TEST BODY...)  */)
 
   test = XCAR (args);
   body = XCDR (args);
-  while (!NILP (eval_sub (test)))
+  while (!NILP (eval_sub (test, args)))
     {
       QUIT;
       Fprogn (body);
@@ -1028,7 +1042,7 @@ If a throw happens, it specifies the value to return from `catch'.
 usage: (catch TAG BODY...)  */)
   (Lisp_Object args)
 {
-  Lisp_Object tag = eval_sub (XCAR (args));
+  Lisp_Object tag = eval_sub (XCAR (args), args);
   return internal_catch (tag, Fprogn, XCDR (args));
 }
 
@@ -1148,7 +1162,7 @@ usage: (unwind-protect BODYFORM UNWINDFORMS...)  */)
   ptrdiff_t count = SPECPDL_INDEX ();
 
   record_unwind_protect (unwind_body, XCDR (args));
-  val = eval_sub (XCAR (args));
+  val = eval_sub (XCAR (args), args);
   return unbind_to (count, val);
 }
 
@@ -1259,7 +1273,7 @@ internal_lisp_condition_case (volatile Lisp_Object var, Lisp_Object bodyform,
       }
   }
 
-  val = eval_sub (bodyform);
+  val = eval_sub (bodyform, Qnil);
   handlerlist = oldhandlerlist;
   return val;
 }
@@ -1934,7 +1948,7 @@ alist mapping symbols to their value.  */)
   ptrdiff_t count = SPECPDL_INDEX ();
   specbind (Qinternal_interpreter_environment,
 	    CONSP (lexical) || NILP (lexical) ? lexical : list1 (Qt));
-  return unbind_to (count, eval_sub (form));
+  return unbind_to (count, eval_sub (form, Qnil));
 }
 
 /* Grow the specpdl stack by one entry.
@@ -1974,7 +1988,8 @@ grow_specpdl (void)
 }
 
 ptrdiff_t
-record_in_backtrace (Lisp_Object function, Lisp_Object *args, ptrdiff_t nargs)
+record_in_backtrace (Lisp_Object function, Lisp_Object *args, ptrdiff_t nargs,
+                     Lisp_Object form, Lisp_Object pform)
 {
   ptrdiff_t count = SPECPDL_INDEX ();
 
@@ -1984,6 +1999,8 @@ record_in_backtrace (Lisp_Object function, Lisp_Object *args, ptrdiff_t nargs)
   specpdl_ptr->bt.function = function;
   specpdl_ptr->bt.args = args;
   specpdl_ptr->bt.nargs = nargs;
+  specpdl_ptr->bt.form = form;
+  specpdl_ptr->bt.pform = pform;
   grow_specpdl ();
 
   return count;
@@ -1992,7 +2009,7 @@ record_in_backtrace (Lisp_Object function, Lisp_Object *args, ptrdiff_t nargs)
 /* Eval a sub-expression of the current expression (i.e. in the same
    lexical scope).  */
 Lisp_Object
-eval_sub (Lisp_Object form)
+eval_sub (Lisp_Object form, Lisp_Object pform)
 {
   Lisp_Object fun, val, original_fun, original_args;
   Lisp_Object funcar;
@@ -2032,7 +2049,7 @@ eval_sub (Lisp_Object form)
   original_args = XCDR (form);
 
   /* This also protects them from gc.  */
-  count = record_in_backtrace (original_fun, &original_args, UNEVALLED);
+  count = record_in_backtrace (original_fun, &original_args, UNEVALLED, form, pform);
 
   if (debug_on_next_call)
     do_debug_on_call (Qt, count);
@@ -2078,7 +2095,7 @@ eval_sub (Lisp_Object form)
 
 	  while (!NILP (args_left))
 	    {
-	      vals[argnum++] = eval_sub (Fcar (args_left));
+	      vals[argnum++] = eval_sub (Fcar (args_left), args_left);
 	      args_left = Fcdr (args_left);
 	    }
 
@@ -2092,7 +2109,7 @@ eval_sub (Lisp_Object form)
 	  maxargs = XSUBR (fun)->max_args;
 	  for (i = 0; i < maxargs; i++)
 	    {
-	      argvals[i] = eval_sub (Fcar (args_left));
+	      argvals[i] = eval_sub (Fcar (args_left), args_left);
 	      args_left = Fcdr (args_left);
 	    }
 
@@ -2175,7 +2192,7 @@ eval_sub (Lisp_Object form)
 		    NILP (Vinternal_interpreter_environment) ? Qnil : Qt);
 	  exp = apply1 (Fcdr (fun), original_args);
 	  unbind_to (count1, Qnil);
-	  val = eval_sub (exp);
+	  val = eval_sub (exp, Qnil);
 	}
       else if (EQ (funcar, Qlambda)
 	       || EQ (funcar, Qclosure))
@@ -2579,7 +2596,7 @@ usage: (funcall FUNCTION &rest ARGUMENTS)  */)
 	error ("Lisp nesting exceeds `max-lisp-eval-depth'");
     }
 
-  count = record_in_backtrace (args[0], &args[1], nargs - 1);
+  count = record_in_backtrace (args[0], &args[1], nargs - 1, Qnil, Qnil);
 
   maybe_gc ();
 
@@ -2726,8 +2743,9 @@ apply_lambda (Lisp_Object fun, Lisp_Object args, ptrdiff_t count)
 
   for (i = 0; i < numargs; )
     {
-      tem = Fcar (args_left), args_left = Fcdr (args_left);
-      tem = eval_sub (tem);
+      tem = Fcar (args_left);
+      tem = eval_sub (tem, args_left);
+      args_left = Fcdr (args_left);
       arg_vector[i++] = tem;
     }
 
@@ -3403,7 +3421,7 @@ NFRAMES and BASE specify the activation frame to use, as in `backtrace-frame'.  
   /* Use eval_sub rather than Feval since the main motivation behind
      backtrace-eval is to be able to get/set the value of lexical variables
      from the debugger.  */
-  return unbind_to (count, eval_sub (exp));
+  return unbind_to (count, eval_sub (exp, Qnil));
 }
 
 DEFUN ("backtrace--locals", Fbacktrace__locals, Sbacktrace__locals, 1, 2, NULL,
@@ -3489,6 +3507,8 @@ mark_specpdl (void)
 	  {
 	    ptrdiff_t nargs = backtrace_nargs (pdl);
 	    mark_object (backtrace_function (pdl));
+	    mark_object (backtrace_form (pdl));
+	    mark_object (backtrace_pform (pdl));
 	    if (nargs == UNEVALLED)
 	      nargs = 1;
 	    while (nargs--)

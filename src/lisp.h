@@ -2978,6 +2978,8 @@ union specbinding
       Lisp_Object function;
       Lisp_Object *args;
       ptrdiff_t nargs;
+      Lisp_Object form;
+      Lisp_Object pform;
     } bt;
   };
 
@@ -3736,7 +3738,7 @@ extern _Noreturn void xsignal2 (Lisp_Object, Lisp_Object, Lisp_Object);
 extern _Noreturn void xsignal3 (Lisp_Object, Lisp_Object, Lisp_Object,
 				Lisp_Object);
 extern _Noreturn void signal_error (const char *, Lisp_Object);
-extern Lisp_Object eval_sub (Lisp_Object form);
+extern Lisp_Object eval_sub (Lisp_Object form, Lisp_Object pform);
 extern Lisp_Object apply1 (Lisp_Object, Lisp_Object);
 extern Lisp_Object call0 (Lisp_Object);
 extern Lisp_Object call1 (Lisp_Object, Lisp_Object);
@@ -3777,7 +3779,7 @@ extern Lisp_Object safe_call2 (Lisp_Object, Lisp_Object, Lisp_Object);
 extern void init_eval (void);
 extern void syms_of_eval (void);
 extern void unwind_body (Lisp_Object);
-extern ptrdiff_t record_in_backtrace (Lisp_Object, Lisp_Object *, ptrdiff_t);
+extern ptrdiff_t record_in_backtrace (Lisp_Object, Lisp_Object *, ptrdiff_t, Lisp_Object, Lisp_Object);
 extern void mark_specpdl (void);
 extern void get_backtrace (Lisp_Object array);
 Lisp_Object backtrace_top_function (void);
