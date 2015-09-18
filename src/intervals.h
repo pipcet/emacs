@@ -45,6 +45,7 @@ struct interval
   bool_bf up_obj : 1;
 
   bool_bf gcmarkbit : 1;
+  bool_bf gcuncopyable : 1;
 
   /* The remaining components are `properties' of the interval.
      The first four are duplicates for things which can be on the list,

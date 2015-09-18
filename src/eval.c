@@ -523,7 +523,7 @@ usage: (setq [SYM VAL]...)  */)
     {
       Lisp_Object args_left = args;
       struct gcpro gcpro1;
-      GCPRO1 (args);
+      GCPRO1 (args_left);
 
       do
 	{
@@ -915,10 +915,10 @@ usage: (let VARLIST BODY...)  */)
   (Lisp_Object args)
 {
   Lisp_Object *temps, tem, lexenv;
-  register Lisp_Object elt, varlist;
+  Lisp_Object elt, varlist;
   ptrdiff_t count = SPECPDL_INDEX ();
   ptrdiff_t argnum;
-  struct gcpro gcpro1, gcpro2;
+  struct gcpro gcpro1, gcpro2, gcpro3;
   USE_SAFE_ALLOCA;
 
   varlist = XCAR (args);
@@ -929,7 +929,7 @@ usage: (let VARLIST BODY...)  */)
 
   /* Compute the values and store them in `temps'.  */
 
-  GCPRO2 (args, *temps);
+  GCPRO3 (args, *temps, varlist);
   gcpro2.nvars = 0;
 
   for (argnum = 0; CONSP (varlist); varlist = XCDR (varlist))
@@ -1061,7 +1061,11 @@ definitions to shadow the loaded ones for use in file byte-compilation.  */)
 	    break;
 	}
       {
-	Lisp_Object newform = apply1 (expander, XCDR (form));
+        struct gcpro gcpro1;
+	Lisp_Object newform;
+        GCPRO1 (form);
+        newform = apply1 (expander, XCDR (form));
+        UNGCPRO;
 	if (EQ (form, newform))
 	  break;
 	else
@@ -1261,6 +1265,7 @@ internal_lisp_condition_case (volatile Lisp_Object var, Lisp_Object bodyform,
   struct handler *c;
   struct handler *oldhandlerlist = handlerlist;
   int clausenb = 0;
+  struct gcpro gcpro1;
 
   CHECK_SYMBOL (var);
 
@@ -1287,6 +1292,8 @@ internal_lisp_condition_case (volatile Lisp_Object var, Lisp_Object bodyform,
     int i = clausenb;
     for (val = handlers; CONSP (val); val = XCDR (val))
       clauses[--i] = XCAR (val);
+    GCPRO1 (*clauses);
+    gcpro1.nvars = clausenb;
     for (i = 0; i < clausenb; i++)
       {
 	Lisp_Object clause = clauses[i];
@@ -1317,6 +1324,7 @@ internal_lisp_condition_case (volatile Lisp_Object var, Lisp_Object bodyform,
 	       throwing.  */
 	    if (!NILP (var))
 	      unbind_to (count, Qnil);
+            UNGCPRO;
 	    return val;
 	  }
       }
@@ -1324,6 +1332,7 @@ internal_lisp_condition_case (volatile Lisp_Object var, Lisp_Object bodyform,
 
   val = eval_sub (bodyform);
   handlerlist = oldhandlerlist;
+  UNGCPRO;
   return val;
 }
 
@@ -3584,27 +3593,27 @@ mark_specpdl (void)
       switch (pdl->kind)
 	{
 	case SPECPDL_UNWIND:
-	  mark_object (specpdl_arg (pdl));
+	  mark_object (specpdl_arg (pdl), true);
 	  break;
 
 	case SPECPDL_BACKTRACE:
 	  {
 	    ptrdiff_t nargs = backtrace_nargs (pdl);
-	    mark_object (backtrace_function (pdl));
+	    mark_object (backtrace_function (pdl), true);
 	    if (nargs == UNEVALLED)
 	      nargs = 1;
 	    while (nargs--)
-	      mark_object (backtrace_args (pdl)[nargs]);
+	      mark_object (backtrace_args (pdl)[nargs], true);
 	  }
 	  break;
 
 	case SPECPDL_LET_DEFAULT:
 	case SPECPDL_LET_LOCAL:
-	  mark_object (specpdl_where (pdl));
+	  mark_object (specpdl_where (pdl), true);
 	  /* Fall through.  */
 	case SPECPDL_LET:
-	  mark_object (specpdl_symbol (pdl));
-	  mark_object (specpdl_old_value (pdl));
+	  mark_object (specpdl_symbol (pdl), true);
+	  mark_object (specpdl_old_value (pdl), true);
 	  break;
 	}
     }

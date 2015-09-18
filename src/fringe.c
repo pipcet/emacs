@@ -1722,7 +1722,7 @@ mark_fringe_data (void)
 
   for (i = 0; i < max_fringe_bitmaps; i++)
     if (!NILP (fringe_faces[i]))
-      mark_object (fringe_faces[i]);
+      mark_object (fringe_faces[i], true);
 }
 
 /* Initialize this module when Emacs starts.  */

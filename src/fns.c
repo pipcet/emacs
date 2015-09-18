@@ -2504,19 +2504,19 @@ mapcar1 (EMACS_INT leni, Lisp_Object *vals, Lisp_Object fn, Lisp_Object seq)
 {
   Lisp_Object tail, dummy;
   EMACS_INT i;
-  struct gcpro gcpro1, gcpro2, gcpro3;
+  struct gcpro gcpro1, gcpro2, gcpro3, gcpro4;
 
   if (vals)
     {
       /* Don't let vals contain any garbage when GC happens.  */
       memclear (vals, leni * word_size);
 
-      GCPRO3 (dummy, fn, seq);
+      GCPRO4 (dummy, fn, seq, tail);
       gcpro1.var = vals;
       gcpro1.nvars = leni;
     }
   else
-    GCPRO2 (fn, seq);
+    GCPRO3 (fn, seq, tail);
   /* We need not explicitly protect `tail' because it is used only on lists, and
     1) lists are not relocated and 2) the list is marked via `seq' so will not
     be freed */
@@ -4006,6 +4006,9 @@ hash_lookup (struct Lisp_Hash_Table *h, Lisp_Object key, EMACS_UINT *hash)
   EMACS_UINT hash_code;
   ptrdiff_t start_of_bucket;
   Lisp_Object idx;
+  struct gcpro gcpro1;
+
+  GCPRO1(key);
 
   hash_code = h->test.hashfn (&h->test, key);
   eassert ((hash_code & ~INTMASK) == 0);
@@ -4026,6 +4029,8 @@ hash_lookup (struct Lisp_Hash_Table *h, Lisp_Object key, EMACS_UINT *hash)
 	break;
       idx = HASH_NEXT (h, i);
     }
+
+  UNGCPRO;
 
   return NILP (idx) ? -1 : XFASTINT (idx);
 }
@@ -4174,6 +4179,9 @@ sweep_weak_table (struct Lisp_Hash_Table *h, bool remove_entries_p)
 	  bool value_known_to_survive_p = survives_gc_p (HASH_VALUE (h, i));
 	  bool remove_p;
 
+          mark_object (HASH_KEY (h, i), true);
+          mark_object (HASH_VALUE (h, i), true);
+
 	  if (EQ (h->weak, Qkey))
 	    remove_p = !key_known_to_survive_p;
 	  else if (EQ (h->weak, Qvalue))
@@ -4215,18 +4223,18 @@ sweep_weak_table (struct Lisp_Hash_Table *h, bool remove_entries_p)
 	    }
 	  else
 	    {
-	      if (!remove_p)
+	      if (1 || !remove_p)
 		{
 		  /* Make sure key and value survive.  */
 		  if (!key_known_to_survive_p)
 		    {
-		      mark_object (HASH_KEY (h, i));
+		      mark_object (HASH_KEY (h, i), true);
 		      marked = 1;
 		    }
 
 		  if (!value_known_to_survive_p)
 		    {
-		      mark_object (HASH_VALUE (h, i));
+		      mark_object (HASH_VALUE (h, i), true);
 		      marked = 1;
 		    }
 		}

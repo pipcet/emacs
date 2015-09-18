@@ -359,10 +359,10 @@ mark_byte_stack (void)
       eassert (stack->top);
 
       for (obj = stack->bottom; obj <= stack->top; ++obj)
-	mark_object (*obj);
+	*obj = mark_object (*obj, true);
 
-      mark_object (stack->byte_string);
-      mark_object (stack->constants);
+      mark_object (stack->byte_string, true);
+      mark_object (stack->constants, true);
     }
 }
 #endif

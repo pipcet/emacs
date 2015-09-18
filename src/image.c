@@ -1870,11 +1870,11 @@ cache_image (struct frame *f, struct image *img)
 static void
 mark_image (struct image *img)
 {
-  mark_object (img->spec);
-  mark_object (img->dependencies);
+  mark_object (img->spec, true);
+  mark_object (img->dependencies, true);
 
   if (!NILP (img->lisp_data))
-    mark_object (img->lisp_data);
+    mark_object (img->lisp_data, true);
 }
 
 

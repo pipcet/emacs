@@ -333,7 +333,6 @@ error !;
 #define lisp_h_CHECK_TYPE(ok, predicate, x) \
    ((ok) ? (void) 0 : (void) wrong_type_argument (predicate, x))
 #define lisp_h_CONSP(x) (XTYPE (x) == Lisp_Cons)
-#define lisp_h_EQ(x, y) (XLI (x) == XLI (y))
 #define lisp_h_FLOATP(x) (XTYPE (x) == Lisp_Float)
 #define lisp_h_INTEGERP(x) ((XTYPE (x) & (Lisp_Int0 | ~Lisp_Int1)) == Lisp_Int0)
 #define lisp_h_MARKERP(x) (MISCP (x) && XMISCTYPE (x) == Lisp_Misc_Marker)
@@ -346,10 +345,6 @@ error !;
    (eassert ((sym)->redirect == SYMBOL_PLAINVAL), (sym)->val.value)
 #define lisp_h_SYMBOLP(x) (XTYPE (x) == Lisp_Symbol)
 #define lisp_h_VECTORLIKEP(x) (XTYPE (x) == Lisp_Vectorlike)
-#define lisp_h_XCAR(c) XCONS (c)->car
-#define lisp_h_XCDR(c) XCONS (c)->u.cdr
-#define lisp_h_XCONS(a) \
-   (eassert (CONSP (a)), (struct Lisp_Cons *) XUNTAG (a, Lisp_Cons))
 #define lisp_h_XHASH(a) XUINT (a)
 #define lisp_h_XPNTR(a) \
    (SYMBOLP (a) ? XSYMBOL (a) : (void *) ((intptr_t) (XLI (a) & VALMASK)))
@@ -382,7 +377,6 @@ error !;
 # define CHECK_SYMBOL(x) lisp_h_CHECK_SYMBOL (x)
 # define CHECK_TYPE(ok, predicate, x) lisp_h_CHECK_TYPE (ok, predicate, x)
 # define CONSP(x) lisp_h_CONSP (x)
-# define EQ(x, y) lisp_h_EQ (x, y)
 # define FLOATP(x) lisp_h_FLOATP (x)
 # define INTEGERP(x) lisp_h_INTEGERP (x)
 # define MARKERP(x) lisp_h_MARKERP (x)
@@ -393,8 +387,6 @@ error !;
 # define SYMBOL_VAL(sym) lisp_h_SYMBOL_VAL (sym)
 # define SYMBOLP(x) lisp_h_SYMBOLP (x)
 # define VECTORLIKEP(x) lisp_h_VECTORLIKEP (x)
-# define XCAR(c) lisp_h_XCAR (c)
-# define XCDR(c) lisp_h_XCDR (c)
 # define XCONS(a) lisp_h_XCONS (a)
 # define XHASH(a) lisp_h_XHASH (a)
 # define XPNTR(a) lisp_h_XPNTR (a)
@@ -651,6 +643,7 @@ enum symbol_redirect
 struct Lisp_Symbol
 {
   bool_bf gcmarkbit : 1;
+  bool_bf gcuncopyable : 1;
 
   /* Indicates where the value can be found:
      0 : it's a plain var, the value is in the `value' field.
@@ -941,9 +934,6 @@ make_natnum (EMACS_INT n)
   return USE_LSB_TAG ? make_number (n) : XIL (n + (int0 << VALBITS));
 }
 
-/* Return true if X and Y are the same object.  */
-LISP_MACRO_DEFUN (EQ, bool, (Lisp_Object x, Lisp_Object y), (x, y))
-
 /* Value is true if I doesn't fit into a Lisp fixnum.  It is
    written this way so that it also works if I is of unsigned
    type or if I is a NaN.  */
@@ -958,9 +948,8 @@ clip_to_bounds (ptrdiff_t lower, EMACS_INT num, ptrdiff_t upper)
 }
 
 
-/* Extract a value or address from a Lisp_Object.  */
 
-LISP_MACRO_DEFUN (XCONS, struct Lisp_Cons *, (Lisp_Object a), (a))
+/* Extract a value or address from a Lisp_Object.  */
 
 INLINE struct Lisp_Vector *
 XVECTOR (Lisp_Object a)
@@ -1078,6 +1067,14 @@ builtin_lisp_symbol (int index)
 #define XSETFLOAT(a, b) ((a) = make_lisp_ptr (b, Lisp_Float))
 #define XSETMISC(a, b) ((a) = make_lisp_ptr (b, Lisp_Misc))
 
+INLINE bool
+EQ (Lisp_Object a, Lisp_Object b);
+
+INLINE struct Lisp_Cons *
+XCONS (Lisp_Object a);
+
+INLINE struct Lisp_Cons *
+XXCONS (Lisp_Object a);
 /* Pseudovector types.  */
 
 #define XSETPVECTYPE(v, code)						\
@@ -1153,8 +1150,24 @@ struct GCALIGNED Lisp_Cons
 
       /* Used to chain conses on a free list.  */
       struct Lisp_Cons *chain;
+
+      /* cons cell that this cons is being replaced by */
+      struct Lisp_Cons *successor;
     } u;
   };
+
+INLINE Lisp_Object
+XFOLLOW (Lisp_Object c)
+{
+  volatile struct Lisp_Cons cons;
+  if (CONSP (c))
+    {
+      XSETCONS (c, XCONS (c));
+      cons = *XCONS (c);
+      *XCONS (c) = cons;
+    }
+  return c;
+}
 
 /* Take the car or cdr of something known to be a cons cell.  */
 /* The _addr functions shouldn't be used outside of the minimal set
@@ -1163,20 +1176,24 @@ struct GCALIGNED Lisp_Cons
    fields are not accessible.  (What if we want to switch to
    a copying collector someday?  Cached cons cell field addresses may be
    invalidated at arbitrary points.)  */
-INLINE Lisp_Object *
-xcar_addr (Lisp_Object c)
-{
-  return &XCONS (c)->car;
-}
-INLINE Lisp_Object *
-xcdr_addr (Lisp_Object c)
-{
-  return &XCONS (c)->u.cdr;
-}
 
 /* Use these from normal code.  */
-LISP_MACRO_DEFUN (XCAR, Lisp_Object, (Lisp_Object c), (c))
-LISP_MACRO_DEFUN (XCDR, Lisp_Object, (Lisp_Object c), (c))
+INLINE Lisp_Object
+XCAR (Lisp_Object c)
+{
+  struct Lisp_Cons *cons = XCONS (c);
+
+  return XFOLLOW (cons->car);
+}
+
+INLINE Lisp_Object
+XCDR (Lisp_Object c)
+{
+  struct Lisp_Cons *cons = XCONS (c);
+
+  return XFOLLOW (cons->u.cdr);
+
+}
 
 /* Use these to set the fields of a cons cell.
 
@@ -1185,12 +1202,23 @@ LISP_MACRO_DEFUN (XCDR, Lisp_Object, (Lisp_Object c), (c))
 INLINE void
 XSETCAR (Lisp_Object c, Lisp_Object n)
 {
-  *xcar_addr (c) = n;
+  XCONS (c)->car = XFOLLOW (n);
 }
 INLINE void
 XSETCDR (Lisp_Object c, Lisp_Object n)
 {
-  *xcdr_addr (c) = n;
+  XCONS (c)->u.cdr = XFOLLOW (n);
+}
+
+INLINE void
+XXSETCAR (Lisp_Object c, Lisp_Object n)
+{
+  XXCONS (c)->car = n;
+}
+INLINE void
+XXSETCDR (Lisp_Object c, Lisp_Object n)
+{
+  XXCONS (c)->u.cdr = n;
 }
 
 /* Take the car or cdr of something whose type is not known.  */
@@ -1965,14 +1993,16 @@ struct Lisp_Misc_Any		/* Supertype of all Misc types.  */
 {
   ENUM_BF (Lisp_Misc_Type) type : 16;		/* = Lisp_Misc_??? */
   bool_bf gcmarkbit : 1;
-  unsigned spacer : 15;
+  bool_bf gcuncopyable : 1;
+  unsigned spacer : 14;
 };
 
 struct Lisp_Marker
 {
   ENUM_BF (Lisp_Misc_Type) type : 16;		/* = Lisp_Misc_Marker */
   bool_bf gcmarkbit : 1;
-  unsigned spacer : 13;
+  bool_bf gcuncopyable : 1;
+  unsigned spacer : 12;
   /* This flag is temporarily used in the functions
      decode/encode_coding_object to record that the marker position
      must be adjusted after the conversion.  */
@@ -2026,7 +2056,8 @@ struct Lisp_Overlay
   {
     ENUM_BF (Lisp_Misc_Type) type : 16;	/* = Lisp_Misc_Overlay */
     bool_bf gcmarkbit : 1;
-    unsigned spacer : 15;
+    bool_bf gcuncopyable : 1;
+    unsigned spacer : 14;
     struct Lisp_Overlay *next;
     Lisp_Object start;
     Lisp_Object end;
@@ -2104,7 +2135,8 @@ struct Lisp_Save_Value
   {
     ENUM_BF (Lisp_Misc_Type) type : 16;	/* = Lisp_Misc_Save_Value */
     bool_bf gcmarkbit : 1;
-    unsigned spacer : 32 - (16 + 1 + SAVE_TYPE_BITS);
+    bool_bf gcuncopyable : 1;
+    unsigned spacer : 32 - (16 + 2 + SAVE_TYPE_BITS);
 
     /* V->data may hold up to SAVE_VALUE_SLOTS entries.  The type of
        V's data entries are determined by V->save_type.  E.g., if
@@ -2195,7 +2227,8 @@ struct Lisp_Free
   {
     ENUM_BF (Lisp_Misc_Type) type : 16;	/* = Lisp_Misc_Free */
     bool_bf gcmarkbit : 1;
-    unsigned spacer : 15;
+    bool_bf gcuncopyable : 1;
+    unsigned spacer : 14;
     union Lisp_Misc *chain;
   };
 
@@ -3132,6 +3165,7 @@ struct gcpro
   /* Number of consecutive protected variables.  */
   ptrdiff_t nvars;
 
+#define DEBUG_GCPRO 1
 #ifdef DEBUG_GCPRO
   /* File name where this record is used.  */
   const char *name;
@@ -3167,7 +3201,7 @@ struct gcpro
 #define GC_USE_GCPROS_CHECK_ZOMBIES	3
 
 #ifndef GC_MARK_STACK
-#define GC_MARK_STACK GC_MAKE_GCPROS_NOOPS
+#define GC_MARK_STACK GC_USE_GCPROS_AS_BEFORE
 #endif
 
 /* Whether we do the stack marking manually.  */
@@ -3714,7 +3748,7 @@ extern void malloc_warning (const char *);
 extern _Noreturn void memory_full (size_t);
 extern _Noreturn void buffer_memory_full (ptrdiff_t);
 extern bool survives_gc_p (Lisp_Object);
-extern void mark_object (Lisp_Object);
+extern Lisp_Object mark_object (Lisp_Object, bool);
 #if defined REL_ALLOC && !defined SYSTEM_MALLOC && !defined HYBRID_MALLOC
 extern void refill_memory_reserve (void);
 #endif
@@ -4816,6 +4850,82 @@ functionp (Lisp_Object object)
     }
   else
     return false;
+}
+
+#include <stdio.h>
+
+extern bool phase_of_the_moon;
+
+#define EIGHT ((void *)8)
+
+INLINE struct Lisp_Cons *
+XCONS (Lisp_Object a)
+{
+  struct Lisp_Cons *cons;
+  eassert (CONSP (a));
+  cons = XUNTAG (a, Lisp_Cons);
+
+  if (CONSP (cons->car) &&
+      (XUNTAG (cons->car, Lisp_Cons) == NULL ||
+       XUNTAG (cons->car, Lisp_Cons) == EIGHT))
+    {
+      if (phase_of_the_moon ^ (XUNTAG (cons->car, Lisp_Cons) == NULL))
+        {
+          if (0) fprintf(stderr, "phase mismatch\n");
+        }
+      else
+        {
+          fprintf(stderr, "phase mismatch\n");
+        }
+      eassert (CONSP (cons->u.cdr));
+      if (cons->u.cdr == a)
+        {
+          *(int *)0 = 0;
+        }
+      if (XXCONS ((((unsigned long)cons->u.cdr) ^ 0xdeadbeefdeadbeefUL)) !=
+          XCONS ((((unsigned long)cons->u.cdr) ^ 0xdeadbeefdeadbeefUL)))
+        emacs_abort();
+
+      return XCONS ((((unsigned long)cons->u.cdr) ^ 0xdeadbeefdeadbeefUL));
+    }
+
+  return cons;
+}
+
+INLINE bool
+EQ (Lisp_Object a, Lisp_Object b)
+{
+  struct Lisp_Cons *ac;
+  struct Lisp_Cons *bc;
+
+  if (CONSP (a))
+    {
+      XSETCONS (a, XCONS (a));
+    }
+
+  if (CONSP (b))
+    {
+      XSETCONS (b, XCONS (b));
+    }
+
+
+  return a == b;
+}
+
+INLINE Lisp_Object *
+xcdr_addr (Lisp_Object c)
+{
+  return &XCONS (c)->u.cdr;
+}
+
+INLINE struct Lisp_Cons *
+XXCONS (Lisp_Object a)
+{
+  struct Lisp_Cons *cons;
+  eassert (CONSP (a));
+  cons = XUNTAG (a, Lisp_Cons);
+
+  return cons;
 }
 
 INLINE_HEADER_END

@@ -11956,24 +11956,24 @@ mark_kboards (void)
     {
       if (kb->kbd_macro_buffer)
 	for (p = kb->kbd_macro_buffer; p < kb->kbd_macro_ptr; p++)
-	  mark_object (*p);
-      mark_object (KVAR (kb, Voverriding_terminal_local_map));
-      mark_object (KVAR (kb, Vlast_command));
-      mark_object (KVAR (kb, Vreal_last_command));
-      mark_object (KVAR (kb, Vkeyboard_translate_table));
-      mark_object (KVAR (kb, Vlast_repeatable_command));
-      mark_object (KVAR (kb, Vprefix_arg));
-      mark_object (KVAR (kb, Vlast_prefix_arg));
-      mark_object (KVAR (kb, kbd_queue));
-      mark_object (KVAR (kb, defining_kbd_macro));
-      mark_object (KVAR (kb, Vlast_kbd_macro));
-      mark_object (KVAR (kb, Vsystem_key_alist));
-      mark_object (KVAR (kb, system_key_syms));
-      mark_object (KVAR (kb, Vwindow_system));
-      mark_object (KVAR (kb, Vinput_decode_map));
-      mark_object (KVAR (kb, Vlocal_function_key_map));
-      mark_object (KVAR (kb, Vdefault_minibuffer_frame));
-      mark_object (KVAR (kb, echo_string));
+	  *p = mark_object (*p, false);
+      mark_object (KVAR (kb, Voverriding_terminal_local_map), true);
+      mark_object (KVAR (kb, Vlast_command), true);
+      mark_object (KVAR (kb, Vreal_last_command), true);
+      mark_object (KVAR (kb, Vkeyboard_translate_table), true);
+      mark_object (KVAR (kb, Vlast_repeatable_command), true);
+      mark_object (KVAR (kb, Vprefix_arg), true);
+      mark_object (KVAR (kb, Vlast_prefix_arg), true);
+      mark_object (KVAR (kb, kbd_queue), true);
+      mark_object (KVAR (kb, defining_kbd_macro), true);
+      mark_object (KVAR (kb, Vlast_kbd_macro), true);
+      mark_object (KVAR (kb, Vsystem_key_alist), true);
+      mark_object (KVAR (kb, system_key_syms), true);
+      mark_object (KVAR (kb, Vwindow_system), true);
+      mark_object (KVAR (kb, Vinput_decode_map), true);
+      mark_object (KVAR (kb, Vlocal_function_key_map), true);
+      mark_object (KVAR (kb, Vdefault_minibuffer_frame), true);
+      mark_object (KVAR (kb, echo_string), true);
     }
   {
     union buffered_input_event *event;
@@ -11985,10 +11985,10 @@ mark_kboards (void)
 	if (event->kind != SELECTION_REQUEST_EVENT
 	    && event->kind != SELECTION_CLEAR_EVENT)
 	  {
-	    mark_object (event->ie.x);
-	    mark_object (event->ie.y);
-	    mark_object (event->ie.frame_or_window);
-	    mark_object (event->ie.arg);
+	    mark_object (event->ie.x, true);
+	    mark_object (event->ie.y, true);
+	    mark_object (event->ie.frame_or_window, true);
+	    mark_object (event->ie.arg, true);
 	  }
       }
   }

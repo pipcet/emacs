@@ -1321,6 +1321,7 @@ make_interval (void)
   total_free_intervals--;
   RESET_INTERVAL (val);
   val->gcmarkbit = 0;
+  val->gcuncopyable = 0;
   return val;
 }
 
@@ -1334,7 +1335,7 @@ mark_interval (register INTERVAL i, Lisp_Object dummy)
      enabled, GC aborts if it seems to have visited an interval twice.  */
   eassert (!i->gcmarkbit);
   i->gcmarkbit = 1;
-  mark_object (i->plist);
+  mark_object (i->plist, true);
 }
 
 /* Mark the interval tree rooted in I.  */
@@ -2349,7 +2350,7 @@ make_formatted_string (char *buf, const char *format, ...)
   (((BLOCK_BYTES - sizeof (struct float_block *)		\
      /* The compiler might add padding at the end.  */		\
      - (sizeof (struct Lisp_Float) - sizeof (bits_word))) * CHAR_BIT) \
-   / (sizeof (struct Lisp_Float) * CHAR_BIT + 1))
+   / (sizeof (struct Lisp_Float) * CHAR_BIT + 2))
 
 #define GETMARKBIT(block,n)				\
   (((block)->gcmarkbits[(n) / BITS_PER_BITS_WORD]	\
@@ -2364,6 +2365,19 @@ make_formatted_string (char *buf, const char *format, ...)
   ((block)->gcmarkbits[(n) / BITS_PER_BITS_WORD]	\
    &= ~((bits_word) 1 << ((n) % BITS_PER_BITS_WORD)))
 
+#define GETMARKUNCOPYABLE(block,n)				\
+  (((block)->gcuncopyable[(n) / BITS_PER_BITS_WORD]	\
+    >> ((n) % BITS_PER_BITS_WORD))			\
+   & 1)
+
+#define SETMARKUNCOPYABLE(block,n)				\
+  ((block)->gcuncopyable[(n) / BITS_PER_BITS_WORD]	\
+   |= (bits_word) 1 << ((n) % BITS_PER_BITS_WORD))
+
+#define UNSETMARKUNCOPYABLE(block,n)				\
+  ((block)->gcuncopyable[(n) / BITS_PER_BITS_WORD]	\
+   &= ~((bits_word) 1 << ((n) % BITS_PER_BITS_WORD)))
+
 #define FLOAT_BLOCK(fptr) \
   ((struct float_block *) (((uintptr_t) (fptr)) & ~(BLOCK_ALIGN - 1)))
 
@@ -2375,6 +2389,7 @@ struct float_block
   /* Place `floats' at the beginning, to ease up FLOAT_INDEX's job.  */
   struct Lisp_Float floats[FLOAT_BLOCK_SIZE];
   bits_word gcmarkbits[1 + FLOAT_BLOCK_SIZE / BITS_PER_BITS_WORD];
+  bits_word gcuncopyable[1 + FLOAT_BLOCK_SIZE / BITS_PER_BITS_WORD];
   struct float_block *next;
 };
 
@@ -2423,6 +2438,7 @@ make_float (double float_value)
 	    = lisp_align_malloc (sizeof *new, MEM_TYPE_FLOAT);
 	  new->next = float_block;
 	  memset (new->gcmarkbits, 0, sizeof new->gcmarkbits);
+	  memset (new->gcuncopyable, 0, sizeof new->gcuncopyable);
 	  float_block = new;
 	  float_block_index = 0;
 	  total_free_floats += FLOAT_BLOCK_SIZE;
@@ -2456,7 +2472,7 @@ make_float (double float_value)
   (((BLOCK_BYTES - sizeof (struct cons_block *)			\
      /* The compiler might add padding at the end.  */		\
      - (sizeof (struct Lisp_Cons) - sizeof (bits_word))) * CHAR_BIT)	\
-   / (sizeof (struct Lisp_Cons) * CHAR_BIT + 1))
+   / (sizeof (struct Lisp_Cons) * CHAR_BIT + 2))
 
 #define CONS_BLOCK(fptr) \
   ((struct cons_block *) ((uintptr_t) (fptr) & ~(BLOCK_ALIGN - 1)))
@@ -2469,6 +2485,7 @@ struct cons_block
   /* Place `conses' at the beginning, to ease up CONS_INDEX's job.  */
   struct Lisp_Cons conses[CONS_BLOCK_SIZE];
   bits_word gcmarkbits[1 + CONS_BLOCK_SIZE / BITS_PER_BITS_WORD];
+  bits_word gcuncopyable[1 + CONS_BLOCK_SIZE / BITS_PER_BITS_WORD];
   struct cons_block *next;
 };
 
@@ -2480,6 +2497,15 @@ struct cons_block
 
 #define CONS_UNMARK(fptr) \
   UNSETMARKBIT (CONS_BLOCK (fptr), CONS_INDEX ((fptr)))
+
+#define CONS_MARKED_UNCOPYABLE_P(fptr) \
+  GETMARKUNCOPYABLE (CONS_BLOCK (fptr), CONS_INDEX ((fptr)))
+
+#define CONS_MARK_UNCOPYABLE(fptr) \
+  SETMARKUNCOPYABLE (CONS_BLOCK (fptr), CONS_INDEX ((fptr)))
+
+#define CONS_UNMARK_UNCOPYABLE(fptr) \
+  UNSETMARKUNCOPYABLE (CONS_BLOCK (fptr), CONS_INDEX ((fptr)))
 
 /* Current cons_block.  */
 
@@ -2498,7 +2524,10 @@ static struct Lisp_Cons *cons_free_list;
 void
 free_cons (struct Lisp_Cons *ptr)
 {
+  return;
+
   ptr->u.chain = cons_free_list;
+  ptr->car = 0;
 #if GC_MARK_STACK
   ptr->car = Vdead;
 #endif
@@ -2528,7 +2557,10 @@ DEFUN ("cons", Fcons, Scons, 2, 2, 0,
 	{
 	  struct cons_block *new
 	    = lisp_align_malloc (sizeof *new, MEM_TYPE_CONS);
+          fprintf (stderr, "cons_block %p\n", new);
+          memset (new, 0, sizeof *new);
 	  memset (new->gcmarkbits, 0, sizeof new->gcmarkbits);
+	  memset (new->gcuncopyable, 0, sizeof new->gcuncopyable);
 	  new->next = cons_block;
 	  cons_block = new;
 	  cons_block_index = 0;
@@ -2540,8 +2572,12 @@ DEFUN ("cons", Fcons, Scons, 2, 2, 0,
 
   MALLOC_UNBLOCK_INPUT;
 
-  XSETCAR (val, car);
-  XSETCDR (val, cdr);
+  XXSETCAR (val, car);
+  if (car == 3 || car == 11)
+    {
+      fprintf(stderr, "car %d at %d (%d)\n", car, val, phase_of_the_moon);
+    }
+  XXSETCDR (val, cdr);
   eassert (!CONS_MARKED_P (XCONS (val)));
   consing_since_gc += sizeof (struct Lisp_Cons);
   total_free_conses--;
@@ -3352,6 +3388,7 @@ init_symbol (Lisp_Object val, Lisp_Object name)
   set_symbol_function (val, Qnil);
   set_symbol_next (val, NULL);
   p->gcmarkbit = false;
+  p->gcuncopyable = false;
   p->interned = SYMBOL_UNINTERNED;
   p->constant = 0;
   p->declared_special = false;
@@ -3380,6 +3417,7 @@ Its value is void, and its function definition and property list are nil.  */)
 	{
 	  struct symbol_block *new
 	    = lisp_malloc (sizeof *new, MEM_TYPE_SYMBOL);
+          fprintf(stderr, "symbol block %p\n", new);
 	  new->next = symbol_block;
 	  symbol_block = new;
 	  symbol_block_index = 0;
@@ -3467,6 +3505,7 @@ allocate_misc (enum Lisp_Misc_Type type)
   misc_objects_consed++;
   XMISCANY (val)->type = type;
   XMISCANY (val)->gcmarkbit = 0;
+  XMISCANY (val)->gcuncopyable = 0;
   return val;
 }
 
@@ -3736,7 +3775,8 @@ mark_finalizer_list (struct Lisp_Finalizer *head)
        finalizer = finalizer->next)
     {
       finalizer->base.gcmarkbit = true;
-      mark_object (finalizer->function);
+      finalizer->base.gcuncopyable = true;
+      mark_object (finalizer->function, true);
     }
 }
 
@@ -4550,7 +4590,7 @@ DEFUN ("gc-status", Fgc_status, Sgc_status, 0, 0, "",
 /* Mark OBJ if we can prove it's a Lisp_Object.  */
 
 static void
-mark_maybe_object (Lisp_Object obj)
+mark_maybe_object (Lisp_Object obj, bool uncopyable)
 {
   void *po;
   struct mem_node *m;
@@ -4578,7 +4618,14 @@ mark_maybe_object (Lisp_Object obj)
 	  break;
 
 	case Lisp_Cons:
-	  mark_p = (live_cons_p (m, po) && !CONS_MARKED_P (XCONS (obj)));
+	  mark_p = (live_cons_p (m, po) &&
+                    (!CONS_MARKED_P (XCONS (obj)) ||
+                     (uncopyable &&
+                      !CONS_MARKED_UNCOPYABLE_P (XCONS (obj)))));
+          if (uncopyable && XCONS (obj) != XXCONS (obj))
+            {
+              *(int *)0 = 0;
+            }
 	  break;
 
 	case Lisp_Symbol:
@@ -4614,7 +4661,7 @@ mark_maybe_object (Lisp_Object obj)
 	    zombies[nzombies] = obj;
 	  ++nzombies;
 #endif
-	  mark_object (obj);
+	  mark_object (obj, uncopyable);
 	}
     }
 }
@@ -4633,7 +4680,7 @@ maybe_lisp_pointer (void *p)
    marked.  */
 
 static void
-mark_maybe_pointer (void *p)
+mark_maybe_pointer (void *p, bool uncopyable)
 {
   struct mem_node *m;
 
@@ -4663,7 +4710,9 @@ mark_maybe_pointer (void *p)
 	  break;
 
 	case MEM_TYPE_CONS:
-	  if (live_cons_p (m, p) && !CONS_MARKED_P ((struct Lisp_Cons *) p))
+	  if (live_cons_p (m, p) &&
+              (!CONS_MARKED_P ((struct Lisp_Cons *) p) ||
+               uncopyable && !CONS_MARKED_UNCOPYABLE_P ((struct Lisp_Cons *)p)))
 	    XSETCONS (obj, p);
 	  break;
 
@@ -4704,7 +4753,7 @@ mark_maybe_pointer (void *p)
 	}
 
       if (!NILP (obj))
-	mark_object (obj);
+	mark_object (obj, uncopyable);
     }
 }
 
@@ -4718,7 +4767,7 @@ mark_maybe_pointer (void *p)
    or END+OFFSET..START.  */
 
 static void ATTRIBUTE_NO_SANITIZE_ADDRESS
-mark_memory (void *start, void *end)
+mark_memory (void *start, void *end, bool uncopyable)
 {
   void **pp;
   int i;
@@ -4758,8 +4807,8 @@ mark_memory (void *start, void *end)
     for (i = 0; i < sizeof *pp; i += GC_POINTER_ALIGNMENT)
       {
 	void *p = *(void **) ((char *) pp + i);
-	mark_maybe_pointer (p);
-	mark_maybe_object (XIL ((intptr_t) p));
+	mark_maybe_pointer (p, uncopyable);
+	mark_maybe_object (XIL ((intptr_t) p), uncopyable);
       }
 }
 
@@ -4934,11 +4983,12 @@ dump_zombies (void)
 static void
 mark_stack (void *end)
 {
+  *(int *)0 = 0;
 
   /* This assumes that the stack is a contiguous region in memory.  If
      that's not the case, something has to be done here to iterate
      over the stack segments.  */
-  mark_memory (stack_base, end);
+  mark_memory (stack_base, end, false);
 
   /* Allow for marking a secondary stack, like the register stack on the
      ia64.  */
@@ -5520,7 +5570,7 @@ compact_font_caches (void)
 	    XSETCAR (entry, compact_font_cache_entry (XCAR (entry)));
 	}
 #endif /* not HAVE_NTGUI */
-      mark_object (cache);
+      mark_object (cache, true);
     }
 }
 
@@ -5562,11 +5612,13 @@ mark_pinned_symbols (void)
       union aligned_Lisp_Symbol *sym = sblk->symbols, *end = sym + lim;
       for (; sym < end; ++sym)
 	if (sym->s.pinned)
-	  mark_object (make_lisp_symbol (&sym->s));
+	  mark_object (make_lisp_symbol (&sym->s), true);
 
       lim = SYMBOL_BLOCK_SIZE;
     }
 }
+
+bool phase_of_the_moon;
 
 /* Subroutine of Fgarbage_collect that does most of the work.  It is a
    separate function so that we could limit mark_stack in searching
@@ -5661,10 +5713,10 @@ garbage_collect_1 (void *end)
   mark_buffer (&buffer_local_symbols);
 
   for (i = 0; i < ARRAYELTS (lispsym); i++)
-    mark_object (builtin_lisp_symbol (i));
+    mark_object (builtin_lisp_symbol (i), true);
 
   for (i = 0; i < staticidx; i++)
-    mark_object (*staticvec[i]);
+    mark_object (*staticvec[i], true);
 
   mark_pinned_symbols ();
   mark_specpdl ();
@@ -5677,13 +5729,19 @@ garbage_collect_1 (void *end)
 
 #if (GC_MARK_STACK == GC_MAKE_GCPROS_NOOPS \
      || GC_MARK_STACK == GC_MARK_STACK_CHECK_GCPROS)
+#error no no no
   mark_stack (end);
 #else
   {
     register struct gcpro *tail;
     for (tail = gcprolist; tail; tail = tail->next)
-      for (i = 0; i < tail->nvars; i++)
-	mark_object (tail->var[i]);
+      for (i = 0; i < tail->nvars; i++) {
+        Lisp_Object oldval = tail->var[i];
+        Lisp_Object newval = mark_object (oldval, false);
+        fprintf(stderr, "gcpro %d -> %d at %p\n", oldval, newval, &tail->var[i]);
+        tail->var[i] = newval;
+	//tail->var[i] = mark_object (tail->var[i], false);
+      }
   }
   mark_byte_stack ();
 #endif
@@ -5691,8 +5749,8 @@ garbage_collect_1 (void *end)
     struct handler *handler;
     for (handler = handlerlist; handler; handler = handler->next)
       {
-	mark_object (handler->tag_or_ch);
-	mark_object (handler->val);
+	mark_object (handler->tag_or_ch, true);
+	mark_object (handler->val, true);
       }
   }
 #ifdef HAVE_WINDOW_SYSTEM
@@ -5715,7 +5773,7 @@ garbage_collect_1 (void *end)
 	bset_undo_list (nextb, compact_undo_list (BVAR (nextb, undo_list)));
       /* Now that we have stripped the elements that need not be
 	 in the undo_list any more, we can finally mark the list.  */
-      mark_object (BVAR (nextb, undo_list));
+      mark_object (BVAR (nextb, undo_list), true);
     }
 
   /* Now pre-sweep finalizers.  Here, we add any unmarked finalizers
@@ -5964,7 +6022,7 @@ mark_glyph_matrix (struct glyph_matrix *matrix)
 	    for (; glyph < end_glyph; ++glyph)
 	      if (STRINGP (glyph->object)
 		  && !STRING_MARKED_P (XSTRING (glyph->object)))
-		mark_object (glyph->object);
+		mark_object (glyph->object, true);
 	  }
       }
 }
@@ -5999,7 +6057,7 @@ mark_vectorlike (struct Lisp_Vector *ptr)
      The distinction is used e.g. by Lisp_Process which places extra
      non-Lisp_Object fields at the end of the structure...  */
   for (i = 0; i < size; i++) /* ...and then mark its elements.  */
-    mark_object (ptr->contents[i]);
+    mark_object (ptr->contents[i], true);
 }
 
 /* Like mark_vectorlike but optimized for char-tables (and
@@ -6027,7 +6085,7 @@ mark_char_table (struct Lisp_Vector *ptr, enum pvec_type pvectype)
 	    mark_char_table (XVECTOR (val), PVEC_SUB_CHAR_TABLE);
 	}
       else
-	mark_object (val);
+	mark_object (val, true);
     }
 }
 
@@ -6040,7 +6098,7 @@ mark_compiled (struct Lisp_Vector *ptr)
   VECTOR_MARK (ptr);
   for (i = 0; i < size; i++)
     if (i != COMPILED_CONSTANTS)
-      mark_object (ptr->contents[i]);
+      mark_object (ptr->contents[i], true);
   return size > COMPILED_CONSTANTS ? ptr->contents[COMPILED_CONSTANTS] : Qnil;
 }
 
@@ -6055,7 +6113,7 @@ mark_overlay (struct Lisp_Overlay *ptr)
       /* These two are always markers and can be marked fast.  */
       XMARKER (ptr->start)->gcmarkbit = 1;
       XMARKER (ptr->end)->gcmarkbit = 1;
-      mark_object (ptr->plist);
+      mark_object (ptr->plist, true);
     }
 }
 
@@ -6102,7 +6160,7 @@ mark_face_cache (struct face_cache *c)
 		mark_vectorlike ((struct Lisp_Vector *) face->font);
 
 	      for (j = 0; j < LFACE_VECTOR_SIZE; ++j)
-		mark_object (face->lface[j]);
+		mark_object (face->lface[j], true);
 	    }
 	}
     }
@@ -6121,9 +6179,9 @@ mark_localized_symbol (struct Lisp_Symbol *ptr)
   if ((BUFFERP (where) && !BUFFER_LIVE_P (XBUFFER (where)))
       || (FRAMEP (where) && !FRAME_LIVE_P (XFRAME (where))))
     swap_in_global_binding (ptr);
-  mark_object (blv->where);
-  mark_object (blv->valcell);
-  mark_object (blv->defcell);
+  mark_object (blv->where, true);
+  mark_object (blv->valcell, true);
+  mark_object (blv->defcell, true);
 }
 
 NO_INLINE /* To reduce stack depth in mark_object.  */
@@ -6146,7 +6204,7 @@ mark_save_value (struct Lisp_Save_Value *ptr)
       int i;
       for (i = 0; i < SAVE_VALUE_SLOTS; i++)
 	if (save_type (ptr, i) == SAVE_OBJECT)
-	  mark_object (ptr->data[i].object);
+	  mark_object (ptr->data[i].object, true);
     }
 }
 
@@ -6169,13 +6227,58 @@ mark_discard_killed_buffers (Lisp_Object list)
       else
 	{
 	  CONS_MARK (XCONS (tail));
-	  mark_object (XCAR (tail));
+	  CONS_MARK_UNCOPYABLE (XCONS (tail));
+	  mark_object (XCAR (tail), true);
 	  prev = xcdr_addr (tail);
 	}
     }
-  mark_object (tail);
+  mark_object (tail, true);
   return list;
 }
+
+struct Lisp_Cons *
+XCONS2 (Lisp_Object a)
+{
+  struct Lisp_Cons *cons;
+  eassert (CONSP (a));
+  cons = XUNTAG (a, Lisp_Cons);
+
+  if (CONSP (cons->car) &&
+      (XUNTAG (cons->car, Lisp_Cons) == NULL ||
+       XUNTAG (cons->car, Lisp_Cons) == EIGHT))
+    {
+      eassert (CONSP (cons->u.cdr));
+      if (cons->u.cdr == a)
+        {
+          *(int *)0 = 0;
+        }
+      return XCONS2 ((((unsigned long)cons->u.cdr) ^ 0xdeadbeefdeadbeefUL));
+    }
+
+  return cons;
+}
+
+bool
+EQ2 (Lisp_Object a, Lisp_Object b)
+{
+  struct Lisp_Cons *ac;
+  struct Lisp_Cons *bc;
+
+  if (CONSP (a))
+    {
+      XSETCONS (a, XCONS2 (a));
+    }
+
+  if (CONSP (b))
+    {
+      XSETCONS (b, XCONS2 (b));
+    }
+
+
+  return a == b;
+}
+
+
 
 /* Determine type of generic Lisp_Object and mark it accordingly.
 
@@ -6185,22 +6288,21 @@ mark_discard_killed_buffers (Lisp_Object list)
    a few cold paths are moved out to NO_INLINE functions above.
    In general, inlining them doesn't help you to gain more speed.  */
 
-void
-mark_object (Lisp_Object arg)
+Lisp_Object
+mark_object (Lisp_Object arg, bool uncopyable)
 {
-  register Lisp_Object obj;
+  Lisp_Object obj;
   void *po;
 #ifdef GC_CHECK_MARKED_OBJECTS
   struct mem_node *m;
 #endif
-  ptrdiff_t cdr_count = 0;
 
   obj = arg;
  loop:
 
   po = XPNTR (obj);
   if (PURE_POINTER_P (po))
-    return;
+    return arg;
 
   last_marked[last_marked_index++] = obj;
   if (last_marked_index == LAST_MARKED_SIZE)
@@ -6257,7 +6359,7 @@ mark_object (Lisp_Object arg)
     {
     case Lisp_String:
       {
-	register struct Lisp_String *ptr = XSTRING (obj);
+	struct Lisp_String *ptr = XSTRING (obj);
 	if (STRING_MARKED_P (ptr))
 	  break;
 	CHECK_ALLOCATED_AND_LIVE (live_string_p);
@@ -6273,8 +6375,8 @@ mark_object (Lisp_Object arg)
 
     case Lisp_Vectorlike:
       {
-	register struct Lisp_Vector *ptr = XVECTOR (obj);
-	register ptrdiff_t pvectype;
+	struct Lisp_Vector *ptr = XVECTOR (obj);
+	ptrdiff_t pvectype;
 
 	if (VECTOR_MARKED_P (ptr))
 	  break;
@@ -6315,9 +6417,7 @@ mark_object (Lisp_Object arg)
 	       returns the COMPILED_CONSTANTS element, which is marked at the
 	       next iteration of goto-loop here.  This is done to avoid a few
 	       recursive calls to mark_object.  */
-	    obj = mark_compiled (ptr);
-	    if (!NILP (obj))
-	      goto loop;
+	    mark_object (mark_compiled (ptr) ? : obj, true);
 	    break;
 
 	  case PVEC_FRAME:
@@ -6369,13 +6469,13 @@ mark_object (Lisp_Object arg)
 	      struct Lisp_Hash_Table *h = (struct Lisp_Hash_Table *) ptr;
 
 	      mark_vectorlike (ptr);
-	      mark_object (h->test.name);
-	      mark_object (h->test.user_hash_function);
-	      mark_object (h->test.user_cmp_function);
+	      mark_object (h->test.name, true);
+	      mark_object (h->test.user_hash_function, true);
+	      mark_object (h->test.user_cmp_function, true);
 	      /* If hash table is not weak, mark all keys and values.
 		 For weak tables, mark only the vector.  */
 	      if (NILP (h->weak))
-		mark_object (h->key_and_value);
+		mark_object (h->key_and_value, true);
 	      else
 		VECTOR_MARK (XVECTOR (h->key_and_value));
 	    }
@@ -6405,24 +6505,23 @@ mark_object (Lisp_Object arg)
 
     case Lisp_Symbol:
       {
-	register struct Lisp_Symbol *ptr = XSYMBOL (obj);
-      nextsym:
+	struct Lisp_Symbol *ptr = XSYMBOL (obj);
 	if (ptr->gcmarkbit)
 	  break;
 	CHECK_ALLOCATED_AND_LIVE_SYMBOL ();
 	ptr->gcmarkbit = 1;
 	/* Attempt to catch bogus objects.  */
         eassert (valid_lisp_object_p (ptr->function));
-	mark_object (ptr->function);
-	mark_object (ptr->plist);
+	mark_object (ptr->function, true);
+	mark_object (ptr->plist, true);
 	switch (ptr->redirect)
 	  {
-	  case SYMBOL_PLAINVAL: mark_object (SYMBOL_VAL (ptr)); break;
+	  case SYMBOL_PLAINVAL: mark_object (SYMBOL_VAL (ptr), true); break;
 	  case SYMBOL_VARALIAS:
 	    {
 	      Lisp_Object tem;
 	      XSETSYMBOL (tem, SYMBOL_ALIAS (ptr));
-	      mark_object (tem);
+	      mark_object (tem, true);
 	      break;
 	    }
 	  case SYMBOL_LOCALIZED:
@@ -6440,9 +6539,12 @@ mark_object (Lisp_Object arg)
 	  MARK_STRING (XSTRING (ptr->name));
 	MARK_INTERVAL_TREE (string_intervals (ptr->name));
 	/* Inner loop to mark next symbol in this bucket, if any.  */
-	ptr = ptr->next;
-	if (ptr)
-	  goto nextsym;
+        if (ptr->next)
+          {
+            Lisp_Object tem;
+            XSETSYMBOL (tem, ptr->next);
+            mark_object (tem, true);
+          }
       }
       break;
 
@@ -6472,7 +6574,7 @@ mark_object (Lisp_Object arg)
 
         case Lisp_Misc_Finalizer:
           XMISCANY (obj)->gcmarkbit = true;
-          mark_object (XFINALIZER (obj)->function);
+          mark_object (XFINALIZER (obj)->function, true);
           break;
 
 	default:
@@ -6482,24 +6584,31 @@ mark_object (Lisp_Object arg)
 
     case Lisp_Cons:
       {
-	register struct Lisp_Cons *ptr = XCONS (obj);
-	if (CONS_MARKED_P (ptr))
+	struct Lisp_Cons *ptr;
+        bool was_marked;
+        if (uncopyable && XCONS2 (obj) != XXCONS (obj))
+          {
+            //*(int *)0 = 0;
+          }
+        /* if (XXCONS (*pp) != XXCONS (obj)) */
+        /*   { */
+        /*     *(int *)0 = 0; */
+        /*   } */
+        ptr = XCONS2 (obj);
+        if (ptr != XXCONS (obj))
+          CONS_MARK_UNCOPYABLE (ptr);
+        if (uncopyable)
+          CONS_MARK_UNCOPYABLE (XXCONS (obj));
+        was_marked = CONS_MARKED_P (ptr);
+        CONS_MARK (XXCONS (obj));
+        XSETCONS (obj, ptr);
+	if (was_marked)
 	  break;
 	CHECK_ALLOCATED_AND_LIVE (live_cons_p);
 	CONS_MARK (ptr);
-	/* If the cdr is nil, avoid recursion for the car.  */
-	if (EQ (ptr->u.cdr, Qnil))
-	  {
-	    obj = ptr->car;
-	    cdr_count = 0;
-	    goto loop;
-	  }
-	mark_object (ptr->car);
-	obj = ptr->u.cdr;
-	cdr_count++;
-	if (cdr_count == mark_object_loop_halt)
-	  emacs_abort ();
-	goto loop;
+	ptr->car = mark_object (ptr->car, false);
+        ptr->u.cdr = mark_object (ptr->u.cdr, false);
+        break;
       }
 
     case Lisp_Float:
@@ -6517,6 +6626,10 @@ mark_object (Lisp_Object arg)
 #undef CHECK_LIVE
 #undef CHECK_ALLOCATED
 #undef CHECK_ALLOCATED_AND_LIVE
+
+  //fprintf (stderr, "mark_object %d -> %d\n", (int)arg, (int)obj);
+
+  return obj;
 }
 /* Mark the Lisp pointers in the terminal objects.
    Called by Fgarbage_collect.  */
@@ -6572,7 +6685,7 @@ survives_gc_p (Lisp_Object obj)
       break;
 
     case Lisp_Cons:
-      survives_p = CONS_MARKED_P (XCONS (obj));
+      survives_p = CONS_MARKED_P (XCONS2 (obj));
       break;
 
     case Lisp_Float:
@@ -6596,7 +6709,9 @@ sweep_conses (void)
   struct cons_block *cblk;
   struct cons_block **cprev = &cons_block;
   int lim = cons_block_index;
-  EMACS_INT num_free = 0, num_used = 0;
+  EMACS_INT num_free = 0, num_copies = 0, num_used = 0;
+  struct Lisp_Cons *new_free_list = 0;
+  struct Lisp_Cons **pfree_list = 0;
 
   cons_free_list = 0;
 
@@ -6609,13 +6724,6 @@ sweep_conses (void)
       /* Scan the mark bits an int at a time.  */
       for (i = 0; i < ilim; i++)
         {
-          if (cblk->gcmarkbits[i] == BITS_WORD_MAX)
-            {
-              /* Fast path - all cons cells for this int are marked.  */
-              cblk->gcmarkbits[i] = 0;
-              num_used += BITS_PER_BITS_WORD;
-            }
-          else
             {
               /* Some cons cells for this int are not marked.
                  Find which ones, and free them.  */
@@ -6629,14 +6737,61 @@ sweep_conses (void)
 
               for (pos = start; pos < stop; pos++)
                 {
+                  if (CONS_MARKED_P (&cblk->conses[pos]))
+                    {
+                      if (!CONSP (cblk->conses[pos].car) &&
+                          !STRINGP (cblk->conses[pos].car) &&
+                          !survives_gc_p (cblk->conses[pos].car))
+                        emacs_abort ();
+                      if (!CONSP (cblk->conses[pos].u.cdr) &&
+                          !STRINGP (cblk->conses[pos].u.cdr) &&
+                          !survives_gc_p (cblk->conses[pos].u.cdr))
+                        emacs_abort ();
+                    }
                   if (!CONS_MARKED_P (&cblk->conses[pos]))
                     {
+                      Lisp_Object old_cons;
+                      XSETCONS (old_cons, &cblk->conses[pos]);
+
+                      if (XCONS2 (old_cons) != XXCONS (old_cons))
+                        {
+                          if (0) fprintf (stderr, "freeing %d which moved to %d (%d)\n",
+                                   (int)old_cons, (int)XCONS2 (old_cons),
+                                   (int)phase_of_the_moon);
+                        }
                       this_free++;
-                      cblk->conses[pos].u.chain = cons_free_list;
-                      cons_free_list = &cblk->conses[pos];
-#if GC_MARK_STACK
-                      cons_free_list->car = Vdead;
-#endif
+                      cblk->conses[pos].u.chain = new_free_list;
+                      new_free_list = &cblk->conses[pos];
+                      if (pfree_list == 0)
+                        pfree_list = &cblk->conses[pos].u.chain;
+                      cblk->conses[pos].car = 0;
+                      if (0) fprintf (stderr, "freeing %d\n",
+                               (int)(&cblk->conses[pos]));
+                    }
+                  else if (!CONS_MARKED_UNCOPYABLE_P (&cblk->conses[pos]))
+                    {
+                      Lisp_Object old_cons;
+
+                      XSETCONS (old_cons, &cblk->conses[pos]);
+
+                      if (XCONS2 (old_cons) == XXCONS (old_cons))
+                        {
+                          Lisp_Object new_cons = Fcons (cblk->conses[pos].car,
+                                                        cblk->conses[pos].u.cdr);
+
+                          if (0) fprintf (stderr, "moving %d -> %d (%d)\n",
+                                   (int)(&cblk->conses[pos]), (int)new_cons,
+                                   (int)phase_of_the_moon);
+
+                          /* num_copies++; */
+
+                          XSETCONS (cblk->conses[pos].car, phase_of_the_moon ? NULL : EIGHT);
+                          cblk->conses[pos].u.cdr = (((unsigned long)new_cons) ^ 0xdeadbeefdeadbeefUL);
+                          CONS_MARK (XXCONS (new_cons));
+                          CONS_MARK_UNCOPYABLE (XXCONS (new_cons));
+                        }
+                      num_used++;
+                      CONS_UNMARK (&cblk->conses[pos]);
                     }
                   else
                     {
@@ -6655,7 +6810,8 @@ sweep_conses (void)
         {
           *cprev = cblk->next;
           /* Unhook from the free list.  */
-          cons_free_list = cblk->conses[0].u.chain;
+          new_free_list = cblk->conses[0].u.chain;
+          fprintf (stderr, "freeing block %p\n", cblk);
           lisp_align_free (cblk);
         }
       else
@@ -6664,6 +6820,43 @@ sweep_conses (void)
           cprev = &cblk->next;
         }
     }
+  for (cblk = cons_block; cblk; cblk = *cprev)
+    {
+      int i = 0;
+      int this_free = 0;
+      int ilim = (lim + BITS_PER_BITS_WORD - 1) / BITS_PER_BITS_WORD;
+
+      /* Scan the mark bits an int at a time.  */
+      for (i = 0; i < ilim; i++)
+        {
+            {
+              /* Some cons cells for this int are not marked.
+                 Find which ones, and free them.  */
+              int start, pos, stop;
+
+              start = i * BITS_PER_BITS_WORD;
+              stop = lim - start;
+              if (stop > BITS_PER_BITS_WORD)
+                stop = BITS_PER_BITS_WORD;
+              stop += start;
+
+              for (pos = start; pos < stop; pos++)
+                {
+                  CONS_UNMARK (&cblk->conses[pos]);
+                  CONS_UNMARK_UNCOPYABLE (&cblk->conses[pos]);
+                }
+            }
+        }
+
+      lim = CONS_BLOCK_SIZE;
+
+      num_free += this_free;
+      cprev = &cblk->next;
+    }
+  if (pfree_list) {
+    *pfree_list = cons_free_list;
+    cons_free_list = new_free_list;
+  }
   total_conses = num_used;
   total_free_conses = num_free;
 }
@@ -6818,6 +7011,7 @@ sweep_symbols (void)
           *sprev = sblk->next;
           /* Unhook from the free list.  */
           symbol_free_list = sblk->symbols[0].s.next;
+          fprintf (stderr, "freeing symbol block %p\n", sblk);
           lisp_free (sblk);
         }
       else
@@ -6927,6 +7121,7 @@ gc_sweep (void)
   sweep_strings ();
   check_string_bytes (!noninteractive);
   sweep_conses ();
+  phase_of_the_moon = !phase_of_the_moon;
   sweep_floats ();
   sweep_intervals ();
   sweep_symbols ();
