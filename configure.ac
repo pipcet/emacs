@@ -4242,7 +4242,7 @@ dnl be computed as ':' in MSYS Bash.
 AC_SUBST(SEPCHAR)
 
 dnl Everybody supports this, except MS-DOS.
-AC_DEFINE(subprocesses, 1, [Define to enable asynchronous subprocesses.])
+dnl AC_DEFINE(subprocesses, 1, [Define to enable asynchronous subprocesses.])
 
 AC_DEFINE(USER_FULL_NAME, [pw->pw_gecos], [How to get a user's full name.])
 

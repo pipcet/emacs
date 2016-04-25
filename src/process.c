@@ -799,7 +799,7 @@ get_process (register Lisp_Object name)
     }
   return proc;
 }
-
+#endif
 
 /* Fdelete_process promises to immediately forget about the process, but in
    reality, Emacs needs to remember those processes until they have been
@@ -822,6 +822,7 @@ record_deleted_pid (pid_t pid, Lisp_Object filename)
 
 }
 
+#ifdef subprocesses
 DEFUN ("delete-process", Fdelete_process, Sdelete_process, 1, 1, 0,
        doc: /* Delete PROCESS: kill it and forget about it immediately.
 PROCESS may be a process, a buffer, the name of a process or buffer, or
@@ -885,6 +886,29 @@ nil, indicating the current buffer's process.  */)
   return Qnil;
 }
 
+#endif
+
+#ifndef subprocesses
+DEFUN ("process-status", Fprocess_status, Sprocess_status, 1, 1, 0,
+       doc: /* Return the status of PROCESS.
+The returned value is one of the following symbols:
+run  -- for a process that is running.
+stop -- for a process stopped but continuable.
+exit -- for a process that has exited.
+signal -- for a process that has got a fatal signal.
+open -- for a network stream connection that is open.
+listen -- for a network stream server that is listening.
+closed -- for a network stream connection that is closed.
+connect -- when waiting for a non-blocking connection to complete.
+failed -- when a non-blocking connection has failed.
+nil -- if arg is a process name and no such process exists.
+PROCESS may be a process, a buffer, the name of a process, or
+nil, indicating the current buffer's process.  */)
+  (register Lisp_Object process)
+{
+  return Qnil;
+}
+#else
 DEFUN ("process-status", Fprocess_status, Sprocess_status, 1, 1, 0,
        doc: /* Return the status of PROCESS.
 The returned value is one of the following symbols:
@@ -4277,6 +4301,7 @@ Data that is unavailable is returned as nil.  */)
 
 /* If program file NAME starts with /: for quoting a magic
    name, remove that, preserving the multibyteness of NAME.  */
+#endif
 
 Lisp_Object
 remove_slash_colon (Lisp_Object name)
@@ -4287,6 +4312,8 @@ remove_slash_colon (Lisp_Object name)
 			      SBYTES (name) - 2, STRING_MULTIBYTE (name))
      : name);
 }
+
+#ifdef subprocesses
 
 /* Turn off input and output for process PROC.  */
 
@@ -7731,7 +7758,6 @@ catch_child_signal (void)
 	 : old_action.sa_handler);
   unblock_child_signal (&oldset);
 }
-#endif	/* subprocesses */
 
 /* Set the external socket descriptor for Emacs to use when
    `make-network-process' is called with a non-nil
@@ -7742,6 +7768,7 @@ set_external_socket_descriptor (int fd)
 {
   external_sock_fd = fd;
 }
+#endif	/* subprocesses */
 
 
 /* This is not called "init_process" because that is the name of a
@@ -8049,8 +8076,10 @@ The variable takes effect when `start-process' is called.  */);
 #endif
    ADD_SUBFEATURE (QCserver, Qt);
 
+#ifdef subprocesses
    for (sopt = socket_options; sopt->name; sopt++)
      subfeatures = pure_cons (intern_c_string (sopt->name), subfeatures);
+#endif
 
    Fprovide (intern_c_string ("make-network-process"), subfeatures);
  }
