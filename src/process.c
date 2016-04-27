@@ -744,6 +744,16 @@ free_dns_request (Lisp_Object proc)
 #endif
 
 
+#endif
+#ifndef subprocesses
+DEFUN ("processp", Fprocessp, Sprocessp, 1, 1, 0,
+       doc: /* Return t if OBJECT is a process.  */)
+  (Lisp_Object object)
+{
+  return Qnil;
+}
+
+#else
 DEFUN ("processp", Fprocessp, Sprocessp, 1, 1, 0,
        doc: /* Return t if OBJECT is a process.  */)
   (Lisp_Object object)
