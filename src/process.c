@@ -1391,6 +1391,16 @@ Return nil if format of ADDRESS is invalid.  */)
   return Qnil;
 }
 
+#endif
+
+#ifndef subprocesses
+DEFUN ("process-list", Fprocess_list, Sprocess_list, 0, 0, 0,
+       doc: /* Return a list of all processes that are Emacs sub-processes.  */)
+  (void)
+{
+  return Qnil;
+}
+#else
 DEFUN ("process-list", Fprocess_list, Sprocess_list, 0, 0, 0,
        doc: /* Return a list of all processes that are Emacs sub-processes.  */)
   (void)
@@ -8009,7 +8019,6 @@ The variable takes effect when `start-process' is called.  */);
   defsubr (&Sprocess_contact);
   defsubr (&Sprocess_plist);
   defsubr (&Sset_process_plist);
-  defsubr (&Sprocess_list);
   defsubr (&Smake_process);
   defsubr (&Smake_pipe_process);
   defsubr (&Sserial_process_configure);
@@ -8045,6 +8054,7 @@ The variable takes effect when `start-process' is called.  */);
 
 #endif	/* subprocesses */
 
+  defsubr (&Sprocess_list);
   defsubr (&Sget_buffer_process);
   defsubr (&Sprocess_inherit_coding_system_flag);
   defsubr (&Slist_system_processes);
