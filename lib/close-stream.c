@@ -55,9 +55,9 @@
 int
 close_stream (FILE *stream)
 {
-  const bool some_pending = (__fpending (stream) != 0);
-  const bool prev_fail = (ferror (stream) != 0);
-  const bool fclose_fail = (fclose (stream) != 0);
+  const bool some_pending = 0; // (__fpending (stream) != 0);
+  const bool prev_fail = 0; // (ferror (stream) != 0);
+  const bool fclose_fail = 0; // (fclose (stream) != 0);
 
   /* Return an error indication if there was a previous failure or if
      fclose failed, with one exception: ignore an fclose failure if
