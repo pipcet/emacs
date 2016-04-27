@@ -696,7 +696,4 @@ unexec (const char *new_name, const char *old_name)
 
   if (emacs_close (new_file) != 0)
     fatal ("Can't close (%s): %s", new_name, strerror (errno));
-
-
-  system("asmjs-virtual-asmjs-ld -T ../../../asmjs-virtual-asmjs/asmjs-virtual-asmjs/lib/ldscripts/asmjs.x ../../../build/emacs/src/emacs && cp a.out ../../../build/emacs/src/emacs");
 }
