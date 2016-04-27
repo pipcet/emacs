@@ -111,7 +111,7 @@ my_heap_start (void)
 /* Specify maximum number of areas to mmap.  It would be nice to use a
    value that explicitly means "no limit".  */
 
-#define MMAP_MAX_AREAS 100000000
+#define MMAP_MAX_AREAS 0
 
 /* A pointer to the memory allocated that copies that static data
    inside glibc's malloc.  */
