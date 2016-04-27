@@ -546,7 +546,7 @@ mmap_lisp_allowed_p (void)
      over our address space.  We also can't use mmap for lisp objects
      if we might dump: unexec doesn't preserve the contents of mmapped
      regions.  */
-  return pointers_fit_in_lispobj_p () && !might_dump;
+  return pointers_fit_in_lispobj_p () && !might_dump && 0;
 }
 #endif
 

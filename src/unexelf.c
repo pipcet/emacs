@@ -187,6 +187,7 @@ verify ((! TYPE_SIGNED (ElfW (Half))
 	 || PTRDIFF_MIN <= TYPE_MINIMUM (ElfW (Half)))
 	&& TYPE_MAXIMUM (ElfW (Half)) <= PTRDIFF_MAX);
 
+#define UNEXELF_DEBUG 1
 #ifdef UNEXELF_DEBUG
 # define DEBUG_LOG(expr) fprintf (stderr, #expr " 0x%jx\n", (uintmax_t) (expr))
 #endif
@@ -279,8 +280,11 @@ unexec (const char *new_name, const char *old_name)
   old_file_size = stat_buf.st_size;
   if (! (0 <= old_file_size && old_file_size <= SIZE_MAX))
     fatal ("File size out of range");
-  old_base = mmap (NULL, old_file_size, PROT_READ | PROT_WRITE,
-		   MAP_ANON | MAP_PRIVATE, mmap_fd, 0);
+  /* We can't use malloc, but we can use sbrk, so let's do that instead. */
+  new_break = sbrk (0);
+  old_base = sbrk (old_file_size);
+  //  old_base = mmap (NULL, old_file_size, PROT_READ | PROT_WRITE,
+  //  MAP_ANON | MAP_PRIVATE, mmap_fd, 0);
   if (old_base == MAP_FAILED)
     fatal ("Can't allocate buffer for %s: %s", old_name, strerror (errno));
 
@@ -301,8 +305,10 @@ unexec (const char *new_name, const char *old_name)
   for (n = old_file_h->e_phnum; --n >= 0; )
     {
       ElfW (Phdr) *seg = &OLD_PROGRAM_H (n);
-      if (seg->p_type == PT_LOAD
-	  && (old_bss_seg == 0
+      if (((unsigned long)seg->p_vaddr & 0xc0000000) != 0)
+        continue;
+      if (/* seg->p_type == PT_LOAD
+             && */(old_bss_seg == 0
 	      || seg->p_vaddr > old_bss_seg->p_vaddr))
 	old_bss_seg = seg;
     }
@@ -329,7 +335,6 @@ unexec (const char *new_name, const char *old_name)
   if (old_bss_index == -1)
     fatal ("no bss section found");
 
-  new_break = sbrk (0);
   new_bss_addr = (ElfW (Addr)) new_break;
   bss_size_growth = new_bss_addr - old_bss_addr;
   new_data2_size = bss_size_growth;
@@ -340,6 +345,7 @@ unexec (const char *new_name, const char *old_name)
 
 #ifdef UNEXELF_DEBUG
   fprintf (stderr, "old_bss_index %td\n", old_bss_index);
+  DEBUG_LOG (bss_size_growth);
   DEBUG_LOG (old_bss_addr);
   DEBUG_LOG (old_bss_size);
   DEBUG_LOG (old_bss_offset);
@@ -364,8 +370,9 @@ unexec (const char *new_name, const char *old_name)
   if (ftruncate (new_file, new_file_size))
     fatal ("Can't ftruncate (%s): %s", new_name, strerror (errno));
 
-  new_base = mmap (NULL, new_file_size, PROT_READ | PROT_WRITE,
-		   MAP_ANON | MAP_PRIVATE, mmap_fd, 0);
+  new_base = sbrk (new_file_size);
+  //new_base = mmap (NULL, new_file_size, PROT_READ | PROT_WRITE,
+  //MAP_ANON | MAP_PRIVATE, mmap_fd, 0);
   if (new_base == MAP_FAILED)
     fatal ("Can't allocate buffer for %s: %s", old_name, strerror (errno));
 
@@ -447,7 +454,9 @@ unexec (const char *new_name, const char *old_name)
 
       /* Any section that was originally placed after the .bss
 	 section should now be offset by NEW_DATA2_SIZE.  */
-      if (new_shdr->sh_offset >= old_bss_offset)
+      if (new_shdr->sh_offset >= old_bss_offset &&
+          1
+          /* (((unsigned long)new_shdr->sh_addr) & 0xc0000000) == 0 */)
 	new_shdr->sh_offset += new_data2_size;
 
       /* Now, start to copy the content of sections.  */
@@ -616,9 +625,11 @@ unexec (const char *new_name, const char *old_name)
       /* Replace the leading '.' with ','.  When .shstrtab is string
 	 merged this will rename both .bss and .rela.bss to ,bss and
 	 .rela,bss.  */
+#if 0
       if (old_shdr->sh_type == SHT_NOBITS
 	  && new_shdr->sh_type == SHT_PROGBITS)
 	*(new_section_names + new_shdr->sh_name) = ',';
+#endif
     }
 
   /* This loop seeks out relocation sections for the data section, so
@@ -685,4 +696,7 @@ unexec (const char *new_name, const char *old_name)
 
   if (emacs_close (new_file) != 0)
     fatal ("Can't close (%s): %s", new_name, strerror (errno));
+
+
+  system("asmjs-virtual-asmjs-ld -T ../../../asmjs-virtual-asmjs/asmjs-virtual-asmjs/lib/ldscripts/asmjs.x ../../../build/emacs/src/emacs && cp a.out ../../../build/emacs/src/emacs");
 }

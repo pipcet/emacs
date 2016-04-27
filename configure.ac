@@ -1299,7 +1299,7 @@ case "$opsys" in
   nacl) CANNOT_DUMP=yes ;;
 esac
 case "${canonical}" in
-  asmjs-*-*) CANNOT_DUMP=yes; REL_ALLOC=no ;;
+  asmjs-*-*) REL_ALLOC=no ;;
 esac
 
 if test "$CANNOT_DUMP" = "yes"; then
