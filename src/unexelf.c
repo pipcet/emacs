@@ -221,6 +221,8 @@ typedef unsigned char byte;
  * a new, larger, SHT_PROGBITS section.
  *
  */
+extern void *__curbrk;
+
 void
 unexec (const char *new_name, const char *old_name)
 {
@@ -282,7 +284,7 @@ unexec (const char *new_name, const char *old_name)
     fatal ("File size out of range");
   /* We can't use malloc, but we can use sbrk, so let's do that instead. */
   new_break = sbrk (0);
-  old_base = sbrk (old_file_size);
+  old_base = sbrk ((old_file_size + 4095) & -4096);
   //  old_base = mmap (NULL, old_file_size, PROT_READ | PROT_WRITE,
   //  MAP_ANON | MAP_PRIVATE, mmap_fd, 0);
   if (old_base == MAP_FAILED)
@@ -409,6 +411,7 @@ unexec (const char *new_name, const char *old_name)
   new_bss_seg->p_filesz = new_bss_addr - new_bss_seg->p_vaddr;
   new_bss_seg->p_memsz = new_bss_seg->p_filesz;
 
+  __curbrk = new_break;
   /* Copy over what we have in memory now for the bss area. */
   memcpy (new_base + new_data2_offset, (caddr_t) old_bss_addr,
 	  bss_size_growth);
