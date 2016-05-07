@@ -541,7 +541,9 @@
     (yank)))
 
 (defun clipboard-kill-ring-save (beg end &optional region)
-  "Copy region to kill ring, and save in the GUI's clipboard."
+  "Copy region to kill ring, and save in the GUI's clipboard.
+If the optional argument REGION is non-nil, the function ignores
+BEG and END, and saves the current region instead."
   (interactive "r\np")
   (let ((gui-select-enable-clipboard t)
         (interprogram-cut-function (or interprogram-cut-function
@@ -549,7 +551,9 @@
     (kill-ring-save beg end region)))
 
 (defun clipboard-kill-region (beg end &optional region)
-  "Kill the region, and save it in the GUI's clipboard."
+  "Kill the region, and save it in the GUI's clipboard.
+If the optional argument REGION is non-nil, the function ignores
+BEG and END, and kills the current region instead."
   (interactive "r\np")
   (let ((gui-select-enable-clipboard t)
         (interprogram-cut-function (or interprogram-cut-function
@@ -1583,7 +1587,7 @@ mail status in mode line"))
     (bindings--define-key menu [browse-web]
       '(menu-item "Browse the Web..." browse-web))
     (bindings--define-key menu [directory-search]
-      '(menu-item "Directory Search" eudc-tools-menu))
+      '(menu-item "Directory Servers" eudc-tools-menu))
     (bindings--define-key menu [compose-mail]
       '(menu-item "Compose New Mail" compose-mail
                   :visible (and mail-user-agent (not (eq mail-user-agent 'ignore)))

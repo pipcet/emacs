@@ -3440,7 +3440,7 @@ comment at the start of cc-engine.el for more info."
 		(< c-state-old-cpp-beg here))
 	   (c-with-all-but-one-cpps-commented-out
 	    c-state-old-cpp-beg
-	    (min c-state-old-cpp-end here)
+	    c-state-old-cpp-end
 	    (c-invalidate-state-cache-1 here))
 	 (c-with-cpps-commented-out
 	  (c-invalidate-state-cache-1 here))))
@@ -3527,7 +3527,7 @@ comment at the start of cc-engine.el for more info."
 	   c-state-old-cpp-end
 	   c-parse-state-point))))
 (defun c-replay-parse-state-state ()
-  (message
+  (message "%s"
    (concat "(setq "
     (mapconcat
      (lambda (arg)
@@ -5835,6 +5835,7 @@ comment at the start of cc-engine.el for more info."
   ;;
   ;; This macro might do hidden buffer changes.
   `(let (res)
+     (setq c-last-identifier-range nil)
      (while (if (setq res ,(if (eq type 'type)
 			       `(c-forward-type)
 			     `(c-forward-name)))
@@ -6026,7 +6027,6 @@ comment at the start of cc-engine.el for more info."
 		  ;; `nconc' doesn't mind that the tail of
 		  ;; `c-record-found-types' is t.
 		  (nconc c-record-found-types c-record-type-identifiers)))
-	    (if (c-major-mode-is 'java-mode) (c-fontify-recorded-types-and-refs))
 	  t)
 
       (goto-char start)
@@ -6072,28 +6072,31 @@ comment at the start of cc-engine.el for more info."
 		(progn
 		  (c-forward-syntactic-ws)
 		  (when (or (and c-record-type-identifiers all-types)
-			    (c-major-mode-is 'java-mode))
-		    ;; All encountered identifiers are types, so set the
-		    ;; promote flag and parse the type.
-		    (progn
-		      (c-forward-syntactic-ws)
-		      (if (looking-at "\\?")
-			  (forward-char)
-			(when (looking-at c-identifier-start)
+			    (not (equal c-inside-<>-type-key "\\(\\<\\>\\)")))
+		    (c-forward-syntactic-ws)
+		    (cond
+		     ((eq (char-after) ??)
+		      (forward-char))
+		     ((and (looking-at c-identifier-start)
+			   (not (looking-at c-keywords-regexp)))
+		      (if (or (and all-types c-record-type-identifiers)
+			      (c-major-mode-is 'java-mode))
+			  ;; All encountered identifiers are types, so set the
+			  ;; promote flag and parse the type.
 			  (let ((c-promote-possible-types t)
 				(c-record-found-types t))
-			    (c-forward-type))))
+			    (c-forward-type))
+			(c-forward-token-2))))
 
+		    (c-forward-syntactic-ws)
+
+		    (when (looking-at c-inside-<>-type-key)
+		      (goto-char (match-end 1))
 		      (c-forward-syntactic-ws)
-
-		      (when (or (looking-at "extends")
-				(looking-at "super"))
-			(forward-word-strictly)
-			(c-forward-syntactic-ws)
-			(let ((c-promote-possible-types t)
-			      (c-record-found-types t))
-			  (c-forward-type)
-			  (c-forward-syntactic-ws)))))
+		      (let ((c-promote-possible-types t)
+			    (c-record-found-types t))
+			(c-forward-type))
+		      (c-forward-syntactic-ws)))
 
 		  (setq pos (point))	; e.g. first token inside the '<'
 
@@ -6414,9 +6417,7 @@ comment at the start of cc-engine.el for more info."
 	      ((and c-recognize-<>-arglists
 		    (eq (char-after) ?<))
 	       ;; Maybe an angle bracket arglist.
-	       (when (let ((c-record-type-identifiers t)
-			   (c-record-found-types t)
-			   (c-last-identifier-range))
+	       (when (let (c-last-identifier-range)
 		       (c-forward-<>-arglist nil))
 
 		 (c-forward-syntactic-ws)
@@ -7152,12 +7153,24 @@ comment at the start of cc-engine.el for more info."
 	cast-end
 	;; Have we got a new-style C++11 "auto"?
 	new-style-auto
+	;; Set when the symbol before `preceding-token-end' is known to
+	;; terminate the previous construct, or when we're at point-min.
+	at-decl-start
 	;; Save `c-record-type-identifiers' and
 	;; `c-record-ref-identifiers' since ranges are recorded
 	;; speculatively and should be thrown away if it turns out
 	;; that it isn't a declaration or cast.
 	(save-rec-type-ids c-record-type-identifiers)
 	(save-rec-ref-ids c-record-ref-identifiers))
+
+    (save-excursion
+      (goto-char preceding-token-end)
+      (setq at-decl-start
+	    (or (bobp)
+		(let ((tok-end (point)))
+		  (c-backward-token-2)
+		  (member (buffer-substring-no-properties (point) tok-end)
+			  c-pre-start-tokens)))))
 
     (while (c-forward-annotation)
       (c-forward-syntactic-ws))
@@ -7421,36 +7434,42 @@ comment at the start of cc-engine.el for more info."
 	       (setq got-identifier (c-forward-name))
 	       (setq name-start pos)))
 
-      ;; Skip over type decl suffix operators.
-      (while (if (looking-at c-type-decl-suffix-key)
+      ;; Skip over type decl suffix operators and trailing noise macros.
+      (while
+	  (cond
+	   ((and c-opt-cpp-prefix
+		 (looking-at c-noise-macro-with-parens-name-re))
+	    (c-forward-noise-clause))
 
-		 (if (eq (char-after) ?\))
-		     (when (> paren-depth 0)
-		       (setq paren-depth (1- paren-depth))
-		       (forward-char)
-		       t)
-		   (when (if (save-match-data (looking-at "\\s("))
-			     (c-safe (c-forward-sexp 1) t)
-			   (goto-char (match-end 1))
-			   t)
-		     (when (and (not got-suffix-after-parens)
-				(= paren-depth 0))
-		       (setq got-suffix-after-parens (match-beginning 0)))
-		     (setq got-suffix t)))
+	   ((looking-at c-type-decl-suffix-key)
+	    (if (eq (char-after) ?\))
+		(when (> paren-depth 0)
+		  (setq paren-depth (1- paren-depth))
+		  (forward-char)
+		  t)
+	      (when (if (save-match-data (looking-at "\\s("))
+			(c-safe (c-forward-sexp 1) t)
+		      (goto-char (match-end 1))
+		      t)
+		(when (and (not got-suffix-after-parens)
+			   (= paren-depth 0))
+		  (setq got-suffix-after-parens (match-beginning 0)))
+		(setq got-suffix t))))
 
-	       ;; No suffix matched.  We might have matched the
-	       ;; identifier as a type and the open paren of a
-	       ;; function arglist as a type decl prefix.  In that
-	       ;; case we should "backtrack": Reinterpret the last
-	       ;; type as the identifier, move out of the arglist and
-	       ;; continue searching for suffix operators.
-	       ;;
-	       ;; Do this even if there's no preceding type, to cope
-	       ;; with old style function declarations in K&R C,
-	       ;; (con|de)structors in C++ and `c-typeless-decl-kwds'
-	       ;; style declarations.  That isn't applicable in an
-	       ;; arglist context, though.
-	       (when (and (= paren-depth 1)
+	   (t
+	    ;; No suffix matched.  We might have matched the
+	    ;; identifier as a type and the open paren of a
+	    ;; function arglist as a type decl prefix.  In that
+	    ;; case we should "backtrack": Reinterpret the last
+	    ;; type as the identifier, move out of the arglist and
+	    ;; continue searching for suffix operators.
+	    ;;
+	    ;; Do this even if there's no preceding type, to cope
+	    ;; with old style function declarations in K&R C,
+	    ;; (con|de)structors in C++ and `c-typeless-decl-kwds'
+	    ;; style declarations.  That isn't applicable in an
+	    ;; arglist context, though.
+	    (when (and (= paren-depth 1)
 			  (not got-prefix-before-parens)
 			  (not (eq at-type t))
 			  (or backup-at-type
@@ -7462,7 +7481,7 @@ comment at the start of cc-engine.el for more info."
 			  (eq (char-before pos) ?\)))
 		 (c-fdoc-shift-type-backward)
 		 (goto-char pos)
-		 t))
+		 t)))
 
 	(c-forward-syntactic-ws))
 
@@ -7771,12 +7790,15 @@ comment at the start of cc-engine.el for more info."
 			  at-type
 			  (or at-decl-end (looking-at "=[^=]"))
 			  (not context)
-			  (not got-suffix))
-		 ;; Got something like "foo * bar;".  Since we're not inside an
-		 ;; arglist it would be a meaningless expression because the
-		 ;; result isn't used.  We therefore choose to recognize it as
-		 ;; a declaration.  Do not allow a suffix since it could then
-		 ;; be a function call.
+			  (or (not got-suffix)
+			      at-decl-start))
+		 ;; Got something like "foo * bar;".  Since we're not inside
+		 ;; an arglist it would be a meaningless expression because
+		 ;; the result isn't used.  We therefore choose to recognize
+		 ;; it as a declaration.  We only allow a suffix (which makes
+		 ;; the construct look like a function call) when
+		 ;; `at-decl-start' provides additional evidence that we do
+		 ;; have a declaration.
 		 (throw 'at-decl-or-cast t))
 
 	       ;; CASE 17
@@ -9003,11 +9025,11 @@ comment at the start of cc-engine.el for more info."
 		      (not (looking-at "=")))))
       b-pos)))
 
-(defun c-backward-colon-prefixed-type ()
-  ;; We're at the token after what might be a type prefixed with a colon.  Try
-  ;; moving backward over this type and the colon.  On success, return t and
-  ;; leave point before colon; on failure, leave point unchanged.  Will clobber
-  ;; match data.
+(defun c-backward-typed-enum-colon ()
+  ;; We're at a "{" which might be the opening brace of a enum which is
+  ;; strongly typed (by a ":" followed by a type).  If this is the case, leave
+  ;; point before the colon and return t.  Otherwise leave point unchanged and return nil.
+  ;; Match data will be clobbered.
   (let ((here (point))
 	(colon-pos nil))
     (save-excursion
@@ -9016,7 +9038,10 @@ comment at the start of cc-engine.el for more info."
 	       (or (not (looking-at "\\s)"))
 		   (c-go-up-list-backward))
 	       (cond
-		((eql (char-after) ?:)
+		((and (eql (char-after) ?:)
+		      (save-excursion
+			(c-backward-syntactic-ws)
+			(c-on-identifier)))
 		 (setq colon-pos (point))
 		 (forward-char)
 		 (c-forward-syntactic-ws)
@@ -9040,7 +9065,7 @@ comment at the start of cc-engine.el for more info."
   (let ((here (point))
 	up-sexp-pos before-identifier)
     (when c-recognize-post-brace-list-type-p
-      (c-backward-colon-prefixed-type))
+      (c-backward-typed-enum-colon))
     (while
 	(and
 	 (eq (c-backward-token-2) 0)

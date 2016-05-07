@@ -145,18 +145,18 @@ nil means use goto-char using the second argument position.")
 			       &optional avoid-current
 			       extra-test-inclusive
 			       extra-test-exclusive)
-  "Test if BUFFER is a `next-error' capable buffer.
+  "Return non-nil if BUFFER is a `next-error' capable buffer.
+If AVOID-CURRENT is non-nil, and BUFFER is the current buffer,
+return nil.
 
-If AVOID-CURRENT is non-nil, treat the current buffer
-as an absolute last resort only.
+The function EXTRA-TEST-INCLUSIVE, if non-nil, is called if
+BUFFER would not normally qualify.  If it returns non-nil, BUFFER
+is considered `next-error' capable, anyway, and the function
+returns non-nil.
 
-The function EXTRA-TEST-INCLUSIVE, if non-nil, is called in each buffer
-that normally would not qualify.  If it returns t, the buffer
-in question is treated as usable.
-
-The function EXTRA-TEST-EXCLUSIVE, if non-nil, is called in each buffer
-that would normally be considered usable.  If it returns nil,
-that buffer is rejected."
+The function EXTRA-TEST-EXCLUSIVE, if non-nil, is called if the
+buffer would normally qualify.  If it returns nil, BUFFER is
+rejected, and the function returns nil."
   (and (buffer-name buffer)		;First make sure it's live.
        (not (and avoid-current (eq buffer (current-buffer))))
        (with-current-buffer buffer
@@ -1075,7 +1075,9 @@ that uses or sets the mark."
   (interactive)
   (push-mark (point))
   (push-mark (point-max) nil t)
-  (goto-char (point-min)))
+  ;; This is really `point-min' in most cases, but if we're in the
+  ;; minibuffer, this is at the end of the prompt.
+  (goto-char (minibuffer-prompt-end)))
 
 
 ;; Counting lines, one way or another.
@@ -1418,10 +1420,11 @@ If nil, don't change the value of `debug-on-error'."
   :version "21.1")
 
 (defun eval-expression-print-format (value)
-  "Format VALUE as a result of evaluated expression.
-Return a formatted string which is displayed in the echo area
-in addition to the value printed by prin1 in functions which
-display the result of expression evaluation."
+  "If VALUE in an integer, return a specially formatted string.
+This string will typically look like \" (#o1, #x1, ?\\C-a)\".
+If VALUE is not an integer, nil is returned.
+This function is used by functions like `prin1' that display the
+result of expression evaluation."
   (if (and (integerp value)
 	   (or (eq standard-output t)
 	       (zerop (prefix-numeric-value current-prefix-arg))))
@@ -1632,6 +1635,12 @@ If the value is non-nil and not a number, we wait 2 seconds."
                  (integer :tag "time" 2)
                  (other :tag "on")))
 
+(defcustom extended-command-suggest-shorter t
+  "If non-nil, show a shorter M-x invocation when there is one."
+  :group 'keyboard
+  :type 'boolean
+  :version "25.2")
+
 (defun execute-extended-command--shorter-1 (name length)
   (cond
    ((zerop length) (list ""))
@@ -1714,7 +1723,8 @@ invoking, give a prefix argument to `execute-extended-command'."
                         ((numberp suggest-key-bindings) suggest-key-bindings)
                         (t 2))))))
       (when (and waited (not (consp unread-command-events)))
-        (unless (or binding executing-kbd-macro (not (symbolp function))
+        (unless (or (not extended-command-suggest-shorter)
+                    binding executing-kbd-macro (not (symbolp function))
                     (<= (length (symbol-name function)) 2))
           ;; There's no binding for CMD.  Let's try and find the shortest
           ;; string to use in M-x.
@@ -5216,7 +5226,7 @@ This macro does what `save-excursion' did before Emacs 25.1."
 
 (defcustom use-empty-active-region nil
   "Whether \"region-aware\" commands should act on empty regions.
-If nil, region-aware commands treat empty regions as inactive.
+If nil, region-aware commands treat the empty region as inactive.
 If non-nil, region-aware commands treat the region as active as
 long as the mark is active, even if the region is empty.
 
@@ -5827,7 +5837,7 @@ The value is a floating-point number."
     (/ (float (- (nth 3 edges) (nth 1 edges))) dlh)))
 
 ;; Returns non-nil if partial move was done.
-(defun line-move-partial (arg noerror to-end)
+(defun line-move-partial (arg noerror &optional _to-end)
   (if (< arg 0)
       ;; Move backward (up).
       ;; If already vscrolled, reduce vscroll
@@ -5925,7 +5935,7 @@ The value is a floating-point number."
 	  ;; discrepancies between that and DLH.
 	  (if (and rowh rbot (>= (- (+ rowh rbot) winh) 1))
 	      (set-window-vscroll nil dlh t))
-	  (line-move-1 arg noerror to-end)
+	  (line-move-1 arg noerror)
 	  t)
 	 ;; If there are lines above the last line, scroll-up one line.
 	 ((and vpos (> vpos 0))
@@ -5942,7 +5952,7 @@ The value is a floating-point number."
 ;; scrolling with cursor motion.  But so far we don't have
 ;; a cleaner solution to the problem of making C-n do something
 ;; useful given a tall image.
-(defun line-move (arg &optional noerror to-end try-vscroll)
+(defun line-move (arg &optional noerror _to-end try-vscroll)
   "Move forward ARG lines.
 If NOERROR, don't signal an error if we can't move ARG lines.
 TO-END is unused.
@@ -5950,7 +5960,7 @@ TRY-VSCROLL controls whether to vscroll tall lines: if either
 `auto-window-vscroll' or TRY-VSCROLL is nil, this function will
 not vscroll."
   (if noninteractive
-      (line-move-1 arg noerror to-end)
+      (line-move-1 arg noerror)
     (unless (and auto-window-vscroll try-vscroll
 		 ;; Only vscroll for single line moves
 		 (= (abs arg) 1)
@@ -5960,7 +5970,7 @@ not vscroll."
 		 ;; But don't vscroll in a keyboard macro.
 		 (not defining-kbd-macro)
 		 (not executing-kbd-macro)
-		 (line-move-partial arg noerror to-end))
+		 (line-move-partial arg noerror))
       (set-window-vscroll nil 0 t)
       (if (and line-move-visual
 	       ;; Display-based column are incompatible with goal-column.
@@ -5992,7 +6002,7 @@ not vscroll."
 		  (set-window-vscroll
 		   nil
 		   (- lh dlh) t))))
-	(line-move-1 arg noerror to-end)))))
+	(line-move-1 arg noerror)))))
 
 ;; Display-based alternative to line-move-1.
 ;; Arg says how many lines to move.  The value is t if we can move the
@@ -6411,7 +6421,8 @@ Those commands will move to this position in the line moved to
 rather than trying to keep the same horizontal position.
 With a non-nil argument ARG, clears out the goal column
 so that \\[next-line] and \\[previous-line] resume vertical motion.
-The goal column is stored in the variable `goal-column'."
+The goal column is stored in the variable `goal-column'.
+This is a buffer-local setting."
   (interactive "P")
   (if arg
       (progn

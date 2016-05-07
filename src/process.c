@@ -267,7 +267,10 @@ static int max_process_desc;
 /* The largest descriptor currently in use for input; -1 if none.  */
 static int max_input_desc;
 
-/* The descriptor of any socket passed to Emacs; -1 if none. */
+/* Set the external socket descriptor for Emacs to use when
+   `make-network-process' is called with a non-nil
+   `:use-external-socket' option.  The value should be either -1, or
+   the file descriptor of a socket that is already bound.  */
 static int external_sock_fd;
 
 /* Indexed by descriptor, gives the process (if any) for that descriptor.  */
@@ -3951,7 +3954,7 @@ usage: (make-network-process &rest ARGS)  */)
   p->gnutls_boot_parameters = tem;
 #endif
 
-  set_network_socket_coding_system (proc, service, host, name);
+  set_network_socket_coding_system (proc, host, service, name);
 
   unbind_to (count, Qnil);
 
@@ -7527,6 +7530,19 @@ add_timer_wait_descriptor (int fd)
 
 #endif /* HAVE_TIMERFD */
 
+/* If program file NAME starts with /: for quoting a magic
+   name, remove that, preserving the multibyteness of NAME.  */
+
+Lisp_Object
+remove_slash_colon (Lisp_Object name)
+{
+  return
+    ((SBYTES (name) > 2 && SREF (name, 0) == '/' && SREF (name, 1) == ':')
+     ? make_specified_string (SSDATA (name) + 2, SCHARS (name) - 2,
+			      SBYTES (name) - 2, STRING_MULTIBYTE (name))
+     : name);
+}
+
 /* Add DESC to the set of keyboard input descriptors.  */
 
 void
@@ -7794,10 +7810,10 @@ set_external_socket_descriptor (int fd)
 /* This is not called "init_process" because that is the name of a
    Mach system call, so it would cause problems on Darwin systems.  */
 void
-init_process_emacs (void)
+init_process_emacs (int sockfd)
 {
 #ifdef subprocesses
-  register int i;
+  int i;
 
   inhibit_sentinels = 0;
 
@@ -7819,7 +7835,8 @@ init_process_emacs (void)
   FD_ZERO (&non_keyboard_wait_mask);
   FD_ZERO (&non_process_wait_mask);
   FD_ZERO (&write_mask);
-  max_process_desc = max_input_desc = external_sock_fd = -1;
+  max_process_desc = max_input_desc = -1;
+  external_sock_fd = sockfd;
   memset (fd_callback_info, 0, sizeof (fd_callback_info));
 
   FD_ZERO (&connect_wait_mask);
@@ -8104,4 +8121,10 @@ The variable takes effect when `start-process' is called.  */);
    Fprovide (intern_c_string ("make-network-process"), subfeatures);
  }
 
+#endif	/* subprocesses */
+
+  defsubr (&Sget_buffer_process);
+  defsubr (&Sprocess_inherit_coding_system_flag);
+  defsubr (&Slist_system_processes);
+  defsubr (&Sprocess_attributes);
 }

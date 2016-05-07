@@ -47,6 +47,10 @@ along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.  */
 
 #ifdef MSDOS
 #include "msdos.h"
+#if __DJGPP__ == 2 && __DJGPP_MINOR__ < 5
+# define INFINITY  __builtin_inf()
+# define NAN       __builtin_nan("")
+#endif
 #endif
 
 #ifdef HAVE_NS
@@ -2155,26 +2159,15 @@ grow_read_buffer (void)
 static int
 character_name_to_code (char const *name, ptrdiff_t name_len)
 {
-  Lisp_Object code;
+  /* For "U+XXXX", pass the leading '+' to string_to_number to reject
+     monstrosities like "U+-0000".  */
+  Lisp_Object code
+    = (name[0] == 'U' && name[1] == '+'
+       ? string_to_number (name + 1, 16, false)
+       : call2 (Qchar_from_name, make_unibyte_string (name, name_len), Qt));
 
-  /* Code point as U+XXXX....  */
-  if (name[0] == 'U' && name[1] == '+')
-    {
-      /* Pass the leading '+' to string_to_number, so that it
-	 rejects monstrosities such as negative values.  */
-      code = string_to_number (name + 1, 16, false);
-    }
-  else
-    {
-      /* Look up the name in the table returned by 'ucs-names'.  */
-      AUTO_STRING_WITH_LEN (namestr, name, name_len);
-      Lisp_Object names = call0 (Qucs_names);
-      code = CDR (Fassoc (namestr, names));
-    }
-
-  if (! (INTEGERP (code)
-	 && 0 <= XINT (code) && XINT (code) <= MAX_UNICODE_CHAR
-	 && ! char_surrogate_p (XINT (code))))
+  if (! RANGED_INTEGERP (0, code, MAX_UNICODE_CHAR)
+      || char_surrogate_p (XINT (code)))
     {
       AUTO_STRING (format, "\\N{%s}");
       AUTO_STRING_WITH_LEN (namestr, name, name_len);
@@ -4587,6 +4580,7 @@ were read in.  */);
 	       doc: /* List of directories to search for files to load.
 Each element is a string (directory file name) or nil (meaning
 `default-directory').
+This list is consulted by the `require' function.
 Initialized during startup as described in Info node `(elisp)Library Search'.
 Use `directory-file-name' when adding items to this path.  However, Lisp
 programs that process this list should tolerate directories both with
@@ -4829,5 +4823,5 @@ that are loaded before your customizations are read!  */);
   DEFSYM (Qrehash_size, "rehash-size");
   DEFSYM (Qrehash_threshold, "rehash-threshold");
 
-  DEFSYM (Qucs_names, "ucs-names");
+  DEFSYM (Qchar_from_name, "char-from-name");
 }

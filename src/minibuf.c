@@ -630,8 +630,31 @@ read_minibuf (Lisp_Object map, Lisp_Object initial, Lisp_Object prompt,
 			    Qrear_nonsticky, Qt, Qnil);
 	Fput_text_property (make_number (BEG), make_number (PT),
 			    Qfield, Qt, Qnil);
-	Fadd_text_properties (make_number (BEG), make_number (PT),
-			      Vminibuffer_prompt_properties, Qnil);
+	if (CONSP (Vminibuffer_prompt_properties))
+	  {
+	    /* We want to apply all properties from
+	       `minibuffer-prompt-properties' to the region normally,
+	       but if the `face' property is present, add that
+	       property to the end of the face properties to avoid
+	       overwriting faces. */
+	    Lisp_Object list = Vminibuffer_prompt_properties;
+	    while (CONSP (list))
+	      {
+		Lisp_Object key = XCAR (list);
+		list = XCDR (list);
+		if (CONSP (list))
+		  {
+		    Lisp_Object val = XCAR (list);
+		    list = XCDR (list);
+		    if (EQ (key, Qface))
+		      Fadd_face_text_property (make_number (BEG),
+					       make_number (PT), val, Qt, Qnil);
+		    else
+		      Fput_text_property (make_number (BEG), make_number (PT),
+					  key, val, Qnil);
+		  }
+	      }
+	  }
       }
     unbind_to (count1, Qnil);
   }
@@ -1964,7 +1987,9 @@ controls the behavior, rather than this variable.  */);
 
   DEFVAR_BOOL ("enable-recursive-minibuffers", enable_recursive_minibuffers,
 	       doc: /* Non-nil means to allow minibuffer commands while in the minibuffer.
-This variable makes a difference whenever the minibuffer window is active. */);
+This variable makes a difference whenever the minibuffer window is active.
+Also see `minibuffer-depth-indicator-mode', which may be handy if this
+variable is non-nil. */);
   enable_recursive_minibuffers = 0;
 
   DEFVAR_LISP ("minibuffer-completion-table", Vminibuffer_completion_table,

@@ -979,31 +979,41 @@ of the default face.  Value is FACE."
   "Read one or more face names, prompting with PROMPT.
 PROMPT should not end in a space or a colon.
 
-Return DEFAULT if the user enters the empty string.
-If DEFAULT is non-nil, it should be a single face or a list of face names
-\(symbols or strings).  In the latter case, return the `car' of DEFAULT
-\(if MULTIPLE is nil, see below), or DEFAULT (if MULTIPLE is non-nil).
+If DEFAULT is non-nil, it should be a face (a symbol) or a face
+name (a string).  It can also be a list of faces or face names.
 
-If MULTIPLE is non-nil, this function uses `completing-read-multiple'
-to read multiple faces with \"[ \\t]*,[ \\t]*\" as the separator regexp
-and it returns a list of face names.  Otherwise, it reads and returns
-a single face name."
-  (if (and default (not (stringp default)))
-      (setq default
-            (cond ((symbolp default)
-                   (symbol-name default))
-                  (multiple
-                   (mapconcat (lambda (f) (if (symbolp f) (symbol-name f) f))
-                              default ", "))
-                  ;; If we only want one, and the default is more than one,
-                  ;; discard the unwanted ones.
-                  (t (symbol-name (car default))))))
+If MULTIPLE is non-nil, the return value from this function is a
+list of faces.  Otherwise a single face is returned.
+
+If the user enter the empty string at the prompt, DEFAULT is
+returned after a possible transformation according to MULTIPLE.
+That is, if DEFAULT is a list and MULTIPLE is nil, the first
+element of DEFAULT is returned.  If DEFAULT isn't a list, but
+MULTIPLE is non-nil, a one-element list containing DEFAULT is
+returned.  Otherwise, DEFAULT is returned verbatim."
+  (unless (listp default)
+    (setq default (list default)))
+  (when default
+    (setq default
+          (if multiple
+              (mapconcat (lambda (f) (if (symbolp f) (symbol-name f) f))
+                         default ", ")
+            ;; If we only want one, and the default is more than one,
+            ;; discard the unwanted ones.
+            (setq default (car default))
+            (if (symbolp default)
+                (symbol-name default)
+              default))))
   (when (and default (not multiple))
     (require 'crm)
     ;; For compatibility with `completing-read-multiple' use `crm-separator'
     ;; to define DEFAULT if MULTIPLE is nil.
     (setq default (car (split-string default crm-separator t))))
 
+  ;; Older versions of `read-face-name' did not append ": " to the
+  ;; prompt, so there are third party libraries that have that in the
+  ;; prompt.  If so, remove it.
+  (setq prompt (replace-regexp-in-string ": ?\\'" "" prompt))
   (let ((prompt (if default
                     (format-message "%s (default `%s'): " prompt default)
                   (format "%s: " prompt)))
@@ -2309,7 +2319,11 @@ If you set `term-file-prefix' to nil, this function does nothing."
   :group 'basic-faces)
 
 (defface variable-pitch
-  '((t :family "Sans Serif"))
+  '((((type w32))
+     ;; This is a kludgy workaround for an issue discussed in
+     ;; http://lists.gnu.org/archive/html/emacs-devel/2016-04/msg00746.html.
+     :font "-outline-Arial-normal-normal-normal-sans-*-*-*-*-p-*-iso8859-1")
+    (t :family "Sans Serif"))
   "The basic variable-pitch face."
   :group 'basic-faces)
 
@@ -2434,6 +2448,14 @@ If you set `term-file-prefix' to nil, this function does nothing."
   "Face for displaying nobreak space."
   :group 'basic-faces
   :version "22.1")
+
+(defface nobreak-hyphen
+  '((((background dark)) :foreground "cyan")
+    (((type pc)) :foreground "magenta")
+    (t :foreground "brown"))
+  "Face for displaying nobreak hyphens."
+  :group 'basic-faces
+  :version "25.2")
 
 (defgroup mode-line-faces nil
   "Faces used in the mode line."

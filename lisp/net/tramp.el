@@ -1010,7 +1010,9 @@ means to use always cached values for the directory contents."
 
 ;;;###autoload
 (defconst tramp-completion-file-name-handler-alist
-  '((file-name-all-completions . tramp-completion-handle-file-name-all-completions)
+  '((expand-file-name . tramp-completion-handle-expand-file-name)
+    (file-name-all-completions
+     . tramp-completion-handle-file-name-all-completions)
     (file-name-completion . tramp-completion-handle-file-name-completion))
   "Alist of completion handler functions.
 Used for file names matching `tramp-file-name-regexp'. Operations
@@ -1944,7 +1946,8 @@ ARGS are the arguments OPERATION has been called with."
    ;; Unknown file primitive.
    (t (error "unknown file I/O primitive: %s" operation))))
 
-(defun tramp-find-foreign-file-name-handler (filename)
+(defun tramp-find-foreign-file-name-handler
+    (filename &optional operation completion)
   "Return foreign file name handler if exists."
   (when (tramp-tramp-file-p filename)
     (let ((v (tramp-dissect-file-name filename t))
@@ -1952,11 +1955,17 @@ ARGS are the arguments OPERATION has been called with."
 	  elt res)
       ;; When we are not fully sure that filename completion is safe,
       ;; we should not return a handler.
-      (when (or (tramp-file-name-method v) (tramp-file-name-user v)
+      (when (or (not completion)
+		(tramp-file-name-method v) (tramp-file-name-user v)
 		(and (tramp-file-name-host v)
 		     (not (member (tramp-file-name-host v)
 				  (mapcar 'car tramp-methods))))
-		(not (tramp-completion-mode-p)))
+		;; Some operations are safe by default.
+		(member
+		 operation
+		 '(file-name-as-directory
+		   file-name-directory
+		   file-name-nondirectory)))
 	(while handler
 	  (setq elt (car handler)
 		handler (cdr handler))
@@ -1984,7 +1993,9 @@ Falls back to normal file name handler if no Tramp file name handler exists."
 		(tramp-replace-environment-variables
 		 (apply 'tramp-file-name-for-operation operation args)))
 	       (completion (tramp-completion-mode-p))
-	       (foreign (tramp-find-foreign-file-name-handler filename))
+	       (foreign
+		(tramp-find-foreign-file-name-handler
+		 filename operation completion))
 	       result)
 	  (with-parsed-tramp-file-name filename nil
 	    ;; Call the backend function.
@@ -2251,6 +2262,23 @@ not in completion mode."
 	     (let* ((tramp-verbose 0)
 		    (p (tramp-get-connection-process v)))
 	       (and p (processp p) (memq (process-status p) '(run open))))))))
+
+;;;###autoload
+(defun tramp-completion-handle-expand-file-name
+    (name &optional dir)
+  "Like `expand-file-name' for Tramp files."
+  (if (tramp-completion-mode-p)
+      (progn
+	;; If DIR is not given, use `default-directory' or "/".
+	(setq dir (or dir default-directory "/"))
+	;; Unless NAME is absolute, concat DIR and NAME.
+	(unless (file-name-absolute-p name)
+	  (setq name (concat (file-name-as-directory dir) name)))
+	;; Return NAME.
+	name)
+
+    (tramp-completion-run-real-handler
+     'expand-file-name (list name dir))))
 
 ;; Method, host name and user name completion.
 ;; `tramp-completion-dissect-file-name' returns a list of
@@ -2808,13 +2836,17 @@ User is always nil."
   ;; `file-name-as-directory' would be sufficient except localname is
   ;; the empty string.
   (let ((v (tramp-dissect-file-name file t)))
-    ;; Run the command on the localname portion only.
+    ;; Run the command on the localname portion only unless we are in
+    ;; completion mode.
     (tramp-make-tramp-file-name
      (tramp-file-name-method v)
      (tramp-file-name-user v)
      (tramp-file-name-host v)
-     (tramp-run-real-handler
-      'file-name-as-directory (list (or (tramp-file-name-localname v) "")))
+     (if (and (tramp-completion-mode-p)
+	      (zerop (length (tramp-file-name-localname v))))
+	 ""
+       (tramp-run-real-handler
+	'file-name-as-directory (list (or (tramp-file-name-localname v) ""))))
      (tramp-file-name-hop v))))
 
 (defun tramp-handle-file-name-completion

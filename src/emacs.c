@@ -54,6 +54,7 @@ along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.  */
 
 #ifdef MSDOS
 #include <binary-io.h>
+#include "dosfns.h"
 #endif
 
 #ifdef HAVE_LIBSYSTEMD
@@ -971,6 +972,9 @@ main (int argc, char **argv)
   w32_daemon_event = NULL;
 #endif
 
+
+  int sockfd = -1;
+
   if (argmatch (argv, argc, "-daemon", "--daemon", 5, NULL, &skip_args)
       || argmatch (argv, argc, "-daemon", "--daemon", 5, &dname_arg, &skip_args))
     {
@@ -1016,7 +1020,7 @@ main (int argc, char **argv)
       else if (systemd_socket == 1
 	       && (0 < sd_is_socket (SD_LISTEN_FDS_START,
 				     AF_UNSPEC, SOCK_STREAM, 1)))
-        set_external_socket_descriptor (SD_LISTEN_FDS_START);
+	sockfd = SD_LISTEN_FDS_START;
 #endif /* HAVE_LIBSYSTEMD */
 
 #ifndef DAEMON_MUST_EXEC
@@ -1575,7 +1579,7 @@ Using an Emacs configured with --with-x-toolkit=lucid does not have this problem
   /* This can create a thread that may call getenv, so it must follow
      all calls to putenv and setenv.  Also, this sets up
      add_keyboard_wait_descriptor, which init_display uses.  */
-  init_process_emacs ();
+  init_process_emacs (sockfd);
 
   init_keyboard ();	/* This too must precede init_sys_modes.  */
   if (!noninteractive)

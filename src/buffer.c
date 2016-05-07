@@ -1073,7 +1073,7 @@ is first appended to NAME, to speed up finding a non-existent buffer.  */)
 	return genbase;
     }
 
-  for (ptrdiff_t count = 1; ; count++)
+  for (ptrdiff_t count = 2; ; count++)
     {
       char number[INT_BUFSIZE_BOUND (ptrdiff_t) + sizeof "<>"];
       AUTO_STRING_WITH_LEN (lnumber, number,
@@ -6224,6 +6224,8 @@ Values are interpreted as follows:
   hbar            display a horizontal bar cursor with default height
   (hbar . HEIGHT) display a horizontal bar cursor with height HEIGHT
   ANYTHING ELSE   display a hollow box cursor
+
+WIDTH and HEIGHT can't exceed the frame's canonical character size.
 
 When the buffer is displayed in a non-selected window, the
 cursor's appearance is instead controlled by the variable

@@ -700,16 +700,10 @@ directory, like `default-directory'."
 
     (define-key-after map [menu-bar view dashes2]
       '("--"))
-    (define-key-after map [menu-bar view diff-with-file]
-      '(menu-item "Diff with file" ibuffer-diff-with-file
-        :help "View the differences between this buffer and its file"))
     (define-key-after map [menu-bar view auto-mode]
       '(menu-item "Auto Mode" ibuffer-auto-mode
         :button (:toggle . ibuffer-auto-mode)
         :help "Attempt to automatically update the Ibuffer buffer"))
-    (define-key-after map [menu-bar view customize]
-      '(menu-item "Customize Ibuffer" ibuffer-customize
-        :help "Use Custom to customize Ibuffer"))
 
     (define-key-after map [menu-bar mark]
       (cons "Mark" (make-sparse-keymap "Mark")))
@@ -820,6 +814,9 @@ directory, like `default-directory'."
     (define-key-after operate-map [do-view-and-eval]
       '(menu-item "Eval (viewing buffer)..." ibuffer-do-view-and-eval
         :help "Evaluate a Lisp form in each marked buffer while viewing it"))
+    (define-key-after operate-map [diff-with-file]
+      '(menu-item "Diff with file" ibuffer-diff-with-file
+                  :help "View the differences between this buffer and its file"))
 
     operate-map))
 
@@ -1743,7 +1740,13 @@ If point is on a group name, this function operates on that group."
        (cond ((zerop bufs) "No buffers")
 	     ((= 1 bufs) "1 buffer")
 	     (t (format "%s buffers" bufs))))))
-  (propertize (buffer-name) 'font-lock-face (ibuffer-buffer-name-face buffer mark)))
+  (let ((string (propertize (buffer-name)
+                            'font-lock-face
+                            (ibuffer-buffer-name-face buffer mark))))
+    (if (not (seq-position string ?\n))
+        string
+      (replace-regexp-in-string
+       "\n" (propertize "^J" 'font-lock-face 'escape-glyph) string))))
 
 (define-ibuffer-column size
   (:inline t

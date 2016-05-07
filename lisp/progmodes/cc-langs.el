@@ -1330,6 +1330,14 @@ operators."
 (c-lang-defconst c-haskell-op-re
   t (c-make-keywords-re nil (c-lang-const c-haskell-op)))
 (c-lang-defvar c-haskell-op-re (c-lang-const c-haskell-op-re))
+
+(c-lang-defconst c-pre-start-tokens
+  "List of operators following which an apparent declaration \(e.g.
+\"t1 *fn (t2 *b);\") is most likely to be an actual declaration
+\(as opposed to an arithmetic expression)."
+  t '(";" "{" "}"))
+(c-lang-defvar c-pre-start-tokens (c-lang-const c-pre-start-tokens))
+
 
 ;;; Syntactic whitespace.
 
@@ -2301,6 +2309,15 @@ assumed to be set if this isn't nil."
   ;; bracket sexp.  Always set when `c-recognize-<>-arglists' is.
   t (c-make-keywords-re t (c-lang-const c-<>-sexp-kwds)))
 (c-lang-defvar c-opt-<>-sexp-key (c-lang-const c-opt-<>-sexp-key))
+
+(c-lang-defconst c-inside-<>-type-kwds
+  "Keywords which, used inside a C++ style template arglist, introduce a type."
+  t nil
+  java '("extends" "super"))
+
+(c-lang-defconst c-inside-<>-type-key
+  t (c-make-keywords-re t (c-lang-const c-inside-<>-type-kwds)))
+(c-lang-defvar c-inside-<>-type-key (c-lang-const c-inside-<>-type-key))
 
 (c-lang-defconst c-brace-id-list-kwds
   "Keywords that may be followed by a brace block containing a comma

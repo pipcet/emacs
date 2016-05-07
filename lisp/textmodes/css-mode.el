@@ -30,10 +30,12 @@
 ;; - electric ; and }
 ;; - filling code with auto-fill-mode
 ;; - fix font-lock errors with multi-line selectors
+;; - support completion of user-defined classes names and IDs
 
 ;;; Code:
 
 (require 'seq)
+(require 'sgml-mode)
 (require 'smie)
 
 (defgroup css nil
@@ -454,6 +456,7 @@ further value candidates, since that list would be infinite.")
      "xx-small" "x-small" "small" "medium" "large" "x-large"
      "xx-large")
     (alphavalue number)
+    (angle "calc()")
     (attachment "scroll" "fixed" "local")
     (bg-image image "none")
     (bg-layer bg-image position repeat-style attachment box)
@@ -481,6 +484,7 @@ further value candidates, since that list would be infinite.")
     (final-bg-layer
      bg-image position repeat-style attachment box color)
     (font-variant-css21 "normal" "small-caps")
+    (frequency "calc()")
     (generic-family
      "serif" "sans-serif" "cursive" "fantasy" "monospace")
     (generic-voice "male" "female" "child")
@@ -491,7 +495,8 @@ further value candidates, since that list would be infinite.")
      "historical-ligatures" "no-historical-ligatures")
     (image uri image-list element-reference gradient)
     (image-list "image()")
-    (length number)
+    (integer "calc()")
+    (length "calc()" number)
     (line-height "normal" number length percentage)
     (line-style
      "none" "hidden" "dotted" "dashed" "solid" "double" "groove"
@@ -499,6 +504,7 @@ further value candidates, since that list would be infinite.")
     (line-width length "thin" "medium" "thick")
     (linear-gradient "linear-gradient()")
     (margin-width "auto" length percentage)
+    (number "calc()")
     (numeric-figure-values "lining-nums" "oldstyle-nums")
     (numeric-fraction-values "diagonal-fractions" "stacked-fractions")
     (numeric-spacing-values "proportional-nums" "tabular-nums")
@@ -529,6 +535,7 @@ further value candidates, since that list would be infinite.")
      "step-end" "steps()" "cubic-bezier()")
     (specific-voice identifier)
     (target-name string)
+    (time "calc()")
     (transform-list
      "matrix()" "translate()" "translateX()" "translateY()" "scale()"
      "scaleX()" "scaleY()" "rotate()" "skew()" "skewX()" "skewY()"
@@ -546,9 +553,8 @@ a class of values, and that symbols in the CDRs always refer to
 other entries in this list, not to properties.
 
 The following classes have been left out above because they
-cannot be completed sensibly: `angle', `element-reference',
-`frequency', `id', `identifier', `integer', `number',
-`percentage', `string', and `time'.")
+cannot be completed sensibly: `element-reference', `id',
+`identifier', `percentage', and `string'.")
 
 (defcustom css-electric-keys '(?\} ?\;) ;; '()
   "Self inserting keys which should trigger re-indentation."
@@ -780,12 +786,13 @@ cannot be completed sensibly: `angle', `element-reference',
   "Return a list of value completion candidates for VALUE-CLASS.
 Completion candidates are looked up in `css-value-class-alist' by
 the symbol VALUE-CLASS."
-  (seq-mapcat
-   (lambda (value)
-     (if (stringp value)
-         (list value)
-       (css--value-class-lookup value)))
-   (cdr (assq value-class css-value-class-alist))))
+  (seq-uniq
+   (seq-mapcat
+    (lambda (value)
+      (if (stringp value)
+          (list value)
+        (css--value-class-lookup value)))
+    (cdr (assq value-class css-value-class-alist)))))
 
 (defun css--property-values (property)
   "Return a list of value completion candidates for PROPERTY.
@@ -819,15 +826,40 @@ the string PROPERTY."
           (list (point) end
                 (cons "inherit" (css--property-values property))))))))
 
+(defvar css--html-tags (mapcar #'car html-tag-alist)
+  "List of HTML tags.
+Used to provide completion of HTML tags in selectors.")
+
+(defvar css--nested-selectors-allowed nil
+  "Non-nil if nested selectors are allowed in the current mode.")
+(make-variable-buffer-local 'css--nested-selectors-allowed)
+
+;; TODO: Currently only supports completion of HTML tags.  By looking
+;; at open HTML mode buffers we should be able to provide completion
+;; of user-defined classes and IDs too.
+(defun css--complete-selector ()
+  "Complete part of a CSS selector at point."
+  (when (or (= (nth 0 (syntax-ppss)) 0) css--nested-selectors-allowed)
+    (save-excursion
+      (let ((end (point)))
+        (skip-chars-backward "-[:alnum:]")
+        (list (point) end css--html-tags)))))
+
 (defun css-completion-at-point ()
   "Complete current symbol at point.
 Currently supports completion of CSS properties, property values,
 pseudo-elements, pseudo-classes, at-rules, and bang-rules."
-  (or (css--complete-property)
-      (css--complete-bang-rule)
+  (or (css--complete-bang-rule)
       (css--complete-property-value)
       (css--complete-pseudo-element-or-class)
-      (css--complete-at-rule)))
+      (css--complete-at-rule)
+      (seq-let (prop-beg prop-end prop-table) (css--complete-property)
+        (seq-let (sel-beg sel-end sel-table) (css--complete-selector)
+          (when (or prop-table sel-table)
+            `(,@(if prop-table
+                    (list prop-beg prop-end)
+                  (list sel-beg sel-end))
+              ,(completion-table-merge prop-table sel-table)))))))
 
 ;;;###autoload
 (define-derived-mode css-mode prog-mode "CSS"
@@ -985,6 +1017,7 @@ pseudo-elements, pseudo-classes, at-rules, and bang-rules."
   (setq-local comment-end-skip "[ \t]*\\(?:\n\\|\\*+/\\)")
   (setq-local css--at-ids (append css-at-ids scss-at-ids))
   (setq-local css--bang-ids (append css-bang-ids scss-bang-ids))
+  (setq-local css--nested-selectors-allowed t)
   (setq-local font-lock-defaults
               (list (scss-font-lock-keywords) nil t)))
 

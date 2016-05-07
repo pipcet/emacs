@@ -2143,6 +2143,7 @@ Do you want to revisit the file normally now? ")
 
 (defun insert-file-contents-literally (filename &optional visit beg end replace)
   "Like `insert-file-contents', but only reads in the file literally.
+See `insert-file-contents' for an explanation of the parameters.
 A buffer may be modified in several ways after reading into the buffer,
 due to Emacs features such as format decoding, character code
 conversion, `find-file-hook', automatic uncompression, etc.
@@ -2315,14 +2316,21 @@ not set local variables (though we do notice a mode specified with -*-.)
 or from Lisp without specifying the optional argument FIND-FILE;
 in that case, this function acts as if `enable-local-variables' were t."
   (interactive)
-  (fundamental-mode)
+  (kill-all-local-variables)
+  (unless delay-mode-hooks
+    (run-hooks 'change-major-mode-after-body-hook
+               'after-change-major-mode-hook))
   (let ((enable-local-variables (or (not find-file) enable-local-variables)))
     ;; FIXME this is less efficient than it could be, since both
     ;; s-a-m and h-l-v may parse the same regions, looking for "mode:".
     (with-demoted-errors "File mode specification error: %s"
       (set-auto-mode))
-    (with-demoted-errors "File local-variables error: %s"
-      (hack-local-variables)))
+    ;; `delay-mode-hooks' being non-nil will have prevented the major
+    ;; mode's call to `run-mode-hooks' from calling
+    ;; `hack-local-variables'.  In that case, call it now.
+    (when delay-mode-hooks
+      (with-demoted-errors "File local-variables error: %s"
+        (hack-local-variables 'no-mode))))
   ;; Turn font lock off and on, to make sure it takes account of
   ;; whatever file local variables are relevant to it.
   (when (and font-lock-mode
@@ -3296,11 +3304,15 @@ DIR-NAME is the name of the associated directory.  Otherwise it is nil."
 ;; TODO?  Warn once per file rather than once per session?
 (defvar hack-local-variables--warned-lexical nil)
 
-(defun hack-local-variables (&optional mode-only)
+(defun hack-local-variables (&optional handle-mode)
   "Parse and put into effect this buffer's local variables spec.
 Uses `hack-local-variables-apply' to apply the variables.
 
-If MODE-ONLY is non-nil, all we do is check whether a \"mode:\"
+If HANDLE-MODE is nil, we apply all the specified local
+variables.  If HANDLE-MODE is neither nil nor t, we do the same,
+except that any settings of `mode' are ignored.
+
+If HANDLE-MODE is t, all we do is check whether a \"mode:\"
 is specified, and return the corresponding mode symbol, or nil.
 In this case, we try to ignore minor-modes, and only return a
 major-mode.
@@ -3318,7 +3330,7 @@ local variables, but directory-local variables may still be applied."
   (let ((enable-local-variables
 	 (and local-enable-local-variables enable-local-variables))
 	result)
-    (unless mode-only
+    (unless (eq handle-mode t)
       (setq file-local-variables-alist nil)
       (with-demoted-errors "Directory-local variables error: %s"
 	;; Note this is a no-op if enable-local-variables is nil.
@@ -3326,18 +3338,19 @@ local variables, but directory-local variables may still be applied."
     ;; This entire function is basically a no-op if enable-local-variables
     ;; is nil.  All it does is set file-local-variables-alist to nil.
     (when enable-local-variables
-      ;; This part used to ignore enable-local-variables when mode-only
-      ;; was non-nil.  That was inappropriate, eg consider the
+      ;; This part used to ignore enable-local-variables when handle-mode
+      ;; was t.  That was inappropriate, eg consider the
       ;; (artificial) example of:
       ;; (setq local-enable-local-variables nil)
       ;; Open a file foo.txt that contains "mode: sh".
       ;; It correctly opens in text-mode.
       ;; M-x set-visited-file name foo.c, and it incorrectly stays in text-mode.
       (unless (or (inhibit-local-variables-p)
-		  ;; If MODE-ONLY is non-nil, and the prop line specifies a
+		  ;; If HANDLE-MODE is t, and the prop line specifies a
 		  ;; mode, then we're done, and have no need to scan further.
-		  (and (setq result (hack-local-variables-prop-line mode-only))
-		       mode-only))
+		  (and (setq result (hack-local-variables-prop-line
+                                     (eq handle-mode t)))
+		       (eq handle-mode t)))
 	;; Look for "Local variables:" line in last page.
 	(save-excursion
 	  (goto-char (point-max))
@@ -3392,7 +3405,7 @@ local variables, but directory-local variables may still be applied."
 		  (goto-char (point-min))
 
 		  (while (not (or (eobp)
-                                  (and mode-only result)))
+                                  (and (eq handle-mode t) result)))
 		    ;; Find the variable name;
 		    (unless (looking-at hack-local-variable-regexp)
                       (error "Malformed local variable line: %S"
@@ -3409,7 +3422,7 @@ local variables, but directory-local variables may still be applied."
 		      (forward-char 1)
 		      (let ((read-circle nil))
 			(setq val (read (current-buffer))))
-		      (if mode-only
+		      (if (eq handle-mode t)
 			  (and (eq var 'mode)
 			       ;; Specifying minor-modes via mode: is
 			       ;; deprecated, but try to reject them anyway.
@@ -3431,6 +3444,7 @@ local variables, but directory-local variables may still be applied."
                                     ;; to use 'thisbuf's name in the
                                     ;; warning message.
                                     (or (buffer-file-name thisbuf) ""))))))
+                              ((and (eq var 'mode) handle-mode))
 			      (t
 			       (ignore-errors
 				 (push (cons (if (eq var 'eval)
@@ -3439,8 +3453,8 @@ local variables, but directory-local variables may still be applied."
 					     val) result))))))
 		    (forward-line 1))))))))
       ;; Now we've read all the local variables.
-      ;; If MODE-ONLY is non-nil, return whether the mode was specified.
-      (if mode-only result
+      ;; If HANDLE-MODE is t, return whether the mode was specified.
+      (if (eq handle-mode t) result
 	;; Otherwise, set the variables.
 	(hack-local-variables-filter result nil)
 	(hack-local-variables-apply)))))
@@ -5122,7 +5136,7 @@ change the additional actions you can take on files."
 
 (defun clear-visited-file-modtime ()
   "Clear out records of last mod time of visited file.
-Next attempt to save will certainly not complain of a discrepancy."
+Next attempt to save will not complain of a discrepancy."
   (set-visited-file-modtime 0))
 
 (defun not-modified (&optional arg)
@@ -6663,11 +6677,14 @@ message to that effect instead of signaling an error."
     ;; Simulate the message printed by `ls'.
     (insert (format "%s: No such file or directory\n" file))))
 
-(defvar kill-emacs-query-functions nil
+(defcustom kill-emacs-query-functions nil
   "Functions to call with no arguments to query about killing Emacs.
 If any of these functions returns nil, killing Emacs is canceled.
 `save-buffers-kill-emacs' calls these functions, but `kill-emacs',
-the low level primitive, does not.  See also `kill-emacs-hook'.")
+the low level primitive, does not.  See also `kill-emacs-hook'."
+  :type 'hook
+  :version "25.2"
+  :group 'convenience)
 
 (defcustom confirm-kill-emacs nil
   "How to ask for confirmation when leaving Emacs.
@@ -6726,7 +6743,8 @@ if any returns nil.  If `confirm-kill-emacs' is non-nil, calls it."
 
 (defun save-buffers-kill-terminal (&optional arg)
   "Offer to save each buffer, then kill the current connection.
-If the current frame has no client, kill Emacs itself.
+If the current frame has no client, kill Emacs itself using
+`save-buffers-kill-emacs'.
 
 With prefix ARG, silently save all file-visiting buffers, then kill.
 

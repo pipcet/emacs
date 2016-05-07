@@ -2933,10 +2933,9 @@ DEFUN ("compare-buffer-substrings", Fcompare_buffer_substrings, Scompare_buffer_
        6, 6, 0,
        doc: /* Compare two substrings of two buffers; return result as number.
 Return -N if first string is less after N-1 chars, +N if first string is
-greater after N-1 chars, or 0 if strings match.  Each substring is
-represented as three arguments: BUFFER, START and END.  That makes six
-args in all, three for each substring.
-
+greater after N-1 chars, or 0 if strings match.
+The first substring is in BUFFER1 from START1 to END1 and the second
+is in BUFFER2 from START2 to END2.
 The value of `case-fold-search' in the current buffer
 determines whether case is significant or ignored.  */)
   (Lisp_Object buffer1, Lisp_Object start1, Lisp_Object end1, Lisp_Object buffer2, Lisp_Object start2, Lisp_Object end2)
@@ -3717,10 +3716,11 @@ In batch mode, the message is printed to the standard error stream,
 followed by a newline.
 
 The first argument is a format control string, and the rest are data
-to be formatted under control of the string.  See `format' for details.
+to be formatted under control of the string.  See `format-message' for
+details.
 
-Note: Use (message "%s" VALUE) to print the value of expressions and
-variables to avoid accidentally interpreting `%' as format specifiers.
+Note: (message "%s" VALUE) displays the string VALUE without
+interpreting format characters like `%', `\\=`', and `\\=''.
 
 If the first argument is nil or the empty string, the function clears
 any existing message; this lets the minibuffer contents show.  See
@@ -3748,7 +3748,8 @@ DEFUN ("message-box", Fmessage_box, Smessage_box, 1, MANY, 0,
        doc: /* Display a message, in a dialog box if possible.
 If a dialog box is not available, use the echo area.
 The first argument is a format control string, and the rest are data
-to be formatted under control of the string.  See `format' for details.
+to be formatted under control of the string.  See `format-message' for
+details.
 
 If the first argument is nil or the empty string, clear any existing
 message; let the minibuffer contents show.
@@ -3779,7 +3780,8 @@ If this command was invoked with the mouse, use a dialog box if
 `use-dialog-box' is non-nil.
 Otherwise, use the echo area.
 The first argument is a format control string, and the rest are data
-to be formatted under control of the string.  See `format' for details.
+to be formatted under control of the string.  See `format-message' for
+details.
 
 If the first argument is nil or the empty string, clear any existing
 message; let the minibuffer contents show.
@@ -3975,6 +3977,8 @@ styled_format (ptrdiff_t nargs, Lisp_Object *args, bool message)
       multibyte = true;
 
   int quoting_style = message ? text_quoting_style () : -1;
+  if (quoting_style == LEAVE_QUOTING_STYLE)
+    quoting_style = -1;
 
   /* If we start out planning a unibyte result,
      then discover it has to be multibyte, we jump back to retry.  */

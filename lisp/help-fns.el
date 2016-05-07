@@ -626,7 +626,7 @@ FILE is the file where FUNCTION was probably defined."
             ;; Avoid asking the user annoying questions if she decides
             ;; to save the help buffer, when her locale's codeset
             ;; isn't UTF-8.
-            (unless (memq text-quoting-style '(straight grave))
+            (unless (memq text-quoting-style '(leave straight grave))
               (set-buffer-file-coding-system 'utf-8))))))))
 
 ;; Add defaults to `help-fns-describe-function-functions'.
@@ -699,17 +699,23 @@ it is displayed along with the global value."
   (interactive
    (let ((v (variable-at-point))
 	 (enable-recursive-minibuffers t)
+         (orig-buffer (current-buffer))
 	 val)
-     (setq val (completing-read (if (symbolp v)
-				    (format
-				     "Describe variable (default %s): " v)
-				  "Describe variable: ")
-				obarray
-				(lambda (vv)
-                                  (or (get vv 'variable-documentation)
-                                      (and (boundp vv) (not (keywordp vv)))))
-				t nil nil
-				(if (symbolp v) (symbol-name v))))
+     (setq val (completing-read
+                (if (symbolp v)
+                    (format
+                     "Describe variable (default %s): " v)
+                  "Describe variable: ")
+                obarray
+                (lambda (vv)
+                  ;; In case the variable only exists in the buffer
+                  ;; the command we switch back to that buffer before
+                  ;; we examine the variable.
+                  (with-current-buffer orig-buffer
+                    (or (get vv 'variable-documentation)
+                        (and (boundp vv) (not (keywordp vv))))))
+                t nil nil
+                (if (symbolp v) (symbol-name v))))
      (list (if (equal val "")
 	       v (intern val)))))
   (let (file-name)
@@ -758,9 +764,8 @@ it is displayed along with the global value."
 	    (unless valvoid
 	      (with-current-buffer standard-output
 		(setq val-start-pos (point))
-		(princ "value is ")
-		(let ((from (point))
-		      (line-beg (line-beginning-position))
+		(princ "value is")
+		(let ((line-beg (line-beginning-position))
 		      (print-rep
 		       (let ((rep
 			      (let ((print-quoted t))
@@ -769,17 +774,17 @@ it is displayed along with the global value."
 			     (format-message "`%s'" rep)
 			   rep))))
 		  (if (< (+ (length print-rep) (point) (- line-beg)) 68)
-		      (insert print-rep)
+		      (insert " " print-rep)
 		    (terpri)
 		    (pp val)
-		    (if (< (point) (+ 68 (line-beginning-position 0)))
-			(delete-region from (1+ from))
-		      (delete-region (1- from) from)))
+                    ;; Remove trailing newline.
+                    (delete-char -1))
 		  (let* ((sv (get variable 'standard-value))
 			 (origval (and (consp sv)
 				       (condition-case nil
 					   (eval (car sv))
-					 (error :help-eval-error)))))
+					 (error :help-eval-error))))
+                         from)
 		    (when (and (consp sv)
                                (not (equal origval val))
                                (not (equal origval :help-eval-error)))
@@ -1104,7 +1109,13 @@ BUFFER should be a buffer or a buffer name."
       (if (or (not (vectorp docs)) (/= (length docs) 95))
 	  (error "Invalid first extra slot in this category table\n"))
       (with-current-buffer standard-output
-	(insert "Legend of category mnemonics (see the tail for the longer description)\n")
+        (setq-default help-button-cache (make-marker))
+	(insert "Legend of category mnemonics ")
+        (insert-button "(longer descriptions at the bottom)"
+                       'action help-button-cache
+                       'follow-link t
+                       'help-echo "mouse-2, RET: show full legend")
+        (insert "\n")
 	(let ((pos (point)) (items 0) lines n)
 	  (dotimes (i 95)
 	    (if (aref docs i) (setq items (1+ items))))
@@ -1131,6 +1142,7 @@ BUFFER should be a buffer or a buffer name."
 		"character(s)\tcategory mnemonics\n"
 		"------------\t------------------")
 	(describe-vector table 'help-describe-category-set)
+        (set-marker help-button-cache (point))
 	(insert "Legend of category mnemonics:\n")
 	(dotimes (i 95)
 	  (let ((elt (aref docs i)))

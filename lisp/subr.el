@@ -291,21 +291,27 @@ This function accepts any number of arguments, but ignores them."
 
 ;; Signal a compile-error if the first arg is missing.
 (defun error (&rest args)
-  "Signal an error, making error message by passing all args to `format'.
+  "Signal an error, making a message by passing args to `format-message'.
 In Emacs, the convention is that error messages start with a capital
 letter but *do not* end with a period.  Please follow this convention
-for the sake of consistency."
+for the sake of consistency.
+
+Note: (error \"%s\" VALUE) makes the message VALUE without
+interpreting format characters like `%', `\\=`', and `\\=''."
   (declare (advertised-calling-convention (string &rest args) "23.1"))
   (signal 'error (list (apply #'format-message args))))
 
 (defun user-error (format &rest args)
-  "Signal a pilot error, making error message by passing all args to `format'.
+  "Signal a pilot error, making a message by passing args to `format-message'.
 In Emacs, the convention is that error messages start with a capital
 letter but *do not* end with a period.  Please follow this convention
 for the sake of consistency.
 This is just like `error' except that `user-error's are expected to be the
 result of an incorrect manipulation on the part of the user, rather than the
-result of an actual problem."
+result of an actual problem.
+
+Note: (user-error \"%s\" VALUE) makes the message VALUE without
+interpreting format characters like `%', `\\=`', and `\\=''."
   (signal 'user-error (list (apply #'format-message format args))))
 
 (defun define-error (name message &optional parent)
@@ -620,8 +626,10 @@ side-effects, and the argument LIST is not modified."
 
 (defun kbd (keys)
   "Convert KEYS to the internal Emacs key representation.
-KEYS should be a string constant in the format used for
-saving keyboard macros (see `edmacro-mode')."
+KEYS should be a string in the format returned by commands such
+as `C-h k' (`describe-key').
+This is the same format used for saving keyboard macros (see
+`edmacro-mode')."
   ;; Don't use a defalias, since the `pure' property is only true for
   ;; the calling convention of `kbd'.
   (read-kbd-macro keys))
@@ -847,7 +855,12 @@ above 127 (such as ISO Latin-1) can be included if you use a vector.
 Note that if KEY has a local binding in the current buffer,
 that local binding will continue to shadow any global binding
 that you make with this function."
-  (interactive "KSet key globally: \nCSet key %s to command: ")
+  (interactive
+   (let* ((menu-prompting nil)
+          (key (read-key-sequence "Set key globally: ")))
+     (list key
+           (read-command (format "Set key %s to command: "
+                                 (key-description key))))))
   (or (vectorp key) (stringp key)
       (signal 'wrong-type-argument (list 'arrayp key)))
   (define-key (current-global-map) key command))
@@ -1116,6 +1129,7 @@ The return value is a positive integer."
 
 (defun posnp (obj)
   "Return non-nil if OBJ appears to be a valid `posn' object specifying a window.
+A `posn' object is returned from functions such as `event-start'.
 If OBJ is a valid `posn' object, but specifies a frame rather
 than a window, return nil."
   ;; FIXME: Correct the behavior of this function so that all valid
@@ -1321,7 +1335,9 @@ is converted into a string by expressing it in decimal."
 ;; buffer-local.
 
 ;; Not used at all in Emacs, last time I checked:
-(make-obsolete-variable 'default-mode-line-format 'mode-line-format "23.2")
+(make-obsolete-variable 'default-mode-line-format
+                        "use (setq-default mode-line-format) or (default-value mode-line-format) instead"
+                        "23.2")
 (make-obsolete-variable 'default-header-line-format 'header-line-format "23.2")
 (make-obsolete-variable 'default-line-spacing 'line-spacing "23.2")
 (make-obsolete-variable 'default-abbrev-mode 'abbrev-mode "23.2")
@@ -1728,10 +1744,14 @@ if it is empty or a duplicate."
 
 (defun run-mode-hooks (&rest hooks)
   "Run mode hooks `delayed-mode-hooks' and HOOKS, or delay HOOKS.
-If the variable `delay-mode-hooks' is non-nil, does not run any hooks,
+Call `hack-local-variables' to set up file local and directory local
+variables.
+
+If the variable `delay-mode-hooks' is non-nil, does not do anything,
 just adds the HOOKS to the list `delayed-mode-hooks'.
 Otherwise, runs hooks in the sequence: `change-major-mode-after-body-hook',
-`delayed-mode-hooks' (in reverse order), HOOKS, and finally
+`delayed-mode-hooks' (in reverse order), HOOKS, then runs
+`hack-local-variables' and finally runs the hook
 `after-change-major-mode-hook'.  Major mode functions should use
 this instead of `run-hooks' when running their FOO-mode-hook."
   (if delay-mode-hooks
@@ -1742,6 +1762,9 @@ this instead of `run-hooks' when running their FOO-mode-hook."
     (setq hooks (nconc (nreverse delayed-mode-hooks) hooks))
     (setq delayed-mode-hooks nil)
     (apply 'run-hooks (cons 'change-major-mode-after-body-hook hooks))
+    (if (buffer-file-name)
+        (with-demoted-errors "File local-variables error: %s"
+          (hack-local-variables 'no-mode)))
     (run-hooks 'after-change-major-mode-hook)))
 
 (defmacro delay-mode-hooks (&rest body)
@@ -2476,7 +2499,8 @@ floating point support."
 (declare-function x-popup-dialog "menu.c" (position contents &optional header))
 
 (defun y-or-n-p (prompt)
-  "Ask user a \"y or n\" question.  Return t if answer is \"y\".
+  "Ask user a \"y or n\" question.
+Return t if answer is \"y\" and nil if it is \"n\".
 PROMPT is the string to display to ask the question.  It should
 end in a space; `y-or-n-p' adds \"(y or n) \" to it.
 
@@ -3452,6 +3476,8 @@ See also `with-temp-file' and `with-output-to-string'."
 
 (defmacro with-silent-modifications (&rest body)
   "Execute BODY, pretending it does not modify the buffer.
+This macro is Typically used around modifications of
+text-properties which do not really affect the buffer's content.
 If BODY performs real modifications to the buffer's text, other
 than cosmetic ones, undo data may become corrupted.
 
@@ -3459,10 +3485,7 @@ This macro will run BODY normally, but doesn't count its buffer
 modifications as being buffer modifications.  This affects things
 like `buffer-modified-p', checking whether the file is locked by
 someone else, running buffer modification hooks, and other things
-of that nature.
-
-Typically used around modifications of text-properties which do
-not really affect the buffer's content."
+of that nature."
   (declare (debug t) (indent 0))
   (let ((modified (make-symbol "modified")))
     `(let* ((,modified (buffer-modified-p))
