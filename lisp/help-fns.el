@@ -541,14 +541,14 @@ FILE is the file where FUNCTION was probably defined."
     ;; Print what kind of function-like object FUNCTION is.
     (princ (cond ((or (stringp def) (vectorp def))
 		  "a keyboard macro")
-		 ((subrp def)
-		  (if (eq 'unevalled (cdr (subr-arity def)))
-		      (concat beg "special form")
-		    (concat beg "built-in function")))
 		 ;; Aliases are Lisp functions, so we need to check
 		 ;; aliases before functions.
 		 (aliased
 		  (format-message "an alias for `%s'" real-def))
+		 ((subrp def)
+		  (if (eq 'unevalled (cdr (subr-arity def)))
+		      (concat beg "special form")
+		    (concat beg "built-in function")))
 		 ((autoloadp def)
 		  (format "%s autoloaded %s"
 			  (if (commandp def) "an interactive" "an")
@@ -626,7 +626,7 @@ FILE is the file where FUNCTION was probably defined."
             ;; Avoid asking the user annoying questions if she decides
             ;; to save the help buffer, when her locale's codeset
             ;; isn't UTF-8.
-            (unless (memq text-quoting-style '(leave straight grave))
+            (unless (memq text-quoting-style '(straight grave))
               (set-buffer-file-coding-system 'utf-8))))))))
 
 ;; Add defaults to `help-fns-describe-function-functions'.

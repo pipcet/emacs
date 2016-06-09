@@ -474,9 +474,13 @@ so that all identifiers are recognized as words.")
   ;; The value here may be a list of functions or a single function.
   t nil
   c++ '(c-extend-region-for-CPP
+	c-before-change-check-raw-strings
 	c-before-change-check-<>-operators
+	c-depropertize-CPP
 	c-invalidate-macro-cache)
-  (c objc) '(c-extend-region-for-CPP c-invalidate-macro-cache)
+  (c objc) '(c-extend-region-for-CPP
+	     c-depropertize-CPP
+	     c-invalidate-macro-cache)
   ;; java 'c-before-change-check-<>-operators
   awk 'c-awk-record-region-clear-NL)
 (c-lang-defvar c-get-state-before-change-functions
@@ -505,9 +509,12 @@ parameters \(point-min) and \(point-max).")
   ;; For documentation see the following c-lang-defvar of the same name.
   ;; The value here may be a list of functions or a single function.
   t 'c-change-expand-fl-region
-  (c objc) '(c-neutralize-syntax-in-and-mark-CPP
+  (c objc) '(c-extend-font-lock-region-for-macros
+	     c-neutralize-syntax-in-and-mark-CPP
 	     c-change-expand-fl-region)
-  c++ '(c-neutralize-syntax-in-and-mark-CPP
+  c++ '(c-extend-font-lock-region-for-macros
+	c-after-change-re-mark-raw-strings
+	c-neutralize-syntax-in-and-mark-CPP
 	c-restore-<>-properties
 	c-change-expand-fl-region)
   java '(c-restore-<>-properties
@@ -1791,7 +1798,7 @@ but they don't build a type of themselves.  Unlike the keywords on
 not the type face."
   t    nil
   c    '("const" "restrict" "volatile")
-  c++  '("const" "constexpr" "noexcept" "volatile" "throw" "final" "override")
+  c++  '("const" "noexcept" "volatile" "throw" "final" "override")
   objc '("const" "volatile"))
 
 (c-lang-defconst c-opt-type-modifier-key
@@ -1993,8 +2000,8 @@ If any of these also are on `c-type-list-kwds', `c-ref-list-kwds',
 will be handled."
   t    nil
   (c c++) '("auto" "extern" "inline" "register" "static")
-  c++  (append '("explicit" "friend" "mutable" "template" "thread_local"
-                 "using" "virtual")
+  c++  (append '("constexpr" "explicit" "friend" "mutable" "template"
+		 "thread_local" "using" "virtual")
 	       (c-lang-const c-modifier-kwds))
   objc '("auto" "bycopy" "byref" "extern" "in" "inout" "oneway" "out" "static")
   ;; FIXME: Some of those below ought to be on `c-other-decl-kwds' instead.
@@ -2263,6 +2270,10 @@ contain type identifiers."
 	    "__attribute__"
 	    ;; MSVC extension.
 	    "__declspec"))
+
+(c-lang-defconst c-paren-nontype-key
+  t (c-make-keywords-re t (c-lang-const c-paren-nontype-kwds)))
+(c-lang-defvar c-paren-nontype-key (c-lang-const c-paren-nontype-key))
 
 (c-lang-defconst c-paren-type-kwds
   "Keywords that may be followed by a parenthesis expression containing

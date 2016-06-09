@@ -641,7 +641,10 @@ This checks also `file-name-as-directory', `file-name-directory',
 
   ;; Bug#10085.
   (dolist (n-e '(nil t))
-    (let ((non-essential n-e))
+    ;; We must clear `tramp-default-method'.  On hydra, it is "ftp",
+    ;; which ruins the tests.
+    (let ((non-essential n-e)
+          tramp-default-method)
       (dolist (file
 	       `(,(file-remote-p tramp-test-temporary-file-directory 'method)
 		 ,(file-remote-p tramp-test-temporary-file-directory 'host)))
@@ -1377,8 +1380,10 @@ This tests also `make-symbolic-link', `file-truename' and `add-name-to-file'."
 
       (unwind-protect
 	  (progn
-	    ;; Method and host name in completion mode.
-	    (when (tramp-completion-mode-p)
+	    ;; Method and host name in completion mode.  This kind of
+	    ;; completion does not work on MS Windows.
+	    (when (and (tramp-completion-mode-p)
+		       (not (memq system-type '(cygwin windows-nt))))
 	      (unless (zerop (length method))
 		(should
 		 (member
@@ -1400,10 +1405,15 @@ This tests also `make-symbolic-link', `file-truename' and `add-name-to-file'."
 	    (make-directory tmp-name)
 	    (should (file-directory-p tmp-name))
 	    (write-region "foo" nil (expand-file-name "foo" tmp-name))
+	    (should (file-exists-p (expand-file-name "foo" tmp-name)))
 	    (write-region "bar" nil (expand-file-name "bold" tmp-name))
+	    (should (file-exists-p (expand-file-name "bold" tmp-name)))
 	    (make-directory (expand-file-name "boz" tmp-name))
+	    (should (file-directory-p (expand-file-name "boz" tmp-name)))
 	    (should (equal (file-name-completion "fo" tmp-name) "foo"))
+	    (should (equal (file-name-completion "foo" tmp-name) t))
 	    (should (equal (file-name-completion "b" tmp-name) "bo"))
+	    (should-not (file-name-completion "a" tmp-name))
 	    (should
 	     (equal
 	      (file-name-completion "b" tmp-name 'file-directory-p) "boz/"))
@@ -1411,7 +1421,32 @@ This tests also `make-symbolic-link', `file-truename' and `add-name-to-file'."
 	    (should
 	     (equal
 	      (sort (file-name-all-completions "b" tmp-name) 'string-lessp)
-	      '("bold" "boz/"))))
+	      '("bold" "boz/")))
+	    (should-not (file-name-all-completions "a" tmp-name))
+	    ;; `completion-regexp-list' restricts the completion to
+	    ;; files which match all expressions in this list.
+	    (let ((completion-regexp-list
+		   `(,directory-files-no-dot-files-regexp "b")))
+	      (should
+	       (equal (file-name-completion "" tmp-name) "bo"))
+	      (should
+	       (equal
+		(sort (file-name-all-completions "" tmp-name) 'string-lessp)
+		'("bold" "boz/"))))
+	    ;; `file-name-completion' ignores file names that end in
+	    ;; any string in `completion-ignored-extensions'.
+	    (let ((completion-ignored-extensions '(".ext")))
+	      (write-region "foo" nil (expand-file-name "foo.ext" tmp-name))
+	      (should (file-exists-p (expand-file-name "foo.ext" tmp-name)))
+	      (should (equal (file-name-completion "fo" tmp-name) "foo"))
+	      (should (equal (file-name-completion "foo" tmp-name) t))
+	      (should (equal (file-name-completion "foo." tmp-name) "foo.ext"))
+	      (should (equal (file-name-completion "foo.ext" tmp-name) t))
+	      ;; `file-name-all-completions' is not affected.
+	      (should
+	       (equal
+		(sort (file-name-all-completions "" tmp-name) 'string-lessp)
+		'("../" "./" "bold" "boz/" "foo" "foo.ext")))))
 
 	;; Cleanup.
 	(ignore-errors (delete-directory tmp-name 'recursive))))))
@@ -1463,7 +1498,8 @@ This tests also `make-symbolic-link', `file-truename' and `add-name-to-file'."
 	    (should (zerop (process-file "ls" nil t nil fnnd)))
 	    ;; `ls' could produce colorized output.
 	    (goto-char (point-min))
-	    (while (re-search-forward tramp-color-escape-sequence-regexp nil t)
+	    (while
+		(re-search-forward tramp-display-escape-sequence-regexp nil t)
 	      (replace-match "" nil nil))
 	    (should (string-equal (format "%s\n" fnnd) (buffer-string)))
 	    (should-not (get-buffer-window (current-buffer) t))
@@ -1473,7 +1509,8 @@ This tests also `make-symbolic-link', `file-truename' and `add-name-to-file'."
 	    (should (zerop (process-file "ls" nil t t fnnd)))
 	    ;; `ls' could produce colorized output.
 	    (goto-char (point-min))
-	    (while (re-search-forward tramp-color-escape-sequence-regexp nil t)
+	    (while
+		(re-search-forward tramp-display-escape-sequence-regexp nil t)
 	      (replace-match "" nil nil))
 	    (should
 	     (string-equal (format "%s\n%s\n" fnnd fnnd) (buffer-string)))
@@ -1576,7 +1613,7 @@ This tests also `make-symbolic-link', `file-truename' and `add-name-to-file'."
 	   (format "ls %s" (file-name-nondirectory tmp-name)) (current-buffer))
 	  ;; `ls' could produce colorized output.
 	  (goto-char (point-min))
-	  (while (re-search-forward tramp-color-escape-sequence-regexp nil t)
+	  (while (re-search-forward tramp-display-escape-sequence-regexp nil t)
 	    (replace-match "" nil nil))
 	  (should
 	   (string-equal
@@ -1599,7 +1636,7 @@ This tests also `make-symbolic-link', `file-truename' and `add-name-to-file'."
 	      (accept-process-output (get-buffer-process (current-buffer)) 1)))
 	  ;; `ls' could produce colorized output.
 	  (goto-char (point-min))
-	  (while (re-search-forward tramp-color-escape-sequence-regexp nil t)
+	  (while (re-search-forward tramp-display-escape-sequence-regexp nil t)
 	    (replace-match "" nil nil))
 	  ;; There might be a nasty "Process *Async Shell* finished" message.
 	  (goto-char (point-min))
@@ -1628,7 +1665,7 @@ This tests also `make-symbolic-link', `file-truename' and `add-name-to-file'."
 	      (accept-process-output (get-buffer-process (current-buffer)) 1)))
 	  ;; `ls' could produce colorized output.
 	  (goto-char (point-min))
-	  (while (re-search-forward tramp-color-escape-sequence-regexp nil t)
+	  (while (re-search-forward tramp-display-escape-sequence-regexp nil t)
 	    (replace-match "" nil nil))
 	  ;; There might be a nasty "Process *Async Shell* finished" message.
 	  (goto-char (point-min))
@@ -2317,6 +2354,7 @@ Since it unloads Tramp, it shall be the last test to run."
 ;; * set-file-selinux-context
 
 ;; * Work on skipped tests.  Make a comment, when it is impossible.
+;; * Fix `tramp-test06-directory-file-name' for `ftp'.
 ;; * Fix `tramp-test15-copy-directory' for `smb'.  Using tar in a pipe
 ;;   doesn't work well when an interactive password must be provided.
 ;; * Fix `tramp-test27-start-file-process' on MS Windows (`process-send-eof'?).

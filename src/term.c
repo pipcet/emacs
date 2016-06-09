@@ -548,8 +548,8 @@ encode_terminal_code (struct glyph *src, int src_len,
     {
       if (src->type == COMPOSITE_GLYPH)
 	{
-	  struct composition *cmp IF_LINT (= NULL);
-	  Lisp_Object gstring IF_LINT (= Qnil);
+	  struct composition *cmp UNINIT;
+	  Lisp_Object gstring UNINIT;
 	  int i;
 
 	  nbytes = buf - encode_terminal_src;
@@ -614,7 +614,7 @@ encode_terminal_code (struct glyph *src, int src_len,
       else if (! CHAR_GLYPH_PADDING_P (*src))
 	{
 	  GLYPH g;
-	  int c IF_LINT (= 0);
+	  int c UNINIT;
 	  Lisp_Object string;
 
 	  string = Qnil;
@@ -1954,8 +1954,6 @@ turn_off_face (struct frame *f, int face_id)
   struct face *face = FACE_FROM_ID (f, face_id);
   struct tty_display_info *tty = FRAME_TTY (f);
 
-  eassert (face != NULL);
-
   if (tty->TS_exit_attribute_mode)
     {
       /* Capability "me" will turn off appearance modes double-bright,
@@ -3101,7 +3099,7 @@ tty_menu_activate (tty_menu *menu, int *pane, int *selidx,
   struct tty_menu_state *state;
   int statecount, x, y, i;
   bool leave, onepane;
-  int result IF_LINT (= 0);
+  int result UNINIT;
   int title_faces[4];		/* Face to display the menu title.  */
   int faces[4], buffers_num_deleted = 0;
   struct frame *sf = SELECTED_FRAME ();
@@ -3915,13 +3913,15 @@ dissociate_if_controlling_tty (int fd)
 struct terminal *
 init_tty (const char *name, const char *terminal_type, bool must_succeed)
 {
+  struct tty_display_info *tty = NULL;
+  struct terminal *terminal = NULL;
+#ifndef DOS_NT
   char *area;
   char **address = &area;
   int status;
-  struct tty_display_info *tty = NULL;
-  struct terminal *terminal = NULL;
   sigset_t oldset;
   bool ctty = false;  /* True if asked to open controlling tty.  */
+#endif
 
   if (!terminal_type)
     maybe_fatal (must_succeed, 0,
@@ -3930,8 +3930,10 @@ init_tty (const char *name, const char *terminal_type, bool must_succeed)
 
   if (name == NULL)
     name = DEV_TTY;
+#ifndef DOS_NT
   if (!strcmp (name, DEV_TTY))
     ctty = 1;
+#endif
 
   /* If we already have a terminal on the given device, use that.  If
      all such terminals are suspended, create a new one instead.  */

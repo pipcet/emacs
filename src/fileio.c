@@ -2542,7 +2542,7 @@ DEFUN ("file-writable-p", Ffile_writable_p, Sfile_writable_p, 1, 1, 0,
   /* The read-only attribute of the parent directory doesn't affect
      whether a file or directory can be created within it.  Some day we
      should check ACLs though, which do affect this.  */
-  return file_directory_p (SDATA (dir)) ? Qt : Qnil;
+  return file_directory_p (SSDATA (dir)) ? Qt : Qnil;
 #else
   return check_writable (SSDATA (dir), W_OK | X_OK) ? Qt : Qnil;
 #endif
@@ -2773,7 +2773,7 @@ See `file-symlink-p' to distinguish symlinks.  */)
 
     /* Tell stat to use expensive method to get accurate info.  */
     Vw32_get_true_file_attributes = Qt;
-    result = stat (SDATA (absname), &st);
+    result = stat (SSDATA (absname), &st);
     Vw32_get_true_file_attributes = tem;
 
     if (result < 0)
@@ -4687,7 +4687,7 @@ write_region (Lisp_Object start, Lisp_Object end, Lisp_Object filename,
 {
   int open_flags;
   int mode;
-  off_t offset IF_LINT (= 0);
+  off_t offset UNINIT;
   bool open_and_close_file = desc < 0;
   bool ok;
   int save_errno = 0;
@@ -4695,7 +4695,7 @@ write_region (Lisp_Object start, Lisp_Object end, Lisp_Object filename,
   struct stat st;
   struct timespec modtime;
   ptrdiff_t count = SPECPDL_INDEX ();
-  ptrdiff_t count1 IF_LINT (= 0);
+  ptrdiff_t count1 UNINIT;
   Lisp_Object handler;
   Lisp_Object visit_file;
   Lisp_Object annotations;
@@ -5376,25 +5376,15 @@ An argument specifies the modification time value to use
 static Lisp_Object
 auto_save_error (Lisp_Object error_val)
 {
-  Lisp_Object msg;
-  int i;
-
   auto_save_error_occurred = 1;
 
   ring_bell (XFRAME (selected_frame));
 
   AUTO_STRING (format, "Auto-saving %s: %s");
-  msg = CALLN (Fformat, format, BVAR (current_buffer, name),
-	       Ferror_message_string (error_val));
-
-  for (i = 0; i < 3; ++i)
-    {
-      if (i == 0)
-	message3 (msg);
-      else
-	message3_nolog (msg);
-      Fsleep_for (make_number (1), Qnil);
-    }
+  Lisp_Object msg = CALLN (Fformat, format, BVAR (current_buffer, name),
+			   Ferror_message_string (error_val));
+  call3 (intern ("display-warning"),
+         intern ("auto-save"), msg, intern ("error"));
 
   return Qnil;
 }

@@ -270,11 +270,11 @@ x_create_bitmap_from_data (struct frame *f, char *bits, unsigned int width, unsi
 ptrdiff_t
 x_create_bitmap_from_file (struct frame *f, Lisp_Object file)
 {
-  Display_Info *dpyinfo = FRAME_DISPLAY_INFO (f);
-
 #ifdef HAVE_NTGUI
   return -1;  /* W32_TODO : bitmap support */
 #endif /* HAVE_NTGUI */
+
+  Display_Info *dpyinfo = FRAME_DISPLAY_INFO (f);
 
 #ifdef HAVE_NS
   ptrdiff_t id;
@@ -1142,7 +1142,8 @@ static RGB_PIXEL_COLOR
 four_corners_best (XImagePtr_or_DC ximg, int *corners,
 		   unsigned long width, unsigned long height)
 {
-  RGB_PIXEL_COLOR corner_pixels[4], best IF_LINT (= 0);
+  RGB_PIXEL_COLOR corner_pixels[4];
+  RGB_PIXEL_COLOR best UNINIT;
   int i, best_count;
 
   if (corners && corners[BOT_CORNER] >= 0)
@@ -3677,7 +3678,7 @@ xpm_load (struct frame *f, struct image *img)
 #endif
       /* XpmReadFileToPixmap is not available in the Windows port of
 	 libxpm.  But XpmReadFileToImage almost does what we want.  */
-      rc = XpmReadFileToImage (&hdc, SDATA (file),
+      rc = XpmReadFileToImage (&hdc, SSDATA (file),
 			       &xpm_image, &xpm_mask,
 			       &attrs);
 #else
@@ -3701,7 +3702,7 @@ xpm_load (struct frame *f, struct image *img)
 #ifdef HAVE_NTGUI
       /* XpmCreatePixmapFromBuffer is not available in the Windows port
 	 of libxpm.  But XpmCreateImageFromBuffer almost does what we want.  */
-      rc = XpmCreateImageFromBuffer (&hdc, SDATA (buffer),
+      rc = XpmCreateImageFromBuffer (&hdc, SSDATA (buffer),
 				     &xpm_image, &xpm_mask,
 				     &attrs);
 #else
@@ -5895,12 +5896,12 @@ static bool
 png_load_body (struct frame *f, struct image *img, struct png_load_context *c)
 {
   Lisp_Object specified_file;
-  Lisp_Object specified_data;
+  Lisp_Object NONVOLATILE specified_data;
+  FILE *NONVOLATILE fp = NULL;
   int x, y;
   ptrdiff_t i;
   png_struct *png_ptr;
   png_info *info_ptr = NULL, *end_info = NULL;
-  FILE *fp = NULL;
   png_byte sig[8];
   png_byte *pixels = NULL;
   png_byte **rows = NULL;
@@ -5922,7 +5923,6 @@ png_load_body (struct frame *f, struct image *img, struct png_load_context *c)
   /* Find out what file to load.  */
   specified_file = image_spec_value (img->spec, QCfile, NULL);
   specified_data = image_spec_value (img->spec, QCdata, NULL);
-  IF_LINT (Lisp_Object volatile specified_data_volatile = specified_data);
 
   if (NILP (specified_data))
     {
@@ -6017,10 +6017,6 @@ png_load_body (struct frame *f, struct image *img, struct png_load_context *c)
 	fclose (c->fp);
       return 0;
     }
-
-  /* Silence a bogus diagnostic; see GCC bug 54561.  */
-  IF_LINT (fp = c->fp);
-  IF_LINT (specified_data = specified_data_volatile);
 
   /* Read image info.  */
   if (!NILP (specified_data))
@@ -6672,9 +6668,8 @@ jpeg_load_body (struct frame *f, struct image *img,
 		struct my_jpeg_error_mgr *mgr)
 {
   Lisp_Object specified_file;
-  Lisp_Object specified_data;
-  /* The 'volatile' silences a bogus diagnostic; see GCC bug 54561.  */
-  FILE * IF_LINT (volatile) fp = NULL;
+  Lisp_Object NONVOLATILE specified_data;
+  FILE *volatile fp = NULL;
   JSAMPARRAY buffer;
   int row_stride, x, y;
   unsigned long *colors;
@@ -6687,7 +6682,6 @@ jpeg_load_body (struct frame *f, struct image *img,
   /* Open the JPEG file.  */
   specified_file = image_spec_value (img->spec, QCfile, NULL);
   specified_data = image_spec_value (img->spec, QCdata, NULL);
-  IF_LINT (Lisp_Object volatile specified_data_volatile = specified_data);
 
   if (NILP (specified_data))
     {
@@ -6750,9 +6744,6 @@ jpeg_load_body (struct frame *f, struct image *img,
       x_clear_image (f, img);
       return 0;
     }
-
-  /* Silence a bogus diagnostic; see GCC bug 54561.  */
-  IF_LINT (specified_data = specified_data_volatile);
 
   /* Create the JPEG decompression object.  Let it read from fp.
 	 Read the JPEG image header.  */

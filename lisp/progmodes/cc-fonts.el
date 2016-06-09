@@ -723,6 +723,10 @@ casts and declarations are fontified.  Used on level 2 and higher."
 	(concat ".\\(" c-string-limit-regexp "\\)")
 	'((c-font-lock-invalid-string)))
 
+      ;; Fontify C++ raw strings.
+      ,@(when (c-major-mode-is 'c++-mode)
+	  '(c-font-lock-raw-strings))
+
       ;; Fontify keyword constants.
       ,@(when (c-lang-const c-constant-kwds)
 	  (let ((re (c-make-keywords-re nil (c-lang-const c-constant-kwds))))
@@ -1205,20 +1209,8 @@ casts and declarations are fontified.  Used on level 2 and higher."
 			   'font-lock-keyword-face)
 		       (looking-at c-not-decl-init-keywords))
 		  (and c-macro-with-semi-re
-		       (looking-at c-macro-with-semi-re)) ; 2008-11-04
-		  (save-excursion ; A construct after a ; in a `for' statement
-				  ; can't be a declaration.
-		    (and (c-go-up-list-backward)
-			 (eq (char-after) ?\()
-			 (progn (c-backward-syntactic-ws)
-				(c-simple-skip-symbol-backward))
-			 (looking-at c-paren-stmt-key)
-			 (progn (goto-char match-pos)
-				(while (and (eq (char-before) ?\))
-					    (c-go-list-backward))
-				  (c-backward-syntactic-ws))
-				(eq (char-before) ?\;)))))
-	      ;; Don't do anything more if we're looking at something that
+		       (looking-at c-macro-with-semi-re))) ; 2008-11-04
+	      ;; Don't do anything more if we're looking at a keyword that
 	      ;; can't start a declaration.
 	      t
 
@@ -1348,6 +1340,32 @@ casts and declarations are fontified.  Used on level 2 and higher."
 		(when (> (point) max-type-decl-end)
 		  (setq max-type-decl-end (point))))
 
+	      ;; Do we have an expression as the second or third clause of
+	      ;; a "for" paren expression?
+	      (if (save-excursion
+		    (and
+		     (car (cddr decl-or-cast)) ; maybe-expression flag.
+		     (goto-char start-pos)
+		     (c-go-up-list-backward)
+		     (eq (char-after) ?\()
+		     (progn (c-backward-syntactic-ws)
+			    (c-simple-skip-symbol-backward))
+		     (looking-at c-paren-stmt-key)
+		     (progn (goto-char match-pos)
+			    (while (and (eq (char-before) ?\))
+					(c-go-list-backward))
+			      (c-backward-syntactic-ws))
+			    (eq (char-before) ?\;))))
+		  ;; We've got an expression in "for" parens.  Remove the
+		  ;; "type" that would spuriously get fontified.
+		  (let ((elt (and (consp c-record-type-identifiers)
+				  (assq (cadr (cddr decl-or-cast))
+					c-record-type-identifiers))))
+		    (when elt
+		      (setq c-record-type-identifiers
+			    (c-delq-from-dotted-list
+			     elt c-record-type-identifiers)))
+		    t)
 	      ;; Back up to the type to fontify the declarator(s).
 	      (goto-char (car decl-or-cast))
 
@@ -1373,17 +1391,17 @@ casts and declarations are fontified.  Used on level 2 and higher."
 		    (c-backward-syntactic-ws)
 		    (unless (bobp)
 		      (c-put-char-property (1- (point)) 'c-type
-					   (if (cdr decl-or-cast)
+					   (if (cadr decl-or-cast)
 					       'c-decl-type-start
 					     'c-decl-id-start)))))
 
 		(c-font-lock-declarators
-		 (point-max) decl-list (cdr decl-or-cast)))
+		 (point-max) decl-list (cadr decl-or-cast)))
 
 	      ;; A declaration has been successfully identified, so do all the
 	      ;; fontification of types and refs that've been recorded.
 	      (c-fontify-recorded-types-and-refs)
-	      nil)
+	      nil))
 
 	     ;; Restore point, since at this point in the code it has been
 	     ;; left undefined by c-forward-decl-or-cast-1 above.
@@ -1556,6 +1574,43 @@ casts and declarations are fontified.  Used on level 2 and higher."
 	  (when (c-safe (c-forward-sexp))
 	    (c-forward-syntactic-ws)
 	    (c-font-lock-declarators limit t in-typedef)))))))
+
+(defun c-font-lock-raw-strings (limit)
+  ;; Fontify C++ raw strings.
+  ;;
+  ;; This function will be called from font-lock for a region bounded by POINT
+  ;; and LIMIT, as though it were to identify a keyword for
+  ;; font-lock-keyword-face.  It always returns NIL to inhibit this and
+  ;; prevent a repeat invocation.  See elisp/lispref page "Search-based
+  ;; Fontification".
+  (while (search-forward-regexp
+	  "R\\(\"\\)\\([^ ()\\\n\r\t]\\{,16\\}\\)(" limit t)
+    (when
+	(or (and (eobp)
+		 (eq (c-get-char-property (1- (point)) 'face)
+		     'font-lock-warning-face))
+	    (eq (c-get-char-property (point) 'face) 'font-lock-string-face)
+	    (and (equal (c-get-char-property (match-end 2) 'syntax-table) '(1))
+		 (equal (c-get-char-property (match-beginning 1) 'syntax-table)
+			'(1))))
+      (let ((paren-prop (c-get-char-property (1- (point)) 'syntax-table)))
+	(if paren-prop
+	    (progn
+	      (c-put-font-lock-face (match-beginning 0) (match-end 0)
+				    'font-lock-warning-face)
+	      (when
+		  (and
+		   (equal paren-prop '(15))
+		   (not (c-search-forward-char-property 'syntax-table '(15) limit)))
+		(goto-char limit)))
+	  (c-put-font-lock-face (match-beginning 1) (match-end 2) 'default)
+	  (when (search-forward-regexp
+		 (concat ")\\(" (regexp-quote (match-string-no-properties 2))
+			 "\\)\"")
+		 limit t)
+	    (c-put-font-lock-face (match-beginning 1) (point)
+				  'default))))))
+  nil)
 
 (c-lang-defconst c-simple-decl-matchers
   "Simple font lock matchers for types and declarations.  These are used

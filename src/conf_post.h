@@ -64,6 +64,15 @@ typedef bool bool_bf;
     (4 < __GNUC__ + (8 <= __GNUC_MINOR__))
 #endif
 
+/* Simulate __has_builtin on compilers that lack it.  It is used only
+   on arguments like __builtin_assume_aligned that are handled in this
+   simulation.  */
+#ifndef __has_builtin
+# define __has_builtin(a) __has_builtin_##a
+# define __has_builtin___builtin_assume_aligned \
+    (4 < __GNUC__ + (7 <= __GNUC_MINOR__))
+#endif
+
 /* Simulate __has_feature on compilers that lack it.  It is used only
    to define ADDRESS_SANITIZER below.  */
 #ifndef __has_feature
@@ -75,6 +84,11 @@ typedef bool bool_bf;
 # define ADDRESS_SANITIZER true
 #else
 # define ADDRESS_SANITIZER false
+#endif
+
+/* Yield PTR, which must be aligned to ALIGNMENT.  */
+#if ! __has_builtin (__builtin_assume_aligned)
+# define __builtin_assume_aligned(ptr, alignment, ...) ((void *) (ptr))
 #endif
 
 #ifdef DARWIN_OS
@@ -181,7 +195,7 @@ You lose; /* Emacs for DOS must be compiled with DJGPP */
 #endif
 
 #ifdef CYGWIN
-#define SYSTEM_PURESIZE_EXTRA 10000
+#define SYSTEM_PURESIZE_EXTRA 50000
 #endif
 
 #if defined HAVE_NTGUI && !defined DebPrint
@@ -343,12 +357,21 @@ extern int emacs_setenv_TZ (char const *);
 # define FLEXIBLE_ARRAY_MEMBER
 #endif
 
-/* Use this to suppress gcc's `...may be used before initialized' warnings. */
-#ifdef lint
-/* Use CODE only if lint checking is in effect.  */
-# define IF_LINT(Code) Code
+/* When used in place of 'volatile', 'NONVOLATILE' is equivalent to nothing,
+   except it cajoles GCC into not warning incorrectly that a variable needs to
+   be volatile.  This works around GCC bug 54561.  */
+#if defined GCC_LINT || defined lint
+# define NONVOLATILE volatile
 #else
-# define IF_LINT(Code) /* empty */
+# define NONVOLATILE /* empty */
+#endif
+
+/* 'int x UNINIT;' is equivalent to 'int x;', except it cajoles GCC
+   into not warning incorrectly about use of an uninitialized variable.  */
+#if defined GCC_LINT || defined lint
+# define UNINIT = {0,}
+#else
+# define UNINIT /* empty */
 #endif
 
 /* conf_post.h ends here */

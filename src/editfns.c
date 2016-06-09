@@ -2176,17 +2176,16 @@ usage: (decode-time &optional TIME ZONE)  */)
 }
 
 /* Return OBJ - OFFSET, checking that OBJ is a valid fixnum and that
-   the result is representable as an int.  Assume OFFSET is small and
-   nonnegative.  */
+   the result is representable as an int.  */
 static int
 check_tm_member (Lisp_Object obj, int offset)
 {
-  EMACS_INT n;
   CHECK_NUMBER (obj);
-  n = XINT (obj);
-  if (! (INT_MIN + offset <= n && n - offset <= INT_MAX))
+  EMACS_INT n = XINT (obj);
+  int result;
+  if (INT_SUBTRACT_WRAPV (n, offset, &result))
     time_overflow ();
-  return n - offset;
+  return result;
 }
 
 DEFUN ("encode-time", Fencode_time, Sencode_time, 6, MANY, 0,
@@ -2535,7 +2534,7 @@ insert1 (Lisp_Object arg)
 
 DEFUN ("insert", Finsert, Sinsert, 0, MANY, 0,
        doc: /* Insert the arguments, either strings or characters, at point.
-Point and before-insertion markers move forward to end up
+Point and after-insertion markers move forward to end up
  after the inserted text.
 Any other markers at the point of insertion remain before the text.
 
@@ -2559,7 +2558,7 @@ usage: (insert &rest ARGS)  */)
 DEFUN ("insert-and-inherit", Finsert_and_inherit, Sinsert_and_inherit,
    0, MANY, 0,
        doc: /* Insert the arguments at point, inheriting properties from adjoining text.
-Point and before-insertion markers move forward to end up
+Point and after-insertion markers move forward to end up
  after the inserted text.
 Any other markers at the point of insertion remain before the text.
 
@@ -3363,7 +3362,7 @@ It returns the number of characters changed.  */)
   ptrdiff_t size;		/* Size of translate table. */
   ptrdiff_t pos, pos_byte, end_pos;
   bool multibyte = !NILP (BVAR (current_buffer, enable_multibyte_characters));
-  bool string_multibyte IF_LINT (= 0);
+  bool string_multibyte UNINIT;
 
   validate_region (&start, &end);
   if (CHAR_TABLE_P (table))
@@ -3918,7 +3917,7 @@ styled_format (ptrdiff_t nargs, Lisp_Object *args, bool message)
   ptrdiff_t bufsize = sizeof initial_buffer;
   ptrdiff_t max_bufsize = STRING_BYTES_BOUND + 1;
   char *p;
-  ptrdiff_t buf_save_value_index IF_LINT (= 0);
+  ptrdiff_t buf_save_value_index UNINIT;
   char *format, *end;
   ptrdiff_t nchars;
   /* When we make a multibyte string, we must pay attention to the
@@ -3977,8 +3976,6 @@ styled_format (ptrdiff_t nargs, Lisp_Object *args, bool message)
       multibyte = true;
 
   int quoting_style = message ? text_quoting_style () : -1;
-  if (quoting_style == LEAVE_QUOTING_STYLE)
-    quoting_style = -1;
 
   /* If we start out planning a unibyte result,
      then discover it has to be multibyte, we jump back to retry.  */
@@ -4457,14 +4454,6 @@ styled_format (ptrdiff_t nargs, Lisp_Object *args, bool message)
 	}
       else
 	{
-	  /* Named constants for the UTF-8 encodings of U+2018 LEFT SINGLE
-	     QUOTATION MARK and U+2019 RIGHT SINGLE QUOTATION MARK.  */
-	  enum
-	  {
-	    uLSQM0 = 0xE2, uLSQM1 = 0x80, uLSQM2 = 0x98,
-	    /* uRSQM0 = 0xE2, uRSQM1 = 0x80, */ uRSQM2 = 0x99
-	  };
-
 	  unsigned char str[MAX_MULTIBYTE_LENGTH];
 
 	  if ((format_char == '`' || format_char == '\'')
@@ -4480,18 +4469,6 @@ styled_format (ptrdiff_t nargs, Lisp_Object *args, bool message)
 	    }
 	  else if (format_char == '`' && quoting_style == STRAIGHT_QUOTING_STYLE)
 	    convsrc = "'";
-	  else if (format_char == uLSQM0 && CURVE_QUOTING_STYLE < quoting_style
-		   && multibyte_format
-		   && (unsigned char) format[0] == uLSQM1
-		   && ((unsigned char) format[1] == uLSQM2
-		       || (unsigned char) format[1] == uRSQM2))
-	    {
-	      convsrc = (((unsigned char) format[1] == uLSQM2
-			  && quoting_style == GRAVE_QUOTING_STYLE)
-			 ? "`" : "'");
-	      format += 2;
-	      memset (&discarded[format0 + 1 - format_start], 2, 2);
-	    }
 	  else
 	    {
 	      /* Copy a single character from format to buf.  */

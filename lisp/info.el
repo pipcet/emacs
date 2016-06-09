@@ -189,15 +189,11 @@ A header-line does not scroll with the rest of the buffer."
 	       configure-info-directory)))
 	 (prefixes
 	  ;; Directory trees in which to look for info subdirectories
-	  (prune-directory-list '("/usr/local/" "/usr/" "/opt/" "/")))
+	  (prune-directory-list '("/usr/local/" "/usr/" "/opt/")))
 	 (suffixes
 	  ;; Subdirectories in each directory tree that may contain info
-	  ;; directories.  Most of these are rather outdated.
-	  ;; It ought to be fine to stop checking the "emacs" ones now,
-	  ;; since this is Emacs and we have not installed info files
-	  ;; into such directories for a looong time...
-	  '("share/" "" "gnu/" "gnu/lib/" "gnu/lib/emacs/"
-	    "emacs/" "lib/" "lib/emacs/"))
+	  ;; directories.
+	  '("share/" ""))
 	 (standard-info-dirs
 	  (apply #'nconc
 		 (mapcar (lambda (pfx)
@@ -4236,7 +4232,7 @@ With a zero prefix arg, put the name inside a function call to `info'."
   "Syntax table used in `Info-mode'.")
 
 (defface Info-quoted
-  '((t :family "courier"))
+  '((t :inherit fixed-pitch-serif))
   "Face used for quoted elements.")
 
 (defvar Info-mode-font-lock-keywords

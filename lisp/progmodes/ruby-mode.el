@@ -1151,7 +1151,7 @@ delimiter."
        ((looking-at "<<")
         (cond
          ((and (ruby-expr-beg 'heredoc)
-               (looking-at "<<\\(-\\)?\\(\\([\"'`]\\)\\([^\n]+?\\)\\3\\|\\(?:\\sw\\|\\s_\\)+\\)"))
+               (looking-at "<<\\([-~]\\)?\\(\\([\"'`]\\)\\([^\n]+?\\)\\3\\|\\(?:\\sw\\|\\s_\\)+\\)"))
           (setq re (regexp-quote (or (match-string 4) (match-string 2))))
           (if (match-beginning 1) (setq re (concat "\\s *" re)))
           (let* ((id-end (goto-char (match-end 0)))
@@ -1858,7 +1858,9 @@ It will be properly highlighted even when the call omits parens.")
             (string-to-syntax "'"))))
       ;; Symbols with special characters.
       ("\\(^\\|[^:]\\)\\(:\\([-+~]@?\\|[/%&|^`]\\|\\*\\*?\\|<\\(<\\|=>?\\)?\\|>[>=]?\\|===?\\|=~\\|![~=]?\\|\\[\\]=?\\)\\)"
-       (3 (string-to-syntax "_")))
+       (3 (unless (nth 8 (syntax-ppss (match-beginning 3)))
+            (goto-char (match-end 0))
+            (string-to-syntax "_"))))
       ;; Part of method name when at the end of it.
       ("[!?]"
        (0 (unless (save-excursion

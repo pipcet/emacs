@@ -410,7 +410,8 @@ to be a cons with VAL as its head.
          ;; function, so warnings like "not known to be defined" are fair game.
          ;; But in practice, it's common to use `cl-defmethod'
          ;; without a previous `cl-defgeneric'.
-         (declare-function ,name "")
+         ;; The ",'" is a no-op that pacifies check-declare.
+         (,'declare-function ,name "")
          (cl-generic-define-method ',name ',(nreverse qualifiers) ',args
                                    ,uses-cnm ,fun)))))
 
@@ -937,7 +938,7 @@ MET-NAME is a cons (SYMBOL . SPECIALIZERS)."
            (setq applies t)))
     applies))
 
-(defun cl--generic-all-functions (&optional type)
+(defun cl-generic-all-functions (&optional type)
   "Return a list of all generic functions.
 Optional TYPE argument returns only those functions that contain
 methods for TYPE."

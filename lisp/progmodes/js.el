@@ -62,7 +62,7 @@
 (defvar moz-repl-name)
 (defvar ido-cur-list)
 (defvar electric-layout-rules)
-(declare-function ido-mode "ido")
+(declare-function ido-mode "ido" (&optional arg))
 (declare-function inferior-moz-process "ext:mozrepl" ())
 
 ;;; Constants
@@ -1745,7 +1745,7 @@ This performs fontification according to `js--class-styles'."
   "Regular expression matching variable declaration keywords.")
 
 (defconst js--indent-operator-re
-  (concat "[-+*/%<>&^|?:.]\\([^-+*/]\\|$\\)\\|!?=\\|"
+  (concat "[-+*/%<>&^|?:.]\\([^-+*/.]\\|$\\)\\|!?=\\|"
           (js--regexp-opt-symbol '("in" "instanceof")))
   "Regexp matching operators that affect indentation of continued expressions.")
 
@@ -3723,7 +3723,7 @@ If one hasn't been set, or if it's stale, prompt for a new one."
   (setq-local beginning-of-defun-function #'js-beginning-of-defun)
   (setq-local end-of-defun-function #'js-end-of-defun)
   (setq-local open-paren-in-column-0-is-defun-start nil)
-  (setq-local font-lock-defaults '(js--font-lock-keywords))
+  (setq-local font-lock-defaults (list js--font-lock-keywords))
   (setq-local syntax-propertize-function #'js-syntax-propertize)
   (setq-local prettify-symbols-alist js--prettify-symbols-alist)
 

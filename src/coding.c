@@ -2365,7 +2365,8 @@ decode_coding_emacs_mule (struct coding_system *coding)
 
   while (1)
     {
-      int c, id IF_LINT (= 0);
+      int c;
+      int id UNINIT;
 
       src_base = src;
       consumed_chars_base = consumed_chars;
@@ -2410,7 +2411,7 @@ decode_coding_emacs_mule (struct coding_system *coding)
 	}
       else
 	{
-	  int nchars IF_LINT (= 0), nbytes IF_LINT (= 0);
+	  int nchars UNINIT, nbytes UNINIT;
 	  /* emacs_mule_char can load a charset map from a file, which
 	     allocates a large structure and might cause buffer text
 	     to be relocated as result.  Thus, we need to remember the
@@ -6947,18 +6948,21 @@ get_translation_table (Lisp_Object attrs, bool encodep, int *max_lookup)
 
 
 /* Return a translation of character(s) at BUF according to TRANS.
-   TRANS is TO-CHAR or ((FROM .  TO) ...) where
-   FROM = [FROM-CHAR ...], TO is TO-CHAR or [TO-CHAR ...].
-   The return value is TO-CHAR or ([FROM-CHAR ...] . TO) if a
-   translation is found, and Qnil if not found..
-   If BUF is too short to lookup characters in FROM, return Qt.  */
+   TRANS is TO-CHAR, [TO-CHAR ...], or ((FROM .  TO) ...) where FROM =
+   [FROM-CHAR ...], TO is TO-CHAR or [TO-CHAR ...].  The return value
+   is TO-CHAR or [TO-CHAR ...] if a translation is found, Qnil if not
+   found, or Qt if BUF is too short to lookup characters in FROM.  As
+   a side effect, if a translation is found, *NCHARS is set to the
+   number of characters being translated.  */
 
 static Lisp_Object
-get_translation (Lisp_Object trans, int *buf, int *buf_end)
+get_translation (Lisp_Object trans, int *buf, int *buf_end, ptrdiff_t *nchars)
 {
-
-  if (INTEGERP (trans))
-    return trans;
+  if (INTEGERP (trans) || VECTORP (trans))
+    {
+      *nchars = 1;
+      return trans;
+    }
   for (; CONSP (trans); trans = XCDR (trans))
     {
       Lisp_Object val = XCAR (trans);
@@ -6974,7 +6978,10 @@ get_translation (Lisp_Object trans, int *buf, int *buf_end)
 	    break;
 	}
       if (i == len)
-	return val;
+	{
+	  *nchars = len;
+	  return XCDR (val);
+	}
     }
   return Qnil;
 }
@@ -7017,20 +7024,13 @@ produce_chars (struct coding_system *coding, Lisp_Object translation_table,
 	      LOOKUP_TRANSLATION_TABLE (translation_table, c, trans);
 	      if (! NILP (trans))
 		{
-		  trans = get_translation (trans, buf, buf_end);
+		  trans = get_translation (trans, buf, buf_end, &from_nchars);
 		  if (INTEGERP (trans))
 		    c = XINT (trans);
-		  else if (CONSP (trans))
+		  else if (VECTORP (trans))
 		    {
-		      from_nchars = ASIZE (XCAR (trans));
-		      trans = XCDR (trans);
-		      if (INTEGERP (trans))
-			c = XINT (trans);
-		      else
-			{
-			  to_nchars = ASIZE (trans);
-			  c = XINT (AREF (trans, 0));
-			}
+		      to_nchars = ASIZE (trans);
+		      c = XINT (AREF (trans, 0));
 		    }
 		  else if (EQ (trans, Qt) && ! last_block)
 		    break;
@@ -7671,22 +7671,16 @@ consume_chars (struct coding_system *coding, Lisp_Object translation_table,
 	  for (i = 1; i < max_lookup && p < src_end; i++)
 	    lookup_buf[i] = STRING_CHAR_ADVANCE (p);
 	  lookup_buf_end = lookup_buf + i;
-	  trans = get_translation (trans, lookup_buf, lookup_buf_end);
+	  trans = get_translation (trans, lookup_buf, lookup_buf_end,
+				   &from_nchars);
 	  if (INTEGERP (trans))
 	    c = XINT (trans);
-	  else if (CONSP (trans))
+	  else if (VECTORP (trans))
 	    {
-	      from_nchars = ASIZE (XCAR (trans));
-	      trans = XCDR (trans);
-	      if (INTEGERP (trans))
-		c = XINT (trans);
-	      else
-		{
-		  to_nchars = ASIZE (trans);
-		  if (buf_end - buf < to_nchars)
-		    break;
-		  c = XINT (AREF (trans, 0));
-		}
+	      to_nchars = ASIZE (trans);
+	      if (buf_end - buf < to_nchars)
+		break;
+	      c = XINT (AREF (trans, 0));
 	    }
 	  else
 	    break;
@@ -8015,12 +8009,12 @@ decode_coding_object (struct coding_system *coding,
 		      Lisp_Object dst_object)
 {
   ptrdiff_t count = SPECPDL_INDEX ();
-  unsigned char *destination IF_LINT (= NULL);
-  ptrdiff_t dst_bytes IF_LINT (= 0);
+  unsigned char *destination;
+  ptrdiff_t dst_bytes;
   ptrdiff_t chars = to - from;
   ptrdiff_t bytes = to_byte - from_byte;
   Lisp_Object attrs;
-  ptrdiff_t saved_pt = -1, saved_pt_byte IF_LINT (= 0);
+  ptrdiff_t saved_pt = -1, saved_pt_byte;
   bool need_marker_adjustment = 0;
   Lisp_Object old_deactivate_mark;
 
@@ -8198,7 +8192,7 @@ encode_coding_object (struct coding_system *coding,
   ptrdiff_t chars = to - from;
   ptrdiff_t bytes = to_byte - from_byte;
   Lisp_Object attrs;
-  ptrdiff_t saved_pt = -1, saved_pt_byte IF_LINT (= 0);
+  ptrdiff_t saved_pt = -1, saved_pt_byte;
   bool need_marker_adjustment = 0;
   bool kill_src_buffer = 0;
   Lisp_Object old_deactivate_mark;
@@ -8572,8 +8566,8 @@ detect_coding_system (const unsigned char *src,
   base_category = XINT (CODING_ATTR_CATEGORY (attrs));
   if (base_category == coding_category_undecided)
     {
-      enum coding_category category IF_LINT (= 0);
-      struct coding_system *this IF_LINT (= NULL);
+      enum coding_category category UNINIT;
+      struct coding_system *this UNINIT;
       int c, i;
       bool inhibit_nbd = inhibit_flag (coding.spec.undecided.inhibit_nbd,
 				       inhibit_null_byte_detection);
@@ -9843,7 +9837,8 @@ usage: (find-operation-coding-system OPERATION ARGUMENTS...)  */)
   if (!(STRINGP (target)
 	|| (EQ (operation, Qinsert_file_contents) && CONSP (target)
 	    && STRINGP (XCAR (target)) && BUFFERP (XCDR (target)))
-	|| (EQ (operation, Qopen_network_stream) && INTEGERP (target))))
+	|| (EQ (operation, Qopen_network_stream)
+	    && (INTEGERP (target) || EQ (target, Qt)))))
     error ("Invalid argument %"pI"d of operation `%s'",
 	   XFASTINT (target_idx) + 1, SDATA (SYMBOL_NAME (operation)));
   if (CONSP (target))

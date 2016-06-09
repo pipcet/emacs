@@ -2848,6 +2848,18 @@ buffers that were changed during the last command.")
 
 If set to non-nil, this will effectively disable the timer.")
 
+(defvar-local undo-auto-disable-boundaries nil
+  "Disable the automatic addition of boundaries.
+
+If set to non-nil, `undo-boundary' will not be called
+automatically in a buffer either at the end of a command, or as a
+result of `undo-auto-current-boundary-timer'.
+
+When this is set to non-nil, it is important to ensure that
+`undo-boundary' is called frequently enough. Failure to do so
+will result in user-visible warnings that the situation is
+probably a bug.")
+
 (defvar undo-auto--this-command-amalgamating nil
   "Non-nil if `this-command' should be amalgamated.
 This variable is set to nil by `undo-auto--boundaries' and is set
@@ -2887,7 +2899,8 @@ REASON describes the reason that the boundary is being added; see
   (dolist (b undo-auto--undoably-changed-buffers)
           (when (buffer-live-p b)
             (with-current-buffer b
-              (undo-auto--ensure-boundary cause))))
+              (unless undo-auto-disable-boundaries
+                (undo-auto--ensure-boundary cause)))))
   (setq undo-auto--undoably-changed-buffers nil))
 
 (defun undo-auto--boundary-timer ()
@@ -2914,10 +2927,10 @@ See also `undo-auto--buffer-undoably-changed'.")
   "Add an `undo-boundary' in appropriate buffers."
   (undo-auto--boundaries
    (let ((amal undo-auto--this-command-amalgamating))
-       (setq undo-auto--this-command-amalgamating nil)
-       (if amal
-           'amalgamate
-         'command))))
+     (setq undo-auto--this-command-amalgamating nil)
+     (if amal
+         'amalgamate
+       'command))))
 
 (defun undo-auto-amalgamate ()
   "Amalgamate undo if necessary.
@@ -3752,6 +3765,7 @@ support pty association, if PROGRAM is nil."
 (define-derived-mode process-menu-mode tabulated-list-mode "Process Menu"
   "Major mode for listing the processes called by Emacs."
   (setq tabulated-list-format [("Process" 15 t)
+			       ("PID"      7 t)
 			       ("Status"   7 t)
 			       ("Buffer"  15 t)
 			       ("TTY"     12 t)
@@ -3783,6 +3797,7 @@ Also, delete any process that is exited or signaled."
 	       (process-query-on-exit-flag p))
 	   (let* ((buf (process-buffer p))
 		  (type (process-type p))
+		  (pid  (if (process-id p) (format "%d" (process-id p)) "--"))
 		  (name (process-name p))
 		  (status (symbol-name (process-status p)))
 		  (buf-label (if (buffer-live-p buf)
@@ -3818,7 +3833,7 @@ Also, delete any process that is exited or signaled."
 					 (format " at %s b/s" speed)
 				       "")))))
 		     (mapconcat 'identity (process-command p) " "))))
-	     (push (list p (vector name status buf-label tty cmd))
+	     (push (list p (vector name pid status buf-label tty cmd))
 		   tabulated-list-entries))))))
 
 (defun process-menu-visit-buffer (button)
@@ -4061,7 +4076,8 @@ Its arguments and return value are as specified for `filter-buffer-substring'.
 This respects the wrapper hook `filter-buffer-substring-functions',
 and the abnormal hook `buffer-substring-filters'.
 No filtering is done unless a hook says to."
-  (with-wrapper-hook filter-buffer-substring-functions (beg end delete)
+  (subr--with-wrapper-hook-no-warnings
+    filter-buffer-substring-functions (beg end delete)
     (cond
      ((or delete buffer-substring-filters)
       (save-excursion
@@ -6040,7 +6056,13 @@ If NOERROR, don't signal an error if we can't move that many lines."
 	  (setq temporary-goal-column
 		(cons (/ (float x-pos)
 			 (frame-char-width))
-                      hscroll))))))
+                      hscroll)))
+	 (executing-kbd-macro
+	  ;; When we move beyond the first/last character visible in
+	  ;; the window, posn-at-point will return nil, so we need to
+	  ;; approximate the goal column as below.
+	  (setq temporary-goal-column
+		(mod (current-column) (window-text-width)))))))
     (if target-hscroll
 	(set-window-hscroll (selected-window) target-hscroll))
     ;; vertical-motion can move more than it was asked to if it moves

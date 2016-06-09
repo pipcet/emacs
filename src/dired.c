@@ -47,6 +47,10 @@ along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.  */
 #include "msdos.h"	/* for fstatat */
 #endif
 
+#ifdef WINDOWSNT
+extern int is_slow_fs (const char *);
+#endif
+
 static ptrdiff_t scmp (const char *, const char *, ptrdiff_t);
 static Lisp_Object file_attributes (int, char const *, Lisp_Object);
 
@@ -98,7 +102,7 @@ open_directory (Lisp_Object dirname, int *fdp)
 }
 
 #ifdef WINDOWSNT
-void
+static void
 directory_files_internal_w32_unwind (Lisp_Object arg)
 {
   Vw32_get_true_file_attributes = arg;
@@ -206,8 +210,6 @@ directory_files_internal (Lisp_Object directory, Lisp_Object full,
 #ifdef WINDOWSNT
   if (attrs)
     {
-      extern int is_slow_fs (const char *);
-
       /* Do this only once to avoid doing it (in w32.c:stat) for each
 	 file in the directory, when we call Ffile_attributes below.  */
       record_unwind_protect (directory_files_internal_w32_unwind,
@@ -217,7 +219,7 @@ directory_files_internal (Lisp_Object directory, Lisp_Object full,
 	{
 	  /* w32.c:stat will notice these bindings and avoid calling
 	     GetDriveType for each file.  */
-	  if (is_slow_fs (SDATA (dirfilename)))
+	  if (is_slow_fs (SSDATA (dirfilename)))
 	    Vw32_get_true_file_attributes = Qnil;
 	  else
 	    Vw32_get_true_file_attributes = Qt;
@@ -414,8 +416,7 @@ DEFUN ("file-name-all-completions", Ffile_name_all_completions,
 These are all file names in directory DIRECTORY which begin with FILE.
 
 This function ignores some of the possible completions as determined
-by the variables `completion-regexp-list' and
-`completion-ignored-extensions', which see.  `completion-regexp-list'
+by `completion-regexp-list', which see.  `completion-regexp-list'
 is matched against file and directory names relative to DIRECTORY.  */)
   (Lisp_Object file, Lisp_Object directory)
 {

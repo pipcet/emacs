@@ -22,20 +22,18 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
 
-;;; Commentary:
-
-;;; Code:
-
 ;; Beware: while this file has tag `utf-8', before it's compiled, it gets
 ;; loaded as "raw-text", so non-ASCII chars won't work right during bootstrap.
 
-(defmacro declare-function (_fn _file &optional _arglist _fileonly)
+
+;; declare-function's args use &rest, not &optional, for compatibility
+;; with byte-compile-macroexpand-declare-function.
+
+(defmacro declare-function (_fn _file &rest _args)
   "Tell the byte-compiler that function FN is defined, in FILE.
-Optional ARGLIST is the argument list used by the function.
 The FILE argument is not used by the byte-compiler, but by the
 `check-declare' package, which checks that FILE contains a
-definition for FN.  ARGLIST is used by both the byte-compiler
-and `check-declare' to check for consistency.
+definition for FN.
 
 FILE can be either a Lisp file (in which case the \".el\"
 extension is optional), or a C file.  C files are expanded
@@ -46,19 +44,22 @@ declaration.  A FILE with an \"ext:\" prefix is an external file.
 `check-declare' will check such files if they are found, and skip
 them without error if they are not.
 
-FILEONLY non-nil means that `check-declare' will only check that
-FILE exists, not that it defines FN.  This is intended for
-function-definitions that `check-declare' does not recognize, e.g.
-`defstruct'.
+Optional ARGLIST specifies FN's arguments, or is t to not specify
+FN's arguments.  An omitted ARGLIST defaults to t, not nil: a nil
+ARGLIST specifies an empty argument list, and an explicit t
+ARGLIST is a placeholder that allows supplying a later arg.
 
-To specify a value for FILEONLY without passing an argument list,
-set ARGLIST to t.  This is necessary because nil means an
-empty argument list, rather than an unspecified one.
+Optional FILEONLY non-nil means that `check-declare' will check
+only that FILE exists, not that it defines FN.  This is intended
+for function definitions that `check-declare' does not recognize,
+e.g., `defstruct'.
 
 Note that for the purposes of `check-declare', this statement
 must be the first non-whitespace on a line.
 
 For more information, see Info node `(elisp)Declaring Functions'."
+  (declare (advertised-calling-convention
+	    (fn file &optional arglist fileonly) nil))
   ;; Does nothing - byte-compile-declare-function does the work.
   nil)
 
@@ -485,13 +486,16 @@ of course, also replace TO with a slightly larger value
       (list from)
     (or inc (setq inc 1))
     (when (zerop inc) (error "The increment can not be zero"))
-    (let (seq (n 0) (next from))
+    (let (seq (n 0) (next from) (last from))
       (if (> inc 0)
-          (while (<= next to)
+          ;; The (>= next last) condition protects against integer
+          ;; overflow in computing NEXT.
+          (while (and (>= next last) (<= next to))
             (setq seq (cons next seq)
                   n (1+ n)
+                  last next
                   next (+ from (* n inc))))
-        (while (>= next to)
+        (while (and (<= next last) (>= next to))
           (setq seq (cons next seq)
                 n (1+ n)
                 next (+ from (* n inc)))))
@@ -1546,6 +1550,10 @@ FUN is then called once."
   (declare (indent 2) (debug (form sexp body))
            (obsolete "use a <foo>-function variable modified by `add-function'."
                      "24.4"))
+  `(subr--with-wrapper-hook-no-warnings ,hook ,args ,@body))
+
+(defmacro subr--with-wrapper-hook-no-warnings (hook args &rest body)
+  "Like (with-wrapper-hook HOOK ARGS BODY), but without warnings."
   ;; We need those two gensyms because CL's lexical scoping is not available
   ;; for function arguments :-(
   (let ((funs (make-symbol "funs"))
@@ -1736,6 +1744,11 @@ if it is empty or a duplicate."
 (make-variable-buffer-local 'delayed-mode-hooks)
 (put 'delay-mode-hooks 'permanent-local t)
 
+(defvar delayed-after-hook-forms nil
+  "List of delayed :after-hook forms waiting to be run.
+These forms come from `define-derived-mode'.")
+(make-variable-buffer-local 'delayed-after-hook-forms)
+
 (defvar change-major-mode-after-body-hook nil
   "Normal hook run in major mode functions, before the mode hooks.")
 
@@ -1751,9 +1764,12 @@ If the variable `delay-mode-hooks' is non-nil, does not do anything,
 just adds the HOOKS to the list `delayed-mode-hooks'.
 Otherwise, runs hooks in the sequence: `change-major-mode-after-body-hook',
 `delayed-mode-hooks' (in reverse order), HOOKS, then runs
-`hack-local-variables' and finally runs the hook
-`after-change-major-mode-hook'.  Major mode functions should use
-this instead of `run-hooks' when running their FOO-mode-hook."
+`hack-local-variables', runs the hook `after-change-major-mode-hook', and
+finally evaluates the forms in `delayed-after-hook-forms' (see
+`define-derived-mode').
+
+Major mode functions should use this instead of `run-hooks' when
+running their FOO-mode-hook."
   (if delay-mode-hooks
       ;; Delaying case.
       (dolist (hook hooks)
@@ -1765,7 +1781,10 @@ this instead of `run-hooks' when running their FOO-mode-hook."
     (if (buffer-file-name)
         (with-demoted-errors "File local-variables error: %s"
           (hack-local-variables 'no-mode)))
-    (run-hooks 'after-change-major-mode-hook)))
+    (run-hooks 'after-change-major-mode-hook)
+    (dolist (form (nreverse delayed-after-hook-forms))
+      (eval form))
+    (setq delayed-after-hook-forms nil)))
 
 (defmacro delay-mode-hooks (&rest body)
   "Execute BODY, but delay any `run-mode-hooks'.
@@ -3935,9 +3954,9 @@ the match data are the result of matching REGEXP against a substring
 of STRING, the same substring that is the actual text of the match which
 is passed to REP as its argument.
 
-To replace only the first match (if any), make REGEXP match up to \\'
+To replace only the first match (if any), make REGEXP match up to \\\\='
 and replace a sub-expression, e.g.
-  (replace-regexp-in-string \"\\\\(foo\\\\).*\\\\'\" \"bar\" \" foo foo\" nil nil 1)
+  (replace-regexp-in-string \"\\\\(foo\\\\).*\\\\\\='\" \"bar\" \" foo foo\" nil nil 1)
     => \" bar foo\""
 
   ;; To avoid excessive consing from multiple matches in long strings,
@@ -5135,6 +5154,26 @@ as a list.")
 
 
 ;;; Misc.
+
+(defvar definition-prefixes (make-hash-table :test 'equal)
+  "Hash table mapping prefixes to the files in which they're used.
+This can be used to automatically fetch not-yet-loaded definitions.
+More specifically, if there is a value of the form (FILES...) for a string PREFIX
+it means that the FILES define variables or functions with names that start
+with PREFIX.
+
+Note that it does not imply that all definitions starting with PREFIX can
+be found in those files.  E.g. if prefix is \"gnus-article-\" there might
+still be definitions of the form \"gnus-article-toto-titi\" in other files, which would
+presumably appear in this table under another prefix such as \"gnus-\"
+or \"gnus-article-toto-\".")
+
+(defun register-definition-prefixes (file prefixes)
+  "Register that FILE uses PREFIXES."
+  (dolist (prefix prefixes)
+    (puthash prefix (cons file (gethash prefix definition-prefixes))
+             definition-prefixes)))
+
 (defconst menu-bar-separator '("--")
   "Separator for menus.")
 

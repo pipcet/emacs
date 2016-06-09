@@ -299,7 +299,8 @@ FORM is of the form (ARGS . BODY)."
                                ;; Be careful with make-symbol and (back)quote,
                                ;; see bug#12884.
                                (help--docstring-quote
-                                (let ((print-gensym nil) (print-quoted t))
+                                (let ((print-gensym nil) (print-quoted t)
+                                      (print-escape-newlines t))
                                   (format "%S" (cons 'fn (cl--make-usage-args
                                                           orig-args))))))
                               header)))
@@ -2671,7 +2672,11 @@ non-nil value, that slot cannot be set via `setf'.
 	    (let ((accessor (intern (format "%s%s" conc-name slot))))
 	      (push slot slots)
 	      (push (nth 1 desc) defaults)
+	      ;; The arg "cl-x" is referenced by name in eg pred-form
+	      ;; and pred-check, so changing it is not straightforward.
 	      (push `(cl-defsubst ,accessor (cl-x)
+                       ,(format "Access slot \"%s\" of `%s' struct CL-X."
+                                slot struct)
                        (declare (side-effect-free t))
                        ,@(and pred-check
 			      (list `(or ,pred-check
