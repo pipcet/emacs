@@ -891,7 +891,6 @@ autocmp_chars (Lisp_Object rule, ptrdiff_t charpos, ptrdiff_t bytepos,
   if (len <= 0)
     return unbind_to (count, Qnil);
   to = limit = charpos + len;
-#ifdef HAVE_WINDOW_SYSTEM
   if (FRAME_WINDOW_P (f))
     {
       font_object = font_range (charpos, bytepos, &to, win, face, string);
@@ -902,7 +901,6 @@ autocmp_chars (Lisp_Object rule, ptrdiff_t charpos, ptrdiff_t bytepos,
 	return unbind_to (count, Qnil);
     }
   else
-#endif	/* not HAVE_WINDOW_SYSTEM */
     font_object = win->frame;
   lgstring = Fcomposition_get_gstring (pos, make_number (to), font_object,
 				       string);

@@ -131,10 +131,10 @@ extern int sys_select (int, fd_set *, fd_set *, fd_set *,
 		       struct timespec *, void *);
 #endif
 
-/* Work around GCC 4.7.0 bug with strict overflow checking; see
+/* Work around GCC 4.3.0 bug with strict overflow checking; see
    <http://gcc.gnu.org/bugzilla/show_bug.cgi?id=52904>.
    This bug appears to be fixed in GCC 5.1, so don't work around it there.  */
-#if __GNUC__ == 4 && __GNUC_MINOR__ >= 3
+#if GNUC_PREREQ (4, 3, 0) && ! GNUC_PREREQ (5, 1, 0)
 # pragma GCC diagnostic ignored "-Wstrict-overflow"
 #endif
 
@@ -534,25 +534,37 @@ status_convert (int w)
     return Qrun;
 }
 
+/* True if STATUS is that of a process attempting connection.  */
+
+static bool
+connecting_status (Lisp_Object status)
+{
+  return CONSP (status) && EQ (XCAR (status), Qconnect);
+}
+
 /* Given a status-list, extract the three pieces of information
    and store them individually through the three pointers.  */
 
 static void
-decode_status (Lisp_Object l, Lisp_Object *symbol, int *code, bool *coredump)
+decode_status (Lisp_Object l, Lisp_Object *symbol, Lisp_Object *code,
+	       bool *coredump)
 {
   Lisp_Object tem;
+
+  if (connecting_status (l))
+    l = XCAR (l);
 
   if (SYMBOLP (l))
     {
       *symbol = l;
-      *code = 0;
+      *code = make_number (0);
       *coredump = 0;
     }
   else
     {
       *symbol = XCAR (l);
       tem = XCDR (l);
-      *code = XFASTINT (XCAR (tem));
+      *code = XCAR (tem);
       tem = XCDR (tem);
       *coredump = !NILP (tem);
     }
@@ -564,8 +576,7 @@ static Lisp_Object
 status_message (struct Lisp_Process *p)
 {
   Lisp_Object status = p->status;
-  Lisp_Object symbol;
-  int code;
+  Lisp_Object symbol, code;
   bool coredump;
   Lisp_Object string;
 
@@ -575,7 +586,7 @@ status_message (struct Lisp_Process *p)
     {
       char const *signame;
       synchronize_system_messages_locale ();
-      signame = strsignal (code);
+      signame = strsignal (XFASTINT (code));
       if (signame == 0)
 	string = build_string ("unknown");
       else
@@ -597,20 +608,20 @@ status_message (struct Lisp_Process *p)
   else if (EQ (symbol, Qexit))
     {
       if (NETCONN1_P (p))
-	return build_string (code == 0 ? "deleted\n" : "connection broken by remote peer\n");
-      if (code == 0)
+	return build_string (XFASTINT (code) == 0
+			     ? "deleted\n"
+			     : "connection broken by remote peer\n");
+      if (XFASTINT (code) == 0)
 	return build_string ("finished\n");
       AUTO_STRING (prefix, "exited abnormally with code ");
-      string = Fnumber_to_string (make_number (code));
+      string = Fnumber_to_string (code);
       AUTO_STRING (suffix, coredump ? " (core dumped)\n" : "\n");
       return concat3 (prefix, string, suffix);
     }
   else if (EQ (symbol, Qfailed))
     {
-      AUTO_STRING (prefix, "failed with code ");
-      string = Fnumber_to_string (make_number (code));
-      AUTO_STRING (suffix, "\n");
-      return concat3 (prefix, string, suffix);
+      AUTO_STRING (format, "failed with code %s\n");
+      return CALLN (Fformat, format, code);
     }
   else
     return Fcopy_sequence (Fsymbol_name (symbol));
@@ -3299,9 +3310,10 @@ connect_network_socket (Lisp_Object proc, Lisp_Object addrinfos,
 	  eassert (FD_ISSET (s, &fdset));
 	  if (getsockopt (s, SOL_SOCKET, SO_ERROR, &xerrno, &len) < 0)
 	    report_file_error ("Failed getsockopt", Qnil);
-	  if (xerrno)
+	  if (xerrno == 0)
+	    break;
+	  if (NILP (addrinfos))
 	    report_file_errno ("Failed connect", Qnil, xerrno);
-	  break;
 	}
 #endif /* !WINDOWSNT */
 
@@ -3410,7 +3422,9 @@ connect_network_socket (Lisp_Object proc, Lisp_Object addrinfos,
       /* We may get here if connect did succeed immediately.  However,
 	 in that case, we still need to signal this like a non-blocking
 	 connection.  */
-      pset_status (p, Qconnect);
+      if (! (connecting_status (p->status)
+	     && EQ (XCDR (p->status), addrinfos)))
+	pset_status (p, Fcons (Qconnect, addrinfos));
       if (!FD_ISSET (inch, &connect_wait_mask))
 	{
 	  FD_SET (inch, &connect_wait_mask);
@@ -3971,7 +3985,7 @@ usage: (make-network-process &rest ARGS)  */)
   if (!p->is_server && NILP (addrinfos))
     {
       p->dns_request = dns_request;
-      p->status = Qconnect;
+      p->status = list1 (Qconnect);
       return proc;
     }
 #endif
@@ -4684,7 +4698,7 @@ check_for_dns (Lisp_Object proc)
       addrinfos = Fnreverse (addrinfos);
     }
   /* The DNS lookup failed. */
-  else if (EQ (p->status, Qconnect))
+  else if (connecting_status (p->status))
     {
       deactivate_process (proc);
       pset_status (p, (list2
@@ -4697,7 +4711,7 @@ check_for_dns (Lisp_Object proc)
   free_dns_request (proc);
 
   /* This process should not already be connected (or killed). */
-  if (!EQ (p->status, Qconnect))
+  if (! connecting_status (p->status))
     return Qnil;
 
   return addrinfos;
@@ -4709,7 +4723,7 @@ static void
 wait_for_socket_fds (Lisp_Object process, char const *name)
 {
   while (XPROCESS (process)->infd < 0
-	 && EQ (XPROCESS (process)->status, Qconnect))
+	 && connecting_status (XPROCESS (process)->status))
     {
       add_to_log ("Waiting for socket from %s...", build_string (name));
       wait_reading_process_output (0, 20 * 1000 * 1000, 0, 0, Qnil, NULL, 0);
@@ -4719,7 +4733,7 @@ wait_for_socket_fds (Lisp_Object process, char const *name)
 static void
 wait_while_connecting (Lisp_Object process)
 {
-  while (EQ (XPROCESS (process)->status, Qconnect))
+  while (connecting_status (XPROCESS (process)->status))
     {
       add_to_log ("Waiting for connection...");
       wait_reading_process_output (0, 20 * 1000 * 1000, 0, 0, Qnil, NULL, 0);
@@ -5021,7 +5035,7 @@ wait_reading_process_output (intmax_t time_limit, int nsecs, int read_kbd,
 	update_status (wait_proc);
       if (wait_proc
 	  && ! EQ (wait_proc->status, Qrun)
-	  && ! EQ (wait_proc->status, Qconnect))
+	  && ! connecting_status (wait_proc->status))
 	{
 	  bool read_some_bytes = false;
 
@@ -5503,15 +5517,16 @@ wait_reading_process_output (intmax_t time_limit, int nsecs, int read_kbd,
 
 	      p = XPROCESS (proc);
 
-#ifdef GNU_LINUX
-	      /* getsockopt(,,SO_ERROR,,) is said to hang on some systems.
-		 So only use it on systems where it is known to work.  */
+#ifndef WINDOWSNT
 	      {
 		socklen_t xlen = sizeof (xerrno);
 		if (getsockopt (channel, SOL_SOCKET, SO_ERROR, &xerrno, &xlen))
 		  xerrno = errno;
 	      }
 #else
+	      /* On MS-Windows, getsockopt clears the error for the
+		 entire process, which may not be the right thing; see
+		 w32.c.  Use getpeername instead.  */
 	      {
 		struct sockaddr pname;
 		socklen_t pnamelen = sizeof (pname);
@@ -5530,9 +5545,18 @@ wait_reading_process_output (intmax_t time_limit, int nsecs, int read_kbd,
 #endif
 	      if (xerrno)
 		{
-		  p->tick = ++process_tick;
-		  pset_status (p, list2 (Qfailed, make_number (xerrno)));
+		  Lisp_Object addrinfos
+		    = connecting_status (p->status) ? XCDR (p->status) : Qnil;
+		  if (!NILP (addrinfos))
+		    XSETCDR (p->status, XCDR (addrinfos));
+		  else
+		    {
+		      p->tick = ++process_tick;
+		      pset_status (p, list2 (Qfailed, make_number (xerrno)));
+		    }
 		  deactivate_process (proc);
+		  if (!NILP (addrinfos))
+		    connect_network_socket (proc, addrinfos, Qnil);
 		}
 	      else
 		{
@@ -7009,7 +7033,7 @@ status_notify (struct Lisp_Process *deleting_process,
 
 	  /* If process is still active, read any output that remains.  */
 	  while (! EQ (p->filter, Qt)
-		 && ! EQ (p->status, Qconnect)
+		 && ! connecting_status (p->status)
 		 && ! EQ (p->status, Qlisten)
 		 /* Network or serial process not stopped:  */
 		 && ! EQ (p->command, Qt)

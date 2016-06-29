@@ -216,6 +216,7 @@ tzlookup (Lisp_Object zone, bool settz)
     {
       block_input ();
       emacs_setenv_TZ (zone_string);
+      tzset ();
       timezone_t old_tz = local_tz;
       local_tz = new_tz;
       tzfree (old_tz);
@@ -2458,23 +2459,24 @@ emacs_setenv_TZ (const char *tzstring)
       tzval[tzeqlen] = 0;
     }
 
-  if (new_tzvalbuf
-#ifdef WINDOWSNT
-      /* MS-Windows implementation of 'putenv' copies the argument
-	 string into a block it allocates, so modifying tzval string
-	 does not change the environment.  OTOH, the other threads run
-	 by Emacs on MS-Windows never call 'xputenv' or 'putenv' or
-	 'unsetenv', so the original cause for the dicey in-place
-	 modification technique doesn't exist there in the first
-	 place.  */
-      || 1
+
+#ifndef WINDOWSNT
+  /* Modifying *TZVAL merely requires calling tzset (which is the
+     caller's responsibility).  However, modifying TZVAL requires
+     calling putenv; although this is not thread-safe, in practice this
+     runs only on startup when there is only one thread.  */
+  bool need_putenv = new_tzvalbuf;
+#else
+  /* MS-Windows 'putenv' copies the argument string into a block it
+     allocates, so modifying *TZVAL will not change the environment.
+     However, the other threads run by Emacs on MS-Windows never call
+     'xputenv' or 'putenv' or 'unsetenv', so the original cause for the
+     dicey in-place modification technique doesn't exist there in the
+     first place.  */
+  bool need_putenv = true;
 #endif
-      )
-    {
-      /* Although this is not thread-safe, in practice this runs only
-	 on startup when there is only one thread.  */
-      xputenv (tzval);
-    }
+  if (need_putenv)
+    xputenv (tzval);
 
   return 0;
 }
@@ -3883,6 +3885,9 @@ precision specifier says how many decimal places to show; if zero, the
 decimal point itself is omitted.  For %s and %S, the precision
 specifier truncates the string to the given width.
 
+Text properties, if any, are copied from the format-string to the
+produced text.
+
 usage: (format STRING &rest OBJECTS)  */)
   (ptrdiff_t nargs, Lisp_Object *args)
 {
@@ -4170,6 +4175,7 @@ styled_format (ptrdiff_t nargs, Lisp_Object *args, bool message)
 	      convbytes += padding;
 	      if (convbytes <= buf + bufsize - p)
 		{
+                  info[n].start = nchars;
 		  if (! minus_flag)
 		    {
 		      memset (p, ' ', padding);
@@ -4188,9 +4194,7 @@ styled_format (ptrdiff_t nargs, Lisp_Object *args, bool message)
 				  nbytes,
 				  STRING_MULTIBYTE (args[n]), multibyte);
 
-                  info[n].start = nchars;
 		  nchars += nchars_string;
-		  info[n].end = nchars;
 
 		  if (minus_flag)
 		    {
@@ -4198,6 +4202,7 @@ styled_format (ptrdiff_t nargs, Lisp_Object *args, bool message)
 		      p += padding;
 		      nchars += padding;
 		    }
+		  info[n].end = nchars;
 
 		  /* If this argument has text properties, record where
 		     in the result string it appears.  */
@@ -4415,6 +4420,7 @@ styled_format (ptrdiff_t nargs, Lisp_Object *args, bool message)
 			exponent_bytes = src + sprintf_bytes - e;
 		    }
 
+                  info[n].start = nchars;
 		  if (! minus_flag)
 		    {
 		      memset (p, ' ', padding);
@@ -4437,9 +4443,7 @@ styled_format (ptrdiff_t nargs, Lisp_Object *args, bool message)
 		  memcpy (p, src, exponent_bytes);
 		  p += exponent_bytes;
 
-                  info[n].start = nchars;
 		  nchars += leading_zeros + sprintf_bytes + trailing_zeros;
-		  info[n].end = nchars;
 
 		  if (minus_flag)
 		    {
@@ -4447,6 +4451,7 @@ styled_format (ptrdiff_t nargs, Lisp_Object *args, bool message)
 		      p += padding;
 		      nchars += padding;
 		    }
+		  info[n].end = nchars;
 
 		  continue;
 		}

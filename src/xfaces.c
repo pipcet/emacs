@@ -5198,7 +5198,6 @@ realize_default_face (struct frame *f)
   struct face_cache *c = FRAME_FACE_CACHE (f);
   Lisp_Object lface;
   Lisp_Object attrs[LFACE_VECTOR_SIZE];
-  struct face *face;
 
   /* If the `default' face is not yet known, create it.  */
   lface = lface_from_face_name (f, Qdefault, false);
@@ -5288,10 +5287,11 @@ realize_default_face (struct frame *f)
   eassert (lface_fully_specified_p (XVECTOR (lface)->contents));
   check_lface (lface);
   memcpy (attrs, XVECTOR (lface)->contents, sizeof attrs);
-  face = realize_face (c, attrs, DEFAULT_FACE_ID);
+  struct face *face = realize_face (c, attrs, DEFAULT_FACE_ID);
 
-#ifdef HAVE_WINDOW_SYSTEM
-#ifdef HAVE_X_WINDOWS
+#ifndef HAVE_WINDOW_SYSTEM
+  (void) face;
+#else
   if (FRAME_X_P (f) && face->font != FRAME_FONT (f))
     {
       /* This can happen when making a frame on a display that does
@@ -5305,8 +5305,7 @@ realize_default_face (struct frame *f)
 	 font.  */
       x_set_font (f, LFACE_FONT (lface), Qnil);
     }
-#endif	/* HAVE_X_WINDOWS */
-#endif	/* HAVE_WINDOW_SYSTEM */
+#endif
   return true;
 }
 
@@ -6094,7 +6093,7 @@ face_at_string_position (struct window *w, Lisp_Object string,
 	     if we don't have fonts, so we can stop here if not working
 	     on a window-system frame.  */
 	  || !FRAME_WINDOW_P (f)
-	  || FACE_SUITABLE_FOR_ASCII_CHAR_P (base_face, 0)))
+	  || FACE_SUITABLE_FOR_ASCII_CHAR_P (base_face)))
     return base_face->id;
 
   /* Begin with attributes from the base face.  */
@@ -6494,8 +6493,8 @@ REPLACEMENT is a face specification, i.e. one of the following:
   (3) a list in which each element has the form of (1) or (2).
 
 List values for REPLACEMENT are merged to form the final face
-specification, with earlier entries taking precedence, in the same as
-as in the `face' text property.
+specification, with earlier entries taking precedence, in the same way
+as with the `face' text property.
 
 Face-name remapping cycles are suppressed; recursive references use
 the underlying face instead of the remapped face.  So a remapping of
