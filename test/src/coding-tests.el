@@ -1,7 +1,8 @@
-;;; decoder-tests.el --- test for text decoder
+;;; coding-tests.el --- tests for text encoding and decoding
 
 ;; Copyright (C) 2013-2016 Free Software Foundation, Inc.
 
+;; Author: Eli Zaretskii <eliz@gnu.org>
 ;; Author: Kenichi Handa <handa@gnu.org>
 
 ;; This file is part of GNU Emacs.
@@ -24,16 +25,42 @@
 (require 'ert)
 
 ;; Directory to hold test data files.
-(defvar decoder-tests-workdir
-  (expand-file-name "decoder-tests" temporary-file-directory))
+(defvar coding-tests-workdir
+  (expand-file-name "coding-tests" temporary-file-directory))
 
 ;; Remove all generated test files.
-(defun decoder-tests-remove-files ()
-  (delete-directory decoder-tests-workdir t))
+(defun coding-tests-remove-files ()
+  (delete-directory coding-tests-workdir t))
+
+(ert-deftest ert-test-coding-bogus-coding-systems ()
+  (unwind-protect
+      (let (test-file)
+        (or (file-directory-p coding-tests-workdir)
+            (mkdir coding-tests-workdir t))
+        (setq test-file (expand-file-name "nonexistent" coding-tests-workdir))
+        (if (file-exists-p test-file)
+            (delete-file test-file))
+        (should-error
+         (let ((coding-system-for-read 'bogus))
+           (insert-file-contents test-file)))
+        ;; See bug #21602.
+        (setq test-file (expand-file-name "writing" coding-tests-workdir))
+        (should-error
+         (let ((coding-system-for-write (intern "\"us-ascii\"")))
+           (write-region "some text" nil test-file))))
+    (coding-tests-remove-files)))
+
+;; See issue #5251.
+(ert-deftest ert-test-unibyte-buffer-dos-eol-decode ()
+  (with-temp-buffer
+    (set-buffer-multibyte nil)
+    (insert (encode-coding-string "あ" 'euc-jp) "\xd" "\n")
+    (decode-coding-region (point-min) (point-max) 'euc-jp-dos)
+    (should-not (string-match-p "\^M" (buffer-string)))))
 
 ;; Return the contents (specified by CONTENT-TYPE; ascii, latin, or
 ;; binary) of a test file.
-(defun decoder-tests-file-contents (content-type)
+(defun coding-tests-file-contents (content-type)
   (let* ((ascii "ABCDEFGHIJKLMNOPQRSTUVWXYZ\n")
 	 (latin (concat ascii "ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏ\n"))
 	 (binary (string-to-multibyte
@@ -47,10 +74,10 @@
 
 ;; Generate FILE with CONTENTS encoded by CODING-SYSTEM.
 ;; whose encoding specified by CODING-SYSTEM.
-(defun decoder-tests-gen-file (file contents coding-system)
-  (or (file-directory-p decoder-tests-workdir)
-      (mkdir decoder-tests-workdir t))
-  (setq file (expand-file-name file decoder-tests-workdir))
+(defun coding-tests-gen-file (file contents coding-system)
+  (or (file-directory-p coding-tests-workdir)
+      (mkdir coding-tests-workdir t))
+  (setq file (expand-file-name file coding-tests-workdir))
   (with-temp-file file
     (set-buffer-file-coding-system coding-system)
     (insert contents))
@@ -60,7 +87,7 @@
 ;;; file.
 
 ;; Convert all LFs to CR LF sequences in the string STR.
-(defun decoder-tests-lf-to-crlf (str)
+(defun coding-tests-lf-to-crlf (str)
   (with-temp-buffer
     (insert str)
     (goto-char (point-min))
@@ -70,14 +97,14 @@
     (buffer-string)))
 
 ;; Convert all LFs to CRs in the string STR.
-(defun decoder-tests-lf-to-cr (str)
+(defun coding-tests-lf-to-cr (str)
   (with-temp-buffer
     (insert str)
     (subst-char-in-region (point-min) (point-max) ?\n ?\r)
     (buffer-string)))
 
 ;; Convert all LFs to LF LF sequences in the string STR.
-(defun decoder-tests-lf-to-lflf (str)
+(defun coding-tests-lf-to-lflf (str)
   (with-temp-buffer
     (insert str)
     (goto-char (point-min))
@@ -86,27 +113,27 @@
     (buffer-string)))
 
 ;; Prepend the UTF-8 BOM to STR.
-(defun decoder-tests-add-bom (str)
+(defun coding-tests-add-bom (str)
   (concat "\xfeff" str))
 
 ;; Return the name of test file whose contents specified by
 ;; CONTENT-TYPE and whose encoding specified by CODING-SYSTEM.
-(defun decoder-tests-filename (content-type coding-system &optional ext)
+(defun coding-tests-filename (content-type coding-system &optional ext)
   (if ext
       (expand-file-name (format "%s-%s.%s" content-type coding-system ext)
-			decoder-tests-workdir)
+			coding-tests-workdir)
     (expand-file-name (format "%s-%s" content-type coding-system)
-		      decoder-tests-workdir)))
+		      coding-tests-workdir)))
 
 
 ;;; Check ASCII optimizing decoder
 
 ;; Generate a test file whose contents specified by CONTENT-TYPE and
 ;; whose encoding specified by CODING-SYSTEM.
-(defun decoder-tests-ao-gen-file (content-type coding-system)
-  (let ((file (decoder-tests-filename content-type coding-system)))
-    (decoder-tests-gen-file file 
-			    (decoder-tests-file-contents content-type)
+(defun coding-tests-ao-gen-file (content-type coding-system)
+  (let ((file (coding-tests-filename content-type coding-system)))
+    (coding-tests-gen-file file
+			    (coding-tests-file-contents content-type)
 			    coding-system)))
 
 ;; Test the decoding of a file whose contents and encoding are
@@ -118,13 +145,13 @@
 ;; instance, when a file of dos eol-type is read by unix eol-type,
 ;; `decode-test-lf-to-crlf' must be specified.
 
-(defun decoder-tests (content-type write-coding read-coding detected-coding
+(defun coding-tests (content-type write-coding read-coding detected-coding
 				   &optional translator)
   (prefer-coding-system 'utf-8-auto)
-  (let ((filename (decoder-tests-filename content-type write-coding)))
+  (let ((filename (coding-tests-filename content-type write-coding)))
     (with-temp-buffer
       (let ((coding-system-for-read read-coding)
-	    (contents (decoder-tests-file-contents content-type))
+	    (contents (coding-tests-file-contents content-type))
 	    (disable-ascii-optimization nil))
 	(if translator
 	    (setq contents (funcall translator contents)))
@@ -136,75 +163,75 @@
 		(string-to-list (buffer-string))
 		(string-to-list contents)))))))
 
-(ert-deftest ert-test-decoder-ascii ()
+(ert-deftest ert-test-coding-ascii ()
   (unwind-protect
       (progn
 	(dolist (eol-type '(unix dos mac))
-	  (decoder-tests-ao-gen-file 'ascii eol-type))
-	(should-not (decoder-tests 'ascii 'unix 'undecided 'unix))
-	(should-not (decoder-tests 'ascii 'dos 'undecided 'dos))
-	(should-not (decoder-tests 'ascii 'dos 'dos 'dos))
-	(should-not (decoder-tests 'ascii 'mac 'undecided 'mac))
-	(should-not (decoder-tests 'ascii 'mac 'mac 'mac))
-	(should-not (decoder-tests 'ascii 'dos 'utf-8 'utf-8-dos))
-	(should-not (decoder-tests 'ascii 'dos 'unix 'unix
-				   'decoder-tests-lf-to-crlf))
-	(should-not (decoder-tests 'ascii 'mac 'dos 'dos
-				   'decoder-tests-lf-to-cr))
-	(should-not (decoder-tests 'ascii 'dos 'mac 'mac
-				   'decoder-tests-lf-to-lflf)))
-    (decoder-tests-remove-files)))
+	  (coding-tests-ao-gen-file 'ascii eol-type))
+	(should-not (coding-tests 'ascii 'unix 'undecided 'unix))
+	(should-not (coding-tests 'ascii 'dos 'undecided 'dos))
+	(should-not (coding-tests 'ascii 'dos 'dos 'dos))
+	(should-not (coding-tests 'ascii 'mac 'undecided 'mac))
+	(should-not (coding-tests 'ascii 'mac 'mac 'mac))
+	(should-not (coding-tests 'ascii 'dos 'utf-8 'utf-8-dos))
+	(should-not (coding-tests 'ascii 'dos 'unix 'unix
+				   'coding-tests-lf-to-crlf))
+	(should-not (coding-tests 'ascii 'mac 'dos 'dos
+				   'coding-tests-lf-to-cr))
+	(should-not (coding-tests 'ascii 'dos 'mac 'mac
+				   'coding-tests-lf-to-lflf)))
+    (coding-tests-remove-files)))
 
-(ert-deftest ert-test-decoder-latin ()
+(ert-deftest ert-test-coding-latin ()
   (unwind-protect
       (progn
 	(dolist (coding '("utf-8" "utf-8-with-signature"))
 	  (dolist (eol-type '("unix" "dos" "mac"))
-	    (decoder-tests-ao-gen-file 'latin
+	    (coding-tests-ao-gen-file 'latin
 				       (intern (concat coding "-" eol-type)))))
-	(should-not (decoder-tests 'latin 'utf-8-unix 'undecided 'utf-8-unix))
-	(should-not (decoder-tests 'latin 'utf-8-unix 'utf-8-unix 'utf-8-unix))
-	(should-not (decoder-tests 'latin 'utf-8-dos 'undecided 'utf-8-dos))
-	(should-not (decoder-tests 'latin 'utf-8-dos 'utf-8-dos 'utf-8-dos))
-	(should-not (decoder-tests 'latin 'utf-8-mac 'undecided 'utf-8-mac))
-	(should-not (decoder-tests 'latin 'utf-8-mac 'utf-8-mac 'utf-8-mac))
-	(should-not (decoder-tests 'latin 'utf-8-dos 'unix 'utf-8-unix
-				   'decoder-tests-lf-to-crlf))
-	(should-not (decoder-tests 'latin 'utf-8-mac 'dos 'utf-8-dos
-				   'decoder-tests-lf-to-cr))
-	(should-not (decoder-tests 'latin 'utf-8-dos 'mac 'utf-8-mac
-				   'decoder-tests-lf-to-lflf))
-	(should-not (decoder-tests 'latin 'utf-8-with-signature-unix 'undecided
+	(should-not (coding-tests 'latin 'utf-8-unix 'undecided 'utf-8-unix))
+	(should-not (coding-tests 'latin 'utf-8-unix 'utf-8-unix 'utf-8-unix))
+	(should-not (coding-tests 'latin 'utf-8-dos 'undecided 'utf-8-dos))
+	(should-not (coding-tests 'latin 'utf-8-dos 'utf-8-dos 'utf-8-dos))
+	(should-not (coding-tests 'latin 'utf-8-mac 'undecided 'utf-8-mac))
+	(should-not (coding-tests 'latin 'utf-8-mac 'utf-8-mac 'utf-8-mac))
+	(should-not (coding-tests 'latin 'utf-8-dos 'unix 'utf-8-unix
+				   'coding-tests-lf-to-crlf))
+	(should-not (coding-tests 'latin 'utf-8-mac 'dos 'utf-8-dos
+				   'coding-tests-lf-to-cr))
+	(should-not (coding-tests 'latin 'utf-8-dos 'mac 'utf-8-mac
+				   'coding-tests-lf-to-lflf))
+	(should-not (coding-tests 'latin 'utf-8-with-signature-unix 'undecided
 				   'utf-8-with-signature-unix))
-	(should-not (decoder-tests 'latin 'utf-8-with-signature-unix 'utf-8-auto
+	(should-not (coding-tests 'latin 'utf-8-with-signature-unix 'utf-8-auto
 				   'utf-8-with-signature-unix))
-	(should-not (decoder-tests 'latin 'utf-8-with-signature-dos 'undecided
+	(should-not (coding-tests 'latin 'utf-8-with-signature-dos 'undecided
 				   'utf-8-with-signature-dos))
-	(should-not (decoder-tests 'latin 'utf-8-with-signature-unix 'utf-8
-				   'utf-8-unix 'decoder-tests-add-bom))
-	(should-not (decoder-tests 'latin 'utf-8-with-signature-unix 'utf-8
-				   'utf-8-unix 'decoder-tests-add-bom)))
-    (decoder-tests-remove-files)))
+	(should-not (coding-tests 'latin 'utf-8-with-signature-unix 'utf-8
+				   'utf-8-unix 'coding-tests-add-bom))
+	(should-not (coding-tests 'latin 'utf-8-with-signature-unix 'utf-8
+				   'utf-8-unix 'coding-tests-add-bom)))
+    (coding-tests-remove-files)))
 
-(ert-deftest ert-test-decoder-binary ()
+(ert-deftest ert-test-coding-binary ()
   (unwind-protect
       (progn
 	(dolist (eol-type '("unix" "dos" "mac"))
-	  (decoder-tests-ao-gen-file 'binary
+	  (coding-tests-ao-gen-file 'binary
 				     (intern (concat "raw-text" "-" eol-type))))
-	(should-not (decoder-tests 'binary 'raw-text-unix 'undecided
+	(should-not (coding-tests 'binary 'raw-text-unix 'undecided
 				   'raw-text-unix))
-	(should-not (decoder-tests 'binary 'raw-text-dos 'undecided
+	(should-not (coding-tests 'binary 'raw-text-dos 'undecided
 				   'raw-text-dos))
-	(should-not (decoder-tests 'binary 'raw-text-mac 'undecided
+	(should-not (coding-tests 'binary 'raw-text-mac 'undecided
 				   'raw-text-mac))
-	(should-not (decoder-tests 'binary 'raw-text-dos 'unix
-				   'raw-text-unix 'decoder-tests-lf-to-crlf))
-	(should-not (decoder-tests 'binary 'raw-text-mac 'dos
-				   'raw-text-dos 'decoder-tests-lf-to-cr))
-	(should-not (decoder-tests 'binary 'raw-text-dos 'mac
-				   'raw-text-mac 'decoder-tests-lf-to-lflf)))
-    (decoder-tests-remove-files)))
+	(should-not (coding-tests 'binary 'raw-text-dos 'unix
+				   'raw-text-unix 'coding-tests-lf-to-crlf))
+	(should-not (coding-tests 'binary 'raw-text-mac 'dos
+				   'raw-text-dos 'coding-tests-lf-to-cr))
+	(should-not (coding-tests 'binary 'raw-text-dos 'mac
+				   'raw-text-mac 'coding-tests-lf-to-lflf)))
+    (coding-tests-remove-files)))
 
 
 ;;; Check the coding system `prefer-utf-8'.
@@ -212,7 +239,7 @@
 ;; Read FILE.  Check if the encoding was detected as DETECT.  If
 ;; PREFER is non-nil, prefer that coding system before reading.
 
-(defun decoder-tests-prefer-utf-8-read (file detect prefer)
+(defun coding-tests-prefer-utf-8-read (file detect prefer)
   (with-temp-buffer
     (with-coding-priority (if prefer (list prefer))
       (insert-file-contents file))
@@ -225,7 +252,7 @@
 ;; coding tag with it before writing.  If STR is non-nil, insert it
 ;; before writing.
 
-(defun decoder-tests-prefer-utf-8-write (file coding-tag coding
+(defun coding-tests-prefer-utf-8-write (file coding-tag coding
 					      &optional str)
   (with-temp-buffer
     (insert-file-contents file)
@@ -235,34 +262,34 @@
       (insert ";;\n"))
     (if str
 	(insert str))
-    (write-file (decoder-tests-filename 'test 'test "el"))
+    (write-file (coding-tests-filename 'test 'test "el"))
     (if (coding-system-equal buffer-file-coding-system coding)
 	nil
       (format "Incorrect encoding: %s" last-coding-system-used))))
 
-(ert-deftest ert-test-decoder-prefer-utf-8 ()
+(ert-deftest ert-test-coding-prefer-utf-8 ()
   (unwind-protect
-      (let ((ascii (decoder-tests-gen-file "ascii.el"
-					   (decoder-tests-file-contents 'ascii)
+      (let ((ascii (coding-tests-gen-file "ascii.el"
+					   (coding-tests-file-contents 'ascii)
 					   'unix))
-	    (latin (decoder-tests-gen-file "utf-8.el"
-					   (decoder-tests-file-contents 'latin)
+	    (latin (coding-tests-gen-file "utf-8.el"
+					   (coding-tests-file-contents 'latin)
 					   'utf-8-unix)))
-	(should-not (decoder-tests-prefer-utf-8-read
+	(should-not (coding-tests-prefer-utf-8-read
 		     ascii 'prefer-utf-8-unix nil))
-	(should-not (decoder-tests-prefer-utf-8-read
+	(should-not (coding-tests-prefer-utf-8-read
 		     latin 'utf-8-unix nil))
-	(should-not (decoder-tests-prefer-utf-8-read
+	(should-not (coding-tests-prefer-utf-8-read
 		     latin 'utf-8-unix 'iso-8859-1))
-	(should-not (decoder-tests-prefer-utf-8-read
+	(should-not (coding-tests-prefer-utf-8-read
 		     latin 'utf-8-unix 'sjis))
-	(should-not (decoder-tests-prefer-utf-8-write
+	(should-not (coding-tests-prefer-utf-8-write
 		     ascii nil 'prefer-utf-8-unix))
-	(should-not (decoder-tests-prefer-utf-8-write
+	(should-not (coding-tests-prefer-utf-8-write
 		     ascii 'iso-8859-1 'iso-8859-1-unix))
-	(should-not (decoder-tests-prefer-utf-8-write
+	(should-not (coding-tests-prefer-utf-8-write
 		     ascii nil 'utf-8-unix "À")))
-    (decoder-tests-remove-files)))
+    (coding-tests-remove-files)))
 
 
 ;;; The following is for benchmark testing of the new optimized
@@ -347,3 +374,10 @@
 	       (result (benchmark-run 10
 			 (with-temp-buffer (insert-file-contents (car file))))))
 	  (insert (format "%s: %s\n" (car file) result)))))))
+
+;; Local Variables:
+;; byte-compile-warnings: (not obsolete)
+;; End:
+
+(provide 'coding-tests)
+;; coding-tests.el ends here

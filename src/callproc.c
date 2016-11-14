@@ -22,6 +22,7 @@ along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.  */
 #include <config.h>
 #include <errno.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/types.h>
 #include <unistd.h>
 
@@ -1004,6 +1005,13 @@ create_temp_file (ptrdiff_t nargs, Lisp_Object *args,
 DEFUN ("call-process-region", Fcall_process_region, Scall_process_region,
        3, MANY, 0,
        doc: /* Send text from START to END to a synchronous process running PROGRAM.
+
+START and END are normally buffer positions specifying the part of the
+buffer to send to the process.
+If START is nil, that means to use the entire buffer contents; END is
+ignored.
+If START is a string, then send that string to the process
+instead of any buffer contents; END is ignored.
 The remaining arguments are optional.
 Delete the text if fourth arg DELETE is non-nil.
 
@@ -1307,6 +1315,9 @@ child_setup (int in, int out, int err, char **new_argv, bool set_pgrp,
 #else  /* not WINDOWSNT */
 
 #ifndef MSDOS
+
+  restore_nofile_limit ();
+
   /* Redirect file descriptors and clear the close-on-exec flag on the
      redirected ones.  IN, OUT, and ERR are close-on-exec so they
      need not be closed explicitly.  */
@@ -1317,8 +1328,8 @@ child_setup (int in, int out, int err, char **new_argv, bool set_pgrp,
   setpgid (0, 0);
   tcsetpgrp (0, pid);
 
-  execve (new_argv[0], new_argv, env);
-  exec_failed (new_argv[0], errno);
+  int errnum = emacs_exec_file (new_argv[0], new_argv, env);
+  exec_failed (new_argv[0], errnum);
 
 #else /* MSDOS */
   pid = run_msdos_command (new_argv, pwd_var + 4, in, out, err, env);
@@ -1374,6 +1385,20 @@ getenv_internal (const char *var, ptrdiff_t varlen, char **value,
   if (getenv_internal_1 (var, varlen, value, valuelen,
 			 Vprocess_environment))
     return *value ? 1 : 0;
+
+  /* On Windows we make some modifications to Emacs' environment
+     without recording them in Vprocess_environment.  */
+#ifdef WINDOWSNT
+  {
+    char* tmpval = getenv (var);
+    if (tmpval)
+      {
+        *value = tmpval;
+        *valuelen = strlen (tmpval);
+        return 1;
+      }
+  }
+#endif
 
   /* For DISPLAY try to get the values from the frame or the initial env.  */
   if (strcmp (var, "DISPLAY") == 0)

@@ -1,4 +1,4 @@
-;;; htmlfontify.el --- htmlize a buffer/source tree with optional hyperlinks
+;;; htmlfontify.el --- htmlize a buffer/source tree with optional hyperlinks -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2002-2003, 2009-2016 Free Software Foundation, Inc.
 
@@ -1805,8 +1805,7 @@ It is assumed that STRING has text properties that allow it to be
 fontified.  This is a simple convenience wrapper around
 `htmlfontify-buffer'."
   (let* ((hfy-optimizations-1 (copy-sequence hfy-optimizations))
-         (hfy-optimizations (add-to-list 'hfy-optimizations-1
-                                         'skip-refontification)))
+         (hfy-optimizations (pushnew 'skip-refontification hfy-optimizations-1)))
     (with-temp-buffer
       (insert string)
       (htmlfontify-buffer)
@@ -1849,8 +1848,9 @@ Dangerous characters in the existing buffer are turned into HTML
 entities, so you should even be able to do HTML-within-HTML
 fontified display.
 
-You should, however, note that random control or eight-bit
-characters such as ^L (\x0c) or ¤ (\xa4) won't get mapped yet.
+You should, however, note that random control or non-ASCII
+characters such as ^L (U+000C FORM FEED (FF)) or ¤ (U+00A4
+CURRENCY SIGN) won't get mapped yet.
 
 If the SRCDIR and FILE arguments are set, lookup etags derived
 entries in the `hfy-tags-cache' and add HTML anchors and

@@ -1,4 +1,4 @@
-;;; files.el --- tests for file handling.
+;;; files-tests.el --- tests for files.el.
 
 ;; Copyright (C) 2012-2016 Free Software Foundation, Inc.
 
@@ -169,4 +169,56 @@ form.")
 ;; Stop the above "Local Var..." confusing Emacs.
 
 
-;;; files.el ends here
+(ert-deftest files-test-bug-21454 ()
+  "Test for http://debbugs.gnu.org/21454 ."
+  :expected-result :failed
+  (let ((input-result
+         '(("/foo/bar//baz/:/bar/foo/baz//" nil ("/foo/bar/baz/" "/bar/foo/baz/"))
+           ("/foo/bar/:/bar/qux/:/qux/foo" nil ("/foo/bar/" "/bar/qux/" "/qux/foo/"))
+           ("//foo/bar/:/bar/qux/:/qux/foo/" nil ("/foo/bar/" "/bar/qux/" "/qux/foo/"))
+           ("/foo/bar/:/bar/qux/:/qux/foo/" nil ("/foo/bar/" "/bar/qux/" "/qux/foo/"))
+           ("/foo//bar/:/bar/qux/:/qux/foo/" nil ("/foo/bar/" "/bar/qux/" "/qux/foo/"))
+           ("/foo//bar/:/bar/qux/:/qux/foo" nil ("/foo/bar/" "/bar/qux/" "/qux/foo/"))
+           ("/foo/bar" "$FOO/baz/:/qux/foo/" ("/foo/bar/baz/" "/qux/foo/"))
+           ("//foo/bar/" "$FOO/baz/:/qux/foo/" ("/foo/bar/baz/" "/qux/foo/"))))
+        (foo-env (getenv "FOO"))
+        (bar-env (getenv "BAR")))
+    (unwind-protect
+        (dolist (test input-result)
+          (let ((foo (nth 0 test))
+                (bar (nth 1 test))
+                (res (nth 2 test)))
+            (setenv "FOO" foo)
+            (if bar
+                (progn
+                  (setenv "BAR" bar)
+                  (should (equal res (parse-colon-path (getenv "BAR")))))
+              (should (equal res (parse-colon-path "$FOO"))))))
+      (setenv "FOO" foo-env)
+      (setenv "BAR" bar-env))))
+
+(ert-deftest files-test--save-buffers-kill-emacs--confirm-kill-processes ()
+  "Test that `save-buffers-kill-emacs' honors
+`confirm-kill-processes'."
+  (cl-letf* ((yes-or-no-p-prompts nil)
+             ((symbol-function #'yes-or-no-p)
+              (lambda (prompt)
+                (push prompt yes-or-no-p-prompts)
+                nil))
+             (kill-emacs-args nil)
+             ((symbol-function #'kill-emacs)
+              (lambda (&optional arg) (push arg kill-emacs-args)))
+             (process
+              (make-process
+               :name "sleep"
+               :command (list
+                         (expand-file-name invocation-name invocation-directory)
+                         "-batch" "-Q" "-eval" "(sleep-for 1000)")))
+             (confirm-kill-processes nil))
+    (save-buffers-kill-emacs)
+    (kill-process process)
+    (should-not yes-or-no-p-prompts)
+    (should (equal kill-emacs-args '(nil)))))
+
+(provide 'files-tests)
+;;; files-tests.el ends here

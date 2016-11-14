@@ -21,6 +21,9 @@ along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.  */
    Geoff Voelker (voelker@cs.washington.edu)                         7-29-94
 */
 
+#define DEFER_MS_W32_H
+#include <config.h>
+
 #include <mingw_time.h>
 #include <stddef.h> /* for offsetof */
 #include <stdlib.h>
@@ -37,9 +40,10 @@ along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.  */
 #include <sys/utime.h>
 #include <math.h>
 
-/* must include CRT headers *before* config.h */
+/* Include (most) CRT headers *before* ms-w32.h.  */
+#include <ms-w32.h>
 
-#include <config.h>
+#include <string.h>	/* for strerror, needed by sys_strerror */
 #include <mbstring.h>	/* for _mbspbrk, _mbslwr, _mbsrchr, ... */
 
 #undef access
@@ -90,13 +94,6 @@ extern void dynlib_reset_last_error (void);
 #include <pwd.h>
 #include <grp.h>
 
-/* MinGW64 defines these in its _mingw.h.  */
-#ifndef _ANONYMOUS_UNION
-# define _ANONYMOUS_UNION
-#endif
-#ifndef _ANONYMOUS_STRUCT
-# define _ANONYMOUS_STRUCT
-#endif
 #include <windows.h>
 /* Some versions of compiler define MEMORYSTATUSEX, some don't, so we
    use a different name to avoid compilation problems.  */
@@ -278,8 +275,6 @@ extern int sys_select (int, SELECT_TYPE *, SELECT_TYPE *, SELECT_TYPE *,
 		       struct timespec *, void *);
 extern int sys_dup (int);
 
-
-
 
 /* Initialization states.
 
@@ -330,6 +325,7 @@ static BOOL g_b_init_set_named_security_info_a;
 static BOOL g_b_init_get_adapters_info;
 
 BOOL g_b_init_compare_string_w;
+BOOL g_b_init_debug_break_process;
 
 /*
   BEGIN: Wrapper functions around OpenProcessToken
@@ -2822,10 +2818,13 @@ init_environment (char ** argv)
 		  }
 		if (strcmp (env_vars[i].name, "HOME") == 0 && !appdata)
 		  Vdelayed_warnings_list
-		    = Fcons (listn (CONSTYPE_HEAP, 2,
-				    intern ("initialization"),
-				    build_string ("Setting HOME to C:\\ by default is deprecated")),
-			     Vdelayed_warnings_list);
+                    = Fcons
+                    (listn (CONSTYPE_HEAP, 2,
+                            intern ("initialization"), build_string
+                            ("Use of `C:\\.emacs' without defining `HOME'\n"
+                             "in the environment is deprecated, "
+                             "see `Windows HOME' in the Emacs manual.")),
+                     Vdelayed_warnings_list);
 	      }
 
 	    if (lpval)
@@ -9650,6 +9649,7 @@ globals_of_w32 (void)
   g_b_init_set_named_security_info_a = 0;
   g_b_init_get_adapters_info = 0;
   g_b_init_compare_string_w = 0;
+  g_b_init_debug_break_process = 0;
   num_of_processors = 0;
   /* The following sets a handler for shutdown notifications for
      console apps. This actually applies to Emacs in both console and

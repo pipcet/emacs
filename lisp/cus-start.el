@@ -173,7 +173,9 @@ Leaving \"Default\" unchecked is equivalent with specifying a default of
 					(directory :format "%v")))
                         nil
                         :standard
-                        (mapcar 'directory-file-name
+                        (mapcar (lambda (f)
+                                  (if f (directory-file-name f)
+                                    "."))
                                 (append (parse-colon-path (getenv "PATH"))
                                         (list exec-directory))))
 	     (exec-suffixes execute (repeat string))
@@ -246,6 +248,7 @@ Leaving \"Default\" unchecked is equivalent with specifying a default of
 	     (debug-ignored-errors debug (repeat (choice symbol regexp)))
 	     (debug-on-quit debug boolean)
 	     (debug-on-signal debug boolean)
+             (debugger-stack-frame-as-list debugger boolean "26.1")
 	     ;; fileio.c
 	     (delete-by-moving-to-trash auto-save boolean "23.1")
 	     (auto-save-visited-file-name auto-save boolean)

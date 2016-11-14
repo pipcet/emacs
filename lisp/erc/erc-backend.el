@@ -108,7 +108,7 @@
 ;;;; Variables and options
 
 (defvar erc-server-responses (make-hash-table :test #'equal)
-  "Hashtable mapping server responses to their handler hooks.")
+  "Hash table mapping server responses to their handler hooks.")
 
 (cl-defstruct (erc-response (:conc-name erc-response.))
   (unparsed "" :type string)
@@ -1061,7 +1061,7 @@ See also `erc-server-responses'."
 (defun erc-call-hooks (process message)
   "Call hooks associated with MESSAGE in PROCESS.
 
-Finds hooks by looking in the `erc-server-responses' hashtable."
+Finds hooks by looking in the `erc-server-responses' hash table."
   (let ((hook (or (erc-get-hook (erc-response.command message))
                   'erc-default-server-functions)))
     (run-hook-with-args-until-success hook process message)
@@ -1218,7 +1218,7 @@ add things to `%s' instead."
        (put ',fn-name 'definition-name ',name)
        (put ',hook-name 'definition-name ',name)
 
-       ;; Hashtable map of responses to hook variables
+       ;; Hash table map of responses to hook variables
        ,@(cl-loop for response in (cons name aliases)
                   for var in (cons hook-name var-alternates)
                   collect `(puthash ,(format "%s" response) ',var
@@ -2002,7 +2002,7 @@ See `erc-display-server-message'." nil
   "You need to be a channel operator to do that." nil
   (let ((channel (cadr (erc-response.command-args parsed)))
         (message (erc-response.contents parsed)))
-    (erc-display-message parsed '(error notice) 'active 's482
+    (erc-display-message parsed '(notice error) 'active 's482
                          ?c channel ?m message)))
 
 (define-erc-response-handler (671)

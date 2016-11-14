@@ -621,6 +621,8 @@ Changes to files in this list are not listed.")
     ;; windowsnt.h to ms-w32.h.
     ("Geoff Voelker" :wrote "w32-fns.el" "w32.c" "w32.h" "w32heap.c"
      "w32heap.h" "w32inevt.c" "w32proc.c" "w32term.c" "ms-w32.h")
+    ("Bob Weiner" :changed "dframe.el" "etags.c" "info.el" "quail.el"
+     "rmail.el" "rmailsum.el" "speedbar.el")
     ("Morten Welinder" :wrote "dosfns.c" "[many MS-DOS files]" "msdos.h")
     ("Eli Zaretskii" :wrote "bidi.c" "[bidirectional display in xdisp.c]"
      "[tty menus in term.c]")
@@ -652,6 +654,7 @@ Changes to files in this list are not listed.")
     "ebuild.bat" "install.bat" "fast-install.bat"
     "debug.bat.in" "emacs.bat.in" "addsection.c"
     "inc/sys/dir.h" "inc/gettext.h"
+    "time.h"
     ".gdbinit-union"
     "alloca.s"
     "make-delta"
@@ -750,11 +753,20 @@ Changes to files in this list are not listed.")
     "getopt_.h" "getopt_int.h" "gettext.h" "leditcfns.c" "loadst.c"
     "make-path.c" "qsort.c" "sorted-doc.c" "tcp.c" "timer.c" "wakeup.c"
     "yow.c" "grep-changelog" "grep-changelog.1"
+    ;; semantic files now removed from the repository
+    "semantic/bovine/c-by.el" "semantic/bovine/make-by.el"
+    "semantic/bovine/scm-by.el" "semantic/wisent/javat-wy.el"
+    "semantic/wisent/js-wy.el" "semantic/wisent/python-wy.el"
+    "srecode/srt-wy.el"
     ;; etc/
     "emacsclient.c" "etags.c" "hexl.c" "make-docfile.c" "movemail.c"
     "test-distrib.c" "testfile"
     "tpu-edt.doc"			; see below
-    "lisp/obsolete/vc-mcvs.el"
+    "obsolete/vc-mcvs.el"
+    "nnwarchive.el"
+    "nnultimate.el"
+    "nnslashdot.el"
+    "webmail.el"
     )
   "File names which are valid, but no longer exist (or cannot be found)
 in the repository.")
@@ -892,6 +904,14 @@ in the repository.")
     ("major.texi" . "modes.texi")
     ("msdog-xtra.texi" . "msdos-xtra.texi")
     ("msdog.texi" . "msdos.texi")
+    ;; Moved from lisp/gnus/ to lisp/calendar/
+    ("time-date.el" . "calendar/time-date.el")
+    ;; Moved from lisp/gnus/ to lisp/mail/
+    ("binhex.el" . "mail/binhex.el")
+    ("uudecode.el" . "mail/uudecode.el")
+    ;; Moved from lisp/gnus/ to lisp/net/
+    ("imap.el" . "net/imap.el")
+    ("rfc2104.el" . "net/rfc2104.el")
     ;; And from emacs/ to misc/ and back again.
     ("ns-emacs.texi" . "macos.texi")
     ("overrides.texi" . "gnus-overrides.texi")
@@ -909,7 +929,6 @@ in the repository.")
     ("lisp/character-fold.el" . "lisp/char-fold.el")
     ("test/automated/character-fold-tests.el" . "test/automated/char-fold-tests.el")
     ("images/gnus/mail_send.xpm" . "mail-send.xpm") ; still in images/gnus
-    ;; Renamed within same directory.
     ("schema/xhtml-basic-form.rnc" . "xhtml-bform.rnc" )
     ("schema/xhtml-basic-table.rnc" . "xhtml-btable.rnc")
     ("schema/xhtml-list.rnc" . "xhtml-lst.rnc")

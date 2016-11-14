@@ -452,7 +452,13 @@ It can be quoted, or be inside a quoted form."
      ((facep sym) (find-definition-noselect sym 'defface)))))
 
 (defun elisp-completion-at-point ()
-  "Function used for `completion-at-point-functions' in `emacs-lisp-mode'."
+  "Function used for `completion-at-point-functions' in `emacs-lisp-mode'.
+If the context at point allows only a certain category of
+symbols (e.g. functions, or variables) then the returned
+completions are restricted to that category.  In contexts where
+any symbol is possible (following a quote, for example),
+functions are annotated with \"<f>\" via the
+`:annotation-function' property."
   (with-syntax-table emacs-lisp-mode-syntax-table
     (let* ((pos (point))
 	   (beg (condition-case nil
@@ -533,9 +539,9 @@ It can be quoted, or be inside a quoted form."
                                         (delete-dups
                                          ;; FIXME: We should include some
                                          ;; docstring with each entry.
-                                         (append
-                                          macro-declarations-alist
-                                          defun-declarations-alist)))))
+                                         (append macro-declarations-alist
+                                                 defun-declarations-alist
+                                                 nil))))) ; Copy both alists.
                        ((and (or `condition-case `condition-case-unless-debug)
                              (guard (save-excursion
                                       (ignore-errors
@@ -712,7 +718,10 @@ non-nil result supercedes the xrefs produced by
                 (let* ((info (cl--generic-method-info method));; qual-string combined-args doconly
                        (specializers (cl--generic-method-specializers method))
                        (non-default nil)
-                       (met-name (cons symbol specializers))
+                       (met-name (cl--generic-load-hist-format
+                                  symbol
+                                  (cl--generic-method-qualifiers method)
+                                  specializers))
                        (file (find-lisp-object-file-name met-name 'cl-defmethod)))
                   (dolist (item specializers)
                     ;; default method has all 't' in specializers

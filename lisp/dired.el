@@ -255,6 +255,18 @@ new Dired buffers."
   :version "24.4"
   :group 'dired)
 
+(defcustom dired-always-read-filesystem nil
+  "Non-nil means revert buffers visiting files before searching them.
+ By default,  commands like `dired-mark-files-containing-regexp' will
+ search any buffers visiting the marked files without reverting them,
+ even if they were changed on disk.  When this option is non-nil, such
+ buffers are always reverted in a temporary buffer before searching
+ them: the search is performed on the temporary buffer, the original
+ buffer visiting the file is not modified."
+  :type 'boolean
+  :version "25.2"
+  :group 'dired)
+
 ;; Internal variables
 
 (defvar dired-marker-char ?*		; the answer is 42
@@ -2455,10 +2467,11 @@ You can then feed the file name(s) to other commands with \\[yank]."
 				    'no-dir (prefix-numeric-value arg))))
                           (dired-get-marked-files 'no-dir))
                         " "))))
-    (if (eq last-command 'kill-region)
-	(kill-append string nil)
-      (kill-new string))
-    (message "%s" string)))
+    (unless (string= string "")
+      (if (eq last-command 'kill-region)
+          (kill-append string nil)
+        (kill-new string))
+      (message "%s" string))))
 
 
 ;; Keeping Dired buffers in sync with the filesystem and with each other
@@ -3359,7 +3372,8 @@ object files--just `.o' will mark more than you might think."
 A prefix argument means to unmark them instead.
 `.' and `..' are never marked.
 
-Note that if a file is visited in an Emacs buffer, this command will
+Note that if a file is visited in an Emacs buffer, and
+`dired-always-read-filesystem' is nil, this command will
 look in the buffer without revisiting the file, so the results might
 be inconsistent with the file on disk if its contents has changed
 since it was last visited."
@@ -3379,7 +3393,7 @@ since it was last visited."
 		(message "Checking %s" fn)
 		;; For now we do it inside emacs
 		;; Grep might be better if there are a lot of files
-		(if prebuf
+		(if (and prebuf (not dired-always-read-filesystem))
 		    (with-current-buffer prebuf
 		      (save-excursion
 			(goto-char (point-min))

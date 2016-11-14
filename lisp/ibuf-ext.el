@@ -85,6 +85,32 @@ regardless of any active filters in this buffer."
   :type '(repeat (choice regexp function))
   :group 'ibuffer)
 
+(defcustom ibuffer-never-search-content-name
+  (let* ((names    '("Completions" "Help" "Messages" "Pp Eval Output"
+                     "CompileLog" "Info" "Buffer List" "Ibuffer" "Apropos"))
+         (partial  '("Customize Option: " "Async Shell Command\\*"
+                     "Shell Command Output\\*" "ediff "))
+         (beg      "\\`\\*")
+         (end      "\\*\\'")
+         (excluded (mapcar (lambda (x)
+                             (format "%s%s" beg x)) partial)))
+    (dolist (str names (nreverse excluded))
+      (push (format "%s%s%s" beg str end) excluded)))
+  "A list of regexps for buffers ignored by `ibuffer-mark-by-content-regexp'.
+Buffers whose name matches a regexp in this list, are not searched."
+  :version "25.2"
+  :type '(repeat regexp)
+  :require 'ibuf-ext
+  :group 'ibuffer)
+
+(defcustom ibuffer-never-search-content-mode '(dired-mode)
+  "A list of major modes ignored by `ibuffer-mark-by-content-regexp'.
+Buffers whose major mode is in this list, are not searched."
+  :version "25.2"
+  :type '(repeat regexp)
+  :require 'ibuf-ext
+  :group 'ibuffer)
+
 (defvar ibuffer-tmp-hide-regexps nil
   "A list of regexps which should match buffer names to not show.")
 
@@ -224,8 +250,11 @@ the mode if ARG is omitted or nil."
   nil nil nil
   (unless (derived-mode-p 'ibuffer-mode)
     (error "This buffer is not in Ibuffer mode"))
-  (frame-or-buffer-changed-p 'ibuffer-auto-buffers-changed) ; Initialize state vector
-  (add-hook 'post-command-hook 'ibuffer-auto-update-changed))
+  (cond (ibuffer-auto-mode
+         (frame-or-buffer-changed-p 'ibuffer-auto-buffers-changed) ; Initialize state vector
+         (add-hook 'post-command-hook 'ibuffer-auto-update-changed))
+        (t
+         (remove-hook 'post-command-hook 'ibuffer-auto-update-changed))))
 
 (defun ibuffer-auto-update-changed ()
   (when (frame-or-buffer-changed-p 'ibuffer-auto-buffers-changed)
@@ -324,8 +353,7 @@ the mode if ARG is omitted or nil."
    :opstring "Shell command executed on"
    :modifier-p nil)
   (shell-command-on-region
-   (point-min) (point-max) command
-   (get-buffer-create "* ibuffer-shell-output*")))
+   (point-min) (point-max) command))
 
 ;;;###autoload (autoload 'ibuffer-do-shell-command-pipe-replace "ibuf-ext")
 (define-ibuffer-op shell-command-pipe-replace (command)
@@ -1392,7 +1420,7 @@ This requires the external program \"diff\" to be in your `exec-path'."
 
 ;;;###autoload
 (defun ibuffer-copy-filename-as-kill (&optional arg)
-  "Copy filenames of marked buffers into the kill ring.
+  "Copy filenames of marked (or next ARG) buffers into the kill ring.
 
 The names are separated by a space.
 If a buffer has no filename, it is ignored.
@@ -1403,37 +1431,51 @@ With \\[universal-argument], use the filename of each marked file relative
 to `ibuffer-default-directory' if non-nil, otherwise `default-directory'.
 
 You can then feed the file name(s) to other commands with \\[yank]."
-  (interactive "p")
-  (if (zerop (ibuffer-count-marked-lines))
-      (message "No buffers marked; use 'm' to mark a buffer")
-    (let ((ibuffer-copy-filename-as-kill-result "")
-	  (type (cond ((or (null arg) (zerop arg))
-		       'full)
-		      ((= arg 4)
-		       'relative)
-		      (t
-		       'name))))
-      (ibuffer-map-marked-lines
-       #'(lambda (buf _mark)
-	   (setq ibuffer-copy-filename-as-kill-result
-                 (concat ibuffer-copy-filename-as-kill-result
-                         (let ((name (buffer-file-name buf)))
-                           (cond (name
-                                  (concat
-                                   (pcase type
-                                     (`full
-                                      name)
-                                     (`relative
-                                      (file-relative-name
-                                       name (or ibuffer-default-directory
-                                                default-directory)))
-                                     (_
-                                      (file-name-nondirectory name))) " "))
-                                 (t "")))))))
-      (when (not (zerop (length ibuffer-copy-filename-as-kill-result)))
-        (setq ibuffer-copy-filename-as-kill-result
-              (substring ibuffer-copy-filename-as-kill-result 0 -1)))
-      (kill-new ibuffer-copy-filename-as-kill-result))))
+  (interactive "P")
+  (let* ((buffers (cond ((and (integerp arg) (not (zerop arg)))
+                         (ibuffer--near-buffers arg))
+                        (t
+                         (or (ibuffer-get-marked-buffers)
+                             (list (ibuffer-current-buffer))))))
+         (file-names
+          (mapcar
+           (lambda (buf)
+             (let ((name (with-current-buffer buf
+                           (ibuffer-buffer-file-name))))
+               (if (null name)
+                   ""
+                 (cond ((and (integerp arg) (zerop arg)) name)
+                       ((consp arg)
+                        (file-relative-name
+                         name (or ibuffer-default-directory
+                                  default-directory)))
+                       (t (file-name-nondirectory name))))))
+           buffers))
+         (string
+          (mapconcat 'identity (delete "" file-names) " ")))
+    (unless (string= string "")
+      (if (eq last-command 'kill-region)
+          (kill-append string nil)
+        (kill-new string))
+      (message "%s" string))))
+
+;;;###autoload
+(defun ibuffer-copy-buffername-as-kill (&optional arg)
+  "Copy buffer names of marked (or next ARG) buffers into the kill ring.
+The names are separated by a space.
+You can then feed the file name(s) to other commands with \\[yank]."
+  (interactive "P")
+  (let* ((buffers (cond ((and (integerp arg) (not (zerop arg)))
+                         (ibuffer--near-buffers arg))
+                        (t
+                         (or (ibuffer-get-marked-buffers)
+                             (list (ibuffer-current-buffer))))))
+         (string (mapconcat #'buffer-name buffers " ")))
+    (unless (string= string "")
+      (if (eq last-command 'kill-region)
+          (kill-append string nil)
+        (kill-new string))
+      (message "%s" string))))
 
 (defun ibuffer-mark-on-buffer (func &optional ibuffer-mark-on-buffer-mark group)
   (let ((count
@@ -1456,6 +1498,23 @@ You can then feed the file name(s) to other commands with \\[yank]."
   (ibuffer-mark-on-buffer
    #'(lambda (buf)
        (string-match regexp (buffer-name buf)))))
+
+(defun ibuffer-locked-buffer-p (&optional buf)
+  "Return non-nil if BUF is locked.
+When BUF nil, default to the buffer at current line."
+  (let ((cbuffer (or buf (ibuffer-current-buffer))))
+    (when cbuffer
+      (with-current-buffer cbuffer
+        (and (boundp 'emacs-lock-mode) emacs-lock-mode)))))
+
+;;;###autoload
+(defun ibuffer-mark-by-locked ()
+  "Mark all locked buffers."
+  (interactive)
+  (when (featurep 'emacs-lock)
+    (ibuffer-mark-on-buffer
+     (lambda (buf)
+       (ibuffer-locked-buffer-p buf)))))
 
 ;;;###autoload
 (defun ibuffer-mark-by-mode-regexp (regexp)
@@ -1480,6 +1539,31 @@ You can then feed the file name(s) to other commands with \\[yank]."
 			  dired-directory)))))
 	 (when name
 	   (string-match regexp name))))))
+
+;;;###autoload
+(defun ibuffer-mark-by-content-regexp (regexp &optional all-buffers)
+  "Mark all buffers whose content matches REGEXP.
+Optional arg ALL-BUFFERS, if non-nil, then search in all buffers.
+Otherwise buffers whose name matches an element of
+`ibuffer-never-search-content-name' or whose major mode is on
+`ibuffer-never-search-content-mode' are excluded."
+  (interactive (let ((reg (read-string "Mark by content (regexp): ")))
+                 (list reg current-prefix-arg)))
+  (ibuffer-mark-on-buffer
+   #'(lambda (buf)
+       (let ((mode (with-current-buffer buf major-mode))
+             res)
+         (cond ((and (not all-buffers)
+                     (or
+                      (memq mode ibuffer-never-search-content-mode)
+                      (cl-some (lambda (x) (string-match x (buffer-name buf)))
+                               ibuffer-never-search-content-name)))
+                (setq res nil))
+               (t
+                (with-current-buffer buf
+                  (save-mark-and-excursion
+                   (goto-char (point-min))
+                   (setq res (re-search-forward regexp nil t)))))) res))))
 
 ;;;###autoload
 (defun ibuffer-mark-by-mode (mode)

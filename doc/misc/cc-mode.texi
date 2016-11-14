@@ -2554,7 +2554,9 @@ for C code in GNU programs.
 
 @item k&r
 @cindex K&R style
-The classic Kernighan and Ritchie style for C code.
+The classic Kernighan and Ritchie style for C code. If you're looking
+for the style used in the 2nd edition of their book ``The C
+Programming Language'', then check out the @code{stroustrup} style.
 
 @item bsd
 @cindex BSD style
@@ -3542,10 +3544,11 @@ use, add this function to the front of the
 @example
 (defun c-semi&comma-no-newlines-before-nonblanks ()
   (save-excursion
-    (if (and (eq last-command-char ?\;)
-             (zerop (forward-line 1))
-             (not (looking-at "^[ \t]*$")))
-        'stop
+    (if (and (= (c-last-command-char) ?\;)
+	     (zerop (forward-line 1))
+	     (bolp)      ; forward-line has funny behavior at eob.
+	     (not (looking-at "^[ \t]*$")))
+	'stop
       nil)))
 @end example
 @end defun
@@ -6727,9 +6730,11 @@ Macros which needn't (or mustn't) be followed by a semicolon when you
 invoke them, @dfn{macros with semicolons}, are very common.  These can
 cause @ccmode{} to parse the next line wrongly as a
 @code{statement-cont} (@pxref{Function Symbols}) and thus mis-indent
-it.
+it.  At the top level, a macro invocation before a defun start can
+cause, for example, @code{c-beginning-of-defun} (@kbd{C-M-a}) not to
+find the correct start of the current function.
 
-You can prevent this by specifying which macros have semicolons.  It
+You can prevent these by specifying which macros have semicolons.  It
 doesn't matter whether or not such a macro has a parameter list:
 
 @defopt c-macro-names-with-semicolon

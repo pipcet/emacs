@@ -664,8 +664,6 @@ A printed representation of an object is text which describes that object.  */)
      but we don't want to deactivate the mark just for that.
      No need for specbind, since errors deactivate the mark.  */
   Lisp_Object save_deactivate_mark = Vdeactivate_mark;
-  bool prev_abort_on_gc = abort_on_gc;
-  abort_on_gc = true;
 
   Lisp_Object printcharfun = Vprin1_to_string_buffer;
   PRINTPREPARE;
@@ -687,7 +685,6 @@ A printed representation of an object is text which describes that object.  */)
 
   Vdeactivate_mark = save_deactivate_mark;
 
-  abort_on_gc = prev_abort_on_gc;
   return unbind_to (count, object);
 }
 
@@ -920,7 +917,7 @@ print_error_message (Lisp_Object data, Lisp_Object stream, const char *context,
   else
     {
       Lisp_Object error_conditions = Fget (errname, Qerror_conditions);
-      errmsg = Fget (errname, Qerror_message);
+      errmsg = Fsubstitute_command_keys (Fget (errname, Qerror_message));
       file_error = Fmemq (Qfile_error, error_conditions);
     }
 
@@ -939,7 +936,7 @@ print_error_message (Lisp_Object data, Lisp_Object stream, const char *context,
     if (!STRINGP (errmsg))
       write_string_1 ("peculiar error", stream);
     else if (SCHARS (errmsg))
-      Fprinc (Fsubstitute_command_keys (errmsg), stream);
+      Fprinc (errmsg, stream);
     else
       sep = NULL;
 

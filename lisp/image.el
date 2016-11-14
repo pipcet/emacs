@@ -343,7 +343,7 @@ be determined."
   "Determine the type of image file FILE from its name.
 Value is a symbol specifying the image type, or nil if type cannot
 be determined."
-  (let (type first)
+  (let (type first (case-fold-search t))
     (catch 'found
       (dolist (elem image-type-file-name-regexps first)
 	(when (string-match-p (car elem) file)
@@ -792,9 +792,10 @@ If the image has a non-nil :speed property, it acts as a multiplier
 for the animation speed.  A negative value means to animate in reverse."
   (when (and (buffer-live-p (plist-get (cdr image) :animate-buffer))
              ;; Delayed more than two seconds more than expected.
-             (when (> (- (float-time) target-time) 2)
-               (message "Stopping animation; animation possibly too big")
-               nil))
+	     (or (<= (- (float-time) target-time) 2)
+		 (progn
+		   (message "Stopping animation; animation possibly too big")
+		   nil)))
     (image-show-frame image n t)
     (let* ((speed (image-animate-get-speed image))
 	   (time (float-time))
@@ -956,7 +957,7 @@ If N is 3, then the image size will be increased by 30%.  The
 default is 20%."
   (interactive "P")
   (image--change-size (if n
-                          (1+ (/ n 10))
+                          (1+ (/ n 10.0))
                         1.2)))
 
 (defun image-decrease-size (n)
@@ -965,7 +966,7 @@ If N is 3, then the image size will be decreased by 30%.  The
 default is 20%."
   (interactive "P")
   (image--change-size (if n
-                          (- 1 (/ n 10))
+                          (- 1 (/ n 10.0))
                         0.8)))
 
 (defun image--get-image ()
@@ -1012,7 +1013,11 @@ default is 20%."
   (interactive)
   (let ((image (image--get-imagemagick-and-warn)))
     (plist-put (cdr image) :rotation
-               (float (+ (or (plist-get (cdr image) :rotation) 0) 90)))))
+               (float (mod (+ (or (plist-get (cdr image) :rotation) 0) 90)
+                           ;; We don't want to exceed 360 degrees
+                           ;; rotation, because it's not seen as valid
+                           ;; in exif data.
+                           360)))))
 
 (defun image-save ()
   "Save the image under point."

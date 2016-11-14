@@ -26,6 +26,7 @@ along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.  */
 #include <grp.h>
 #endif /* HAVE_PWD_H */
 #include <limits.h>
+#include <stdlib.h>
 #include <unistd.h>
 
 #include <c-ctype.h>
@@ -95,7 +96,7 @@ along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.  */
 #include "gnutls.h"
 /* MS-Windows loads GnuTLS at run time, if available; we don't want to
    do that during startup just to call gnutls_rnd.  */
-#if 0x020c00 <= GNUTLS_VERSION_NUMBER && !defined WINDOWSNT
+#if defined HAVE_GNUTLS && !defined WINDOWSNT
 # include <gnutls/crypto.h>
 #else
 # define emacs_gnutls_global_init() Qnil
@@ -128,6 +129,48 @@ static const int baud_convert[] =
     0, 50, 75, 110, 135, 150, 200, 300, 600, 1200,
     1800, 2400, 4800, 9600, 19200, 38400
   };
+
+#ifdef HAVE_PERSONALITY_ADDR_NO_RANDOMIZE
+# include <sys/personality.h>
+
+/* Disable address randomization in the current process.  Return true
+   if addresses were randomized but this has been disabled, false
+   otherwise. */
+bool
+disable_address_randomization (void)
+{
+  bool disabled = false;
+  int pers = personality (0xffffffff);
+  disabled = (! (pers & ADDR_NO_RANDOMIZE)
+	      && 0 <= personality (pers | ADDR_NO_RANDOMIZE));
+  return disabled;
+}
+#endif
+
+/* Execute the program in FILE, with argument vector ARGV and environ
+   ENVP.  Return an error number if unsuccessful.  This is like execve
+   except it reenables ASLR in the executed program if necessary, and
+   on error it returns an error number rather than -1.  */
+int
+emacs_exec_file (char const *file, char *const *argv, char *const *envp)
+{
+#ifdef HAVE_PERSONALITY_ADDR_NO_RANDOMIZE
+  int pers = getenv ("EMACS_HEAP_EXEC") ? personality (0xffffffff) : -1;
+  bool change_personality = 0 <= pers && pers & ADDR_NO_RANDOMIZE;
+  if (change_personality)
+    personality (pers & ~ADDR_NO_RANDOMIZE);
+#endif
+
+  execve (file, argv, envp);
+  int err = errno;
+
+#ifdef HAVE_PERSONALITY_ADDR_NO_RANDOMIZE
+  if (change_personality)
+    personality (pers);
+#endif
+
+  return err;
+}
 
 /* If FD is not already open, arrange for it to be open with FLAGS.  */
 static void
@@ -2145,27 +2188,35 @@ void
 init_random (void)
 {
   random_seed v;
-  if (! (EQ (emacs_gnutls_global_init (), Qt)
-	 && gnutls_rnd (GNUTLS_RND_NONCE, &v, sizeof v) == 0))
-    {
-      bool success = false;
-#ifndef WINDOWSNT
-      int fd = emacs_open ("/dev/urandom", O_RDONLY, 0);
-      if (0 <= fd)
-	{
-	  success = emacs_read (fd, &v, sizeof v) == sizeof v;
-	  emacs_close (fd);
-	}
+  bool success = false;
+
+  /* First, try seeding the PRNG from the operating system's entropy
+     source.  This approach is both fast and secure.  */
+#ifdef WINDOWSNT
+  success = w32_init_random (&v, sizeof v) == 0;
 #else
-      success = w32_init_random (&v, sizeof v) == 0;
-#endif
-      if (! success)
-	{
-	  /* Fall back to current time value + PID.  */
-	  struct timespec t = current_timespec ();
-	  v = getpid () ^ t.tv_sec ^ t.tv_nsec;
-	}
+  int fd = emacs_open ("/dev/urandom", O_RDONLY, 0);
+  if (0 <= fd)
+    {
+      success = emacs_read (fd, &v, sizeof v) == sizeof v;
+      close (fd);
     }
+#endif
+
+  /* If that didn't work, try using GnuTLS, which is secure, but on
+     some systems, can be somewhat slow.  */
+  if (!success)
+    success = EQ (emacs_gnutls_global_init (), Qt)
+      && gnutls_rnd (GNUTLS_RND_NONCE, &v, sizeof v) == 0;
+
+  /* If _that_ didn't work, just use the current time value and PID.
+     It's at least better than XKCD 221.  */
+  if (!success)
+    {
+      struct timespec t = current_timespec ();
+      v = getpid () ^ t.tv_sec ^ t.tv_nsec;
+    }
+
   set_random_seed (v);
 }
 
@@ -2181,8 +2232,8 @@ get_random (void)
   int i;
   for (i = 0; i < (FIXNUM_BITS + RAND_BITS - 1) / RAND_BITS; i++)
     val = (random () ^ (val << RAND_BITS)
-	   ^ (val >> (BITS_PER_EMACS_INT - RAND_BITS)));
-  val ^= val >> (BITS_PER_EMACS_INT - FIXNUM_BITS);
+	   ^ (val >> (EMACS_INT_WIDTH - RAND_BITS)));
+  val ^= val >> (EMACS_INT_WIDTH - FIXNUM_BITS);
   return val & INTMASK;
 }
 

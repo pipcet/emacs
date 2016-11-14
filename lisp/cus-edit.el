@@ -175,9 +175,15 @@
   :group 'emacs)
 
 (defgroup wp nil
-  "Support for editing text files."
-  :tag "Text"
+  "Support for editing text files.
+Use group `text' for this instead.  This group is deprecated."
   :group 'emacs)
+
+(defgroup text nil
+  "Support for editing text files."
+  :group 'emacs
+  ;; Inherit from deprecated `wp' for compatibility, for now.
+  :group 'wp)
 
 (defgroup data nil
   "Support for editing binary data files."
@@ -196,14 +202,6 @@
   "Emulations of other editors."
   :link '(custom-manual "(emacs)Emulation")
   :group 'editing)
-
-(defgroup mouse nil
-  "Mouse support."
-  :group 'editing)
-
-(defgroup outlines nil
-  "Support for hierarchical outlining."
-  :group 'wp)
 
 (defgroup external nil
   "Interfacing to external utilities."
@@ -317,7 +315,7 @@
 (defgroup tex nil
   "Code related to the TeX formatter."
   :link '(custom-group-link :tag "Font Lock Faces group" font-lock-faces)
-  :group 'wp)
+  :group 'text)
 
 (defgroup faces nil
   "Support for multiple fonts."
@@ -404,10 +402,6 @@
 
 (defgroup keyboard nil
   "Input from the keyboard."
-  :group 'environment)
-
-(defgroup mouse nil
-  "Input from the mouse."
   :group 'environment)
 
 (defgroup menu nil
@@ -1625,7 +1619,9 @@ Otherwise use brackets."
     ;; Insert verbose help at the top of the custom buffer.
     (when custom-buffer-verbose-help
       (unless init-file
-	(widget-insert "Custom settings cannot be saved; maybe you started Emacs with `-q'.\n"))
+	(widget-insert
+         (format-message
+          "Custom settings cannot be saved; maybe you started Emacs with `-q'.\n")))
       (widget-insert "For help using this buffer, see ")
       (widget-create 'custom-manual
 		     :tag "Easy Customization"

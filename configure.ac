@@ -23,7 +23,7 @@ dnl  along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
 
 AC_PREREQ(2.65)
 dnl Note this is parsed by (at least) make-dist and lisp/cedet/ede/emacs.el.
-AC_INIT(GNU Emacs, 25.1.50, bug-gnu-emacs@gnu.org)
+AC_INIT(GNU Emacs, 26.0.50, bug-gnu-emacs@gnu.org)
 
 dnl Set emacs_config_options to the options of 'configure', quoted for the shell,
 dnl and then quoted again for a C string.  Separate options with spaces.
@@ -1643,6 +1643,7 @@ fi
 
 dnl checks for header files
 AC_CHECK_HEADERS_ONCE(
+  linux/fs.h
   malloc.h
   sys/systeminfo.h
   sys/sysinfo.h
@@ -1650,15 +1651,17 @@ AC_CHECK_HEADERS_ONCE(
   sys/resource.h
   sys/utsname.h pwd.h utmp.h util.h)
 
-AC_MSG_CHECKING(if personality LINUX32 can be set)
-AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <sys/personality.h>]], [[personality (PER_LINUX32)]])],
-               emacs_cv_personality_linux32=yes,
-	       emacs_cv_personality_linux32=no)
-AC_MSG_RESULT($emacs_cv_personality_linux32)
-
-if test $emacs_cv_personality_linux32 = yes; then
-  AC_DEFINE(HAVE_PERSONALITY_LINUX32, 1,
-            [Define to 1 if personality LINUX32 can be set.])
+AC_CACHE_CHECK([for ADDR_NO_RANDOMIZE],
+  [emacs_cv_personality_addr_no_randomize],
+  [AC_COMPILE_IFELSE(
+     [AC_LANG_PROGRAM([[#include <sys/personality.h>]],
+		      [[personality (personality (0xffffffff)
+				     | ADDR_NO_RANDOMIZE)]])],
+     [emacs_cv_personality_addr_no_randomize=yes],
+     [emacs_cv_personality_addr_no_randomize=no])])
+if test $emacs_cv_personality_addr_no_randomize = yes; then
+  AC_DEFINE([HAVE_PERSONALITY_ADDR_NO_RANDOMIZE], [1],
+            [Define to 1 if personality flag ADDR_NO_RANDOMIZE exists.])
 fi
 
 # Note that Solaris has sys/sysinfo.h which defines struct
@@ -2155,14 +2158,15 @@ AC_CACHE_CHECK(
    fi])
 doug_lea_malloc=$emacs_cv_var_doug_lea_malloc
 
-system_malloc=$emacs_cv_sanitize_address
-
 hybrid_malloc=
+system_malloc=yes
 
 case "$opsys" in
   ## darwin ld insists on the use of malloc routines in the System framework.
-  darwin | mingw32 | nacl | sol2-10) system_malloc=yes ;;
-  cygwin) hybrid_malloc=yes;;
+  darwin | mingw32 | nacl | sol2-10) ;;
+  cygwin) hybrid_malloc=yes
+          system_malloc= ;;
+  *) test "$ac_cv_func_sbrk" = yes && system_malloc=$emacs_cv_sanitize_address;;
 esac
 
 if test "${system_malloc}" != yes && test "${doug_lea_malloc}" != yes \
@@ -2184,8 +2188,8 @@ elif test "$hybrid_malloc" = yes; then
   AC_DEFINE(HYBRID_MALLOC, 1,
     [Define to use gmalloc before dumping and the system malloc after.])
   HYBRID_MALLOC=1
-  GNU_MALLOC=
-  GNU_MALLOC_reason="only before dumping"
+  GNU_MALLOC=no
+  GNU_MALLOC_reason=" (only before dumping)"
   GMALLOC_OBJ=gmalloc.o
   VMLIMIT_OBJ=
 else
@@ -2235,7 +2239,7 @@ fi
 
 use_mmap_for_buffers=no
 case "$opsys" in
-  cygwin|mingw32) use_mmap_for_buffers=yes ;;
+  mingw32) use_mmap_for_buffers=yes ;;
 esac
 
 AC_FUNC_MMAP
@@ -2634,8 +2638,8 @@ if test "$with_xwidgets" != "no"; then
   test "$USE_GTK_TOOLKIT" = "GTK3" && test "$window_system" != "none" ||
     AC_MSG_ERROR([xwidgets requested but gtk3 not used.])
 
-  WEBKIT_REQUIRED=1.4.0
-  WEBKIT_MODULES="webkitgtk-3.0 >= $WEBKIT_REQUIRED"
+  WEBKIT_REQUIRED=2.12
+  WEBKIT_MODULES="webkit2gtk-4.0 >= $WEBKIT_REQUIRED"
   EMACS_CHECK_MODULES([WEBKIT], [$WEBKIT_MODULES])
   HAVE_XWIDGETS=$HAVE_WEBKIT
   test $HAVE_XWIDGETS = yes ||
@@ -2753,7 +2757,7 @@ AC_SUBST(LIBSELINUX_LIBS)
 
 HAVE_GNUTLS=no
 if test "${with_gnutls}" = "yes" ; then
-  EMACS_CHECK_MODULES([LIBGNUTLS], [gnutls >= 2.6.6],
+  EMACS_CHECK_MODULES([LIBGNUTLS], [gnutls >= 2.12.2],
     [HAVE_GNUTLS=yes], [HAVE_GNUTLS=no])
   if test "${HAVE_GNUTLS}" = "yes"; then
     AC_DEFINE(HAVE_GNUTLS, 1, [Define if using GnuTLS.])
@@ -3573,9 +3577,9 @@ fi
 AC_SUBST(LIBGIF)
 
 dnl Check for required libraries.
+MISSING=
+WITH_NO=
 if test "${HAVE_X11}" = "yes"; then
-  MISSING=""
-  WITH_NO=""
   test "${with_xpm}" != "no" && test "${HAVE_XPM}" != "yes" &&
     MISSING="libXpm" && WITH_NO="--with-xpm=no"
   test "${with_jpeg}" != "no" && test "${HAVE_JPEG}" != "yes" &&
@@ -3586,15 +3590,16 @@ if test "${HAVE_X11}" = "yes"; then
     MISSING="$MISSING libgif/libungif" && WITH_NO="$WITH_NO --with-gif=no"
   test "${with_tiff}" != "no" && test "${HAVE_TIFF}" != "yes" &&
     MISSING="$MISSING libtiff" && WITH_NO="$WITH_NO --with-tiff=no"
-
-  if test "X${MISSING}" != X; then
-    AC_MSG_ERROR([The following required libraries were not found:
+fi
+test "${with_gnutls}" != "no" && test "${HAVE_GNUTLS}" != "yes" &&
+  MISSING="$MISSING gnutls" && WITH_NO="$WITH_NO --with-gnutls=no"
+if test "X${MISSING}" != X; then
+  AC_MSG_ERROR([The following required libraries were not found:
     $MISSING
 Maybe some development libraries/packages are missing?
 If you don't want to link with them give
     $WITH_NO
 as options to configure])
-  fi
 fi
 
 ### Use -lgpm if available, unless '--with-gpm=no'.
@@ -3714,6 +3719,24 @@ if test "${HAVE_X11}" = "yes"; then
 fi
 AC_SUBST(XFIXES_CFLAGS)
 AC_SUBST(XFIXES_LIBS)
+
+### Use Xdbe (-lXdbe) if available
+HAVE_XDBE=no
+if test "${HAVE_X11}" = "yes"; then
+  AC_CHECK_HEADER(X11/extensions/Xdbe.h,
+    [AC_CHECK_LIB(Xext, XdbeAllocateBackBufferName, HAVE_XDBE=yes)],
+    [],
+    [#include <X11/Xlib.h>
+    ])
+  if test $HAVE_XDBE = yes; then
+    XDBE_LIBS=-lXext
+  fi
+  if test $HAVE_XDBE = yes; then
+    AC_DEFINE(HAVE_XDBE, 1, [Define to 1 if you have the Xdbe extension.])
+  fi
+fi
+AC_SUBST(XDBE_CFLAGS)
+AC_SUBST(XDBE_LIBS)
 
 ### Use libxml (-lxml2) if available
 ### mingw32 doesn't use -lxml2, since it loads the library dynamically.
@@ -4140,7 +4163,7 @@ AC_CHECK_HEADERS(valgrind/valgrind.h)
 
 AC_CHECK_MEMBERS([struct unipair.unicode], [], [], [[#include <linux/kd.h>]])
 
-AC_CHECK_FUNCS_ONCE(tzset)
+AC_CHECK_FUNCS_ONCE([sbrk tzset])
 
 ok_so_far=yes
 AC_CHECK_FUNC(socket, , ok_so_far=no)
@@ -4294,23 +4317,32 @@ else
     [Returns true if character is any form of separator.])
 fi
 
-AH_TEMPLATE(NO_EDITRES, [Define if XEditRes should not be used.])
-
-case $opsys in
-  aix4-2)
-    dnl Unfortunately without libXmu we cannot support EditRes.
-    if test "x$ac_cv_search_XmuConvertStandardSelection" = xno; then
-      AC_DEFINE(NO_EDITRES, 1)
+if test "$USE_X_TOOLKIT" != "none"; then
+  have_editres=yes
+  case $opsys in
+    hpux*)
+      dnl Assar Westerlund <assar@sics.se> says this is necessary
+      dnl for HP-UX 10.20, and that it works for HP-UX 0 as well.
+      have_editres=no
+    ;;
+  esac
+  if test "$have_editres" != no && test ! -z "$LIBXMU"; then
+    OLDLIBS="$LIBS"
+    dnl See libXmu.a check above.
+    if test x$HAVE_X11XTR6 = xyes; then
+      LIBS="-lXt -lSM -lICE $LIBXMU"
+    else
+      OTHERLIBS="-lXt -$LIBXMU"
     fi
-    ;;
-
-  hpux*)
-    dnl Assar Westerlund <assar@sics.se> says this is necessary for
-    dnl HP-UX 10.20, and that it works for HP-UX 0 as well.
-    AC_DEFINE(NO_EDITRES, 1)
-    ;;
-esac
-
+    AC_TRY_LINK(
+      [#include <X11/Intrinsic.h>
+       #include <X11/Xmu/Editres.h>],
+      [_XEditResCheckMessages (0, 0, 0, 0);],
+      [AC_DEFINE([X_TOOLKIT_EDITRES], 1,
+        [Define to 1 if we should use XEditRes.])])
+    LIBS=$OLDLIBS
+  fi
+fi
 
 case $opsys in
   sol2* | unixware )
@@ -4876,14 +4908,6 @@ AC_DEFINE_UNQUOTED(EMACS_CONFIGURATION,  "${canonical}",
 		   [Define to the canonical Emacs configuration name.])
 AC_DEFINE_UNQUOTED(EMACS_CONFIG_OPTIONS, "${emacs_config_options}",
 		   [Define to the options passed to configure.])
-AH_TEMPLATE(config_opsysfile, [Some platforms that do not use configure
-  define this to include extra configuration information.])
-
-case $opsys in
-  mingw32)
-    AC_DEFINE(config_opsysfile, <ms-w32.h>, [])
-    ;;
-esac
 
 XMENU_OBJ=
 XOBJ=
@@ -5125,25 +5149,29 @@ case "$opsys" in
   *) LD_SWITCH_SYSTEM_TEMACS= ;;
 esac
 
-# -nopie fixes a temacs segfault on Gentoo, OpenBSD, and other systems
-# with "hardened" GCC configurations for some reason (Bug#18784).
-# We don't know why -nopie works, but not segfaulting is better than
-# segfaulting.  Use ac_c_werror_flag=yes when trying -nopie, otherwise
-# clang keeps warning that it does not understand -nopie, and pre-4.6
-# GCC has a similar problem (Bug#20338).
-AC_CACHE_CHECK([whether $CC accepts -nopie],
-  [emacs_cv_prog_cc_nopie],
+# -no-pie or -nopie fixes a temacs segfault on Gentoo, OpenBSD,
+# Ubuntu, and other systems with "hardened" GCC configurations for
+# some reason (Bug#18784).  We don't know why this works, but not
+# segfaulting is better than segfaulting.  Use ac_c_werror_flag=yes
+# when trying the option, otherwise clang keeps warning that it does
+# not understand it, and pre-4.6 GCC has a similar problem
+# (Bug#20338).  Prefer -no-pie to -nopie, as -no-pie is the
+# spelling used by GCC 6.1.0 and later (Bug#24682).
+AC_CACHE_CHECK(
+  [for $CC option to disable position independent executables],
+  [emacs_cv_prog_cc_no_pie],
   [emacs_save_c_werror_flag=$ac_c_werror_flag
    emacs_save_LDFLAGS=$LDFLAGS
    ac_c_werror_flag=yes
-   LDFLAGS="$LDFLAGS -nopie"
-   AC_LINK_IFELSE([AC_LANG_PROGRAM([], [])],
-     [emacs_cv_prog_cc_nopie=yes],
-     [emacs_cv_prog_cc_nopie=no])
+   for emacs_cv_prog_cc_no_pie in -no-pie -nopie no; do
+     test $emacs_cv_prog_cc_no_pie = no && break
+     LDFLAGS="$emacs_save_LDFLAGS $emacs_cv_prog_cc_no_pie"
+     AC_LINK_IFELSE([AC_LANG_PROGRAM([], [])], [break])
+   done
    ac_c_werror_flag=$emacs_save_c_werror_flag
    LDFLAGS=$emacs_save_LDFLAGS])
-if test "$emacs_cv_prog_cc_nopie" = yes; then
-  LD_SWITCH_SYSTEM_TEMACS="$LD_SWITCH_SYSTEM_TEMACS -nopie"
+if test "$emacs_cv_prog_cc_no_pie" != no; then
+  LD_SWITCH_SYSTEM_TEMACS="$LD_SWITCH_SYSTEM_TEMACS $emacs_cv_prog_cc_no_pie"
 fi
 
 if test x$ac_enable_profiling != x ; then

@@ -22,6 +22,9 @@ along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.  */
      Adapted from alarm.c by Tim Fleehart
 */
 
+#define DEFER_MS_W32_H
+#include <config.h>
+
 #include <mingw_time.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -35,8 +38,8 @@ along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.  */
 #include <mbstring.h>
 #include <locale.h>
 
-/* must include CRT headers *before* config.h */
-#include <config.h>
+/* Include CRT headers *before* ms-w32.h.  */
+#include <ms-w32.h>
 
 #undef signal
 #undef wait
@@ -66,6 +69,8 @@ along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.  */
 	    + (filedata).file_base))
 
 extern BOOL g_b_init_compare_string_w;
+extern BOOL g_b_init_debug_break_process;
+
 int sys_select (int, SELECT_TYPE *, SELECT_TYPE *, SELECT_TYPE *,
 		struct timespec *, void *);
 
@@ -86,9 +91,9 @@ sys_signal (int sig, signal_handler handler)
   /* SIGCHLD is needed for supporting subprocesses, see sys_kill
      below.  SIGALRM and SIGPROF are used by setitimer.  All the
      others are the only ones supported by the MS runtime.  */
-  if (!(sig == SIGCHLD || sig == SIGSEGV || sig == SIGILL
+  if (!(sig == SIGINT || sig == SIGSEGV || sig == SIGILL
 	|| sig == SIGFPE || sig == SIGABRT || sig == SIGTERM
-	|| sig == SIGALRM || sig == SIGPROF))
+	|| sig == SIGCHLD || sig == SIGALRM || sig == SIGPROF))
     {
       errno = EINVAL;
       return SIG_ERR;
@@ -224,7 +229,7 @@ sigismember (const sigset_t *set, int signo)
       errno = EINVAL;
       return -1;
     }
-  if (signo > sizeof (*set) * BITS_PER_CHAR)
+  if (signo > sizeof (*set) * CHAR_BIT)
     emacs_abort ();
 
   return (*set & (1U << signo)) != 0;
@@ -2494,6 +2499,9 @@ find_child_console (HWND hwnd, LPARAM arg)
   return TRUE;
 }
 
+typedef BOOL (WINAPI * DebugBreakProcess_Proc) (
+    HANDLE hProcess);
+
 /* Emulate 'kill', but only for other processes.  */
 int
 sys_kill (pid_t pid, int sig)
@@ -2507,9 +2515,9 @@ sys_kill (pid_t pid, int sig)
   if (pid < 0)
     pid = -pid;
 
-  /* Only handle signals that will result in the process dying */
+  /* Only handle signals that can be mapped to a similar behavior on Windows */
   if (sig != 0
-      && sig != SIGINT && sig != SIGKILL && sig != SIGQUIT && sig != SIGHUP)
+      && sig != SIGINT && sig != SIGKILL && sig != SIGQUIT && sig != SIGHUP && sig != SIGTRAP)
     {
       errno = EINVAL;
       return -1;
@@ -2552,7 +2560,11 @@ sys_kill (pid_t pid, int sig)
 	 close the selected frame, which does not necessarily
 	 terminates Emacs.  But then we are not supposed to call
 	 sys_kill with our own PID.  */
-      proc_hand = OpenProcess (PROCESS_TERMINATE, 0, pid);
+
+      DWORD desiredAccess =
+	(sig == SIGTRAP) ? PROCESS_ALL_ACCESS : PROCESS_TERMINATE;
+
+      proc_hand = OpenProcess (desiredAccess, 0, pid);
       if (proc_hand == NULL)
         {
 	  errno = EPERM;
@@ -2645,6 +2657,43 @@ sys_kill (pid_t pid, int sig)
 	  DebPrint (("sys_kill.GenerateConsoleCtrlEvent return %d "
 		     "for pid %lu\n", GetLastError (), pid));
 	  errno = EINVAL;
+	  rc = -1;
+	}
+    }
+  else if (sig == SIGTRAP)
+    {
+      static DebugBreakProcess_Proc s_pfn_Debug_Break_Process = NULL;
+
+      if (g_b_init_debug_break_process == 0)
+	{
+	  g_b_init_debug_break_process = 1;
+	  s_pfn_Debug_Break_Process = (DebugBreakProcess_Proc)
+	    GetProcAddress (GetModuleHandle ("kernel32.dll"),
+			    "DebugBreakProcess");
+	}
+
+      if (s_pfn_Debug_Break_Process == NULL)
+	{
+	  errno = ENOTSUP;
+	  rc = -1;
+	}
+      else if (!s_pfn_Debug_Break_Process (proc_hand))
+	{
+	  DWORD err = GetLastError ();
+
+	  DebPrint (("sys_kill.DebugBreakProcess return %d "
+		     "for pid %lu\n", err, pid));
+
+	  switch (err)
+	    {
+	    case ERROR_ACCESS_DENIED:
+	      errno = EPERM;
+	      break;
+	    default:
+	      errno = EINVAL;
+	      break;
+	    }
+
 	  rc = -1;
 	}
     }

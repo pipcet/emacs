@@ -22,6 +22,7 @@ along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.  */
 #include <config.h>
 #include <limits.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include "lisp.h"
 #include "blockinput.h"
 #include "commands.h"
@@ -222,7 +223,6 @@ static struct handler handlerlist_sentinel;
 void
 init_eval (void)
 {
-  byte_stack_list = 0;
   specpdl_ptr = specpdl;
   { /* Put a dummy catcher at top-level so that handlerlist is never NULL.
        This is important since handlerlist->nextfree holds the freelist
@@ -299,6 +299,11 @@ call_debugger (Lisp_Object arg)
 	    debug_while_redisplaying ? Qnil : Qt);
   specbind (Qinhibit_redisplay, Qnil);
   specbind (Qinhibit_debugger, Qt);
+
+  /* If we are debugging an error while `inhibit-changing-match-data'
+     is bound to non-nil (e.g., within a call to `string-match-p'),
+     then make sure debugger code can still use match data.  */
+  specbind (Qinhibit_changing_match_data, Qnil);
 
 #if 0 /* Binding this prevents execution of Lisp code during
 	 redisplay, which necessarily leads to display problems.  */
@@ -1130,7 +1135,6 @@ unwind_to_catch (struct handler *catch, Lisp_Object value)
 
   eassert (handlerlist == catch);
 
-  byte_stack_list = catch->byte_stack;
   lisp_eval_depth = catch->lisp_eval_depth;
 
   sys_longjmp (catch->jmp, 1);
@@ -1425,12 +1429,12 @@ push_handler_nosignal (Lisp_Object tag_ch_val, enum handlertype handlertype)
   c->pdlcount = SPECPDL_INDEX ();
   c->poll_suppress_count = poll_suppress_count;
   c->interrupt_input_blocked = interrupt_input_blocked;
-  c->byte_stack = byte_stack_list;
   handlerlist = c;
   return c;
 }
 
 
+static Lisp_Object signal_or_quit (Lisp_Object, Lisp_Object, bool);
 static Lisp_Object find_handler_clause (Lisp_Object, Lisp_Object);
 static bool maybe_call_debugger (Lisp_Object conditions, Lisp_Object sig,
 				 Lisp_Object data);
@@ -1444,7 +1448,7 @@ process_quit_flag (void)
     Fkill_emacs (Qnil);
   if (EQ (Vthrow_on_input, flag))
     Fthrow (Vthrow_on_input, Qt);
-  Fsignal (Qquit, Qnil);
+  quit ();
 }
 
 DEFUN ("signal", Fsignal, Ssignal, 2, 2, 0,
@@ -1460,8 +1464,28 @@ DATA should be a list.  Its elements are printed as part of the error message.
 See Info anchor `(elisp)Definition of signal' for some details on how this
 error message is constructed.
 If the signal is handled, DATA is made available to the handler.
-See also the function `condition-case'.  */)
+See also the function `condition-case'.  */
+       attributes: noreturn)
   (Lisp_Object error_symbol, Lisp_Object data)
+{
+  signal_or_quit (error_symbol, data, false);
+  eassume (false);
+}
+
+/* Quit, in response to a keyboard quit request.  */
+Lisp_Object
+quit (void)
+{
+  return signal_or_quit (Qquit, Qnil, true);
+}
+
+/* Signal an error, or quit.  ERROR_SYMBOL and DATA are as with Fsignal.
+   If KEYBOARD_QUIT, this is a quit; ERROR_SYMBOL should be
+   Qquit and DATA should be Qnil, and this function may return.
+   Otherwise this function is like Fsignal and does not return.  */
+
+static Lisp_Object
+signal_or_quit (Lisp_Object error_symbol, Lisp_Object data, bool keyboard_quit)
 {
   /* When memory is full, ERROR-SYMBOL is nil,
      and DATA is (REAL-ERROR-SYMBOL . REAL-DATA).
@@ -1474,7 +1498,6 @@ See also the function `condition-case'.  */)
   struct handler *h;
 
   immediate_quit = 0;
-  abort_on_gc = 0;
   if (gc_in_progress || waiting_for_input)
     emacs_abort ();
 
@@ -1542,7 +1565,7 @@ See also the function `condition-case'.  */)
 	= maybe_call_debugger (conditions, error_symbol, data);
       /* We can't return values to code which signaled an error, but we
 	 can continue code which has signaled a quit.  */
-      if (debugger_called && EQ (real_error_symbol, Qquit))
+      if (keyboard_quit && debugger_called && EQ (real_error_symbol, Qquit))
 	return Qnil;
     }
 
@@ -1567,16 +1590,6 @@ See also the function `condition-case'.  */)
 
   string = Ferror_message_string (data);
   fatal ("%s", SDATA (string));
-}
-
-/* Internal version of Fsignal that never returns.
-   Used for anything but Qquit (which can return from Fsignal).  */
-
-void
-xsignal (Lisp_Object error_symbol, Lisp_Object data)
-{
-  Fsignal (error_symbol, data);
-  emacs_abort ();
 }
 
 /* Like xsignal, but takes 0, 1, 2, or 3 args instead of a list.  */
@@ -1975,7 +1988,8 @@ it defines a macro.  */)
       Lisp_Object fun = Findirect_function (funname, Qnil);
 
       if (!NILP (Fequal (fun, fundef)))
-	error ("Autoloading failed to define function %s",
+	error ("Autoloading file %s failed to define function %s",
+	       SDATA (Fcar (Fcar (Vload_history))),
 	       SDATA (SYMBOL_NAME (funname)));
       else
 	return fun;
@@ -2828,9 +2842,11 @@ funcall_lambda (Lisp_Object fun, ptrdiff_t nargs,
     {
       if (EQ (XCAR (fun), Qclosure))
 	{
-	  fun = XCDR (fun);	/* Drop `closure'.  */
+	  Lisp_Object cdr = XCDR (fun);	/* Drop `closure'.  */
+	  if (! CONSP (cdr))
+	    xsignal1 (Qinvalid_function, fun);
+	  fun = cdr;
 	  lexenv = XCAR (fun);
-	  CHECK_LIST_CONS (fun, fun);
 	}
       else
 	lexenv = Qnil;
@@ -2847,14 +2863,14 @@ funcall_lambda (Lisp_Object fun, ptrdiff_t nargs,
 	xsignal1 (Qinvalid_function, fun);
       syms_left = AREF (fun, COMPILED_ARGLIST);
       if (INTEGERP (syms_left))
-	/* A byte-code object with a non-nil `push args' slot means we
+	/* A byte-code object with an integer args template means we
 	   shouldn't bind any arguments, instead just call the byte-code
 	   interpreter directly; it will push arguments as necessary.
 
-	   Byte-code objects with either a non-existent, or a nil value for
-	   the `push args' slot (the default), have dynamically-bound
-	   arguments, and use the argument-binding code below instead (as do
-	   all interpreted functions, even lexically bound ones).  */
+	   Byte-code objects with a nil args template (the default)
+	   have dynamically-bound arguments, and use the
+	   argument-binding code below instead (as do all interpreted
+	   functions, even lexically bound ones).  */
 	{
 	  /* If we have not actually read the bytecode string
 	     and constants vector yet, fetch them from the file.  */
@@ -3409,13 +3425,17 @@ Output stream used is value of `standard-output'.  */)
       else
 	{
 	  tem = backtrace_function (pdl);
+	  if (debugger_stack_frame_as_list)
+	    write_string ("(");
 	  Fprin1 (tem, Qnil);	/* This can QUIT.  */
-	  write_string ("(");
+	  if (!debugger_stack_frame_as_list)
+	    write_string ("(");
 	  {
 	    ptrdiff_t i;
 	    for (i = 0; i < backtrace_nargs (pdl); i++)
 	      {
-		if (i) write_string (" ");
+		if (i || debugger_stack_frame_as_list)
+		  write_string(" ");
 		Fprin1 (backtrace_args (pdl)[i], Qnil);
 	      }
 	  }
@@ -3837,6 +3857,10 @@ Does not apply if quit is handled by a `condition-case'.  */);
 This is nil when the debugger is called under circumstances where it
 might not be safe to continue.  */);
   debugger_may_continue = 1;
+
+  DEFVAR_BOOL ("debugger-stack-frame-as-list", debugger_stack_frame_as_list,
+	       doc: /* Non-nil means display call stack frames as lists. */);
+  debugger_stack_frame_as_list = 0;
 
   DEFVAR_LISP ("debugger", Vdebugger,
 	       doc: /* Function to call to invoke debugger.

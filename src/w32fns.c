@@ -276,6 +276,8 @@ static struct
 } kbdhook;
 typedef HWND (WINAPI *GetConsoleWindow_Proc) (void);
 
+typedef BOOL (WINAPI *IsDebuggerPresent_Proc) (void);
+
 /* stdin, from w32console.c */
 extern HANDLE keyboard_handle;
 
@@ -2303,6 +2305,19 @@ void
 setup_w32_kbdhook (void)
 {
   kbdhook.hook_count++;
+
+  /* This hook gets in the way of debugging, since when Emacs stops,
+     its input thread stops, and there's nothing to process keyboard
+     events, whereas this hook is global, and is invoked in the
+     context of the thread that installed it.  So we don't install the
+     hook if the process is being debugged. */
+  if (w32_kbdhook_active)
+    {
+      IsDebuggerPresent_Proc is_debugger_present = (IsDebuggerPresent_Proc)
+	GetProcAddress (GetModuleHandle ("kernel32.dll"), "IsDebuggerPresent");
+      if (is_debugger_present && is_debugger_present ())
+	return;
+    }
 
   /* Hooking is only available on NT architecture systems, as
      indicated by the w32_kbdhook_active variable.  */
@@ -7569,7 +7584,7 @@ value of DIR as in previous invocations; this is standard Windows behavior.  */)
 
   /* Make "Cancel" equivalent to C-g.  */
   if (NILP (filename))
-    Fsignal (Qquit, Qnil);
+    quit ();
 
   return filename;
 }
@@ -8450,24 +8465,25 @@ and width values are in pixels.
 		Fcons (Qouter_size,
 		       Fcons (make_number (right - left),
 			      make_number (bottom - top))),
-	   Fcons (Qexternal_border_size,
+		Fcons (Qexternal_border_size,
 		       Fcons (make_number (external_border_width),
 			      make_number (external_border_height))),
 		Fcons (Qtitle_bar_size,
 		       Fcons (make_number (title_bar_width),
 			      make_number (title_bar_height))),
-	   Fcons (Qmenu_bar_external, Qt),
-	   Fcons (Qmenu_bar_size,
-		  Fcons (make_number
-			 (menu_bar.rcBar.right - menu_bar.rcBar.left),
-			 make_number (menu_bar_height))),
-	   Fcons (Qtool_bar_external, Qnil),
+		Fcons (Qmenu_bar_external, Qt),
+		Fcons (Qmenu_bar_size,
+		       Fcons (make_number
+			      (menu_bar.rcBar.right - menu_bar.rcBar.left),
+			      make_number (menu_bar_height))),
+		Fcons (Qtool_bar_external, Qnil),
 		Fcons (Qtool_bar_position, tool_bar_height ? Qtop : Qnil),
-	   Fcons (Qtool_bar_size,
+		Fcons (Qtool_bar_size,
 		       Fcons (make_number
 			      (tool_bar_height
-			       ? right - left - 2 * internal_border_width
-				      : 0),
+			       ? (right - left - 2 * external_border_width
+				  - 2 * internal_border_width)
+			       : 0),
 			      make_number (tool_bar_height))),
 		Fcons (Qinternal_border_width,
 		       make_number (internal_border_width)));
@@ -9741,6 +9757,7 @@ frame_parm_handler w32_frame_parm_handlers[] =
   x_set_alpha,
   0, /* x_set_sticky */
   0, /* x_set_tool_bar_position */
+  0, /* x_set_inhibit_double_buffering */
 };
 
 void

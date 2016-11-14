@@ -1,4 +1,4 @@
-;;; isearch.el --- incremental search minor mode
+;;; isearch.el --- incremental search minor mode -*- lexical-binding: t -*-
 
 ;; Copyright (C) 1992-1997, 1999-2016 Free Software Foundation, Inc.
 
@@ -558,7 +558,7 @@ The symbol property `isearch-message-prefix' put on this function
 specifies the prefix string displayed in the search message.
 
 This variable is set and changed during isearch.  To change the
-default behaviour used for searches, see `search-default-mode'
+default behavior used for searches, see `search-default-mode'
 instead.")
 ;; We still support setting this to t for backwards compatibility.
 (define-obsolete-variable-alias 'isearch-word
@@ -1008,7 +1008,8 @@ The last thing is to trigger a new round of lazy highlighting."
 		    ;; pos-visible-in-window-group-p returns non-nil, but
 		    ;; the X coordinate it returns is 1 pixel beyond
 		    ;; the last visible one.
-		    (>= (car visible-p) (window-body-width nil t)))
+		    (>= (car visible-p)
+                        (* (window-max-chars-per-line) (frame-char-width))))
 		(set-window-hscroll (selected-window) current-scroll))))
 	(if isearch-other-end
             (if (< isearch-other-end (point)) ; isearch-forward?
@@ -1045,9 +1046,10 @@ NOPUSH is t and EDIT is t."
   (remove-hook 'mouse-leave-buffer-hook 'isearch-done)
   (remove-hook 'kbd-macro-termination-hook 'isearch-done)
   (setq isearch-lazy-highlight-start nil)
-  (with-current-buffer isearch--current-buffer
-    (setq isearch--current-buffer nil)
-    (setq cursor-sensor-inhibit (delq 'isearch cursor-sensor-inhibit)))
+  (when (buffer-live-p isearch--current-buffer)
+    (with-current-buffer isearch--current-buffer
+      (setq isearch--current-buffer nil)
+      (setq cursor-sensor-inhibit (delq 'isearch cursor-sensor-inhibit))))
 
   ;; Called by all commands that terminate isearch-mode.
   ;; If NOPUSH is non-nil, we don't push the string on the search ring.
@@ -1143,18 +1145,18 @@ REGEXP if non-nil says use the regexp search ring."
                  (case-fold-search isearch-case-fold-search)
                  (pop-fun (if isearch-push-state-function
                               (funcall isearch-push-state-function))))))
-  (string :read-only t)
-  (message :read-only t)
-  (point :read-only t)
-  (success :read-only t)
-  (forward :read-only t)
-  (other-end :read-only t)
-  (word :read-only t)
-  (error :read-only t)
-  (wrapped :read-only t)
-  (barrier :read-only t)
-  (case-fold-search :read-only t)
-  (pop-fun :read-only t))
+  (string nil :read-only t)
+  (message nil :read-only t)
+  (point nil :read-only t)
+  (success nil :read-only t)
+  (forward nil :read-only t)
+  (other-end nil :read-only t)
+  (word nil :read-only t)
+  (error nil :read-only t)
+  (wrapped nil :read-only t)
+  (barrier nil :read-only t)
+  (case-fold-search nil :read-only t)
+  (pop-fun nil :read-only t))
 
 (defun isearch--set-state (cmd)
   (setq isearch-string (isearch--state-string cmd)
@@ -1628,10 +1630,17 @@ Used in `word-search-forward', `word-search-backward',
   "Search backward from point for STRING, ignoring differences in punctuation.
 Set point to the beginning of the occurrence found, and return point.
 An optional second argument bounds the search; it is a buffer position.
-The match found must not extend before that position.
+  The match found must not begin before that position.  A value of nil
+  means search to the beginning of the accessible portion of the buffer.
 Optional third argument, if t, means if fail just return nil (no error).
-  If not nil and not t, move to limit of search and return nil.
-Optional fourth argument is repeat count--search for successive occurrences.
+  If not nil and not t, position at limit of search and return nil.
+Optional fourth argument COUNT, if a positive number, means to search
+  for COUNT successive occurrences.  If COUNT is negative, search
+  forward, instead of backward, for -COUNT occurrences.  A value of
+  nil means the same as 1.
+With COUNT positive, the match found is the COUNTth to last one (or
+  last, if COUNT is 1 or nil) in the buffer located entirely before
+  the origin of the search; correspondingly with COUNT negative.
 
 Relies on the function `word-search-regexp' to convert a sequence
 of words in STRING to a regexp used to search words without regard
@@ -1645,10 +1654,17 @@ has no effect on it."
   "Search forward from point for STRING, ignoring differences in punctuation.
 Set point to the end of the occurrence found, and return point.
 An optional second argument bounds the search; it is a buffer position.
-The match found must not extend after that position.
+  The match found must not end after that position.  A value of nil
+  means search to the end of the accessible portion of the buffer.
 Optional third argument, if t, means if fail just return nil (no error).
   If not nil and not t, move to limit of search and return nil.
-Optional fourth argument is repeat count--search for successive occurrences.
+Optional fourth argument COUNT, if a positive number, means to search
+  for COUNT successive occurrences.  If COUNT is negative, search
+  backward, instead of forward, for -COUNT occurrences.  A value of
+  nil means the same as 1.
+With COUNT positive, the match found is the COUNTth one (or first,
+  if COUNT is 1 or nil) in the buffer located entirely after the
+  origin of the search; correspondingly with COUNT negative.
 
 Relies on the function `word-search-regexp' to convert a sequence
 of words in STRING to a regexp used to search words without regard
@@ -1666,10 +1682,17 @@ Unlike `word-search-backward', the end of STRING need not match a word
 boundary, unless STRING ends in whitespace.
 
 An optional second argument bounds the search; it is a buffer position.
-The match found must not extend before that position.
+  The match found must not begin before that position.  A value of nil
+  means search to the beginning of the accessible portion of the buffer.
 Optional third argument, if t, means if fail just return nil (no error).
-  If not nil and not t, move to limit of search and return nil.
-Optional fourth argument is repeat count--search for successive occurrences.
+  If not nil and not t, position at limit of search and return nil.
+Optional fourth argument COUNT, if a positive number, means to search
+  for COUNT successive occurrences.  If COUNT is negative, search
+  forward, instead of backward, for -COUNT occurrences.  A value of
+  nil means the same as 1.
+With COUNT positive, the match found is the COUNTth to last one (or
+  last, if COUNT is 1 or nil) in the buffer located entirely before
+  the origin of the search; correspondingly with COUNT negative.
 
 Relies on the function `word-search-regexp' to convert a sequence
 of words in STRING to a regexp used to search words without regard
@@ -1687,10 +1710,17 @@ Unlike `word-search-forward', the end of STRING need not match a word
 boundary, unless STRING ends in whitespace.
 
 An optional second argument bounds the search; it is a buffer position.
-The match found must not extend after that position.
+  The match found must not end after that position.  A value of nil
+  means search to the end of the accessible portion of the buffer.
 Optional third argument, if t, means if fail just return nil (no error).
   If not nil and not t, move to limit of search and return nil.
-Optional fourth argument is repeat count--search for successive occurrences.
+Optional fourth argument COUNT, if a positive number, means to search
+  for COUNT successive occurrences.  If COUNT is negative, search
+  backward, instead of forward, for -COUNT occurrences.  A value of
+  nil means the same as 1.
+With COUNT positive, the match found is the COUNTth one (or first,
+  if COUNT is 1 or nil) in the buffer located entirely after the
+  origin of the search; correspondingly with COUNT negative.
 
 Relies on the function `word-search-regexp' to convert a sequence
 of words in STRING to a regexp used to search words without regard

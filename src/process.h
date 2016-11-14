@@ -118,10 +118,11 @@ struct Lisp_Process
     /* After this point, there are no Lisp_Objects any more.  */
     /* alloc.c assumes that `pid' is the first such non-Lisp slot.  */
 
-    /* Number of this process.
-       allocate_process assumes this is the first non-Lisp_Object field.
-       A value 0 is used for pseudo-processes such as network or serial
-       connections.  */
+    /* Process ID.  A positive value is a child process ID.
+       Zero is for pseudo-processes such as network or serial connections,
+       or for processes that have not been fully created yet.
+       -1 is for a process that was not created successfully.
+       -2 is for a pty with no process, e.g., for GDB.  */
     pid_t pid;
     /* Descriptor by which we read from this process.  */
     int infd;
@@ -264,6 +265,7 @@ extern void delete_read_fd (int fd);
 extern void add_write_fd (int fd, fd_callback func, void *data);
 extern void delete_write_fd (int fd);
 extern void catch_child_signal (void);
+extern void restore_nofile_limit (void);
 
 #ifdef WINDOWSNT
 extern Lisp_Object network_interface_list (void);

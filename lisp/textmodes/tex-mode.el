@@ -1311,6 +1311,7 @@ inserts \" characters."
   ;;
   (if (or arg (memq (char-syntax (preceding-char)) '(?/ ?\\))
           (eq (get-text-property (point) 'face) 'tex-verbatim)
+          (nth 4 (syntax-ppss)) ; non-nil if point is in a TeX comment
           ;; Discover if a preceding occurrence of `tex-open-quote'
           ;; should be morphed to a normal double quote.
           ;;
@@ -2990,7 +2991,7 @@ There might be text before point."
     ("\\sigma" . ?σ)
     ("\\tau" . ?τ)
     ("\\upsilon" . ?υ)
-    ("\\phi" . ?φ)
+    ("\\phi" . ?ϕ)
     ("\\chi" . ?χ)
     ("\\psi" . ?ψ)
     ("\\omega" . ?ω)
@@ -3379,10 +3380,11 @@ There might be text before point."
     ("\\u{i}" . ?ĭ)
     ("\\vDash" . ?⊨)
     ("\\varepsilon" . ?ε)
+    ("\\varphi" . ?φ)
     ("\\varprime" . ?′)
     ("\\varpropto" . ?∝)
     ("\\varrho" . ?ϱ)
-    ;; ("\\varsigma" ?ς)		;FIXME: Looks reversed with the non\var.
+    ("\\varsigma" ?ς)
     ("\\vartriangleleft" . ?⊲)
     ("\\vartriangleright" . ?⊳)
     ("\\vdash" . ?⊢)

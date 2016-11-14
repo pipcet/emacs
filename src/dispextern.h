@@ -1276,7 +1276,6 @@ struct glyph_string
 
   /* X display and window for convenience.  */
   Display *display;
-  Window window;
 
   /* The glyph row for which this string was built.  It determines the
      y-origin and height of the string.  */
@@ -1542,7 +1541,8 @@ struct glyph_string
    large vertical space.  The heuristics is in the factor of 3.  We
    ignore the ascent and descent values reported by such fonts, and
    instead go by the values reported for individual glyphs.  */
-#define FONT_TOO_HIGH(ft)  ((ft)->ascent + (ft)->descent > 3*(ft)->pixel_size)
+#define FONT_TOO_HIGH(ft)						\
+  ((ft)->pixel_size > 0 && (ft)->ascent + (ft)->descent > 3*(ft)->pixel_size)
 
 
 /***********************************************************************
@@ -1821,7 +1821,7 @@ struct face_cache
 /* Return a pointer to the face with ID on frame F, or null if such a
    face doesn't exist.  */
 
-#define FACE_OPT_FROM_ID(F, ID)				\
+#define FACE_FROM_ID_OR_NULL(F, ID)			\
   (UNSIGNED_CMP (ID, <, FRAME_FACE_CACHE (F)->used)	\
    ? FRAME_FACE_CACHE (F)->faces_by_id[ID]		\
    : NULL)
@@ -2236,7 +2236,7 @@ struct composition_it
   /* Indices of the glyphs for the current grapheme cluster.  */
   int from, to;
   /* Width of the current grapheme cluster in units of columns it will
-     occupy on display; see CHAR_WIDTH.  */
+     occupy on display; see CHARACTER_WIDTH.  */
   int width;
 };
 
@@ -3355,6 +3355,10 @@ void x_cr_init_fringe (struct redisplay_interface *);
 #endif
 
 extern unsigned row_hash (struct glyph_row *);
+
+extern void block_buffer_flips(void);
+extern void unblock_buffer_flips(void);
+extern bool buffer_flipping_blocked_p(void);
 
 /* Defined in image.c */
 

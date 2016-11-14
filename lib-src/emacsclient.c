@@ -74,6 +74,8 @@ char *w32_getenv (const char *);
 #include <stdarg.h>
 #include <ctype.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <getopt.h>
 #include <unistd.h>
 
@@ -388,7 +390,6 @@ w32_window_app (void)
   directly into the argv array of the child process.  */
 
 int w32_execvp (const char *, char **);
-extern int execvp (const char*, char **);
 
 int
 w32_execvp (const char *path, char **argv)
@@ -1192,10 +1193,9 @@ set_local_socket (const char *local_socket_name)
 
   {
     int sock_status;
-    int use_tmpdir = 0;
     int saved_errno;
     const char *server_name = local_socket_name;
-    const char *tmpdir;
+    const char *tmpdir = NULL;
     char *tmpdir_storage = NULL;
     char *socket_name_storage = NULL;
 
@@ -1203,7 +1203,6 @@ set_local_socket (const char *local_socket_name)
       {
 	/* socket_name is a file name component.  */
 	long uid = geteuid ();
-	use_tmpdir = 1;
 	tmpdir = egetenv ("TMPDIR");
 	if (!tmpdir)
           {
@@ -1241,7 +1240,7 @@ set_local_socket (const char *local_socket_name)
     /* See if the socket exists, and if it's owned by us. */
     sock_status = socket_status (server.sun_path);
     saved_errno = errno;
-    if (sock_status && use_tmpdir)
+    if (sock_status && tmpdir)
       {
 	/* Failing that, see if LOGNAME or USER exist and differ from
 	   our euid.  If so, look for a socket based on the UID

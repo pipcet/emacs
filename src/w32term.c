@@ -257,7 +257,7 @@ XChangeGC (void *ignore, XGCValues *gc, unsigned long mask,
 }
 
 XGCValues *
-XCreateGC (void *ignore, Window window, unsigned long mask, XGCValues *xgcv)
+XCreateGC (void *ignore, HWND wignore, unsigned long mask, XGCValues *xgcv)
 {
   XGCValues *gc = xzalloc (sizeof (XGCValues));
 
@@ -611,7 +611,7 @@ w32_draw_vertical_window_border (struct window *w, int x, int y0, int y1)
   r.bottom = y1;
 
   hdc = get_frame_dc (f);
-  face = FACE_OPT_FROM_ID (f, VERTICAL_BORDER_FACE_ID);
+  face = FACE_FROM_ID_OR_NULL (f, VERTICAL_BORDER_FACE_ID);
   if (face)
     w32_fill_rect (f, hdc, face->foreground, &r);
   else
@@ -628,11 +628,11 @@ w32_draw_window_divider (struct window *w, int x0, int x1, int y0, int y1)
 {
   struct frame *f = XFRAME (WINDOW_FRAME (w));
   HDC hdc = get_frame_dc (f);
-  struct face *face = FACE_OPT_FROM_ID (f, WINDOW_DIVIDER_FACE_ID);
+  struct face *face = FACE_FROM_ID_OR_NULL (f, WINDOW_DIVIDER_FACE_ID);
   struct face *face_first
-    = FACE_OPT_FROM_ID (f, WINDOW_DIVIDER_FIRST_PIXEL_FACE_ID);
+    = FACE_FROM_ID_OR_NULL (f, WINDOW_DIVIDER_FIRST_PIXEL_FACE_ID);
   struct face *face_last
-    = FACE_OPT_FROM_ID (f, WINDOW_DIVIDER_LAST_PIXEL_FACE_ID);
+    = FACE_FROM_ID_OR_NULL (f, WINDOW_DIVIDER_LAST_PIXEL_FACE_ID);
   unsigned long color = face ? face->foreground : FRAME_FOREGROUND_PIXEL (f);
   unsigned long color_first = (face_first
 			       ? face_first->foreground
@@ -974,7 +974,7 @@ x_set_cursor_gc (struct glyph_string *s)
 		   mask, &xgcv);
       else
 	FRAME_DISPLAY_INFO (s->f)->scratch_cursor_gc
-	  = XCreateGC (NULL, s->window, mask, &xgcv);
+	  = XCreateGC (NULL, FRAME_W32_WINDOW (s->f), mask, &xgcv);
 
       s->gc = FRAME_DISPLAY_INFO (s->f)->scratch_cursor_gc;
     }
@@ -991,7 +991,7 @@ x_set_mouse_face_gc (struct glyph_string *s)
 
   /* What face has to be used last for the mouse face?  */
   face_id = MOUSE_HL_INFO (s->f)->mouse_face_face_id;
-  face = FACE_OPT_FROM_ID (s->f, face_id);
+  face = FACE_FROM_ID_OR_NULL (s->f, face_id);
   if (face == NULL)
     face = FACE_FROM_ID (s->f, MOUSE_FACE_ID);
 
@@ -1023,7 +1023,7 @@ x_set_mouse_face_gc (struct glyph_string *s)
 		   mask, &xgcv);
       else
 	FRAME_DISPLAY_INFO (s->f)->scratch_cursor_gc
-	  = XCreateGC (NULL, s->window, mask, &xgcv);
+	  = XCreateGC (NULL, FRAME_W32_WINDOW (s->f), mask, &xgcv);
 
       s->gc = FRAME_DISPLAY_INFO (s->f)->scratch_cursor_gc;
     }
@@ -1204,7 +1204,7 @@ x_draw_glyph_string_background (struct glyph_string *s, bool force_p)
 	{
 	  /* Fill background with a stipple pattern.  */
 	  XSetFillStyle (s->display, s->gc, FillOpaqueStippled);
-	  XFillRectangle (s->display, s->window, s->gc, s->x,
+	  XFillRectangle (s->display, FRAME_W32_WINDOW (s->f), s->gc, s->x,
 			  s->y + box_line_width,
 			  s->background_width,
 			  s->height - 2 * box_line_width);
@@ -2061,7 +2061,7 @@ x_draw_glyph_string_bg_rect (struct glyph_string *s, int x, int y, int w, int h)
     {
       /* Fill background with a stipple pattern.  */
       XSetFillStyle (s->display, s->gc, FillOpaqueStippled);
-      XFillRectangle (s->display, s->window, s->gc, x, y, w, h);
+      XFillRectangle (s->display, FRAME_W32_WINDOW (s->f), s->gc, x, y, w, h);
       XSetFillStyle (s->display, s->gc, FillSolid);
     }
   else
@@ -2133,7 +2133,7 @@ x_draw_image_glyph_string (struct glyph_string *s)
 	  int depth = DefaultDepthOfScreen (screen);
 
 	  /* Create a pixmap as large as the glyph string.  */
- 	  pixmap = XCreatePixmap (s->display, s->window,
+	  pixmap = XCreatePixmap (s->display, FRAME_W32_WINDOW (s->f),
 				  s->background_width,
 				  s->height, depth);
 
@@ -2275,7 +2275,7 @@ x_draw_stretch_glyph_string (struct glyph_string *s)
 	    {
 	      /* Fill background with a stipple pattern.  */
 	      XSetFillStyle (s->display, gc, FillOpaqueStippled);
-	      XFillRectangle (s->display, s->window, gc, x, y, w, h);
+	      XFillRectangle (s->display, FRAME_W32_WINDOW (s->f), gc, x, y, w, h);
 	      XSetFillStyle (s->display, gc, FillSolid);
 	    }
 	  else

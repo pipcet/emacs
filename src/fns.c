@@ -20,6 +20,7 @@ along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.  */
 
 #include <config.h>
 
+#include <stdlib.h>
 #include <unistd.h>
 #include <filevercmp.h>
 #include <intprops.h>
@@ -449,8 +450,7 @@ the codeset part of the locale cannot be \"UTF-8\" on MS-Windows.
 If your system does not support a locale environment, this function
 behaves like `string-equal'.
 
-Do NOT use this function to compare file names for equality, only
-for sorting them.  */)
+Do NOT use this function to compare file names for equality.  */)
   (Lisp_Object s1, Lisp_Object s2, Lisp_Object locale, Lisp_Object ignore_case)
 {
 #if defined __STDC_ISO_10646__ || defined WINDOWSNT
@@ -2517,11 +2517,13 @@ usage: (nconc &rest LISTS)  */)
 }
 
 /* This is the guts of all mapping functions.
- Apply FN to each element of SEQ, one by one,
- storing the results into elements of VALS, a C vector of Lisp_Objects.
- LENI is the length of VALS, which should also be the length of SEQ.  */
+   Apply FN to each element of SEQ, one by one, storing the results
+   into elements of VALS, a C vector of Lisp_Objects.  LENI is the
+   length of VALS, which should also be the length of SEQ.  Return the
+   number of results; although this is normally LENI, it can be less
+   if SEQ is made shorter as a side effect of FN.  */
 
-static void
+static EMACS_INT
 mapcar1 (EMACS_INT leni, Lisp_Object *vals, Lisp_Object fn, Lisp_Object seq)
 {
   Lisp_Object tail, dummy;
@@ -2564,14 +2566,18 @@ mapcar1 (EMACS_INT leni, Lisp_Object *vals, Lisp_Object fn, Lisp_Object seq)
   else   /* Must be a list, since Flength did not get an error */
     {
       tail = seq;
-      for (i = 0; i < leni && CONSP (tail); i++)
+      for (i = 0; i < leni; i++)
 	{
+	  if (! CONSP (tail))
+	    return i;
 	  dummy = call1 (fn, XCAR (tail));
 	  if (vals)
 	    vals[i] = dummy;
 	  tail = XCDR (tail);
 	}
     }
+
+  return leni;
 }
 
 DEFUN ("mapconcat", Fmapconcat, Smapconcat, 3, 3, 0,
@@ -2581,34 +2587,26 @@ SEPARATOR results in spaces between the values returned by FUNCTION.
 SEQUENCE may be a list, a vector, a bool-vector, or a string.  */)
   (Lisp_Object function, Lisp_Object sequence, Lisp_Object separator)
 {
-  Lisp_Object len;
-  EMACS_INT leni;
-  EMACS_INT nargs;
-  ptrdiff_t i;
-  Lisp_Object *args;
-  Lisp_Object ret;
   USE_SAFE_ALLOCA;
-
-  len = Flength (sequence);
+  EMACS_INT leni = XFASTINT (Flength (sequence));
   if (CHAR_TABLE_P (sequence))
     wrong_type_argument (Qlistp, sequence);
-  leni = XINT (len);
-  nargs = leni + leni - 1;
-  if (nargs < 0) return empty_unibyte_string;
+  EMACS_INT args_alloc = 2 * leni - 1;
+  if (args_alloc < 0)
+    return empty_unibyte_string;
+  Lisp_Object *args;
+  SAFE_ALLOCA_LISP (args, args_alloc);
+  ptrdiff_t nmapped = mapcar1 (leni, args, function, sequence);
+  ptrdiff_t nargs = 2 * nmapped - 1;
 
-  SAFE_ALLOCA_LISP (args, nargs);
-
-  mapcar1 (leni, args, function, sequence);
-
-  for (i = leni - 1; i > 0; i--)
+  for (ptrdiff_t i = nmapped - 1; i > 0; i--)
     args[i + i] = args[i];
 
-  for (i = 1; i < nargs; i += 2)
+  for (ptrdiff_t i = 1; i < nargs; i += 2)
     args[i] = separator;
 
-  ret = Fconcat (nargs, args);
+  Lisp_Object ret = Fconcat (nargs, args);
   SAFE_FREE ();
-
   return ret;
 }
 
@@ -2618,24 +2616,15 @@ The result is a list just as long as SEQUENCE.
 SEQUENCE may be a list, a vector, a bool-vector, or a string.  */)
   (Lisp_Object function, Lisp_Object sequence)
 {
-  register Lisp_Object len;
-  register EMACS_INT leni;
-  register Lisp_Object *args;
-  Lisp_Object ret;
   USE_SAFE_ALLOCA;
-
-  len = Flength (sequence);
+  EMACS_INT leni = XFASTINT (Flength (sequence));
   if (CHAR_TABLE_P (sequence))
     wrong_type_argument (Qlistp, sequence);
-  leni = XFASTINT (len);
-
+  Lisp_Object *args;
   SAFE_ALLOCA_LISP (args, leni);
-
-  mapcar1 (leni, args, function, sequence);
-
-  ret = Flist (leni, args);
+  ptrdiff_t nmapped = mapcar1 (leni, args, function, sequence);
+  Lisp_Object ret = Flist (nmapped, args);
   SAFE_FREE ();
-
   return ret;
 }
 
@@ -2653,6 +2642,24 @@ SEQUENCE may be a list, a vector, a bool-vector, or a string.  */)
   mapcar1 (leni, 0, function, sequence);
 
   return sequence;
+}
+
+DEFUN ("mapcan", Fmapcan, Smapcan, 2, 2, 0,
+       doc: /* Apply FUNCTION to each element of SEQUENCE, and concatenate
+the results by altering them (using `nconc').
+SEQUENCE may be a list, a vector, a bool-vector, or a string. */)
+     (Lisp_Object function, Lisp_Object sequence)
+{
+  USE_SAFE_ALLOCA;
+  EMACS_INT leni = XFASTINT (Flength (sequence));
+  if (CHAR_TABLE_P (sequence))
+    wrong_type_argument (Qlistp, sequence);
+  Lisp_Object *args;
+  SAFE_ALLOCA_LISP (args, leni);
+  ptrdiff_t nmapped = mapcar1 (leni, args, function, sequence);
+  Lisp_Object ret = Fnconc (nmapped, args);
+  SAFE_FREE ();
+  return ret;
 }
 
 /* This is how C code calls `yes-or-no-p' and allows the user
@@ -3186,7 +3193,7 @@ into shorter lines.  */)
   SET_PT_BOTH (XFASTINT (beg), ibeg);
   insert (encoded, encoded_length);
   SAFE_FREE ();
-  del_range_byte (ibeg + encoded_length, iend + encoded_length, 1);
+  del_range_byte (ibeg + encoded_length, iend + encoded_length);
 
   /* If point was outside of the region, restore it exactly; else just
      move to the beginning of the region.  */
@@ -5123,6 +5130,9 @@ syms_of_fns (void)
     doc: /* A list of symbols which are the features of the executing Emacs.
 Used by `featurep' and `require', and altered by `provide'.  */);
   Vfeatures = list1 (Qemacs);
+  DEFSYM (Qfeatures, "features");
+  /* Let people use lexically scoped vars named `features'.  */
+  Fmake_var_non_special (Qfeatures);
   DEFSYM (Qsubfeatures, "subfeatures");
   DEFSYM (Qfuncall, "funcall");
 
@@ -5203,6 +5213,7 @@ this variable.  */);
   defsubr (&Snconc);
   defsubr (&Smapcar);
   defsubr (&Smapc);
+  defsubr (&Smapcan);
   defsubr (&Smapconcat);
   defsubr (&Syes_or_no_p);
   defsubr (&Sload_average);

@@ -1,4 +1,4 @@
-;;; message.el --- composing mail and news messages
+;;; message.el --- composing mail and news messages -*- lexical-binding: t -*-
 
 ;; Copyright (C) 1996-2016 Free Software Foundation, Inc.
 
@@ -49,6 +49,7 @@
 (require 'mm-util)
 (require 'rfc2047)
 (require 'puny)
+(require 'subr-x)
 
 (autoload 'mailclient-send-it "mailclient")
 
@@ -4480,7 +4481,7 @@ This function could be useful in `message-setup-hook'."
 
 (declare-function hashcash-wait-async "hashcash" (&optional buffer))
 
-(defun message-send-mail (&optional arg)
+(defun message-send-mail (&optional _)
   (require 'mail-utils)
   (let* ((tembuf (message-generate-new-buffer-clone-locals " message temp"))
 	 (case-fold-search nil)
@@ -4637,6 +4638,8 @@ If you always want Gnus to send messages in one piece, set
     (push 'mail message-sent-message-via)))
 
 (defvar sendmail-program)
+(defvar smtpmail-smtp-server)
+(defvar smtpmail-smtp-service)
 (defvar smtpmail-smtp-user)
 
 (defun message-multi-smtp-send-mail ()
@@ -4815,6 +4818,8 @@ The only difference from `mailclient-send-it' is that this
 command evaluates `message-send-mail-hook' just before sending a message."
   (run-hooks 'message-send-mail-hook)
   (mailclient-send-it))
+
+(defvar sha1-maximum-internal-length)
 
 (defun message-canlock-generate ()
   "Return a string that is non-trivial to guess.
@@ -5408,9 +5413,7 @@ Otherwise, generate and save a value for `canlock-password' first."
 	  (setq file (pop list))
 	  (if (string-match "^[ \t]*|[ \t]*\\(.*\\)[ \t]*$" file)
 	      ;; Pipe the article to the program in question.
-	      (call-process-region (point-min) (point-max) shell-file-name
-				   nil nil nil shell-command-switch
-				   (match-string 1 file))
+	      (call-shell-region (point-min) (point-max) (match-string 1 file))
 	    ;; Save the article.
 	    (setq file (expand-file-name file))
 	    (unless (file-exists-p (file-name-directory file))
@@ -6240,7 +6243,7 @@ When point is at the first header line, moves it after the colon
 and spaces separating header name and header value.
 
 When point is in a continuation line of a folded header (i.e. the
-line starts with a space), the behaviour depends on HANDLE-FOLDED
+line starts with a space), the behavior depends on HANDLE-FOLDED
 argument.  If it’s nil, function moves the point to the start of
 the header continuation; otherwise, function locates the
 beginning of the header and moves point past the colon as is the
@@ -8398,7 +8401,8 @@ Used in `message-simplify-recipients'."
 	  (when (and (consp props)
 		     (eq (car props) 'image))
 	    (put-text-property (point) (1+ (point)) 'display nil)
-	    (setq displayed t)))))
+	    (setq displayed t)))
+	(forward-char 1)))
     (unless displayed
       (save-excursion
 	(goto-char (point-min))

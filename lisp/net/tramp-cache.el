@@ -72,13 +72,16 @@ details see the info pages."
   :version "24.4"
   :type '(repeat (list (choice :tag "File Name regexp" regexp (const nil))
 		       (choice :tag "        Property" string)
-		       (choice :tag "           Value" sexp))))
+		       (choice :tag "           Value" sexp)))
+  :require 'tramp)
 
+;;;###tramp-autoload
 (defcustom tramp-persistency-file-name
   (expand-file-name (locate-user-emacs-file "tramp"))
   "File which keeps connection history for Tramp connections."
   :group 'tramp
-  :type 'file)
+  :type 'file
+  :require 'tramp)
 
 (defvar tramp-cache-data-changed nil
   "Whether persistent cache data have been changed.")
@@ -234,9 +237,14 @@ connection, returns DEFAULT."
     (aset key 3 nil)
     (aset key 4 nil))
   (let* ((hash (tramp-get-hash-table key))
-	 (value (if (hash-table-p hash)
-		    (gethash property hash default)
-		  default)))
+	 (value
+	  ;; If the key is an auxiliary process object, check whether
+	  ;; the process is still alive.
+	  (if (and (processp key) (not (tramp-compat-process-live-p key)))
+	      default
+	    (if (hash-table-p hash)
+		(gethash property hash default)
+	      default))))
     (tramp-message key 7 "%s %s" property value)
     value))
 
@@ -323,17 +331,18 @@ properties of the local machine."
 ;;;###tramp-autoload
 (defun tramp-list-connections ()
   "Return a list of all known connection vectors according to `tramp-cache'."
-    (let (result)
+    (let (result tramp-verbose)
       (maphash
        (lambda (key _value)
-	 (when (and (vectorp key) (null (aref key 3)))
+	 (when (and (vectorp key) (null (aref key 3))
+		    (tramp-connection-property-p key "process-buffer"))
 	   (add-to-list 'result key)))
        tramp-cache-data)
       result))
 
 (defun tramp-dump-connection-properties ()
   "Write persistent connection properties into file `tramp-persistency-file-name'."
-  ;; We shouldn't fail, otherwise (X)Emacs might not be able to be closed.
+  ;; We shouldn't fail, otherwise Emacs might not be able to be closed.
   (ignore-errors
     (when (and (hash-table-p tramp-cache-data)
 	       (not (zerop (hash-table-count tramp-cache-data)))
@@ -360,7 +369,7 @@ properties of the local machine."
 	(with-temp-file tramp-persistency-file-name
 	  (insert
 	   ";; -*- emacs-lisp -*-"
-	   ;; `time-stamp-string' might not exist in all (X)Emacs flavors.
+	   ;; `time-stamp-string' might not exist in all Emacs flavors.
 	   (condition-case nil
 	       (progn
 		 (format

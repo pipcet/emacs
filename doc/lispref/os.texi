@@ -155,9 +155,13 @@ It loads your abbrevs from the file specified by
 option @samp{--batch} was specified.
 
 @item
-If @code{package-enable-at-startup} is non-@code{nil}, it calls the
-function @code{package-initialize} to activate any optional Emacs Lisp
-package that has been installed.  @xref{Packaging Basics}.
+It calls the function @code{package-initialize} to activate any
+optional Emacs Lisp package that has been installed.  @xref{Packaging
+Basics}.  However, Emacs doesn't initialize packages when
+@code{package-enable-at-startup} is @code{nil} or when it's started
+with one of the options @samp{-q}, @samp{-Q}, or @samp{--batch}.  To
+initialize packages in the latter case, @code{package-initialize}
+should be called explicitly (e.g., via the @samp{--funcall} option).
 
 @vindex after-init-time
 @item
@@ -1722,10 +1726,17 @@ This function returns @code{t} if @var{year} is a leap year.
 
 @node Timers
 @section Timers for Delayed Execution
-@cindex timer
+@cindex timers
 
   You can set up a @dfn{timer} to call a function at a specified
-future time or after a certain length of idleness.
+future time or after a certain length of idleness.  A timer is a
+special object that stores the information about the next invocation
+times and the function to invoke.
+
+@defun timerp object
+This predicate function returns non-@code{nil} of @code{object} is a
+timer.
+@end defun
 
   Emacs cannot run timers at any arbitrary point in a Lisp program; it
 can run them only when Emacs could accept output from a subprocess:
@@ -2243,14 +2254,16 @@ The variable is always local to the current terminal, and cannot be
 buffer-local.  @xref{Multiple Terminals}.
 @end defvar
 
-You can specify which keysyms Emacs should use for the Meta, Alt, Hyper, and Super modifiers by setting these variables:
+You can specify which keysyms Emacs should use for the Control, Meta,
+Alt, Hyper, and Super modifiers by setting these variables:
 
-@defvar x-alt-keysym
+@defvar x-ctrl-keysym
+@defvarx x-alt-keysym
 @defvarx x-meta-keysym
 @defvarx x-hyper-keysym
 @defvarx x-super-keysym
-The name of the keysym that should stand for the Alt modifier
-(respectively, for Meta, Hyper, and Super).  For example, here is
+The name of the keysym that should stand for the Control modifier
+(respectively, for Alt, Meta, Hyper, and Super).  For example, here is
 how to swap the Meta and Alt modifiers within Emacs:
 @lisp
 (setq x-alt-keysym 'meta)

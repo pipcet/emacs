@@ -152,6 +152,13 @@ presence of @code{condition-case}.  (To invoke the debugger, the error
 must still fulfill the criteria specified by @code{debug-on-error} and
 @code{debug-ignored-errors}.)
 
+@cindex emacsclient, getting a backtrace
+@cindex backtrace from emacsclient's @option{--eval}
+For example, setting this variable is useful to get a backtrace from
+code evaluated by emacsclient's @option{--eval} option.  If Lisp code
+evaluated by emacsclient signals an error while this variable is
+non-@code{nil}, the backtrace will popup in the running Emacs.
+
 @strong{Warning:} Setting this variable to non-@code{nil} may have
 annoying effects.  Various parts of Emacs catch errors in the normal
 course of affairs, and you may not even realize that errors happen
@@ -623,6 +630,37 @@ forms are elided.
 @end smallexample
 @end deffn
 
+@defvar debugger-stack-frame-as-list
+If this variable is non-@code{nil}, every stack frame of the backtrace
+is displayed as a list.  This aims at improving the backtrace
+readability at the cost of special forms no longer being visually
+different from regular function calls.
+
+With @code{debugger-stack-frame-as-list} non-@code{nil}, the above
+example would look as follows:
+
+@smallexample
+@group
+----------- Buffer: backtrace-output ------------
+  (backtrace)
+  (list ...computing arguments...)
+@end group
+  (progn ...)
+  (eval (progn (1+ var) (list (quote testing) (backtrace))))
+  (setq ...)
+  (save-excursion ...)
+  (let ...)
+  (with-output-to-temp-buffer ...)
+  (eval (with-output-to-temp-buffer ...))
+  (eval-last-sexp-1 nil)
+@group
+  (eval-last-sexp nil)
+  (call-interactively eval-last-sexp)
+----------- Buffer: backtrace-output ------------
+@end group
+@end smallexample
+@end defvar
+
 @defvar debug-on-next-call
 @cindex @code{eval}, and debugging
 @cindex @code{apply}, and debugging
@@ -654,6 +692,8 @@ invocation.
 The advantage of using this variable rather than an ordinary global
 variable is that the data will never carry over to a subsequent command
 invocation.
+
+This variable is obsolete and will be removed in future versions.
 @end defvar
 
 @defun backtrace-frame frame-number
@@ -840,8 +880,9 @@ called, followed by how much resource (processor or memory) it used in
 absolute and percentage times since profiling started.  If a given
 line has a @samp{+} symbol at the left-hand side, you can expand that
 line by typing @key{RET}, in order to see the function(s) called by
-the higher-level function.  Pressing @key{RET} again will collapse
-back to the original state.
+the higher-level function.  Use a prefix argument (@key{C-u RET}) to
+see the whole call tree below a function.  Pressing @key{RET} again
+will collapse back to the original state.
 
 Press @kbd{j} or @kbd{mouse-2} to jump to the definition of a function.
 Press @kbd{d} to view a function's documentation.

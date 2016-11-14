@@ -24,6 +24,7 @@ along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.  */
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include <sys/types.h>
 #include <sys/file.h>
@@ -110,10 +111,6 @@ extern void moncontrol (int mode);
 #ifdef HAVE_SETRLIMIT
 #include <sys/time.h>
 #include <sys/resource.h>
-#endif
-
-#ifdef HAVE_PERSONALITY_LINUX32
-#include <sys/personality.h>
 #endif
 
 static const char emacs_version[] = PACKAGE_VERSION;
@@ -672,7 +669,7 @@ main (int argc, char **argv)
   bool do_initial_setlocale;
   bool dumping;
   int skip_args = 0;
-  bool no_loadup = 0;
+  bool no_loadup = false;
   char *junk = 0;
   char *dname_arg = 0;
 #ifdef DAEMON_MUST_EXEC
@@ -684,6 +681,30 @@ main (int argc, char **argv)
   char *original_pwd = 0;
 
   stack_base = &dummy;
+
+  dumping = !initialized && (strcmp (argv[argc - 1], "dump") == 0
+			     || strcmp (argv[argc - 1], "bootstrap") == 0);
+
+  /* True if address randomization interferes with memory allocation.  */
+# ifdef __PPC64__
+  bool disable_aslr = true;
+# else
+  bool disable_aslr = dumping;
+# endif
+
+  if (disable_aslr && disable_address_randomization ())
+    {
+      /* Set this so the personality will be reverted before execs
+	 after this one.  */
+      xputenv ("EMACS_HEAP_EXEC=true");
+
+      /* Address randomization was enabled, but is now disabled.
+	 Re-execute Emacs to get a clean slate.  */
+      execvp (argv[0], argv);
+
+      /* If the exec fails, warn and then try anyway.  */
+      perror (argv[0]);
+    }
 
 #ifndef CANNOT_DUMP
   might_dump = !initialized;
@@ -792,28 +813,6 @@ main (int argc, char **argv)
           exit (1);
         }
     }
-
-  dumping = !initialized && (strcmp (argv[argc - 1], "dump") == 0
-			     || strcmp (argv[argc - 1], "bootstrap") == 0);
-
-#ifdef HAVE_PERSONALITY_LINUX32
-  if (dumping && ! getenv ("EMACS_HEAP_EXEC"))
-    {
-      /* Set this so we only do this once.  */
-      xputenv ("EMACS_HEAP_EXEC=true");
-
-      /* A flag to turn off address randomization which is introduced
-         in linux kernel shipped with fedora core 4 */
-#define ADD_NO_RANDOMIZE 0x0040000
-      personality (PER_LINUX32 | ADD_NO_RANDOMIZE);
-#undef  ADD_NO_RANDOMIZE
-
-      execvp (argv[0], argv);
-
-      /* If the exec fails, try to dump anyway.  */
-      emacs_perror (argv[0]);
-    }
-#endif /* HAVE_PERSONALITY_LINUX32 */
 
 #if defined (HAVE_SETRLIMIT) && defined (RLIMIT_STACK) && !defined (CYGWIN)
   /* Extend the stack space available.  Don't do that if dumping,
@@ -1194,7 +1193,7 @@ Using an Emacs configured with --with-x-toolkit=lucid does not have this problem
 
       /* Called before syms_of_fileio, because it sets up Qerror_condition.  */
       syms_of_data ();
-      syms_of_fns ();	   /* Before syms_of_charset which uses hashtables.  */
+      syms_of_fns ();  /* Before syms_of_charset which uses hash tables.  */
       syms_of_fileio ();
       /* Before syms_of_coding to initialize Vgc_cons_threshold.  */
       syms_of_alloc ();
@@ -1351,16 +1350,6 @@ Using an Emacs configured with --with-x-toolkit=lucid does not have this problem
   globals_of_gfilenotify ();
 #endif
 
-#ifdef WINDOWSNT
-  globals_of_w32 ();
-#ifdef HAVE_W32NOTIFY
-  globals_of_w32notify ();
-#endif
-  /* Initialize environment from registry settings.  */
-  init_environment (argv);
-  init_ntproc (dumping); /* must precede init_editfns.  */
-#endif
-
 #ifdef HAVE_NS
   /* Initialize the locale from user defaults.  */
   ns_init_locale ();
@@ -1376,6 +1365,20 @@ Using an Emacs configured with --with-x-toolkit=lucid does not have this problem
      until calling init_callproc.  Do not do it when dumping.  */
   if (! dumping)
     set_initial_environment ();
+
+#ifdef WINDOWSNT
+  globals_of_w32 ();
+#ifdef HAVE_W32NOTIFY
+  globals_of_w32notify ();
+#endif
+  /* Initialize environment from registry settings.  Make sure to do
+     this only after calling set_initial_environment so that
+     Vinitial_environment and Vprocess_environment will contain only
+     variables from the parent process without modifications from
+     Emacs.  */
+  init_environment (argv);
+  init_ntproc (dumping); /* must precede init_editfns.  */
+#endif
 
   /* AIX crashes are reported in system versions 3.2.3 and 3.2.4
      if this is not done.  Do it after set_global_environment so that we

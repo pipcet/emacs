@@ -23,11 +23,11 @@ along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.  */
 
 #include <config.h>
 #include "sysstdio.h"
+#include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/file.h>
 #include <errno.h>
-#include <limits.h>	/* For CHAR_BIT.  */
 #include <math.h>
 #include <stat-time.h>
 #include "lisp.h"
@@ -1464,6 +1464,8 @@ openp (Lisp_Object path, Lisp_Object str, Lisp_Object suffixes,
 
   for (; CONSP (path); path = XCDR (path))
     {
+      ptrdiff_t baselen, prefixlen;
+
       filename = Fexpand_file_name (str, XCAR (path));
       if (!complete_filename_p (filename))
 	/* If there are non-absolute elts in PATH (eg ".").  */
@@ -1485,6 +1487,14 @@ openp (Lisp_Object path, Lisp_Object str, Lisp_Object suffixes,
 	  fn = SAFE_ALLOCA (fn_size);
 	}
 
+      /* Copy FILENAME's data to FN but remove starting /: if any.  */
+      prefixlen = ((SCHARS (filename) > 2
+		    && SREF (filename, 0) == '/'
+		    && SREF (filename, 1) == ':')
+		   ? 2 : 0);
+      baselen = SBYTES (filename) - prefixlen;
+      memcpy (fn, SDATA (filename) + prefixlen, baselen);
+
       /* Loop over suffixes.  */
       for (tail = NILP (suffixes) ? list1 (empty_unibyte_string) : suffixes;
 	   CONSP (tail); tail = XCDR (tail))
@@ -1493,16 +1503,10 @@ openp (Lisp_Object path, Lisp_Object str, Lisp_Object suffixes,
 	  ptrdiff_t fnlen, lsuffix = SBYTES (suffix);
 	  Lisp_Object handler;
 
-	  /* Concatenate path element/specified name with the suffix.
-	     If the directory starts with /:, remove that.  */
-	  int prefixlen = ((SCHARS (filename) > 2
-			    && SREF (filename, 0) == '/'
-			    && SREF (filename, 1) == ':')
-			   ? 2 : 0);
-	  fnlen = SBYTES (filename) - prefixlen;
-	  memcpy (fn, SDATA (filename) + prefixlen, fnlen);
-	  memcpy (fn + fnlen, SDATA (suffix), lsuffix + 1);
-	  fnlen += lsuffix;
+	  /* Make complete filename by appending SUFFIX.  */
+	  memcpy (fn + baselen, SDATA (suffix), lsuffix + 1);
+	  fnlen = baselen + lsuffix;
+
 	  /* Check that the file exists and is not a directory.  */
 	  /* We used to only check for handlers on non-absolute file names:
 	        if (absolute)
@@ -2467,7 +2471,7 @@ read_integer (Lisp_Object readcharfun, EMACS_INT radix)
 {
   /* Room for sign, leading 0, other digits, trailing null byte.
      Also, room for invalid syntax diagnostic.  */
-  char buf[max (1 + 1 + sizeof (uintmax_t) * CHAR_BIT + 1,
+  char buf[max (1 + 1 + UINTMAX_WIDTH + 1,
 		sizeof "integer, radix " + INT_STRLEN_BOUND (EMACS_INT))];
 
   int valid = -1; /* 1 if valid, 0 if not, -1 if incomplete.  */
@@ -2570,7 +2574,7 @@ read1 (Lisp_Object readcharfun, int *pch, bool first_in_list)
 	  c = READCHAR;
 	  if (c == '(')
 	    {
-	      /* Accept extended format for hashtables (extensible to
+	      /* Accept extended format for hash tables (extensible to
 		 other types), e.g.
 		 #s(hash-table size 2 test equal data (k1 v1 k2 v2))  */
 	      Lisp_Object tmp = read_list (0, readcharfun);
@@ -2616,10 +2620,10 @@ read1 (Lisp_Object readcharfun, int *pch, bool first_in_list)
 	      if (!NILP (params[param_count + 1]))
 		param_count += 2;
 
-	      /* This is the hashtable data.  */
+	      /* This is the hash table data.  */
 	      data = Fplist_get (tmp, Qdata);
 
-	      /* Now use params to make a new hashtable and fill it.  */
+	      /* Now use params to make a new hash table and fill it.  */
 	      ht = Fmake_hash_table (param_count, params);
 
 	      while (CONSP (data))
@@ -2627,7 +2631,7 @@ read1 (Lisp_Object readcharfun, int *pch, bool first_in_list)
 	      	  key = XCAR (data);
 	      	  data = XCDR (data);
 	      	  if (!CONSP (data))
-	      	    error ("Odd number of elements in hashtable data");
+		    error ("Odd number of elements in hash table data");
 	      	  val = XCAR (data);
 	      	  data = XCDR (data);
 	      	  Fputhash (key, val, ht);
@@ -2891,19 +2895,17 @@ read1 (Lisp_Object readcharfun, int *pch, bool first_in_list)
 	{
 	  EMACS_INT n = 0;
 	  Lisp_Object tem;
+	  bool overflow = false;
 
 	  /* Read a non-negative integer.  */
 	  while (c >= '0' && c <= '9')
 	    {
-	      if (MOST_POSITIVE_FIXNUM / 10 < n
-		  || MOST_POSITIVE_FIXNUM < n * 10 + c - '0')
-		n = MOST_POSITIVE_FIXNUM + 1;
-	      else
-		n = n * 10 + c - '0';
+	      overflow |= INT_MULTIPLY_WRAPV (n, 10, &n);
+	      overflow |= INT_ADD_WRAPV (n, c - '0', &n);
 	      c = READCHAR;
 	    }
 
-	  if (n <= MOST_POSITIVE_FIXNUM)
+	  if (!overflow && n <= MOST_POSITIVE_FIXNUM)
 	    {
 	      if (c == 'r' || c == 'R')
 		return read_integer (readcharfun, n);
@@ -2915,7 +2917,18 @@ read1 (Lisp_Object readcharfun, int *pch, bool first_in_list)
 		  if (c == '=')
 		    {
 		      /* Make a placeholder for #n# to use temporarily.  */
-		      AUTO_CONS (placeholder, Qnil, Qnil);
+		      /* Note: We used to use AUTO_CONS to allocate
+			 placeholder, but that is a bad idea, since it
+			 will place a stack-allocated cons cell into
+			 the list in read_objects, which is a
+			 staticpro'd global variable, and thus each of
+			 its elements is marked during each GC.  A
+			 stack-allocated object will become garbled
+			 when its stack slot goes out of scope, and
+			 some other function reuses it for entirely
+			 different purposes, which will cause crashes
+			 in GC.  */
+		      Lisp_Object placeholder = Fcons (Qnil, Qnil);
 		      Lisp_Object cell = Fcons (make_number (n), placeholder);
 		      read_objects = Fcons (cell, read_objects);
 

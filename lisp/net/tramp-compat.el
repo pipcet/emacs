@@ -23,8 +23,9 @@
 
 ;;; Commentary:
 
-;; Tramp's main Emacs version for development is Emacs 25.  This
-;; package provides compatibility functions for Emacs 23 and Emacs 24.
+;; Tramp's main Emacs version for development is Emacs 26.  This
+;; package provides compatibility functions for Emacs 23, Emacs 24 and
+;; Emacs 25.
 
 ;;; Code:
 
@@ -54,7 +55,8 @@
 ;; changed argument list, there are compiler warnings.  We want to
 ;; avoid them in cases we know what we do.
 (defmacro tramp-compat-funcall (function &rest arguments)
-  `(when (or (subrp ,function) (functionp ,function))
+  "Call FUNCTION if it exists.  Do not raise compiler warnings."
+  `(when (functionp ,function)
      (with-no-warnings (funcall ,function ,@arguments))))
 
 ;; We currently use "[" and "]" in the filename format for IPv6 hosts
@@ -117,11 +119,17 @@ Add the extension of F, if existing."
 	 (extension (file-name-extension f t)))
     (make-temp-file prefix dir-flag extension)))
 
+;; `temporary-file-directory' as function is introduced with Emacs 26.1.
+(defalias 'tramp-compat-temporary-file-directory-function
+  (if (fboundp 'temporary-file-directory)
+      'temporary-file-directory
+    'tramp-handle-temporary-file-directory))
+
 ;; PRESERVE-EXTENDED-ATTRIBUTES has been introduced with Emacs 24.1
 ;; (as PRESERVE-SELINUX-CONTEXT), and renamed in Emacs 24.3.
 (defun tramp-compat-copy-file
   (filename newname &optional ok-if-already-exists keep-date
-	    preserve-uid-gid preserve-extended-attributes)
+   preserve-uid-gid preserve-extended-attributes)
   "Like `copy-file' for Tramp files (compat function)."
   (cond
    (preserve-extended-attributes
@@ -174,8 +182,7 @@ Add the extension of F, if existing."
 		(tramp-compat-copy-directory file newname keep-time parents)
 	      (copy-file file newname t keep-time)))
 	  ;; We do not want to delete "." and "..".
-	  (directory-files
-	   directory 'full "^\\([^.]\\|\\.\\([^.]\\|\\..\\)\\).*"))
+	  (directory-files directory 'full directory-files-no-dot-files-regexp))
 
 	 ;; Set directory attributes.
 	 (set-file-modes newname (file-modes directory))
@@ -209,13 +216,13 @@ Add the extension of F, if existing."
     ;; implementation from Emacs 23.2.
     (wrong-number-of-arguments
      (setq directory (directory-file-name (expand-file-name directory)))
-     (if (not (file-symlink-p directory))
-	 (mapc (lambda (file)
-		 (if (eq t (car (file-attributes file)))
-		     (tramp-compat-delete-directory file recursive trash)
-		   (tramp-compat-delete-file file trash)))
-	       (directory-files
-		directory 'full "^\\([^.]\\|\\.\\([^.]\\|\\..\\)\\).*")))
+     (when (not (file-symlink-p directory))
+       (mapc (lambda (file)
+	       (if (eq t (car (file-attributes file)))
+		   (tramp-compat-delete-directory file recursive trash)
+		 (tramp-compat-delete-file file trash)))
+	     (directory-files
+	      directory 'full directory-files-no-dot-files-regexp)))
      (delete-directory directory))))
 
 (defun tramp-compat-process-running-p (process-name)
@@ -242,6 +249,85 @@ Add the extension of F, if existing."
                                     process-name))))
 	      (setq result t)))))))))
 
+;; `process-running-live-p' is introduced in Emacs 24.
+(defalias 'tramp-compat-process-live-p
+  (if (fboundp 'process-running-live-p)
+      'process-running-live-p
+    (lambda (process)
+      "Returns non-nil if PROCESS is alive.
+A process is considered alive if its status is `run', `open',
+`listen', `connect' or `stop'.  Value is nil if PROCESS is not a
+process."
+      (and (processp process)
+	   (memq (process-status process)
+		 '(run open listen connect stop))))))
+
+;; `user-error' has appeared in Emacs 24.3.
+(defsubst tramp-compat-user-error (vec-or-proc format &rest args)
+  "Signal a pilot error."
+  (apply
+   'tramp-error vec-or-proc
+   (if (fboundp 'user-error) 'user-error 'error) format args))
+
+;; `file-attribute-*' are introduced in Emacs 25.1.
+
+(if (fboundp 'file-attribute-type)
+    (defalias 'tramp-compat-file-attribute-type 'file-attribute-type)
+  (defsubst tramp-compat-file-attribute-type (attributes)
+    "The type field in ATTRIBUTES returned by `file-attributes'.
+The value is either t for directory, string (name linked to) for
+symbolic link, or nil."
+    (nth 0 attributes)))
+
+(if (fboundp 'file-attribute-link-number)
+    (defalias 'tramp-compat-file-attribute-link-number
+      'file-attribute-link-number)
+  (defsubst tramp-compat-file-attribute-link-number (attributes)
+    "Return the number of links in ATTRIBUTES returned by `file-attributes'."
+    (nth 1 attributes)))
+
+(if (fboundp 'file-attribute-user-id)
+    (defalias 'tramp-compat-file-attribute-user-id 'file-attribute-user-id)
+  (defsubst tramp-compat-file-attribute-user-id (attributes)
+    "The UID field in ATTRIBUTES returned by `file-attributes'.
+This is either a string or a number.  If a string value cannot be
+looked up, a numeric value, either an integer or a float, is
+returned."
+    (nth 2 attributes)))
+
+(if (fboundp 'file-attribute-group-id)
+    (defalias 'tramp-compat-file-attribute-group-id 'file-attribute-group-id)
+  (defsubst tramp-compat-file-attribute-group-id (attributes)
+    "The GID field in ATTRIBUTES returned by `file-attributes'.
+This is either a string or a number.  If a string value cannot be
+looked up, a numeric value, either an integer or a float, is
+returned."
+    (nth 3 attributes)))
+
+(if (fboundp 'file-attribute-modification-time)
+    (defalias 'tramp-compat-file-attribute-modification-time
+      'file-attribute-modification-time)
+  (defsubst tramp-compat-file-attribute-modification-time (attributes)
+    "The modification time in ATTRIBUTES returned by `file-attributes'.
+This is the time of the last change to the file's contents, and
+is a list of integers (HIGH LOW USEC PSEC) in the same style
+as (current-time)."
+    (nth 5 attributes)))
+
+(if (fboundp 'file-attribute-size)
+    (defalias 'tramp-compat-file-attribute-size 'file-attribute-size)
+  (defsubst tramp-compat-file-attribute-size (attributes)
+    "The size (in bytes) in ATTRIBUTES returned by `file-attributes'.
+This is a floating point number if the size is too large for an integer."
+    (nth 7 attributes)))
+
+(if (fboundp 'file-attribute-modes)
+    (defalias 'tramp-compat-file-attribute-modes 'file-attribute-modes)
+  (defsubst tramp-compat-file-attribute-modes (attributes)
+    "The file modes in ATTRIBUTES returned by `file-attributes'.
+This is a string of ten letters or dashes as in ls -l."
+    (nth 8 attributes)))
+
 ;; `default-toplevel-value' has been declared in Emacs 24.
 (unless (fboundp 'default-toplevel-value)
   (defalias 'default-toplevel-value 'symbol-value))
@@ -249,6 +335,11 @@ Add the extension of F, if existing."
 ;; `format-message' is new in Emacs 25.
 (unless (fboundp 'format-message)
   (defalias 'format-message 'format))
+
+;; `file-missing' is introduced in Emacs 26.
+(defconst tramp-file-missing
+  (if (get 'file-missing 'error-conditions) 'file-missing 'file-error)
+  "The error symbol for the `file-missing' error.")
 
 (add-hook 'tramp-unload-hook
 	  (lambda ()

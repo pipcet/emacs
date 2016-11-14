@@ -22,6 +22,7 @@ along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.  */
 
 #include <errno.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <limits.h>		/* For CHAR_BIT.  */
 #include <signal.h>		/* For SIGABRT, SIGDANGER.  */
 
@@ -46,6 +47,7 @@ along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.  */
 #include TERM_HEADER
 #endif /* HAVE_WINDOW_SYSTEM */
 
+#include <flexmember.h>
 #include <verify.h>
 #include <execinfo.h>           /* For backtrace.  */
 
@@ -95,7 +97,7 @@ static bool valgrind_p;
 #include "w32heap.h"	/* for sbrk */
 #endif
 
-#if defined DOUG_LEA_MALLOC || defined GNU_LINUX
+#ifdef GNU_LINUX
 /* The address where the heap starts.  */
 void *
 my_heap_start (void)
@@ -128,7 +130,9 @@ malloc_initialize_hook (void)
 
   if (! initialized)
     {
+#ifdef GNU_LINUX
       my_heap_start ();
+#endif
       malloc_using_checking = getenv ("MALLOC_CHECK_") != NULL;
     }
   else
@@ -229,12 +233,6 @@ EMACS_INT memory_full_cons_threshold;
 /* True during GC.  */
 
 bool gc_in_progress;
-
-/* True means abort if try to GC.
-   This is for code which is written on the assumption that
-   no GC will happen, so as to verify that assumption.  */
-
-bool abort_on_gc;
 
 /* Number of live and free conses etc.  */
 
@@ -478,13 +476,18 @@ static int staticidx;
 
 static void *pure_alloc (size_t, int);
 
-/* Return X rounded to the next multiple of Y.  Arguments should not
-   have side effects, as they are evaluated more than once.  Assume X
-   + Y - 1 does not overflow.  Tune for Y being a power of 2.  */
+/* True if N is a power of 2.  N should be positive.  */
 
-#define ROUNDUP(x, y) ((y) & ((y) - 1)					\
-		       ? ((x) + (y) - 1) - ((x) + (y) - 1) % (y)	\
-		       : ((x) + (y) - 1) & ~ ((y) - 1))
+#define POWER_OF_2(n) (((n) & ((n) - 1)) == 0)
+
+/* Return X rounded to the next multiple of Y.  Y should be positive,
+   and Y - 1 + X should not overflow.  Arguments should not have side
+   effects, as they are evaluated more than once.  Tune for Y being a
+   power of 2.  */
+
+#define ROUNDUP(x, y) (POWER_OF_2 (y)					\
+		       ? ((y) - 1 + (x)) & ~ ((y) - 1)			\
+		       : ((y) - 1 + (x)) - ((y) - 1 + (x)) % (y))
 
 /* Return PTR rounded up to the next multiple of ALIGNMENT.  */
 
@@ -639,13 +642,14 @@ buffer_memory_full (ptrdiff_t nbytes)
 #define XMALLOC_OVERRUN_CHECK_OVERHEAD \
   (2 * XMALLOC_OVERRUN_CHECK_SIZE + XMALLOC_OVERRUN_SIZE_SIZE)
 
-/* Define XMALLOC_OVERRUN_SIZE_SIZE so that (1) it's large enough to
-   hold a size_t value and (2) the header size is a multiple of the
-   alignment that Emacs needs for C types and for USE_LSB_TAG.  */
 #define XMALLOC_BASE_ALIGNMENT alignof (max_align_t)
 
 #define XMALLOC_HEADER_ALIGNMENT \
    COMMON_MULTIPLE (GCALIGNMENT, XMALLOC_BASE_ALIGNMENT)
+
+/* Define XMALLOC_OVERRUN_SIZE_SIZE so that (1) it's large enough to
+   hold a size_t value and (2) the header size is a multiple of the
+   alignment that Emacs needs for C types and for USE_LSB_TAG.  */
 #define XMALLOC_OVERRUN_SIZE_SIZE				\
    (((XMALLOC_OVERRUN_CHECK_SIZE + sizeof (size_t)		\
       + XMALLOC_HEADER_ALIGNMENT - 1)				\
@@ -1126,6 +1130,10 @@ lisp_free (void *block)
 /* The entry point is lisp_align_malloc which returns blocks of at most
    BLOCK_BYTES and guarantees they are aligned on a BLOCK_ALIGN boundary.  */
 
+/* Byte alignment of storage blocks.  */
+#define BLOCK_ALIGN (1 << 10)
+verify (POWER_OF_2 (BLOCK_ALIGN));
+
 /* Use aligned_alloc if it or a simple substitute is available.
    Address sanitization breaks aligned allocation, as of gcc 4.8.2 and
    clang 3.3 anyway.  Aligned allocation is incompatible with
@@ -1143,14 +1151,19 @@ lisp_free (void *block)
 static void *
 aligned_alloc (size_t alignment, size_t size)
 {
+  /* POSIX says the alignment must be a power-of-2 multiple of sizeof (void *).
+     Verify this for all arguments this function is given.  */
+  verify (BLOCK_ALIGN % sizeof (void *) == 0
+	  && POWER_OF_2 (BLOCK_ALIGN / sizeof (void *)));
+  verify (GCALIGNMENT % sizeof (void *) == 0
+	  && POWER_OF_2 (GCALIGNMENT / sizeof (void *)));
+  eassert (alignment == BLOCK_ALIGN || alignment == GCALIGNMENT);
+
   void *p;
   return posix_memalign (&p, alignment, size) == 0 ? p : 0;
 }
 # endif
 #endif
-
-/* BLOCK_ALIGN has to be a power of 2.  */
-#define BLOCK_ALIGN (1 << 10)
 
 /* Padding to leave at the end of a malloc'd block.  This is to give
    malloc a chance to minimize the amount of memory wasted to alignment.
@@ -1253,6 +1266,7 @@ lisp_align_malloc (size_t nbytes, enum mem_type type)
 #endif
 
 #ifdef USE_ALIGNED_ALLOC
+      verify (ABLOCKS_BYTES % BLOCK_ALIGN == 0);
       abase = base = aligned_alloc (BLOCK_ALIGN, ABLOCKS_BYTES);
 #else
       base = malloc (ABLOCKS_BYTES);
@@ -1379,15 +1393,21 @@ lisp_align_free (void *block)
 # define __alignof__(type) alignof (type)
 #endif
 
-/* True if malloc returns a multiple of GCALIGNMENT.  In practice this
-   holds if __alignof__ (max_align_t) is a multiple.  Use __alignof__
-   if available, as otherwise this check would fail with GCC x86.
+/* True if malloc (N) is known to return a multiple of GCALIGNMENT
+   whenever N is also a multiple.  In practice this is true if
+   __alignof__ (max_align_t) is a multiple as well, assuming
+   GCALIGNMENT is 8; other values of GCALIGNMENT have not been looked
+   into.  Use __alignof__ if available, as otherwise
+   MALLOC_IS_GC_ALIGNED would be false on GCC x86 even though the
+   alignment is OK there.
+
    This is a macro, not an enum constant, for portability to HP-UX
    10.20 cc and AIX 3.2.5 xlc.  */
-#define MALLOC_IS_GC_ALIGNED (__alignof__ (max_align_t) % GCALIGNMENT == 0)
+#define MALLOC_IS_GC_ALIGNED \
+  (GCALIGNMENT == 8 && __alignof__ (max_align_t) % GCALIGNMENT == 0)
 
-/* True if P is suitably aligned for SIZE, where Lisp alignment may be
-   needed if SIZE is Lisp-aligned.  */
+/* True if a malloc-returned pointer P is suitably aligned for SIZE,
+   where Lisp alignment may be needed if SIZE is Lisp-aligned.  */
 
 static bool
 laligned (void *p, size_t size)
@@ -1416,24 +1436,20 @@ static void *
 lmalloc (size_t size)
 {
 #if USE_ALIGNED_ALLOC
-  if (! MALLOC_IS_GC_ALIGNED)
+  if (! MALLOC_IS_GC_ALIGNED && size % GCALIGNMENT == 0)
     return aligned_alloc (GCALIGNMENT, size);
 #endif
 
-  void *p;
   while (true)
     {
-      p = malloc (size);
+      void *p = malloc (size);
       if (laligned (p, size))
-	break;
+	return p;
       free (p);
-      size_t bigger;
-      if (! INT_ADD_WRAPV (size, GCALIGNMENT, &bigger))
+      size_t bigger = size + GCALIGNMENT;
+      if (size < bigger)
 	size = bigger;
     }
-
-  eassert ((intptr_t) p % GCALIGNMENT == 0);
-  return p;
 }
 
 static void *
@@ -1443,14 +1459,11 @@ lrealloc (void *p, size_t size)
     {
       p = realloc (p, size);
       if (laligned (p, size))
-	break;
-      size_t bigger;
-      if (! INT_ADD_WRAPV (size, GCALIGNMENT, &bigger))
+	return p;
+      size_t bigger = size + GCALIGNMENT;
+      if (size < bigger)
 	size = bigger;
     }
-
-  eassert ((intptr_t) p % GCALIGNMENT == 0);
-  return p;
 }
 
 
@@ -1742,27 +1755,23 @@ static char const string_overrun_cookie[GC_STRING_OVERRUN_COOKIE_SIZE] =
 
 #ifdef GC_CHECK_STRING_BYTES
 
-#define SDATA_SIZE(NBYTES)			\
-     ((SDATA_DATA_OFFSET			\
-       + (NBYTES) + 1				\
-       + sizeof (ptrdiff_t) - 1)		\
-      & ~(sizeof (ptrdiff_t) - 1))
+#define SDATA_SIZE(NBYTES) FLEXSIZEOF (struct sdata, data, NBYTES)
 
 #else /* not GC_CHECK_STRING_BYTES */
 
 /* The 'max' reserves space for the nbytes union member even when NBYTES + 1 is
    less than the size of that member.  The 'max' is not needed when
-   SDATA_DATA_OFFSET is a multiple of sizeof (ptrdiff_t), because then the
-   alignment code reserves enough space.  */
+   SDATA_DATA_OFFSET is a multiple of FLEXALIGNOF (struct sdata),
+   because then the alignment code reserves enough space.  */
 
 #define SDATA_SIZE(NBYTES)				      \
      ((SDATA_DATA_OFFSET				      \
-       + (SDATA_DATA_OFFSET % sizeof (ptrdiff_t) == 0	      \
+       + (SDATA_DATA_OFFSET % FLEXALIGNOF (struct sdata) == 0 \
 	  ? NBYTES					      \
-	  : max (NBYTES, sizeof (ptrdiff_t) - 1))	      \
+	  : max (NBYTES, FLEXALIGNOF (struct sdata) - 1))     \
        + 1						      \
-       + sizeof (ptrdiff_t) - 1)			      \
-      & ~(sizeof (ptrdiff_t) - 1))
+       + FLEXALIGNOF (struct sdata) - 1)		      \
+      & ~(FLEXALIGNOF (struct sdata) - 1))
 
 #endif /* not GC_CHECK_STRING_BYTES */
 
@@ -1982,7 +1991,7 @@ allocate_string_data (struct Lisp_String *s,
 
   if (nbytes > LARGE_STRING_BYTES)
     {
-      size_t size = offsetof (struct sblock, data) + needed;
+      size_t size = FLEXSIZEOF (struct sblock, data, needed);
 
 #ifdef DOUG_LEA_MALLOC
       if (!mmap_lisp_allowed_p ())
@@ -1996,9 +2005,9 @@ allocate_string_data (struct Lisp_String *s,
         mallopt (M_MMAP_MAX, MMAP_MAX_AREAS);
 #endif
 
-      b->next_free = b->data;
-      b->data[0].string = NULL;
+      data = b->data;
       b->next = large_sblocks;
+      b->next_free = data;
       large_sblocks = b;
     }
   else if (current_sblock == NULL
@@ -2008,9 +2017,9 @@ allocate_string_data (struct Lisp_String *s,
     {
       /* Not enough room in the current sblock.  */
       b = lisp_malloc (SBLOCK_SIZE, MEM_TYPE_NON_LISP);
-      b->next_free = b->data;
-      b->data[0].string = NULL;
+      data = b->data;
       b->next = NULL;
+      b->next_free = data;
 
       if (current_sblock)
 	current_sblock->next = b;
@@ -2019,14 +2028,16 @@ allocate_string_data (struct Lisp_String *s,
       current_sblock = b;
     }
   else
-    b = current_sblock;
+    {
+      b = current_sblock;
+      data = b->next_free;
+    }
 
-  data = b->next_free;
+  data->string = s;
   b->next_free = (sdata *) ((char *) data + needed + GC_STRING_EXTRA);
 
   MALLOC_UNBLOCK_INPUT;
 
-  data->string = s;
   s->data = SDATA_DATA (data);
 #ifdef GC_CHECK_STRING_BYTES
   SDATA_NBYTES (data) = nbytes;
@@ -2938,15 +2949,15 @@ set_next_vector (struct Lisp_Vector *v, struct Lisp_Vector *p)
 enum
   {
     /* Alignment of struct Lisp_Vector objects.  */
-    vector_alignment = COMMON_MULTIPLE (ALIGNOF_STRUCT_LISP_VECTOR,
-					GCALIGNMENT),
+    vector_alignment = COMMON_MULTIPLE (FLEXALIGNOF (struct Lisp_Vector),
+					 GCALIGNMENT),
 
     /* Vector size requests are a multiple of this.  */
     roundup_size = COMMON_MULTIPLE (vector_alignment, word_size)
   };
 
 /* Verify assumptions described above.  */
-verify ((VECTOR_BLOCK_SIZE % roundup_size) == 0);
+verify (VECTOR_BLOCK_SIZE % roundup_size == 0);
 verify (VECTOR_BLOCK_SIZE <= (1 << PSEUDOVECTOR_SIZE_BITS));
 
 /* Round up X to nearest mult-of-ROUNDUP_SIZE --- use at compile time.  */
@@ -5589,7 +5600,11 @@ compact_font_caches (void)
   for (t = terminal_list; t; t = t->next_terminal)
     {
       Lisp_Object cache = TERMINAL_FONT_CACHE (t);
-      if (CONSP (cache))
+      /* Inhibit compacting the caches if the user so wishes.  Some of
+	 the users don't mind a larger memory footprint, but do mind
+	 slower redisplay.  */
+      if (!inhibit_compacting_font_caches
+	  && CONSP (cache))
 	{
 	  Lisp_Object entry;
 
@@ -5662,9 +5677,6 @@ garbage_collect_1 (void *end)
   struct timespec start;
   Lisp_Object retval = Qnil;
   size_t tot_before = 0;
-
-  if (abort_on_gc)
-    emacs_abort ();
 
   /* Can't GC if pure storage overflowed because we can't determine
      if something is a pure object or not.  */
@@ -5798,8 +5810,6 @@ garbage_collect_1 (void *end)
   mark_finalizer_list (&doomed_finalizers);
 
   gc_sweep ();
-
-  relocate_byte_stack ();
 
   /* Clear the mark bits that we set in certain root slots.  */
   VECTOR_UNMARK (&buffer_defaults);
@@ -6015,7 +6025,7 @@ mark_glyph_matrix (struct glyph_matrix *matrix)
    all the references contained in it.  */
 
 #define LAST_MARKED_SIZE 500
-static Lisp_Object last_marked[LAST_MARKED_SIZE];
+Lisp_Object last_marked[LAST_MARKED_SIZE] EXTERNALLY_VISIBLE;
 static int last_marked_index;
 
 /* For debugging--call abort when we cdr down this many
@@ -6135,7 +6145,7 @@ mark_face_cache (struct face_cache *c)
       int i, j;
       for (i = 0; i < c->used; ++i)
 	{
-	  struct face *face = FACE_OPT_FROM_ID (c->f, i);
+	  struct face *face = FACE_FROM_ID_OR_NULL (c->f, i);
 
 	  if (face)
 	    {
@@ -6904,7 +6914,8 @@ sweep_misc (void)
 	      else if (mblk->markers[i].m.u_any.type == Lisp_Misc_User_Ptr)
 		{
 		  struct Lisp_User_Ptr *uptr = &mblk->markers[i].m.u_user_ptr;
-		  uptr->finalizer (uptr->p);
+		  if (uptr->finalizer)
+		    uptr->finalizer (uptr->p);
 		}
 #endif
               /* Set the type of the freed object to Lisp_Misc_Free.
@@ -7044,7 +7055,7 @@ We divide the value by 1024 to make sure it fits in a Lisp integer.  */)
 {
   Lisp_Object end;
 
-#ifdef HAVE_NS
+#if defined HAVE_NS || !HAVE_SBRK
   /* Avoid warning.  sbrk has no relation to memory allocated anyway.  */
   XSETINT (end, 0);
 #else

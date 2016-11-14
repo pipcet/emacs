@@ -333,8 +333,28 @@ See also the functions:
   "Mark all files with a certain EXTENSION for use in later commands.
 A `.' is *not* automatically prepended to the string entered.
 EXTENSION may also be a list of extensions instead of a single one.
-Optional MARKER-CHAR is marker to use."
-  (interactive "sMarking extension: \nP")
+Optional MARKER-CHAR is marker to use.
+Interactively, ask for EXTENSION.
+Prefixed with one C-u, unmark files instead.
+Prefixed with two C-u's, prompt for MARKER-CHAR and mark files with it."
+  (interactive
+   (let ((suffix
+          (read-string (format "%s extension: "
+                               (if (equal current-prefix-arg '(4))
+                                   "UNmarking"
+                                 "Marking"))))
+         (marker
+          (pcase current-prefix-arg
+            ('(4) ?\s)
+            ('(16)
+             (let* ((dflt (char-to-string dired-marker-char))
+                    (input (read-string
+                            (format
+                             "Marker character to use (default %s): " dflt)
+                            nil nil dflt)))
+               (aref input 0)))
+            (_ dired-marker-char))))
+     (list suffix marker)))
   (or (listp extension)
       (setq extension (list extension)))
   (dired-mark-files-regexp
@@ -413,14 +433,19 @@ If in Dired already, pop up a level and goto old directory's line.
 In case the proper Dired file line cannot be found, refresh the dired
 buffer and try again.
 When OTHER-WINDOW is non-nil, jump to Dired buffer in other window.
-Interactively with prefix argument, read FILE-NAME and
-move to its line in dired."
+When FILE-NAME is non-nil, jump to its line in Dired.
+Interactively with prefix argument, read FILE-NAME."
   (interactive
    (list nil (and current-prefix-arg
                   (read-file-name "Jump to Dired file: "))))
   (if (bound-and-true-p tar-subfile-mode)
       (switch-to-buffer tar-superior-buffer)
-    (let* ((file (or file-name buffer-file-name))
+    ;; Expand file-name before `dired-goto-file' call:
+    ;; `dired-goto-file' requires its argument to be an absolute
+    ;; file name; the result of `read-file-name' could be
+    ;; an abbreviated file name (Bug#24409).
+    (let* ((file (or (and file-name (expand-file-name file-name))
+                     buffer-file-name))
            (dir (if file (file-name-directory file) default-directory)))
       (if (and (eq major-mode 'dired-mode) (null file-name))
           (progn
@@ -1455,7 +1480,13 @@ refer at all to the underlying file system.  Contrast this with
   ;; (string-match "foo" sym) into which a user would soon fall.
   ;; Give `equal' instead of `=' in the example, as this works on
   ;; integers and strings.
-  (interactive "xMark if (lisp expr): \nP")
+  (interactive
+   (list (read--expression
+          (format "%s if (lisp expr): "
+                  (if current-prefix-arg
+                      "UNmark"
+                    "Mark")))
+         current-prefix-arg))
   (message "%s" predicate)
   (let ((dired-marker-char (if unflag-p ?\040 dired-marker-char))
         inode s mode nlink uid gid size time name sym)

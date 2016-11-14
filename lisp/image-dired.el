@@ -613,8 +613,14 @@ according to the Thumbnail Managing Standard."
                    (file-name-base f)
                    (file-name-extension f))))))
 
+(defun image-dired--check-executable-exists (executable)
+  (unless (executable-find (symbol-value executable))
+    (error "Executable %S not found" executable)))
+
 (defun image-dired-create-thumb (original-file thumbnail-file)
   "For ORIGINAL-FILE, create thumbnail image named THUMBNAIL-FILE."
+  (image-dired--check-executable-exists
+   'image-dired-cmd-create-thumbnail-program)
   (let* ((width (int-to-string image-dired-thumb-width))
          (height (int-to-string image-dired-thumb-height))
          (modif-time (format "%.0f" (float-time (nth 5 (file-attributes
@@ -1144,7 +1150,8 @@ image."
   "Move to next line and display properties."
   (interactive)
   (let ((goal-column (current-column)))
-    (next-line))
+    (forward-line 1)
+    (move-to-column goal-column))
   ;; If we end up in an empty spot, back up to the next thumbnail.
   (if (not (image-dired-image-at-point-p))
       (image-dired-backward-image))
@@ -1157,7 +1164,8 @@ image."
   "Move to previous line and display properties."
   (interactive)
   (let ((goal-column (current-column)))
-    (previous-line))
+    (forward-line -1)
+    (move-to-column goal-column))
   ;; If we end up in an empty spot, back up to the next
   ;; thumbnail. This should only happen if the user deleted a
   ;; thumbnail and did not refresh, so it is not very common. But we
@@ -1802,6 +1810,8 @@ should feel snappy enough.
 
 If optional argument ORIGINAL-SIZE is non-nil, display image in its
 original size."
+  (image-dired--check-executable-exists
+   'image-dired-cmd-create-temp-image-program)
   (let ((new-file (expand-file-name image-dired-temp-image-file))
         width height command ret
         (image-type 'jpeg))
@@ -1866,6 +1876,8 @@ With prefix argument ARG, display image in its original size."
 
 (defun image-dired-rotate-thumbnail (degrees)
   "Rotate thumbnail DEGREES degrees."
+  (image-dired--check-executable-exists
+   'image-dired-cmd-rotate-thumbnail-program)
   (if (not (image-dired-image-at-point-p))
       (message "No thumbnail at point")
     (let ((file (image-dired-thumb-name (image-dired-original-file-name)))
@@ -1908,12 +1920,14 @@ overwritten.  This confirmation can be turned off using
 
 (defun image-dired-rotate-original (degrees)
   "Rotate original image DEGREES degrees."
+  (image-dired--check-executable-exists
+   'image-dired-cmd-rotate-original-program)
   (if (not (image-dired-image-at-point-p))
       (message "No image at point")
     (let ((file (image-dired-original-file-name))
           command)
-      (if (not (string-match "\\.[jJ][pP[eE]?[gG]$" file))
-          (error "Only JPEG images can be rotated!"))
+      (unless (eq 'jpeg (image-type file))
+        (error "Only JPEG images can be rotated!"))
       (setq command (format-spec
                      image-dired-cmd-rotate-original-options
                      (list
@@ -1952,15 +1966,14 @@ for traceability.  The format of the returned file name is
 YYYY_MM_DD_HH_MM_DD_ORIG_FILE_NAME.jpg.  Used from
 `image-dired-copy-with-exif-file-name'."
   (let (data no-exif-data-found)
-    (if (not (string-match "\\.[Jj][Pp][Ee]?[Gg]$" (expand-file-name file)))
-        (progn
-          (setq no-exif-data-found t)
-          (setq data
-                (format-time-string
-                 "%Y:%m:%d %H:%M:%S"
-                 (nth 5 (file-attributes (expand-file-name file))))))
+    (if (not (eq 'jpeg (image-type (expand-file-name file))))
+        (setq no-exif-data-found t
+              data (format-time-string
+                    "%Y:%m:%d %H:%M:%S"
+                    (file-attribute-modification-time
+                     (file-attributes (expand-file-name file)))))
       (setq data (image-dired-get-exif-data (expand-file-name file)
-				      "DateTimeOriginal")))
+                                            "DateTimeOriginal")))
     (while (string-match "[ :]" data)
       (setq data (replace-match "_" nil nil data)))
     (format "%s%s%s" data
@@ -1987,6 +2000,8 @@ default value at the prompt."
 
 (defun image-dired-set-exif-data (file tag-name tag-value)
   "In FILE, set EXIF tag TAG-NAME to value TAG-VALUE."
+  (image-dired--check-executable-exists
+   'image-dired-cmd-write-exif-data-program)
   (let (command)
     (setq command (format-spec
                    image-dired-cmd-write-exif-data-options
@@ -1999,6 +2014,8 @@ default value at the prompt."
 
 (defun image-dired-get-exif-data (file tag-name)
   "From FILE, return EXIF tag TAG-NAME."
+  (image-dired--check-executable-exists
+   'image-dired-cmd-read-exif-data-program)
   (let ((buf (get-buffer-create "*image-dired-get-exif-data*"))
         command tag-value)
     (setq command (format-spec

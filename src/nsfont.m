@@ -45,9 +45,6 @@ Author: Adrian Robert (arobert@cogsci.ucsd.edu)
 #define NSFONT_TRACE 0
 #define LCD_SMOOTHING_MARGIN 2
 
-extern float ns_antialias_threshold;
-
-
 /* font glyph and metrics caching functions, implemented at end */
 static void ns_uni_to_glyphs (struct nsfont_info *font_info,
                               unsigned char block);
@@ -1071,7 +1068,8 @@ nsfont_draw (struct glyph_string *s, int from, int to, int x, int y,
       face = s->face;
       break;
     case NS_DUMPGLYPH_MOUSEFACE:
-      face = FACE_OPT_FROM_ID (s->f, MOUSE_HL_INFO (s->f)->mouse_face_face_id);
+      face = FACE_FROM_ID_OR_NULL (s->f,
+				   MOUSE_HL_INFO (s->f)->mouse_face_face_id);
       if (!face)
         face = FACE_FROM_ID (s->f, MOUSE_FACE_ID);
       break;
@@ -1515,7 +1513,10 @@ ns_dump_glyphstring (struct glyph_string *s)
            s->nchars, s->x, s->y, s->left_overhang, s->right_overhang,
            s->row->overlapping_p, s->background_filled_p);
   for (i =0; i<s->nchars; i++)
-    fprintf (stderr, "%c", s->first_glyph[i].u.ch);
+    {
+      int c = s->first_glyph[i].u.ch;
+      fprintf (stderr, "%c", c);
+    }
   fprintf (stderr, "\n");
 }
 

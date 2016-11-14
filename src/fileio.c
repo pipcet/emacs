@@ -25,6 +25,10 @@ along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.  */
 #include <sys/stat.h>
 #include <unistd.h>
 
+#ifdef DARWIN_OS
+#include <sys/attr.h>
+#endif
+
 #ifdef HAVE_PWD_H
 #include <pwd.h>
 #endif
@@ -52,9 +56,18 @@ along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.  */
 #include "region-cache.h"
 #include "frame.h"
 
+#ifdef HAVE_LINUX_FS_H
+# include <sys/ioctl.h>
+# include <linux/fs.h>
+#endif
+
 #ifdef WINDOWSNT
 #define NOMINMAX 1
 #include <windows.h>
+/* The redundant #ifdef is to avoid compiler warning about unused macro.  */
+#ifdef NOMINMAX
+#undef NOMINMAX
+#endif
 #include <sys/file.h>
 #include "w32.h"
 #endif /* not WINDOWSNT */
@@ -194,7 +207,8 @@ report_file_errno (char const *string, Lisp_Object name, int errorno)
   if (errorno == EEXIST)
     xsignal (Qfile_already_exists, errdata);
   else
-    xsignal (Qfile_error, Fcons (build_string (string), errdata));
+    xsignal (errorno == ENOENT ? Qfile_missing : Qfile_error,
+	     Fcons (build_string (string), errdata));
 }
 
 /* Signal a file-access failure that set errno.  STRING describes the
@@ -508,7 +522,8 @@ This operation exists because a directory is also a file, but its name as
 a directory is different from its name as a file.
 The result can be used as the value of `default-directory'
 or passed as second argument to `expand-file-name'.
-For a Unix-syntax file name, just appends a slash.  */)
+For a Unix-syntax file name, just appends a slash unless a trailing slash
+is already present.  */)
   (Lisp_Object file)
 {
   char *buf;
@@ -1828,6 +1843,18 @@ barf_or_query_if_file_exists (Lisp_Object absname, bool known_to_exist,
     }
 }
 
+#ifndef WINDOWSNT
+/* Copy data to DEST from SOURCE if possible.  Return true if OK.  */
+static bool
+clone_file (int dest, int source)
+{
+#ifdef FICLONE
+  return ioctl (dest, FICLONE, source) == 0;
+#endif
+  return false;
+}
+#endif
+
 DEFUN ("copy-file", Fcopy_file, Scopy_file, 2, 6,
        "fCopy file: \nGCopy %s to file: \np\nP",
        doc: /* Copy FILE to NEWNAME.  Both args must be strings.
@@ -1974,7 +2001,7 @@ permissions.  */)
 
   record_unwind_protect_int (close_file_unwind, ofd);
 
-  off_t oldsize = 0, newsize = 0;
+  off_t oldsize = 0, newsize;
 
   if (already_exists)
     {
@@ -1990,17 +2017,19 @@ permissions.  */)
 
   immediate_quit = 1;
   QUIT;
-  while (true)
+
+  if (clone_file (ofd, ifd))
+    newsize = st.st_size;
+  else
     {
       char buf[MAX_ALLOCA];
-      ptrdiff_t n = emacs_read (ifd, buf, sizeof buf);
+      ptrdiff_t n;
+      for (newsize = 0; 0 < (n = emacs_read (ifd, buf, sizeof buf));
+	   newsize += n)
+	if (emacs_write_sig (ofd, buf, n) != n)
+	  report_file_error ("Write error", newname);
       if (n < 0)
 	report_file_error ("Read error", file);
-      if (n == 0)
-	break;
-      if (emacs_write_sig (ofd, buf, n) != n)
-	report_file_error ("Write error", newname);
-      newsize += n;
     }
 
   /* Truncate any existing output file after writing the data.  This
@@ -2207,6 +2236,72 @@ internal_delete_file (Lisp_Object filename)
   return NILP (tem);
 }
 
+/* Filesystems are case-sensitive on all supported systems except
+   MS-Windows, MS-DOS, Cygwin, and Mac OS X.  They are always
+   case-insensitive on the first two, but they may or may not be
+   case-insensitive on Cygwin and OS X.  The following function
+   attempts to provide a runtime test on those two systems.  If the
+   test is not conclusive, we assume case-insensitivity on Cygwin and
+   case-sensitivity on Mac OS X.
+
+   FIXME: Mounted filesystems on Posix hosts, like Samba shares or
+   NFS-mounted Windows volumes, might be case-insensitive.  Can we
+   detect this?  */
+
+static bool
+file_name_case_insensitive_p (const char *filename)
+{
+#ifdef DOS_NT
+  return 1;
+#elif defined CYGWIN
+/* As of Cygwin-2.6.1, pathconf supports _PC_CASE_INSENSITIVE.  */
+# ifdef _PC_CASE_INSENSITIVE
+  int res = pathconf (filename, _PC_CASE_INSENSITIVE);
+  if (res < 0)
+    return 1;
+  return res > 0;
+# else
+  return 1;
+# endif
+#elif defined DARWIN_OS
+  /* The following is based on
+     http://lists.apple.com/archives/darwin-dev/2007/Apr/msg00010.html.  */
+  struct attrlist alist;
+  unsigned char buffer[sizeof (vol_capabilities_attr_t) + sizeof (size_t)];
+
+  memset (&alist, 0, sizeof (alist));
+  alist.volattr = ATTR_VOL_CAPABILITIES;
+  if (getattrlist (filename, &alist, buffer, sizeof (buffer), 0)
+      || !(alist.volattr & ATTR_VOL_CAPABILITIES))
+    return 0;
+  vol_capabilities_attr_t *vcaps = buffer;
+  return !(vcaps->capabilities[0] & VOL_CAP_FMT_CASE_SENSITIVE);
+#else
+  return 0;
+#endif
+}
+
+DEFUN ("file-name-case-insensitive-p", Ffile_name_case_insensitive_p,
+       Sfile_name_case_insensitive_p, 1, 1, 0,
+       doc: /* Return t if file FILENAME is on a case-insensitive filesystem.
+The arg must be a string.  */)
+  (Lisp_Object filename)
+{
+  Lisp_Object handler;
+
+  CHECK_STRING (filename);
+  filename = Fexpand_file_name (filename, Qnil);
+
+  /* If the file name has special constructs in it,
+     call the corresponding file handler.  */
+  handler = Ffind_file_name_handler (filename, Qfile_name_case_insensitive_p);
+  if (!NILP (handler))
+    return call2 (handler, Qfile_name_case_insensitive_p, filename);
+
+  filename = ENCODE_FILE (filename);
+  return file_name_case_insensitive_p (SSDATA (filename)) ? Qt : Qnil;
+}
+
 DEFUN ("rename-file", Frename_file, Srename_file, 2, 3,
        "fRename file: \nGRename %s to file: \np",
        doc: /* Rename FILE as NEWNAME.  Both args must be strings.
@@ -2226,12 +2321,11 @@ This is what happens in interactive use with M-x.  */)
   file = Fexpand_file_name (file, Qnil);
 
   if ((!NILP (Ffile_directory_p (newname)))
-#ifdef DOS_NT
-      /* If the file names are identical but for the case,
-	 don't attempt to move directory to itself. */
-      && (NILP (Fstring_equal (Fdowncase (file), Fdowncase (newname))))
-#endif
-      )
+      /* If the filesystem is case-insensitive and the file names are
+	 identical but for the case, don't attempt to move directory
+	 to itself.  */
+      && (NILP (Ffile_name_case_insensitive_p (file))
+	  || NILP (Fstring_equal (Fdowncase (file), Fdowncase (newname)))))
     {
       Lisp_Object fname = (NILP (Ffile_directory_p (file))
 			   ? file : Fdirectory_file_name (file));
@@ -2252,14 +2346,12 @@ This is what happens in interactive use with M-x.  */)
   encoded_file = ENCODE_FILE (file);
   encoded_newname = ENCODE_FILE (newname);
 
-#ifdef DOS_NT
-  /* If the file names are identical but for the case, don't ask for
-     confirmation: they simply want to change the letter-case of the
-     file name.  */
-  if (NILP (Fstring_equal (Fdowncase (file), Fdowncase (newname))))
-#endif
-  if (NILP (ok_if_already_exists)
-      || INTEGERP (ok_if_already_exists))
+  /* If the filesystem is case-insensitive and the file names are
+     identical but for the case, don't ask for confirmation: they
+     simply want to change the letter-case of the file name.  */
+  if ((!(file_name_case_insensitive_p (SSDATA (encoded_file)))
+       || NILP (Fstring_equal (Fdowncase (file), Fdowncase (newname))))
+      && ((NILP (ok_if_already_exists) || INTEGERP (ok_if_already_exists))))
     barf_or_query_if_file_exists (newname, false, "rename to it",
 				  INTEGERP (ok_if_already_exists), false);
   if (rename (SSDATA (encoded_file), SSDATA (encoded_newname)) < 0)
@@ -3838,6 +3930,7 @@ by calling `format-decode', which see.  */)
       if (! giveup_match_end)
 	{
 	  ptrdiff_t temp;
+          ptrdiff_t this_count = SPECPDL_INDEX ();
 
 	  /* We win!  We can handle REPLACE the optimized way.  */
 
@@ -3867,13 +3960,19 @@ by calling `format-decode', which see.  */)
 	  beg_offset += same_at_start - BEGV_BYTE;
 	  end_offset -= ZV_BYTE - same_at_end;
 
-	  invalidate_buffer_caches (current_buffer,
-				    BYTE_TO_CHAR (same_at_start),
-				    same_at_end_charpos);
-	  del_range_byte (same_at_start, same_at_end, 0);
+          /* This binding is to avoid ask-user-about-supersession-threat
+	     being called in insert_from_buffer or del_range_bytes (via
+	     prepare_to_modify_buffer).
+             AFAICT we could avoid ask-user-about-supersession-threat by setting
+             current_buffer->modtime earlier, but we could still end up calling
+             ask-user-about-supersession-threat if the file is modified while
+             we read it, so we bind buffer-file-name instead.  */
+          specbind (intern ("buffer-file-name"), Qnil);
+	  del_range_byte (same_at_start, same_at_end);
 	  /* Insert from the file at the proper position.  */
 	  temp = BYTE_TO_CHAR (same_at_start);
 	  SET_PT_BOTH (temp, same_at_start);
+          unbind_to (this_count, Qnil);
 
 	  /* If display currently starts at beginning of line,
 	     keep it that way.  */
@@ -3978,10 +4077,9 @@ by calling `format-decode', which see.  */)
 	  /* Truncate the buffer to the size of the file.  */
 	  if (same_at_start != same_at_end)
 	    {
-	      invalidate_buffer_caches (current_buffer,
-					BYTE_TO_CHAR (same_at_start),
-					BYTE_TO_CHAR (same_at_end));
-	      del_range_byte (same_at_start, same_at_end, 0);
+              /* See previous specbind for the reason behind this.  */
+              specbind (intern ("buffer-file-name"), Qnil);
+	      del_range_byte (same_at_start, same_at_end);
 	    }
 	  inserted = 0;
 
@@ -4029,12 +4127,11 @@ by calling `format-decode', which see.  */)
 	 we are taking from the decoded string.  */
       inserted -= (ZV_BYTE - same_at_end) + (same_at_start - BEGV_BYTE);
 
+      /* See previous specbind for the reason behind this.  */
+      specbind (intern ("buffer-file-name"), Qnil);
       if (same_at_end != same_at_start)
 	{
-	  invalidate_buffer_caches (current_buffer,
-				    BYTE_TO_CHAR (same_at_start),
-				    same_at_end_charpos);
-	  del_range_byte (same_at_start, same_at_end, 0);
+	  del_range_byte (same_at_start, same_at_end);
 	  temp = GPT;
 	  eassert (same_at_start == GPT_BYTE);
 	  same_at_start = GPT_BYTE;
@@ -4055,10 +4152,6 @@ by calling `format-decode', which see.  */)
 				   same_at_start + inserted - BEGV_BYTE
 				  + BUF_BEG_BYTE (XBUFFER (conversion_buffer)))
 	   - same_at_start_charpos);
-      /* This binding is to avoid ask-user-about-supersession-threat
-	 being called in insert_from_buffer (via in
-	 prepare_to_modify_buffer).  */
-      specbind (intern ("buffer-file-name"), Qnil);
       insert_from_buffer (XBUFFER (conversion_buffer),
 			  same_at_start_charpos, inserted_chars, 0);
       /* Set `inserted' to the number of inserted characters.  */
@@ -4513,7 +4606,7 @@ by calling `format-decode', which see.  */)
                              PT - BEG, Z - PT - inserted);
 
   if (read_quit)
-    Fsignal (Qquit, Qnil);
+    quit ();
 
   /* Retval needs to be dealt with in all cases consistently.  */
   if (NILP (val))
@@ -4623,8 +4716,7 @@ choose_write_coding_system (Lisp_Object start, Lisp_Object end, Lisp_Object file
 	}
 
       /* If the decided coding-system doesn't specify end-of-line
-	 format, we use that of
-	 `default-buffer-file-coding-system'.  */
+	 format, we use that of `buffer-file-coding-system'.  */
       if (! using_default_coding)
 	{
 	  Lisp_Object dflt = BVAR (&buffer_defaults, buffer_file_coding_system);
@@ -4653,7 +4745,8 @@ DEFUN ("write-region", Fwrite_region, Swrite_region, 3, 7,
 When called from a program, requires three arguments:
 START, END and FILENAME.  START and END are normally buffer positions
 specifying the part of the buffer to write.
-If START is nil, that means to use the entire buffer contents.
+If START is nil, that means to use the entire buffer contents; END is
+ignored.
 If START is a string, then output that string to the file
 instead of any buffer contents; END is ignored.
 
@@ -5810,6 +5903,7 @@ syms_of_fileio (void)
   DEFSYM (Qmake_directory_internal, "make-directory-internal");
   DEFSYM (Qmake_directory, "make-directory");
   DEFSYM (Qdelete_file, "delete-file");
+  DEFSYM (Qfile_name_case_insensitive_p, "file-name-case-insensitive-p");
   DEFSYM (Qrename_file, "rename-file");
   DEFSYM (Qadd_name_to_file, "add-name-to-file");
   DEFSYM (Qmake_symbolic_link, "make-symbolic-link");
@@ -5848,6 +5942,7 @@ syms_of_fileio (void)
   DEFSYM (Qfile_error, "file-error");
   DEFSYM (Qfile_already_exists, "file-already-exists");
   DEFSYM (Qfile_date_error, "file-date-error");
+  DEFSYM (Qfile_missing, "file-missing");
   DEFSYM (Qfile_notify_error, "file-notify-error");
   DEFSYM (Qexcl, "excl");
 
@@ -5899,6 +5994,11 @@ behaves as if file names were encoded in `utf-8'.  */);
 	Fpurecopy (list3 (Qfile_date_error, Qfile_error, Qerror)));
   Fput (Qfile_date_error, Qerror_message,
 	build_pure_c_string ("Cannot set file date"));
+
+  Fput (Qfile_missing, Qerror_conditions,
+	Fpurecopy (list3 (Qfile_missing, Qfile_error, Qerror)));
+  Fput (Qfile_missing, Qerror_message,
+	build_pure_c_string ("File is missing"));
 
   Fput (Qfile_notify_error, Qerror_conditions,
 	Fpurecopy (list3 (Qfile_notify_error, Qfile_error, Qerror)));
@@ -6067,6 +6167,7 @@ This includes interactive calls to `delete-file' and
   defsubr (&Smake_directory_internal);
   defsubr (&Sdelete_directory_internal);
   defsubr (&Sdelete_file);
+  defsubr (&Sfile_name_case_insensitive_p);
   defsubr (&Srename_file);
   defsubr (&Sadd_name_to_file);
   defsubr (&Smake_symbolic_link);

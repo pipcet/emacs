@@ -1,4 +1,4 @@
-;;; faces.el --- Lisp faces
+;;; faces.el --- Lisp faces -*- lexical-binding: t -*-
 
 ;; Copyright (C) 1992-1996, 1998-2016 Free Software Foundation, Inc.
 
@@ -2470,6 +2470,14 @@ If you set `term-file-prefix' to nil, this function does nothing."
   :group 'basic-faces
   :version "22.1")
 
+(defface homoglyph
+  '((((background dark)) :foreground "cyan")
+    (((type pc)) :foreground "magenta")
+    (t :foreground "brown"))
+  "Face for lookalike characters."
+  :group 'basic-faces
+  :version "25.2")
+
 (defface nobreak-space
   '((((class color) (min-colors 88)) :inherit escape-glyph :underline t)
     (((class color) (min-colors 8)) :background "magenta")
@@ -2749,7 +2757,7 @@ It is used for characters of no fonts too."
 (defface read-multiple-choice-face
   '((t (:inherit underline
         :weight bold)))
-  "Face for the symbol name in Apropos output."
+  "Face for the symbol name in `read-multiple-choice' output."
   :group 'basic-faces
   :version "25.2")
 
@@ -2881,7 +2889,7 @@ also the same size as FACE on FRAME, or fail."
 			   pattern face)))
 	      (error "No fonts match `%s'" pattern)))
 	(car fonts))
-    (cdr (assq 'font (frame-parameters (selected-frame))))))
+    (frame-parameter nil 'font)))
 
 (defcustom font-list-limit 100
   "This variable is obsolete and has no effect."
