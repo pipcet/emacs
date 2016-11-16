@@ -41,6 +41,8 @@ along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.  */
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+#undef HAVE_SETRLIMIT
+
 #ifdef HAVE_SETRLIMIT
 # include <sys/resource.h>
 
@@ -7792,6 +7794,7 @@ catch_child_signal (void)
 void
 restore_nofile_limit (void)
 {
+#undef HAVE_SETRLIMIT
 #ifdef HAVE_SETRLIMIT
   if (FD_SETSIZE < nofile_limit.rlim_cur)
     setrlimit (RLIMIT_NOFILE, &nofile_limit);
@@ -7823,6 +7826,7 @@ init_process_emacs (int sockfd)
       catch_child_signal ();
     }
 
+#undef HAVE_SETRLIMIT
 #ifdef HAVE_SETRLIMIT
   /* Don't allocate more than FD_SETSIZE file descriptors for Emacs itself.  */
   if (getrlimit (RLIMIT_NOFILE, &nofile_limit) != 0)

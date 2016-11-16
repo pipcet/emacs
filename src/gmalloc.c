@@ -324,7 +324,7 @@ static void *(*__MALLOC_HOOK_VOLATILE gmalloc_hook) (size_t);
    used relaxed ref/def, so it is OK to define them here too.  */
 void (*__MALLOC_HOOK_VOLATILE __malloc_initialize_hook) (void);
 void (*__MALLOC_HOOK_VOLATILE __after_morecore_hook) (void);
-void *(*__morecore) (ptrdiff_t);
+extern void *(*__morecore) (ptrdiff_t);
 
 #ifndef HYBRID_MALLOC
 
@@ -1526,7 +1526,7 @@ gdefault_morecore (ptrdiff_t increment)
   return result;
 }
 
-void *(*__morecore) (ptrdiff_t) = gdefault_morecore;
+//void *(*__morecore) (ptrdiff_t) = gdefault_morecore;
 
 /* Copyright (C) 1991, 92, 93, 94, 95, 96 Free Software Foundation, Inc.
 
