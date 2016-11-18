@@ -411,7 +411,7 @@ unexec (const char *new_name, const char *old_name)
   new_bss_seg->p_filesz = new_bss_addr - new_bss_seg->p_vaddr;
   new_bss_seg->p_memsz = new_bss_seg->p_filesz;
 
-  __curbrk = new_break;
+  __curbrk = new_break + 4096;
   /* Copy over what we have in memory now for the bss area. */
   memcpy (new_base + new_data2_offset, (caddr_t) old_bss_addr,
 	  bss_size_growth);
