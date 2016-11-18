@@ -283,7 +283,7 @@ unexec (const char *new_name, const char *old_name)
   if (! (0 <= old_file_size && old_file_size <= SIZE_MAX))
     fatal ("File size out of range");
   /* We can't use malloc, but we can use sbrk, so let's do that instead. */
-  new_break = sbrk (0);
+  new_break = sbrk (0) + 4096;
   old_base = sbrk ((old_file_size + 4095) & -4096);
   //  old_base = mmap (NULL, old_file_size, PROT_READ | PROT_WRITE,
   //  MAP_ANON | MAP_PRIVATE, mmap_fd, 0);
@@ -309,7 +309,7 @@ unexec (const char *new_name, const char *old_name)
       ElfW (Phdr) *seg = &OLD_PROGRAM_H (n);
       if (((unsigned long)seg->p_vaddr & 0xc0000000) != 0)
         continue;
-      if (/* seg->p_type == PT_LOAD
+      if (seg->p_filesz > 0x40 && /* seg->p_type == PT_LOAD
              && */(old_bss_seg == 0
 	      || seg->p_vaddr > old_bss_seg->p_vaddr))
 	old_bss_seg = seg;

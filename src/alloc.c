@@ -5077,8 +5077,7 @@ valid_pointer_p (void *p)
   return w32_valid_pointer_p (p, 16);
 #else
 
-  if (ADDRESS_SANITIZER)
-    return p ? -1 : 0;
+  return p ? -1 : 0;
 
   int fd[2];
 

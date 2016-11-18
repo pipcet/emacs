@@ -546,7 +546,7 @@ ifeq ($(CANNOT_DUMP),yes)
 	ln -f temacs$(EXEEXT) $@
 else
 	LC_ALL=C $(RUN_TEMACS) -batch $(BUILD_DETAILS) -l loadup dump
-	$(PAXCTL_if_present) -zex $@
+#	$(PAXCTL_if_present) -zex $@
 	asmjs-virtual-asmjs-ld -T ../../../asmjs-virtual-asmjs/asmjs-virtual-asmjs/lib/ldscripts/asmjs.x $@ && cp a.out $@
 	ln -f $@ bootstrap-emacs$(EXEEXT)
 endif
@@ -755,7 +755,7 @@ ifeq ($(CANNOT_DUMP),yes)
 else
 	$(RUN_TEMACS) --batch $(BUILD_DETAILS) --load loadup bootstrap
 	asmjs-virtual-asmjs-ld -T ../../../asmjs-virtual-asmjs/asmjs-virtual-asmjs/lib/ldscripts/asmjs.x emacs$(EXEEXT) && cp a.out emacs$(EXEEXT)
-	$(PAXCTL_if_present) -zex emacs$(EXEEXT)
+#	$(PAXCTL_if_present) -zex emacs$(EXEEXT)
 	mv -f emacs$(EXEEXT) $@
 endif
 	@: Compile some files earlier to speed up further compilation.
