@@ -283,8 +283,8 @@ BUFFER can be a buffer or a buffer name.  */)
   return ! NILP (tem) ? Qt : Qnil;
 }
 
-DEFUN ("minibuffer-prompt-end", Fminibuffer_prompt_end,
-       Sminibuffer_prompt_end, 0, 0, 0,
+DEFUN ("minibuffer-prompt-end", Fminibuffer_prompt__end,
+       Sminibuffer_prompt__end, 0, 0, 0,
        doc: /* Return the buffer position of the end of the minibuffer prompt.
 Return (point-min) if current buffer is not a minibuffer.  */)
   (void)
@@ -311,7 +311,7 @@ DEFUN ("minibuffer-contents", Fminibuffer_contents,
 If the current buffer is not a minibuffer, return its entire contents.  */)
   (void)
 {
-  ptrdiff_t prompt_end = XINT (Fminibuffer_prompt_end ());
+  ptrdiff_t prompt_end = XINT (Fminibuffer_prompt__end ());
   return make_buffer_string (prompt_end, ZV, 1);
 }
 
@@ -321,7 +321,7 @@ DEFUN ("minibuffer-contents-no-properties", Fminibuffer_contents_no_properties,
 If the current buffer is not a minibuffer, return its entire contents.  */)
   (void)
 {
-  ptrdiff_t prompt_end = XINT (Fminibuffer_prompt_end ());
+  ptrdiff_t prompt_end = XINT (Fminibuffer_prompt__end ());
   return make_buffer_string (prompt_end, ZV, 0);
 }
 
@@ -332,7 +332,7 @@ That is what completion commands operate on.
 If the current buffer is not a minibuffer, return its entire contents.  */)
   (void)
 {
-  ptrdiff_t prompt_end = XINT (Fminibuffer_prompt_end ());
+  ptrdiff_t prompt_end = XINT (Fminibuffer_prompt__end ());
   if (PT < prompt_end)
     error ("Cannot do completion in the prompt");
   return make_buffer_string (prompt_end, PT, 1);
@@ -2092,7 +2092,7 @@ characters.  This variable should never be set globally.  */);
   defsubr (&Sminibuffer_prompt);
 
   defsubr (&Sminibufferp);
-  defsubr (&Sminibuffer_prompt_end);
+  defsubr (&Sminibuffer_prompt__end);
   defsubr (&Sminibuffer_contents);
   defsubr (&Sminibuffer_contents_no_properties);
   defsubr (&Sminibuffer_completion_contents);
