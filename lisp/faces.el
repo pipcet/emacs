@@ -108,7 +108,7 @@ a font height that isn't optimal."
      "Courier 10 Pitch"
      ;; This looks good on MS-Windows and OS X.
      "Consolas"
-     ;; This looks good on OS X.  "Courier" looks good too, but is
+     ;; This looks good on macOS.  "Courier" looks good too, but is
      ;; jagged on GNU/Linux and so is listed later as "courier".
      "Courier Std"
      ;; Although these are anti-aliased, they are a bit faint compared
@@ -2476,7 +2476,7 @@ If you set `term-file-prefix' to nil, this function does nothing."
     (t :foreground "brown"))
   "Face for lookalike characters."
   :group 'basic-faces
-  :version "25.2")
+  :version "26.1")
 
 (defface nobreak-space
   '((((class color) (min-colors 88)) :inherit escape-glyph :underline t)
@@ -2492,7 +2492,7 @@ If you set `term-file-prefix' to nil, this function does nothing."
     (t :foreground "brown"))
   "Face for displaying nobreak hyphens."
   :group 'basic-faces
-  :version "25.2")
+  :version "26.1")
 
 (defgroup mode-line-faces nil
   "Faces used in the mode line."
@@ -2759,7 +2759,7 @@ It is used for characters of no fonts too."
         :weight bold)))
   "Face for the symbol name in `read-multiple-choice' output."
   :group 'basic-faces
-  :version "25.2")
+  :version "26.1")
 
 ;; Faces for TTY menus.
 (defface tty-menu-enabled-face

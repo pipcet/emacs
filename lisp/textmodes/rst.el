@@ -277,7 +277,7 @@ in parentheses follows the development revision and the time stamp.")
     ("1.4.0" . "24.3")
     ("1.4.1" . "24.5")
     ("1.4.2" . "24.5")
-    ("1.5.0" . "25.2")
+    ("1.5.0" . "26.1")
     ))
 
 (unless (assoc rst-official-version rst-package-emacs-version-alist)
@@ -1227,7 +1227,7 @@ as well but give an additional message."
     ;;
     ;; The adjustment function that adorns or rotates a section title.
     (rst-define-key map [?\C-c ?\C-=] 'rst-adjust [?\C-c ?\C-a t])
-    (rst-define-key map [?\C-=] 'rst-adjust) ; Does not work on the Mac OSX and
+    (rst-define-key map [?\C-=] 'rst-adjust) ; Does not work on macOS and
 					     ; on consoles.
 
     ;; \C-c \C-a is the keymap for adornments.

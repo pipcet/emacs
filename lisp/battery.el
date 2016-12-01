@@ -22,10 +22,10 @@
 
 ;;; Commentary:
 
-;; There is at present support for GNU/Linux, OS X and Windows.  This
+;; There is at present support for GNU/Linux, macOS and Windows.  This
 ;; library supports both the `/proc/apm' file format of Linux version
 ;; 1.3.58 or newer and the `/proc/acpi/' directory structure of Linux
-;; 2.4.20 and 2.6.  Darwin (OS X) is supported by using the `pmset'
+;; 2.4.20 and 2.6.  Darwin (macOS) is supported by using the `pmset'
 ;; program.  Windows is supported by the GetSystemPowerStatus API call.
 
 ;;; Code:
@@ -41,7 +41,7 @@
 (defcustom battery-linux-sysfs-regexp "[bB][aA][tT][0-9]?$"
   "Regexp for folder names to be searched under
   /sys/class/power_supply/ that contain battery information."
-  :version "25.2"
+  :version "26.1"
   :type 'regexp
   :group 'battery)
 
@@ -604,7 +604,7 @@ The following %-sequences are provided:
 	  (cons ?t (or remaining-time "N/A")))))
 
 
-;;; `pmset' interface for Darwin (OS X).
+;;; `pmset' interface for Darwin (macOS).
 
 (defun battery-pmset ()
   "Get battery status information using `pmset'.

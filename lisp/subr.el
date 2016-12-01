@@ -1295,10 +1295,10 @@ be a list of the form returned by `event-start' and `event-end'."
 (make-obsolete 'buffer-has-markers-at nil "24.3")
 
 ;; bug#23850
-(make-obsolete 'string-to-unibyte   "use `encode-coding-string'." "25.2")
-(make-obsolete 'string-as-unibyte   "use `encode-coding-string'." "25.2")
-(make-obsolete 'string-to-multibyte "use `decode-coding-string'." "25.2")
-(make-obsolete 'string-as-multibyte "use `decode-coding-string'." "25.2")
+(make-obsolete 'string-to-unibyte   "use `encode-coding-string'." "26.1")
+(make-obsolete 'string-as-unibyte   "use `encode-coding-string'." "26.1")
+(make-obsolete 'string-to-multibyte "use `decode-coding-string'." "26.1")
+(make-obsolete 'string-as-multibyte "use `decode-coding-string'." "26.1")
 
 (defun log10 (x)
   "Return (log X 10), the log base 10 of X."
@@ -3334,6 +3334,11 @@ is allowed once again.  (Immediately, if `inhibit-quit' is nil.)"
 	   ;; call, and that might allow it to exit thru a condition-case
 	   ;; that intends to handle the quit signal next time.
 	   (eval '(ignore nil)))))
+
+;; Don't throw `throw-on-input' on those events by default.
+(setq while-no-input-ignore-events
+      '(focus-in focus-out help-echo iconify-frame
+        make-frame-visible selection-request))
 
 (defmacro while-no-input (&rest body)
   "Execute BODY only as long as there's no pending input.

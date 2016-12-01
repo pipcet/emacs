@@ -818,6 +818,8 @@ static void iterate_out_of_display_property (struct it *);
 static void pop_it (struct it *);
 static void redisplay_internal (void);
 static void echo_area_display (bool);
+static void block_buffer_flips (void);
+static void unblock_buffer_flips (void);
 static void redisplay_windows (Lisp_Object);
 static void redisplay_window (Lisp_Object, bool);
 static Lisp_Object redisplay_window_error (Lisp_Object);
@@ -14116,6 +14118,7 @@ redisplay_internal (void)
               if (f->updated_p)
                 {
 		  f->redisplay = false;
+		  f->garbaged = false;
                   mark_window_display_accurate (f->root_window, true);
                   if (FRAME_TERMINAL (f)->frame_up_to_date_hook)
                     FRAME_TERMINAL (f)->frame_up_to_date_hook (f);
@@ -14476,15 +14479,15 @@ disp_char_vector (struct Lisp_Char_Table *dp, int c)
 
 static int buffer_flip_blocked_depth;
 
-void
-block_buffer_flips(void)
+static void
+block_buffer_flips (void)
 {
   eassert (buffer_flip_blocked_depth >= 0);
   buffer_flip_blocked_depth++;
 }
 
-void
-unblock_buffer_flips(void)
+static void
+unblock_buffer_flips (void)
 {
   eassert (buffer_flip_blocked_depth > 0);
   if (--buffer_flip_blocked_depth == 0)
@@ -24565,7 +24568,7 @@ calc_pixel_width_or_height (double *res, struct it *it, Lisp_Object prop,
 	    }
 	  if (FRAME_WINDOW_P (it->f) && valid_xwidget_spec_p (prop))
 	    {
-              // TODO: Don't return dummy size.
+              /* TODO: Don't return dummy size.  */
               return OK_PIXELS (100);
             }
 #endif

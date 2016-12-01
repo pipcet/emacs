@@ -87,10 +87,6 @@ static timezone_t local_tz;
 static timezone_t wall_clock_tz;
 static timezone_t const utc_tz = 0;
 
-/* A valid but unlikely setting for the TZ environment variable.
-   It is OK (though a bit slower) if the user chooses this value.  */
-static char dump_tz_string[] = "TZ=UtC0";
-
 /* The cached value of Vsystem_name.  This is used only to compare it
    to Vsystem_name, so it need not be visible to the GC.  */
 static Lisp_Object cached_system_name;
@@ -230,6 +226,12 @@ tzlookup (Lisp_Object zone, bool settz)
 void
 init_editfns (bool dumping)
 {
+#if !defined CANNOT_DUMP && defined HAVE_TZSET
+  /* A valid but unlikely setting for the TZ environment variable.
+     It is OK (though a bit slower) if the user chooses this value.  */
+  static char dump_tz_string[] = "TZ=UtC0";
+#endif
+
   const char *user_name;
   register char *p;
   struct passwd *pw;	/* password entry for the current user */
@@ -1609,21 +1611,28 @@ time_arith (Lisp_Object a, Lisp_Object b,
 }
 
 DEFUN ("time-add", Ftime_add, Stime_add, 2, 2, 0,
-       doc: /* Return the sum of two time values A and B, as a time value.  */)
+       doc: /* Return the sum of two time values A and B, as a time value.
+A nil value for either argument stands for the current time.
+See `current-time-string' for the various forms of a time value.  */)
   (Lisp_Object a, Lisp_Object b)
 {
   return time_arith (a, b, time_add);
 }
 
 DEFUN ("time-subtract", Ftime_subtract, Stime_subtract, 2, 2, 0,
-       doc: /* Return the difference between two time values A and B, as a time value.  */)
+       doc: /* Return the difference between two time values A and B, as a time value.
+Use `float-time' to convert the difference into elapsed seconds.
+A nil value for either argument stands for the current time.
+See `current-time-string' for the various forms of a time value.  */)
   (Lisp_Object a, Lisp_Object b)
 {
   return time_arith (a, b, time_subtract);
 }
 
 DEFUN ("time-less-p", Ftime_less_p, Stime_less_p, 2, 2, 0,
-       doc: /* Return non-nil if time value T1 is earlier than time value T2.  */)
+       doc: /* Return non-nil if time value T1 is earlier than time value T2.
+A nil value for either argument stands for the current time.
+See `current-time-string' for the various forms of a time value.  */)
   (Lisp_Object t1, Lisp_Object t2)
 {
   int t1len, t2len;
@@ -2001,10 +2010,11 @@ emacs_nmemftime (char *s, size_t maxsize, const char *format,
 }
 
 DEFUN ("format-time-string", Fformat_time_string, Sformat_time_string, 1, 3, 0,
-       doc: /* Use FORMAT-STRING to format the time TIME, or now if omitted.
+       doc: /* Use FORMAT-STRING to format the time TIME, or now if omitted or nil.
 TIME is specified as (HIGH LOW USEC PSEC), as returned by
-`current-time' or `file-attributes'.  The obsolete form (HIGH . LOW)
-is also still accepted.
+`current-time' or `file-attributes'.  It can also be a single integer
+number of seconds since the epoch.  The obsolete form (HIGH . LOW) is
+also still accepted.
 
 The optional ZONE is omitted or nil for Emacs local time, t for
 Universal Time, `wall' for system wall clock time, or a string as in
@@ -2030,6 +2040,7 @@ by text that describes the specified date and time in TIME:
 %H is the hour on a 24-hour clock, %I is on a 12-hour clock, %k is like %H
  only blank-padded, %l is like %I blank-padded.
 %p is the locale's equivalent of either AM or PM.
+%q is the calendar quarter (1–4).
 %M is the minute.
 %S is the second.
 %N is the nanosecond, %6N the microsecond, %3N the millisecond, etc.
@@ -2127,7 +2138,8 @@ DEFUN ("decode-time", Fdecode_time, Sdecode_time, 0, 2, 0,
        doc: /* Decode a time value as (SEC MINUTE HOUR DAY MONTH YEAR DOW DST UTCOFF).
 The optional SPECIFIED-TIME should be a list of (HIGH LOW . IGNORED),
 as from `current-time' and `file-attributes', or nil to use the
-current time.  The obsolete form (HIGH . LOW) is also still accepted.
+current time.  It can also be a single integer number of seconds since
+the epoch.  The obsolete form (HIGH . LOW) is also still accepted.
 
 The optional ZONE is omitted or nil for Emacs local time, t for
 Universal Time, `wall' for system wall clock time, or a string as in
@@ -2253,8 +2265,9 @@ which provide a much more powerful and general facility.
 If SPECIFIED-TIME is given, it is a time to format instead of the
 current time.  The argument should have the form (HIGH LOW . IGNORED).
 Thus, you can use times obtained from `current-time' and from
-`file-attributes'.  SPECIFIED-TIME can also have the form (HIGH . LOW),
-but this is considered obsolete.
+`file-attributes'.  SPECIFIED-TIME can also be a single integer number
+of seconds since the epoch.  The obsolete form (HIGH . LOW) is also
+still accepted.
 
 The optional ZONE is omitted or nil for Emacs local time, t for
 Universal Time, `wall' for system wall clock time, or a string as in
@@ -2334,8 +2347,9 @@ NAME is a string giving the name of the time zone.
 If SPECIFIED-TIME is given, the time zone offset is determined from it
 instead of using the current time.  The argument should have the form
 \(HIGH LOW . IGNORED).  Thus, you can use times obtained from
-`current-time' and from `file-attributes'.  SPECIFIED-TIME can also
-have the form (HIGH . LOW), but this is considered obsolete.
+`current-time' and from `file-attributes'.  SPECIFIED-TIME can also be
+a single integer number of seconds since the epoch.  The obsolete form
+(HIGH . LOW) is also still accepted.
 
 The optional ZONE is omitted or nil for Emacs local time, t for
 Universal Time, `wall' for system wall clock time, or a string as in

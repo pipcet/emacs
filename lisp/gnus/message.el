@@ -1353,7 +1353,7 @@ If nil, you might be asked to input the charset."
   :type 'symbol)
 (make-obsolete-variable
  'message-default-charset
- "The default charset comes from the language environment" "25.2")
+ "The default charset comes from the language environment" "26.1")
 
 (defcustom message-dont-reply-to-names mail-dont-reply-to-names
   "Addresses to prune when doing wide replies.
@@ -1764,7 +1764,7 @@ no, only reply back to the author."
 
 (defcustom message-use-idna t
   "Whether to encode non-ASCII in domain names into ASCII according to IDNA."
-  :version "25.2"
+  :version "26.1"
   :group 'message-headers
   :link '(custom-manual "(message)IDNA")
   :type '(choice (const :tag "Ask" ask)

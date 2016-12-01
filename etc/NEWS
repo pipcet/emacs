@@ -64,6 +64,12 @@ affected by this, as SGI stopped supporting IRIX in December 2013.
 
 * Startup Changes in Emacs 26.1
 
+** New option '--new-daemon'.  This is the same as '--daemon', except
+it runs in the foreground and does not fork.  This is intended for
+modern init systems such as systemd, which manage many of the traditional
+aspects of daemon behavior themselves.  '--old-daemon' is now an alias
+for '--daemon'.
+
 
 * Changes in Emacs 26.1
 
@@ -253,6 +259,9 @@ debug.el and edebug.el have been updated to heed to this variable.
 roster of X keysyms.  It can be used in combination with another
 variable of this kind to swap modifiers in Emacs.
 
+---
+** New input methods: 'cyrillic-tuvan', 'polish-prefix'.
+
 
 * Editing Changes in Emacs 26.1
 
@@ -273,6 +282,24 @@ the file's actual content before prompting the user.
 
 
 * Changes in Specialized Modes and Packages in Emacs 26.1
+
+** Electric-Buffer-menu
+
++++
+*** Key 'U' is bound to 'Buffer-menu-unmark-all' and key 'M-DEL' is
+bound to 'Buffer-menu-unmark-all-buffers'.
+
+** bs
+
+---
+*** Two new commands 'bs-unmark-all', bound to 'U', and
+'bs-unmark-previous', bound to <backspace>.
+
+** Buffer-menu
+
++++
+*** Two new commands 'Buffer-menu-unmark-all', bound to 'U' and
+'Buffer-menu-unmark-all-buffers', bound to 'M-DEL'.
 
 ** Ibuffer
 
@@ -309,6 +336,12 @@ whose content matches a regexp; bound to '% g'.
 ** Browse-URL
 
 *** Support for opening links to man pages in Man or WoMan mode.
+
+** Comint
+
+---
+*** New user option 'comint-move-point-for-matching-input' to control
+where to place point after C-c M-r and C-c M-s.
 
 ** Compilation mode
 
@@ -547,7 +580,7 @@ variable.
 eval-current-buffer, string-to-int
 *** All the default-FOO variables that hold the default value of the
 FOO variable.  Use 'default-value' and 'setq-default' to access and
-change FOO, repectively.  The exhaustive list of removed variables is:
+change FOO, respectively.  The exhaustive list of removed variables is:
 'default-mode-line-format', 'default-header-line-format',
 'default-line-spacing', 'default-abbrev-mode', 'default-ctl-arrow',
 'default-truncate-lines', 'default-left-margin', 'default-tab-width',
@@ -576,6 +609,10 @@ function 'check-declare-errmsg' has been removed.
 
 
 * Lisp Changes in Emacs 26.1
+
+** New variable 'while-no-input-ignore-events' which allow
+setting which special events 'while-no-input' should ignore.
+It is a list of symbols.
 
 ** New function 'undo-amalgamate-change-group' to get rid of
 undo-boundaries between two states.
@@ -680,12 +717,19 @@ ABBR is a time zone abbreviation.  The affected functions are
 'current-time-string', 'current-time-zone', 'decode-time',
 'format-time-string', and 'set-time-zone-rule'.
 
++++
+** 'format-time-string' now formats "%q" to the calendar quarter.
+
 ** New built-in function 'mapcan' which avoids unnecessary consing (and garbage
 collection).
 
 +++
 ** The new functions 'make-nearby-temp-file' and 'temporary-file-directory'
 can be used for creation of temporary files of remote or mounted directories.
+
++++
+** The new function 'file-local-name' can be used to specify arguments
+of remote processes.
 
 +++
 ** The new error 'file-missing', a subcategory of 'file-error', is now

@@ -3718,7 +3718,7 @@ xpm_load (struct frame *f, struct image *img)
     }
 
 #ifdef USE_CAIRO
-  // Load very specific Xpm:s.
+  /* Load very specific Xpm:s.  */
   if (rc == XpmSuccess
       && img->ximg->format == ZPixmap
       && img->ximg->bits_per_pixel == 32
@@ -3742,7 +3742,7 @@ xpm_load (struct frame *f, struct image *img)
               int maskidx = mid ? i * img->mask_img->bytes_per_line + k/8 : 0;
               int mask = mid ? mid[maskidx] & (1 << (k % 8)) : 1;
 
-              if (mask) od[idx] = id[idx] + 0xff000000; // ff => full alpha
+              if (mask) od[idx] = id[idx] + 0xff000000; /* ff => full alpha */
               else od[idx] = bgcolor;
             }
         }
@@ -9776,6 +9776,8 @@ lookup_image_type (Lisp_Object type)
   return NULL;
 }
 
+#if !defined CANNOT_DUMP && defined HAVE_WINDOW_SYSTEM
+
 /* Reset image_types before dumping.
    Called from Fdump_emacs.  */
 
@@ -9789,6 +9791,7 @@ reset_image_types (void)
       image_types = next;
     }
 }
+#endif
 
 void
 syms_of_image (void)

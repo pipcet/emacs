@@ -91,7 +91,7 @@ Each element in `ibuffer-formats' should be a list containing COLUMN
 specifiers.  A COLUMN can be any of the following:
 
   SYMBOL - A symbol naming the column.  Predefined columns are:
-       mark modified read-only name size mode process filename
+       mark modified read-only locked name size mode process filename
    When you define your own columns using `define-ibuffer-column', just
    use their name like the predefined columns here.  This entry can
    also be a function of two arguments, which should return a string.
@@ -138,7 +138,7 @@ value for this variable would be
 
 Using \\[ibuffer-switch-format], you can rotate the display between
 the specified formats in the list."
-  :version "25.2"
+  :version "26.1"
   :type '(repeat sexp)
   :group 'ibuffer)
 
@@ -285,7 +285,7 @@ Note that this specialized filtering occurs before real filtering."
 
 (defcustom ibuffer-locked-char ?L
   "The character to display for locked buffers."
-  :version "25.2"
+  :version "26.1"
   :type 'character
   :group 'ibuffer)
 
@@ -1556,20 +1556,23 @@ If point is on a group name, this function operates on that group."
     (if (or elide (with-no-warnings ibuffer-elide-long-columns))
 	`(if (> strlen 5)
 	     ,(if from-end-p
+                  ;; FIXME: this should probably also be using
+                  ;; `truncate-string-to-width' (Bug#24972)
 		  `(concat ,ellipsis
 			   (substring ,strvar
-				      (length ibuffer-eliding-string)))
+				      (string-width ibuffer-eliding-string)))
 		`(concat
-		  (substring ,strvar 0 (- strlen ,(length ellipsis)))
-		  ,ellipsis))
+		  (truncate-string-to-width
+                   ,strvar (- strlen (string-width ,ellipsis)) nil ?.)
+                  ,ellipsis))
 	   ,strvar)
       strvar)))
 
 (defun ibuffer-compile-make-substring-form (strvar maxvar from-end-p)
   (if from-end-p
-      `(substring str
-		  (- strlen ,maxvar))
-    `(substring ,strvar 0 ,maxvar)))
+      ;; FIXME: not sure if this case is correct (Bug#24972)
+      `(truncate-string-to-width str strlen (- strlen ,maxvar) nil ?\s)
+    `(truncate-string-to-width ,strvar ,maxvar nil ?\s)))
 
 (defun ibuffer-compile-make-format-form (strvar widthform alignment)
   (let* ((left `(make-string tmp2 ?\s))
@@ -1638,7 +1641,7 @@ If point is on a group name, this function operates on that group."
 					    max
 					  'max)
 					from-end-p))
-				(setq strlen (length str))
+				(setq strlen (string-width str))
 				(setq str
 				      ,(ibuffer-compile-make-eliding-form
                                         'str elide from-end-p)))))
@@ -1696,7 +1699,7 @@ If point is on a group name, this function operates on that group."
 		      outforms)
 		     (push `(setq str ,callform
                                   ,@(when strlen-used
-                                      `(strlen (length str))))
+                                      `(strlen (string-width str))))
 			   outforms)
 		     (setq outforms
 			   (append outforms
@@ -1773,7 +1776,7 @@ If point is on a group name, this function operates on that group."
   '((((background dark)) (:foreground "RosyBrown"))
     (t (:foreground "brown4")))
   "*Face used for locked buffers in Ibuffer."
-  :version "25.2"
+  :version "26.1"
   :group 'ibuffer
   :group 'font-lock-highlighting-faces)
 (defvar ibuffer-locked-buffer 'ibuffer-locked-buffer)

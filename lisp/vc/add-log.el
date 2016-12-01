@@ -175,7 +175,7 @@ Note: The search is conducted only within 10%, at the beginning of the file."
   "List of files that cause `find-change-log' to stop in containing directory.
 This applies if no pre-existing ChangeLog is found.  If nil, then in such
 a case simply use the directory containing the changed file."
-  :version "25.2"
+  :version "26.1"
   :type '(repeat file)
   :group 'change-log)
 
@@ -579,7 +579,7 @@ If a string, interpret as the ZONE argument of `format-time-string'.")
      (lambda (x) (or (booleanp x) (stringp x))))
 
 (defun add-log-iso8601-time-zone (&optional time zone)
-  (declare (obsolete nil "25.2"))
+  (declare (obsolete nil "26.1"))
   (format-time-string "%:::z" time zone))
 
 (defvar add-log-iso8601-with-time-zone nil)
