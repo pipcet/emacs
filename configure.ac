@@ -724,6 +724,10 @@ case "${canonical}" in
     opsys=asmjs
   ;;
 
+  wasm32-*-* )
+    opsys=wasm32
+  ;;
+
   * )
     unported=yes
   ;;
@@ -1329,6 +1333,7 @@ case "$opsys" in
 esac
 case "${canonical}" in
   asmjs-*-*) REL_ALLOC=no ;;
+  wasm32-*-*) REL_ALLOC=no ;;
 esac
 
 if test "$CANNOT_DUMP" = "yes"; then
