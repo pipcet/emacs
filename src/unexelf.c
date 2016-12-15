@@ -309,7 +309,7 @@ unexec (const char *new_name, const char *old_name)
       ElfW (Phdr) *seg = &OLD_PROGRAM_H (n);
       if (((unsigned long)seg->p_vaddr & 0xc0000000) != 0)
         continue;
-      if (seg->p_filesz > 0x40 && /* seg->p_type == PT_LOAD
+      if (seg->p_filesz != 0x40 && /* seg->p_type == PT_LOAD
              && */(old_bss_seg == 0
 	      || seg->p_vaddr > old_bss_seg->p_vaddr))
 	old_bss_seg = seg;
