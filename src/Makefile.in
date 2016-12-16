@@ -547,7 +547,7 @@ ifeq ($(CANNOT_DUMP),yes)
 else
 	LC_ALL=C $(RUN_TEMACS) -batch $(BUILD_DETAILS) -l loadup dump
 #	$(PAXCTL_if_present) -zex $@
-	wasm32-virtual-wasm32-ld -T ../../../wasm32-virtual-wasm32/wasm32-virtual-wasm32/lib/ldscripts/wasm32.x $@ && cp a.out $@
+#	wasm32-virtual-wasm32-ld -T ../../../wasm32-virtual-wasm32/wasm32-virtual-wasm32/lib/ldscripts/wasm32.x $@ && cp a.out $@
 	ln -f $@ bootstrap-emacs$(EXEEXT)
 endif
 
@@ -754,7 +754,7 @@ ifeq ($(CANNOT_DUMP),yes)
 	ln -f temacs$(EXEEXT) $@
 else
 	$(RUN_TEMACS) --batch $(BUILD_DETAILS) --load loadup bootstrap
-	wasm32-virtual-wasm32-ld -T ../../../wasm32-virtual-wasm32/wasm32-virtual-wasm32/lib/ldscripts/wasm32.x emacs$(EXEEXT) && cp a.out emacs$(EXEEXT)
+#	wasm32-virtual-wasm32-ld -T ../../../wasm32-virtual-wasm32/wasm32-virtual-wasm32/lib/ldscripts/wasm32.x emacs$(EXEEXT) && cp a.out emacs$(EXEEXT)
 #	$(PAXCTL_if_present) -zex emacs$(EXEEXT)
 	mv -f emacs$(EXEEXT) $@
 endif
