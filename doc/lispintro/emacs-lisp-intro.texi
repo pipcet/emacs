@@ -113,7 +113,7 @@ Edition @value{edition-number}, @value{update-date}
 Distributed with Emacs version @value{EMACSVER}.
 @end ifnottex
 @sp 1
-Copyright @copyright{} 1990--1995, 1997, 2001--2016 Free Software
+Copyright @copyright{} 1990--1995, 1997, 2001--2017 Free Software
 Foundation, Inc.
 @sp 1
 
@@ -17151,9 +17151,11 @@ Here is another keybinding, with a comment:
 
 @findex occur
 The @code{occur} command shows all the lines in the current buffer
-that contain a match for a regular expression.  Matching lines are
-shown in a buffer called @file{*Occur*}.  That buffer serves as a menu
-to jump to occurrences.
+that contain a match for a regular expression.  When the region is
+active, @code{occur} restricts matches to such region.  Otherwise it
+uses the entire buffer.
+Matching lines are shown in a buffer called @file{*Occur*}.
+That buffer serves as a menu to jump to occurrences.
 
 @findex global-unset-key
 @cindex Unbinding key
@@ -17584,11 +17586,10 @@ file that set values:
 
 @group
 ;; Set calendar highlighting colors
-(add-hook 'calendar-load-hook
-      (lambda ()
-        (set-face-foreground 'diary-face   "skyblue")
-        (set-face-background 'holiday-face "slate blue")
-        (set-face-foreground 'holiday-face "white")))
+(with-eval-after-load 'calendar
+  (set-face-foreground 'diary   "skyblue")
+  (set-face-background 'holiday "slate blue")
+  (set-face-foreground 'holiday "white"))
 @end group
 @end smallexample
 

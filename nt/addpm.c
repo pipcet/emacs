@@ -1,5 +1,5 @@
 /* Add entries to the GNU Emacs Program Manager folder.
-   Copyright (C) 1995, 2001-2016 Free Software Foundation, Inc.
+   Copyright (C) 1995, 2001-2017 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -53,6 +53,9 @@ along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.  */
 #include "../src/epaths.h"
 #endif
 
+HDDEDATA CALLBACK DdeCallback (UINT, UINT, HCONV, HSZ, HSZ, HDDEDATA, DWORD,
+			       DWORD);
+
 HDDEDATA CALLBACK
 DdeCallback (UINT uType, UINT uFmt, HCONV hconv,
 	     HSZ hsz1, HSZ hsz2, HDDEDATA hdata,
@@ -101,7 +104,7 @@ env_vars[] =
 #endif
 };
 
-void
+static void
 add_registry (const char *path)
 {
   HKEY hrootkey = NULL;

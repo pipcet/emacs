@@ -1,4 +1,4 @@
-/* Copyright (C) 1995, 2001-2016 Free Software Foundation, Inc.
+/* Copyright (C) 1995, 2001-2017 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -53,6 +53,7 @@ along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.  */
 #include <ws2tcpip.h>
 /* process.c uses uint16_t (from C99) for IPv6, but
    apparently it is not defined in some versions of mingw and msvc.  */
+#include <stdint.h>
 #ifndef UINT16_C
 typedef unsigned short uint16_t;
 #endif

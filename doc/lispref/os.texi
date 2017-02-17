@@ -1,6 +1,6 @@
 @c -*-texinfo-*-
 @c This is part of the GNU Emacs Lisp Reference Manual.
-@c Copyright (C) 1990-1995, 1998-1999, 2001-2016 Free Software
+@c Copyright (C) 1990-1995, 1998-1999, 2001-2017 Free Software
 @c Foundation, Inc.
 @c See the file elisp.texi for copying conditions.
 @node System Interface
@@ -940,9 +940,7 @@ string.
 If this variable is non-@code{nil}, it is used instead of
 @code{system-name} for purposes of generating email addresses.  For
 example, it is used when constructing the default value of
-@code{user-mail-address}.  @xref{User Identification}.  (Since this is
-done when Emacs starts up, the value actually used is the one saved when
-Emacs was dumped.  @xref{Building Emacs}.)
+@code{user-mail-address}.  @xref{User Identification}.
 @c FIXME sounds like should probably give this a :set-after and some
 @c custom-initialize-delay voodoo.
 @end defopt
@@ -1057,8 +1055,9 @@ value is a string, and does not include a directory name.
 @end defvar
 
 @defvar invocation-directory
-This variable holds the directory from which the Emacs executable was
-invoked, or @code{nil} if that directory cannot be determined.
+This variable holds the directory in which the Emacs executable was
+located when it was run, or @code{nil} if that directory cannot be
+determined.
 @end defvar
 
 @defvar installation-directory
@@ -1134,11 +1133,7 @@ not load any customization files or user profile.
 @end defvar
 
 @defopt user-mail-address
-This holds the nominal email address of the user who is using Emacs.
-Emacs normally sets this variable to a default value after reading your
-init files, but not if you have already set it.  So you can set the
-variable to some other value in your init file if you do not
-want to use the default value.
+This holds the email address of the user who is using Emacs.
 @end defopt
 
 @defun user-login-name &optional uid
@@ -1501,6 +1496,12 @@ This stands for the day of month, zero-padded.
 This is a synonym for @samp{%m/%d/%y}.
 @item %e
 This stands for the day of month, blank-padded.
+@item %F
+This stands for the ISO 8601 date format, i.e., @samp{"%Y-%m-%d"}.
+@item %g
+This stands for the year corresponding to the ISO week within the century.
+@item %G
+This stands for the year corresponding to the ISO week.
 @item %h
 This is a synonym for @samp{%b}.
 @item %H
@@ -1537,9 +1538,13 @@ This stands for the seconds (00--59).
 This stands for a tab character.
 @item %T
 This is a synonym for @samp{%H:%M:%S}.
+@item %u
+This stands for the numeric day of week (1--7).  Monday is day 1.
 @item %U
 This stands for the week of the year (01--52), assuming that weeks
 start on Sunday.
+@item %V
+This stands for the week of the year according to ISO 8601.
 @item %w
 This stands for the numeric day of week (0--6).  Sunday is day 0.
 @item %W

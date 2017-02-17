@@ -1,6 +1,6 @@
 @c -*- mode: texinfo; coding: utf-8 -*-
 @c This is part of the GNU Emacs Lisp Reference Manual.
-@c Copyright (C) 1990-1995, 1998-1999, 2001-2016 Free Software
+@c Copyright (C) 1990-1995, 1998-1999, 2001-2017 Free Software
 @c Foundation, Inc.
 @c See the file elisp.texi for copying conditions.
 @node Strings and Characters
@@ -506,20 +506,6 @@ behaves like @code{string-equal}.
 Do @emph{not} use this function to compare file names for equality, as
 filesystems generally don't honor linguistic equivalence of strings
 that collation implements.
-@end defun
-
-@defun string-prefix-p string1 string2 &optional ignore-case
-This function returns non-@code{nil} if @var{string1} is a prefix of
-@var{string2}; i.e., if @var{string2} starts with @var{string1}.  If
-the optional argument @var{ignore-case} is non-@code{nil}, the
-comparison ignores case differences.
-@end defun
-
-@defun string-suffix-p suffix string &optional ignore-case
-This function returns non-@code{nil} if @var{suffix} is a suffix of
-@var{string}; i.e., if @var{string} ends with @var{suffix}.  If the
-optional argument @var{ignore-case} is non-@code{nil}, the comparison
-ignores case differences.
 @end defun
 
 @cindex lexical comparison of strings

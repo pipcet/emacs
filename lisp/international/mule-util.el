@@ -1,6 +1,6 @@
 ;;; mule-util.el --- utility functions for multilingual environment (mule)  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1997-1998, 2000-2016 Free Software Foundation, Inc.
+;; Copyright (C) 1997-1998, 2000-2017 Free Software Foundation, Inc.
 ;; Copyright (C) 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004,
 ;;   2005, 2006, 2007, 2008, 2009, 2010, 2011
 ;;   National Institute of Advanced Industrial Science and Technology (AIST)
@@ -31,16 +31,6 @@
 ;;; Code:
 
 ;;; String manipulations while paying attention to multibyte characters.
-
-;;;###autoload
-(defsubst string-to-list (string)
-  "Return a list of characters in STRING."
-  (append string nil))
-
-;;;###autoload
-(defsubst string-to-vector (string)
-  "Return a vector of characters in STRING."
-  (vconcat string))
 
 ;;;###autoload
 (defun store-substring (string idx obj)

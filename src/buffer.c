@@ -1,6 +1,6 @@
 /* Buffer manipulation primitives for GNU Emacs.
 
-Copyright (C) 1985-1989, 1993-1995, 1997-2016 Free Software Foundation,
+Copyright (C) 1985-1989, 1993-1995, 1997-2017 Free Software Foundation,
 Inc.
 
 This file is part of GNU Emacs.
@@ -32,6 +32,7 @@ along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.  */
 
 #include "lisp.h"
 #include "intervals.h"
+#include "process.h"
 #include "systime.h"
 #include "window.h"
 #include "commands.h"
@@ -47,8 +48,6 @@ along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.  */
 #ifdef WINDOWSNT
 #include "w32heap.h"		/* for mmap_* */
 #endif
-
-struct buffer *current_buffer;		/* The current buffer.  */
 
 /* First buffer in chain of all buffers (in reverse order of creation).
    Threaded through ->header.next.buffer.  */
@@ -416,19 +415,16 @@ followed by the rest of the buffers.  */)
 }
 
 /* Like Fassoc, but use Fstring_equal to compare
-   (which ignores text properties),
-   and don't ever QUIT.  */
+   (which ignores text properties), and don't ever quit.  */
 
 static Lisp_Object
-assoc_ignore_text_properties (register Lisp_Object key, Lisp_Object list)
+assoc_ignore_text_properties (Lisp_Object key, Lisp_Object list)
 {
-  register Lisp_Object tail;
+  Lisp_Object tail;
   for (tail = list; CONSP (tail); tail = XCDR (tail))
     {
-      register Lisp_Object elt, tem;
-      elt = XCAR (tail);
-      tem = Fstring_equal (Fcar (elt), key);
-      if (!NILP (tem))
+      Lisp_Object elt = XCAR (tail);
+      if (!NILP (Fstring_equal (Fcar (elt), key)))
 	return elt;
     }
   return Qnil;
@@ -984,40 +980,54 @@ reset_buffer_local_variables (struct buffer *b, bool permanent_too)
     bset_local_var_alist (b, Qnil);
   else
     {
-      Lisp_Object tmp, prop, last = Qnil;
+      Lisp_Object tmp, last = Qnil;
       for (tmp = BVAR (b, local_var_alist); CONSP (tmp); tmp = XCDR (tmp))
-	if (!NILP (prop = Fget (XCAR (XCAR (tmp)), Qpermanent_local)))
-	  {
-	    /* If permanent-local, keep it.  */
-	    last = tmp;
-	    if (EQ (prop, Qpermanent_local_hook))
-	      {
-		/* This is a partially permanent hook variable.
-		   Preserve only the elements that want to be preserved.  */
-		Lisp_Object list, newlist;
-		list = XCDR (XCAR (tmp));
-		if (!CONSP (list))
-		  newlist = list;
-		else
-		  for (newlist = Qnil; CONSP (list); list = XCDR (list))
-		    {
-		      Lisp_Object elt = XCAR (list);
-		      /* Preserve element ELT if it's t,
-			 if it is a function with a `permanent-local-hook' property,
-			 or if it's not a symbol.  */
-		      if (! SYMBOLP (elt)
-			  || EQ (elt, Qt)
-			  || !NILP (Fget (elt, Qpermanent_local_hook)))
-			newlist = Fcons (elt, newlist);
-		    }
-		XSETCDR (XCAR (tmp), Fnreverse (newlist));
-	      }
-	  }
-	/* Delete this local variable.  */
-	else if (NILP (last))
-	  bset_local_var_alist (b, XCDR (tmp));
-	else
-	  XSETCDR (last, XCDR (tmp));
+        {
+          Lisp_Object local_var = XCAR (XCAR (tmp));
+          Lisp_Object prop = Fget (local_var, Qpermanent_local);
+
+          if (!NILP (prop))
+            {
+              /* If permanent-local, keep it.  */
+              last = tmp;
+              if (EQ (prop, Qpermanent_local_hook))
+                {
+                  /* This is a partially permanent hook variable.
+                     Preserve only the elements that want to be preserved.  */
+                  Lisp_Object list, newlist;
+                  list = XCDR (XCAR (tmp));
+                  if (!CONSP (list))
+                    newlist = list;
+                  else
+                    for (newlist = Qnil; CONSP (list); list = XCDR (list))
+                      {
+                        Lisp_Object elt = XCAR (list);
+                        /* Preserve element ELT if it's t,
+                           if it is a function with a `permanent-local-hook' property,
+                           or if it's not a symbol.  */
+                        if (! SYMBOLP (elt)
+                            || EQ (elt, Qt)
+                            || !NILP (Fget (elt, Qpermanent_local_hook)))
+                          newlist = Fcons (elt, newlist);
+                      }
+                  newlist = Fnreverse (newlist);
+                  if (XSYMBOL (local_var)->trapped_write == SYMBOL_TRAPPED_WRITE)
+                    notify_variable_watchers (local_var, newlist,
+                                              Qmakunbound, Fcurrent_buffer ());
+                  XSETCDR (XCAR (tmp), newlist);
+                  continue; /* Don't do variable write trapping twice.  */
+                }
+            }
+          /* Delete this local variable.  */
+          else if (NILP (last))
+            bset_local_var_alist (b, XCDR (tmp));
+          else
+            XSETCDR (last, XCDR (tmp));
+
+          if (XSYMBOL (local_var)->trapped_write == SYMBOL_TRAPPED_WRITE)
+            notify_variable_watchers (local_var, Qnil,
+                                      Qmakunbound, Fcurrent_buffer ());
+        }
     }
 
   for (i = 0; i < last_per_buffer_idx; ++i)
@@ -1640,6 +1650,9 @@ cleaning up all windows currently displaying the buffer to be killed. */)
   if (!BUFFER_LIVE_P (b))
     return Qnil;
 
+  if (thread_check_current_buffer (b))
+    return Qnil;
+
   /* Run hooks with the buffer to be killed the current buffer.  */
   {
     ptrdiff_t count = SPECPDL_INDEX ();
@@ -2018,9 +2031,6 @@ DEFUN ("current-buffer", Fcurrent_buffer, Scurrent_buffer, 0, 0, 0,
 void
 set_buffer_internal_1 (register struct buffer *b)
 {
-  register struct buffer *old_buf;
-  register Lisp_Object tail;
-
 #ifdef USE_MMAP_FOR_BUFFERS
   if (b->text->beg == NULL)
     enlarge_buffer_text (b, 0);
@@ -2028,6 +2038,17 @@ set_buffer_internal_1 (register struct buffer *b)
 
   if (current_buffer == b)
     return;
+
+  set_buffer_internal_2 (b);
+}
+
+/* Like set_buffer_internal_1, but doesn't check whether B is already
+   the current buffer.  Called upon switch of the current thread, see
+   post_acquire_global_lock.  */
+void set_buffer_internal_2 (register struct buffer *b)
+{
+  register struct buffer *old_buf;
+  register Lisp_Object tail;
 
   BUFFER_CHECK_INDIRECTION (b);
 
@@ -5541,7 +5562,7 @@ file I/O and the behavior of various editing commands.
 This variable is buffer-local but you cannot set it directly;
 use the function `set-buffer-multibyte' to change a buffer's representation.
 See also Info node `(elisp)Text Representations'.  */);
-  XSYMBOL (intern_c_string ("enable-multibyte-characters"))->constant = 1;
+  make_symbol_constant (intern_c_string ("enable-multibyte-characters"));
 
   DEFVAR_PER_BUFFER ("buffer-file-coding-system",
 		     &BVAR (current_buffer, buffer_file_coding_system), Qnil,

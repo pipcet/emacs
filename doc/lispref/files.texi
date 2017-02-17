@@ -1,6 +1,6 @@
 @c -*-texinfo-*-
 @c This is part of the GNU Emacs Lisp Reference Manual.
-@c Copyright (C) 1990-1995, 1998-1999, 2001-2016 Free Software
+@c Copyright (C) 1990-1995, 1998-1999, 2001-2017 Free Software
 @c Foundation, Inc.
 @c See the file elisp.texi for copying conditions.
 @node Files
@@ -368,17 +368,21 @@ asks the user about each buffer.  But if @var{save-silently-p} is
 non-@code{nil}, it saves all the file-visiting buffers without querying
 the user.
 
-The optional @var{pred} argument controls which buffers to ask about
-(or to save silently if @var{save-silently-p} is non-@code{nil}).
-If it is @code{nil}, that means to ask only about file-visiting buffers.
-If it is @code{t}, that means also offer to save certain other non-file
-buffers---those that have a non-@code{nil} buffer-local value of
-@code{buffer-offer-save} (@pxref{Killing Buffers}).  A user who says
-@samp{yes} to saving a non-file buffer is asked to specify the file
-name to use.  The @code{save-buffers-kill-emacs} function passes the
-value @code{t} for @var{pred}.
+@vindex save-some-buffers-default-predicate
+The optional @var{pred} argument provides a predicate that controls
+which buffers to ask about (or to save silently if
+@var{save-silently-p} is non-@code{nil}).  If @var{pred} is
+@code{nil}, that means to use the value of
+@code{save-some-buffers-default-predicate} instead of @var{pred}.  If
+the result is @code{nil}, it means ask only about file-visiting
+buffers.  If it is @code{t}, that means also offer to save certain
+other non-file buffers---those that have a non-@code{nil} buffer-local
+value of @code{buffer-offer-save} (@pxref{Killing Buffers}).  A user
+who says @samp{yes} to saving a non-file buffer is asked to specify
+the file name to use.  The @code{save-buffers-kill-emacs} function
+passes the value @code{t} for @var{pred}.
 
-If @var{pred} is neither @code{t} nor @code{nil}, then it should be
+If the predicate is neither @code{t} nor @code{nil}, then it should be
 a function of no arguments.  It will be called in each buffer to decide
 whether to offer to save that buffer.  If it returns a non-@code{nil}
 value in a certain buffer, that means do offer to save that buffer.
@@ -2217,6 +2221,7 @@ function:
 
 @cindex file name abbreviations
 @cindex abbreviated file names
+@vindex directory-abbrev-alist
 @defun abbreviate-file-name filename
 @anchor{abbreviate-file-name}
 This function returns an abbreviated form of @var{filename}.  It
@@ -2400,6 +2405,47 @@ through the immediately preceding @samp{/}).
 @end example
 
 @end defun
+
+  Sometimes, it is not desired to expand file names.  In such cases,
+the file name can be quoted to suppress the expansion, and to handle
+the file name literally.  Quoting happens by prefixing the file name
+with @samp{/:}.
+
+@defmac file-name-quote name
+This macro adds the quotation prefix @samp{/:} to the file @var{name}.
+For a local file @var{name}, it prefixes @var{name} with @samp{/:}.
+If @var{name} is a remote file name, the local part of @var{name} is
+quoted.  If @var{name} is already a quoted file name, @var{name} is
+returned unchanged.
+
+@example
+@group
+(substitute-in-file-name (file-name-quote "bar/~/foo"))
+     @result{} "/:bar/~/foo"
+@end group
+
+@group
+(substitute-in-file-name (file-name-quote "/ssh:host:bar/~/foo"))
+     @result{} "/ssh:host:/:bar/~/foo"
+@end group
+@end example
+
+The macro cannot be used to suppress file name handlers from magic
+file names (@pxref{Magic File Names}).
+@end defmac
+
+@defmac file-name-unquote name
+This macro removes the quotation prefix @samp{/:} from the file
+@var{name}, if any. If @var{name} is a remote file name, the local
+part of @var{name} is unquoted.
+@end defmac
+
+@defmac file-name-quoted-p name
+This macro returns non-@code{nil}, when @var{name} is quoted with the
+prefix @samp{/:}.  If @var{name} is a remote file name, the local part
+of @var{name} is checked.
+@end defmac
+
 
 @node Unique File Names
 @subsection Generating Unique File Names
@@ -2995,6 +3041,7 @@ first, before handlers for jobs such as remote file access.
 @code{file-local-copy},
 @code{file-modes}, @code{file-name-all-completions},
 @code{file-name-as-directory},
+@code{file-name-case-insensitive-p},
 @code{file-name-completion},
 @code{file-name-directory},
 @code{file-name-nondirectory},
@@ -3005,8 +3052,7 @@ first, before handlers for jobs such as remote file access.
 @code{file-readable-p}, @code{file-regular-p},
 @code{file-remote-p}, @code{file-selinux-context},
 @code{file-symlink-p}, @code{file-truename}, @code{file-writable-p},
-@code{find-backup-file-name},
-@c Not sure why it was here:   @code{find-file-noselect},@*
+@code{find-backup-file-name},@*
 @code{get-file-buffer},
 @code{insert-directory},
 @code{insert-file-contents},@*
@@ -3051,6 +3097,7 @@ first, before handlers for jobs such as remote file access.
 @code{file-local-copy},
 @code{file-modes}, @code{file-name-all-completions},
 @code{file-name-as-directory},
+@code{file-name-case-insensitive-p},
 @code{file-name-completion},
 @code{file-name-directory},
 @code{file-name-nondirec@discretionary{}{}{}tory},
@@ -3062,7 +3109,6 @@ first, before handlers for jobs such as remote file access.
 @code{file-remote-p}, @code{file-selinux-context},
 @code{file-symlink-p}, @code{file-truename}, @code{file-writable-p},
 @code{find-backup-file-name},
-@c Not sure why it was here:   @code{find-file-noselect},
 @code{get-file-buffer},
 @code{insert-directory},
 @code{insert-file-contents},

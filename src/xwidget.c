@@ -1,6 +1,6 @@
 /* Support for embedding graphical components in a buffer.
 
-Copyright (C) 2011-2016 Free Software Foundation, Inc.
+Copyright (C) 2011-2017 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -301,13 +301,13 @@ webkit_js_to_lisp (JSContextRef context, JSValueRef value)
           {
             JSStringRef pname = JSStringCreateWithUTF8CString("length");
             JSValueRef len = JSObjectGetProperty (context, (JSObjectRef) value, pname, NULL);
-            int n = JSValueToNumber (context, len, NULL);
+            EMACS_INT n = JSValueToNumber (context, len, NULL);
             JSStringRelease(pname);
 
             Lisp_Object obj;
             struct Lisp_Vector *p = allocate_vector (n);
 
-            for (int i = 0; i < n; ++i)
+            for (ptrdiff_t i = 0; i < n; ++i)
               {
                 p->contents[i] =
                   webkit_js_to_lisp (context,
@@ -323,13 +323,13 @@ webkit_js_to_lisp (JSContextRef context, JSValueRef value)
             JSPropertyNameArrayRef properties =
               JSObjectCopyPropertyNames (context, (JSObjectRef) value);
 
-            int n = JSPropertyNameArrayGetCount (properties);
+            ptrdiff_t n = JSPropertyNameArrayGetCount (properties);
             Lisp_Object obj;
 
             /* TODO: can we use a regular list here?  */
             struct Lisp_Vector *p = allocate_vector (n);
 
-            for (int i = 0; i < n; ++i)
+            for (ptrdiff_t i = 0; i < n; ++i)
               {
                 JSStringRef name = JSPropertyNameArrayGetNameAtIndex (properties, i);
                 JSValueRef property = JSObjectGetProperty (context,
@@ -711,7 +711,7 @@ argument procedure FUN.*/)
 {
   WEBKIT_FN_INIT ();
   CHECK_STRING (script);
-  if (!NILP (fun) && (!FUNCTIONP (fun)))
+  if (!NILP (fun) && !FUNCTIONP (fun))
     wrong_type_argument (Qinvalid_function, fun);
 
   void *callback = (FUNCTIONP (fun)) ?
@@ -733,8 +733,8 @@ DEFUN ("xwidget-resize", Fxwidget_resize, Sxwidget_resize, 3, 3, 0,
   (Lisp_Object xwidget, Lisp_Object new_width, Lisp_Object new_height)
 {
   CHECK_XWIDGET (xwidget);
-  CHECK_NATNUM (new_width);
-  CHECK_NATNUM (new_height);
+  CHECK_RANGED_INTEGER (new_width, 0, INT_MAX);
+  CHECK_RANGED_INTEGER (new_height, 0, INT_MAX);
   struct xwidget *xw = XXWIDGET (xwidget);
   int w = XFASTINT (new_width);
   int h = XFASTINT (new_height);

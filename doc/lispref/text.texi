@@ -1,6 +1,6 @@
 @c -*-texinfo-*-
 @c This is part of the GNU Emacs Lisp Reference Manual.
-@c Copyright (C) 1990-1995, 1998-2016 Free Software Foundation, Inc.
+@c Copyright (C) 1990-1995, 1998-2017 Free Software Foundation, Inc.
 @c See the file elisp.texi for copying conditions.
 @node Text
 @chapter Text
@@ -1647,6 +1647,13 @@ with a double space but without a period.
 @defopt sentence-end-without-space
 If this variable is non-@code{nil}, it should be a string of
 characters that can end a sentence without following spaces.
+@end defopt
+
+@defopt fill-separate-heterogeneous-words-with-space
+If this variable is non-@code{nil}, two words of different kind (e.g.,
+English and CJK) will be separated with a space when concatenating one
+that is in the end of a line and the other that is in the beginning of
+the next line for filling.
 @end defopt
 
 @defvar fill-paragraph-function

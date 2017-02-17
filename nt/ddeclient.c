@@ -1,5 +1,5 @@
 /* Simple client interface to DDE servers.
-   Copyright (C) 1998, 2001-2016 Free Software Foundation, Inc.
+   Copyright (C) 1998, 2001-2017 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -20,6 +20,9 @@ along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.  */
 #include <ddeml.h>
 #include <stdlib.h>
 #include <stdio.h>
+
+HDDEDATA CALLBACK DdeCallback (UINT, UINT, HCONV, HSZ, HSZ, HDDEDATA, DWORD,
+			       DWORD);
 
 HDDEDATA CALLBACK
 DdeCallback (UINT uType, UINT uFmt, HCONV hconv,

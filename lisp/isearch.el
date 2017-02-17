@@ -1,6 +1,6 @@
 ;;; isearch.el --- incremental search minor mode -*- lexical-binding: t -*-
 
-;; Copyright (C) 1992-1997, 1999-2016 Free Software Foundation, Inc.
+;; Copyright (C) 1992-1997, 1999-2017 Free Software Foundation, Inc.
 
 ;; Author: Daniel LaLiberte <liberte@cs.uiuc.edu>
 ;; Maintainer: emacs-devel@gnu.org
@@ -638,6 +638,9 @@ Each element is an `isearch--state' struct where the slots are
 ;; Should isearch be terminated after doing one search?
 (defvar isearch-nonincremental nil)
 
+;; New value of isearch-nonincremental after isearch-edit-string.
+(defvar isearch-new-nonincremental nil)
+
 ;; New value of isearch-forward after isearch-edit-string.
 (defvar isearch-new-forward nil)
 
@@ -1228,7 +1231,7 @@ If this is set inside code wrapped by the macro
   "Exit Isearch mode, run BODY, and reinvoke the pending search.
 You can update the global isearch variables by setting new values to
 `isearch-new-string', `isearch-new-message', `isearch-new-forward',
-`isearch-new-regexp-function', `isearch-new-case-fold'."
+`isearch-new-regexp-function', `isearch-new-case-fold', `isearch-new-nonincremental'."
   ;; This code is very hairy for several reasons, explained in the code.
   ;; Mainly, isearch-mode must be terminated while editing and then restarted.
   ;; If there were a way to catch any change of buffer from the minibuffer,
@@ -1236,7 +1239,7 @@ You can update the global isearch variables by setting new values to
   ;; Editing doesn't back up the search point.  Should it?
   `(condition-case nil
       (progn
-	(let ((isearch-nonincremental isearch-nonincremental)
+	(let ((isearch-new-nonincremental isearch-nonincremental)
 
 	      ;; Locally bind all isearch global variables to protect them
 	      ;; from recursive isearching.
@@ -1315,6 +1318,7 @@ You can update the global isearch variables by setting new values to
 	    (setq isearch-string isearch-new-string
 		  isearch-message isearch-new-message
 		  isearch-forward isearch-new-forward
+		  isearch-nonincremental isearch-new-nonincremental
 		  isearch-regexp-function isearch-new-regexp-function
 		  isearch-case-fold-search isearch-new-case-fold
 		  multi-isearch-current-buffer multi-isearch-current-buffer-new
@@ -1405,22 +1409,22 @@ The following additional command keys are active while editing.
 
 (defun isearch-nonincremental-exit-minibuffer ()
   (interactive)
-  (setq isearch-nonincremental t)
+  (setq isearch-new-nonincremental t)
   (exit-minibuffer))
-;; Changing the value of `isearch-nonincremental' has no effect here,
-;; because `isearch-edit-string' ignores this change.  Thus marked as obsolete.
+;; It makes no sense to change the value of `isearch-new-nonincremental'
+;; from nil to t during `isearch-edit-string'.   Thus marked as obsolete.
 (make-obsolete 'isearch-nonincremental-exit-minibuffer 'exit-minibuffer "24.4")
 
 (defun isearch-forward-exit-minibuffer ()
   "Resume isearching forward from the minibuffer that edits the search string."
   (interactive)
-  (setq isearch-new-forward t)
+  (setq isearch-new-forward t isearch-new-nonincremental nil)
   (exit-minibuffer))
 
 (defun isearch-reverse-exit-minibuffer ()
   "Resume isearching backward from the minibuffer that edits the search string."
   (interactive)
-  (setq isearch-new-forward nil)
+  (setq isearch-new-forward nil isearch-new-nonincremental nil)
   (exit-minibuffer))
 
 (defun isearch-cancel ()
@@ -1621,7 +1625,7 @@ Used in `word-search-forward', `word-search-backward',
    ((string-match-p "\\`\\W+\\'" string) "\\W+")
    (t (concat
        (if (string-match-p "\\`\\W" string) "\\W+"
-	 (unless lax "\\<"))
+	 "\\<")
        (mapconcat 'regexp-quote (split-string string "\\W+" t) "\\W+")
        (if (string-match-p "\\W\\'" string) "\\W+"
 	 (unless lax "\\>"))))))
@@ -1749,7 +1753,7 @@ the beginning or the end of the string need not match a symbol boundary."
      ((string-match-p (format "\\`%s\\'" not-word-symbol-re) string) not-word-symbol-re)
      (t (concat
 	 (if (string-match-p (format "\\`%s" not-word-symbol-re) string) not-word-symbol-re
-	   (unless lax "\\_<"))
+	   "\\_<")
 	 (mapconcat 'regexp-quote (split-string string not-word-symbol-re t) not-word-symbol-re)
 	 (if (string-match-p (format "%s\\'" not-word-symbol-re) string) not-word-symbol-re
 	   (unless lax "\\_>")))))))
@@ -2297,6 +2301,7 @@ to the barrier."
 
 ;; Universal argument commands
 (put 'universal-argument 'isearch-scroll t)
+(put 'universal-argument-more 'isearch-scroll t)
 (put 'negative-argument 'isearch-scroll t)
 (put 'digit-argument 'isearch-scroll t)
 
@@ -2389,7 +2394,7 @@ before the command is executed globally with terminated Isearch."
       (setq this-command 'isearch-edit-string))
      ;; Handle a scrolling function or prefix argument.
      ((or (and isearch-allow-prefix
-	       (memq this-command '(universal-argument
+               (memq this-command '(universal-argument universal-argument-more
 				    digit-argument negative-argument)))
 	  (and isearch-allow-scroll
 	       (symbolp this-command)
@@ -2739,7 +2744,9 @@ Can be changed via `isearch-search-fun-function' for special needs."
           (funcall
            (if isearch-forward #'re-search-forward #'re-search-backward)
            (cond (isearch-regexp-function
-                  (let ((lax (isearch--lax-regexp-function-p)))
+                  (let ((lax (and (not bound) (isearch--lax-regexp-function-p))))
+                    (when lax
+                      (setq isearch-adjusted t))
                     (if (functionp isearch-regexp-function)
                         (funcall isearch-regexp-function string lax)
                       (word-search-regexp string lax))))

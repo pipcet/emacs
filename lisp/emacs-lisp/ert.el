@@ -1,6 +1,6 @@
 ;;; ert.el --- Emacs Lisp Regression Testing  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2007-2008, 2010-2016 Free Software Foundation, Inc.
+;; Copyright (C) 2007-2008, 2010-2017 Free Software Foundation, Inc.
 
 ;; Author: Christian Ohler <ohler@gnu.org>
 ;; Keywords: lisp, tools
@@ -276,11 +276,12 @@ DATA is displayed to the user and should state the reason for skipping."
 (defun ert--expand-should-1 (whole form inner-expander)
   "Helper function for the `should' macro and its variants."
   (let ((form
-         (macroexpand form (cond
-                            ((boundp 'macroexpand-all-environment)
-                             macroexpand-all-environment)
-                            ((boundp 'cl-macro-environment)
-                             cl-macro-environment)))))
+         (macroexpand form (append byte-compile-macro-environment
+                                   (cond
+                                    ((boundp 'macroexpand-all-environment)
+                                     macroexpand-all-environment)
+                                    ((boundp 'cl-macro-environment)
+                                     cl-macro-environment))))))
     (cond
      ((or (atom form) (ert--special-operator-p (car form)))
       (let ((value (cl-gensym "value-")))

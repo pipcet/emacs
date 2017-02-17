@@ -1,6 +1,6 @@
 GNU Emacs NEWS -- history of user-visible changes.
 
-Copyright (C) 2014-2016 Free Software Foundation, Inc.
+Copyright (C) 2014-2017 Free Software Foundation, Inc.
 See the end of the file for license conditions.
 
 Please send Emacs bug reports to bug-gnu-emacs@gnu.org.
@@ -20,6 +20,13 @@ Temporary note:
     (This means all relevant manuals in doc/ AND lisp doc-strings.)
 --- means no change in the manuals is needed.
 When you add a new item, use the appropriate mark if you are sure it applies,
+
++++
+** The version number of CC Mode has been changed from 5.33 to
+5.32.99, although the software itself hasn't changed.  This aims to
+reduce confusion with the standalone CC Mode 5.33 (available from
+http://cc-mode.sourceforge.net), which is a more mature version than
+the one in Emacs 25.2.
 
 
 * Installation Changes in Emacs 26.1
@@ -74,6 +81,23 @@ for '--daemon'.
 * Changes in Emacs 26.1
 
 +++
+** The new function 'mapbacktrace' applies a function to all frames of
+the current stack trace.
+
++++
+** Emacs now provides a limited form of concurrency with Lisp threads.
+Concurrency in Emacs Lisp is "mostly cooperative", meaning that
+Emacs will only switch execution between threads at well-defined
+times: when Emacs waits for input, during blocking operations related
+to threads (such as mutex locking), or when the current thread
+explicitly yields.  Global variables are shared among all threads, but
+a 'let' binding is thread-local.  Each thread also has its own current
+buffer and its own match data.
+
+See the chapter "Threads" in the ELisp manual for full documentation
+of these facilities.
+
++++
 ** The new function 'file-name-case-insensitive-p' tests whether a
 given file is on a case-insensitive filesystem.
 
@@ -83,10 +107,25 @@ of curved quotes for 'electric-quote-mode', allowing user to choose
 the types of quotes to be used.
 
 +++
+** The new user variable 'dired-omit-case-fold' allows the user to
+customize the case-sensitivity of dired-omit-mode.  It defaults to
+the same sensitivity as that of the filesystem for the corresponding
+dired buffer.
+
++++
 ** Emacs now uses double buffering to reduce flicker when editing and
 resizing graphical Emacs frames on the X Window System.  This support
 requires the DOUBLE-BUFFER extension, which major X servers have
-supported for many years.
+supported for many years.  If your system has this extension, but an
+Emacs built with double buffering misbehaves on some displays you use,
+you can disable the feature by adding
+
+  '(inhibit-double-buffering . t)
+
+to default-frame-parameters.  Or inject this parameter into the
+selected frame by evaluating this form:
+
+  (modify-frame-parameters nil '((inhibit-double-buffering . t)))
 
 ---
 The group 'wp', whose label was "text", is now deprecated.
@@ -262,8 +301,27 @@ variable of this kind to swap modifiers in Emacs.
 ---
 ** New input methods: 'cyrillic-tuvan', 'polish-prefix'.
 
++++
+** File name quoting by adding the prefix "/:" is now possible for the
+local part of a remote file name.  Thus, if you have a directory named
+"/~" on the remote host "foo", you can prevent it from being
+substituted by a home directory by writing it as "/foo:/:/~/file".
+
++++
+** The new variable 'maximum-scroll-margin' allows having effective
+settings of 'scroll-margin' up to half the window size, instead of
+always restricting the margin to a quarter of the window.
+
 
 * Editing Changes in Emacs 26.1
+
++++
+** Two new user options 'list-matching-lines-jump-to-current-line' and
+'list-matching-lines-current-line-face' to show highlighted the current
+line in *Occur* buffer.
+
++++
+** The 'occur' command can now operate on the region.
 
 +++
 ** New bindings for 'query-replace-map'.
@@ -280,8 +338,17 @@ same as in modes where the character is not whitespace.
 Instead of only checking the modification time, Emacs now also checks
 the file's actual content before prompting the user.
 
+** Title case characters are properly converted to upper case.
+'upcase', 'upcase-region' et al. convert title case characters (such
+as the single character "ǲ") into their upper case form (such as "Ǳ").
+As a downside, 'capitalize' and 'upcase-initials' produce awkward
+words where first character is upper rather than title case, e.g.,
+"Ǆungla" instead of "ǅungla".
+
 
 * Changes in Specialized Modes and Packages in Emacs 26.1
+
+** TeX: Add luatex and xetex as alternatives to pdftex
 
 ** Electric-Buffer-menu
 
@@ -301,7 +368,38 @@ bound to 'Buffer-menu-unmark-all-buffers'.
 *** Two new commands 'Buffer-menu-unmark-all', bound to 'U' and
 'Buffer-menu-unmark-all-buffers', bound to 'M-DEL'.
 
+** Gnus
+
+---
+*** The .newsrc file will now only be saved if the native select
+method is an NNTP select method.
+
++++
+*** A new command for sorting articles by readedness marks has been
+added: 'C-c C-s C-m C-m'.
+
 ** Ibuffer
+
+---
+*** New filter commands 'ibuffer-filter-by-basename',
+'ibuffer-filter-by-file-extension', 'ibuffer-filter-by-directory',
+'ibuffer-filter-by-starred-name', 'ibuffer-filter-by-modified'
+and 'ibuffer-filter-by-visiting-file'; bound respectively
+to '/b', '/.', '//', '/*', '/i' and '/v'.
+
+---
+*** Two new commands 'ibuffer-filter-chosen-by-completion'
+and 'ibuffer-and-filter', the second bound to '/&'.
+
+---
+*** The commands 'ibuffer-pop-filter', 'ibuffer-pop-filter-group',
+'ibuffer-or-filter' and 'ibuffer-filter-disable' have the alternative
+bindings '/<up>', '/S-<up>', '/|' and '/DEL', respectively.
+
+---
+*** The data format specifying filters has been extended to allow
+explicit logical 'and', and a more flexible form for logical 'not'.
+See 'ibuffer-filtering-qualifiers' doc string for full details.
 
 ---
 *** A new command 'ibuffer-copy-buffername-as-kill'; bound
@@ -373,6 +471,11 @@ viewing HTML files and the like.
 breakpoint (e.g. with "f" and "o") by customizing the new option
 'edebug-sit-on-break'.
 
++++
+*** New customizable option 'edebug-max-depth'
+This allows to enlarge the maximum recursion depth when instrumenting
+code.
+
 ** Eshell
 
 *** 'eshell-input-filter's value is now a named function
@@ -428,6 +531,45 @@ details.
 provided: 'image-property'.
 
 ---
+*** New commands 'image-scroll-left' and 'image-scroll-right'
+for 'image-mode' that complement 'image-scroll-up' and
+'image-scroll-down': they have the same prefix arg behavior and stop
+at image boundaries.
+
+** Image-Dired
+
+*** Now provides a minor mode 'image-dired-minor-mode' which replaces
+the function 'image-dired-setup-dired-keybindings'.
+
+*** Thumbnail generation is now asynchronous
+The number of concurrent processes is limited by the variable
+'image-dired-thumb-job-limit'.
+
+*** 'image-dired-thumbnail-storage' has a new option 'standard-large'
+for generating 256x256 thumbnails according to the Thumbnail Managing
+Standard.
+
+*** Inherits movement keys from 'image-mode' for viewing full images.
+This includes the usual char, line, and page movement commands.
+
+*** All the -options types have been changed to argument lists
+instead of shell command strings.  This change affects
+'image-dired-cmd-create-thumbnail-options',
+'image-dired-cmd-create-temp-image-options',
+'image-dired-cmd-rotate-thumbnail-options',
+'image-dired-cmd-rotate-original-options',
+'image-dired-cmd-write-exif-data-options',
+'image-dired-cmd-read-exif-data-options', and introduces
+'image-dired-cmd-pngnq-options', 'image-dired-cmd-pngcrush-options',
+'image-dired-cmd-create-standard-thumbnail-options'
+
+*** Recognizes more tools by default, including pngnq-s9 and OptiPNG
+
+*** 'find-file' and related commands now work on thumbnails and
+displayed images, providing a default argument of the original file name
+via an addition to 'file-name-at-point-functions'.
+
+---
 ** The default 'Info-default-directory-list' no longer checks some obsolete
 directory suffixes (gnu, gnu/lib, gnu/lib/emacs, emacs, lib, lib/emacs)
 when searching for info directories.
@@ -478,11 +620,19 @@ different group ID.
 Drive onsite repositories.
 
 +++
-Setting the "ENV" environment variable in 'tramp-remote-process-environment'
-enables reading of shell initialization files.
+*** Gateway methods in Tramp have been removed.  Instead, the Tramp
+manual documents how to configure ssh and PuTTY accordingly.
+
++++
+*** Setting the "ENV" environment variable in
+'tramp-remote-process-environment' enables reading of shell
+initialization files.
 
 ---
 ** 'auto-revert-use-notify' is set back to t in 'global-auto-revert-mode'.
+
+---
+** JS mode now sets 'comment-multi-line' to t.
 
 ** CSS mode
 
@@ -491,6 +641,13 @@ enables reading of shell initialization files.
 HTML tags, classes and IDs using the 'completion-at-point' command.
 Completion candidates for HTML classes and IDs are retrieved from open
 HTML mode buffers.
+
+---
+*** CSS mode now binds 'C-h S' to a function that will show
+information about a CSS construct (an at-rule, property, pseudo-class,
+pseudo-element, with the default being guessed from context).  By
+default the information is looked up on the Mozilla Developer Network,
+but this can be customized using 'css-lookup-url-format'.
 
 +++
 ** Emacs now supports character name escape sequences in character and
@@ -556,6 +713,8 @@ processes on exit.
 
 ** New Elisp data-structure library 'radix-tree'.
 
+** New library 'xdg' with utilities for some XDG standards and specs.
+
 
 * Incompatible Lisp Changes in Emacs 26.1
 
@@ -575,7 +734,15 @@ mode bindings: 'C-c @ C-a', 'C-c @ C-t', 'C-c @ C-d', and 'C-c @ C-e.'
 before running.  This is controlled by the 'grep-save-buffers'
 variable.
 
+---
+** Customizable variable 'query-replace-from-to-separator'
+now doesn't propertize the string value of the separator.
+Instead, text properties are added by query-replace-read-from.
+Additionally, the new nil value restores pre-24.5 behavior
+of not providing replacement pairs via the history.
+
 ** Some obsolete functions, variables, and faces have been removed:
+*** make-variable-frame-local.  Variables cannot be frame-local any more.
 *** From subr.el: window-dot, set-window-dot, read-input, show-buffer,
 eval-current-buffer, string-to-int
 *** All the default-FOO variables that hold the default value of the
@@ -607,9 +774,22 @@ of curved quotes in format arguments to functions like 'message' and
 now generate less chatter and more-compact diagnostics.  The auxiliary
 function 'check-declare-errmsg' has been removed.
 
++++
+** The regular expression character class [:blank:] now matches
+Unicode horizontal whitespace as defined in the Unicode Technical
+Standard #18.  If you only want to match space and tab, use [ \t]
+instead.
+
 
 * Lisp Changes in Emacs 26.1
 
++++
+** 'save-some-buffers' now uses 'save-some-buffers-default-predicate'
+to decide which buffers to ask about, if the PRED argument is nil.
+The default value of 'save-some-buffers-default-predicate' is nil,
+which means ask about all file-visiting buffers.
+
+** string-(to|as|make)-(uni|multi)byte are now declared obsolete.
 ** New variable 'while-no-input-ignore-events' which allow
 setting which special events 'while-no-input' should ignore.
 It is a list of symbols.
@@ -669,6 +849,11 @@ of an arbitrary function.  This generalizes 'subr-arity' for functions
 that are not built-in primitives.  We recommend using this new
 function instead of 'subr-arity'.
 
+** New function 'region-bounds' can be used in the interactive spec
+to provide region boundaries (for rectangular regions more than one)
+to an interactively callable function as a single argument instead of
+two separate arguments region-beginning and region-end.
+
 +++
 ** 'parse-partial-sexp' state has a new element.  Element 10 is
 non-nil when the last character scanned might be the first character
@@ -710,6 +895,11 @@ consistency with the new functions.  For compatibility, 'sxhash'
 remains as an alias to 'sxhash-equal'.
 
 +++
+** New function 'add-variable-watcher' can be used to call a function
+when a symbol's value is changed.  This is used to implement the new
+debugger command 'debug-on-variable-change'.
+
++++
 ** Time conversion functions that accept a time zone rule argument now
 allow it to be OFFSET or a list (OFFSET ABBR), where the integer
 OFFSET is a count of seconds east of Universal Time, and the string
@@ -724,12 +914,27 @@ ABBR is a time zone abbreviation.  The affected functions are
 collection).
 
 +++
+** 'car' and 'cdr' compositions 'cXXXr' and 'cXXXXr' are now part of Elisp.
+
+---
+** 'if-let*', 'when-let*', and 'and-let*' are new in subr-x.el.
+The incumbent 'if-let' and 'when-let' are now aliases.
+
+** Low-level list functions like 'length' and 'member' now do a better
+job of signaling list cycles instead of looping indefinitely.
+
++++
 ** The new functions 'make-nearby-temp-file' and 'temporary-file-directory'
 can be used for creation of temporary files of remote or mounted directories.
 
 +++
 ** The new function 'file-local-name' can be used to specify arguments
 of remote processes.
+
++++
+** The new functions 'file-name-quote', 'file-name-unquote' and
+'file-name-quoted-p' can be used to quote / unquote file names with
+the prefix "/:".
 
 +++
 ** The new error 'file-missing', a subcategory of 'file-error', is now
@@ -830,7 +1035,7 @@ along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
 
 
 Local variables:
-coding: us-ascii
+coding: utf-8
 mode: outline
 paragraph-separate: "[ 	]*$"
 end:

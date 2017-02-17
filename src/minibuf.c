@@ -1,6 +1,6 @@
 /* Minibuffer input and completion.
 
-Copyright (C) 1985-1986, 1993-2016 Free Software Foundation, Inc.
+Copyright (C) 1985-1986, 1993-2017 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -1686,8 +1686,6 @@ the values STRING, PREDICATE and `lambda'.  */)
       tem = Fassoc_string (string, collection, completion_ignore_case ? Qt : Qnil);
       if (NILP (tem))
 	return Qnil;
-      else if (CONSP (tem))
-        tem = XCAR (tem);
     }
   else if (VECTORP (collection))
     {
@@ -1738,26 +1736,27 @@ the values STRING, PREDICATE and `lambda'.  */)
   else if (HASH_TABLE_P (collection))
     {
       struct Lisp_Hash_Table *h = XHASH_TABLE (collection);
-      Lisp_Object key = Qnil;
       i = hash_lookup (h, string, NULL);
       if (i >= 0)
-	tem = HASH_KEY (h, i);
+        {
+          tem = HASH_KEY (h, i);
+          goto found_matching_key;
+        }
       else
 	for (i = 0; i < HASH_TABLE_SIZE (h); ++i)
-	  if (!NILP (HASH_HASH (h, i))
-	      && (key = HASH_KEY (h, i),
-		  SYMBOLP (key) ? key = Fsymbol_name (key) : key,
-		  STRINGP (key))
-	      && EQ (Fcompare_strings (string, make_number (0), Qnil,
-				       key, make_number (0) , Qnil,
-				       completion_ignore_case ? Qt : Qnil),
-		     Qt))
-	    {
-	      tem = key;
-	      break;
-	    }
-      if (!STRINGP (tem))
-	return Qnil;
+          {
+            if (NILP (HASH_HASH (h, i))) continue;
+            tem = HASH_KEY (h, i);
+            Lisp_Object strkey = (SYMBOLP (tem) ? Fsymbol_name (tem) : tem);
+            if (!STRINGP (strkey)) continue;
+            if (EQ (Fcompare_strings (string, Qnil, Qnil,
+                                      strkey, Qnil, Qnil,
+                                      completion_ignore_case ? Qt : Qnil),
+                    Qt))
+              goto found_matching_key;
+          }
+      return Qnil;
+    found_matching_key: ;
     }
   else
     return call3 (collection, string, predicate, Qlambda);
@@ -1770,9 +1769,9 @@ the values STRING, PREDICATE and `lambda'.  */)
       for (regexps = Vcompletion_regexp_list; CONSP (regexps);
 	   regexps = XCDR (regexps))
 	{
-	  if (NILP (Fstring_match (XCAR (regexps),
-				   SYMBOLP (tem) ? string : tem,
-				   Qnil)))
+          /* We can test against STRING, because if we got here, then
+             the element is equivalent to it.  */
+          if (NILP (Fstring_match (XCAR (regexps), string, Qnil)))
 	    return unbind_to (count, Qnil);
 	}
       unbind_to (count, Qnil);
@@ -1866,7 +1865,7 @@ single string, rather than a cons cell whose car is a string.  */)
 			      case_fold);
       if (EQ (tem, Qt))
 	return elt;
-      QUIT;
+      maybe_quit ();
     }
   return Qnil;
 }

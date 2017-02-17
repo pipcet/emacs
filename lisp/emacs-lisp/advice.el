@@ -1,6 +1,6 @@
 ;;; advice.el --- An overloading mechanism for Emacs Lisp functions  -*- lexical-binding: t -*-
 
-;; Copyright (C) 1993-1994, 2000-2016 Free Software Foundation, Inc.
+;; Copyright (C) 1993-1994, 2000-2017 Free Software Foundation, Inc.
 
 ;; Author: Hans Chalupsky <hans@cs.buffalo.edu>
 ;; Maintainer: emacs-devel@gnu.org
@@ -2830,7 +2830,7 @@ advised definition from scratch."
 		    (ad-get-cache-id function))))
       (ad-set-advice-info function old-advice-info)
       (advice-remove function advicefunname)
-      (fset advicefunname old-advice)
+      (if advicefunname (fset advicefunname old-advice))
       (if old-advice (advice-add function :around advicefunname)))))
 
 

@@ -1,6 +1,6 @@
 ;;; python.el --- Python's flying circus support for Emacs -*- lexical-binding: t -*-
 
-;; Copyright (C) 2003-2016 Free Software Foundation, Inc.
+;; Copyright (C) 2003-2017 Free Software Foundation, Inc.
 
 ;; Author: Fabián E. Gallina <fgallina@gnu.org>
 ;; URL: https://github.com/fgallina/python.el
@@ -2379,7 +2379,9 @@ the `buffer-name'."
 (defun python-shell-calculate-command ()
   "Calculate the string used to execute the inferior Python process."
   (format "%s %s"
-          (shell-quote-argument python-shell-interpreter)
+          ;; `python-shell-make-comint' expects to be able to
+          ;; `split-string-and-unquote' the result of this function.
+          (combine-and-quote-strings (list python-shell-interpreter))
           python-shell-interpreter-args))
 
 (define-obsolete-function-alias
@@ -4413,6 +4415,15 @@ It must be a function with two arguments: TYPE and NAME.")
       "*class definition*"
     "*function definition*"))
 
+(defun python-imenu--get-defun-type-name ()
+  "Return defun type and name at current position."
+  (when (looking-at python-nav-beginning-of-defun-regexp)
+    (let ((split (split-string (match-string-no-properties 0))))
+      (if (= (length split) 2)
+          split
+        (list (concat (car split) " " (cadr split))
+              (car (last split)))))))
+
 (defun python-imenu--put-parent (type name pos tree)
   "Add the parent with TYPE, NAME and POS to TREE."
   (let ((label
@@ -4430,11 +4441,9 @@ not be passed explicitly unless you know what you are doing."
   (setq min-indent (or min-indent 0)
         prev-indent (or prev-indent python-indent-offset))
   (let* ((pos (python-nav-backward-defun))
-         (type)
-         (name (when (and pos (looking-at python-nav-beginning-of-defun-regexp))
-                 (let ((split (split-string (match-string-no-properties 0))))
-                   (setq type (car split))
-                   (cadr split))))
+         (defun-type-name (and pos (python-imenu--get-defun-type-name)))
+         (type (car defun-type-name))
+         (name (cadr defun-type-name))
          (label (when name
                   (funcall python-imenu-format-item-label-function type name)))
          (indent (current-indentation))
@@ -4684,7 +4693,8 @@ likely an invalid python file."
     (let ((dedenter-pos (python-info-dedenter-statement-p)))
       (when dedenter-pos
         (goto-char dedenter-pos)
-        (let* ((pairs '(("elif" "elif" "if")
+        (let* ((cur-line (line-beginning-position))
+               (pairs '(("elif" "elif" "if")
                         ("else" "if" "elif" "except" "for" "while")
                         ("except" "except" "try")
                         ("finally" "else" "except" "try")))
@@ -4700,7 +4710,22 @@ likely an invalid python file."
               (let ((indentation (current-indentation)))
                 (when (and (not (memq indentation collected-indentations))
                            (or (not collected-indentations)
-                               (< indentation (apply #'min collected-indentations))))
+                               (< indentation (apply #'min collected-indentations)))
+                           ;; There must be no line with indentation
+                           ;; smaller than `indentation' (except for
+                           ;; blank lines) between the found opening
+                           ;; block and the current line, otherwise it
+                           ;; is not an opening block.
+                           (save-excursion
+                             (forward-line)
+                             (let ((no-back-indent t))
+                               (save-match-data
+                                 (while (and (< (point) cur-line)
+                                             (setq no-back-indent
+                                                   (or (> (current-indentation) indentation)
+                                                       (python-info-current-line-empty-p))))
+                                   (forward-line)))
+                               no-back-indent)))
                   (setq collected-indentations
                         (cons indentation collected-indentations))
                   (when (member (match-string-no-properties 0)

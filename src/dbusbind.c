@@ -1,5 +1,5 @@
 /* Elisp bindings for D-Bus.
-   Copyright (C) 2007-2016 Free Software Foundation, Inc.
+   Copyright (C) 2007-2017 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -91,7 +91,7 @@ static bool xd_in_read_queued_messages = 0;
   } while (0)
 
 /* Macros for debugging.  In order to enable them, build with
-   "env MYCPPFLAGS='-DDBUS_DEBUG -Wall' make".  */
+   "make MYCPPFLAGS='-DDBUS_DEBUG'".  */
 #ifdef DBUS_DEBUG
 #define XD_DEBUG_MESSAGE(...)						\
   do {									\
@@ -1309,7 +1309,7 @@ usage: (dbus-message-internal &rest REST)  */)
       XD_DBUS_VALIDATE_PATH (path);
       XD_DBUS_VALIDATE_INTERFACE (interface);
       XD_DBUS_VALIDATE_MEMBER (member);
-      if (!NILP (handler) && (!FUNCTIONP (handler)))
+      if (!NILP (handler) && !FUNCTIONP (handler))
 	wrong_type_argument (Qinvalid_function, handler);
     }
 

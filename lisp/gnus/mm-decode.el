@@ -1,6 +1,6 @@
 ;;; mm-decode.el --- Functions for decoding MIME things
 
-;; Copyright (C) 1998-2016 Free Software Foundation, Inc.
+;; Copyright (C) 1998-2017 Free Software Foundation, Inc.
 
 ;; Author: Lars Magne Ingebrigtsen <larsi@gnus.org>
 ;;	MORIOKA Tomohiko <morioka@jaist.ac.jp>
@@ -655,9 +655,9 @@ MIME-Version header before proceeding."
 				 description)))))
       (if (or (not ctl)
 	      (not (string-match "/" (car ctl))))
-	    (mm-dissect-singlepart
+	  (mm-dissect-singlepart
 	   (list mm-dissect-default-type)
-	     (and cte (intern (downcase (mail-header-strip cte))))
+	   (and cte (intern (downcase (mail-header-strip-cte cte))))
 	   no-strict-mime
 	   (and cd (mail-header-parse-content-disposition cd))
 	   description)
@@ -690,7 +690,7 @@ MIME-Version header before proceeding."
 	   (mm-possibly-verify-or-decrypt
 	    (mm-dissect-singlepart
 	     ctl
-	     (and cte (intern (downcase (mail-header-strip cte))))
+	     (and cte (intern (downcase (mail-header-strip-cte cte))))
 	     no-strict-mime
 	     (and cd (mail-header-parse-content-disposition cd))
 	     description id)
@@ -1413,8 +1413,8 @@ Return t if meta tag is added or replaced."
       (let ((case-fold-search t))
 	(goto-char (point-min))
 	(if (re-search-forward "\
-<meta\\s-+http-equiv=[\"']?content-type[\"']?\\s-+content=[\"']\
-text/\\(\\sw+\\)\\(?:;\\s-*charset=\\([^\"'>]+\\)\\)?[^>]*>" nil t)
+<meta\\s-+http-equiv=[\"']?content-type[\"']?\\s-+content=[\"']?\
+text/\\(\\sw+\\)\\(?:;\\s-*charset=\\([^\t\n\r \"'>]+\\)\\)?[^>]*>" nil t)
 	    (if (and (not force-charset)
 		     (match-beginning 2)
 		     (string-match "\\`html\\'" (match-string 1)))
@@ -1793,39 +1793,44 @@ If RECURSIVE, search recursively."
 				      (buffer-string))))))
 	(shr-inhibit-images mm-html-inhibit-images)
 	(shr-blocked-images mm-html-blocked-images)
-	charset char)
-    (unless handle
-      (setq handle (mm-dissect-buffer t)))
-    (setq charset (mail-content-type-get (mm-handle-type handle) 'charset))
+	charset coding char document)
+    (mm-with-part (or handle (setq handle (mm-dissect-buffer t)))
+      (setq case-fold-search t)
+      (setq charset
+	    (or (mail-content-type-get (mm-handle-type handle) 'charset)
+		(progn
+		  (goto-char (point-min))
+		  (and (re-search-forward "\
+<meta\\s-+http-equiv=[\"']?content-type[\"']?\\s-+content=[\"']?\
+text/\\(\\sw+\\)\\(?:;\\s-*charset=\\([^\t\n\r \"'>]+\\)\\)?[^>]*>" nil t)
+		       (setq coding
+			     (mm-charset-to-coding-system (match-string 2)
+							  nil t))
+		       (string-match "\\`html\\'" (match-string 1))))
+		mail-parse-charset))
+      (when (or coding
+		(setq coding (mm-charset-to-coding-system charset nil t)))
+	(insert (prog1
+		    (decode-coding-string (buffer-string) coding)
+		  (erase-buffer)
+		  (set-buffer-multibyte t))))
+      (goto-char (point-min))
+      (while (re-search-forward
+	      "&#\\(?:x\\([89][0-9a-f]\\)\\|\\(1[2-5][0-9]\\)\\);" nil t)
+	(when (setq char
+		    (cdr (assq (if (match-beginning 1)
+				   (string-to-number (match-string 1) 16)
+				 (string-to-number (match-string 2)))
+			       mm-extra-numeric-entities)))
+	  (replace-match (char-to-string char))))
+      ;; Remove "soft hyphens".
+      (goto-char (point-min))
+      (while (search-forward "­" nil t)
+	(replace-match "" t t))
+      (setq document (libxml-parse-html-region (point-min) (point-max))))
     (save-restriction
       (narrow-to-region (point) (point))
-      (shr-insert-document
-       (mm-with-part handle
-	 (insert (prog1
-		     (if (and charset
-			      (setq charset
-				    (mm-charset-to-coding-system charset
-								 nil t))
-			      (not (eq charset 'ascii)))
-			 (decode-coding-string (buffer-string) charset)
-		       (string-as-multibyte (buffer-string)))
-		   (erase-buffer)
-		   (mm-enable-multibyte)))
-	 (goto-char (point-min))
-	 (setq case-fold-search t)
-	 (while (re-search-forward
-		 "&#\\(?:x\\([89][0-9a-f]\\)\\|\\(1[2-5][0-9]\\)\\);" nil t)
-	   (when (setq char
-		       (cdr (assq (if (match-beginning 1)
-				      (string-to-number (match-string 1) 16)
-				    (string-to-number (match-string 2)))
-				  mm-extra-numeric-entities)))
-	     (replace-match (char-to-string char))))
-	 ;; Remove "soft hyphens".
-	 (goto-char (point-min))
-	 (while (search-forward "­" nil t)
-	   (replace-match "" t t))
-	 (libxml-parse-html-region (point-min) (point-max))))
+      (shr-insert-document document)
       (unless (bobp)
 	(insert "\n"))
       (mm-convert-shr-links)
@@ -1859,6 +1864,10 @@ If RECURSIVE, search recursively."
 	(dolist (key (where-is-internal #'widget-button-click widget-keymap))
 	  (unless (lookup-key keymap key)
 	    (define-key keymap key #'ignore)))
+	;; Avoid `shr-next-link' and `shr-previous-link' in `keymap' so
+	;; TAB and M-TAB run `widget-forward' and `widget-backward' instead.
+	(substitute-key-definition 'shr-next-link nil keymap)
+	(substitute-key-definition 'shr-previous-link nil keymap)
 	(dolist (overlay (overlays-at start))
 	  (overlay-put overlay 'face nil))
 	(setq start end)))))

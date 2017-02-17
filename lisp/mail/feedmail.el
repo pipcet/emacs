@@ -2768,7 +2768,8 @@ return that value."
    ((eq t feedmail-from-line)
     (let ((feedmail-from-line
 	   (let ((at-stuff
-		  (if user-mail-address user-mail-address
+		  (if (> (length user-mail-address) 0)
+		      user-mail-address
 		    (concat (user-login-name) "@"
 			    (or mail-host-address (system-name))))))
 	     (cond
@@ -3147,7 +3148,7 @@ been weeded out."
 		(setq simple-address (substring address-blob (match-beginning 2) (match-end 2)))
 		(setq address-blob (replace-match "" t t address-blob))
 		(if (not (member simple-address address-list))
-		    (add-to-list 'address-list simple-address)))
+		    (push simple-address address-list)))
 	      ))
 	  (kill-buffer nil)))
     (identity address-list)))

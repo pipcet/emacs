@@ -4,7 +4,7 @@ dnl	autoconf
 dnl in the directory containing this script.
 dnl If you changed any AC_DEFINES, also run autoheader.
 dnl
-dnl Copyright (C) 1994-1996, 1999-2016 Free Software Foundation, Inc.
+dnl Copyright (C) 1994-1996, 1999-2017 Free Software Foundation, Inc.
 dnl
 dnl  This file is part of GNU Emacs.
 dnl
@@ -355,6 +355,7 @@ OPTION_DEFAULT_ON([selinux],[don't compile with SELinux support])
 OPTION_DEFAULT_ON([gnutls],[don't use -lgnutls for SSL/TLS support])
 OPTION_DEFAULT_ON([zlib],[don't compile with zlib decompression support])
 OPTION_DEFAULT_OFF([modules],[compile with dynamic modules support])
+OPTION_DEFAULT_ON([threads],[don't compile with elisp threading support])
 
 AC_ARG_WITH([file-notification],[AS_HELP_STRING([--with-file-notification=LIB],
  [use a file notification library (LIB one of: yes, inotify, kqueue, gfile, w32, no)])],
@@ -778,9 +779,6 @@ if test x$GCC = xyes; then
   test "x$GCC_TEST_OPTIONS" != x && CC="$CC $GCC_TEST_OPTIONS"
 fi
 
-dnl This is used in lib/Makefile.am to use nt/gnulib.mk, the
-dnl alternative to lib/gnulib.mk, so as to avoid generating header files
-dnl that clash with MinGW.
 AM_CONDITIONAL([BUILDING_FOR_WINDOWSNT], [test "x$opsys" = "xmingw32"])
 
 # Avoid gnulib's tests for -lcrypto, so that there's no static dependency on it.
@@ -799,6 +797,10 @@ ac_func_list=$funcs
 AC_CHECK_FUNCS_ONCE([putenv])
 AC_DEFUN([gl_FUNC_PUTENV],
   [test "$ac_cv_func_putenv" = yes || REPLACE_PUTENV=1])
+# Emacs does not use the wchar or wctype-h modules.
+AC_DEFUN([gt_TYPE_WINT_T],
+  [GNULIB_OVERRIDES_WINT_T=0
+   AC_SUBST([GNULIB_OVERRIDES_WINT_T])])
 
 # Initialize gnulib right after choosing the compiler.
 dnl Amongst other things, this sets AR and ARFLAGS.
@@ -1225,14 +1227,13 @@ esac
 AC_SUBST([PAXCTL_dumped])
 AC_SUBST([PAXCTL_notdumped])
 
-## Need makeinfo >= 4.7 (?) to build the manuals.
+## Require makeinfo >= 4.13 (last of the 4.x series) to build the manuals.
 if test "$MAKEINFO" != "no"; then
   if test "$MAKEINFO" = "${am_missing_run}makeinfo"; then
     MAKEINFO=makeinfo
   fi
   case `($MAKEINFO --version) 2>/dev/null` in
-    *' (GNU texinfo) '4.[[7-9]]* | \
-    *' (GNU texinfo) '4.[[1-9][0-9]]* | \
+    *' (GNU texinfo) '4.1[[3-9]]* | \
     *' (GNU texinfo) '[[5-9]]* | \
     *' (GNU texinfo) '[[1-9][0-9]]* ) ;;
     *) MAKEINFO=no;;
@@ -1255,7 +1256,7 @@ if test "$MAKEINFO" = "no"; then
   if test "x${with_makeinfo}" = "xno"; then
     HAVE_MAKEINFO=no
   elif test ! -e "$srcdir/info/emacs" && test ! -e "$srcdir/info/emacs.info"; then
-    AC_MSG_ERROR( [You do not seem to have makeinfo >= 4.7, and your
+    AC_MSG_ERROR( [You do not seem to have makeinfo >= 4.13, and your
 source tree does not seem to have pre-built manuals in the 'info' directory.
 Either install a suitable version of makeinfo, or re-run configure
 with the '--without-makeinfo' option to build without the manuals.] )
@@ -1655,7 +1656,7 @@ AC_CHECK_HEADERS_ONCE(
   sys/sysinfo.h
   coff.h pty.h
   sys/resource.h
-  sys/utsname.h pwd.h utmp.h util.h)
+  sys/utsname.h pwd.h utmp.h util.h sys/prctl.h)
 
 AC_CACHE_CHECK([for ADDR_NO_RANDOMIZE],
   [emacs_cv_personality_addr_no_randomize],
@@ -2316,6 +2317,22 @@ if test "$ac_cv_header_pthread_h" && test "$opsys" != "mingw32"; then
   fi
 fi
 AC_SUBST([LIB_PTHREAD])
+
+AC_MSG_CHECKING([for thread support])
+threads_enabled=no
+if test "$with_threads" = yes; then
+   if test "$emacs_cv_pthread_lib" != no; then
+      AC_DEFINE(THREADS_ENABLED, 1,
+                [Define to 1 if you want elisp thread support.])
+      threads_enabled=yes
+   elif test "${opsys}" = "mingw32"; then
+      dnl MinGW can do native Windows threads even without pthreads
+      AC_DEFINE(THREADS_ENABLED, 1,
+                [Define to 1 if you want elisp thread support.])
+      threads_enabled=yes
+   fi
+fi
+AC_MSG_RESULT([$threads_enabled])
 
 dnl Check for need for bigtoc support on IBM AIX
 
@@ -3471,7 +3488,7 @@ elif test "${with_png}" != no; then
   elif test "${HAVE_X11}" = "yes" || test "${HAVE_W32}" = "yes"; then
     AC_MSG_CHECKING([for png])
     png_cflags=`(libpng-config --cflags) 2>&AS_MESSAGE_LOG_FD` &&
-    png_libs=`(libpng-config --libs) 2>&AS_MESSAGE_LOG_FD` || {
+    png_ldflags=`(libpng-config --ldflags) 2>&AS_MESSAGE_LOG_FD` || {
       # libpng-config does not work; configure by hand.
       # Debian unstable as of July 2003 has multiple libpngs, and puts png.h
       # in /usr/include/libpng.
@@ -3481,18 +3498,18 @@ elif test "${with_png}" != no; then
       else
 	png_cflags=
       fi
-      png_libs='-lpng'
+      png_ldflags='-lpng'
     }
     SAVE_CFLAGS=$CFLAGS
     SAVE_LIBS=$LIBS
     CFLAGS="$CFLAGS $png_cflags"
-    LIBS="$png_libs -lz -lm $LIBS"
+    LIBS="$png_ldflags -lz -lm $LIBS"
     AC_LINK_IFELSE(
       [AC_LANG_PROGRAM([[#include <png.h>]],
 	 [[return !png_get_channels (0, 0);]])],
       [HAVE_PNG=yes
        PNG_CFLAGS=`AS_ECHO(["$png_cflags"]) | sed -e "$edit_cflags"`
-       LIBPNG=$png_libs
+       LIBPNG=$png_ldflags
        # $LIBPNG requires explicit -lz in some cases.
        # We don't know what those cases are, exactly, so play it safe and
        # append -lz to any nonempty $LIBPNG, unless we're already using LIBZ.
@@ -3883,7 +3900,7 @@ pthread_sigmask strsignal setitimer \
 sendto recvfrom getsockname getifaddrs freeifaddrs \
 gai_strerror sync \
 getpwent endpwent getgrent endgrent \
-cfmakeraw cfsetspeed copysign __executable_start log2)
+cfmakeraw cfsetspeed copysign __executable_start log2 prctl)
 LIBS=$OLD_LIBS
 
 dnl No need to check for posix_memalign if aligned_alloc works.
@@ -4858,7 +4875,7 @@ fi
 
 version=$PACKAGE_VERSION
 
-copyright="Copyright (C) 2016 Free Software Foundation, Inc."
+copyright="Copyright (C) 2017 Free Software Foundation, Inc."
 AC_DEFINE_UNQUOTED(COPYRIGHT, ["$copyright"],
   [Short copyright string for this version of Emacs.])
 AC_SUBST(copyright)
@@ -5203,7 +5220,7 @@ AC_SUBST(WINDOW_SYSTEM_OBJ)
 
 AH_TOP([/* GNU Emacs site configuration template file.
 
-Copyright (C) 1988, 1993-1994, 1999-2002, 2004-2016
+Copyright (C) 1988, 1993-1994, 1999-2002, 2004-2017
   Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
@@ -5326,6 +5343,7 @@ AS_ECHO(["  Does Emacs use -lXaw3d?                                 ${HAVE_XAW3D
   Does Emacs have dynamic modules support?                ${HAVE_MODULES}
   Does Emacs use toolkit scroll bars?                     ${USE_TOOLKIT_SCROLL_BARS}
   Does Emacs support Xwidgets (requires gtk3)?            ${HAVE_XWIDGETS}
+  Does Emacs have threading support in lisp?              ${threads_enabled}
 "])
 
 if test -n "${EMACSDATA}"; then

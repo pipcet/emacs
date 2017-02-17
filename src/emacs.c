@@ -1,6 +1,6 @@
 /* Fully extensible Emacs, running on Unix, intended for GNU.
 
-Copyright (C) 1985-1987, 1993-1995, 1997-1999, 2001-2016 Free Software
+Copyright (C) 1985-1987, 1993-1995, 1997-1999, 2001-2017 Free Software
 Foundation, Inc.
 
 This file is part of GNU Emacs.
@@ -26,7 +26,6 @@ along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.  */
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <sys/types.h>
 #include <sys/file.h>
 #include <unistd.h>
 
@@ -130,6 +129,8 @@ Lisp_Object Vlibrary_cache;
    on subsequent starts.  */
 bool initialized;
 
+bool generating_ldefs_boot;
+
 #ifndef CANNOT_DUMP
 /* Set to true if this instance of Emacs might dump.  */
 # ifndef DOUG_LEA_MALLOC
@@ -154,10 +155,6 @@ bool running_asynch_code;
 /* If true, -d was specified, meaning we're using some window system.  */
 bool display_arg;
 #endif
-
-/* An address near the bottom of the stack.
-   Tells GC how to save a copy of the stack.  */
-char *stack_bottom;
 
 #if defined GNU_LINUX && !defined CANNOT_DUMP
 /* The gap between BSS end and heap start as far as we can tell.  */
@@ -670,7 +667,6 @@ close_output_streams (void)
 int
 main (int argc, char **argv)
 {
-  Lisp_Object dummy;
   char stack_bottom_variable;
   bool do_initial_setlocale;
   bool dumping;
@@ -686,10 +682,14 @@ main (int argc, char **argv)
   /* If we use --chdir, this records the original directory.  */
   char *original_pwd = 0;
 
-  stack_base = &dummy;
+  /* Record (approximately) where the stack begins.  */
+  stack_bottom = &stack_bottom_variable;
 
   dumping = !initialized && (strcmp (argv[argc - 1], "dump") == 0
-			     || strcmp (argv[argc - 1], "bootstrap") == 0);
+			     || strcmp (argv[argc - 1], "bootstrap") == 0 );
+
+  generating_ldefs_boot = !!getenv ("GENERATE_LDEFS_BOOT");
+
 
   /* True if address randomization interferes with memory allocation.  */
 # ifdef __PPC64__
@@ -734,9 +734,10 @@ main (int argc, char **argv)
      to have non-stub implementations of APIs we need to convert file
      names between UTF-8 and the system's ANSI codepage.  */
   maybe_load_unicows_dll ();
+  /* Initialize the codepage for file names, needed to decode
+     non-ASCII file names during startup.  */
+  w32_init_file_name_codepage ();
 #endif
-  /* This has to be done before module_init is called below, so that
-     the latter could use the thread ID of the main thread.  */
   w32_init_main_thread ();
 #endif
 
@@ -753,10 +754,6 @@ main (int argc, char **argv)
 
   init_standard_fds ();
   atexit (close_output_streams);
-
-#ifdef HAVE_MODULES
-  module_init ();
-#endif
 
   sort_args (argc, argv);
   argc = 0;
@@ -834,14 +831,16 @@ main (int argc, char **argv)
       rlim_t lim = rlim.rlim_cur;
 
       /* Approximate the amount regex.c needs per unit of
-	 re_max_failures, then add 33% to cover the size of the
+	 emacs_re_max_failures, then add 33% to cover the size of the
 	 smaller stacks that regex.c successively allocates and
 	 discards on its way to the maximum.  */
-      int ratio = 20 * sizeof (char *);
-      ratio += ratio / 3;
+      int min_ratio = 20 * sizeof (char *);
+      int ratio = min_ratio + min_ratio / 3;
 
-      /* Extra space to cover what we're likely to use for other reasons.  */
-      int extra = 200000;
+      /* Extra space to cover what we're likely to use for other
+         reasons.  For example, a typical GC might take 30K stack
+         frames.  */
+      int extra = (30 * 1000) * 50;
 
       bool try_to_grow_stack = true;
 #ifndef CANNOT_DUMP
@@ -850,7 +849,7 @@ main (int argc, char **argv)
 
       if (try_to_grow_stack)
 	{
-	  rlim_t newlim = re_max_failures * ratio + extra;
+	  rlim_t newlim = emacs_re_max_failures * ratio + extra;
 
 	  /* Round the new limit to a page boundary; this is needed
 	     for Darwin kernel 15.4.0 (see Bug#23622) and perhaps
@@ -872,14 +871,13 @@ main (int argc, char **argv)
 		lim = newlim;
 	    }
 	}
-
-      /* Don't let regex.c overflow the stack.  */
-      re_max_failures = lim < extra ? 0 : min (lim - extra, SIZE_MAX) / ratio;
+      /* If the stack is big enough, let regex.c more of it before
+         falling back to heap allocation.  */
+      emacs_re_safe_alloca = max
+        (min (lim - extra, SIZE_MAX) * (min_ratio / ratio),
+         MAX_ALLOCA);
     }
 #endif /* HAVE_SETRLIMIT and RLIMIT_STACK and not CYGWIN */
-
-  /* Record (approximately) where the stack begins.  */
-  stack_bottom = &stack_bottom_variable;
 
   clearerr (stdin);
 
@@ -1194,6 +1192,7 @@ Using an Emacs configured with --with-x-toolkit=lucid does not have this problem
   if (!initialized)
     {
       init_alloc_once ();
+      init_threads_once ();
       init_obarray ();
       init_eval_once ();
       init_charset_once ();
@@ -1240,6 +1239,7 @@ Using an Emacs configured with --with-x-toolkit=lucid does not have this problem
     }
 
   init_alloc ();
+  init_threads ();
 
   if (do_initial_setlocale)
     {
@@ -1582,6 +1582,7 @@ Using an Emacs configured with --with-x-toolkit=lucid does not have this problem
 #endif /* HAVE_W32NOTIFY */
 #endif /* WINDOWSNT */
 
+      syms_of_threads ();
       syms_of_profiler ();
 
       keys_of_casefiddle ();

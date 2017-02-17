@@ -1,6 +1,6 @@
 ;;; fill.el --- fill commands for Emacs
 
-;; Copyright (C) 1985-1986, 1992, 1994-1997, 1999, 2001-2016 Free
+;; Copyright (C) 1985-1986, 1992, 1994-1997, 1999, 2001-2017 Free
 ;; Software Foundation, Inc.
 
 ;; Maintainer: emacs-devel@gnu.org
@@ -48,6 +48,15 @@ A value of nil means that any change in indentation starts a new paragraph."
   :type 'boolean
   :group 'fill)
 (put 'colon-double-space 'safe-local-variable 'booleanp)
+
+(defcustom fill-separate-heterogeneous-words-with-space nil
+  "Non-nil means that use a space to separate words of different kind.
+This will be done with a word in the end of a line and a word in the
+beginning of the next line when concatenating them for filling those
+lines.  Whether to use a space is up to how the words are categorized."
+  :type 'boolean
+  :group 'fill
+  :version "26.1")
 
 (defvar fill-paragraph-function nil
   "Mode-specific function to fill a paragraph, or nil if there is none.
@@ -494,8 +503,11 @@ Point is moved to just past the fill prefix on the first line."
 	    (replace-match (get-text-property (match-beginning 0) 'fill-space))
 	  (let ((prev (char-before (match-beginning 0)))
 		(next (following-char)))
-	    (if (and (or (aref (char-category-set next) ?|)
-			 (aref (char-category-set prev) ?|))
+	    (if (and (if fill-separate-heterogeneous-words-with-space
+			 (and (aref (char-category-set next) ?|)
+			      (aref (char-category-set prev) ?|))
+		       (or (aref (char-category-set next) ?|)
+			   (aref (char-category-set prev) ?|)))
 		     (or (aref fill-nospace-between-words-table next)
 			 (aref fill-nospace-between-words-table prev)))
 		(delete-char -1))))))

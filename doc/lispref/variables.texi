@@ -1,6 +1,6 @@
 @c -*-texinfo-*-
 @c This is part of the GNU Emacs Lisp Reference Manual.
-@c Copyright (C) 1990-1995, 1998-2016 Free Software Foundation, Inc.
+@c Copyright (C) 1990-1995, 1998-2017 Free Software Foundation, Inc.
 @c See the file elisp.texi for copying conditions.
 @node Variables
 @chapter Variables
@@ -34,6 +34,7 @@ representing the variable.
 * Accessing Variables::         Examining values of variables whose names
                             are known only at run time.
 * Setting Variables::           Storing new values in variables.
+* Watching Variables::          Running a function when a variable is changed.
 * Variable Scoping::            How Lisp chooses among local and global values.
 * Buffer-Local Variables::      Variable values in effect only in one buffer.
 * File Local Variables::        Handling local variable lists in files.
@@ -222,6 +223,18 @@ Here is an example of this: @code{z} is bound to the old value of
      @result{} (1 2)
 @end group
 @end example
+
+On the other hand, the order of @emph{bindings} is unspecified: in the
+following example, either 1 or 2 might be printed.
+
+@example
+(let ((x 1)
+      (x 2))
+  (print x))
+@end example
+
+Therefore, avoid binding a variable more than once in a single
+@code{let} form.
 @end defspec
 
 @defspec let* (bindings@dots{}) forms@dots{}
@@ -765,6 +778,66 @@ error is signaled.
 @error{} Wrong type argument: symbolp, (x y)
 @end example
 @end defun
+
+@node Watching Variables
+@section Running a function when a variable is changed.
+@cindex variable watchpoints
+@cindex watchpoints for Lisp variables
+
+It is sometimes useful to take some action when a variable changes its
+value.  The watchpoint facility provides the means to do so.  Some
+possible uses for this feature include keeping display in sync with
+variable settings, and invoking the debugger to track down unexpected
+changes to variables (@pxref{Variable Debugging}).
+
+The following functions may be used to manipulate and query the watch
+functions for a variable.
+
+@defun add-variable-watcher symbol watch-function
+This function arranges for @var{watch-function} to be called whenever
+@var{symbol} is modified.  Modifications through aliases
+(@pxref{Variable Aliases}) will have the same effect.
+
+@var{watch-function} will be called with 4 arguments: (@var{symbol}
+@var{newval} @var{operation} @var{where}).
+
+@var{symbol} is the variable being changed.
+@var{newval} is the value it will be changed to.
+@var{operation} is a symbol representing the kind of change, one of:
+`set', `let', `unlet', `makunbound', and `defvaralias'.
+@var{where} is a buffer if the buffer-local value of the variable is
+being changed, nil otherwise.
+@end defun
+
+@defun remove-variable-watch symbol watch-function
+This function removes @var{watch-function} from @var{symbol}'s list of
+watchers.
+@end defun
+
+@defun get-variable-watchers symbol
+This function returns the list of @var{symbol}'s active watcher
+functions.
+@end defun
+
+@subsection Limitations
+
+There are a couple of ways in which a variable could be modified (or at
+least appear to be modified) without triggering a watchpoint.
+
+Since watchpoints are attached to symbols, modification to the
+objects contained within variables (e.g., by a list modification
+function @pxref{Modifying Lists}) is not caught by this mechanism.
+
+Additionally, C code can modify the value of variables directly,
+bypassing the watchpoint mechanism.
+
+A minor limitation of this feature, again because it targets symbols,
+is that only variables of dynamic scope may be watched.  This poses
+little difficulty, since modifications to lexical variables can be
+discovered easily by inspecting the code within the scope of the
+variable (unlike dynamic variables, which can be modified by any code
+at all, @pxref{Variable Scoping}).
+
 
 @node Variable Scoping
 @section Scoping Rules for Variable Bindings
@@ -1569,6 +1642,45 @@ an ordinary evaluated argument.
 @end example
 @end defun
 
+  A variable can be let-bound (@pxref{Local Variables}) to a value.
+This makes its global value shadowed by the binding;
+@code{default-value} will then return the value from that binding, not
+the global value, and @code{set-default} will be prevented from
+setting the global value (it will change the let-bound value instead).
+The following two functions allow to reference the global value even
+if it's shadowed by a let-binding.
+
+@cindex top-level default value
+@defun default-toplevel-value symbol
+This function returns the @dfn{top-level} default value of
+@var{symbol}, which is its value outside of any let-binding.
+@end defun
+
+@example
+@group
+(defvar variable 'global-value)
+    @result{} variable
+@end group
+@group
+(let ((variable 'let-binding))
+  (default-value 'variable))
+    @result{} let-binding
+@end group
+@group
+(let ((variable 'let-binding))
+  (default-toplevel-value 'variable))
+    @result{} global-value
+@end group
+@end example
+
+@defun set-default-toplevel-value symbol value
+This function sets the top-level default value of @var{symbol} to the
+specified @var{value}.  This comes in handy when you want to set the
+global value of @var{symbol} regardless of whether your code runs in
+the context of @var{symbol}'s let-binding.
+@end defun
+
+
 @node File Local Variables
 @section File Local Variables
 @cindex file local variables
@@ -1904,7 +2016,7 @@ settings to all process buffers for those connections.  The list in
 @group
 (connection-local-set-class-variables
   'remote-null-device
-  '((null-device "/dev/null")))
+  '((null-device . "/dev/null")))
 @end group
 @end example
 @end defun

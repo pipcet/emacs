@@ -1,6 +1,6 @@
 ;;; seq-tests.el --- Tests for sequences.el
 
-;; Copyright (C) 2014-2016 Free Software Foundation, Inc.
+;; Copyright (C) 2014-2017 Free Software Foundation, Inc.
 
 ;; Author: Nicolas Petton <nicolas@petton.fr>
 ;; Maintainer: emacs-devel@gnu.org
@@ -385,6 +385,19 @@ Evaluate BODY for each created sequence.
   (should-error (seq-random-elt nil))
   (should-error (seq-random-elt []))
   (should-error (seq-random-elt "")))
+
+(ert-deftest test-seq-mapn-circular-lists ()
+  (let ((l1 '#1=(1 . #1#)))
+    (should (equal (seq-mapn #'+ '(3 4 5 7) l1)
+                   '(4 5 6 8)))))
+
+(ert-deftest test-seq-into-and-identity ()
+  (let ((lst '(1 2 3))
+        (vec [1 2 3])
+        (str "foo bar"))
+    (should (eq (seq-into lst 'list) lst))
+    (should (eq (seq-into vec 'vector) vec))
+    (should (eq (seq-into str 'string) str))))
 
 (provide 'seq-tests)
 ;;; seq-tests.el ends here

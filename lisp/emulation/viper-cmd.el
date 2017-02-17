@@ -1,6 +1,6 @@
 ;;; viper-cmd.el --- Vi command support for Viper  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1997-2016 Free Software Foundation, Inc.
+;; Copyright (C) 1997-2017 Free Software Foundation, Inc.
 
 ;; Author: Michael Kifer <kifer@cs.stonybrook.edu>
 ;; Package: viper
@@ -4520,7 +4520,7 @@ One can use \\=`\\=` and \\='\\=' to temporarily jump 1 step back."
   (interactive)
   (if viper-cted
       (let ((p (point)) (c (current-column)) bol (indent t))
-	(if (looking-back "[0^]" (1- (point)))
+	(if (memq (preceding-char) '(?0 ?^))
 	    (progn
 	      (if (eq ?^ (preceding-char))
 		  (setq viper-preserve-indent t))

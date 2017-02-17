@@ -1,5 +1,5 @@
 /* Indentation functions.
-   Copyright (C) 1985-1988, 1993-1995, 1998, 2000-2016 Free Software
+   Copyright (C) 1985-1988, 1993-1995, 1998, 2000-2017 Free Software
    Foundation, Inc.
 
 This file is part of GNU Emacs.
@@ -1200,9 +1200,6 @@ compute_motion (ptrdiff_t from, ptrdiff_t frombyte, EMACS_INT fromvpos,
     continuation_glyph_width = 0;  /* In the fringe.  */
 #endif
 
-  immediate_quit = 1;
-  QUIT;
-
   /* It's just impossible to be too paranoid here.  */
   eassert (from == BYTE_TO_CHAR (frombyte) && frombyte == CHAR_TO_BYTE (from));
 
@@ -1214,8 +1211,12 @@ compute_motion (ptrdiff_t from, ptrdiff_t frombyte, EMACS_INT fromvpos,
   cmp_it.id = -1;
   composition_compute_stop_pos (&cmp_it, pos, pos_byte, to, Qnil);
 
-  while (1)
+  unsigned short int quit_count = 0;
+
+  while (true)
     {
+      rarely_quit (++quit_count);
+
       while (pos == next_boundary)
 	{
 	  ptrdiff_t pos_here = pos;
@@ -1280,6 +1281,8 @@ compute_motion (ptrdiff_t from, ptrdiff_t frombyte, EMACS_INT fromvpos,
 	      pos = newpos;
 	      pos_byte = CHAR_TO_BYTE (pos);
 	    }
+
+	  rarely_quit (++quit_count);
 	}
 
       /* Handle right margin.  */
@@ -1602,6 +1605,7 @@ compute_motion (ptrdiff_t from, ptrdiff_t frombyte, EMACS_INT fromvpos,
 			      pos = find_before_next_newline (pos, to, 1, &pos_byte);
 			      if (pos < to)
 				INC_BOTH (pos, pos_byte);
+			      rarely_quit (++quit_count);
 			    }
 			  while (pos < to
 				 && indented_beyond_p (pos, pos_byte,
@@ -1694,7 +1698,6 @@ compute_motion (ptrdiff_t from, ptrdiff_t frombyte, EMACS_INT fromvpos,
   /* Nonzero if have just continued a line */
   val_compute_motion.contin = (contin_hpos && prev_hpos == 0);
 
-  immediate_quit = 0;
   return &val_compute_motion;
 }
 
@@ -1958,6 +1961,20 @@ window_column_x (struct window *w, Lisp_Object window,
   return x;
 }
 
+/* Restore window's buffer and point.  */
+
+static void
+restore_window_buffer (Lisp_Object list)
+{
+  struct window *w = decode_live_window (XCAR (list));
+  list = XCDR (list);
+  wset_buffer (w, XCAR (list));
+  list = XCDR (list);
+  set_marker_both (w->pointm, w->contents,
+		   XFASTINT (XCAR (list)),
+		   XFASTINT (XCAR (XCDR (list))));
+}
+
 DEFUN ("vertical-motion", Fvertical_motion, Svertical_motion, 1, 3, 0,
        doc: /* Move point to start of the screen line LINES lines down.
 If LINES is negative, this means moving up.
@@ -1997,10 +2014,9 @@ whether or not it is currently displayed in some window.  */)
   struct it it;
   struct text_pos pt;
   struct window *w;
-  Lisp_Object old_buffer;
-  EMACS_INT old_charpos UNINIT, old_bytepos UNINIT;
   Lisp_Object lcols;
   void *itdata = NULL;
+  ptrdiff_t count = SPECPDL_INDEX ();
 
   /* Allow LINES to be of the form (HPOS . VPOS) aka (COLUMNS . LINES).  */
   bool lcols_given = CONSP (lines);
@@ -2013,13 +2029,13 @@ whether or not it is currently displayed in some window.  */)
   CHECK_NUMBER (lines);
   w = decode_live_window (window);
 
-  old_buffer = Qnil;
   if (XBUFFER (w->contents) != current_buffer)
     {
       /* Set the window's buffer temporarily to the current buffer.  */
-      old_buffer = w->contents;
-      old_charpos = marker_position (w->pointm);
-      old_bytepos = marker_byte_position (w->pointm);
+      Lisp_Object old = list4 (window, w->contents,
+			       make_number (marker_position (w->pointm)),
+			       make_number (marker_byte_position (w->pointm)));
+      record_unwind_protect (restore_window_buffer, old);
       wset_buffer (w, Fcurrent_buffer ());
       set_marker_both (w->pointm, w->contents,
 		       BUF_PT (current_buffer), BUF_PT_BYTE (current_buffer));
@@ -2255,12 +2271,7 @@ whether or not it is currently displayed in some window.  */)
       bidi_unshelve_cache (itdata, 0);
     }
 
-  if (BUFFERP (old_buffer))
-    {
-      wset_buffer (w, old_buffer);
-      set_marker_both (w->pointm, w->contents,
-		       old_charpos, old_bytepos);
-    }
+  unbind_to (count, Qnil);
 
   return make_number (it.vpos);
 }

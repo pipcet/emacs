@@ -1,5 +1,5 @@
 /* Window definitions for GNU Emacs.
-   Copyright (C) 1985-1986, 1993, 1995, 1997-2016 Free Software
+   Copyright (C) 1985-1986, 1993, 1995, 1997-2017 Free Software
    Foundation, Inc.
 
 This file is part of GNU Emacs.
@@ -396,6 +396,25 @@ struct window
        Should be nonnegative, and only valid if window_end_valid is true.  */
     ptrdiff_t window_end_bytepos;
   };
+
+INLINE bool
+WINDOWP (Lisp_Object a)
+{
+  return PSEUDOVECTORP (a, PVEC_WINDOW);
+}
+
+INLINE void
+CHECK_WINDOW (Lisp_Object x)
+{
+  CHECK_TYPE (WINDOWP (x), Qwindowp, x);
+}
+
+INLINE struct window *
+XWINDOW (Lisp_Object a)
+{
+  eassert (WINDOWP (a));
+  return XUNTAG (a, Lisp_Vectorlike);
+}
 
 /* Most code should use these functions to set Lisp fields in struct
    window.  */
@@ -1063,7 +1082,6 @@ extern void wset_redisplay (struct window *w);
 extern void fset_redisplay (struct frame *f);
 extern void bset_redisplay (struct buffer *b);
 extern void bset_update_mode_line (struct buffer *b);
-extern void maybe_set_redisplay (Lisp_Object);
 /* Call this to tell redisplay to look for other windows than selected-window
    that need to be redisplayed.  Calling one of the *set_redisplay functions
    above already does it, so it's only needed in unusual cases.  */
@@ -1102,6 +1120,8 @@ extern bool compare_window_configurations (Lisp_Object, Lisp_Object, bool);
 extern void mark_window_cursors_off (struct window *);
 extern int window_internal_height (struct window *);
 extern int window_body_width (struct window *w, bool);
+enum margin_unit { MARGIN_IN_LINES, MARGIN_IN_PIXELS };
+extern int window_scroll_margin (struct window *, enum margin_unit);
 extern void temp_output_buffer_show (Lisp_Object);
 extern void replace_buffer_in_windows (Lisp_Object);
 extern void replace_buffer_in_windows_safely (Lisp_Object);

@@ -1,5 +1,5 @@
 @c This is part of the Emacs manual.  -*- coding: utf-8 -*-
-@c Copyright (C) 2004-2016 Free Software Foundation, Inc.
+@c Copyright (C) 2004-2017 Free Software Foundation, Inc.
 @c See file emacs.texi for copying conditions.
 @c
 @c This file is included either in emacs-xtra.texi (when producing the
@@ -61,11 +61,6 @@ date that has diary entries.  The function @code{calendar-mark-today}
 uses @code{calendar-today-marker} to mark today's date.  By default,
 the calendar uses faces named @code{holiday}, @code{diary}, and
 @code{calendar-today} for these purposes.
-
-@vindex calendar-load-hook
-  The variable @code{calendar-load-hook} is a normal hook run when the
-calendar package is first loaded (before actually starting to display
-the calendar).
 
 @vindex calendar-initial-window-hook
   Starting the calendar runs the normal hook

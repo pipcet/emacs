@@ -1,6 +1,6 @@
 ;;; cus-dep.el --- find customization dependencies
 ;;
-;; Copyright (C) 1997, 2001-2016 Free Software Foundation, Inc.
+;; Copyright (C) 1997, 2001-2017 Free Software Foundation, Inc.
 ;;
 ;; Author: Per Abrahamsen <abraham@dina.kvl.dk>
 ;; Keywords: internal
@@ -33,7 +33,7 @@
 
 ;; See finder-no-scan-regexp in finder.el.
 (defvar custom-dependencies-no-scan-regexp "\\(^\\.#\\|\\(loaddefs\\|\
-ldefs-boot\\|cus-load\\|finder-inf\\|esh-groups\\|subdirs\\)\\.el$\\)"
+ldefs-boot.*\\|cus-load\\|finder-inf\\|esh-groups\\|subdirs\\)\\.el$\\)"
   "Regexp matching file names not to scan for `custom-make-dependencies'.")
 
 (require 'autoload)

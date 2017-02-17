@@ -10673,7 +10673,7 @@
 	Try font from Ffont_get_system_font.
 	Do not get font from x_default_parameter if we got one from
 	Ffont_get_system_font.
-	(Fx_select_font): Get the defaut font name from :name of FRAME_FONT(f).
+	(Fx_select_font): Get the default font name from :name of FRAME_FONT(f).
 
 	* w32font.c (w32font_driver): Initialize all members.
 
@@ -31385,7 +31385,7 @@ See ChangeLog.10 for earlier changes.
 ;; coding: utf-8
 ;; End:
 
-  Copyright (C) 2007-2016 Free Software Foundation, Inc.
+  Copyright (C) 2007-2017 Free Software Foundation, Inc.
 
   This file is part of GNU Emacs.
 

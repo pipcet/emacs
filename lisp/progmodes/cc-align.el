@@ -1,6 +1,6 @@
 ;;; cc-align.el --- custom indentation functions for CC Mode
 
-;; Copyright (C) 1985, 1987, 1992-2016 Free Software Foundation, Inc.
+;; Copyright (C) 1985, 1987, 1992-2017 Free Software Foundation, Inc.
 
 ;; Authors:    2004- Alan Mackenzie
 ;;             1998- Martin Stjernholm
@@ -1220,6 +1220,18 @@ Works with: arglist-cont, arglist-cont-nonempty."
 	      (c-in-gcc-asm-p))
 
        (vector (progn (goto-char alignto) (current-column)))))))
+
+(defun c-lineup-under-anchor (langelem)
+  "Line up the current line directly under the anchor position in LANGELEM.
+
+This is like 0, except it supersedes any indentation already calculated for
+previous syntactic elements in the syntactic context.
+
+Works with: Any syntactic symbol which has an anchor position."
+  (save-excursion
+    (goto-char (c-langelem-pos langelem))
+    (vector (current-column))))
+    
 
 (defun c-lineup-dont-change (langelem)
   "Do not change the indentation of the current line.

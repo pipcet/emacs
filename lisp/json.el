@@ -1,6 +1,6 @@
 ;;; json.el --- JavaScript Object Notation parser / generator -*- lexical-binding: t -*-
 
-;; Copyright (C) 2006-2016 Free Software Foundation, Inc.
+;; Copyright (C) 2006-2017 Free Software Foundation, Inc.
 
 ;; Author: Edward O'Connor <ted@oconnor.cx>
 ;; Version: 1.4
@@ -188,7 +188,7 @@ Unlike `reverse', this keeps the property-value pairs intact."
 ;; Reader utilities
 
 (defsubst json-advance (&optional n)
-  "Skip past the following N characters."
+  "Advance N characters forward."
   (forward-char n))
 
 (defsubst json-peek ()
@@ -363,6 +363,10 @@ representation will be parsed correctly."
 
 ;; String parsing
 
+(defun json--decode-utf-16-surrogates (high low)
+  "Return the code point represented by the UTF-16 surrogates HIGH and LOW."
+  (+ (lsh (- high #xD800) 10) (- low #xDC00) #x10000))
+
 (defun json-read-escaped-char ()
   "Read the JSON string escaped character at point."
   ;; Skip over the '\'
@@ -372,7 +376,18 @@ representation will be parsed correctly."
     (cond
      (special (cdr special))
      ((not (eq char ?u)) char)
-     ((looking-at "[0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f]")
+     ;; Special-case UTF-16 surrogate pairs,
+     ;; cf. https://tools.ietf.org/html/rfc7159#section-7.  Note that
+     ;; this clause overlaps with the next one and therefore has to
+     ;; come first.
+     ((looking-at
+       (rx (group (any "Dd") (any "89ABab") (= 2 (any xdigit)))
+           "\\u" (group (any "Dd") (any "C-Fc-f") (= 2 (any xdigit)))))
+      (json-advance 10)
+      (json--decode-utf-16-surrogates
+       (string-to-number (match-string 1) 16)
+       (string-to-number (match-string 2) 16)))
+     ((looking-at (rx (= 4 xdigit)))
       (let ((hex (match-string 0)))
         (json-advance 4)
         (string-to-number hex 16)))
@@ -381,14 +396,14 @@ representation will be parsed correctly."
 
 (defun json-read-string ()
   "Read the JSON string at point."
-  (unless (char-equal (json-peek) ?\")
+  (unless (= (json-peek) ?\")
     (signal 'json-string-format (list "doesn't start with `\"'!")))
   ;; Skip over the '"'
   (json-advance)
   (let ((characters '())
         (char (json-peek)))
-    (while (not (char-equal char ?\"))
-      (push (if (char-equal char ?\\)
+    (while (not (= char ?\"))
+      (push (if (= char ?\\)
                 (json-read-escaped-char)
               (json-pop))
             characters)

@@ -1,6 +1,6 @@
 ;;; message.el --- composing mail and news messages -*- lexical-binding: t -*-
 
-;; Copyright (C) 1996-2016 Free Software Foundation, Inc.
+;; Copyright (C) 1996-2017 Free Software Foundation, Inc.
 
 ;; Author: Lars Magne Ingebrigtsen <larsi@gnus.org>
 ;; Keywords: mail, news
@@ -63,9 +63,6 @@
   :link '(custom-manual "(message)Top")
   :group 'mail
   :group 'news)
-
-(put 'user-mail-address 'custom-type 'string)
-(put 'user-full-name 'custom-type 'string)
 
 (defgroup message-various nil
   "Various Message Variables."
@@ -1358,7 +1355,7 @@ If nil, you might be asked to input the charset."
 (defcustom message-dont-reply-to-names mail-dont-reply-to-names
   "Addresses to prune when doing wide replies.
 This can be a regexp, a list of regexps or a predicate function.
-Also, a value of nil means exclude your own user name only.
+Also, a value of nil means exclude `user-mail-address' only.
 
 If a function email is passed as the argument."
   :version "24.3"
@@ -2286,13 +2283,15 @@ body, set  `message-archive-note' to nil."
   "Mangles FollowUp-To and Newsgroups header to point to TARGET-GROUP.
 With prefix-argument just set Follow-Up, don't cross-post."
   (interactive
-   (list ; Completion based on Gnus
-    (completing-read "Followup To: "
-		     (if (boundp 'gnus-newsrc-alist)
-			 gnus-newsrc-alist)
-		     nil nil '("poster" . 0)
-		     (if (boundp 'gnus-group-history)
-			 'gnus-group-history))))
+   (list				; Completion based on Gnus
+    (replace-regexp-in-string
+     "\\`.*:" ""
+     (completing-read "Followup To: "
+		      (if (boundp 'gnus-newsrc-alist)
+			  gnus-newsrc-alist)
+		      nil nil '("poster" . 0)
+		      (if (boundp 'gnus-group-history)
+			  'gnus-group-history)))))
   (message-remove-header "Follow[Uu]p-[Tt]o" t)
   (message-goto-newsgroups)
   (beginning-of-line)
@@ -2361,13 +2360,15 @@ been made to before the user asked for a Crosspost."
   "Crossposts message and set Followup-To to TARGET-GROUP.
 With prefix-argument just set Follow-Up, don't cross-post."
   (interactive
-   (list ; Completion based on Gnus
-    (completing-read "Followup To: "
-		     (if (boundp 'gnus-newsrc-alist)
-			 gnus-newsrc-alist)
-		     nil nil '("poster" . 0)
-		     (if (boundp 'gnus-group-history)
-			 'gnus-group-history))))
+   (list				; Completion based on Gnus
+    (replace-regexp-in-string
+     "\\`.*:" ""
+     (completing-read "Followup To: "
+		      (if (boundp 'gnus-newsrc-alist)
+			  gnus-newsrc-alist)
+		      nil nil '("poster" . 0)
+		      (if (boundp 'gnus-group-history)
+			  'gnus-group-history)))))
   (when (fboundp 'gnus-group-real-name)
     (setq target-group (gnus-group-real-name target-group)))
   (cond ((not (or (null target-group) ; new subject not empty
@@ -3108,18 +3109,29 @@ M-RET    `message-newline-and-reformat' (break the line and reformat)."
 	     (looking-at "[ \t]*\n"))
     (expand-abbrev))
   (push-mark)
+  (message-goto-body-1))
+
+(defun message-goto-body-1 ()
+  "Go to the body and return point."
   (goto-char (point-min))
   (or (search-forward (concat "\n" mail-header-separator "\n") nil t)
-      (search-forward-regexp "[^:]+:\\([^\n]\\|\n[ \t]\\)+\n\n" nil t)))
+      ;; If the message is mangled, find the end of the headers the
+      ;; hard way.
+      (progn
+	;; Skip past all headers and continuation lines.
+	(while (looking-at "[^:]+:\\|[\t ]+[^\t ]")
+	  (forward-line 1))
+	;; We're now at the first empty line, so perhaps move past it.
+	(when (and (eolp)
+		   (not (eobp)))
+	  (forward-line 1))
+	(point))))
 
 (defun message-in-body-p ()
   "Return t if point is in the message body."
   (>= (point)
       (save-excursion
-	(goto-char (point-min))
-	(or (search-forward (concat "\n" mail-header-separator "\n") nil t)
-	    (search-forward-regexp "[^:]+:\\([^\n]\\|\n[ \t]\\)+\n\n" nil t))
-	(point))))
+	(message-goto-body-1))))
 
 (defun message-goto-eoh ()
   "Move point to the end of the headers."
@@ -3330,6 +3342,8 @@ of lines before the signature intact."
   "Insert four newlines, and then reformat if inside quoted text.
 Prefix arg means justify as well."
   (interactive (list (if current-prefix-arg 'full)))
+  (unless (message-in-body-p)
+    (error "This command only works in the body of the message"))
   (let (quoted point beg end leading-space bolp fill-paragraph-function)
     (setq point (point))
     (beginning-of-line)
@@ -4102,8 +4116,8 @@ It should typically alter the sending method in some way or other."
   (let ((inhibit-read-only t))
     (put-text-property (point-min) (point-max) 'read-only nil))
   (message-fix-before-sending)
-  (mml-secure-bcc-is-safe)
   (run-hooks 'message-send-hook)
+  (mml-secure-bcc-is-safe)
   (when message-confirm-send
     (or (y-or-n-p "Send message? ")
 	(keyboard-quit)))
@@ -4206,14 +4220,14 @@ not have PROP."
     (nreverse regions)))
 
 (defcustom message-bogus-addresses
-  '("noreply" "nospam" "invalid" "@@" "[^[:ascii:]].*@" "[ \t]")
+  '("noreply" "nospam" "invalid" "@.*@" "[^[:ascii:]].*@" "[ \t]")
   "List of regexps of potentially bogus mail addresses.
 See `message-check-recipients' how to setup checking.
 
 This list should make it possible to catch typos or warn about
 spam-trap addresses.  It doesn't aim to verify strict RFC
 conformance."
-  :version "23.1" ;; No Gnus
+  :version "26.1"			; @@ -> @.*@
   :group 'message-headers
   :type '(choice
 	  (const :tag "None" nil)
@@ -4222,7 +4236,7 @@ conformance."
 		(const "noreply")
 		(const "nospam")
 		(const "invalid")
-		(const :tag "duplicate @" "@@")
+		(const :tag "duplicate @" "@.*@")
 		(const :tag "non-ascii local part" "[^[:ascii:]].*@")
 		(const :tag "`_' in domain part" "@.*_")
 		(const :tag "whitespace" "[ \t]"))
@@ -4339,8 +4353,6 @@ An address might be bogus if if there's a matching entry in
     (mapc (lambda (address)
 	    (setq address (or (cadr address) ""))
 	    (when (or (string= "" address)
-		      (not (string-match "@" address))
-		      (string-match "@.*@" address)
 		      (and message-bogus-addresses
 			   (let ((re
 				  (if (listp message-bogus-addresses)
@@ -4541,6 +4553,9 @@ This function could be useful in `message-setup-hook'."
 	    (forward-line 1)
 	    (unless (y-or-n-p "Send anyway? ")
 	      (error "Failed to send the message")))))
+      ;; Fold too-long header lines.  They should be no longer than
+      ;; 998 octets long.
+      (message--fold-long-headers)
       ;; Let the user do all of the above.
       (run-hooks 'message-header-hook))
     (setq options message-options)
@@ -4636,6 +4651,14 @@ If you always want Gnus to send messages in one piece, set
     (set-buffer mailbuf)
     (setq message-options options)
     (push 'mail message-sent-message-via)))
+
+(defun message--fold-long-headers ()
+  (goto-char (point-min))
+  (while (not (eobp))
+    (when (and (looking-at "[^:]+:")
+	       (> (- (line-end-position) (point)) 998))
+      (mail-header-fold-field))
+    (forward-line 1)))
 
 (defvar sendmail-program)
 (defvar smtpmail-smtp-server)
@@ -5382,16 +5405,13 @@ Otherwise, generate and save a value for `canlock-password' first."
   "Process Fcc headers in the current buffer."
   (let ((case-fold-search t)
 	(buf (current-buffer))
-	list file
-	(mml-externalize-attachments message-fcc-externalize-attachments))
-    (save-excursion
-      (save-restriction
-	(message-narrow-to-headers)
-	(setq file (message-fetch-field "fcc" t)))
-      (when file
-	(set-buffer (get-buffer-create " *message temp*"))
-	(erase-buffer)
+	(mml-externalize-attachments message-fcc-externalize-attachments)
+	(file (message-field-value "fcc" t))
+	list)
+    (when file
+      (with-temp-buffer
 	(insert-buffer-substring buf)
+	(message-clone-locals buf)
 	(message-encode-message-body)
 	(save-restriction
 	  (message-narrow-to-headers)
@@ -5431,8 +5451,7 @@ Otherwise, generate and save a value for `canlock-password' first."
 	      (if (and (file-readable-p file) (mail-file-babyl-p file))
 		  (rmail-output file 1 nil t)
 		(let ((mail-use-rfc822 t))
-		  (rmail-output file 1 t t))))))
-	(kill-buffer (current-buffer))))))
+		  (rmail-output file 1 t t))))))))))
 
 (defun message-output (filename)
   "Append this article to Unix/babyl mail file FILENAME."
@@ -5763,7 +5782,7 @@ give as trustworthy answer as possible."
 	   (not (string-match message-bogus-system-names message-user-fqdn)))
       ;; `message-user-fqdn' seems to be valid
       message-user-fqdn)
-     ((and (string-match message-bogus-system-names sysname))
+     ((not (string-match message-bogus-system-names sysname))
       ;; `system-name' returned the right result.
       sysname)
      ;; Try `mail-host-address'.
@@ -6646,29 +6665,27 @@ OTHER-HEADERS is an alist of header/value pairs.  CONTINUE says whether
 to continue editing a message already being composed.  SWITCH-FUNCTION
 is a function used to switch to and display the mail buffer."
   (interactive)
-  (let ((message-this-is-mail t))
-    (unless (message-mail-user-agent)
-      (message-pop-to-buffer
-       ;; Search for the existing message buffer if `continue' is non-nil.
-       (let ((message-generate-new-buffers
-	      (when (or (not continue)
-			(eq message-generate-new-buffers 'standard)
-			(functionp message-generate-new-buffers))
-		message-generate-new-buffers)))
-	 (message-buffer-name "mail" to))
-       switch-function))
-    (message-setup
-     (nconc
-      `((To . ,(or to "")) (Subject . ,(or subject "")))
-      ;; C-h f compose-mail says that headers should be specified as
-      ;; (string . value); however all the rest of message expects
-      ;; headers to be symbols, not strings (eg message-header-format-alist).
-      ;; http://lists.gnu.org/archive/html/emacs-devel/2011-01/msg00337.html
-      ;; We need to convert any string input, eg from rmail-start-mail.
-      (dolist (h other-headers other-headers)
- 	(if (stringp (car h)) (setcar h (intern (capitalize (car h)))))))
-     yank-action send-actions continue switch-function
-     return-action)))
+  (let ((message-this-is-mail t)
+	message-buffers)
+    ;; Search for the existing message buffer if `continue' is non-nil.
+    (if (and continue
+	     (setq message-buffers (message-buffers)))
+	(pop-to-buffer (car message-buffers))
+      ;; Start a new buffer.
+      (unless (message-mail-user-agent)
+	(message-pop-to-buffer (message-buffer-name "mail" to) switch-function))
+      (message-setup
+       (nconc
+	`((To . ,(or to "")) (Subject . ,(or subject "")))
+	;; C-h f compose-mail says that headers should be specified as
+	;; (string . value); however all the rest of message expects
+	;; headers to be symbols, not strings (eg message-header-format-alist).
+	;; http://lists.gnu.org/archive/html/emacs-devel/2011-01/msg00337.html
+	;; We need to convert any string input, eg from rmail-start-mail.
+	(dolist (h other-headers other-headers)
+	  (if (stringp (car h)) (setcar h (intern (capitalize (car h)))))))
+       yank-action send-actions continue switch-function
+       return-action))))
 
 ;;;###autoload
 (defun message-news (&optional newsgroups subject)
@@ -7948,7 +7965,7 @@ regular text mode tabbing command."
 		  (not (mail-abbrev-in-expansion-header-p))))
       (setq alist (cdr alist)))
     (when (cdar alist)
-      (lexical-let ((fun (cdar alist)))
+      (let ((fun (cdar alist)))
         ;; Even if completion fails, return a non-nil value, so as to avoid
         ;; falling back to message-tab-body-function.
         (lambda () (funcall fun) 'completion-attempted)))))

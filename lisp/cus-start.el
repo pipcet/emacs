@@ -1,6 +1,6 @@
 ;;; cus-start.el --- define customization properties of builtins  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1997, 1999-2016 Free Software Foundation, Inc.
+;; Copyright (C) 1997, 1999-2017 Free Software Foundation, Inc.
 
 ;; Author: Per Abrahamsen <abraham@dina.kvl.dk>
 ;; Keywords: internal
@@ -511,6 +511,7 @@ since it could result in memory overflow and make Emacs crash."
 	     (scroll-step windows integer)
 	     (scroll-conservatively windows integer)
 	     (scroll-margin windows integer)
+             (maximum-scroll-margin windows float "26.1")
 	     (hscroll-margin windows integer "22.1")
 	     (hscroll-step windows number "22.1")
 	     (truncate-partial-width-windows

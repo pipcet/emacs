@@ -1,6 +1,6 @@
 ;;; flymake.el --- a universal on-the-fly syntax checker  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2003-2016 Free Software Foundation, Inc.
+;; Copyright (C) 2003-2017 Free Software Foundation, Inc.
 
 ;; Author:  Pavel Kobyakov <pk_at_work@yahoo.com>
 ;; Maintainer: Leo Liu <sdl.web@gmail.com>
@@ -102,6 +102,8 @@ See `flymake-error-bitmap' and `flymake-warning-bitmap'."
   "Enables/disables GUI warnings."
   :group 'flymake
   :type 'boolean)
+(make-obsolete-variable 'flymake-gui-warnings-enabled
+			"it no longer has any effect." "26.1")
 
 (defcustom flymake-start-syntax-check-on-find-file t
   "Start syntax check on find file."
@@ -1190,15 +1192,17 @@ For the format of LINE-ERR-INFO, see `flymake-ler-make-ler'."
     (setq flymake-mode-line mode-line)
     (force-mode-line-update)))
 
-(defun flymake-display-warning (warning)
-  "Display a warning to user."
-  (message-box warning))
+;; Nothing in flymake uses this at all any more, so this is just for
+;; third-party compatibility.
+(define-obsolete-function-alias 'flymake-display-warning 'message-box "26.1")
 
 (defun flymake-report-fatal-status (status warning)
   "Display a warning and switch flymake mode off."
-  (when flymake-gui-warnings-enabled
-    (flymake-display-warning (format "Flymake: %s. Flymake will be switched OFF" warning))
-    )
+  ;; This first message was always shown by default, and flymake-log
+  ;; does nothing by default, hence the use of message.
+  ;; Another option is display-warning.
+  (if (< flymake-log-level 0)
+      (message "Flymake: %s. Flymake will be switched OFF" warning))
   (flymake-mode 0)
   (flymake-log 0 "switched OFF Flymake mode for buffer %s due to fatal status %s, warning %s"
                (buffer-name) status warning))

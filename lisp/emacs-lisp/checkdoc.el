@@ -1,6 +1,6 @@
 ;;; checkdoc.el --- check documentation strings for style requirements  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1997-1998, 2001-2016 Free Software Foundation, Inc.
+;; Copyright (C) 1997-1998, 2001-2017 Free Software Foundation, Inc.
 
 ;; Author: Eric M. Ludlam <zappo@gnu.org>
 ;; Version: 0.6.2
@@ -293,12 +293,6 @@ problem discovered.  This is useful for adding additional checks.")
 
 (defvar checkdoc-diagnostic-buffer "*Style Warnings*"
   "Name of warning message buffer.")
-
-(defvar checkdoc-defun-regexp
-  "^(def\\(un\\|var\\|custom\\|macro\\|const\\|subst\\|advice\\)\
-\\s-+\\(\\(\\sw\\|\\s_\\)+\\)[ \t\n]+"
-  "Regular expression used to identify a defun.
-A search leaves the cursor in front of the parameter list.")
 
 (defcustom checkdoc-verb-check-experimental-flag t
   "Non-nil means to attempt to check the voice of the doc string.
@@ -609,7 +603,7 @@ style."
 	      (checkdoc-overlay-put cdo 'face 'highlight)
 	      ;; Make sure the whole doc string is visible if possible.
 	      (sit-for 0)
-	      (if (and (looking-at "\"")
+	      (if (and (= (following-char) ?\")
 		       (not (pos-visible-in-window-p
 			     (save-excursion (forward-sexp 1) (point))
 			     (selected-window))))
@@ -749,9 +743,9 @@ buffer, otherwise searching starts at START-HERE."
       (while (checkdoc-next-docstring)
         (message "Searching for doc string spell error...%d%%"
                  (floor (* 100.0 (point)) (point-max)))
-        (if (looking-at "\"")
-            (checkdoc-ispell-docstring-engine
-             (save-excursion (forward-sexp 1) (point-marker)))))
+        (when (= (following-char) ?\")
+          (checkdoc-ispell-docstring-engine
+           (save-excursion (forward-sexp 1) (point-marker)))))
       (message "Checkdoc: Done."))))
 
 (defun checkdoc-message-interactive-ispell-loop (start-here)
@@ -769,7 +763,7 @@ buffer, otherwise searching starts at START-HERE."
       (while (checkdoc-message-text-next-string (point-max))
         (message "Searching for message string spell error...%d%%"
                  (floor (* 100.0 (point)) (point-max)))
-        (if (looking-at "\"")
+        (if (= (following-char) ?\")
             (checkdoc-ispell-docstring-engine
              (save-excursion (forward-sexp 1) (point-marker)))))
       (message "Checkdoc: Done."))))
@@ -938,13 +932,31 @@ is the starting location.  If this is nil, `point-min' is used instead."
 (defun checkdoc-next-docstring ()
   "Move to the next doc string after point, and return t.
 Return nil if there are no more doc strings."
-  (if (not (re-search-forward checkdoc-defun-regexp nil t))
-      nil
-    ;; search drops us after the identifier.  The next sexp is either
-    ;; the argument list or the value of the variable.  skip it.
-    (forward-sexp 1)
-    (skip-chars-forward " \n\t")
-    t))
+  (let (found)
+    (while (and (not (setq found (checkdoc--next-docstring)))
+                (beginning-of-defun -1)))
+    found))
+
+(defun checkdoc--next-docstring ()
+  "When looking at a definition with a doc string, find it.
+Move to the next doc string after point, and return t.  When not
+looking at a definition containing a doc string, return nil and
+don't move point."
+  (pcase (save-excursion (condition-case nil
+                             (read (current-buffer))
+                           ;; Conservatively skip syntax errors.
+                           (invalid-read-syntax)))
+    (`(,(or 'defun 'defvar 'defcustom 'defmacro 'defconst 'defsubst 'defadvice)
+       ,(pred symbolp)
+       ;; Require an initializer, i.e. ignore single-argument `defvar'
+       ;; forms, which never have a doc string.
+       ,_ . ,_)
+     (down-list)
+     ;; Skip over function or macro name, symbol to be defined, and
+     ;; initializer or argument list.
+     (forward-sexp 3)
+     (skip-chars-forward " \n\t")
+     t)))
 
 ;;;###autoload
 (defun checkdoc-comments (&optional take-notes)
@@ -1027,21 +1039,12 @@ space at the end of each line."
   (interactive)
   (save-excursion
     (beginning-of-defun)
-    (if (not (looking-at checkdoc-defun-regexp))
-	;; I found this more annoying than useful.
-	;;(if (not no-error)
-	;;    (message "Cannot check this sexp's doc string."))
-	nil
-      ;; search drops us after the identifier.  The next sexp is either
-      ;; the argument list or the value of the variable.  skip it.
-      (goto-char (match-end 0))
-      (forward-sexp 1)
-      (skip-chars-forward " \n\t")
+    (when (checkdoc--next-docstring)
       (let* ((checkdoc-spellcheck-documentation-flag
-	      (car (memq checkdoc-spellcheck-documentation-flag
+              (car (memq checkdoc-spellcheck-documentation-flag
                          '(defun t))))
-	     (beg (save-excursion (beginning-of-defun) (point)))
-	     (end (save-excursion (end-of-defun) (point))))
+             (beg (save-excursion (beginning-of-defun) (point)))
+             (end (save-excursion (end-of-defun) (point))))
         (dolist (fun (list #'checkdoc-this-string-valid
                            (lambda () (checkdoc-message-text-search beg end))
                            (lambda () (checkdoc-rogue-space-check-engine beg end))))
@@ -1049,8 +1052,8 @@ space at the end of each line."
             (if msg (if no-error
                         (message "%s" (checkdoc-error-text msg))
                       (user-error "%s" (checkdoc-error-text msg))))))
-	(if (called-interactively-p 'interactive)
-	    (message "Checkdoc: done."))))))
+        (if (called-interactively-p 'interactive)
+            (message "Checkdoc: done."))))))
 
 ;;; Ispell interface for forcing a spell check
 ;;
@@ -1378,7 +1381,7 @@ See the style guide in the Emacs Lisp manual for more details."
 		"All variables and subroutines might as well have a \
 documentation string")
 	      (point) (+ (point) 1) t)))))
-    (if (and (not err) (looking-at "\""))
+    (if (and (not err) (= (following-char) ?\"))
         (with-syntax-table checkdoc-syntax-table
           (checkdoc-this-string-valid-engine fp))
       err)))
@@ -1392,7 +1395,7 @@ regexp short cuts work.  FP is the function defun information."
 	;; we won't accidentally lose our place.  This could cause
 	;; end-of doc string whitespace to also delete the " char.
 	(s (point))
-	(e (if (looking-at "\"")
+	(e (if (= (following-char) ?\")
 	       (save-excursion (forward-sexp 1) (point-marker))
 	     (point))))
     (or
@@ -1472,7 +1475,7 @@ regexp short cuts work.  FP is the function defun information."
 	((looking-at "[\\!?;:.)]")
 	 ;; These are ok
 	 nil)
-        ((and checkdoc-permit-comma-termination-flag (looking-at ","))
+        ((and checkdoc-permit-comma-termination-flag (= (following-char) ?,))
 	 nil)
 	(t
 	 ;; If it is not a complete sentence, let's see if we can

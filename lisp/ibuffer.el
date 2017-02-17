@@ -1,6 +1,6 @@
 ;;; ibuffer.el --- operate on buffers like dired  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2000-2016 Free Software Foundation, Inc.
+;; Copyright (C) 2000-2017 Free Software Foundation, Inc.
 
 ;; Author: Colin Walters <walters@verbum.org>
 ;; Maintainer: John Paul Wallington <jpw@gnu.org>
@@ -518,26 +518,37 @@ directory, like `default-directory'."
     (define-key map (kbd "s f") 'ibuffer-do-sort-by-filename/process)
     (define-key map (kbd "s m") 'ibuffer-do-sort-by-major-mode)
 
+    (define-key map (kbd "/ RET") 'ibuffer-filter-by-mode)
     (define-key map (kbd "/ m") 'ibuffer-filter-by-used-mode)
     (define-key map (kbd "/ M") 'ibuffer-filter-by-derived-mode)
     (define-key map (kbd "/ n") 'ibuffer-filter-by-name)
+    (define-key map (kbd "/ *") 'ibuffer-filter-by-starred-name)
+    (define-key map (kbd "/ f") 'ibuffer-filter-by-filename)
+    (define-key map (kbd "/ b") 'ibuffer-filter-by-basename)
+    (define-key map (kbd "/ .") 'ibuffer-filter-by-file-extension)
+    (define-key map (kbd "/ <") 'ibuffer-filter-by-size-lt)
+    (define-key map (kbd "/ >") 'ibuffer-filter-by-size-gt)
+    (define-key map (kbd "/ i") 'ibuffer-filter-by-modified)
+    (define-key map (kbd "/ v") 'ibuffer-filter-by-visiting-file)
     (define-key map (kbd "/ c") 'ibuffer-filter-by-content)
     (define-key map (kbd "/ e") 'ibuffer-filter-by-predicate)
-    (define-key map (kbd "/ f") 'ibuffer-filter-by-filename)
-    (define-key map (kbd "/ >") 'ibuffer-filter-by-size-gt)
-    (define-key map (kbd "/ <") 'ibuffer-filter-by-size-lt)
+
     (define-key map (kbd "/ r") 'ibuffer-switch-to-saved-filters)
     (define-key map (kbd "/ a") 'ibuffer-add-saved-filters)
     (define-key map (kbd "/ x") 'ibuffer-delete-saved-filters)
     (define-key map (kbd "/ d") 'ibuffer-decompose-filter)
     (define-key map (kbd "/ s") 'ibuffer-save-filters)
     (define-key map (kbd "/ p") 'ibuffer-pop-filter)
+    (define-key map (kbd "/ <up>") 'ibuffer-pop-filter)
     (define-key map (kbd "/ !") 'ibuffer-negate-filter)
     (define-key map (kbd "/ t") 'ibuffer-exchange-filters)
     (define-key map (kbd "/ TAB") 'ibuffer-exchange-filters)
     (define-key map (kbd "/ o") 'ibuffer-or-filter)
+    (define-key map (kbd "/ |") 'ibuffer-or-filter)
+    (define-key map (kbd "/ &") 'ibuffer-and-filter)
     (define-key map (kbd "/ g") 'ibuffer-filters-to-filter-group)
     (define-key map (kbd "/ P") 'ibuffer-pop-filter-group)
+    (define-key map (kbd "/ S-<up>") 'ibuffer-pop-filter-group)
     (define-key map (kbd "/ D") 'ibuffer-decompose-filter-group)
     (define-key map (kbd "/ /") 'ibuffer-filter-disable)
 
@@ -657,13 +668,43 @@ directory, like `default-directory'."
                   ibuffer-filter-by-derived-mode))
     (define-key-after map [menu-bar view filter filter-by-name]
       '(menu-item "Add filter by buffer name..." ibuffer-filter-by-name))
+    (define-key-after map [menu-bar view filter filter-by-starred-name]
+      '(menu-item "Add filter by starred buffer name..."
+                  ibuffer-filter-by-starred-name
+                  :help "List buffers whose names begin with a star"))
     (define-key-after map [menu-bar view filter filter-by-filename]
-      '(menu-item "Add filter by filename..." ibuffer-filter-by-filename))
+      '(menu-item "Add filter by full filename..." ibuffer-filter-by-filename
+                  :help
+                  (concat "For a buffer associated with file '/a/b/c.d', "
+                          "list buffer if a given pattern matches '/a/b/c.d'")))
+    (define-key-after map [menu-bar view filter filter-by-basename]
+      '(menu-item "Add filter by file basename..."
+                  ibuffer-filter-by-basename
+                  :help (concat "For a buffer associated with file '/a/b/c.d', "
+                                "list buffer if a given pattern matches 'c.d'")))
+    (define-key-after map [menu-bar view filter filter-by-file-extension]
+      '(menu-item "Add filter by file name extension..."
+                  ibuffer-filter-by-file-extension
+                  :help (concat "For a buffer associated with file '/a/b/c.d', "
+                                "list buffer if a given pattern matches 'd'")))
+    (define-key-after map [menu-bar view filter filter-by-directory]
+      '(menu-item "Add filter by filename's directory..."
+                  ibuffer-filter-by-directory
+                  :help
+                  (concat "For a buffer associated with file '/a/b/c.d', "
+                          "list buffer if a given pattern matches '/a/b'")))
     (define-key-after map [menu-bar view filter filter-by-size-lt]
       '(menu-item "Add filter by size less than..." ibuffer-filter-by-size-lt))
     (define-key-after map [menu-bar view filter filter-by-size-gt]
       '(menu-item "Add filter by size greater than..."
         ibuffer-filter-by-size-gt))
+    (define-key-after map [menu-bar view filter filter-by-modified]
+      '(menu-item "Add filter by modified buffer" ibuffer-filter-by-modified
+                  :help "List buffers that are marked as modified"))
+    (define-key-after map [menu-bar view filter filter-by-visiting-file]
+      '(menu-item "Add filter by buffer visiting a file"
+                  ibuffer-filter-by-visiting-file
+                  :help "List buffers that are visiting files"))
     (define-key-after map [menu-bar view filter filter-by-content]
       '(menu-item "Add filter by content (regexp)..."
         ibuffer-filter-by-content))
@@ -673,6 +714,12 @@ directory, like `default-directory'."
     (define-key-after map [menu-bar view filter pop-filter]
       '(menu-item "Remove top filter" ibuffer-pop-filter
         :enable (and (featurep 'ibuf-ext) ibuffer-filtering-qualifiers)))
+    (define-key-after map [menu-bar view filter and-filter]
+      '(menu-item "AND top two filters" ibuffer-and-filter
+        :enable (and (featurep 'ibuf-ext) ibuffer-filtering-qualifiers
+                     (cdr ibuffer-filtering-qualifiers))
+        :help
+        "Create a new filter which is the logical AND of the top two filters"))
     (define-key-after map [menu-bar view filter or-filter]
       '(menu-item "OR top two filters" ibuffer-or-filter
         :enable (and (featurep 'ibuf-ext) ibuffer-filtering-qualifiers
@@ -1197,7 +1244,11 @@ a new window in the current frame, splitting vertically."
 	    (ibuffer-columnize-and-insert-list names)
 	    (goto-char (point-min))
 	    (setq buffer-read-only t))
-	  (let ((lastwin (car (last (window-list nil 'nomini)))))
+	  (let ((windows (nreverse (window-list nil 'nomini)))
+                lastwin)
+            (while (window-parameter (car windows) 'window-side)
+              (setq windows (cdr windows)))
+            (setq lastwin (car windows))
 	    ;; Now attempt to display the buffer...
 	    (save-window-excursion
 	      (select-window lastwin)
@@ -1236,7 +1287,7 @@ a new window in the current frame, splitting vertically."
   (let ((ibuffer-buffer-names-with-mark-result nil))
     (ibuffer-map-lines-nomodify
      (lambda (buf mk)
-       (when (char-equal mark mk)
+       (when (eq mark mk)
 	 (push (buffer-name buf)
 	       ibuffer-buffer-names-with-mark-result))))
     ibuffer-buffer-names-with-mark-result))
@@ -1251,15 +1302,15 @@ a new window in the current frame, splitting vertically."
   (if all
       (ibuffer-map-lines-nomodify
        (lambda (_buf mark)
-	 (not (char-equal mark ?\s))))
+	 (not (eq mark ?\s))))
     (ibuffer-map-lines-nomodify
      (lambda (_buf mark)
-       (char-equal mark ibuffer-marked-char)))))
+       (eq mark ibuffer-marked-char)))))
 
 (defsubst ibuffer-count-deletion-lines ()
   (ibuffer-map-lines-nomodify
    (lambda (_buf mark)
-     (char-equal mark ibuffer-deletion-char))))
+     (eq mark ibuffer-deletion-char))))
 
 (defsubst ibuffer-map-deletion-lines (func)
   (ibuffer-map-on-mark ibuffer-deletion-char func))
@@ -1268,13 +1319,14 @@ a new window in the current frame, splitting vertically."
   (cl-assert (derived-mode-p 'ibuffer-mode)))
 
 (defun ibuffer-buffer-file-name ()
-  (or buffer-file-name
-      (let ((dirname (or (and (boundp 'dired-directory)
-			      (if (stringp dired-directory)
-				  dired-directory
-				(car dired-directory)))
-			 (bound-and-true-p list-buffers-directory))))
-	(and dirname (expand-file-name dirname)))))
+  (cond
+   ((buffer-file-name))
+   ((bound-and-true-p list-buffers-directory))
+   ((let ((dirname (and (boundp 'dired-directory)
+                        (if (stringp dired-directory)
+                            dired-directory
+                          (car dired-directory)))))
+	(and dirname (expand-file-name dirname))))))
 
 (define-ibuffer-op ibuffer-do-save ()
   "Save marked buffers as with `save-buffer'."
@@ -1337,29 +1389,12 @@ Otherwise, toggle read only status."
   (interactive "cRemove marks (RET means all):")
   (if (= (ibuffer-count-marked-lines t) 0)
       (message "No buffers marked; use 'm' to mark a buffer")
-    (cond
-     ((char-equal mark ibuffer-marked-char)
-      (ibuffer-map-marked-lines
-       (lambda (_buf _mark)
-	 (ibuffer-set-mark-1 ?\s)
-	 t)))
-     ((char-equal mark ibuffer-deletion-char)
-      (ibuffer-map-deletion-lines
-       (lambda (_buf _mark)
-	 (ibuffer-set-mark-1 ?\s)
-	 t)))
-     ((not (char-equal mark ?\r))
-      (ibuffer-map-lines
-       (lambda (_buf cmark)
-	 (when (char-equal cmark mark)
-	   (ibuffer-set-mark-1 ?\s))
-	 t)))
-     (t
-      (ibuffer-map-lines
-       (lambda (_buf mark)
-	 (when (not (char-equal mark ?\s))
-	   (ibuffer-set-mark-1 ?\s))
-	 t)))))
+    (let ((fn (lambda (_buf mk)
+                (unless (eq mk ?\s)
+                  (ibuffer-set-mark-1 ?\s)) t)))
+      (if (eq mark ?\r)
+          (ibuffer-map-lines fn)
+        (ibuffer-map-on-mark mark fn))))
   (ibuffer-redisplay t))
 
 (defun ibuffer-unmark-all-marks ()
@@ -1427,11 +1462,11 @@ If point is on a group name, this function operates on that group."
   (interactive (ibuffer-get-region-and-prefix))
   (ibuffer-mark-region-or-n-with-char start end arg ?\s))
 
-(defun ibuffer-unmark-backward (arg)
-  "Unmark the ARG previous buffers.
+(defun ibuffer-unmark-backward (start end arg)
+  "Unmark the buffers in the region, or previous ARG buffers.
 If point is on a group name, this function operates on that group."
-  (interactive "p")
-  (ibuffer-unmark-forward nil nil (- arg)))
+  (interactive (ibuffer-get-region-and-prefix))
+  (ibuffer-unmark-forward start end (- arg)))
 
 (defun ibuffer-mark-region-or-n-with-char (start end arg mark-char)
   (if (use-region-p)
@@ -1908,9 +1943,9 @@ If point is on a group name, this function operates on that group."
       (_ (concat str left right)))))
 
 (defun ibuffer-buffer-name-face (buf mark)
-  (cond ((char-equal mark ibuffer-marked-char)
+  (cond ((eq mark ibuffer-marked-char)
 	 ibuffer-marked-face)
-	((char-equal mark ibuffer-deletion-char)
+	((eq mark ibuffer-deletion-char)
 	 ibuffer-deletion-face)
 	(t
 	 (let ((level -1)
@@ -1954,7 +1989,7 @@ If point is on a group name, this function operates on that group."
 (defun ibuffer-map-on-mark (mark func)
   (ibuffer-map-lines
    (lambda (buf mk)
-     (if (char-equal mark mk)
+     (if (eq mark mk)
 	 (funcall func buf mark)
        nil))))
 
@@ -2181,8 +2216,8 @@ the value of point at the beginning of the line for that buffer."
 		      (buffer-substring (point) (line-end-position)))))
 	   (apply #'insert (mapcar
 			    (lambda (c)
-			      (if (not (or (char-equal c ?\s)
-					   (char-equal c ?\n)))
+			      (if (not (or (eq c ?\s)
+					   (eq c ?\n)))
 				  ?-
 				?\s))
 			    str)))
@@ -2529,18 +2564,26 @@ Marking commands:
 
 Filtering commands:
 
+  `\\[ibuffer-filter-chosen-by-completion]' - Select and apply filter chosen by completion.
   `\\[ibuffer-filter-by-mode]' - Add a filter by any major mode.
   `\\[ibuffer-filter-by-used-mode]' - Add a filter by a major mode now in use.
   `\\[ibuffer-filter-by-derived-mode]' - Add a filter by derived mode.
   `\\[ibuffer-filter-by-name]' - Add a filter by buffer name.
   `\\[ibuffer-filter-by-content]' - Add a filter by buffer content.
+  `\\[ibuffer-filter-by-basename]' - Add a filter by basename.
+  `\\[ibuffer-filter-by-directory]' - Add a filter by directory name.
   `\\[ibuffer-filter-by-filename]' - Add a filter by filename.
+  `\\[ibuffer-filter-by-file-extension]' - Add a filter by file extension.
+  `\\[ibuffer-filter-by-modified]' - Add a filter by modified buffers.
+  `\\[ibuffer-filter-by-predicate]' - Add a filter by an arbitrary Lisp predicate.
   `\\[ibuffer-filter-by-size-gt]' - Add a filter by buffer size.
   `\\[ibuffer-filter-by-size-lt]' - Add a filter by buffer size.
-  `\\[ibuffer-filter-by-predicate]' - Add a filter by an arbitrary Lisp predicate.
+  `\\[ibuffer-filter-by-starred-name]' - Add a filter by special buffers.
+  `\\[ibuffer-filter-by-visiting-file]' - Add a filter by buffers visiting files.
   `\\[ibuffer-save-filters]' - Save the current filters with a name.
   `\\[ibuffer-switch-to-saved-filters]' - Switch to previously saved filters.
   `\\[ibuffer-add-saved-filters]' - Add saved filters to current filters.
+  `\\[ibuffer-and-filter]' - Replace the top two filters with their logical AND.
   `\\[ibuffer-or-filter]' - Replace the top two filters with their logical OR.
   `\\[ibuffer-pop-filter]' - Remove the top filter.
   `\\[ibuffer-negate-filter]' - Invert the logical sense of the top filter.

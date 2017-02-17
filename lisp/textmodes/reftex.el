@@ -1,5 +1,5 @@
 ;;; reftex.el --- minor mode for doing \label, \ref, \cite, \index in LaTeX
-;; Copyright (C) 1997-2000, 2003-2016 Free Software Foundation, Inc.
+;; Copyright (C) 1997-2000, 2003-2017 Free Software Foundation, Inc.
 
 ;; Author: Carsten Dominik <dominik@science.uva.nl>
 ;; Maintainer: auctex-devel@gnu.org
@@ -352,7 +352,7 @@ If the symbols for the current master file do not exist, they are created."
 	 ((save-excursion
             (goto-char (point-min))
             (re-search-forward
-             "^[[:space:]]*\\\\documentclass\\[\\([[:word:].]+\\)\\]{subfiles}"
+             "^[[:space:]]*\\\\documentclass\\[\\([^]]+\\)\\]{subfiles}"
              nil t))
           (match-string-no-properties 1))
          ;; AUCTeX is loaded.  Use its mechanism.
@@ -1015,8 +1015,8 @@ This enforces rescanning the buffer on next use."
     ;; Calculate the regular expressions
     (let* (
 ;          (wbol "\\(\\`\\|[\n\r]\\)[ \t]*")
-           (wbol "\\(^\\)[ \t]*") ; Need to keep the empty group because
-                                  ; match numbers are hard coded
+           (wbol "\\(^\\)%?[ \t]*") ; Need to keep the empty group because
+                                    ; match numbers are hard coded
            (label-re (concat "\\(?:"
 			     (mapconcat 'identity reftex-label-regexps "\\|")
 			     "\\)"))

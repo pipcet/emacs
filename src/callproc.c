@@ -1,6 +1,6 @@
 /* Synchronous subprocess invocation for GNU Emacs.
 
-Copyright (C) 1985-1988, 1993-1995, 1999-2016 Free Software Foundation,
+Copyright (C) 1985-1988, 1993-1995, 1999-2017 Free Software Foundation,
 Inc.
 
 This file is part of GNU Emacs.
@@ -32,7 +32,6 @@ along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.  */
 #include "lisp.h"
 
 #ifdef WINDOWSNT
-#define NOMINMAX
 #include <sys/socket.h>	/* for fcntl */
 #include <windows.h>
 #include "w32.h"
@@ -199,11 +198,11 @@ call_process_cleanup (Lisp_Object buffer)
     {
       kill (-synch_process_pid, SIGINT);
       message1 ("Waiting for process to die...(type C-g again to kill it instantly)");
-      immediate_quit = 1;
-      QUIT;
+
+      /* This will quit on C-g.  */
       wait_for_termination (synch_process_pid, 0, 1);
+
       synch_process_pid = 0;
-      immediate_quit = 0;
       message1 ("Waiting for process to die...done");
     }
 #endif	/* !MSDOS */
@@ -293,7 +292,6 @@ call_process (ptrdiff_t nargs, Lisp_Object *args, int filefd,
   Lisp_Object output_file = Qnil;
 #ifdef MSDOS	/* Demacs 1.1.1 91/10/16 HIRANO Satoshi */
   char *tempfile = NULL;
-  int pid;
 #else
   sigset_t oldset;
   pid_t pid;
@@ -538,11 +536,9 @@ call_process (ptrdiff_t nargs, Lisp_Object *args, int filefd,
     }
 
 #ifdef MSDOS /* MW, July 1993 */
-  /* Note that on MSDOS `child_setup' actually returns the child process
-     exit status, not its PID, so assign it to status below.  */
-  pid = child_setup (filefd, fd_output, fd_error, new_argv, 0, current_dir);
+  status = child_setup (filefd, fd_output, fd_error, new_argv, 0, current_dir);
 
-  if (pid < 0)
+  if (status < 0)
     {
       child_errno = errno;
       unbind_to (count, Qnil);
@@ -551,7 +547,6 @@ call_process (ptrdiff_t nargs, Lisp_Object *args, int filefd,
 	code_convert_string_norecord (build_string (strerror (child_errno)),
 				      Vlocale_coding_system, 0);
     }
-  status = pid;
 
   for (i = 0; i < CALLPROC_FDS; i++)
     if (0 <= callproc_fd[i])
@@ -731,9 +726,6 @@ call_process (ptrdiff_t nargs, Lisp_Object *args, int filefd,
       process_coding.src_multibyte = 0;
     }
 
-  immediate_quit = 1;
-  QUIT;
-
   if (0 <= fd0)
     {
       enum { CALLPROC_BUFFER_SIZE_MIN = 16 * 1024 };
@@ -754,8 +746,8 @@ call_process (ptrdiff_t nargs, Lisp_Object *args, int filefd,
 	  nread = carryover;
 	  while (nread < bufsize - 1024)
 	    {
-	      int this_read = emacs_read (fd0, buf + nread,
-					  bufsize - nread);
+	      int this_read = emacs_read_quit (fd0, buf + nread,
+					       bufsize - nread);
 
 	      if (this_read < 0)
 		goto give_up;
@@ -774,7 +766,6 @@ call_process (ptrdiff_t nargs, Lisp_Object *args, int filefd,
 	    }
 
 	  /* Now NREAD is the total amount of data in the buffer.  */
-	  immediate_quit = 0;
 
 	  if (!nread)
 	    ;
@@ -847,8 +838,6 @@ call_process (ptrdiff_t nargs, Lisp_Object *args, int filefd,
 		 we should have already detected a coding system.  */
 	      display_on_the_fly = true;
 	    }
-	  immediate_quit = true;
-	  QUIT;
 	}
     give_up: ;
 
@@ -864,8 +853,6 @@ call_process (ptrdiff_t nargs, Lisp_Object *args, int filefd,
   /* Wait for it to terminate, unless it already has.  */
   wait_for_termination (pid, &status, fd0 < 0);
 #endif
-
-  immediate_quit = 0;
 
   /* Don't kill any children that the subprocess may have left behind
      when exiting.  */
@@ -1163,9 +1150,13 @@ exec_failed (char const *name, int err)
    CURRENT_DIR is an elisp string giving the path of the current
    directory the subprocess should have.  Since we can't really signal
    a decent error from within the child, this should be verified as an
-   executable directory by the parent.  */
+   executable directory by the parent.
 
-int
+   On GNUish hosts, either exec or return an error number.
+   On MS-Windows, either return a pid or signal an error.
+   On MS-DOS, either return an exit status or signal an error.  */
+
+CHILD_SETUP_TYPE
 child_setup (int in, int out, int err, char **new_argv, bool set_pgrp,
 	     Lisp_Object current_dir)
 {

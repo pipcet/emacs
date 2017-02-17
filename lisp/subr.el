@@ -1,6 +1,6 @@
 ;;; subr.el --- basic lisp subroutines for Emacs  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1985-1986, 1992, 1994-1995, 1999-2016 Free Software
+;; Copyright (C) 1985-1986, 1992, 1994-1995, 1999-2017 Free Software
 ;; Foundation, Inc.
 
 ;; Maintainer: emacs-devel@gnu.org
@@ -383,6 +383,126 @@ configuration."
   "Return the cdr of the cdr of X."
   (declare (compiler-macro internal--compiler-macro-cXXr))
   (cdr (cdr x)))
+
+(defun caaar (x)
+  "Return the `car' of the `car' of the `car' of X."
+  (declare (compiler-macro internal--compiler-macro-cXXr))
+  (car (car (car x))))
+
+(defun caadr (x)
+  "Return the `car' of the `car' of the `cdr' of X."
+  (declare (compiler-macro internal--compiler-macro-cXXr))
+  (car (car (cdr x))))
+
+(defun cadar (x)
+  "Return the `car' of the `cdr' of the `car' of X."
+  (declare (compiler-macro internal--compiler-macro-cXXr))
+  (car (cdr (car x))))
+
+(defun caddr (x)
+  "Return the `car' of the `cdr' of the `cdr' of X."
+  (declare (compiler-macro internal--compiler-macro-cXXr))
+  (car (cdr (cdr x))))
+
+(defun cdaar (x)
+  "Return the `cdr' of the `car' of the `car' of X."
+  (declare (compiler-macro internal--compiler-macro-cXXr))
+  (cdr (car (car x))))
+
+(defun cdadr (x)
+  "Return the `cdr' of the `car' of the `cdr' of X."
+  (declare (compiler-macro internal--compiler-macro-cXXr))
+  (cdr (car (cdr x))))
+
+(defun cddar (x)
+  "Return the `cdr' of the `cdr' of the `car' of X."
+  (declare (compiler-macro internal--compiler-macro-cXXr))
+  (cdr (cdr (car x))))
+
+(defun cdddr (x)
+  "Return the `cdr' of the `cdr' of the `cdr' of X."
+  (declare (compiler-macro internal--compiler-macro-cXXr))
+  (cdr (cdr (cdr x))))
+
+(defun caaaar (x)
+  "Return the `car' of the `car' of the `car' of the `car' of X."
+  (declare (compiler-macro internal--compiler-macro-cXXr))
+  (car (car (car (car x)))))
+
+(defun caaadr (x)
+  "Return the `car' of the `car' of the `car' of the `cdr' of X."
+  (declare (compiler-macro internal--compiler-macro-cXXr))
+  (car (car (car (cdr x)))))
+
+(defun caadar (x)
+  "Return the `car' of the `car' of the `cdr' of the `car' of X."
+  (declare (compiler-macro internal--compiler-macro-cXXr))
+  (car (car (cdr (car x)))))
+
+(defun caaddr (x)
+  "Return the `car' of the `car' of the `cdr' of the `cdr' of X."
+  (declare (compiler-macro internal--compiler-macro-cXXr))
+  (car (car (cdr (cdr x)))))
+
+(defun cadaar (x)
+  "Return the `car' of the `cdr' of the `car' of the `car' of X."
+  (declare (compiler-macro internal--compiler-macro-cXXr))
+  (car (cdr (car (car x)))))
+
+(defun cadadr (x)
+  "Return the `car' of the `cdr' of the `car' of the `cdr' of X."
+  (declare (compiler-macro internal--compiler-macro-cXXr))
+  (car (cdr (car (cdr x)))))
+
+(defun caddar (x)
+  "Return the `car' of the `cdr' of the `cdr' of the `car' of X."
+  (declare (compiler-macro internal--compiler-macro-cXXr))
+  (car (cdr (cdr (car x)))))
+
+(defun cadddr (x)
+  "Return the `car' of the `cdr' of the `cdr' of the `cdr' of X."
+  (declare (compiler-macro internal--compiler-macro-cXXr))
+  (car (cdr (cdr (cdr x)))))
+
+(defun cdaaar (x)
+  "Return the `cdr' of the `car' of the `car' of the `car' of X."
+  (declare (compiler-macro internal--compiler-macro-cXXr))
+  (cdr (car (car (car x)))))
+
+(defun cdaadr (x)
+  "Return the `cdr' of the `car' of the `car' of the `cdr' of X."
+  (declare (compiler-macro internal--compiler-macro-cXXr))
+  (cdr (car (car (cdr x)))))
+
+(defun cdadar (x)
+  "Return the `cdr' of the `car' of the `cdr' of the `car' of X."
+  (declare (compiler-macro internal--compiler-macro-cXXr))
+  (cdr (car (cdr (car x)))))
+
+(defun cdaddr (x)
+  "Return the `cdr' of the `car' of the `cdr' of the `cdr' of X."
+  (declare (compiler-macro internal--compiler-macro-cXXr))
+  (cdr (car (cdr (cdr x)))))
+
+(defun cddaar (x)
+  "Return the `cdr' of the `cdr' of the `car' of the `car' of X."
+  (declare (compiler-macro internal--compiler-macro-cXXr))
+  (cdr (cdr (car (car x)))))
+
+(defun cddadr (x)
+  "Return the `cdr' of the `cdr' of the `car' of the `cdr' of X."
+  (declare (compiler-macro internal--compiler-macro-cXXr))
+  (cdr (cdr (car (cdr x)))))
+
+(defun cdddar (x)
+  "Return the `cdr' of the `cdr' of the `cdr' of the `car' of X."
+  (declare (compiler-macro internal--compiler-macro-cXXr))
+  (cdr (cdr (cdr (car x)))))
+
+(defun cddddr (x)
+  "Return the `cdr' of the `cdr' of the `cdr' of the `cdr' of X."
+  (declare (compiler-macro internal--compiler-macro-cXXr))
+  (cdr (cdr (cdr (cdr x)))))
 
 (defun last (list &optional n)
   "Return the last link of LIST.  Its car is the last element.
@@ -1297,8 +1417,10 @@ be a list of the form returned by `event-start' and `event-end'."
 ;; bug#23850
 (make-obsolete 'string-to-unibyte   "use `encode-coding-string'." "26.1")
 (make-obsolete 'string-as-unibyte   "use `encode-coding-string'." "26.1")
+(make-obsolete 'string-make-unibyte   "use `encode-coding-string'." "26.1")
 (make-obsolete 'string-to-multibyte "use `decode-coding-string'." "26.1")
 (make-obsolete 'string-as-multibyte "use `decode-coding-string'." "26.1")
+(make-obsolete 'string-make-multibyte "use `decode-coding-string'." "26.1")
 
 (defun log10 (x)
   "Return (log X 10), the log base 10 of X."
@@ -1310,8 +1432,7 @@ be a list of the form returned by `event-start' and `event-end'."
 (make-obsolete 'focus-frame "it does nothing." "22.1")
 (defalias 'unfocus-frame 'ignore "")
 (make-obsolete 'unfocus-frame "it does nothing." "22.1")
-(make-obsolete 'make-variable-frame-local
-	       "explicitly check for a frame-parameter instead." "22.2")
+
 (set-advertised-calling-convention
  'all-completions '(string collection &optional predicate) "23.1")
 (set-advertised-calling-convention 'unintern '(name obarray) "23.3")
@@ -1879,7 +2000,7 @@ definition, variable definition, or face definition only."
 	   (autoloadp (symbol-function symbol)))
       (nth 1 (symbol-function symbol))
     (let ((files load-history)
-	  file)
+	  file match)
       (while files
 	(if (if type
 		(if (eq type 'defvar)
@@ -1890,7 +2011,8 @@ definition, variable definition, or face definition only."
 	      ;; We accept all types, so look for variable def
 	      ;; and then for any other kind.
 	      (or (member symbol (cdr (car files)))
-		  (rassq symbol (cdr (car files)))))
+		  (and (setq match (rassq symbol (cdr (car files))))
+		       (not (eq 'require (car match))))))
 	    (setq file (car (car files)) files nil))
 	(setq files (cdr files)))
       file)))
@@ -2752,6 +2874,14 @@ See Info node `(elisp)Security Considerations'."
        "\n" "'\n'"
        (replace-regexp-in-string "[^-0-9a-zA-Z_./\n]" "\\\\\\&" argument))))
    ))
+
+(defsubst string-to-list (string)
+  "Return a list of characters in STRING."
+  (append string nil))
+
+(defsubst string-to-vector (string)
+  "Return a vector of characters in STRING."
+  (vconcat string))
 
 (defun string-or-null-p (object)
   "Return t if OBJECT is a string or nil.
@@ -4333,6 +4463,51 @@ The properties used on SYMBOL are `composefunc', `sendfunc',
   (put symbol 'sendfunc sendfunc)
   (put symbol 'abortfunc (or abortfunc 'kill-buffer))
   (put symbol 'hookvar (or hookvar 'mail-send-hook)))
+
+
+(defun backtrace--print-frame (evald func args flags)
+  "Print a trace of a single stack frame to `standard-output'.
+EVALD, FUNC, ARGS, FLAGS are as in `mapbacktrace'."
+  (princ (if (plist-get flags :debug-on-exit) "* " "  "))
+  (cond
+   ((and evald (not debugger-stack-frame-as-list))
+    (prin1 func)
+    (if args (prin1 args) (princ "()")))
+   (t
+    (prin1 (cons func args))))
+  (princ "\n"))
+
+(defun backtrace ()
+  "Print a trace of Lisp function calls currently active.
+Output stream used is value of `standard-output'."
+  (let ((print-level (or print-level 8)))
+    (mapbacktrace #'backtrace--print-frame 'backtrace)))
+
+(defun backtrace-frames (&optional base)
+  "Collect all frames of current backtrace into a list.
+If non-nil, BASE should be a function, and frames before its
+nearest activation frames are discarded."
+  (let ((frames nil))
+    (mapbacktrace (lambda (&rest frame) (push frame frames))
+                  (or base 'backtrace-frames))
+    (nreverse frames)))
+
+(defun backtrace-frame (nframes &optional base)
+  "Return the function and arguments NFRAMES up from current execution point.
+If non-nil, BASE should be a function, and NFRAMES counts from its
+nearest activation frame.
+If the frame has not evaluated the arguments yet (or is a special form),
+the value is (nil FUNCTION ARG-FORMS...).
+If the frame has evaluated its arguments and called its function already,
+the value is (t FUNCTION ARG-VALUES...).
+A &rest arg is represented as the tail of the list ARG-VALUES.
+FUNCTION is whatever was supplied as car of evaluated list,
+or a lambda expression for macro calls.
+If NFRAMES is more than the number of frames, the value is nil."
+  (backtrace-frame--internal
+   (lambda (evald func args _) `(,evald ,func ,@args))
+   nframes (or base 'backtrace-frame)))
+
 
 (defvar called-interactively-p-functions nil
   "Special hook called to skip special frames in `called-interactively-p'.
@@ -4950,6 +5125,20 @@ as a list.")
             (if (string-match "\\([^.].*?\\)-\\([0-9]+\\(?:[.][0-9]+\\|\\(?:pre\\|beta\\|alpha\\)[0-9]+\\)*\\)" subdir)
                 (match-string 1 subdir) subdir))
           "-pkg.el"))
+
+
+;;; Thread support.
+
+(defmacro with-mutex (mutex &rest body)
+  "Invoke BODY with MUTEX held, releasing MUTEX when done.
+This is the simplest safe way to acquire and release a mutex."
+  (declare (indent 1) (debug t))
+  (let ((sym (make-symbol "mutex")))
+    `(let ((,sym ,mutex))
+       (mutex-lock ,sym)
+       (unwind-protect
+	   (progn ,@body)
+	 (mutex-unlock ,sym)))))
 
 
 ;;; Misc.

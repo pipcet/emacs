@@ -1,6 +1,6 @@
 ;;; ido.el --- interactively do things with buffers and files
 
-;; Copyright (C) 1996-2016 Free Software Foundation, Inc.
+;; Copyright (C) 1996-2017 Free Software Foundation, Inc.
 
 ;; Author: Kim F. Storm <storm@cua.dk>
 ;; Based on: iswitchb by Stephen Eglen <stephen@cns.ed.ac.uk>
@@ -2541,7 +2541,7 @@ If cursor is not at the end of the user input, move to end of input."
 (defun ido-complete ()
   "Try and complete the current pattern amongst the file names."
   (interactive)
-  (let (res)
+  (let (non-essential res)
     (cond
      (ido-incomplete-regexp
       ;; Do nothing
@@ -3505,7 +3505,7 @@ This is to make them appear as if they were \"virtual buffers\"."
       (when (equal name "")
 	(setq name head))
       (and (not (equal name ""))
-	   (null (get-file-buffer head))
+           (null (let (file-name-handler-alist) (get-file-buffer head)))
            (not (assoc name ido-virtual-buffers))
            (not (member name ido-temp-list))
            (not (ido-ignore-item-p name ido-ignore-buffers))
@@ -3556,7 +3556,6 @@ it is put to the start of the list."
     ;; Strip method:user@host: part of tramp completions.
     ;; Tramp completions do not include leading slash.
     (let* ((len (1- (length dir)))
-	   (non-essential t)
 	   (compl
 	    (or ;; We do not want to be disturbed by "File does not
                 ;; exist" errors.

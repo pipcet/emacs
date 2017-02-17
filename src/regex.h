@@ -1,7 +1,7 @@
 /* Definitions for data structures and routines for the regular
    expression library, version 0.12.
 
-   Copyright (C) 1985, 1989-1993, 1995, 2000-2016 Free Software
+   Copyright (C) 1985, 1989-1993, 1995, 2000-2017 Free Software
    Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
@@ -27,13 +27,12 @@
 # error "_REGEX_RE_COMP nor _LIBC can be defined if emacs is defined."
 #endif
 
+#include <sys/types.h>
+
 /* Allow the use in C++ code.  */
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-/* POSIX says that <sys/types.h> must be included (by the caller) before
-   <regex.h>.  */
 
 #if !defined _POSIX_C_SOURCE && !defined _POSIX_SOURCE && defined VMS
 /* VMS doesn't have `size_t' in <sys/types.h>, even though POSIX says it
@@ -171,7 +170,7 @@ typedef unsigned long reg_syntax_t;
    some interfaces).  When a regexp is compiled, the syntax used is
    stored in the pattern buffer, so changing this does not affect
    already-compiled regexps.  */
-extern reg_syntax_t re_syntax_options;
+/* extern reg_syntax_t re_syntax_options; */
 
 #ifdef emacs
 # include "lisp.h"
@@ -180,12 +179,19 @@ extern reg_syntax_t re_syntax_options;
 
    If the value is a Lisp string object, we are matching text in that
    string; if it's nil, we are matching text in the current buffer; if
-   it's t, we are matching text in a C string.  */
-extern Lisp_Object re_match_object;
+   it's t, we are matching text in a C string.
+
+   This is defined as a macro in thread.h, which see.  */
+/* extern Lisp_Object re_match_object; */
 #endif
 
 /* Roughly the maximum number of failure points on the stack.  */
-extern size_t re_max_failures;
+extern size_t emacs_re_max_failures;
+
+#ifdef emacs
+/* Amount of memory that we can safely stack allocate.  */
+extern ptrdiff_t emacs_re_safe_alloca;
+#endif
 
 
 /* Define combinations of the above bits for the standard possibilities.
@@ -428,11 +434,10 @@ struct re_pattern_buffer
 
 typedef struct re_pattern_buffer regex_t;
 
-/* Type for byte offsets within the string.  POSIX mandates this to be an int,
-   but the Open Group has signaled its intention to change the requirement to
-   be that regoff_t be at least as wide as ptrdiff_t and ssize_t.  Current
-   gnulib sources also use ssize_t, and we need this for supporting buffers and
-   strings > 2GB on 64-bit hosts.  */
+/* POSIX 1003.1-2008 requires that regoff_t be at least as wide as
+   ptrdiff_t and ssize_t.  We don't know of any hosts where ptrdiff_t
+   is wider than ssize_t, so ssize_t is safe.  ptrdiff_t is not
+   necessarily visible here, so use ssize_t.  */
 typedef ssize_t regoff_t;
 
 

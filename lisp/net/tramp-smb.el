@@ -1,6 +1,6 @@
 ;;; tramp-smb.el --- Tramp access functions for SMB servers
 
-;; Copyright (C) 2002-2016 Free Software Foundation, Inc.
+;; Copyright (C) 2002-2017 Free Software Foundation, Inc.
 
 ;; Author: Michael Albinus <michael.albinus@gmx.de>
 ;; Keywords: comm, processes
@@ -478,15 +478,19 @@ pass to the OPERATION."
 		    (if t1
 			;; Source is remote.
 			(append args
-				(list "-D" (shell-quote-argument localname)
+				(list "-D" (tramp-unquote-shell-quote-argument
+					    localname)
 				      "-c" (shell-quote-argument "tar qc - *")
 				      "|" "tar" "xfC" "-"
-				      (shell-quote-argument tmpdir)))
+				      (tramp-unquote-shell-quote-argument
+				       tmpdir)))
 		      ;; Target is remote.
 		      (append (list "tar" "cfC" "-"
-				    (shell-quote-argument dirname) "." "|")
+				    (tramp-unquote-shell-quote-argument dirname)
+				    "." "|")
 			      args
-			      (list "-D" (shell-quote-argument localname)
+			      (list "-D" (tramp-unquote-shell-quote-argument
+					  localname)
 				    "-c" (shell-quote-argument "tar qx -")))))
 
 	      (unwind-protect
@@ -600,7 +604,8 @@ PRESERVE-UID-GID and PRESERVE-EXTENDED-ATTRIBUTES are completely ignored."
 	       v 'file-error "Target `%s' must contain a share name" newname))
 	    (unless (tramp-smb-send-command
 		     v (format "put \"%s\" \"%s\""
-			       filename (tramp-smb-get-localname v)))
+			       (tramp-compat-file-name-unquote filename)
+			       (tramp-smb-get-localname v)))
 	      (tramp-error
 	       v 'file-error "Cannot copy `%s' to `%s'" filename newname))))))
 
@@ -760,7 +765,8 @@ PRESERVE-UID-GID and PRESERVE-EXTENDED-ATTRIBUTES are completely ignored."
 	    (setq args (append args (list "-s" tramp-smb-conf))))
 	  (setq
 	   args
-	   (append args (list (shell-quote-argument localname) "2>/dev/null")))
+	   (append args (list (tramp-unquote-shell-quote-argument localname)
+			      "2>/dev/null")))
 
 	  (unwind-protect
 	      (with-temp-buffer
@@ -1354,7 +1360,7 @@ target of the symlink differ."
 	    (setq args (append args (list "-s" tramp-smb-conf))))
 	  (setq
 	   args
-	   (append args (list (shell-quote-argument localname)
+	   (append args (list (tramp-unquote-shell-quote-argument localname)
 			      "&&" "echo" "tramp_exit_status" "0"
 			      "||" "echo" "tramp_exit_status" "1")))
 
@@ -1458,15 +1464,18 @@ target of the symlink differ."
   "Like `handle-substitute-in-file-name' for Tramp files.
 \"//\" substitutes only in the local filename part.  Catches
 errors for shares like \"C$/\", which are common in Microsoft Windows."
-  (with-parsed-tramp-file-name filename nil
-    ;; Ignore in LOCALNAME everything before "//".
-    (when (and (stringp localname) (string-match ".+?/\\(/\\|~\\)" localname))
-      (setq filename
-	    (concat (file-remote-p filename)
-		    (replace-match "\\1" nil nil localname)))))
-  (condition-case nil
-      (tramp-run-real-handler 'substitute-in-file-name (list filename))
-    (error filename)))
+  ;; Check, whether the local part is a quoted file name.
+  (if (tramp-compat-file-name-quoted-p filename)
+      filename
+    (with-parsed-tramp-file-name filename nil
+      ;; Ignore in LOCALNAME everything before "//".
+      (when (and (stringp localname) (string-match ".+?/\\(/\\|~\\)" localname))
+	(setq filename
+	      (concat (file-remote-p filename)
+		      (replace-match "\\1" nil nil localname)))))
+    (condition-case nil
+	(tramp-run-real-handler 'substitute-in-file-name (list filename))
+      (error filename))))
 
 (defun tramp-smb-handle-write-region
   (start end filename &optional append visit lockname confirm)
@@ -1516,7 +1525,7 @@ errors for shares like \"C$/\", which are common in Microsoft Windows."
 (defun tramp-smb-get-share (vec)
   "Returns the share name of LOCALNAME."
   (save-match-data
-    (let ((localname (tramp-file-name-localname vec)))
+    (let ((localname (tramp-file-name-unquote-localname vec)))
       (when (string-match "^/?\\([^/]+\\)/" localname)
 	(match-string 1 localname)))))
 
@@ -1524,7 +1533,7 @@ errors for shares like \"C$/\", which are common in Microsoft Windows."
   "Returns the file name of LOCALNAME.
 If VEC has no cifs capabilities, exchange \"/\" by \"\\\\\"."
   (save-match-data
-    (let ((localname (tramp-file-name-localname vec)))
+    (let ((localname (tramp-file-name-unquote-localname vec)))
       (setq
        localname
        (if (string-match "^/?[^/]+\\(/.*\\)" localname)
@@ -1724,7 +1733,7 @@ Result is the list (LOCALNAME MODE SIZE MTIME)."
 	    (if (and sec min hour day month year)
 		(encode-time
 		 sec min hour day
-		 (cdr (assoc (downcase month) tramp-parse-time-months))
+		 (cdr (assoc (downcase month) parse-time-months))
 		 year)
 	      '(0 0)))
       (list localname mode size mtime))))
@@ -2038,7 +2047,7 @@ Returns nil if an error message has appeared."
 (defun tramp-smb-shell-quote-argument (s)
   "Similar to `shell-quote-argument', but uses windows cmd syntax."
   (let ((system-type 'ms-dos))
-    (shell-quote-argument s)))
+    (tramp-unquote-shell-quote-argument s)))
 
 (add-hook 'tramp-unload-hook
 	  (lambda ()

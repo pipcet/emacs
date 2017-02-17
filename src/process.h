@@ -1,5 +1,5 @@
 /* Definitions for asynchronous process control in GNU Emacs.
-   Copyright (C) 1985, 1994, 2001-2016 Free Software Foundation, Inc.
+   Copyright (C) 1985, 1994, 2001-2017 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -115,6 +115,9 @@ struct Lisp_Process
     /* Pipe process attached to the standard error of this process.  */
     Lisp_Object stderrproc;
 
+    /* The thread a process is linked to, or nil for any thread.  */
+    Lisp_Object thread;
+
     /* After this point, there are no Lisp_Objects any more.  */
     /* alloc.c assumes that `pid' is the first such non-Lisp slot.  */
 
@@ -199,6 +202,25 @@ struct Lisp_Process
 #endif
 };
 
+INLINE bool
+PROCESSP (Lisp_Object a)
+{
+  return PSEUDOVECTORP (a, PVEC_PROCESS);
+}
+
+INLINE void
+CHECK_PROCESS (Lisp_Object x)
+{
+  CHECK_TYPE (PROCESSP (x), Qprocessp, x);
+}
+
+INLINE struct Lisp_Process *
+XPROCESS (Lisp_Object a)
+{
+  eassert (PROCESSP (a));
+  return XUNTAG (a, Lisp_Vectorlike);
+}
+
 /* Every field in the preceding structure except for the first two
    must be a Lisp_Object, for GC's sake.  */
 
@@ -273,6 +295,8 @@ extern Lisp_Object network_interface_info (Lisp_Object);
 #endif
 
 extern Lisp_Object remove_slash_colon (Lisp_Object);
+
+extern void update_processes_for_thread_death (Lisp_Object);
 
 INLINE_HEADER_END
 

@@ -3,7 +3,7 @@
 #include "copyright.h"
 
 /*
-Copyright (C) 1993-1994, 2001-2016 Free Software Foundation, Inc.
+Copyright (C) 1993-1994, 2001-2017 Free Software Foundation, Inc.
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -31,6 +31,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 #include "XMenuInt.h"
 #include <stdlib.h>
+#include <string.h>
 
 #ifdef EMACS_BITMAP_FILES
 #include "../src/bitmaps/dimple1.xbm"

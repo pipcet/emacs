@@ -1,5 +1,5 @@
 /* Composite sequence support.
-   Copyright (C) 2001-2016 Free Software Foundation, Inc.
+   Copyright (C) 2001-2017 Free Software Foundation, Inc.
    Copyright (C) 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
      National Institute of Advanced Industrial Science and Technology (AIST)
      Registration Number H14PRO021
@@ -891,6 +891,8 @@ autocmp_chars (Lisp_Object rule, ptrdiff_t charpos, ptrdiff_t bytepos,
   if (len <= 0)
     return unbind_to (count, Qnil);
   to = limit = charpos + len;
+  font_object = win->frame;
+#ifdef HAVE_WINDOW_SYSTEM
   if (FRAME_WINDOW_P (f))
     {
       font_object = font_range (charpos, bytepos, &to, win, face, string);
@@ -900,8 +902,7 @@ autocmp_chars (Lisp_Object rule, ptrdiff_t charpos, ptrdiff_t bytepos,
 	      && (fast_looking_at (re, charpos, bytepos, to, -1, string) <= 0)))
 	return unbind_to (count, Qnil);
     }
-  else
-    font_object = win->frame;
+#endif
   lgstring = Fcomposition_get_gstring (pos, make_number (to), font_object,
 				       string);
   if (NILP (LGSTRING_ID (lgstring)))
@@ -1011,7 +1012,7 @@ composition_compute_stop_pos (struct composition_it *cmp_it, ptrdiff_t charpos, 
 	  val = CHAR_TABLE_REF (Vcomposition_function_table, c);
 	  if (! NILP (val))
 	    {
-	      for (int ridx = 0; CONSP (val); val = XCDR (val), ridx++)
+	      for (EMACS_INT ridx = 0; CONSP (val); val = XCDR (val), ridx++)
 		{
 		  Lisp_Object elt = XCAR (val);
 		  if (VECTORP (elt) && ASIZE (elt) == 3
@@ -1062,54 +1063,48 @@ composition_compute_stop_pos (struct composition_it *cmp_it, ptrdiff_t charpos, 
       while (char_composable_p (c))
 	{
 	  val = CHAR_TABLE_REF (Vcomposition_function_table, c);
-	  if (! NILP (val))
+	  for (EMACS_INT ridx = 0; CONSP (val); val = XCDR (val), ridx++)
 	    {
-	      Lisp_Object elt;
-	      int ridx, blen;
-
-	      for (ridx = 0; CONSP (val); val = XCDR (val), ridx++)
+	      Lisp_Object elt = XCAR (val);
+	      if (VECTORP (elt) && ASIZE (elt) == 3
+		  && NATNUMP (AREF (elt, 1))
+		  && charpos - XFASTINT (AREF (elt, 1)) > endpos)
 		{
-		  elt = XCAR (val);
-		  if (VECTORP (elt) && ASIZE (elt) == 3
-		      && NATNUMP (AREF (elt, 1))
-		      && charpos - XFASTINT (AREF (elt, 1)) > endpos)
-		    {
-		      ptrdiff_t back = XFASTINT (AREF (elt, 1));
-		      ptrdiff_t cpos = charpos - back, bpos;
+		  ptrdiff_t back = XFASTINT (AREF (elt, 1));
+		  ptrdiff_t cpos = charpos - back, bpos;
 
-		      if (back == 0)
-			bpos = bytepos;
-		      else
-			bpos = (NILP (string) ? CHAR_TO_BYTE (cpos)
-				: string_char_to_byte (string, cpos));
-		      if (STRINGP (AREF (elt, 0)))
-			blen = fast_looking_at (AREF (elt, 0), cpos, bpos,
-						start + 1, limit, string);
-		      else
-			blen = 1;
-		      if (blen > 0)
+		  if (back == 0)
+		    bpos = bytepos;
+		  else
+		    bpos = (NILP (string) ? CHAR_TO_BYTE (cpos)
+			    : string_char_to_byte (string, cpos));
+		  ptrdiff_t blen
+		    = (STRINGP (AREF (elt, 0))
+		       ? fast_looking_at (AREF (elt, 0), cpos, bpos,
+					  start + 1, limit, string)
+		       : 1);
+		  if (blen > 0)
+		    {
+		      /* Make CPOS point to the last character of
+			 match.  Note that BLEN is byte-length.  */
+		      if (blen > 1)
 			{
-			  /* Make CPOS point to the last character of
-			     match.  Note that BLEN is byte-length.  */
-			  if (blen > 1)
-			    {
-			      bpos += blen;
-			      if (NILP (string))
-				cpos = BYTE_TO_CHAR (bpos) - 1;
-			      else
-				cpos = string_byte_to_char (string, bpos) - 1;
-			    }
-			  back = cpos - (charpos - back);
-			  if (cmp_it->stop_pos < cpos
-			      || (cmp_it->stop_pos == cpos
-				  && cmp_it->lookback < back))
-			    {
-			      cmp_it->rule_idx = ridx;
-			      cmp_it->stop_pos = cpos;
-			      cmp_it->ch = c;
-			      cmp_it->lookback = back;
-			      cmp_it->nchars = back + 1;
-			    }
+			  bpos += blen;
+			  if (NILP (string))
+			    cpos = BYTE_TO_CHAR (bpos) - 1;
+			  else
+			    cpos = string_byte_to_char (string, bpos) - 1;
+			}
+		      back = cpos - (charpos - back);
+		      if (cmp_it->stop_pos < cpos
+			  || (cmp_it->stop_pos == cpos
+			      && cmp_it->lookback < back))
+			{
+			  cmp_it->rule_idx = ridx;
+			  cmp_it->stop_pos = cpos;
+			  cmp_it->ch = c;
+			  cmp_it->lookback = back;
+			  cmp_it->nchars = back + 1;
 			}
 		    }
 		}
@@ -1202,10 +1197,10 @@ composition_reseat_it (struct composition_it *cmp_it, ptrdiff_t charpos,
     {
       Lisp_Object lgstring = Qnil;
       Lisp_Object val, elt;
-      ptrdiff_t i;
 
       val = CHAR_TABLE_REF (Vcomposition_function_table, cmp_it->ch);
-      for (i = 0; i < cmp_it->rule_idx; i++, val = XCDR (val));
+      for (EMACS_INT i = 0; i < cmp_it->rule_idx; i++, val = XCDR (val))
+	continue;
       if (charpos < endpos)
 	{
 	  for (; CONSP (val); val = XCDR (val))
@@ -1254,6 +1249,7 @@ composition_reseat_it (struct composition_it *cmp_it, ptrdiff_t charpos,
       if (NILP (LGSTRING_ID (lgstring)))
 	lgstring = composition_gstring_put_cache (lgstring, -1);
       cmp_it->id = XINT (LGSTRING_ID (lgstring));
+      int i;
       for (i = 0; i < LGSTRING_GLYPH_LEN (lgstring); i++)
 	if (NILP (LGSTRING_GLYPH (lgstring, i)))
 	  break;

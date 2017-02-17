@@ -1,6 +1,6 @@
 ;; autoload.el --- maintain autoloads in loaddefs.el  -*- lexical-binding: t -*-
 
-;; Copyright (C) 1991-1997, 2001-2016 Free Software Foundation, Inc.
+;; Copyright (C) 1991-1997, 2001-2017 Free Software Foundation, Inc.
 
 ;; Author: Roland McGrath <roland@gnu.org>
 ;; Keywords: maint
@@ -748,7 +748,7 @@ FILE's modification time."
                               (setq output-start (autoload--setup-output
                                                   otherbuf outbuf absfile load-name)))
                             (autoload--print-cookie-text output-start load-name file))
-                           ((looking-at ";")
+                           ((= (following-char) ?\;)
                             ;; Don't read the comment.
                             (forward-line 1))
                            (t

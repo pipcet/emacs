@@ -1,6 +1,6 @@
 @c -*-texinfo-*-
 @c This is part of the GNU Emacs Lisp Reference Manual.
-@c Copyright (C) 1990-1995, 1998-1999, 2001-2016 Free Software
+@c Copyright (C) 1990-1995, 1998-1999, 2001-2017 Free Software
 @c Foundation, Inc.
 @c See the file elisp.texi for copying conditions.
 @node Windows
@@ -1620,9 +1620,9 @@ window or too small to ordinarily split.  Furthermore, subsequently
 resizing or deleting @var{window} may resize all other windows in its
 combination.
 
-The default is @code{nil}.  Other values are reserved for future use.
-The value of this variable is ignored when
-@code{window-combination-limit} is non-@code{nil}.
+The default is @code{nil}.  Other values are reserved for future use.  A
+specific split operation may ignore the value of this variable if it is
+affected by a non-@code{nil} value of @code{window-combination-limit}.
 @end defopt
 
   To illustrate the effect of @code{window-combination-resize}, consider
@@ -3922,6 +3922,21 @@ of lines between point and the top or bottom of a window.  Whenever
 point gets within this many lines of the top or bottom of the window,
 redisplay scrolls the text automatically (if possible) to move point
 out of the margin, closer to the center of the window.
+@end defopt
+
+@defopt maximum-scroll-margin
+This variable limits the effective value of @code{scroll-margin} to a
+fraction of the current window line height.  For example, if the
+current window has 20 lines and @code{maximum-scroll-margin} is 0.1,
+then the scroll margins will never be larger than 2 lines, no matter
+how big @code{scroll-margin} is.
+
+@code{maximum-scroll-margin} itself has a maximum value of 0.5, which
+allows setting margins large to keep the cursor at the middle line of
+the window (or two middle lines if the window has an even number of
+lines).  If it's set to a larger value (or any value other than a
+float between 0.0 and 0.5) then the default value of 0.25 will be used
+instead.
 @end defopt
 
 @defopt scroll-conservatively

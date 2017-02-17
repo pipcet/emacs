@@ -1,6 +1,6 @@
 ;;; files.el --- file input and output commands for Emacs  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1985-1987, 1992-2016 Free Software Foundation, Inc.
+;; Copyright (C) 1985-1987, 1992-2017 Free Software Foundation, Inc.
 
 ;; Maintainer: emacs-devel@gnu.org
 ;; Package: emacs
@@ -51,20 +51,21 @@ when it has unsaved changes."
   nil
   "Alist of abbreviations for file directories.
 A list of elements of the form (FROM . TO), each meaning to replace
-FROM with TO when it appears in a directory name.  This replacement is
-done when setting up the default directory of a newly visited file.
+a match for FROM with TO when a directory name matches FROM.  This
+replacement is done when setting up the default directory of a
+newly visited file buffer.
 
-FROM is matched against directory names anchored at the first
-character, so it should start with a \"\\\\\\=`\", or, if directory
-names cannot have embedded newlines, with a \"^\".
+FROM is a regexp that is matched against directory names anchored at
+the first character, so it should start with a \"\\\\\\=`\", or, if
+directory names cannot have embedded newlines, with a \"^\".
 
 FROM and TO should be equivalent names, which refer to the
-same directory.  Do not use `~' in the TO strings;
-they should be ordinary absolute directory names.
+same directory.  TO should be an absolute directory name.
+Do not use `~' in the TO strings.
 
 Use this feature when you have directories which you normally refer to
 via absolute symbolic links.  Make TO the name of the link, and FROM
-the name it is linked to."
+a regexp matching the name it is linked to."
   :type '(repeat (cons :format "%v"
 		       :value ("\\`" . "")
 		       (regexp :tag "From")
@@ -715,13 +716,13 @@ The path separator is colon in GNU and GNU-like systems."
     ;; (which will lead to the use of B/a).
     (minibuffer-with-setup-hook
         (lambda ()
-          (setq minibuffer-completion-table
-                (apply-partially #'locate-file-completion-table
-                                 cd-path nil))
-          (setq minibuffer-completion-predicate
-                (lambda (dir)
-                  (locate-file dir cd-path nil
-                               (lambda (f) (and (file-directory-p f) 'dir-ok))))))
+          (setq-local minibuffer-completion-table
+		      (apply-partially #'locate-file-completion-table
+				       cd-path nil))
+          (setq-local minibuffer-completion-predicate
+		      (lambda (dir)
+			(locate-file dir cd-path nil
+				     (lambda (f) (and (file-directory-p f) 'dir-ok))))))
       (unless cd-path
         (setq cd-path (or (parse-colon-path (getenv "CDPATH"))
                           (list "./"))))
@@ -1604,7 +1605,7 @@ file names with wildcards."
 
 (defun find-file--read-only (fun filename wildcards)
   (unless (or (and wildcards find-file-wildcards
-		   (not (string-match "\\`/:" filename))
+		   (not (file-name-quoted-p filename))
 		   (string-match "[[*?]" filename))
 	      (file-exists-p filename))
     (error "%s does not exist" filename))
@@ -1784,7 +1785,8 @@ Choose the buffer's name using `generate-new-buffer-name'."
 (make-obsolete-variable 'automount-dir-prefix 'directory-abbrev-alist "24.3")
 
 (defvar abbreviated-home-dir nil
-  "The user's homedir abbreviated according to `directory-abbrev-alist'.")
+  "Regexp matching the user's homedir at the beginning of file name.
+The value includes abbreviation according to `directory-abbrev-alist'.")
 
 (defun abbreviate-file-name (filename)
   "Return a version of FILENAME shortened using `directory-abbrev-alist'.
@@ -1815,8 +1817,23 @@ home directory is a root directory) and removes automounter prefixes
       (or abbreviated-home-dir
 	  (setq abbreviated-home-dir
 		(let ((abbreviated-home-dir "$foo"))
-		  (concat "\\`" (abbreviate-file-name (expand-file-name "~"))
-			  "\\(/\\|\\'\\)"))))
+                  (setq abbreviated-home-dir
+                        (concat "\\`"
+                                (abbreviate-file-name (expand-file-name "~"))
+                                "\\(/\\|\\'\\)"))
+                  ;; Depending on whether default-directory does or
+                  ;; doesn't include non-ASCII characters, the value
+                  ;; of abbreviated-home-dir could be multibyte or
+                  ;; unibyte.  In the latter case, we need to decode
+                  ;; it.  Note that this function is called for the
+                  ;; first time (from startup.el) when
+                  ;; locale-coding-system is already set up.
+                  (if (multibyte-string-p abbreviated-home-dir)
+                      abbreviated-home-dir
+                    (decode-coding-string abbreviated-home-dir
+                                          (if (eq system-type 'windows-nt)
+                                              'utf-8
+                                            locale-coding-system))))))
 
       ;; If FILENAME starts with the abbreviated homedir,
       ;; make it start with `~' instead.
@@ -1968,7 +1985,7 @@ the various files."
 	  (error "%s is a directory" filename))
     (if (and wildcards
 	     find-file-wildcards
-	     (not (string-match "\\`/:" filename))
+	     (not (file-name-quoted-p filename))
 	     (string-match "[[*?]" filename))
 	(let ((files (condition-case nil
 			 (file-expand-wildcards filename t)
@@ -2526,6 +2543,7 @@ ARC\\|ZIP\\|LZH\\|LHA\\|ZOO\\|[JEW]AR\\|XPI\\|RAR\\|CBR\\|7Z\\)\\'" . archive-mo
      ("\\.ds\\(ss\\)?l\\'" . dsssl-mode)
      ("\\.jsm?\\'" . javascript-mode)
      ("\\.json\\'" . javascript-mode)
+     ("\\.jsx\\'" . js-jsx-mode)
      ("\\.[ds]?vh?\\'" . verilog-mode)
      ("\\.by\\'" . bovine-grammar-mode)
      ("\\.wy\\'" . wisent-grammar-mode)
@@ -3705,7 +3723,8 @@ Return the new variables list."
   (let* ((file-name (or (buffer-file-name)
 			;; Handle non-file buffers, too.
 			(expand-file-name default-directory)))
-	 (sub-file-name (if file-name
+	 (sub-file-name (if (and file-name
+                                 (file-name-absolute-p file-name))
                             ;; FIXME: Why not use file-relative-name?
 			    (substring file-name (length root)))))
     (condition-case err
@@ -5115,6 +5134,14 @@ Before and after saving the buffer, this function runs
   "Non-nil means `save-some-buffers' should save this buffer without asking.")
 (make-variable-buffer-local 'buffer-save-without-query)
 
+(defcustom save-some-buffers-default-predicate nil
+  "Default predicate for `save-some-buffers'.
+This allows you to stop `save-some-buffers' from asking
+about certain files that you'd usually rather not save."
+  :group 'auto-save
+  :type 'function
+  :version "26.1")
+
 (defun save-some-buffers (&optional arg pred)
   "Save some modified file-visiting buffers.  Asks user about each one.
 You can answer `y' to save, `n' not to save, `C-r' to look at the
@@ -5130,10 +5157,13 @@ If PRED is nil, all the file-visiting buffers are considered.
 If PRED is t, then certain non-file buffers will also be considered.
 If PRED is a zero-argument function, it indicates for each buffer whether
 to consider it or not when called with that buffer current.
+PRED defaults to the value of `save-some-buffers-default-predicate'.
 
 See `save-some-buffers-action-alist' if you want to
 change the additional actions you can take on files."
   (interactive "P")
+  (unless pred
+    (setq pred save-some-buffers-default-predicate))
   (save-window-excursion
     (let* (queried autosaved-buffers
 	   files-done abbrevs-done)
@@ -6056,8 +6086,8 @@ See also `auto-save-file-name-p'."
 	    ;; Make sure auto-save file names don't contain characters
 	    ;; invalid for the underlying filesystem.
 	    (if (and (memq system-type '(ms-dos windows-nt cygwin))
-		     ;; Don't modify remote (ange-ftp) filenames
-		     (not (string-match "^/\\w+@[-A-Za-z0-9._]+:" result)))
+		     ;; Don't modify remote filenames
+                     (not (file-remote-p result)))
 		(convert-standard-filename result)
 	      result))))
 
@@ -6094,8 +6124,8 @@ See also `auto-save-file-name-p'."
 		      ((file-writable-p "/var/tmp/") "/var/tmp/")
 		      ("~/")))))
 	       (if (and (memq system-type '(ms-dos windows-nt cygwin))
-			;; Don't modify remote (ange-ftp) filenames
-			(not (string-match "^/\\w+@[-A-Za-z0-9._]+:" fname)))
+			;; Don't modify remote filenames
+			(not (file-remote-p fname)))
 		   ;; The call to convert-standard-filename is in case
 		   ;; buffer-name includes characters not allowed by the
 		   ;; DOS/Windows filesystems.  make-temp-file writes to the
@@ -6553,7 +6583,7 @@ normally equivalent short `-D' option is just passed on to
 			      (unless (equal switches "")
 				;; Split the switches at any spaces so we can
 				;; pass separate options as separate args.
-				(split-string switches)))
+				(split-string-and-unquote switches)))
 			    ;; Avoid lossage if FILE starts with `-'.
 			    '("--")
 			    (progn
@@ -6793,6 +6823,8 @@ asks whether processes should be killed.
 Runs the members of `kill-emacs-query-functions' in turn and stops
 if any returns nil.  If `confirm-kill-emacs' is non-nil, calls it."
   (interactive "P")
+  ;; Don't use save-some-buffers-default-predicate, because we want
+  ;; to ask about all the buffers before killing Emacs.
   (save-some-buffers arg t)
   (let ((confirm confirm-kill-emacs))
     (and
@@ -6927,6 +6959,28 @@ only these files will be asked to be saved."
          (apply operation arguments)))
       (_
        (apply operation arguments)))))
+
+(defsubst file-name-quoted-p (name)
+  "Whether NAME is quoted with prefix \"/:\".
+If NAME is a remote file name, check the local part of NAME."
+  (string-prefix-p "/:" (file-local-name name)))
+
+(defsubst file-name-quote (name)
+  "Add the quotation prefix \"/:\" to file NAME.
+If NAME is a remote file name, the local part of NAME is quoted.
+If NAME is already a quoted file name, NAME is returned unchanged."
+  (if (file-name-quoted-p name)
+      name
+    (concat (file-remote-p name) "/:" (file-local-name name))))
+
+(defsubst file-name-unquote (name)
+  "Remove quotation prefix \"/:\" from file NAME, if any.
+If NAME is a remote file name, the local part of NAME is unquoted."
+  (let ((localname (file-local-name name)))
+    (when (file-name-quoted-p localname)
+      (setq
+       localname (if (= (length localname) 2) "/" (substring localname 2))))
+    (concat (file-remote-p name) localname)))
 
 ;; Symbolic modes and read-file-modes.
 

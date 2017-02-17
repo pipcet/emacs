@@ -1,6 +1,6 @@
 ;;; auth-source.el --- authentication sources for Gnus and Emacs -*- lexical-binding: t -*-
 
-;; Copyright (C) 2008-2016 Free Software Foundation, Inc.
+;; Copyright (C) 2008-2017 Free Software Foundation, Inc.
 
 ;; Author: Ted Zlatanov <tzz@lifelogs.com>
 ;; Keywords: news
@@ -2129,7 +2129,7 @@ MODE can be \"login\" or \"password\"."
                      (if user
                          (auth-source-search
                           :host host
-                          :user "yourusername"
+                          :user user
                           :max 1
                           :require '(:user :secret)
                           :create nil)

@@ -1,6 +1,6 @@
 ### @configure_input@
 
-# Copyright (C) 1985, 1987-1988, 1993-1995, 1999-2016 Free Software
+# Copyright (C) 1985, 1987-1988, 1993-1995, 1999-2017 Free Software
 # Foundation, Inc.
 
 # This file is part of GNU Emacs.
@@ -38,9 +38,6 @@ CPPFLAGS = @CPPFLAGS@
 LDFLAGS = @LDFLAGS@
 EXEEXT = @EXEEXT@
 version = @version@
-# Substitute an assignment for the MAKE variable, because
-# BSD doesn't have it as a default.
-@SET_MAKE@
 MKDIR_P = @MKDIR_P@
 # Don't use LIBS.  configure puts stuff in it that either shouldn't be
 # linked with Emacs or is duplicated by the other stuff below.
@@ -361,16 +358,13 @@ DEPFLAGS =
 MKDEPDIR = :
 endif
 
-## DO NOT use -R.  There is a special hack described in lastfile.c
-## which is used instead.  Some initialized data areas are modified
-## at initial startup, then labeled as part of the text area when
-## Emacs is dumped for the first time, and never changed again.
-##
-## -Demacs is needed to make some files produce the correct version
-## for use in Emacs.
-##
-## FIXME? MYCPPFLAGS only referenced in etc/DEBUG.
-ALL_CFLAGS=-Demacs $(MYCPPFLAGS) -I. -I$(srcdir) \
+# Flags that might be in WARN_CFLAGS but are not valid for Objective C.
+NON_OBJC_CFLAGS = -Wignored-attributes -Wignored-qualifiers -Wopenmp-simd
+
+# -Demacs makes some files produce the correct version for use in Emacs.
+# MYCPPFLAGS is for by-hand Emacs-specific overrides, e.g.,
+# "make MYCPPFLAGS='-DDBUS_DEBUG'".
+EMACS_CFLAGS=-Demacs $(MYCPPFLAGS) -I. -I$(srcdir) \
   -I$(lib) -I$(top_srcdir)/lib \
   $(C_SWITCH_MACHINE) $(C_SWITCH_SYSTEM) $(C_SWITCH_X_SITE) \
   $(GNUSTEP_CFLAGS) $(CFLAGS_SOUND) $(RSVG_CFLAGS) $(IMAGEMAGICK_CFLAGS) \
@@ -381,8 +375,11 @@ ALL_CFLAGS=-Demacs $(MYCPPFLAGS) -I. -I$(srcdir) \
   $(LIBOTF_CFLAGS) $(M17N_FLT_CFLAGS) $(DEPFLAGS) \
   $(LIBSYSTEMD_CFLAGS) \
   $(LIBGNUTLS_CFLAGS) $(NOTIFY_CFLAGS) $(CAIRO_CFLAGS) \
-  $(WARN_CFLAGS) $(WERROR_CFLAGS) $(CFLAGS)
-ALL_OBJC_CFLAGS=$(ALL_CFLAGS) $(GNU_OBJC_CFLAGS)
+  $(WERROR_CFLAGS)
+ALL_CFLAGS = $(EMACS_CFLAGS) $(WARN_CFLAGS) $(CFLAGS)
+ALL_OBJC_CFLAGS = $(EMACS_CFLAGS) \
+  $(filter-out $(NON_OBJC_CFLAGS),$(WARN_CFLAGS)) $(CFLAGS) \
+  $(GNU_OBJC_CFLAGS)
 
 .SUFFIXES: .m
 .c.o:
@@ -409,6 +406,7 @@ base_obj = dispnew.o frame.o scroll.o xdisp.o menu.o $(XMENU_OBJ) window.o \
 	doprnt.o intervals.o textprop.o composite.o xml.o $(NOTIFY_OBJ) \
 	$(XWIDGETS_OBJ) \
 	profiler.o decompress.o \
+	thread.o systhread.o \
 	$(if $(HYBRID_MALLOC),sheap.o) \
 	$(MSDOS_OBJ) $(MSDOS_X_OBJ) $(NS_OBJ) $(CYGWIN_OBJ) $(FONT_OBJ) \
 	$(W32_OBJ) $(WINDOW_SYSTEM_OBJ) $(XGSELOBJ)
@@ -760,6 +758,10 @@ else
 endif
 	@: Compile some files earlier to speed up further compilation.
 	$(MAKE) -C ../lisp compile-first EMACS="$(bootstrap_exe)"
+
+
+generate-ldefs-boot: bootstrap-emacs$(EXEEXT)
+	$(RUN_TEMACS) --batch $(BUILD_DETAILS) --load loadup bootstrap
 
 ifeq ($(AUTO_DEPEND),yes)
 -include $(ALLOBJS:%.o=${DEPDIR}/%.d)

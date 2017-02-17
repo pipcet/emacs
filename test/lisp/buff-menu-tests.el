@@ -1,6 +1,6 @@
-;;; buff-menu-tests.el --- Test suite for buff-menu-tests.el -*- lexical-binding: t -*-
+;;; buff-menu-tests.el --- Test suite for buff-menu.el -*- lexical-binding: t -*-
 
-;; Copyright (C) 2016 Free Software Foundation, Inc.
+;; Copyright (C) 2016-2017 Free Software Foundation, Inc.
 
 ;; Author: Tino Calancha <tino.calancha@gmail.com>
 
@@ -27,7 +27,6 @@
 
 (ert-deftest buff-menu-24962 ()
   "Test for http://debbugs.gnu.org/24962 ."
-  :expected-result :failed
   (let ((file (expand-file-name "foo" temporary-file-directory))
         buf)
     (unwind-protect

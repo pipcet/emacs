@@ -1,6 +1,6 @@
 ;;; server.el --- Lisp code for GNU Emacs running as server process -*- lexical-binding: t -*-
 
-;; Copyright (C) 1986-1987, 1992, 1994-2016 Free Software Foundation,
+;; Copyright (C) 1986-1987, 1992, 1994-2017 Free Software Foundation,
 ;; Inc.
 
 ;; Author: William Sommerfeld <wesommer@athena.mit.edu>
@@ -244,10 +244,6 @@ in this way."
   :group 'server
   :type 'boolean
   :version "21.1")
-
-;; FIXME? This is not a minor mode; what's the point of this?  (See bug#20201)
-(or (assq 'server-buffer-clients minor-mode-alist)
-    (push '(server-buffer-clients " Server") minor-mode-alist))
 
 (defvar server-existing-buffer nil
   "Non-nil means the buffer existed before the server was asked to visit it.

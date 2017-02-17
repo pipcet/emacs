@@ -1,6 +1,6 @@
 ;;; files-tests.el --- tests for files.el.
 
-;; Copyright (C) 2012-2016 Free Software Foundation, Inc.
+;; Copyright (C) 2012-2017 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -219,6 +219,29 @@ form.")
     (kill-process process)
     (should-not yes-or-no-p-prompts)
     (should (equal kill-emacs-args '(nil)))))
+
+(ert-deftest files-test-read-file-in-~ ()
+  "Test file prompting in directory named '~'.
+If we are in a directory named '~', the default value should not
+be $HOME."
+  (cl-letf (((symbol-function 'completing-read)
+             (lambda (_prompt _coll &optional _pred _req init _hist def _)
+               (or def init)))
+            (dir (make-temp-file "read-file-name-test" t)))
+    (unwind-protect
+        (let ((subdir (expand-file-name "./~/" dir)))
+          (make-directory subdir t)
+          (with-temp-buffer
+            (setq default-directory subdir)
+            (should-not (equal
+                         (expand-file-name (read-file-name "File: "))
+                         (expand-file-name "~/")))
+            ;; Don't overquote either!
+            (setq default-directory (concat "/:" subdir))
+            (should-not (equal
+                         (expand-file-name (read-file-name "File: "))
+                         (concat "/:/:" subdir)))))
+      (delete-directory dir 'recursive))))
 
 (provide 'files-tests)
 ;;; files-tests.el ends here

@@ -1,6 +1,6 @@
 ;;; gitmerge.el --- help merge one Emacs branch into another
 
-;; Copyright (C) 2010-2016 Free Software Foundation, Inc.
+;; Copyright (C) 2010-2017 Free Software Foundation, Inc.
 
 ;; Authors: David Engster <deng@randomsample.de>
 ;;          Stefan Monnier <monnier@iro.umontreal.ca>
@@ -292,7 +292,7 @@ Returns non-nil if conflicts remain."
             ))
           ;; Try to resolve the conflicts.
           (cond
-           ((member file '("configure" "lisp/ldefs-boot.el"
+           ((member file '("configure" "lisp/ldefs-boot-auto.el"
                            "lisp/emacs-lisp/cl-loaddefs.el"))
             ;; We are in the file's buffer, so names are relative.
             (call-process "git" nil t nil "checkout" "--"

@@ -1,6 +1,6 @@
 ;;; dired.el --- directory-browsing commands -*- lexical-binding: t -*-
 
-;; Copyright (C) 1985-1986, 1992-1997, 2000-2016 Free Software
+;; Copyright (C) 1985-1986, 1992-1997, 2000-2017 Free Software
 ;; Foundation, Inc.
 
 ;; Author: Sebastian Kremer <sk@thp.uni-koeln.de>
@@ -59,6 +59,10 @@
 May contain all other options that don't contradict `-l';
 may contain even `F', `b', `i' and `s'.  See also the variable
 `dired-ls-F-marks-symlinks' concerning the `F' switch.
+Options that include embedded whitespace must be quoted
+like this: \\\"--option=value with spaces\\\"; you can use
+`combine-and-quote-strings' to produce the correct quoting of
+each option.
 On systems such as MS-DOS and MS-Windows, which use `ls' emulation in Lisp,
 some of the `ls' switches are not supported; see the doc string of
 `insert-directory' in `ls-lisp.el' for more details."
@@ -1845,11 +1849,11 @@ Do so according to the former subdir alist OLD-SUBDIR-ALIST."
       '("--"))
 
     (define-key map [menu-bar operate query-replace]
-      '(menu-item "Query Replace in Files..." dired-do-query-replace-regexp
-		  :help "Replace regexp in marked files"))
+      '(menu-item "Query Replace in Files..." dired-do-find-regexp-and-replace
+		  :help "Replace regexp matches in marked files"))
     (define-key map [menu-bar operate search]
-      '(menu-item "Search Files..." dired-do-search
-		  :help "Search marked files for regexp"))
+      '(menu-item "Search Files..." dired-do-find-regexp
+		  :help "Search marked files for matches of regexp"))
     (define-key map [menu-bar operate isearch-regexp]
       '(menu-item "Isearch Regexp Files..." dired-do-isearch-regexp
 		  :help "Incrementally search marked files for regexp"))
@@ -3313,7 +3317,7 @@ is one line.
 If the region is active in Transient Mark mode, unmark all files
 in the active region."
   (interactive "p")
-  (dired-unmark (- arg)))
+  (dired-unmark (- arg) t))
 
 (defun dired-toggle-marks ()
   "Toggle marks: marked files become unmarked, and vice versa.

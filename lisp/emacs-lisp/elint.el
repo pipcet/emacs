@@ -1,6 +1,6 @@
 ;;; elint.el --- Lint Emacs Lisp
 
-;; Copyright (C) 1997, 2001-2016 Free Software Foundation, Inc.
+;; Copyright (C) 1997, 2001-2017 Free Software Foundation, Inc.
 
 ;; Author: Peter Liljenberg <petli@lysator.liu.se>
 ;; Created: May 1997
@@ -105,7 +105,7 @@ are as follows, and suppress messages about the indicated features:
   :version "23.2"
   :group 'elint)
 
-(defcustom elint-directory-skip-re "\\(ldefs-boot\\|loaddefs\\)\\.el\\'"
+(defcustom elint-directory-skip-re "\\(ldefs-boot.*\\|loaddefs\\)\\.el\\'"
   "If nil, a regexp matching files to skip when linting a directory."
   :type '(choice (const :tag "Lint all files" nil)
 		 (regexp :tag "Regexp to skip"))
@@ -372,7 +372,7 @@ Returns the forms."
 	(let ((elint-current-pos (point)))
 	  ;; non-list check could be here too. errors may be out of seq.
 	  ;; quoted check cannot be elsewhere, since quotes skipped.
-	  (if (looking-back "'" (1- (point)))
+	  (if (= (preceding-char) ?\')
 	      ;; Eg cust-print.el uses ' as a comment syntax.
 	      (elint-warning "Skipping quoted form `%c%.20s...'" ?\'
 			   (read (current-buffer)))

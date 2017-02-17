@@ -1,5 +1,5 @@
 /* Declarations useful when processing input.
-   Copyright (C) 1985-1987, 1993, 2001-2016 Free Software Foundation,
+   Copyright (C) 1985-1987, 1993, 2001-2017 Free Software Foundation,
    Inc.
 
 This file is part of GNU Emacs.
@@ -415,9 +415,6 @@ extern void unuse_menu_items (void);
 #define EVENT_HEAD_KIND(event_head) \
   (Fget ((event_head), Qevent_kind))
 
-/* True while doing kbd input.  */
-extern bool waiting_for_input;
-
 /* Address (if not 0) of struct timespec to zero out if a SIGIO interrupt
    happens.  */
 extern struct timespec *input_available_clear_time;
@@ -489,6 +486,8 @@ extern bool kbd_buffer_events_waiting (void);
 extern void add_user_signal (int, const char *);
 
 extern int tty_read_avail_input (struct terminal *, struct input_event *);
+extern bool volatile pending_signals;
+extern void process_pending_signals (void);
 extern struct timespec timer_check (void);
 extern void mark_kboards (void);
 

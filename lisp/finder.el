@@ -1,6 +1,6 @@
 ;;; finder.el --- topic & keyword-based code finder
 
-;; Copyright (C) 1992, 1997-1999, 2001-2016 Free Software Foundation,
+;; Copyright (C) 1992, 1997-1999, 2001-2017 Free Software Foundation,
 ;; Inc.
 
 ;; Author: Eric S. Raymond <esr@snark.thyrsus.com>
@@ -130,8 +130,8 @@ Keywords and package names both should be symbols.")
 ;; useful, and because in parallel builds of Emacs they may get
 ;; modified while we are trying to read them.
 ;; http://lists.gnu.org/archive/html/emacs-pretest-bug/2007-01/msg00469.html
-;; ldefs-boot is not auto-generated, but has nothing useful.
-(defvar finder-no-scan-regexp "\\(^\\.#\\|\\(loaddefs\\|ldefs-boot\\|\
+;; ldefs-boot-* are not auto-generated during build, but has nothing useful.
+(defvar finder-no-scan-regexp "\\(^\\.#\\|\\(loaddefs\\|ldefs-boot-.*\\|\
 cus-load\\|finder-inf\\|esh-groups\\|subdirs\\|leim-list\\)\\.el$\\)"
   "Regexp matching file names not to scan for keywords.")
 

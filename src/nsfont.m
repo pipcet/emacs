@@ -1,6 +1,6 @@
 /* Font back-end driver for the NeXT/Open/GNUstep and macOS window system.
    See font.h
-   Copyright (C) 2006-2016 Free Software Foundation, Inc.
+   Copyright (C) 2006-2017 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -610,43 +610,6 @@ ns_findfonts (Lisp_Object font_spec, BOOL isMatch)
    ========================================================================== */
 
 
-static Lisp_Object nsfont_get_cache (struct frame *frame);
-static Lisp_Object nsfont_list (struct frame *, Lisp_Object);
-static Lisp_Object nsfont_match (struct frame *, Lisp_Object);
-static Lisp_Object nsfont_list_family (struct frame *);
-static Lisp_Object nsfont_open (struct frame *f, Lisp_Object font_entity,
-                                 int pixel_size);
-static void nsfont_close (struct font *font);
-static int nsfont_has_char (Lisp_Object entity, int c);
-static unsigned int nsfont_encode_char (struct font *font, int c);
-static void nsfont_text_extents (struct font *font, unsigned int *code,
-				 int nglyphs, struct font_metrics *metrics);
-static int nsfont_draw (struct glyph_string *s, int from, int to, int x, int y,
-                        bool with_background);
-
-struct font_driver nsfont_driver =
-  {
-    0,				/* Qns */
-    1,				/* case sensitive */
-    nsfont_get_cache,
-    nsfont_list,
-    nsfont_match,
-    nsfont_list_family,
-    NULL,			/*free_entity */
-    nsfont_open,
-    nsfont_close,
-    NULL,			/* prepare_face */
-    NULL,			/* done_face */
-    nsfont_has_char,
-    nsfont_encode_char,
-    nsfont_text_extents,
-    nsfont_draw,
-    /* excluded: get_bitmap, free_bitmap,
-                 anchor_point, otf_capability, otf_driver,
-      		 start_for_frame, end_for_frame, shape */
-  };
-
-
 /* Return a cache of font-entities on FRAME.  The cache must be a
    cons whose cdr part is the actual cache area.  */
 static Lisp_Object
@@ -788,7 +751,7 @@ nsfont_open (struct frame *f, Lisp_Object font_entity, int pixel_size)
 
   font_object = font_make_object (VECSIZE (struct nsfont_info),
                                   font_entity, pixel_size);
-  ASET (font_object, FONT_TYPE_INDEX, nsfont_driver.type);
+  ASET (font_object, FONT_TYPE_INDEX, Qns);
   font_info = (struct nsfont_info *) XFONT_OBJECT (font_object);
   font = (struct font *) font_info;
   if (!font)
@@ -1520,11 +1483,25 @@ ns_dump_glyphstring (struct glyph_string *s)
   fprintf (stderr, "\n");
 }
 
+struct font_driver const nsfont_driver =
+  {
+  .type = LISPSYM_INITIALLY (Qns),
+  .case_sensitive = true,
+  .get_cache = nsfont_get_cache,
+  .list = nsfont_list,
+  .match = nsfont_match,
+  .list_family = nsfont_list_family,
+  .open = nsfont_open,
+  .close = nsfont_close,
+  .has_char = nsfont_has_char,
+  .encode_char = nsfont_encode_char,
+  .text_extents = nsfont_text_extents,
+  .draw = nsfont_draw,
+  };
 
 void
 syms_of_nsfont (void)
 {
-  nsfont_driver.type = Qns;
   register_font_driver (&nsfont_driver, NULL);
   DEFSYM (Qcondensed, "condensed");
   DEFSYM (Qexpanded, "expanded");

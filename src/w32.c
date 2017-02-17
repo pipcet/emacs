@@ -1,6 +1,6 @@
 /* Utility and Unix shadow routines for GNU Emacs on the Microsoft Windows API.
 
-Copyright (C) 1994-1995, 2000-2016 Free Software Foundation, Inc.
+Copyright (C) 1994-1995, 2000-2017 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -272,7 +272,7 @@ static BOOL WINAPI revert_to_self (void);
 static int sys_access (const char *, int);
 extern void *e_malloc (size_t);
 extern int sys_select (int, SELECT_TYPE *, SELECT_TYPE *, SELECT_TYPE *,
-		       struct timespec *, void *);
+		       const struct timespec *, const sigset_t *);
 extern int sys_dup (int);
 
 
@@ -1509,6 +1509,16 @@ w32_valid_pointer_p (void *p, int size)
 /* Current codepage for encoding file names.  */
 static int file_name_codepage;
 
+/* Initialize the codepage used for decoding file names.  This is
+   needed to undo the value recorded during dumping, which might not
+   be correct when we run the dumped Emacs.  */
+void
+w32_init_file_name_codepage (void)
+{
+  file_name_codepage = CP_ACP;
+  w32_ansi_code_page = CP_ACP;
+}
+
 /* Produce a Windows ANSI codepage suitable for encoding file names.
    Return the information about that codepage in CP_INFO.  */
 int
@@ -1525,12 +1535,13 @@ codepage_for_filenames (CPINFO *cp_info)
   if (NILP (current_encoding))
     current_encoding = Vdefault_file_name_coding_system;
 
-  if (!EQ (last_file_name_encoding, current_encoding))
+  if (!EQ (last_file_name_encoding, current_encoding)
+      || NILP (last_file_name_encoding))
     {
       /* Default to the current ANSI codepage.  */
       file_name_codepage = w32_ansi_code_page;
 
-      if (NILP (current_encoding))
+      if (!NILP (current_encoding))
 	{
 	  char *cpname = SSDATA (SYMBOL_NAME (current_encoding));
 	  char *cp = NULL, *end;
@@ -1559,6 +1570,9 @@ codepage_for_filenames (CPINFO *cp_info)
 	  if (!GetCPInfo (file_name_codepage, &cp))
 	    emacs_abort ();
 	}
+
+      /* Cache the new value.  */
+      last_file_name_encoding = current_encoding;
     }
   if (cp_info)
     *cp_info = cp;
@@ -2140,17 +2154,40 @@ w32_init_random (void *buf, ptrdiff_t buflen)
   return -1;
 }
 
+/* MS-Windows 'rand' produces separate identical series for each
+   thread, so we replace it with our version.  */
+
+/* Algorithm AS183: An Efficient and Portable Pseudo-random Number
+   Generator, by B.A. Wichmann, I.D. Hill.  AS, v31, No. 2 (1982).  */
+static int ix = 3172, iy = 9814, iz = 20125;
+#define RAND_MAX_X  30269
+#define RAND_MAX_Y  30307
+#define RAND_MAX_Z  30323
+
+static int
+rand_as183 (void)
+{
+  ix = (171 * ix) % RAND_MAX_X;
+  iy = (172 * iy) % RAND_MAX_Y;
+  iz = (170 * iz) % RAND_MAX_Z;
+
+  return (ix + iy + iz) & 0x7fff;
+}
+
 int
 random (void)
 {
-  /* rand () on NT gives us 15 random bits...hack together 30 bits.  */
-  return ((rand () << 15) | rand ());
+  /* rand_as183 () gives us 15 random bits...hack together 30 bits.  */
+  return ((rand_as183 () << 15) | rand_as183 ());
 }
 
 void
 srandom (int seed)
 {
   srand (seed);
+  ix = rand () % RAND_MAX_X;
+  iy = rand () % RAND_MAX_Y;
+  iz = rand () % RAND_MAX_Z;
 }
 
 /* Return the maximum length in bytes of a multibyte character
@@ -6368,6 +6405,23 @@ acl_set_file (const char *fname, acl_type_t type, acl_t acl)
     }
 
   return retval;
+}
+
+/* Return true if errno value ERRNUM indicates that ACLs are well
+   supported on this system.  ERRNUM should be an errno value obtained
+   after an ACL-related system call fails.  */
+bool
+acl_errno_valid (int errnum)
+{
+  switch (errnum)
+    {
+    case EBUSY:
+    case EINVAL:
+    case ENOTSUP:
+      return false;
+    default:
+      return true;
+    }
 }
 
 

@@ -1,6 +1,6 @@
 ;;; edebug.el --- a source-level debugger for Emacs Lisp  -*- lexical-binding: t -*-
 
-;; Copyright (C) 1988-1995, 1997, 1999-2016 Free Software Foundation,
+;; Copyright (C) 1988-1995, 1997, 1999-2017 Free Software Foundation,
 ;; Inc.
 
 ;; Author: Daniel LaLiberte <liberte@holonexus.org>
@@ -111,6 +111,18 @@ So to specify exceptions for macros that have some arguments evaluated
 and some not, use `def-edebug-spec' to specify an `edebug-form-spec'."
   :type 'boolean
   :group 'edebug)
+
+(defcustom edebug-max-depth 150
+  "Maximum recursion depth when instrumenting code.
+This limit is intended to stop recursion if an Edebug specification
+contains an infinite loop.  When Edebug is instrumenting code
+containing very large quoted lists, it may reach this limit and give
+the error message \"Too deep - perhaps infinite loop in spec?\".
+Make this limit larger to countermand that, but you may also need to
+increase `max-lisp-eval-depth' and `max-specpdl-size'."
+  :type 'integer
+  :group 'edebug
+  :version "26.1")
 
 (defcustom edebug-save-windows t
   "If non-nil, Edebug saves and restores the window configuration.
@@ -868,11 +880,9 @@ Maybe clear the markers and delete the symbol's edebug property?"
 	 (list
 	  (edebug-storing-offsets (- (point) 2) 'function)
 	  (edebug-read-storing-offsets stream)))
-	((memq (following-char) '(?: ?B ?O ?X ?b ?o ?x ?1 ?2 ?3 ?4 ?5 ?6
-				  ?7 ?8 ?9 ?0))
+        (t
 	 (backward-char 1)
-	 (read stream))
-	(t (edebug-syntax-error "Bad char after #"))))
+	 (read stream))))
 
 (defun edebug-read-list (stream)
   (forward-char 1)			; skip \(
@@ -1452,7 +1462,6 @@ expressions; a `progn' form will be returned enclosing these forms."
 (defvar edebug-after-dotted-spec nil)
 
 (defvar edebug-matching-depth 0)  ;; initial value
-(defconst edebug-max-depth 150)  ;; maximum number of matching recursions.
 
 
 ;;; Failure to match
@@ -2170,8 +2179,7 @@ The purpose of this function is so you can properly undo
 subsequent changes to the same binding, by passing the status
 cons cell to `edebug-restore-status'.  The status cons cell
 has the form (LOCUS . VALUE), where LOCUS can be a buffer
-\(for a buffer-local binding), a frame (for a frame-local binding),
-or nil (if the default binding is current)."
+\(for a buffer-local binding), or nil (if the default binding is current)."
   (cons (variable-binding-locus var)
 	(symbol-value var)))
 

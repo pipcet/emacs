@@ -1,6 +1,6 @@
 ;;; supercite.el --- minor mode for citing mail and news replies
 
-;; Copyright (C) 1993, 1997, 2001-2016 Free Software Foundation, Inc.
+;; Copyright (C) 1993, 1997, 2001-2017 Free Software Foundation, Inc.
 
 ;; Author: 1993 Barry A. Warsaw <bwarsaw@python.org>
 ;; Maintainer: emacs-devel@gnu.org
@@ -302,6 +302,9 @@ during the initial citing via `sc-cite-original'."
   "Hook which gets run once after Supercite loads."
   :type 'hook
   :group 'supercite-hooks)
+(make-obsolete-variable 'sc-load-hook
+                        "use `with-eval-after-load' instead." "26.1")
+
 (defcustom sc-pre-hook nil
   "Hook which gets run before each invocation of `sc-cite-original'."
   :type 'hook

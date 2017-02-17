@@ -2,7 +2,7 @@
 #define EMACS_W32_H
 
 /* Support routines for the NT version of Emacs.
-   Copyright (C) 1994, 2001-2016 Free Software Foundation, Inc.
+   Copyright (C) 1994, 2001-2017 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -89,7 +89,7 @@ typedef struct _child_process
      terminate it by sys_kill.  */
   HWND                hwnd;
   /* Information about subprocess returned by CreateProcess.  Includes
-     handles to the subprocess and its primary thread, and the
+     handles to the subprocess and its main thread, and the
      corresponding process ID and thread ID numbers.  The PID is
      mirrored by the 'pid' member above.  The process handle is used
      to wait on it.  */
@@ -195,6 +195,7 @@ extern int  filename_from_ansi (const char *, char *);
 extern int  filename_to_ansi (const char *, char *);
 extern int  filename_from_utf16 (const wchar_t *, char *);
 extern int  filename_to_utf16 (const char *, wchar_t *);
+extern void w32_init_file_name_codepage (void);
 extern int  codepage_for_filenames (CPINFO *);
 extern Lisp_Object ansi_encode_filename (Lisp_Object);
 extern int  w32_copy_file (const char *, const char *, int, int, int);

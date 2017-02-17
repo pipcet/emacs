@@ -1,7 +1,7 @@
 ;;; derived.el --- allow inheritance of major modes
 ;; (formerly mode-clone.el)
 
-;; Copyright (C) 1993-1994, 1999, 2001-2016 Free Software Foundation,
+;; Copyright (C) 1993-1994, 1999, 2001-2017 Free Software Foundation,
 ;; Inc.
 
 ;; Author: David Megginson (dmeggins@aix1.uottawa.ca)
@@ -216,17 +216,20 @@ No problems result if this variable is not bound.
 	      (purecopy ,(format "Keymap for `%s'." child))))
        ,(if declare-syntax
 	    `(progn
+               (defvar ,syntax)
 	       (unless (boundp ',syntax)
-		 (put ',syntax 'definition-name ',child))
-	       (defvar ,syntax (make-syntax-table))
+		 (put ',syntax 'definition-name ',child)
+		 (defvar ,syntax (make-syntax-table)))
 	       (unless (get ',syntax 'variable-documentation)
 		 (put ',syntax 'variable-documentation
 		      (purecopy ,(format "Syntax table for `%s'." child))))))
        ,(if declare-abbrev
 	    `(progn
-	       (put ',abbrev 'definition-name ',child)
-	       (defvar ,abbrev
-		 (progn (define-abbrev-table ',abbrev nil) ,abbrev))
+               (defvar ,abbrev)
+	       (unless (boundp ',abbrev)
+		 (put ',abbrev 'definition-name ',child)
+		 (defvar ,abbrev
+		   (progn (define-abbrev-table ',abbrev nil) ,abbrev)))
 	       (unless (get ',abbrev 'variable-documentation)
 		 (put ',abbrev 'variable-documentation
 		      (purecopy ,(format "Abbrev table for `%s'." child))))))

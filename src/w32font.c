@@ -1,5 +1,5 @@
 /* Font backend for the Microsoft Windows API.
-   Copyright (C) 2007-2016 Free Software Foundation, Inc.
+   Copyright (C) 2007-2017 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -2535,7 +2535,7 @@ w32font_filter_properties (Lisp_Object font, Lisp_Object alist)
 
 struct font_driver w32font_driver =
   {
-    LISP_INITIALLY_ZERO, /* Qgdi */
+    LISPSYM_INITIALLY (Qgdi),
     false, /* case insensitive */
     w32font_get_cache,
     w32font_list,
@@ -2746,7 +2746,6 @@ versions of Windows) characters.  */);
 
   defsubr (&Sx_select_font);
 
-  w32font_driver.type = Qgdi;
   register_font_driver (&w32font_driver, NULL);
 }
 

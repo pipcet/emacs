@@ -1,6 +1,6 @@
 ;;; sql.el --- specialized comint.el for SQL interpreters  -*- lexical-binding: t -*-
 
-;; Copyright (C) 1998-2016 Free Software Foundation, Inc.
+;; Copyright (C) 1998-2017 Free Software Foundation, Inc.
 
 ;; Author: Alex Schroeder <alex@gnu.org>
 ;; Maintainer: Michael Mauger <michael@mauger.com>
@@ -933,10 +933,10 @@ Starts `sql-interactive-mode' after doing some setup."
   :version "20.8"
   :group 'SQL)
 
-(defcustom sql-sqlite-login-params '((database :file ".*\\.\\(db\\|sqlite[23]?\\)"))
+(defcustom sql-sqlite-login-params '((database :file nil))
   "List of login parameters needed to connect to SQLite."
   :type 'sql-login-params
-  :version "24.1"
+  :version "26.1"
   :group 'SQL)
 
 ;; Customization for MySQL
@@ -2790,7 +2790,7 @@ local variable."
     ;; Iterate until we've moved the desired number of stmt ends
     (while (not (= (cl-signum arg) 0))
       ;; if we're looking at the terminator, jump by 2
-      (if (or (and (> 0 arg) (looking-back term))
+      (if (or (and (> 0 arg) (looking-back term nil))
               (and (< 0 arg) (looking-at term)))
           (setq n 2)
         (setq n 1))
@@ -2954,13 +2954,15 @@ value.  (The property value is used as the PREDICATE argument to
       ((plist-member plist :file)
        (expand-file-name
         (read-file-name prompt
-                        (file-name-directory last-value) default t
+                        (file-name-directory last-value) default 'confirm
                         (file-name-nondirectory last-value)
                         (when (plist-get plist :file)
                           `(lambda (f)
-                             (string-match
-                              (concat "\\<" ,(plist-get plist :file) "\\>")
-                              (file-name-nondirectory f)))))))
+                             (if (not (file-regular-p f))
+                                 t
+                               (string-match
+                                (concat "\\<" ,(plist-get plist :file) "\\>")
+                                (file-name-nondirectory f))))))))
 
       ((plist-member plist :completion)
        (completing-read prompt-def (plist-get plist :completion) nil t
@@ -4052,6 +4054,12 @@ is specified in the connection settings."
           (if connect-set
               ;; Set the desired parameters
               (let (param-var login-params set-params rem-params)
+                ;; Set the parameters and start the interactive session
+                (mapc
+                 (lambda (vv)
+                   (set-default (car vv) (eval (cadr vv))))
+                 (cdr connect-set))
+                (setq-default sql-connection connection)
 
                 ;; :sqli-login params variable
                 (setq param-var
@@ -4080,13 +4088,6 @@ is specified in the connection settings."
                        (lambda (token plist)
                            (unless (member token set-params)
                              (if plist (cons token plist) token)))))
-
-                ;; Set the parameters and start the interactive session
-                (mapc
-                 (lambda (vv)
-                     (set-default (car vv) (eval (cadr vv))))
-                 (cdr connect-set))
-                (setq-default sql-connection connection)
 
                 ;; Start the SQLi session with revised list of login parameters
                 (eval `(let ((,param-var ',rem-params))
