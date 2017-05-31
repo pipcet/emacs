@@ -80,19 +80,19 @@ DEFINE_GDB_SYMBOL_END (GCTYPEBITS)
 # elif INTPTR_MAX <= INT_MAX && !defined WIDE_EMACS_INT
 typedef int EMACS_INT;
 typedef unsigned int EMACS_UINT;
-enum { EMACS_INT_WIDTH = INT_WIDTH };
+enum { EMACS_INT_WIDTH = INT_WIDTH, EMACS_UINT_WIDTH = UINT_WIDTH };
 #  define EMACS_INT_MAX INT_MAX
 #  define pI ""
 # elif INTPTR_MAX <= LONG_MAX && !defined WIDE_EMACS_INT
 typedef long int EMACS_INT;
 typedef unsigned long EMACS_UINT;
-enum { EMACS_INT_WIDTH = LONG_WIDTH };
+enum { EMACS_INT_WIDTH = LONG_WIDTH, EMACS_UINT_WIDTH = ULONG_WIDTH };
 #  define EMACS_INT_MAX LONG_MAX
 #  define pI "l"
 # elif INTPTR_MAX <= LLONG_MAX
 typedef long long int EMACS_INT;
 typedef unsigned long long int EMACS_UINT;
-enum { EMACS_INT_WIDTH = LLONG_WIDTH };
+enum { EMACS_INT_WIDTH = LLONG_WIDTH, EMACS_UINT_WIDTH = ULLONG_WIDTH };
 #  define EMACS_INT_MAX LLONG_MAX
 #  ifdef __MINGW32__
 #   define pI "I64"
@@ -519,10 +519,14 @@ enum Lisp_Fwd_Type
    to add a new Lisp_Misc, extend the Lisp_Misc_Type enumeration.
 
    For a Lisp_Misc, you will also need to add your entry to union
-   Lisp_Misc (but make sure the first word has the same structure as
+   Lisp_Misc, but make sure the first word has the same structure as
    the others, starting with a 16-bit member of the Lisp_Misc_Type
-   enumeration and a 1-bit GC markbit) and make sure the overall size
-   of the union is not increased by your addition.
+   enumeration and a 1-bit GC markbit.  Also make sure the overall
+   size of the union is not increased by your addition.  The latter
+   requirement is to keep Lisp_Misc objects small enough, so they
+   are handled faster: since all Lisp_Misc types use the same space,
+   enlarging any of them will affect all the rest.  If you really
+   need a larger object, it is best to use Lisp_Vectorlike instead.
 
    For a new pseudovector, it's highly desirable to limit the size
    of your data type by VBLOCK_BYTES_MAX bytes (defined in alloc.c).
@@ -541,7 +545,7 @@ enum Lisp_Fwd_Type
 
 #ifdef CHECK_LISP_OBJECT_TYPE
 
-typedef struct { EMACS_INT i; } Lisp_Object;
+typedef struct Lisp_Object { EMACS_INT i; } Lisp_Object;
 
 #define LISP_INITIALLY(i) {i}
 
@@ -579,8 +583,6 @@ extern bool might_dump;
 /* True means Emacs has already been initialized.
    Used during startup to detect startup of dumped Emacs.  */
 extern bool initialized;
-
-extern bool generating_ldefs_boot;
 
 /* Defined in floatfns.c.  */
 extern double extract_float (Lisp_Object);
@@ -876,17 +878,19 @@ enum pvec_type
   PVEC_TERMINAL,
   PVEC_WINDOW_CONFIGURATION,
   PVEC_SUBR,
-  PVEC_OTHER,
+  PVEC_OTHER,            /* Should never be visible to Elisp code.  */
   PVEC_XWIDGET,
   PVEC_XWIDGET_VIEW,
   PVEC_THREAD,
   PVEC_MUTEX,
   PVEC_CONDVAR,
+  PVEC_MODULE_FUNCTION,
 
   /* These should be last, check internal_equal to see why.  */
   PVEC_COMPILED,
   PVEC_CHAR_TABLE,
   PVEC_SUB_CHAR_TABLE,
+  PVEC_RECORD,
   PVEC_FONT /* Should be last because it's used for range checking.  */
 };
 
@@ -1031,9 +1035,7 @@ INLINE bool
   return lisp_h_EQ (x, y);
 }
 
-/* Value is true if I doesn't fit into a Lisp fixnum.  It is
-   written this way so that it also works if I is of unsigned
-   type or if I is a NaN.  */
+/* True if the possibly-unsigned integer I doesn't fit in a Lisp fixnum.  */
 
 #define FIXNUM_OVERFLOW_P(i) \
   (! ((0 <= (i) || MOST_NEGATIVE_FIXNUM <= (i)) && (i) <= MOST_POSITIVE_FIXNUM))
@@ -1368,6 +1370,11 @@ SBYTES (Lisp_Object string)
 INLINE void
 STRING_SET_CHARS (Lisp_Object string, ptrdiff_t newsize)
 {
+  /* This function cannot change the size of data allocated for the
+     string when it was created.  */
+  eassert (STRING_MULTIBYTE (string)
+	   ? newsize <= SBYTES (string)
+	   : newsize == SCHARS (string));
   XSTRING (string)->size = newsize;
 }
 
@@ -1400,6 +1407,12 @@ ASIZE (Lisp_Object array)
   return size;
 }
 
+INLINE ptrdiff_t
+PVSIZE (Lisp_Object pv)
+{
+  return ASIZE (pv) & PSEUDOVECTOR_SIZE_MASK;
+}
+
 INLINE bool
 VECTORP (Lisp_Object x)
 {
@@ -1412,11 +1425,24 @@ CHECK_VECTOR (Lisp_Object x)
   CHECK_TYPE (VECTORP (x), Qvectorp, x);
 }
 
+
 /* A pseudovector is like a vector, but has other non-Lisp components.  */
 
-INLINE bool
-PSEUDOVECTOR_TYPEP (struct vectorlike_header *a, int code)
+INLINE enum pvec_type
+PSEUDOVECTOR_TYPE (struct Lisp_Vector *v)
 {
+  ptrdiff_t size = v->header.size;
+  return (size & PSEUDOVECTOR_FLAG
+          ? (size & PVEC_TYPE_MASK) >> PSEUDOVECTOR_AREA_BITS
+          : PVEC_NORMAL_VECTOR);
+}
+
+/* Can't be used with PVEC_NORMAL_VECTOR.  */
+INLINE bool
+PSEUDOVECTOR_TYPEP (struct vectorlike_header *a, enum pvec_type code)
+{
+  /* We don't use PSEUDOVECTOR_TYPE here so as to avoid a shift
+   * operation when `code' is known.  */
   return ((a->size & (PSEUDOVECTOR_FLAG | PVEC_TYPE_MASK))
 	  == (PSEUDOVECTOR_FLAG | (code << PSEUDOVECTOR_AREA_BITS)));
 }
@@ -1969,35 +1995,21 @@ struct Lisp_Hash_Table
      weakness of the table.  */
   Lisp_Object weak;
 
-  /* When the table is resized, and this is an integer, compute the
-     new size by adding this to the old size.  If a float, compute the
-     new size by multiplying the old size with this factor.  */
-  Lisp_Object rehash_size;
-
-  /* Resize hash table when number of entries/ table size is >= this
-     ratio, a float.  */
-  Lisp_Object rehash_threshold;
-
   /* Vector of hash codes.  If hash[I] is nil, this means that the
      I-th entry is unused.  */
   Lisp_Object hash;
 
   /* Vector used to chain entries.  If entry I is free, next[I] is the
      entry number of the next free item.  If entry I is non-free,
-     next[I] is the index of the next entry in the collision chain.  */
+     next[I] is the index of the next entry in the collision chain,
+     or -1 if there is such entry.  */
   Lisp_Object next;
 
-  /* Index of first free entry in free list.  */
-  Lisp_Object next_free;
-
-  /* Bucket vector.  A non-nil entry is the index of the first item in
+  /* Bucket vector.  An entry of -1 indicates no item is present,
+     and a nonnegative entry is the index of the first item in
      a collision chain.  This vector's size can be larger than the
      hash table size to reduce collisions.  */
   Lisp_Object index;
-
-  /* Non-nil if the table can be purecopied.  The table cannot be
-     changed afterwards.  */
-  Lisp_Object pure;
 
   /* Only the fields above are traced normally by the GC.  The ones below
      `count' are special and are either ignored by the GC or traced in
@@ -2005,6 +2017,24 @@ struct Lisp_Hash_Table
 
   /* Number of key/value entries in the table.  */
   ptrdiff_t count;
+
+  /* Index of first free entry in free list, or -1 if none.  */
+  ptrdiff_t next_free;
+
+  /* True if the table can be purecopied.  The table cannot be
+     changed afterwards.  */
+  bool pure;
+
+  /* Resize hash table when number of entries / table size is >= this
+     ratio.  */
+  float rehash_threshold;
+
+  /* Used when the table is resized.  If equal to a negative integer,
+     the user rehash-size is the integer -REHASH_SIZE, and the new
+     size is the old size plus -REHASH_SIZE.  If positive, the user
+     rehash-size is the floating-point value REHASH_SIZE + 1, and the
+     new size is the old size times REHASH_SIZE + 1.  */
+  float rehash_size;
 
   /* Vector of keys and values.  The key of item I is found at index
      2 * I, the value is found at index 2 * I + 1.
@@ -2050,27 +2080,11 @@ HASH_VALUE (struct Lisp_Hash_Table *h, ptrdiff_t idx)
   return AREF (h->key_and_value, 2 * idx + 1);
 }
 
-/* Value is the index of the next entry following the one at IDX
-   in hash table H.  */
-INLINE Lisp_Object
-HASH_NEXT (struct Lisp_Hash_Table *h, ptrdiff_t idx)
-{
-  return AREF (h->next, idx);
-}
-
 /* Value is the hash code computed for entry IDX in hash table H.  */
 INLINE Lisp_Object
 HASH_HASH (struct Lisp_Hash_Table *h, ptrdiff_t idx)
 {
   return AREF (h->hash, idx);
-}
-
-/* Value is the index of the element in hash table H that is the
-   start of the collision list at index IDX in the index vector of H.  */
-INLINE Lisp_Object
-HASH_INDEX (struct Lisp_Hash_Table *h, ptrdiff_t idx)
-{
-  return AREF (h->index, idx);
 }
 
 /* Value is the size of hash table H.  */
@@ -2088,11 +2102,11 @@ enum DEFAULT_HASH_SIZE { DEFAULT_HASH_SIZE = 65 };
    value gives the ratio of current entries in the hash table and the
    size of the hash table.  */
 
-static double const DEFAULT_REHASH_THRESHOLD = 0.8;
+static float const DEFAULT_REHASH_THRESHOLD = 0.8125;
 
-/* Default factor by which to increase the size of a hash table.  */
+/* Default factor by which to increase the size of a hash table, minus 1.  */
 
-static double const DEFAULT_REHASH_SIZE = 1.5;
+static float const DEFAULT_REHASH_SIZE = 1.5 - 1;
 
 /* Combine two integers X and Y for hashing.  The result might not fit
    into a Lisp integer.  */
@@ -2732,6 +2746,18 @@ FRAMEP (Lisp_Object a)
   return PSEUDOVECTORP (a, PVEC_FRAME);
 }
 
+INLINE bool
+RECORDP (Lisp_Object a)
+{
+  return PSEUDOVECTORP (a, PVEC_RECORD);
+}
+
+INLINE void
+CHECK_RECORD (Lisp_Object x)
+{
+  CHECK_TYPE (RECORDP (x), Qrecordp, x);
+}
+
 /* Test for image (image . spec)  */
 INLINE bool
 IMAGEP (Lisp_Object x)
@@ -2820,7 +2846,7 @@ CHECK_NATNUM (Lisp_Object x)
 INLINE double
 XFLOATINT (Lisp_Object n)
 {
-  return extract_float (n);
+  return FLOATP (n) ? XFLOAT_DATA (n) : XINT (n);
 }
 
 INLINE void
@@ -3361,8 +3387,8 @@ extern Lisp_Object larger_vector (Lisp_Object, ptrdiff_t, ptrdiff_t);
 extern void sweep_weak_hash_tables (void);
 EMACS_UINT hash_string (char const *, ptrdiff_t);
 EMACS_UINT sxhash (Lisp_Object, int);
-Lisp_Object make_hash_table (struct hash_table_test, Lisp_Object, Lisp_Object,
-                             Lisp_Object, Lisp_Object, Lisp_Object);
+Lisp_Object make_hash_table (struct hash_table_test, EMACS_INT, float, float,
+			     Lisp_Object, bool);
 ptrdiff_t hash_lookup (struct Lisp_Hash_Table *, Lisp_Object, EMACS_UINT *);
 ptrdiff_t hash_put (struct Lisp_Hash_Table *, Lisp_Object, Lisp_Object,
 		    EMACS_UINT);
@@ -3376,6 +3402,7 @@ extern Lisp_Object merge (Lisp_Object, Lisp_Object, Lisp_Object);
 extern Lisp_Object do_yes_or_no_p (Lisp_Object);
 extern Lisp_Object concat2 (Lisp_Object, Lisp_Object);
 extern Lisp_Object concat3 (Lisp_Object, Lisp_Object, Lisp_Object);
+extern bool equal_no_quit (Lisp_Object, Lisp_Object);
 extern Lisp_Object nconc2 (Lisp_Object, Lisp_Object);
 extern Lisp_Object assq_no_quit (Lisp_Object, Lisp_Object);
 extern Lisp_Object assoc_no_quit (Lisp_Object, Lisp_Object);
@@ -3719,7 +3746,6 @@ extern Lisp_Object Vprin1_to_string_buffer;
 extern void debug_print (Lisp_Object) EXTERNALLY_VISIBLE;
 extern void temp_output_buffer_setup (const char *);
 extern int print_level;
-extern void write_string (const char *);
 extern void print_error_message (Lisp_Object, Lisp_Object, const char *,
 				 Lisp_Object);
 extern Lisp_Object internal_with_output_to_temp_buffer
@@ -3860,13 +3886,76 @@ extern void mark_specpdl (union specbinding *first, union specbinding *ptr);
 extern void get_backtrace (Lisp_Object array);
 Lisp_Object backtrace_top_function (void);
 extern bool let_shadows_buffer_binding_p (struct Lisp_Symbol *symbol);
-extern bool let_shadows_global_binding_p (Lisp_Object symbol);
+
+/* Defined in unexmacosx.c.  */
+#if defined DARWIN_OS && !defined CANNOT_DUMP
+extern void unexec_init_emacs_zone (void);
+extern void *unexec_malloc (size_t);
+extern void *unexec_realloc (void *, size_t);
+extern void unexec_free (void *);
+#endif
+
+#include "emacs-module.h"
+
+/* Function prototype for the module Lisp functions.  */
+typedef emacs_value (*emacs_subr) (emacs_env *, ptrdiff_t,
+				   emacs_value [], void *);
+
+/* Module function.  */
+
+/* A function environment is an auxiliary structure returned by
+   `module_make_function' to store information about a module
+   function.  It is stored in a pseudovector.  Its members correspond
+   to the arguments given to `module_make_function'.  */
+
+struct Lisp_Module_Function
+{
+  struct vectorlike_header header;
+
+  /* Fields traced by GC; these must come first.  */
+  Lisp_Object documentation;
+
+  /* Fields ignored by GC.  */
+  ptrdiff_t min_arity, max_arity;
+  emacs_subr subr;
+  void *data;
+};
+
+INLINE struct Lisp_Module_Function *
+allocate_module_function (void)
+{
+  return ALLOCATE_PSEUDOVECTOR (struct Lisp_Module_Function,
+                                /* Name of the first field to be
+                                   ignored by GC.  */
+                                min_arity,
+                                PVEC_MODULE_FUNCTION);
+}
+
+INLINE bool
+MODULE_FUNCTIONP (Lisp_Object o)
+{
+  return PSEUDOVECTORP (o, PVEC_MODULE_FUNCTION);
+}
+
+INLINE struct Lisp_Module_Function *
+XMODULE_FUNCTION (Lisp_Object o)
+{
+  eassert (MODULE_FUNCTIONP (o));
+  return XUNTAG (o, Lisp_Vectorlike);
+}
+
+#define XSET_MODULE_FUNCTION(var, ptr)                  \
+  (XSETPSEUDOVECTOR (var, ptr, PVEC_MODULE_FUNCTION))
 
 #ifdef HAVE_MODULES
 /* Defined in alloc.c.  */
 extern Lisp_Object make_user_ptr (void (*finalizer) (void *), void *p);
 
 /* Defined in emacs-module.c.  */
+extern Lisp_Object funcall_module (const struct Lisp_Module_Function *,
+                                   ptrdiff_t, Lisp_Object *);
+extern Lisp_Object module_function_arity (const struct Lisp_Module_Function *);
+extern Lisp_Object module_format_fun_env (const struct Lisp_Module_Function *);
 extern void syms_of_module (void);
 #endif
 
@@ -4078,7 +4167,7 @@ extern bool no_site_lisp;
 extern bool build_details;
 
 #ifndef WINDOWSNT
-/* 0 not a daemon, 1 new-style (foreground), 2 old-style (background).  */
+/* 0 not a daemon, 1 foreground daemon, 2 background daemon.  */
 extern int daemon_type;
 #define IS_DAEMON (daemon_type != 0)
 #define DAEMON_RUNNING (daemon_type >= 0)
@@ -4388,8 +4477,8 @@ extern void init_system_name (void);
    because 'abs' is reserved by the C standard.  */
 #define eabs(x)         ((x) < 0 ? -(x) : (x))
 
-/* Return a fixnum or float, depending on whether VAL fits in a Lisp
-   fixnum.  */
+/* Return a fixnum or float, depending on whether the integer VAL fits
+   in a Lisp fixnum.  */
 
 #define make_fixnum_or_float(val) \
    (FIXNUM_OVERFLOW_P (val) ? make_float (val) : make_number (val))

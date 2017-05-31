@@ -118,6 +118,9 @@ int nowait = 0;
 /* Nonzero means don't print messages for successful operations.  --quiet.  */
 int quiet = 0;
 
+/* Nonzero means don't print values returned from emacs. --suppress-output.  */
+int suppress_output = 0;
+
 /* Nonzero means args are expressions to be evaluated.  --eval.  */
 int eval = 0;
 
@@ -146,6 +149,9 @@ const char *socket_name = NULL;
 /* If non-NULL, the filename of the authentication file.  */
 const char *server_file = NULL;
 
+/* If non-NULL, the tramp prefix emacs must use to find the files.  */
+const char *tramp_prefix = NULL;
+
 /* PID of the Emacs server process.  */
 int emacs_pid = 0;
 
@@ -160,6 +166,7 @@ struct option longopts[] =
 {
   { "no-wait",	no_argument,	   NULL, 'n' },
   { "quiet",	no_argument,	   NULL, 'q' },
+  { "suppress-output", no_argument, NULL, 'u' },
   { "eval",	no_argument,	   NULL, 'e' },
   { "help",	no_argument,	   NULL, 'H' },
   { "version",	no_argument,	   NULL, 'V' },
@@ -174,6 +181,7 @@ struct option longopts[] =
   { "server-file",	required_argument, NULL, 'f' },
   { "display",	required_argument, NULL, 'd' },
   { "parent-id", required_argument, NULL, 'p' },
+  { "tramp",	required_argument, NULL, 'T' },
   { 0, 0, 0, 0 }
 };
 
@@ -464,14 +472,15 @@ static void
 decode_options (int argc, char **argv)
 {
   alternate_editor = egetenv ("ALTERNATE_EDITOR");
+  tramp_prefix = egetenv ("EMACSCLIENT_TRAMP");
 
   while (1)
     {
       int opt = getopt_long_only (argc, argv,
 #ifndef NO_SOCKETS_IN_FILE_SYSTEM
-			     "VHneqa:s:f:d:F:tc",
+			     "VHnequa:s:f:d:F:tcT:",
 #else
-			     "VHneqa:f:d:F:tc",
+			     "VHnequa:f:d:F:tcT:",
 #endif
 			     longopts, 0);
 
@@ -519,6 +528,10 @@ decode_options (int argc, char **argv)
 	  quiet = 1;
 	  break;
 
+	case 'u':
+	  suppress_output = 1;
+	  break;
+
 	case 'V':
 	  message (false, "emacsclient %s\n", VERSION);
 	  exit (EXIT_SUCCESS);
@@ -544,6 +557,10 @@ decode_options (int argc, char **argv)
 
         case 'F':
           frame_parameters = optarg;
+          break;
+
+        case 'T':
+          tramp_prefix = optarg;
           break;
 
 	default:
@@ -631,6 +648,7 @@ The following OPTIONS are accepted:\n\
 -e, --eval    		Evaluate the FILE arguments as ELisp expressions\n\
 -n, --no-wait		Don't wait for the server to return\n\
 -q, --quiet		Don't display messages on success\n\
+-u, --suppress-output   Don't display return values from the server\n\
 -d DISPLAY, --display=DISPLAY\n\
 			Visit the file in the given display\n\
 ", "\
@@ -645,6 +663,9 @@ The following OPTIONS are accepted:\n\
 			Editor to fallback to if the server is not running\n"
 "			If EDITOR is the empty string, start Emacs in daemon\n\
 			mode and try connecting again\n"
+"-T PREFIX, --tramp=PREFIX\n\
+                        PREFIX to prepend to filenames sent by emacsclient\n\
+                        for locating files remotely via Tramp\n"
 "\n\
 Report bugs with M-x report-emacs-bug.\n");
   exit (EXIT_SUCCESS);
@@ -1678,6 +1699,8 @@ main (int argc, char **argv)
         }
     }
   send_to_emacs (emacs_socket, "-dir ");
+  if (tramp_prefix)
+    quote_argument (emacs_socket, tramp_prefix);
   quote_argument (emacs_socket, cwd);
   send_to_emacs (emacs_socket, "/");
   send_to_emacs (emacs_socket, " ");
@@ -1782,6 +1805,8 @@ main (int argc, char **argv)
 #endif
 
           send_to_emacs (emacs_socket, "-file ");
+	  if (tramp_prefix && file_name_absolute_p (argv[i]))
+	    quote_argument (emacs_socket, tramp_prefix);
           quote_argument (emacs_socket, argv[i]);
           send_to_emacs (emacs_socket, " ");
         }
@@ -1860,19 +1885,25 @@ main (int argc, char **argv)
           else if (strprefix ("-print ", p))
             {
               /* -print STRING: Print STRING on the terminal. */
-              str = unquote_argument (p + strlen ("-print "));
-              if (needlf)
-                printf ("\n");
-              printf ("%s", str);
-              needlf = str[0] == '\0' ? needlf : str[strlen (str) - 1] != '\n';
-            }
+	      if (!suppress_output)
+		{
+		  str = unquote_argument (p + strlen ("-print "));
+		  if (needlf)
+		    printf ("\n");
+		  printf ("%s", str);
+		  needlf = str[0] == '\0' ? needlf : str[strlen (str) - 1] != '\n';
+		}
+	    }
           else if (strprefix ("-print-nonl ", p))
             {
               /* -print-nonl STRING: Print STRING on the terminal.
                  Used to continue a preceding -print command.  */
-              str = unquote_argument (p + strlen ("-print-nonl "));
-              printf ("%s", str);
-              needlf = str[0] == '\0' ? needlf : str[strlen (str) - 1] != '\n';
+	      if (!suppress_output)
+		{
+		  str = unquote_argument (p + strlen ("-print-nonl "));
+		  printf ("%s", str);
+		  needlf = str[0] == '\0' ? needlf : str[strlen (str) - 1] != '\n';
+		}
             }
           else if (strprefix ("-error ", p))
             {

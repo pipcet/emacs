@@ -84,11 +84,6 @@ This is a compatibility function for different Emacsen."
   (declare (obsolete replace-regexp-in-string "26.1"))
   (replace-regexp-in-string regexp newtext string nil literal))
 
-(defun gnus-boundp (variable)
-  "Return non-nil if VARIABLE is bound and non-nil."
-  (and (boundp variable)
-       (symbol-value variable)))
-
 (defmacro gnus-eval-in-buffer-window (buffer &rest forms)
   "Pop to BUFFER, evaluate FORMS, and then return to the original window."
   (let ((tempvar (make-symbol "GnusStartBufferWindow"))
@@ -1618,7 +1613,7 @@ sequence, this is like `mapcar'.  With several, it is like the Common Lisp
      ((not (memq 'emacs lst))
       nil)
      ((string-match "^\\(\\([.0-9]+\\)*\\)\\.[0-9]+$" emacs-version)
-      (concat "Emacs/" (match-string 1 emacs-version)
+      (concat "Emacs/" emacs-version
 	      (if system-v
 		  (concat " (" system-v ")")
 		"")))

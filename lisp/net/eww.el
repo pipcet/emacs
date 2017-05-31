@@ -514,6 +514,7 @@ Currently this means either text/html or application/xhtml+xml."
              (< eww-redirect-level 5))
     (when-let (refresh (dom-attr dom 'content))
       (when (or (string-match "^\\([0-9]+\\) *;.*url=\"\\([^\"]+\\)\"" refresh)
+                (string-match "^\\([0-9]+\\) *;.*url='\\([^']+\\)'" refresh)
                 (string-match "^\\([0-9]+\\) *;.*url=\\([^ ]+\\)" refresh))
         (let ((timeout (match-string 1 refresh))
               (url (match-string 2 refresh))
@@ -640,8 +641,11 @@ Currently this means either text/html or application/xhtml+xml."
             (when (coding-system-p cs)
               (decode-coding-region (point-min) (point-max) cs)
               (setq buffer-file-coding-system last-coding-system-used))))
-	(when (fboundp 'html-mode)
-	  (html-mode))))
+        (cond
+         ((fboundp 'mhtml-mode)
+          (mhtml-mode))
+         ((fboundp 'html-mode)
+	  (html-mode)))))
     (view-buffer buf)))
 
 (defun eww-toggle-paragraph-direction ()
@@ -899,8 +903,9 @@ appears in a <link> or <a> tag."
 
 (defun eww-reload (&optional local encode)
   "Reload the current page.
-If LOCAL (the command prefix), don't reload the page from the
-network, but just re-display the HTML already fetched."
+If LOCAL is non-nil (interactively, the command was invoked with
+a prefix argument), don't reload the page from the network, but
+just re-display the HTML already fetched."
   (interactive "P")
   (let ((url (plist-get eww-data :url)))
     (if local
@@ -1135,7 +1140,8 @@ See URL `https://developer.mozilla.org/en-US/docs/Web/HTML/Element/Input'.")
               (insert (make-string (abs length) ? ))
 	      (set-text-properties start (point) properties))
 	    (goto-char (1- end)))))
-	(set-text-properties (plist-get form :start) (plist-get form :end)
+	(set-text-properties (cdr (assq :start form))
+                             (cdr (assq :end form))
 			     properties)
 	(let ((value (buffer-substring-no-properties
 		      (eww-beginning-of-field)
@@ -1348,10 +1354,10 @@ See URL `https://developer.mozilla.org/en-US/docs/Web/HTML/Element/Input'.")
       (when (or (get-text-property start 'eww-form)
 		(setq start (next-single-property-change start 'eww-form)))
 	(let ((props (get-text-property start 'eww-form)))
-	  (plist-put props :start start)
-	  (setq start (next-single-property-change
-		       start 'eww-form nil (point-max)))
-	  (plist-put props :end start))))))
+          (nconc props (list (cons :start start)))
+          (setq start (next-single-property-change
+                       start 'eww-form nil (point-max)))
+          (nconc props (list (cons :end start))))))))
 
 (defun eww-input-value (input)
   (let ((type (plist-get input :type))

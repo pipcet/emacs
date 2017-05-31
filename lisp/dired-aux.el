@@ -1266,12 +1266,14 @@ See Info node `(emacs)Subdir switches' for more details."
     ;; message much faster than making dired-map-over-marks show progress
     (dired-uncache
      (if (consp dired-directory) (car dired-directory) dired-directory))
-    (dired-map-over-marks (let ((fname (dired-get-filename))
+    (dired-map-over-marks (let ((fname (dired-get-filename nil t))
 				;; Postpone readin hook till we map
 				;; over all marked files (Bug#6810).
 				(dired-after-readin-hook nil))
-			    (message "Redisplaying... %s" fname)
-			    (dired-update-file-line fname))
+			    (if (not fname)
+				(error "No file on this line")
+			      (message "Redisplaying... %s" fname)
+			      (dired-update-file-line fname)))
 			  arg)
     (run-hooks 'dired-after-readin-hook)
     (dired-move-to-filename)
@@ -1791,6 +1793,7 @@ Optional arg HOW-TO determines how to treat the target.
 	  (and (consp fn-list) (null (cdr fn-list)) (car fn-list)))
 	 (target-dir (dired-dwim-target-directory))
 	 (default (and dired-one-file
+		       (not dired-dwim-target) ; Bug#25609
 		       (expand-file-name (file-name-nondirectory (car fn-list))
 					 target-dir)))
 	 (defaults (dired-dwim-target-defaults fn-list target-dir))

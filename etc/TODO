@@ -139,7 +139,7 @@ things in their .emacs.
 case to make sure it stays fixed.  Or pick your favorite programming
 major-mode, and write a test for its indentation.  Or a version
 control backend, and write a test for its status parser.  Etc.
-See test/automated for examples.
+See the 'test' directory for examples.
 
 * Small but important fixes needed in existing features:
 
@@ -967,6 +967,17 @@ R2L menu bar is tricky for the same reasons as the mode line.  In
 addition, toolkit builds create their menu bars in toolkit-specific
 parts of code, bypassing xdisp.c, so those parts need to be enhanced
 with toolkit-specific code to display the menu bar right to left.
+
+** Custom
+
+*** Extend :set-after to also mean initialize after.
+If defcustom A specifies :set-after '(B), then if a user customizes
+both A and B, custom will set A after B.  But if the user only customizes
+A, then if B is already defined, it gets left at its original setting.
+Instead, if B has not been customized it should be re-initialized
+(on the assumption that the default value depends on A).
+See the places where we manually call custom-reevaluate-setting,
+such as for mail-host-address and user-mail-address in startup.el.
 
 ** ImageMagick support
 

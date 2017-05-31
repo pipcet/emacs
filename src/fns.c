@@ -38,7 +38,9 @@ along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.  */
 
 static void sort_vector_copy (Lisp_Object, ptrdiff_t,
 			      Lisp_Object *restrict, Lisp_Object *restrict);
-static bool internal_equal (Lisp_Object, Lisp_Object, int, bool, Lisp_Object);
+enum equal_kind { EQUAL_NO_QUIT, EQUAL_PLAIN, EQUAL_INCLUDING_PROPERTIES };
+static bool internal_equal (Lisp_Object, Lisp_Object,
+			    enum equal_kind, int, Lisp_Object);
 
 DEFUN ("identity", Fidentity, Sidentity, 1, 1, 0,
        doc: /* Return the argument unchanged.  */
@@ -104,8 +106,8 @@ To get the number of bytes, use `string-bytes'.  */)
     XSETFASTINT (val, MAX_CHAR);
   else if (BOOL_VECTOR_P (sequence))
     XSETFASTINT (val, bool_vector_size (sequence));
-  else if (COMPILEDP (sequence))
-    XSETFASTINT (val, ASIZE (sequence) & PSEUDOVECTOR_SIZE_MASK);
+  else if (COMPILEDP (sequence) || RECORDP (sequence))
+    XSETFASTINT (val, PVSIZE (sequence));
   else if (CONSP (sequence))
     {
       intptr_t i = 0;
@@ -473,12 +475,17 @@ usage: (vconcat &rest SEQUENCES)   */)
 
 
 DEFUN ("copy-sequence", Fcopy_sequence, Scopy_sequence, 1, 1, 0,
-       doc: /* Return a copy of a list, vector, string or char-table.
-The elements of a list or vector are not copied; they are shared
-with the original.  */)
+       doc: /* Return a copy of a list, vector, string, char-table or record.
+The elements of a list, vector or record are not copied; they are
+shared with the original.  */)
   (Lisp_Object arg)
 {
   if (NILP (arg)) return arg;
+
+  if (RECORDP (arg))
+    {
+      return Frecord (PVSIZE (arg), XVECTOR (arg)->contents);
+    }
 
   if (CHAR_TABLE_P (arg))
     {
@@ -1377,7 +1384,7 @@ The value is actually the tail of LIST whose car is ELT.  */)
   FOR_EACH_TAIL (tail)
     {
       Lisp_Object tem = XCAR (tail);
-      if (FLOATP (tem) && internal_equal (elt, tem, 0, 0, Qnil))
+      if (FLOATP (tem) && equal_no_quit (elt, tem))
 	return tail;
     }
   CHECK_LIST_END (tail, list);
@@ -1428,7 +1435,8 @@ The value is actually the first element of LIST whose car equals KEY.  */)
 }
 
 /* Like Fassoc but never report an error and do not allow quits.
-   Use only on objects known to be non-circular lists.  */
+   Use only on keys and lists known to be non-circular, and on keys
+   that are not too deep and are not window configurations.  */
 
 Lisp_Object
 assoc_no_quit (Lisp_Object key, Lisp_Object list)
@@ -1437,7 +1445,7 @@ assoc_no_quit (Lisp_Object key, Lisp_Object list)
     {
       Lisp_Object car = XCAR (list);
       if (CONSP (car)
-	  && (EQ (XCAR (car), key) || !NILP (Fequal (XCAR (car), key))))
+	  && (EQ (XCAR (car), key) || equal_no_quit (XCAR (car), key)))
 	return car;
     }
   return Qnil;
@@ -2085,7 +2093,7 @@ Floating-point numbers of equal value are `eql', but they may not be `eq'.  */)
   (Lisp_Object obj1, Lisp_Object obj2)
 {
   if (FLOATP (obj1))
-    return internal_equal (obj1, obj2, 0, 0, Qnil) ? Qt : Qnil;
+    return equal_no_quit (obj1, obj2) ? Qt : Qnil;
   else
     return EQ (obj1, obj2) ? Qt : Qnil;
 }
@@ -2098,31 +2106,50 @@ Vectors and strings are compared element by element.
 Numbers are compared by value, but integers cannot equal floats.
  (Use `=' if you want integers and floats to be able to be equal.)
 Symbols must match exactly.  */)
-  (register Lisp_Object o1, Lisp_Object o2)
+  (Lisp_Object o1, Lisp_Object o2)
 {
-  return internal_equal (o1, o2, 0, 0, Qnil) ? Qt : Qnil;
+  return internal_equal (o1, o2, EQUAL_PLAIN, 0, Qnil) ? Qt : Qnil;
 }
 
 DEFUN ("equal-including-properties", Fequal_including_properties, Sequal_including_properties, 2, 2, 0,
        doc: /* Return t if two Lisp objects have similar structure and contents.
 This is like `equal' except that it compares the text properties
 of strings.  (`equal' ignores text properties.)  */)
-  (register Lisp_Object o1, Lisp_Object o2)
+  (Lisp_Object o1, Lisp_Object o2)
 {
-  return internal_equal (o1, o2, 0, 1, Qnil) ? Qt : Qnil;
+  return (internal_equal (o1, o2, EQUAL_INCLUDING_PROPERTIES, 0, Qnil)
+	  ? Qt : Qnil);
 }
 
-/* DEPTH is current depth of recursion.  Signal an error if it
-   gets too deep.
-   PROPS means compare string text properties too.  */
+/* Return true if O1 and O2 are equal.  Do not quit or check for cycles.
+   Use this only on arguments that are cycle-free and not too large and
+   are not window configurations.  */
+
+bool
+equal_no_quit (Lisp_Object o1, Lisp_Object o2)
+{
+  return internal_equal (o1, o2, EQUAL_NO_QUIT, 0, Qnil);
+}
+
+/* Return true if O1 and O2 are equal.  EQUAL_KIND specifies what kind
+   of equality test to use: if it is EQUAL_NO_QUIT, do not check for
+   cycles or large arguments or quits; if EQUAL_PLAIN, do ordinary
+   Lisp equality; and if EQUAL_INCLUDING_PROPERTIES, do
+   equal-including-properties.
+
+   If DEPTH is the current depth of recursion; signal an error if it
+   gets too deep.  HT is a hash table used to detect cycles; if nil,
+   it has not been allocated yet.  But ignore the last two arguments
+   if EQUAL_KIND == EQUAL_NO_QUIT.  */
 
 static bool
-internal_equal (Lisp_Object o1, Lisp_Object o2, int depth, bool props,
-		Lisp_Object ht)
+internal_equal (Lisp_Object o1, Lisp_Object o2, enum equal_kind equal_kind,
+		int depth, Lisp_Object ht)
 {
  tail_recurse:
   if (depth > 10)
     {
+      eassert (equal_kind != EQUAL_NO_QUIT);
       if (depth > 200)
 	error ("Stack overflow in equal");
       if (NILP (ht))
@@ -2138,7 +2165,7 @@ internal_equal (Lisp_Object o1, Lisp_Object o2, int depth, bool props,
 	      { /* `o1' was seen already.  */
 		Lisp_Object o2s = HASH_VALUE (h, i);
 		if (!NILP (Fmemq (o2, o2s)))
-		  return 1;
+		  return true;
 		else
 		  set_hash_value_slot (h, i, Fcons (o2, o2s));
 	      }
@@ -2150,49 +2177,58 @@ internal_equal (Lisp_Object o1, Lisp_Object o2, int depth, bool props,
     }
 
   if (EQ (o1, o2))
-    return 1;
+    return true;
   if (XTYPE (o1) != XTYPE (o2))
-    return 0;
+    return false;
 
   switch (XTYPE (o1))
     {
     case Lisp_Float:
       {
-	double d1, d2;
-
-	d1 = extract_float (o1);
-	d2 = extract_float (o2);
+	double d1 = XFLOAT_DATA (o1);
+	double d2 = XFLOAT_DATA (o2);
 	/* If d is a NaN, then d != d. Two NaNs should be `equal' even
 	   though they are not =.  */
 	return d1 == d2 || (d1 != d1 && d2 != d2);
       }
 
     case Lisp_Cons:
-      {
-	FOR_EACH_TAIL (o1)
+      if (equal_kind == EQUAL_NO_QUIT)
+	for (; CONSP (o1); o1 = XCDR (o1))
 	  {
 	    if (! CONSP (o2))
 	      return false;
-	    if (! internal_equal (XCAR (o1), XCAR (o2), depth + 1, props, ht))
+	    if (! equal_no_quit (XCAR (o1), XCAR (o2)))
 	      return false;
 	    o2 = XCDR (o2);
 	    if (EQ (XCDR (o1), o2))
 	      return true;
 	  }
-	depth++;
-	goto tail_recurse;
-      }
+      else
+	FOR_EACH_TAIL (o1)
+	  {
+	    if (! CONSP (o2))
+	      return false;
+	    if (! internal_equal (XCAR (o1), XCAR (o2),
+				  equal_kind, depth + 1, ht))
+	      return false;
+	    o2 = XCDR (o2);
+	    if (EQ (XCDR (o1), o2))
+	      return true;
+	  }
+      depth++;
+      goto tail_recurse;
 
     case Lisp_Misc:
       if (XMISCTYPE (o1) != XMISCTYPE (o2))
-	return 0;
+	return false;
       if (OVERLAYP (o1))
 	{
 	  if (!internal_equal (OVERLAY_START (o1), OVERLAY_START (o2),
-			       depth + 1, props, ht)
+			       equal_kind, depth + 1, ht)
 	      || !internal_equal (OVERLAY_END (o1), OVERLAY_END (o2),
-				  depth + 1, props, ht))
-	    return 0;
+				  equal_kind, depth + 1, ht))
+	    return false;
 	  o1 = XOVERLAY (o1)->plist;
 	  o2 = XOVERLAY (o2)->plist;
 	  depth++;
@@ -2214,20 +2250,23 @@ internal_equal (Lisp_Object o1, Lisp_Object o2, int depth, bool props,
 	   actually checks that the objects have the same type as well as the
 	   same size.  */
 	if (ASIZE (o2) != size)
-	  return 0;
+	  return false;
 	/* Boolvectors are compared much like strings.  */
 	if (BOOL_VECTOR_P (o1))
 	  {
 	    EMACS_INT size = bool_vector_size (o1);
 	    if (size != bool_vector_size (o2))
-	      return 0;
+	      return false;
 	    if (memcmp (bool_vector_data (o1), bool_vector_data (o2),
 			bool_vector_bytes (size)))
-	      return 0;
-	    return 1;
+	      return false;
+	    return true;
 	  }
 	if (WINDOW_CONFIGURATIONP (o1))
-	  return compare_window_configurations (o1, o2, 0);
+	  {
+	    eassert (equal_kind != EQUAL_NO_QUIT);
+	    return compare_window_configurations (o1, o2, false);
+	  }
 
 	/* Aside from them, only true vectors, char-tables, compiled
 	   functions, and fonts (font-spec, font-entity, font-object)
@@ -2236,7 +2275,7 @@ internal_equal (Lisp_Object o1, Lisp_Object o2, int depth, bool props,
 	  {
 	    if (((size & PVEC_TYPE_MASK) >> PSEUDOVECTOR_AREA_BITS)
 		< PVEC_COMPILED)
-	      return 0;
+	      return false;
 	    size &= PSEUDOVECTOR_SIZE_MASK;
 	  }
 	for (i = 0; i < size; i++)
@@ -2244,29 +2283,30 @@ internal_equal (Lisp_Object o1, Lisp_Object o2, int depth, bool props,
 	    Lisp_Object v1, v2;
 	    v1 = AREF (o1, i);
 	    v2 = AREF (o2, i);
-	    if (!internal_equal (v1, v2, depth + 1, props, ht))
-	      return 0;
+	    if (!internal_equal (v1, v2, equal_kind, depth + 1, ht))
+	      return false;
 	  }
-	return 1;
+	return true;
       }
       break;
 
     case Lisp_String:
       if (SCHARS (o1) != SCHARS (o2))
-	return 0;
+	return false;
       if (SBYTES (o1) != SBYTES (o2))
-	return 0;
+	return false;
       if (memcmp (SDATA (o1), SDATA (o2), SBYTES (o1)))
-	return 0;
-      if (props && !compare_string_intervals (o1, o2))
-	return 0;
-      return 1;
+	return false;
+      if (equal_kind == EQUAL_INCLUDING_PROPERTIES
+	  && !compare_string_intervals (o1, o2))
+	return false;
+      return true;
 
     default:
       break;
     }
 
-  return 0;
+  return false;
 }
 
 
@@ -2757,8 +2797,17 @@ suppressed.  */)
 
       tem = Fmemq (feature, Vfeatures);
       if (NILP (tem))
-	error ("Required feature `%s' was not provided",
-	       SDATA (SYMBOL_NAME (feature)));
+        {
+          unsigned char *tem2 = SDATA (SYMBOL_NAME (feature));
+          Lisp_Object tem3 = Fcar (Fcar (Vload_history));
+
+          if (NILP (tem3))
+            error ("Required feature `%s' was not provided", tem2);
+          else
+            /* Cf autoload-do-load.  */
+            error ("Loading file %s failed to provide feature `%s'",
+                   SDATA (tem3), tem2);
+        }
 
       /* Once loading finishes, don't undo it.  */
       Vautoload_queue = Qt;
@@ -3437,9 +3486,9 @@ set_hash_next (struct Lisp_Hash_Table *h, Lisp_Object next)
   h->next = next;
 }
 static void
-set_hash_next_slot (struct Lisp_Hash_Table *h, ptrdiff_t idx, Lisp_Object val)
+set_hash_next_slot (struct Lisp_Hash_Table *h, ptrdiff_t idx, ptrdiff_t val)
 {
-  gc_aset (h->next, idx, val);
+  gc_aset (h->next, idx, make_number (val));
 }
 static void
 set_hash_hash (struct Lisp_Hash_Table *h, Lisp_Object hash)
@@ -3457,9 +3506,9 @@ set_hash_index (struct Lisp_Hash_Table *h, Lisp_Object index)
   h->index = index;
 }
 static void
-set_hash_index_slot (struct Lisp_Hash_Table *h, ptrdiff_t idx, Lisp_Object val)
+set_hash_index_slot (struct Lisp_Hash_Table *h, ptrdiff_t idx, ptrdiff_t val)
 {
-  gc_aset (h->index, idx, val);
+  gc_aset (h->index, idx, make_number (val));
 }
 
 /* If OBJ is a Lisp hash table, return a pointer to its struct
@@ -3513,11 +3562,11 @@ get_key_arg (Lisp_Object key, ptrdiff_t nargs, Lisp_Object *args, char *used)
 /* Return a Lisp vector which has the same contents as VEC but has
    at least INCR_MIN more entries, where INCR_MIN is positive.
    If NITEMS_MAX is not -1, do not grow the vector to be any larger
-   than NITEMS_MAX.  Entries in the resulting
-   vector that are not copied from VEC are set to nil.  */
+   than NITEMS_MAX.  New entries in the resulting vector are
+   uninitialized.  */
 
-Lisp_Object
-larger_vector (Lisp_Object vec, ptrdiff_t incr_min, ptrdiff_t nitems_max)
+static Lisp_Object
+larger_vecalloc (Lisp_Object vec, ptrdiff_t incr_min, ptrdiff_t nitems_max)
 {
   struct Lisp_Vector *v;
   ptrdiff_t incr, incr_max, old_size, new_size;
@@ -3534,15 +3583,45 @@ larger_vector (Lisp_Object vec, ptrdiff_t incr_min, ptrdiff_t nitems_max)
   new_size = old_size + incr;
   v = allocate_vector (new_size);
   memcpy (v->contents, XVECTOR (vec)->contents, old_size * sizeof *v->contents);
-  memclear (v->contents + old_size, incr * word_size);
   XSETVECTOR (vec, v);
   return vec;
+}
+
+/* Likewise, except set new entries in the resulting vector to nil.  */
+
+Lisp_Object
+larger_vector (Lisp_Object vec, ptrdiff_t incr_min, ptrdiff_t nitems_max)
+{
+  ptrdiff_t old_size = ASIZE (vec);
+  Lisp_Object v = larger_vecalloc (vec, incr_min, nitems_max);
+  ptrdiff_t new_size = ASIZE (v);
+  memclear (XVECTOR (v)->contents + old_size,
+	    (new_size - old_size) * word_size);
+  return v;
 }
 
 
 /***********************************************************************
 			 Low-level Functions
  ***********************************************************************/
+
+/* Return the index of the next entry in H following the one at IDX,
+   or -1 if none.  */
+
+static ptrdiff_t
+HASH_NEXT (struct Lisp_Hash_Table *h, ptrdiff_t idx)
+{
+  return XINT (AREF (h->next, idx));
+}
+
+/* Return the index of the element in hash table H that is the start
+   of the collision list at index IDX, or -1 if the list is empty.  */
+
+static ptrdiff_t
+HASH_INDEX (struct Lisp_Hash_Table *h, ptrdiff_t idx)
+{
+  return XINT (AREF (h->index, idx));
+}
 
 /* Compare KEY1 which has hash code HASH1 and KEY2 with hash code
    HASH2 in hash table H using `eql'.  Value is true if KEY1 and
@@ -3654,17 +3733,17 @@ allocate_hash_table (void)
    `equal' or a symbol denoting a user-defined test named TEST with
    test and hash functions USER_TEST and USER_HASH.
 
-   Give the table initial capacity SIZE, SIZE >= 0, an integer.
+   Give the table initial capacity SIZE, 0 <= SIZE <= MOST_POSITIVE_FIXNUM.
 
-   If REHASH_SIZE is an integer, it must be > 0, and this hash table's
-   new size when it becomes full is computed by adding REHASH_SIZE to
-   its old size.  If REHASH_SIZE is a float, it must be > 1.0, and the
-   table's new size is computed by multiplying its old size with
-   REHASH_SIZE.
+   If REHASH_SIZE is equal to a negative integer, this hash table's
+   new size when it becomes full is computed by subtracting
+   REHASH_SIZE from its old size.  Otherwise it must be positive, and
+   the table's new size is computed by multiplying its old size by
+   REHASH_SIZE + 1.
 
    REHASH_THRESHOLD must be a float <= 1.0, and > 0.  The table will
-   be resized when the ratio of (number of entries in the table) /
-   (table size) is >= REHASH_THRESHOLD.
+   be resized when the approximate ratio of table entries to table
+   size exceeds REHASH_THRESHOLD.
 
    WEAK specifies the weakness of the table.  If non-nil, it must be
    one of the symbols `key', `value', `key-or-value', or `key-and-value'.
@@ -3674,35 +3753,31 @@ allocate_hash_table (void)
    changed after purecopy.  */
 
 Lisp_Object
-make_hash_table (struct hash_table_test test,
-		 Lisp_Object size, Lisp_Object rehash_size,
-		 Lisp_Object rehash_threshold, Lisp_Object weak,
-                 Lisp_Object pure)
+make_hash_table (struct hash_table_test test, EMACS_INT size,
+		 float rehash_size, float rehash_threshold,
+		 Lisp_Object weak, bool pure)
 {
   struct Lisp_Hash_Table *h;
   Lisp_Object table;
-  EMACS_INT index_size, sz;
+  EMACS_INT index_size;
   ptrdiff_t i;
   double index_float;
 
   /* Preconditions.  */
   eassert (SYMBOLP (test.name));
-  eassert (INTEGERP (size) && XINT (size) >= 0);
-  eassert ((INTEGERP (rehash_size) && XINT (rehash_size) > 0)
-	   || (FLOATP (rehash_size) && 1 < XFLOAT_DATA (rehash_size)));
-  eassert (FLOATP (rehash_threshold)
-	   && 0 < XFLOAT_DATA (rehash_threshold)
-	   && XFLOAT_DATA (rehash_threshold) <= 1.0);
+  eassert (0 <= size && size <= MOST_POSITIVE_FIXNUM);
+  eassert (rehash_size <= -1 || 0 < rehash_size);
+  eassert (0 < rehash_threshold && rehash_threshold <= 1);
 
-  if (XFASTINT (size) == 0)
-    size = make_number (1);
+  if (size == 0)
+    size = 1;
 
-  sz = XFASTINT (size);
-  index_float = sz / XFLOAT_DATA (rehash_threshold);
+  double threshold = rehash_threshold;
+  index_float = size / threshold;
   index_size = (index_float < INDEX_SIZE_BOUND + 1
 		? next_almost_prime (index_float)
 		: INDEX_SIZE_BOUND + 1);
-  if (INDEX_SIZE_BOUND < max (index_size, 2 * sz))
+  if (INDEX_SIZE_BOUND < max (index_size, 2 * size))
     error ("Hash table too large");
 
   /* Allocate a table and initialize it.  */
@@ -3714,25 +3789,23 @@ make_hash_table (struct hash_table_test test,
   h->rehash_threshold = rehash_threshold;
   h->rehash_size = rehash_size;
   h->count = 0;
-  h->key_and_value = Fmake_vector (make_number (2 * sz), Qnil);
-  h->hash = Fmake_vector (size, Qnil);
-  h->next = Fmake_vector (size, Qnil);
-  h->index = Fmake_vector (make_number (index_size), Qnil);
+  h->key_and_value = Fmake_vector (make_number (2 * size), Qnil);
+  h->hash = Fmake_vector (make_number (size), Qnil);
+  h->next = Fmake_vector (make_number (size), make_number (-1));
+  h->index = Fmake_vector (make_number (index_size), make_number (-1));
   h->pure = pure;
 
   /* Set up the free list.  */
-  for (i = 0; i < sz - 1; ++i)
-    set_hash_next_slot (h, i, make_number (i + 1));
-  h->next_free = make_number (0);
+  for (i = 0; i < size - 1; ++i)
+    set_hash_next_slot (h, i, i + 1);
+  h->next_free = 0;
 
   XSET_HASH_TABLE (table, h);
   eassert (HASH_TABLE_P (table));
   eassert (XHASH_TABLE (table) == h);
 
   /* Maybe add this hash table to the list of all weak hash tables.  */
-  if (NILP (h->weak))
-    h->next_weak = NULL;
-  else
+  if (! NILP (weak))
     {
       h->next_weak = weak_hash_tables;
       weak_hash_tables = h;
@@ -3762,8 +3835,8 @@ copy_hash_table (struct Lisp_Hash_Table *h1)
   /* Maybe add this hash table to the list of all weak hash tables.  */
   if (!NILP (h2->weak))
     {
-      h2->next_weak = weak_hash_tables;
-      weak_hash_tables = h2;
+      h2->next_weak = h1->next_weak;
+      h1->next_weak = h2;
     }
 
   return table;
@@ -3776,28 +3849,28 @@ copy_hash_table (struct Lisp_Hash_Table *h1)
 static void
 maybe_resize_hash_table (struct Lisp_Hash_Table *h)
 {
-  if (NILP (h->next_free))
+  if (h->next_free < 0)
     {
       ptrdiff_t old_size = HASH_TABLE_SIZE (h);
       EMACS_INT new_size, index_size, nsize;
       ptrdiff_t i;
+      double rehash_size = h->rehash_size;
       double index_float;
 
-      if (INTEGERP (h->rehash_size))
-	new_size = old_size + XFASTINT (h->rehash_size);
+      if (rehash_size < 0)
+	new_size = old_size - rehash_size;
       else
 	{
-	  double float_new_size = old_size * XFLOAT_DATA (h->rehash_size);
+	  double float_new_size = old_size * (rehash_size + 1);
 	  if (float_new_size < INDEX_SIZE_BOUND + 1)
-	    {
-	      new_size = float_new_size;
-	      if (new_size <= old_size)
-		new_size = old_size + 1;
-	    }
+	    new_size = float_new_size;
 	  else
 	    new_size = INDEX_SIZE_BOUND + 1;
 	}
-      index_float = new_size / XFLOAT_DATA (h->rehash_threshold);
+      if (new_size <= old_size)
+	new_size = old_size + 1;
+      double threshold = h->rehash_threshold;
+      index_float = new_size / threshold;
       index_size = (index_float < INDEX_SIZE_BOUND + 1
 		    ? next_almost_prime (index_float)
 		    : INDEX_SIZE_BOUND + 1);
@@ -3813,29 +3886,32 @@ maybe_resize_hash_table (struct Lisp_Hash_Table *h)
 
       set_hash_key_and_value (h, larger_vector (h->key_and_value,
 						2 * (new_size - old_size), -1));
-      set_hash_next (h, larger_vector (h->next, new_size - old_size, -1));
       set_hash_hash (h, larger_vector (h->hash, new_size - old_size, -1));
-      set_hash_index (h, Fmake_vector (make_number (index_size), Qnil));
+      set_hash_index (h, Fmake_vector (make_number (index_size),
+				       make_number (-1)));
+      set_hash_next (h, larger_vecalloc (h->next, new_size - old_size, -1));
 
       /* Update the free list.  Do it so that new entries are added at
          the end of the free list.  This makes some operations like
          maphash faster.  */
       for (i = old_size; i < new_size - 1; ++i)
-	set_hash_next_slot (h, i, make_number (i + 1));
+	set_hash_next_slot (h, i, i + 1);
+      set_hash_next_slot (h, i, -1);
 
-      if (!NILP (h->next_free))
-	{
-	  Lisp_Object last, next;
-
-	  last = h->next_free;
-	  while (next = HASH_NEXT (h, XFASTINT (last)),
-		 !NILP (next))
-	    last = next;
-
-	  set_hash_next_slot (h, XFASTINT (last), make_number (old_size));
-	}
+      if (h->next_free < 0)
+	h->next_free = old_size;
       else
-	XSETFASTINT (h->next_free, old_size);
+	{
+	  ptrdiff_t last = h->next_free;
+	  while (true)
+	    {
+	      ptrdiff_t next = HASH_NEXT (h, last);
+	      if (next < 0)
+		break;
+	      last = next;
+	    }
+	  set_hash_next_slot (h, last, old_size);
+	}
 
       /* Rehash.  */
       for (i = 0; i < old_size; ++i)
@@ -3844,7 +3920,7 @@ maybe_resize_hash_table (struct Lisp_Hash_Table *h)
 	    EMACS_UINT hash_code = XUINT (HASH_HASH (h, i));
 	    ptrdiff_t start_of_bucket = hash_code % ASIZE (h->index);
 	    set_hash_next_slot (h, i, HASH_INDEX (h, start_of_bucket));
-	    set_hash_index_slot (h, start_of_bucket, make_number (i));
+	    set_hash_index_slot (h, start_of_bucket, i);
 	  }
     }
 }
@@ -3858,8 +3934,7 @@ ptrdiff_t
 hash_lookup (struct Lisp_Hash_Table *h, Lisp_Object key, EMACS_UINT *hash)
 {
   EMACS_UINT hash_code;
-  ptrdiff_t start_of_bucket;
-  Lisp_Object idx;
+  ptrdiff_t start_of_bucket, i;
 
   hash_code = h->test.hashfn (&h->test, key);
   eassert ((hash_code & ~INTMASK) == 0);
@@ -3867,20 +3942,15 @@ hash_lookup (struct Lisp_Hash_Table *h, Lisp_Object key, EMACS_UINT *hash)
     *hash = hash_code;
 
   start_of_bucket = hash_code % ASIZE (h->index);
-  idx = HASH_INDEX (h, start_of_bucket);
 
-  while (!NILP (idx))
-    {
-      ptrdiff_t i = XFASTINT (idx);
-      if (EQ (key, HASH_KEY (h, i))
-	  || (h->test.cmpfn
-	      && hash_code == XUINT (HASH_HASH (h, i))
-	      && h->test.cmpfn (&h->test, key, HASH_KEY (h, i))))
-	break;
-      idx = HASH_NEXT (h, i);
-    }
+  for (i = HASH_INDEX (h, start_of_bucket); 0 <= i; i = HASH_NEXT (h, i))
+    if (EQ (key, HASH_KEY (h, i))
+	|| (h->test.cmpfn
+	    && hash_code == XUINT (HASH_HASH (h, i))
+	    && h->test.cmpfn (&h->test, key, HASH_KEY (h, i))))
+      break;
 
-  return NILP (idx) ? -1 : XFASTINT (idx);
+  return i;
 }
 
 
@@ -3901,7 +3971,7 @@ hash_put (struct Lisp_Hash_Table *h, Lisp_Object key, Lisp_Object value,
   h->count++;
 
   /* Store key/value in the key_and_value vector.  */
-  i = XFASTINT (h->next_free);
+  i = h->next_free;
   h->next_free = HASH_NEXT (h, i);
   set_hash_key_slot (h, i, key);
   set_hash_value_slot (h, i, value);
@@ -3912,7 +3982,7 @@ hash_put (struct Lisp_Hash_Table *h, Lisp_Object key, Lisp_Object value,
   /* Add new entry to its collision chain.  */
   start_of_bucket = hash % ASIZE (h->index);
   set_hash_next_slot (h, i, HASH_INDEX (h, start_of_bucket));
-  set_hash_index_slot (h, start_of_bucket, make_number (i));
+  set_hash_index_slot (h, start_of_bucket, i);
   return i;
 }
 
@@ -3922,30 +3992,25 @@ hash_put (struct Lisp_Hash_Table *h, Lisp_Object key, Lisp_Object value,
 void
 hash_remove_from_table (struct Lisp_Hash_Table *h, Lisp_Object key)
 {
-  EMACS_UINT hash_code;
-  ptrdiff_t start_of_bucket;
-  Lisp_Object idx, prev;
-
-  hash_code = h->test.hashfn (&h->test, key);
+  EMACS_UINT hash_code = h->test.hashfn (&h->test, key);
   eassert ((hash_code & ~INTMASK) == 0);
-  start_of_bucket = hash_code % ASIZE (h->index);
-  idx = HASH_INDEX (h, start_of_bucket);
-  prev = Qnil;
+  ptrdiff_t start_of_bucket = hash_code % ASIZE (h->index);
+  ptrdiff_t prev = -1;
 
-  while (!NILP (idx))
+  for (ptrdiff_t i = HASH_INDEX (h, start_of_bucket);
+       0 <= i;
+       i = HASH_NEXT (h, i))
     {
-      ptrdiff_t i = XFASTINT (idx);
-
       if (EQ (key, HASH_KEY (h, i))
 	  || (h->test.cmpfn
 	      && hash_code == XUINT (HASH_HASH (h, i))
 	      && h->test.cmpfn (&h->test, key, HASH_KEY (h, i))))
 	{
 	  /* Take entry out of collision chain.  */
-	  if (NILP (prev))
+	  if (prev < 0)
 	    set_hash_index_slot (h, start_of_bucket, HASH_NEXT (h, i));
 	  else
-	    set_hash_next_slot (h, XFASTINT (prev), HASH_NEXT (h, i));
+	    set_hash_next_slot (h, prev, HASH_NEXT (h, i));
 
 	  /* Clear slots in key_and_value and add the slots to
 	     the free list.  */
@@ -3953,16 +4018,13 @@ hash_remove_from_table (struct Lisp_Hash_Table *h, Lisp_Object key)
 	  set_hash_value_slot (h, i, Qnil);
 	  set_hash_hash_slot (h, i, Qnil);
 	  set_hash_next_slot (h, i, h->next_free);
-	  h->next_free = make_number (i);
+	  h->next_free = i;
 	  h->count--;
 	  eassert (h->count >= 0);
 	  break;
 	}
-      else
-	{
-	  prev = idx;
-	  idx = HASH_NEXT (h, i);
-	}
+
+      prev = i;
     }
 }
 
@@ -3978,16 +4040,16 @@ hash_clear (struct Lisp_Hash_Table *h)
 
       for (i = 0; i < size; ++i)
 	{
-	  set_hash_next_slot (h, i, i < size - 1 ? make_number (i + 1) : Qnil);
+	  set_hash_next_slot (h, i, i < size - 1 ? i + 1 : -1);
 	  set_hash_key_slot (h, i, Qnil);
 	  set_hash_value_slot (h, i, Qnil);
 	  set_hash_hash_slot (h, i, Qnil);
 	}
 
       for (i = 0; i < ASIZE (h->index); ++i)
-	ASET (h->index, i, Qnil);
+	ASET (h->index, i, make_number (-1));
 
-      h->next_free = make_number (0);
+      h->next_free = 0;
       h->count = 0;
     }
 }
@@ -4011,14 +4073,12 @@ sweep_weak_table (struct Lisp_Hash_Table *h, bool remove_entries_p)
 
   for (ptrdiff_t bucket = 0; bucket < n; ++bucket)
     {
-      Lisp_Object idx, next, prev;
-
       /* Follow collision chain, removing entries that
 	 don't survive this garbage collection.  */
-      prev = Qnil;
-      for (idx = HASH_INDEX (h, bucket); !NILP (idx); idx = next)
+      ptrdiff_t prev = -1;
+      ptrdiff_t next;
+      for (ptrdiff_t i = HASH_INDEX (h, bucket); 0 <= i; i = next)
 	{
-	  ptrdiff_t i = XFASTINT (idx);
 	  bool key_known_to_survive_p = survives_gc_p (HASH_KEY (h, i));
 	  bool value_known_to_survive_p = survives_gc_p (HASH_VALUE (h, i));
 	  bool remove_p;
@@ -4041,14 +4101,14 @@ sweep_weak_table (struct Lisp_Hash_Table *h, bool remove_entries_p)
 	      if (remove_p)
 		{
 		  /* Take out of collision chain.  */
-		  if (NILP (prev))
+		  if (prev < 0)
 		    set_hash_index_slot (h, bucket, next);
 		  else
-		    set_hash_next_slot (h, XFASTINT (prev), next);
+		    set_hash_next_slot (h, prev, next);
 
 		  /* Add to free list.  */
 		  set_hash_next_slot (h, i, h->next_free);
-		  h->next_free = idx;
+		  h->next_free = i;
 
 		  /* Clear key, value, and hash.  */
 		  set_hash_key_slot (h, i, Qnil);
@@ -4059,7 +4119,7 @@ sweep_weak_table (struct Lisp_Hash_Table *h, bool remove_entries_p)
 		}
 	      else
 		{
-		  prev = idx;
+		  prev = i;
 		}
 	    }
 	  else
@@ -4229,7 +4289,7 @@ sxhash_list (Lisp_Object list, int depth)
 }
 
 
-/* Return a hash for vector VECTOR.  DEPTH is the current depth in
+/* Return a hash for (pseudo)vector VECTOR.  DEPTH is the current depth in
    the Lisp structure.  */
 
 static EMACS_UINT
@@ -4238,7 +4298,7 @@ sxhash_vector (Lisp_Object vec, int depth)
   EMACS_UINT hash = ASIZE (vec);
   int i, n;
 
-  n = min (SXHASH_MAX_LEN, ASIZE (vec));
+  n = min (SXHASH_MAX_LEN, hash & PSEUDOVECTOR_FLAG ? PVSIZE (vec) : hash);
   for (i = 0; i < n; ++i)
     {
       EMACS_UINT hash2 = sxhash (AREF (vec, i), depth + 1);
@@ -4293,11 +4353,11 @@ sxhash (Lisp_Object obj, int depth)
 
       /* This can be everything from a vector to an overlay.  */
     case Lisp_Vectorlike:
-      if (VECTORP (obj))
+      if (VECTORP (obj) || RECORDP (obj))
 	/* According to the CL HyperSpec, two arrays are equal only if
 	   they are `eq', except for strings and bit-vectors.  In
 	   Emacs, this works differently.  We have to compare element
-	   by element.  */
+	   by element.  Same for records.  */
 	hash = sxhash_vector (obj, depth);
       else if (BOOL_VECTOR_P (obj))
 	hash = sxhash_bool_vector (obj);
@@ -4372,8 +4432,8 @@ amount.  If it is a float, it must be > 1.0, and the new size is the
 old size multiplied by that factor.  Default is 1.5.
 
 :rehash-threshold THRESHOLD -- THRESHOLD must a float > 0, and <= 1.0.
-Resize the hash table when the ratio (number of entries / table size)
-is greater than or equal to THRESHOLD.  Default is 0.8.
+Resize the hash table when the ratio (table entries / table size)
+exceeds an approximation to THRESHOLD.  Default is 0.8125.
 
 :weakness WEAK -- WEAK must be one of nil, t, `key', `value',
 `key-or-value', or `key-and-value'.  If WEAK is not nil, the table
@@ -4391,7 +4451,8 @@ in an error.
 usage: (make-hash-table &rest KEYWORD-ARGS)  */)
   (ptrdiff_t nargs, Lisp_Object *args)
 {
-  Lisp_Object test, size, rehash_size, rehash_threshold, weak, pure;
+  Lisp_Object test, weak;
+  bool pure;
   struct hash_table_test testdesc;
   ptrdiff_t i;
   USE_SAFE_ALLOCA;
@@ -4427,29 +4488,37 @@ usage: (make-hash-table &rest KEYWORD-ARGS)  */)
 
   /* See if there's a `:purecopy PURECOPY' argument.  */
   i = get_key_arg (QCpurecopy, nargs, args, used);
-  pure = i ? args[i] : Qnil;
+  pure = i && !NILP (args[i]);
   /* See if there's a `:size SIZE' argument.  */
   i = get_key_arg (QCsize, nargs, args, used);
-  size = i ? args[i] : Qnil;
-  if (NILP (size))
-    size = make_number (DEFAULT_HASH_SIZE);
-  else if (!INTEGERP (size) || XINT (size) < 0)
-    signal_error ("Invalid hash table size", size);
+  Lisp_Object size_arg = i ? args[i] : Qnil;
+  EMACS_INT size;
+  if (NILP (size_arg))
+    size = DEFAULT_HASH_SIZE;
+  else if (NATNUMP (size_arg))
+    size = XFASTINT (size_arg);
+  else
+    signal_error ("Invalid hash table size", size_arg);
 
   /* Look for `:rehash-size SIZE'.  */
+  float rehash_size;
   i = get_key_arg (QCrehash_size, nargs, args, used);
-  rehash_size = i ? args[i] : make_float (DEFAULT_REHASH_SIZE);
-  if (! ((INTEGERP (rehash_size) && 0 < XINT (rehash_size))
-	 || (FLOATP (rehash_size) && 1 < XFLOAT_DATA (rehash_size))))
-    signal_error ("Invalid hash table rehash size", rehash_size);
+  if (!i)
+    rehash_size = DEFAULT_REHASH_SIZE;
+  else if (INTEGERP (args[i]) && 0 < XINT (args[i]))
+    rehash_size = - XINT (args[i]);
+  else if (FLOATP (args[i]) && 0 < (float) (XFLOAT_DATA (args[i]) - 1))
+    rehash_size = (float) (XFLOAT_DATA (args[i]) - 1);
+  else
+    signal_error ("Invalid hash table rehash size", args[i]);
 
   /* Look for `:rehash-threshold THRESHOLD'.  */
   i = get_key_arg (QCrehash_threshold, nargs, args, used);
-  rehash_threshold = i ? args[i] : make_float (DEFAULT_REHASH_THRESHOLD);
-  if (! (FLOATP (rehash_threshold)
-	 && 0 < XFLOAT_DATA (rehash_threshold)
-	 && XFLOAT_DATA (rehash_threshold) <= 1))
-    signal_error ("Invalid hash table rehash threshold", rehash_threshold);
+  float rehash_threshold = (!i ? DEFAULT_REHASH_THRESHOLD
+			    : !FLOATP (args[i]) ? 0
+			    : (float) XFLOAT_DATA (args[i]));
+  if (! (0 < rehash_threshold && rehash_threshold <= 1))
+    signal_error ("Invalid hash table rehash threshold", args[i]);
 
   /* Look for `:weakness WEAK'.  */
   i = get_key_arg (QCweakness, nargs, args, used);
@@ -4495,7 +4564,14 @@ DEFUN ("hash-table-rehash-size", Fhash_table_rehash_size,
        doc: /* Return the current rehash size of TABLE.  */)
   (Lisp_Object table)
 {
-  return check_hash_table (table)->rehash_size;
+  double rehash_size = check_hash_table (table)->rehash_size;
+  if (rehash_size < 0)
+    {
+      EMACS_INT s = -rehash_size;
+      return make_number (min (s, MOST_POSITIVE_FIXNUM));
+    }
+  else
+    return make_float (rehash_size + 1);
 }
 
 
@@ -4504,7 +4580,7 @@ DEFUN ("hash-table-rehash-threshold", Fhash_table_rehash_threshold,
        doc: /* Return the current rehash threshold of TABLE.  */)
   (Lisp_Object table)
 {
-  return check_hash_table (table)->rehash_threshold;
+  return make_float (check_hash_table (table)->rehash_threshold);
 }
 
 
@@ -4912,8 +4988,7 @@ If BINARY is non-nil, returns a string in binary form.  */)
 DEFUN ("buffer-hash", Fbuffer_hash, Sbuffer_hash, 0, 1, 0,
        doc: /* Return a hash of the contents of BUFFER-OR-NAME.
 This hash is performed on the raw internal format of the buffer,
-disregarding any coding systems.
-If nil, use the current buffer." */ )
+disregarding any coding systems.  If nil, use the current buffer.  */ )
   (Lisp_Object buffer_or_name)
 {
   Lisp_Object buffer;

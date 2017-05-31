@@ -75,14 +75,20 @@ along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.  */
 static bool valgrind_p;
 #endif
 
-/* GC_CHECK_MARKED_OBJECTS means do sanity checks on allocated objects.  */
+/* GC_CHECK_MARKED_OBJECTS means do sanity checks on allocated objects.
+   We turn that on by default when ENABLE_CHECKING is defined;
+   define GC_CHECK_MARKED_OBJECTS to zero to disable.  */
+
+#if defined ENABLE_CHECKING && !defined GC_CHECK_MARKED_OBJECTS
+# define GC_CHECK_MARKED_OBJECTS 1
+#endif
 
 /* GC_MALLOC_CHECK defined means perform validity checks of malloc'd
    memory.  Can do this only if using gmalloc.c and if not checking
    marked objects.  */
 
 #if (defined SYSTEM_MALLOC || defined DOUG_LEA_MALLOC \
-     || defined HYBRID_MALLOC || defined GC_CHECK_MARKED_OBJECTS)
+     || defined HYBRID_MALLOC || GC_CHECK_MARKED_OBJECTS)
 #undef GC_MALLOC_CHECK
 #endif
 
@@ -3276,13 +3282,7 @@ sweep_vectors (void)
 	  VECTOR_UNMARK (vector);
 	  total_vectors++;
 	  if (vector->header.size & PSEUDOVECTOR_FLAG)
-	    {
-	      /* All non-bool pseudovectors are small enough to be allocated
-		 from vector blocks.  This code should be redesigned if some
-		 pseudovector type grows beyond VBLOCK_BYTES_MAX.  */
-	      eassert (PSEUDOVECTOR_TYPEP (&vector->header, PVEC_BOOL_VECTOR));
-              total_vector_slots += vector_nbytes (vector) / word_size;
-	    }
+            total_vector_slots += vector_nbytes (vector) / word_size;
 	  else
 	    total_vector_slots
 	      += header_size / word_size + vector->header.size;
@@ -3377,7 +3377,7 @@ allocate_pseudovector (int memlen, int lisplen,
   eassert (0 <= tag && tag <= PVEC_FONT);
   eassert (0 <= lisplen && lisplen <= zerolen && zerolen <= memlen);
   eassert (memlen - lisplen <= (1 << PSEUDOVECTOR_REST_BITS) - 1);
-  eassert (lisplen <= (1 << PSEUDOVECTOR_SIZE_BITS) - 1);
+  eassert (lisplen <= PSEUDOVECTOR_SIZE_MASK);
 
   /* Only the first LISPLEN slots will be traced normally by the GC.  */
   memclear (v->contents, zerolen * word_size);
@@ -3397,6 +3397,54 @@ allocate_buffer (void)
   /* Note that the rest fields of B are not initialized.  */
   return b;
 }
+
+
+/* Allocate a record with COUNT slots.  COUNT must be positive, and
+   includes the type slot.  */
+
+static struct Lisp_Vector *
+allocate_record (EMACS_INT count)
+{
+  if (count > PSEUDOVECTOR_SIZE_MASK)
+    error ("Attempt to allocate a record of %"pI"d slots; max is %d",
+	   count, PSEUDOVECTOR_SIZE_MASK);
+  struct Lisp_Vector *p = allocate_vectorlike (count);
+  p->header.size = count;
+  XSETPVECTYPE (p, PVEC_RECORD);
+  return p;
+}
+
+
+DEFUN ("make-record", Fmake_record, Smake_record, 3, 3, 0,
+       doc: /* Create a new record.
+TYPE is its type as returned by `type-of'; it should be either a
+symbol or a type descriptor.  SLOTS is the number of non-type slots,
+each initialized to INIT.  */)
+  (Lisp_Object type, Lisp_Object slots, Lisp_Object init)
+{
+  CHECK_NATNUM (slots);
+  EMACS_INT size = XFASTINT (slots) + 1;
+  struct Lisp_Vector *p = allocate_record (size);
+  p->contents[0] = type;
+  for (ptrdiff_t i = 1; i < size; i++)
+    p->contents[i] = init;
+  return make_lisp_ptr (p, Lisp_Vectorlike);
+}
+
+
+DEFUN ("record", Frecord, Srecord, 1, MANY, 0,
+       doc: /* Create a new record.
+TYPE is its type as returned by `type-of'; it should be either a
+symbol or a type descriptor.  SLOTS is used to initialize the record
+slots with shallow copies of the arguments.
+usage: (record TYPE &rest SLOTS) */)
+  (ptrdiff_t nargs, Lisp_Object *args)
+{
+  struct Lisp_Vector *p = allocate_record (nargs);
+  memcpy (p->contents, args, nargs * sizeof *args);
+  return make_lisp_ptr (p, Lisp_Vectorlike);
+}
+
 
 DEFUN ("make-vector", Fmake_vector, Smake_vector, 2, 2, 0,
        doc: /* Return a newly created vector of length LENGTH, with each element being INIT.
@@ -3894,7 +3942,6 @@ make_user_ptr (void (*finalizer) (void *), void *p)
   uptr->p = p;
   return obj;
 }
-
 #endif
 
 static void
@@ -4648,7 +4695,7 @@ live_vector_p (struct mem_node *m, void *p)
 	     && vector <= (struct Lisp_Vector *) p)
 	{
 	  if (!PSEUDOVECTOR_TYPEP (&vector->header, PVEC_FREE) && vector == p)
-	    return 1;
+	    return true;
 	  else
 	    vector = ADVANCE (vector, vector_nbytes (vector));
 	}
@@ -5442,7 +5489,7 @@ static struct Lisp_Hash_Table *
 purecopy_hash_table (struct Lisp_Hash_Table *table)
 {
   eassert (NILP (table->weak));
-  eassert (!NILP (table->pure));
+  eassert (table->pure);
 
   struct Lisp_Hash_Table *pure = pure_alloc (sizeof *pure, Lisp_Vectorlike);
   struct hash_table_test pure_test = table->test;
@@ -5452,18 +5499,18 @@ purecopy_hash_table (struct Lisp_Hash_Table *table)
   pure_test.user_hash_function = purecopy (table->test.user_hash_function);
   pure_test.user_cmp_function = purecopy (table->test.user_cmp_function);
 
-  pure->test = pure_test;
   pure->header = table->header;
   pure->weak = purecopy (Qnil);
-  pure->rehash_size = purecopy (table->rehash_size);
-  pure->rehash_threshold = purecopy (table->rehash_threshold);
   pure->hash = purecopy (table->hash);
   pure->next = purecopy (table->next);
-  pure->next_free = purecopy (table->next_free);
   pure->index = purecopy (table->index);
   pure->count = table->count;
+  pure->next_free = table->next_free;
+  pure->pure = table->pure;
+  pure->rehash_threshold = table->rehash_threshold;
+  pure->rehash_size = table->rehash_size;
   pure->key_and_value = purecopy (table->key_and_value);
-  pure->pure = purecopy (table->pure);
+  pure->test = pure_test;
 
   return pure;
 }
@@ -5523,7 +5570,7 @@ purecopy (Lisp_Object obj)
       /* Do not purify hash tables which haven't been defined with
          :purecopy as non-nil or are weak - they aren't guaranteed to
          not change.  */
-      if (!NILP (table->weak) || NILP (table->pure))
+      if (!NILP (table->weak) || !table->pure)
         {
           /* Instead, add the hash table to the list of pinned objects,
              so that it will be marked during GC.  */
@@ -5537,7 +5584,7 @@ purecopy (Lisp_Object obj)
       struct Lisp_Hash_Table *h = purecopy_hash_table (table);
       XSET_HASH_TABLE (obj, h);
     }
-  else if (COMPILEDP (obj) || VECTORP (obj))
+  else if (COMPILEDP (obj) || VECTORP (obj) || RECORDP (obj))
     {
       struct Lisp_Vector *objp = XVECTOR (obj);
       ptrdiff_t nbytes = vector_nbytes (objp);
@@ -6300,7 +6347,7 @@ mark_object (Lisp_Object arg)
 {
   register Lisp_Object obj;
   void *po;
-#ifdef GC_CHECK_MARKED_OBJECTS
+#if GC_CHECK_MARKED_OBJECTS
   struct mem_node *m;
 #endif
   ptrdiff_t cdr_count = 0;
@@ -6319,7 +6366,7 @@ mark_object (Lisp_Object arg)
   /* Perform some sanity checks on the objects marked here.  Abort if
      we encounter an object we know is bogus.  This increases GC time
      by ~80%.  */
-#ifdef GC_CHECK_MARKED_OBJECTS
+#if GC_CHECK_MARKED_OBJECTS
 
   /* Check that the object pointed to by PO is known to be a Lisp
      structure allocated from the heap.  */
@@ -6384,22 +6431,18 @@ mark_object (Lisp_Object arg)
     case Lisp_Vectorlike:
       {
 	register struct Lisp_Vector *ptr = XVECTOR (obj);
-	register ptrdiff_t pvectype;
 
 	if (VECTOR_MARKED_P (ptr))
 	  break;
 
-#ifdef GC_CHECK_MARKED_OBJECTS
+#if GC_CHECK_MARKED_OBJECTS
 	m = mem_find (po);
 	if (m == MEM_NIL && !SUBRP (obj) && !main_thread_p (po))
 	  emacs_abort ();
 #endif /* GC_CHECK_MARKED_OBJECTS */
 
-	if (ptr->header.size & PSEUDOVECTOR_FLAG)
-	  pvectype = ((ptr->header.size & PVEC_TYPE_MASK)
-		      >> PSEUDOVECTOR_AREA_BITS);
-	else
-	  pvectype = PVEC_NORMAL_VECTOR;
+        enum pvec_type pvectype
+          = PSEUDOVECTOR_TYPE (ptr);
 
 	if (pvectype != PVEC_SUBR
 	    && pvectype != PVEC_BUFFER
@@ -6409,7 +6452,7 @@ mark_object (Lisp_Object arg)
 	switch (pvectype)
 	  {
 	  case PVEC_BUFFER:
-#ifdef GC_CHECK_MARKED_OBJECTS
+#if GC_CHECK_MARKED_OBJECTS
 	    {
 	      struct buffer *b;
 	      FOR_EACH_BUFFER (b)
@@ -7116,7 +7159,7 @@ We divide the value by 1024 to make sure it fits in a Lisp integer.  */)
 {
   Lisp_Object end;
 
-#if defined HAVE_NS || !HAVE_SBRK
+#if defined HAVE_NS || defined __APPLE__ || !HAVE_SBRK
   /* Avoid warning.  sbrk has no relation to memory allocated anyway.  */
   XSETINT (end, 0);
 #else
@@ -7236,9 +7279,9 @@ find_suspicious_object_in_range (void *begin, void *end)
 }
 
 static void
-note_suspicious_free (void* ptr)
+note_suspicious_free (void *ptr)
 {
-  struct suspicious_free_record* rec;
+  struct suspicious_free_record *rec;
 
   rec = &suspicious_free_history[suspicious_free_history_index++];
   if (suspicious_free_history_index ==
@@ -7253,7 +7296,7 @@ note_suspicious_free (void* ptr)
 }
 
 static void
-detect_suspicious_free (void* ptr)
+detect_suspicious_free (void *ptr)
 {
   int i;
 
@@ -7470,10 +7513,12 @@ The time is in seconds as a floating point value.  */);
   defsubr (&Scons);
   defsubr (&Slist);
   defsubr (&Svector);
+  defsubr (&Srecord);
   defsubr (&Sbool_vector);
   defsubr (&Smake_byte_code);
   defsubr (&Smake_list);
   defsubr (&Smake_vector);
+  defsubr (&Smake_record);
   defsubr (&Smake_string);
   defsubr (&Smake_bool_vector);
   defsubr (&Smake_symbol);

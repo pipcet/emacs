@@ -1363,6 +1363,7 @@ Note that the style variables are always made local to the buffer."
   ;; This function is called indirectly from font locking stuff - either from
   ;; c-after-change (to prepare for after-change font-locking) or from font
   ;; lock context (etc.) fontification.
+  (goto-char pos)
   (let ((lit-start (c-literal-start))
 	(new-pos pos)
 	capture-opener
@@ -2036,6 +2037,7 @@ Key bindings:
   :syntax-table nil
   (require 'cc-awk)			; Added 2003/6/10.
   (c-initialize-cc-mode t)
+  (set-syntax-table awk-mode-syntax-table)
   (setq	abbrev-mode t)
   (c-init-language-vars-for 'awk-mode)
   (c-common-init 'awk-mode)

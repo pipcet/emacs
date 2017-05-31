@@ -57,31 +57,34 @@ static XtGeometryResult EmacsFrameQueryGeometry (Widget widget, XtWidgetGeometry
 #define offset(field) offsetof (EmacsFrameRec, emacs_frame.field)
 
 static XtResource resources[] = {
-  {XtNgeometry, XtCGeometry, XtRString, sizeof (String),
+  {(char *) XtNgeometry, (char *) XtCGeometry, XtRString, sizeof (String),
      offset (geometry), XtRString, (XtPointer) 0},
   {XtNiconic, XtCIconic, XtRBoolean, sizeof (Boolean),
      offset (iconic), XtRImmediate, (XtPointer) False},
 
-  {XtNemacsFrame, XtCEmacsFrame, XtRPointer, sizeof (XtPointer),
+  {(char *) XtNemacsFrame, (char *) XtCEmacsFrame,
+     XtRPointer, sizeof (XtPointer),
      offset (frame), XtRImmediate, 0},
 
-  {XtNminibuffer, XtCMinibuffer, XtRInt, sizeof (int),
+  {(char *) XtNminibuffer, (char *) XtCMinibuffer, XtRInt, sizeof (int),
      offset (minibuffer), XtRImmediate, (XtPointer)0},
-  {XtNunsplittable, XtCUnsplittable, XtRBoolean, sizeof (Boolean),
+  {(char *) XtNunsplittable, (char *) XtCUnsplittable,
+     XtRBoolean, sizeof (Boolean),
      offset (unsplittable), XtRImmediate, (XtPointer)0},
-  {XtNinternalBorderWidth, XtCInternalBorderWidth, XtRInt, sizeof (int),
+  {(char *) XtNinternalBorderWidth, (char *) XtCInternalBorderWidth,
+     XtRInt, sizeof (int),
      offset (internal_border_width), XtRImmediate, (XtPointer)4},
-  {XtNinterline, XtCInterline, XtRInt, sizeof (int),
+  {(char *) XtNinterline, (char *) XtCInterline, XtRInt, sizeof (int),
      offset (interline), XtRImmediate, (XtPointer)0},
-  {XtNforeground, XtCForeground, XtRPixel, sizeof (Pixel),
-     offset (foreground_pixel), XtRString, "XtDefaultForeground"},
-  {XtNcursorColor, XtCForeground, XtRPixel, sizeof (Pixel),
-     offset (cursor_color), XtRString, "XtDefaultForeground"},
-  {XtNbarCursor, XtCBarCursor, XtRBoolean, sizeof (Boolean),
+  {(char *) XtNforeground, (char *) XtCForeground, XtRPixel, sizeof (Pixel),
+     offset (foreground_pixel), XtRString, (char *) "XtDefaultForeground"},
+  {(char *) XtNcursorColor, (char *) XtCForeground, XtRPixel, sizeof (Pixel),
+     offset (cursor_color), XtRString, (char *) "XtDefaultForeground"},
+  {(char *) XtNbarCursor, (char *) XtCBarCursor, XtRBoolean, sizeof (Boolean),
      offset (bar_cursor), XtRImmediate, (XtPointer)0},
-  {XtNvisualBell, XtCVisualBell, XtRBoolean, sizeof (Boolean),
+  {(char *) XtNvisualBell, (char *) XtCVisualBell, XtRBoolean, sizeof (Boolean),
      offset (visual_bell), XtRImmediate, (XtPointer)0},
-  {XtNbellVolume, XtCBellVolume, XtRInt, sizeof (int),
+  {(char *) XtNbellVolume, (char *) XtCBellVolume, XtRInt, sizeof (int),
      offset (bell_volume), XtRImmediate, (XtPointer)0},
 };
 
@@ -106,7 +109,7 @@ emacsFrameTranslations [] = "\
 static EmacsFrameClassRec emacsFrameClassRec = {
     { /* core fields */
     /* superclass		*/	&widgetClassRec,
-    /* class_name		*/	"EmacsFrame",
+    /* class_name		*/	(char *) "EmacsFrame",
     /* widget_size		*/	sizeof (EmacsFrameRec),
     /* class_initialize		*/	0,
     /* class_part_initialize	*/	0,
@@ -148,7 +151,7 @@ WidgetClass emacsFrameClass = (WidgetClass) &emacsFrameClassRec;
 static void
 get_default_char_pixel_size (EmacsFrame ew, int *pixel_width, int *pixel_height)
 {
-  struct frame* f = ew->emacs_frame.frame;
+  struct frame *f = ew->emacs_frame.frame;
   *pixel_width = FRAME_COLUMN_WIDTH (f);
   *pixel_height = FRAME_LINE_HEIGHT (f);
 }
@@ -156,7 +159,7 @@ get_default_char_pixel_size (EmacsFrame ew, int *pixel_width, int *pixel_height)
 static void
 pixel_to_char_size (EmacsFrame ew, Dimension pixel_width, Dimension pixel_height, int *char_width, int *char_height)
 {
-  struct frame* f = ew->emacs_frame.frame;
+  struct frame *f = ew->emacs_frame.frame;
   *char_width = FRAME_PIXEL_WIDTH_TO_TEXT_COLS (f, (int) pixel_width);
   *char_height = FRAME_PIXEL_HEIGHT_TO_TEXT_LINES (f, (int) pixel_height);
 }
@@ -164,7 +167,7 @@ pixel_to_char_size (EmacsFrame ew, Dimension pixel_width, Dimension pixel_height
 static void
 pixel_to_text_size (EmacsFrame ew, Dimension pixel_width, Dimension pixel_height, int *text_width, int *text_height)
 {
-  struct frame* f = ew->emacs_frame.frame;
+  struct frame *f = ew->emacs_frame.frame;
   *text_width = FRAME_PIXEL_TO_TEXT_WIDTH (f, (int) pixel_width);
   *text_height = FRAME_PIXEL_TO_TEXT_HEIGHT (f, (int) pixel_height);
 }
@@ -172,7 +175,7 @@ pixel_to_text_size (EmacsFrame ew, Dimension pixel_width, Dimension pixel_height
 static void
 char_to_pixel_size (EmacsFrame ew, int char_width, int char_height, Dimension *pixel_width, Dimension *pixel_height)
 {
-  struct frame* f = ew->emacs_frame.frame;
+  struct frame *f = ew->emacs_frame.frame;
   *pixel_width = FRAME_TEXT_COLS_TO_PIXEL_WIDTH (f, char_width);
   *pixel_height = FRAME_TEXT_LINES_TO_PIXEL_HEIGHT (f, char_height);
 }
@@ -365,8 +368,8 @@ EmacsFrameInitialize (Widget request, Widget new, ArgList dum1, Cardinal *dum2)
 static void
 resize_cb (Widget widget,
            XtPointer closure,
-           XEvent* event,
-           Boolean* continue_to_dispatch)
+           XEvent *event,
+           Boolean *continue_to_dispatch)
 {
   EmacsFrameResize (widget);
 }

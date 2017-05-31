@@ -231,6 +231,7 @@ DEFAULT-BODY, if present, is used as the body of a default method.
            (defalias ',name
              (cl-generic-define ',name ',args ',(nreverse options))
              ,(help-add-fundoc-usage doc args))
+           :autoload-end
            ,@(mapcar (lambda (method) `(cl-defmethod ,name ,@method))
                      (nreverse methods)))
        ,@(mapcar (lambda (declaration)
@@ -412,10 +413,12 @@ The set of acceptable TYPEs (also called \"specializers\") is defined
   (declare (doc-string 3) (indent 2)
            (debug
             (&define                    ; this means we are defining something
-             [&or name ("setf" :name setf name)]
+             [&or name ("setf" name :name setf)]
              ;; ^^ This is the methods symbol
-             [ &optional keywordp ]     ; this is key :before etc
-             list                       ; arguments
+             [ &rest atom ]         ; Multiple qualifiers are allowed.
+                                    ; Like in CLOS spec, we support
+                                    ; any non-list values.
+             cl-generic-method-args     ; arguments
              [ &optional stringp ]      ; documentation string
              def-body)))                ; part to be debugged
   (let ((qualifiers nil))
@@ -1081,24 +1084,8 @@ These match if the argument is `eql' to VAL."
 ;;; Support for cl-defstructs specializers.
 
 (defun cl--generic-struct-tag (name &rest _)
-  ;; It's tempting to use (and (vectorp ,name) (aref ,name 0))
-  ;; but that would suffer from some problems:
-  ;; - the vector may have size 0.
-  ;; - when called on an actual vector (rather than an object), we'd
-  ;;   end up returning an arbitrary value, possibly colliding with
-  ;;   other tagcode's values.
-  ;; - it can also result in returning all kinds of irrelevant
-  ;;   values which would end up filling up the method-cache with
-  ;;   lots of irrelevant/redundant entries.
-  ;; FIXME: We could speed this up by introducing a dedicated
-  ;; vector type at the C level, so we could do something like
-  ;; (and (vector-objectp ,name) (aref ,name 0))
-  `(and (vectorp ,name)
-        (> (length ,name) 0)
-        (let ((tag (aref ,name 0)))
-          (and (symbolp tag)
-               (eq (symbol-function tag) :quick-object-witness-check)
-               tag))))
+  ;; Use exactly the same code as for `typeof'.
+  `(if ,name (type-of ,name) 'null))
 
 (defun cl--generic-class-parents (class)
   (let ((parents ())
@@ -1112,8 +1099,8 @@ These match if the argument is `eql' to VAL."
     (nreverse parents)))
 
 (defun cl--generic-struct-specializers (tag &rest _)
-  (and (symbolp tag) (boundp tag)
-       (let ((class (symbol-value tag)))
+  (and (symbolp tag)
+       (let ((class (get tag 'cl--class)))
          (when (cl-typep class 'cl-structure-class)
            (cl--generic-class-parents class)))))
 
@@ -1143,21 +1130,29 @@ These match if the argument is `eql' to VAL."
 
 (defconst cl--generic-typeof-types
   ;; Hand made from the source code of `type-of'.
-  '((integer number) (symbol) (string array sequence) (cons list sequence)
+  '((integer number number-or-marker atom)
+    (symbol atom) (string array sequence atom)
+    (cons list sequence)
     ;; Markers aren't `numberp', yet they are accepted wherever integers are
     ;; accepted, pretty much.
-    (marker) (overlay) (float number) (window-configuration)
-    (process) (window) (subr) (compiled-function) (buffer)
-    (char-table array sequence)
-    (bool-vector array sequence)
-    (frame) (hash-table) (font-spec) (font-entity) (font-object)
-    (vector array sequence)
-    ;; Plus, hand made:
-    (null symbol list sequence)
-    (list sequence)
-    (array sequence)
-    (sequence)
-    (number)))
+    (marker number-or-marker atom)
+    (overlay atom) (float number atom) (window-configuration atom)
+    (process atom) (window atom) (subr atom) (compiled-function function atom)
+    (buffer atom) (char-table array sequence atom)
+    (bool-vector array sequence atom)
+    (frame atom) (hash-table atom) (terminal atom)
+    (thread atom) (mutex atom) (condvar atom)
+    (font-spec atom) (font-entity atom) (font-object atom)
+    (vector array sequence atom)
+    ;; Plus, really hand made:
+    (null symbol list sequence atom))
+  "Alist of supertypes.
+Each element has the form (TYPE . SUPERTYPES) where TYPE is one of
+the symbols returned by `type-of', and SUPERTYPES is the list of its
+supertypes from the most specific to least specific.")
+
+(defconst cl--generic-all-builtin-types
+  (delete-dups (copy-sequence (apply #'append cl--generic-typeof-types))))
 
 (cl-generic-define-generalizer cl--generic-typeof-generalizer
   ;; FIXME: We could also change `type-of' to return `null' for nil.
@@ -1169,9 +1164,9 @@ These match if the argument is `eql' to VAL."
   "Support for dispatch on builtin types.
 See the full list and their hierarchy in `cl--generic-typeof-types'."
   ;; FIXME: Add support for other types accepted by `cl-typep' such
-  ;; as `character', `atom', `face', `function', ...
+  ;; as `character', `face', `function', ...
   (or
-   (and (assq type cl--generic-typeof-types)
+   (and (memq type cl--generic-all-builtin-types)
         (progn
           ;; FIXME: While this wrinkle in the semantics can be occasionally
           ;; problematic, this warning is more often annoying than helpful.
@@ -1214,10 +1209,6 @@ Used internally for the (major-mode MODE) context specializers."
                     ;;E.g. could be (eql ...)
                     (progn (cl-assert (null modes)) mode)
                   `(derived-mode ,mode . ,modes))))
-
-;; Local variables:
-;; generated-autoload-file: "cl-loaddefs.el"
-;; End:
 
 (provide 'cl-generic)
 ;;; cl-generic.el ends here

@@ -285,8 +285,13 @@ are `word-search-regexp' \(`\\[isearch-toggle-word]'), `isearch-symbol-regexp'
   "Controls the lazy-highlighting during incremental search.
 When non-nil, all text in the buffer matching the current search
 string is highlighted lazily (see `lazy-highlight-initial-delay'
-and `lazy-highlight-interval')."
-  :type 'boolean
+and `lazy-highlight-interval').
+
+When multiple windows display the current buffer, the
+highlighting is displayed only on the selected window, unless
+this variable is set to the symbol `all-windows'."
+  :type '(choice boolean
+                 (const :tag "On, and applied to all windows" all-windows))
   :group 'lazy-highlight
   :group 'isearch)
 
@@ -332,11 +337,11 @@ If this is nil, extra highlighting can be \"manually\" removed with
                                 'lazy-highlight-max-at-a-time
                                 "22.1")
 
-(defcustom lazy-highlight-max-at-a-time 20
+(defcustom lazy-highlight-max-at-a-time nil ; 20 (bug#25751)
   "Maximum matches to highlight at a time (for `lazy-highlight').
 Larger values may reduce Isearch's responsiveness to user input;
 smaller values make matches highlight slowly.
-A value of nil means highlight all matches."
+A value of nil means highlight all matches shown on the screen."
   :type '(choice (const :tag "All" nil)
 		 (integer :tag "Some"))
   :group 'lazy-highlight)
@@ -3122,17 +3127,18 @@ since they have special meaning in a regexp."
 (defvar isearch-lazy-highlight-forward nil)
 (defvar isearch-lazy-highlight-error nil)
 
-(defun lazy-highlight-cleanup (&optional force)
+(defun lazy-highlight-cleanup (&optional force procrastinate)
   "Stop lazy highlighting and remove extra highlighting from current buffer.
-FORCE non-nil means do it whether or not `lazy-highlight-cleanup'
-is nil.  This function is called when exiting an incremental search if
+FORCE non-nil means do it whether or not `lazy-highlight-cleanup' is nil.
+PROCRASTINATE non-nil means postpone cleanup to a later time.
+This function is called when exiting an incremental search if
 `lazy-highlight-cleanup' is non-nil."
   (interactive '(t))
-  (if (or force lazy-highlight-cleanup)
-      (while isearch-lazy-highlight-overlays
-        (delete-overlay (car isearch-lazy-highlight-overlays))
-        (setq isearch-lazy-highlight-overlays
-              (cdr isearch-lazy-highlight-overlays))))
+  (when (and (or force lazy-highlight-cleanup) (not procrastinate))
+    (while isearch-lazy-highlight-overlays
+      (delete-overlay (car isearch-lazy-highlight-overlays))
+      (setq isearch-lazy-highlight-overlays
+            (cdr isearch-lazy-highlight-overlays))))
   (when isearch-lazy-highlight-timer
     (cancel-timer isearch-lazy-highlight-timer)
     (setq isearch-lazy-highlight-timer nil)))
@@ -3173,7 +3179,7 @@ by other Emacs features."
 		 (not (equal isearch-error
 			     isearch-lazy-highlight-error))))
     ;; something important did indeed change
-    (lazy-highlight-cleanup t)        ;kill old loop & remove overlays
+    (lazy-highlight-cleanup t (not (equal isearch-string ""))) ;stop old timer
     (setq isearch-lazy-highlight-error isearch-error)
     ;; It used to check for `(not isearch-error)' here, but actually
     ;; lazy-highlighting might find matches to highlight even when
@@ -3204,7 +3210,7 @@ by other Emacs features."
     (unless (equal isearch-string "")
       (setq isearch-lazy-highlight-timer
             (run-with-idle-timer lazy-highlight-initial-delay nil
-                                 'isearch-lazy-highlight-update)))))
+                                 'isearch-lazy-highlight-start)))))
 
 (defun isearch-lazy-highlight-search ()
   "Search ahead for the next or previous match, for lazy highlighting.
@@ -3249,6 +3255,11 @@ Attempt to do the search exactly the way the pending Isearch would."
 	success)
     (error nil)))
 
+(defun isearch-lazy-highlight-start ()
+  "Start a new lazy-highlight updating loop."
+  (lazy-highlight-cleanup t) ;remove old overlays
+  (isearch-lazy-highlight-update))
+
 (defun isearch-lazy-highlight-update ()
   "Update highlighting of other matches for current search."
   (let ((max lazy-highlight-max-at-a-time)
@@ -3292,8 +3303,9 @@ Attempt to do the search exactly the way the pending Isearch would."
 			  ;; 1000 is higher than ediff's 100+,
 			  ;; but lower than isearch main overlay's 1001
 			  (overlay-put ov 'priority 1000)
-			  (overlay-put ov 'face 'lazy-highlight)))
-			  ;(overlay-put ov 'window (selected-window))))
+			  (overlay-put ov 'face 'lazy-highlight)
+			  (unless (eq isearch-lazy-highlight 'all-windows)
+                            (overlay-put ov 'window (selected-window)))))
 		      ;; Remember the current position of point for
 		      ;; the next call of `isearch-lazy-highlight-update'
 		      ;; when `lazy-highlight-max-at-a-time' is too small.

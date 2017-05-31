@@ -118,6 +118,65 @@ if (!/[ (:,='\"]/.test(value)) {
       ;; implementation not recognizing the comment example.
       (should-not (syntax-ppss-context (syntax-ppss))))))
 
+(ert-deftest js-mode-indentation-error ()
+  (with-temp-buffer
+    (js-mode)
+    ;; The bug previously was that requesting re-indentation on the
+    ;; "{" line here threw an exception.
+    (insert "const TESTS = [\n{")
+    (js-indent-line)
+    ;; Any success is ok here.
+    (should t)))
+
+(ert-deftest js-mode-doc-comment-face ()
+  (dolist (test '(("/*" "*/" font-lock-comment-face)
+                  ("//" "\n" font-lock-comment-face)
+                  ("/**" "*/" font-lock-doc-face)
+                  ("\"" "\"" font-lock-string-face)))
+    (with-temp-buffer
+      (js-mode)
+      (insert (car test) " he")
+      (save-excursion (insert "llo " (cadr test)))
+      (font-lock-ensure)
+      (should (eq (get-text-property (point) 'face) (caddr test))))))
+
+(ert-deftest js-mode-propertize-bug-1 ()
+  (with-temp-buffer
+    (js-mode)
+    (save-excursion (insert "x"))
+    (insert "/")
+    ;; The bug was a hang.
+    (should t)))
+
+(ert-deftest js-mode-propertize-bug-2 ()
+  (with-temp-buffer
+    (js-mode)
+    (insert "function f() {
+    function g()
+    {
+        1 / 2;
+    }
+
+    function h() {
+")
+    (save-excursion
+      (insert "
+        00000000000000000000000000000000000000000000000000;
+        00000000000000000000000000000000000000000000000000;
+        00000000000000000000000000000000000000000000000000;
+        00000000000000000000000000000000000000000000000000;
+        00000000000000000000000000000000000000000000000000;
+        00000000000000000000000000000000000000000000000000;
+        00000000000000000000000000000000000000000000000000;
+        00000000000000000000000000000000000000000000000000;
+        00;
+    }
+}
+"))
+    (insert "/")
+    ;; The bug was a hang.
+    (should t)))
+
 (provide 'js-tests)
 
 ;;; js-tests.el ends here

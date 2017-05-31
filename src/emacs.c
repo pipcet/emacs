@@ -129,18 +129,12 @@ Lisp_Object Vlibrary_cache;
    on subsequent starts.  */
 bool initialized;
 
-bool generating_ldefs_boot;
-
 #ifndef CANNOT_DUMP
 /* Set to true if this instance of Emacs might dump.  */
 # ifndef DOUG_LEA_MALLOC
 static
 # endif
 bool might_dump;
-#endif
-
-#ifdef DARWIN_OS
-extern void unexec_init_emacs_zone (void);
 #endif
 
 /* If true, Emacs should not attempt to use a window-specific code,
@@ -225,8 +219,8 @@ Initialization options:\n\
     "\
 --batch                     do not do interactive display; implies -q\n\
 --chdir DIR                 change to directory DIR\n\
---daemon, --old-daemon[=NAME] start a (named) server in the background\n\
---new-daemon[=NAME]         start a (named) server in the foreground\n\
+--daemon, --bg-daemon[=NAME] start a (named) server in the background\n\
+--fg-daemon[=NAME]          start a (named) server in the foreground\n\
 --debug-init                enable Emacs Lisp debugger for init file\n\
 --display, -d DISPLAY       use X server DISPLAY\n\
 ",
@@ -659,8 +653,11 @@ close_output_streams (void)
       _exit (EXIT_FAILURE);
     }
 
-   if (close_stream (stderr) != 0)
-     _exit (EXIT_FAILURE);
+  /* Do not close stderr if addresses are being sanitized, as the
+     sanitizer might report to stderr after this function is
+     invoked.  */
+  if (!ADDRESS_SANITIZER && close_stream (stderr) != 0)
+    _exit (EXIT_FAILURE);
 }
 
 /* ARGSUSED */
@@ -685,11 +682,12 @@ main (int argc, char **argv)
   /* Record (approximately) where the stack begins.  */
   stack_bottom = &stack_bottom_variable;
 
+#ifndef CANNOT_DUMP
   dumping = !initialized && (strcmp (argv[argc - 1], "dump") == 0
-			     || strcmp (argv[argc - 1], "bootstrap") == 0 );
-
-  generating_ldefs_boot = !!getenv ("GENERATE_LDEFS_BOOT");
-
+			     || strcmp (argv[argc - 1], "bootstrap") == 0);
+#else
+  dumping = false;
+#endif
 
   /* True if address randomization interferes with memory allocation.  */
 # ifdef __PPC64__
@@ -747,7 +745,7 @@ main (int argc, char **argv)
 #endif
 
 /* If using unexmacosx.c (set by s/darwin.h), we must do this. */
-#ifdef DARWIN_OS
+#if defined DARWIN_OS && !defined CANNOT_DUMP
   if (!initialized)
     unexec_init_emacs_zone ();
 #endif
@@ -894,9 +892,9 @@ main (int argc, char **argv)
 #endif	/* not SYSTEM_MALLOC and not HYBRID_MALLOC */
 
 #ifdef MSDOS
-  SET_BINARY (fileno (stdin));
+  set_binary_mode (STDIN_FILENO, O_BINARY);
   fflush (stdout);
-  SET_BINARY (fileno (stdout));
+  set_binary_mode (STDOUT_FILENO, O_BINARY);
 #endif /* MSDOS */
 
   /* Skip initial setlocale if LC_ALL is "C", as it's not needed in that case.
@@ -993,15 +991,15 @@ main (int argc, char **argv)
 
   int sockfd = -1;
 
-  if (argmatch (argv, argc, "-new-daemon", "--new-daemon", 10, NULL, &skip_args)
-      || argmatch (argv, argc, "-new-daemon", "--new-daemon", 10, &dname_arg, &skip_args))
+  if (argmatch (argv, argc, "-fg-daemon", "--fg-daemon", 10, NULL, &skip_args)
+      || argmatch (argv, argc, "-fg-daemon", "--fg-daemon", 10, &dname_arg, &skip_args))
     {
       daemon_type = 1;           /* foreground */
     }
   else if (argmatch (argv, argc, "-daemon", "--daemon", 5, NULL, &skip_args)
       || argmatch (argv, argc, "-daemon", "--daemon", 5, &dname_arg, &skip_args)
-      || argmatch (argv, argc, "-old-daemon", "--old-daemon", 10, NULL, &skip_args)
-      || argmatch (argv, argc, "-old-daemon", "--old-daemon", 10, &dname_arg, &skip_args))
+      || argmatch (argv, argc, "-bg-daemon", "--bg-daemon", 10, NULL, &skip_args)
+      || argmatch (argv, argc, "-bg-daemon", "--bg-daemon", 10, &dname_arg, &skip_args))
     {
       daemon_type = 2;          /* background */
     }
@@ -1116,7 +1114,7 @@ Using an Emacs configured with --with-x-toolkit=lucid does not have this problem
                 char fdStr[80];
                 int fdStrlen =
                   snprintf (fdStr, sizeof fdStr,
-                            "--old-daemon=\n%d,%d\n%s", daemon_pipe[0],
+                            "--bg-daemon=\n%d,%d\n%s", daemon_pipe[0],
                             daemon_pipe[1], dname_arg ? dname_arg : "");
 
                 if (! (0 <= fdStrlen && fdStrlen < sizeof fdStr))
@@ -1713,8 +1711,8 @@ static const struct standard_args standard_args[] =
   { "-batch", "--batch", 100, 0 },
   { "-script", "--script", 100, 1 },
   { "-daemon", "--daemon", 99, 0 },
-  { "-old-daemon", "--old-daemon", 99, 0 },
-  { "-new-daemon", "--new-daemon", 99, 0 },
+  { "-bg-daemon", "--bg-daemon", 99, 0 },
+  { "-fg-daemon", "--fg-daemon", 99, 0 },
   { "-help", "--help", 90, 0 },
   { "-nl", "--no-loadup", 70, 0 },
   { "-nsl", "--no-site-lisp", 65, 0 },
@@ -2607,7 +2605,12 @@ This is nil during initialization.  */);
   Vemacs_copyright = build_string (emacs_copyright);
 
   DEFVAR_LISP ("emacs-version", Vemacs_version,
-	       doc: /* Version numbers of this version of Emacs.  */);
+	       doc: /* Version numbers of this version of Emacs.
+This has the form: MAJOR.MINOR[.MICRO], where MAJOR/MINOR/MICRO are integers.
+MICRO is only present in unreleased development versions,
+and is not especially meaningful.  Prior to Emacs 26.1, an extra final
+component .BUILD is present.  This is now stored separately in
+`emacs-build-number'.  */);
   Vemacs_version = build_string (emacs_version);
 
   DEFVAR_LISP ("report-emacs-bug-address", Vreport_emacs_bug_address,
