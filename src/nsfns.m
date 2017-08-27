@@ -980,10 +980,15 @@ frame_parm_handler ns_frame_parm_handlers[] =
 #endif
   x_set_parent_frame,
   0, /* x_set_skip_taskbar */
-  0, /* x_set_no_focus_on_map */
+  x_set_no_focus_on_map,
   x_set_no_accept_focus,
   x_set_z_group, /* x_set_z_group */
   0, /* x_set_override_redirect */
+  x_set_no_special_glyphs,
+#ifdef NS_IMPL_COCOA
+  ns_set_appearance,
+  ns_set_transparent_titlebar,
+#endif
 };
 
 
@@ -1256,6 +1261,8 @@ This function is an internal primitive--use `make-frame' instead.  */)
 		       "leftFringe", "LeftFringe", RES_TYPE_NUMBER);
   x_default_parameter (f, parms, Qright_fringe, Qnil,
 		       "rightFringe", "RightFringe", RES_TYPE_NUMBER);
+  x_default_parameter (f, parms, Qno_special_glyphs, Qnil,
+		       NULL, NULL, RES_TYPE_BOOLEAN);
 
   init_frame_faces (f);
 
@@ -1274,6 +1281,18 @@ This function is an internal primitive--use `make-frame' instead.  */)
   FRAME_UNDECORATED (f) = !NILP (tem) && !EQ (tem, Qunbound);
   store_frame_param (f, Qundecorated, FRAME_UNDECORATED (f) ? Qt : Qnil);
 
+#ifdef NS_IMPL_COCOA
+  tem = x_get_arg (dpyinfo, parms, Qns_appearance, NULL, NULL, RES_TYPE_SYMBOL);
+  FRAME_NS_APPEARANCE (f) = EQ (tem, Qdark)
+    ? ns_appearance_vibrant_dark : ns_appearance_aqua;
+  store_frame_param (f, Qns_appearance, tem);
+
+  tem = x_get_arg (dpyinfo, parms, Qns_transparent_titlebar,
+                   NULL, NULL, RES_TYPE_BOOLEAN);
+  FRAME_NS_TRANSPARENT_TITLEBAR (f) = !NILP (tem) && !EQ (tem, Qunbound);
+  store_frame_param (f, Qns_transparent_titlebar, tem);
+#endif
+
   parent_frame = x_get_arg (dpyinfo, parms, Qparent_frame, NULL, NULL,
 			    RES_TYPE_SYMBOL);
   /* Accept parent-frame iff parent-id was not specified.  */
@@ -1288,6 +1307,8 @@ This function is an internal primitive--use `make-frame' instead.  */)
   store_frame_param (f, Qparent_frame, parent_frame);
 
   x_default_parameter (f, parms, Qz_group, Qnil, NULL, NULL, RES_TYPE_SYMBOL);
+  x_default_parameter (f, parms, Qno_focus_on_map, Qnil,
+		       NULL, NULL, RES_TYPE_BOOLEAN);
   x_default_parameter (f, parms, Qno_accept_focus, Qnil,
                        NULL, NULL, RES_TYPE_BOOLEAN);
 
@@ -1323,6 +1344,15 @@ This function is an internal primitive--use `make-frame' instead.  */)
   f->output_data.ns->hourglass_cursor = [NSCursor disappearingItemCursor];
   f->output_data.ns->horizontal_drag_cursor = [NSCursor resizeLeftRightCursor];
   f->output_data.ns->vertical_drag_cursor = [NSCursor resizeUpDownCursor];
+  f->output_data.ns->left_edge_cursor = [NSCursor resizeLeftRightCursor];
+  f->output_data.ns->top_left_corner_cursor = [NSCursor arrowCursor];
+  f->output_data.ns->top_edge_cursor = [NSCursor resizeUpDownCursor];
+  f->output_data.ns->top_right_corner_cursor = [NSCursor arrowCursor];
+  f->output_data.ns->right_edge_cursor = [NSCursor resizeLeftRightCursor];
+  f->output_data.ns->bottom_right_corner_cursor = [NSCursor arrowCursor];
+  f->output_data.ns->bottom_edge_cursor = [NSCursor resizeUpDownCursor];
+  f->output_data.ns->bottom_left_corner_cursor = [NSCursor arrowCursor];
+
   FRAME_DISPLAY_INFO (f)->vertical_scroll_bar_cursor
      = [NSCursor arrowCursor];
   FRAME_DISPLAY_INFO (f)->horizontal_scroll_bar_cursor
@@ -1578,7 +1608,7 @@ ns_run_file_dialog (void)
 }
 
 #ifdef NS_IMPL_COCOA
-#if MAC_OS_X_VERSION_MAX_ALLOWED > MAC_OS_X_VERSION_10_9
+#if MAC_OS_X_VERSION_MAX_ALLOWED > 1090
 #define MODAL_OK_RESPONSE NSModalResponseOK
 #endif
 #endif
@@ -2498,52 +2528,61 @@ ns_screen_name (CGDirectDisplayID did)
 {
   char *name = NULL;
 
-#if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_9
-  mach_port_t masterPort;
-  io_iterator_t it;
-  io_object_t obj;
-
-  // CGDisplayIOServicePort is deprecated.  Do it another (harder) way.
-
-  if (IOMasterPort (MACH_PORT_NULL, &masterPort) != kIOReturnSuccess
-      || IOServiceGetMatchingServices (masterPort,
-                                       IOServiceMatching ("IONDRVDevice"),
-                                       &it) != kIOReturnSuccess)
-    return name;
-
-  /* Must loop until we find a name.  Many devices can have the same unit
-     number (represents different GPU parts), but only one has a name.  */
-  while (! name && (obj = IOIteratorNext (it)))
+#if MAC_OS_X_VERSION_MAX_ALLOWED >= 1090
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1090
+  if (CGDisplayIOServicePort == NULL)
+#endif
     {
-      CFMutableDictionaryRef props;
-      const void *val;
+      mach_port_t masterPort;
+      io_iterator_t it;
+      io_object_t obj;
 
-      if (IORegistryEntryCreateCFProperties (obj,
-                                             &props,
-                                             kCFAllocatorDefault,
-                                             kNilOptions) == kIOReturnSuccess
-          && props != nil
-          && (val = CFDictionaryGetValue(props, @"IOFBDependentIndex")))
+      /* CGDisplayIOServicePort is deprecated.  Do it another (harder) way.
+
+         Is this code OK for macOS < 10.9, and GNUstep?  I suspect it is,
+         in which case is it worth keeping the other method in here? */
+
+      if (IOMasterPort (MACH_PORT_NULL, &masterPort) != kIOReturnSuccess
+          || IOServiceGetMatchingServices (masterPort,
+                                           IOServiceMatching ("IONDRVDevice"),
+                                           &it) != kIOReturnSuccess)
+        return name;
+
+      /* Must loop until we find a name.  Many devices can have the same unit
+         number (represents different GPU parts), but only one has a name.  */
+      while (! name && (obj = IOIteratorNext (it)))
         {
-          unsigned nr = [(NSNumber *)val unsignedIntegerValue];
-          if (nr == CGDisplayUnitNumber (did))
-            name = ns_get_name_from_ioreg (obj);
+          CFMutableDictionaryRef props;
+          const void *val;
+
+          if (IORegistryEntryCreateCFProperties (obj,
+                                                 &props,
+                                                 kCFAllocatorDefault,
+                                                 kNilOptions) == kIOReturnSuccess
+              && props != nil
+              && (val = CFDictionaryGetValue(props, @"IOFBDependentIndex")))
+            {
+              unsigned nr = [(NSNumber *)val unsignedIntegerValue];
+              if (nr == CGDisplayUnitNumber (did))
+                name = ns_get_name_from_ioreg (obj);
+            }
+
+          CFRelease (props);
+          IOObjectRelease (obj);
         }
 
-      CFRelease (props);
-      IOObjectRelease (obj);
+      IOObjectRelease (it);
     }
-
-  IOObjectRelease (it);
-
-#else
-
-  name = ns_get_name_from_ioreg (CGDisplayIOServicePort (did));
-
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1090
+  else
+#endif
+#endif /* #if MAC_OS_X_VERSION_MAX_ALLOWED >= 1090 */
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1090
+    name = ns_get_name_from_ioreg (CGDisplayIOServicePort (did));
 #endif
   return name;
 }
-#endif
+#endif /* NS_IMPL_COCOA */
 
 static Lisp_Object
 ns_make_monitor_attribute_list (struct MonitorInfo *monitors,
@@ -2752,15 +2791,18 @@ compute_tip_xy (struct frame *f,
 
   /* Find the screen that pt is on. */
   for (screen in [NSScreen screens])
-#ifdef NS_IMPL_COCOA
-    if (CGRectContainsPoint ((CGRect)[screen frame], (CGPoint)pt))
-#else
     if (pt.x >= screen.frame.origin.x
         && pt.x < screen.frame.origin.x + screen.frame.size.width
         && pt.y >= screen.frame.origin.y
         && pt.y < screen.frame.origin.y + screen.frame.size.height)
-#endif
       break;
+
+  /* We could use this instead of the if above:
+
+         if (CGRectContainsPoint ([screen frame], pt))
+
+     which would be neater, but it causes problems building on old
+     versions of macOS and in GNUstep. */
 
   /* Ensure in bounds.  (Note, screen origin = lower left.) */
   if (INTEGERP (left) || INTEGERP (right))
@@ -3063,6 +3105,25 @@ The coordinates X and Y are interpreted in pixels relative to a position
   return Qnil;
 }
 
+DEFUN ("ns-mouse-absolute-pixel-position",
+       Fns_mouse_absolute_pixel_position,
+       Sns_mouse_absolute_pixel_position, 0, 0, 0,
+       doc: /* Return absolute position of mouse cursor in pixels.
+The position is returned as a cons cell (X . Y) of the
+coordinates of the mouse cursor position in pixels relative to a
+position (0, 0) of the selected frame's terminal. */)
+     (void)
+{
+  struct frame *f = SELECTED_FRAME ();
+  EmacsView *view = FRAME_NS_VIEW (f);
+  NSScreen *screen = [[view window] screen];
+  NSPoint pt = [NSEvent mouseLocation];
+
+  return Fcons(make_number(pt.x - screen.frame.origin.x),
+               make_number(screen.frame.size.height -
+                           (pt.y - screen.frame.origin.y)));
+}
+
 /* ==========================================================================
 
     Class implementations
@@ -3203,6 +3264,7 @@ syms_of_nsfns (void)
   DEFSYM (Qfontsize, "fontsize");
   DEFSYM (Qframe_title_format, "frame-title-format");
   DEFSYM (Qicon_title_format, "icon-title-format");
+  DEFSYM (Qdark, "dark");
 
   DEFVAR_LISP ("ns-icon-type-alist", Vns_icon_type_alist,
                doc: /* Alist of elements (REGEXP . IMAGE) for images of icons associated to frames.
@@ -3252,6 +3314,7 @@ be used as the image of the icon representing the frame.  */);
   defsubr (&Sns_frame_list_z_order);
   defsubr (&Sns_frame_restack);
   defsubr (&Sns_set_mouse_absolute_pixel_position);
+  defsubr (&Sns_mouse_absolute_pixel_position);
   defsubr (&Sx_display_mm_width);
   defsubr (&Sx_display_mm_height);
   defsubr (&Sx_display_screens);

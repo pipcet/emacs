@@ -213,6 +213,49 @@ Fmod_test_vector_eq (emacs_env *env, ptrdiff_t nargs, emacs_value args[],
   return env->intern (env, "t");
 }
 
+static emacs_value invalid_stored_value;
+
+/* The next two functions perform a possibly-invalid operation: they
+   store a value in a static variable and load it.  This causes
+   undefined behavior if the environment that the value was created
+   from is no longer live.  The module assertions check for this
+   error.  */
+
+static emacs_value
+Fmod_test_invalid_store (emacs_env *env, ptrdiff_t nargs, emacs_value *args,
+                         void *data)
+{
+  return invalid_stored_value = env->make_integer (env, 123);
+}
+
+static emacs_value
+Fmod_test_invalid_load (emacs_env *env, ptrdiff_t nargs, emacs_value *args,
+                        void *data)
+{
+  return invalid_stored_value;
+}
+
+/* An invalid finalizer: Finalizers are run during garbage collection,
+   where Lisp code can’t be executed.  -module-assertions tests for
+   this case.  */
+
+static emacs_env *current_env;
+
+static void
+invalid_finalizer (void *ptr)
+{
+  current_env->intern (current_env, "nil");
+}
+
+static emacs_value
+Fmod_test_invalid_finalizer (emacs_env *env, ptrdiff_t nargs, emacs_value *args,
+                             void *data)
+{
+  current_env = env;
+  env->make_user_ptr (env, invalid_finalizer, NULL);
+  return env->funcall (env, env->intern (env, "garbage-collect"), 0, NULL);
+}
+
 
 /* Lisp utilities for easier readability (simple wrappers).  */
 
@@ -242,7 +285,23 @@ bind_function (emacs_env *env, const char *name, emacs_value Sfun)
 int
 emacs_module_init (struct emacs_runtime *ert)
 {
+  if (ert->size < sizeof *ert)
+    {
+      fprintf (stderr, "Runtime size of runtime structure (%td bytes) "
+               "smaller than compile-time size (%zu bytes)",
+               ert->size, sizeof *ert);
+      return 1;
+    }
+
   emacs_env *env = ert->get_environment (ert);
+
+  if (env->size < sizeof *env)
+    {
+      fprintf (stderr, "Runtime size of environment structure (%td bytes) "
+               "smaller than compile-time size (%zu bytes)",
+               env->size, sizeof *env);
+      return 2;
+    }
 
 #define DEFUN(lsym, csym, amin, amax, doc, data) \
   bind_function (env, lsym, \
@@ -260,6 +319,10 @@ emacs_module_init (struct emacs_runtime *ert)
   DEFUN ("mod-test-userptr-get", Fmod_test_userptr_get, 1, 1, NULL, NULL);
   DEFUN ("mod-test-vector-fill", Fmod_test_vector_fill, 2, 2, NULL, NULL);
   DEFUN ("mod-test-vector-eq", Fmod_test_vector_eq, 2, 2, NULL, NULL);
+  DEFUN ("mod-test-invalid-store", Fmod_test_invalid_store, 0, 0, NULL, NULL);
+  DEFUN ("mod-test-invalid-load", Fmod_test_invalid_load, 0, 0, NULL, NULL);
+  DEFUN ("mod-test-invalid-finalizer", Fmod_test_invalid_finalizer, 0, 0,
+         NULL, NULL);
 
 #undef DEFUN
 

@@ -273,7 +273,7 @@
 (autoload 'help-function-arglist "help-fns")
 
 ;;;###autoload
-(add-to-list 'auto-mode-alist (cons (purecopy "\\.pyw?\\'")  'python-mode))
+(add-to-list 'auto-mode-alist (cons (purecopy "\\.py[iw]?\\'") 'python-mode))
 ;;;###autoload
 (add-to-list 'interpreter-mode-alist (cons (purecopy "python[0-9.]*") 'python-mode))
 
@@ -2245,7 +2245,11 @@ detection and just returns nil."
                 ;; `condition-case' and displaying the error message to
                 ;; the user in the no-prompts warning.
                 (ignore-errors
-                  (let ((code-file (python-shell--save-temp-file code)))
+                  (let ((code-file
+                         ;; Python 2.x on Windows does not handle
+                         ;; carriage returns in unbuffered mode.
+                         (let ((inhibit-eol-conversion (getenv "PYTHONUNBUFFERED")))
+                           (python-shell--save-temp-file code))))
                     ;; Use `process-file' as it is remote-host friendly.
                     (process-file
                      interpreter
@@ -2731,7 +2735,8 @@ variable.
        '(ansi-color-process-output
          python-shell-comint-watch-for-first-prompt-output-filter
          python-pdbtrack-comint-output-filter-function
-         python-comint-postoutput-scroll-to-bottom))
+         python-comint-postoutput-scroll-to-bottom
+         comint-watch-for-password-prompt))
   (set (make-local-variable 'compilation-error-regexp-alist)
        python-shell-compilation-regexp-alist)
   (add-hook 'completion-at-point-functions

@@ -1110,6 +1110,38 @@ differing font heights."
 If FRAME is omitted, describe the currently selected frame."
   (cdr (assq 'width (frame-parameters frame))))
 
+(defalias 'frame-border-width 'frame-internal-border-width)
+(defalias 'frame-pixel-width 'frame-native-width)
+(defalias 'frame-pixel-height 'frame-native-height)
+
+(defun frame-inner-width (&optional frame)
+  "Return inner width of FRAME in pixels.
+FRAME defaults to the selected frame."
+  (setq frame (window-normalize-frame frame))
+  (- (frame-native-width frame)
+     (* 2 (frame-internal-border-width frame))))
+
+(defun frame-inner-height (&optional frame)
+  "Return inner height of FRAME in pixels.
+FRAME defaults to the selected frame."
+  (setq frame (window-normalize-frame frame))
+  (- (frame-native-height frame)
+     (* 2 (frame-internal-border-width frame))))
+
+(defun frame-outer-width (&optional frame)
+  "Return outer width of FRAME in pixels.
+FRAME defaults to the selected frame."
+  (setq frame (window-normalize-frame frame))
+  (let ((edges (frame-edges frame 'outer-edges)))
+    (- (nth 2 edges) (nth 0 edges))))
+
+(defun frame-outer-height (&optional frame)
+  "Return outer height of FRAME in pixels.
+FRAME defaults to the selected frame."
+  (setq frame (window-normalize-frame frame))
+  (let ((edges (frame-edges frame 'outer-edges)))
+    (- (nth 3 edges) (nth 1 edges))))
+
 (declare-function x-list-fonts "xfaces.c"
                   (pattern &optional face frame maximum width))
 
@@ -1450,6 +1482,7 @@ FRAME."
 
 (declare-function w32-mouse-absolute-pixel-position "w32fns.c")
 (declare-function x-mouse-absolute-pixel-position "xfns.c")
+(declare-function ns-mouse-absolute-pixel-position "nsfns.c")
 
 (defun mouse-absolute-pixel-position ()
   "Return absolute position of mouse cursor in pixels.
@@ -1462,6 +1495,8 @@ position (0, 0) of the selected frame's terminal."
       (x-mouse-absolute-pixel-position))
      ((eq frame-type 'w32)
       (w32-mouse-absolute-pixel-position))
+     ((eq frame-type 'ns)
+      (ns-mouse-absolute-pixel-position))
      (t
       (cons 0 0)))))
 
@@ -1497,6 +1532,75 @@ keys and their meanings."
   (cl-loop for attributes in (display-monitor-attributes-list frame)
 	   for frames = (cdr (assq 'frames attributes))
 	   if (memq frame frames) return attributes))
+
+(defun frame-monitor-attribute (attribute &optional frame x y)
+  "Return the value of ATTRIBUTE on FRAME's monitor.
+If FRAME is omitted or nil, use currently selected frame.
+
+By default, the current monitor is the physical monitor
+dominating the selected frame.  A frame is dominated by a
+physical monitor when either the largest area of the frame
+resides in the monitor, or the monitor is the closest to the
+frame if the frame does not intersect any physical monitors.
+
+If X and Y are both numbers, then ignore the value of FRAME; the
+monitor is determined to be the physical monitor that contains
+the pixel coordinate (X, Y).
+
+See `display-monitor-attributes-list' for the list of attribute
+keys and their meanings."
+  (if (and (numberp x)
+           (numberp y))
+      (cl-loop for monitor in (display-monitor-attributes-list)
+               for geometry = (alist-get 'geometry monitor)
+               for min-x = (pop geometry)
+               for min-y = (pop geometry)
+               for max-x = (+ min-x (pop geometry))
+               for max-y = (+ min-y (car geometry))
+               when (and (<= min-x x)
+                         (< x max-x)
+                         (<= min-y y)
+                         (< y max-y))
+               return (alist-get attribute monitor))
+    (alist-get attribute (frame-monitor-attributes frame))))
+
+(defun frame-monitor-geometry (&optional frame x y)
+    "Return the geometry of FRAME's monitor.
+FRAME can be a frame name, a terminal name, or a frame.
+If FRAME is omitted or nil, use the currently selected frame.
+
+By default, the current monitor is said to be the physical
+monitor dominating the selected frame.  A frame is dominated by
+a physical monitor when either the largest area of the frame resides
+in the monitor, or the monitor is the closest to the frame if the
+frame does not intersect any physical monitors.
+
+If X and Y are both numbers, then ignore the value of FRAME; the
+monitor is determined to be the physical monitor that contains
+the pixel coordinate (X, Y).
+
+See `display-monitor-attributes-list' for information on the
+geometry attribute."
+  (frame-monitor-attribute 'geometry frame x y))
+
+(defun frame-monitor-workarea (&optional frame x y)
+  "Return the workarea of FRAME's monitor.
+FRAME can be a frame name, a terminal name, or a frame.
+If FRAME is omitted or nil, use currently selected frame.
+
+By default, the current monitor is said to be the physical
+monitor dominating the selected frame.  A frame is dominated by
+a physical monitor when either the largest area of the frame resides
+in the monitor, or the monitor is the closest to the frame if the
+frame does not intersect any physical monitors.
+
+If X and Y are both numbers, then ignore the value of FRAME; the
+monitor is determined to be the physical monitor that contains
+the pixel coordinate (X, Y).
+
+See `display-monitor-attributes-list' for information on the
+workarea attribute."
+  (frame-monitor-attribute 'workarea frame x y))
 
 (declare-function x-frame-list-z-order "xfns.c" (&optional display))
 (declare-function w32-frame-list-z-order "w32fns.c" (&optional display))
@@ -2054,7 +2158,7 @@ To adjust bottom dividers for frames individually, use the frame
 parameter `bottom-divider-width'."
   :type '(restricted-sexp
           :tag "Default width of bottom dividers"
-          :match-alternatives (frame-window-divider-width-valid-p))
+          :match-alternatives (window-divider-width-valid-p))
   :initialize 'custom-initialize-default
   :set (lambda (symbol value)
 	 (set-default symbol value)
@@ -2071,7 +2175,7 @@ To adjust right dividers for frames individually, use the frame
 parameter `right-divider-width'."
   :type '(restricted-sexp
           :tag "Default width of right dividers"
-          :match-alternatives (frame-window-divider-width-valid-p))
+          :match-alternatives (window-divider-width-valid-p))
   :initialize 'custom-initialize-default
   :set (lambda (symbol value)
 	 (set-default symbol value)
@@ -2357,7 +2461,13 @@ See also `toggle-frame-maximized'."
 (make-obsolete-variable
  'window-system-version "it does not give useful information." "24.3")
 
-;; Variables which should trigger redisplay of the current buffer.
+;; Variables whose change of value should trigger redisplay of the
+;; current buffer.
+;; To test whether a given variable needs to be added to this list,
+;; write a simple interactive function that changes the variable's
+;; value and bind that function to a simple key, like F5.  If typing
+;; F5 then produces the correct effect, the variable doesn't need
+;; to be in this list; otherwise, it does.
 (mapc (lambda (var)
         (add-variable-watcher var (symbol-function 'set-buffer-redisplay)))
       '(line-spacing
@@ -2365,6 +2475,10 @@ See also `toggle-frame-maximized'."
         line-prefix
         wrap-prefix
         truncate-lines
+        display-line-numbers
+        display-line-numbers-width
+        display-line-numbers-current-absolute
+        display-line-numbers-widen
         bidi-paragraph-direction
         bidi-display-reordering))
 

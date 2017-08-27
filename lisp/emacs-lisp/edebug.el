@@ -906,7 +906,7 @@ circular objects.  Let `read' read everything else."
                 ;; with the object itself, wherever it occurs.
                 (forward-char 1)
                 (let ((obj (edebug-read-storing-offsets stream)))
-                  (substitute-object-in-subtree obj placeholder)
+                  (lread--substitute-object-in-subtree obj placeholder t)
                   (throw 'return (setf (cdr elem) obj)))))
              ((eq ?# (following-char))
               ;; #n# returns a previously read object.
@@ -3213,8 +3213,8 @@ instrument cannot be found, signal an error."
      ((consp func-marker)
       (message "%s is already instrumented." func)
       (list func))
-     ((get func 'cl--generic)
-      (let ((method-defs (method-files func))
+     ((cl-generic-p func)
+      (let ((method-defs (cl--generic-method-files func))
             symbols)
         (unless method-defs
           (error "Could not find any method definitions for %s" func))

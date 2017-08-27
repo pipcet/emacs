@@ -39,9 +39,13 @@ along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.  */
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include <binary-io.h>
+#include <intprops.h>
+#include <min-max.h>
+#include <unlocked-io.h>
 
 #ifdef WINDOWSNT
 /* Defined to be sys_fopen in ms-w32.h, but only #ifdef emacs, so this
@@ -49,10 +53,6 @@ along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.  */
 #undef fopen
 #include <direct.h>
 #endif /* WINDOWSNT */
-
-#include <binary-io.h>
-#include <intprops.h>
-#include <min-max.h>
 
 #ifdef DOS_NT
 /* Defined to be sys_chdir in ms-w32.h, but only #ifdef emacs, so this
@@ -667,7 +667,9 @@ close_emacs_globals (ptrdiff_t num_symbols)
 	   "#ifndef DEFINE_SYMBOLS\n"
 	   "extern\n"
 	   "#endif\n"
-	   "struct Lisp_Symbol alignas (GCALIGNMENT) lispsym[%td];\n"),
+	   "struct {\n"
+	   "  struct Lisp_Symbol alignas (GCALIGNMENT) s;\n"
+	   "} lispsym[%td];\n"),
 	  num_symbols);
 }
 

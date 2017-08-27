@@ -129,8 +129,7 @@ form.")
     (let ((enable-local-variables (nth 0 test-settings))
 	  (enable-local-eval      (nth 1 test-settings))
 	  ;; Prevent any dir-locals file interfering with the tests.
-	  (enable-dir-local-variables nil)
-	  (files-test-queried nil))
+	  (enable-dir-local-variables nil))
       (hack-local-variables)
       (eval (nth 2 test-settings)))))
 
@@ -166,6 +165,20 @@ form.")
 	    (should (eq buffer-file-coding-system 'iso-2022-7bit-unix))))
       (delete-file tempfile))))
 
+(ert-deftest files-test-make-temp-file-empty-prefix ()
+  "Test make-temp-file with an empty prefix."
+  (let ((tempfile (make-temp-file ""))
+        (tempdir (make-temp-file "" t))
+        (tempfile-. (make-temp-file "."))
+        (tempdir-. (make-temp-file "." t))
+        (tempfile-.. (make-temp-file ".."))
+        (tempdir-.. (make-temp-file ".." t)))
+    (dolist (file (list tempfile tempfile-. tempfile-..))
+      (should file)
+      (delete-file file))
+    (dolist (dir (list tempdir tempdir-. tempdir-..))
+      (should dir)
+      (delete-directory dir))))
 
 ;; Stop the above "Local Var..." confusing Emacs.
 
@@ -247,10 +260,11 @@ be $HOME."
 (ert-deftest files-tests--file-name-non-special--subprocess ()
   "Check that Bug#25949 is fixed."
   (skip-unless (executable-find "true"))
-  (should (eq (let ((default-directory "/:/")) (process-file "true")) 0))
-  (should (processp (let ((default-directory "/:/"))
-                      (start-file-process "foo" nil "true"))))
-  (should (eq (let ((default-directory "/:/")) (shell-command "true")) 0)))
+  (let ((defdir (if (memq system-type '(ms-dos windows-nt)) "/:c:/" "/:/")))
+    (should (eq (let ((default-directory defdir)) (process-file "true")) 0))
+    (should (processp (let ((default-directory defdir))
+                        (start-file-process "foo" nil "true"))))
+    (should (eq (let ((default-directory defdir)) (shell-command "true")) 0))))
 
 (defmacro files-tests--with-advice (symbol where function &rest body)
   (declare (indent 3))
@@ -312,6 +326,24 @@ be invoked with the right arguments."
        (should (equal actual-args
                       `((verify-visited-file-modtime ,buffer-visiting-file)
                         (verify-visited-file-modtime nil))))))))
+
+(ert-deftest files-tests--insert-directory-wildcard-in-dir-p ()
+  (let ((alist (list (cons "/home/user/*/.txt" (cons "/home/user/" "*/.txt"))
+                     (cons "/home/user/.txt" nil)
+                     (cons "/home/*/.txt" (cons "/home/" "*/.txt"))
+                     (cons "/home/*/" (cons "/home/" "*/"))
+                     (cons "/*/.txt" (cons "/" "*/.txt"))
+                     ;;
+                     (cons "c:/tmp/*/*.txt" (cons "c:/tmp/" "*/*.txt"))
+                     (cons "c:/tmp/*.txt" nil)
+                     (cons "c:/tmp/*/" (cons "c:/tmp/" "*/"))
+                     (cons "c:/*/*.txt" (cons "c:/" "*/*.txt")))))
+    (dolist (path-res alist)
+      (should
+       (equal
+        (cdr path-res)
+        (insert-directory-wildcard-in-dir-p (car path-res)))))))
+
 
 (provide 'files-tests)
 ;;; files-tests.el ends here

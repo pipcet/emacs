@@ -31,10 +31,12 @@ Use 'configure --with-gnutls=no' to build even when GnuTLS is missing.
 version 2.6.6 or later.
 
 ** The new option 'configure --with-mailutils' causes Emacs to rely on
-GNU Mailutils 'movemail' to retrieve email.  By default, the Emacs
-build procedure continues to build and install a limited and insecure
-'movemail' substitute.  Although --with-mailutils is recommended, it
-is not yet the default due to backward-compatibility concerns.
+GNU Mailutils to retrieve email.  It is recommended, and is the
+default if GNU Mailutils is installed.  When --with-mailutils is not
+in effect, the Emacs build procedure by default continues to build and
+install a limited 'movemail' substitute that retrieves POP3 email only
+via insecure channels; to avoid this problem, use either
+--with-mailutils or --without-pop when configuring.
 
 ** The new option 'configure --enable-gcc-warnings=warn-only' causes
 GCC to issue warnings without stopping the build.  This behavior is
@@ -85,15 +87,40 @@ modern init systems such as systemd, which manage many of the traditional
 aspects of daemon behavior themselves.  '--bg-daemon' is now an alias
 for '--daemon'.
 
+** New option '--module-assertions'.  If the user supplies this
+option, Emacs will perform expensive correctness checks when dealing
+with dynamic modules.  This is intended for module authors that wish
+to verify that their module conforms to the module requirements.  The
+option makes Emacs abort if a module-related assertion triggers.
+
 +++
 ** Emacs now supports 24-bit colors on capable text terminals
 Terminal is automatically initialized to use 24-bit colors if the
 required capabilities are found in terminfo.  See the FAQ node
 "Colors on a TTY" for more information.
 
++++
+** Emacs now obeys the X resource "scrollBar" at startup.
+The effect is similar to that of "toolBar" resource on the tool bar.
+
 
 * Changes in Emacs 26.1
 
++++
+** The function 'assoc' now takes an optional third argument 'testfn'.
+This argument, when non-nil, is used for comparison instead of
+'equal'.
+
+---
+** New variable 'executable-prefix-env' for inserting magic signatures.
+This variable affects the format of the interpreter magic number
+inserted by 'executable-set-magic'.  If non-nil, the magic number now
+takes the form "#!/usr/bin/env interpreter", otherwise the value
+determined by 'executable-prefix', which is by default
+"#!/path/to/interpreter".  By default, 'executable-prefix-env' is nil,
+so the default behavior is not changed.
+
++++
 ** The variable 'emacs-version' no longer includes the build number.
 This is now stored separately in a new variable, 'emacs-build-number'.
 
@@ -122,6 +149,22 @@ given file is on a case-insensitive filesystem.
 ** The new user variable 'electric-quote-chars' provides a list
 of curved quotes for 'electric-quote-mode', allowing user to choose
 the types of quotes to be used.
+
+** The new user option 'electric-quote-context-sensitive' makes
+'electric-quote-mode' context sensitive.  If it is non-nil, you can
+type an ASCII apostrophe to insert an opening or closing quote,
+depending on context.  Emacs will replace the apostrophe by an opening
+quote character at the beginning of the buffer, the beginning of a
+line, after a whitespace character, and after an opening parenthesis;
+and it will replace the apostrophe by a closing quote character in all
+other cases.
+
+** The new variable 'electric-quote-inhibit-functions' controls when
+to disable electric quoting based on context.  Major modes can add
+functions to this list; Emacs will temporarily disable
+'electric-quote-mode' whenever any of the functions returns non-nil.
+This can be used by major modes that derive from 'text-mode' but allow
+inline code segments, such as 'markdown-mode'.
 
 +++
 ** The new user variable 'dired-omit-case-fold' allows the user to
@@ -161,6 +204,11 @@ end of the buffer or save the point.
 When 'shell-command-dont-erase-buffer' is nil, the default value,
 the behavior of 'shell-command', 'shell-command-on-region' and
 'async-shell-command' is as usual.
+
++++
+** The new user option 'async-shell-command-display-buffer' controls
+whether the output buffer of an asynchronous command is shown
+immediately, or only when there is output.
 
 +++
 ** The new user option 'mouse-select-region-move-to-beginning'
@@ -205,6 +253,12 @@ face instead of the 'escape-glyph' face.
 +++
 ** Approximations to quotes are now displayed with the new 'homoglyph'
 face instead of the 'escape-glyph' face.
+
++++
+** New face 'header-line-highlight'.
+This face is the header-line analogue of 'mode-line-highlight'; it
+should be the preferred mouse-face for mouse-sensitive elements in the
+header line.
 
 ---
 ** 'C-x h' ('mark-whole-buffer') will now avoid marking the prompt
@@ -281,6 +335,13 @@ probability of data corruption due to techniques Emacs uses to recover
 in these situations.
 
 +++
+** 'interrupt-process' consults now the list
+'interrupt-process-functions', which function has to be called in
+order to deliver the SIGINT signal.  This allows Tramp to send the
+SIGINT signal to remote asynchronous processes.  The hitherto existing
+implementation has been moved to 'internal-default-interrupt-process'.
+
++++
 ** File local and directory local variables are now initialized each
 time the major mode is set, not just when the file is first visited.
 These local variables will thus not vanish on setting a major mode.
@@ -314,6 +375,15 @@ questions, with a handy way to display help texts.
 all call stack frames in a Lisp backtrace buffer as lists.  Both
 debug.el and edebug.el have been updated to heed to this variable.
 
+---
+** Values in call stack frames are now displayed using 'cl-prin1'.
+The old behaviour of using 'prin1' can be restored by customizing the
+new option 'debugger-print-function'.
+
++++
+** NUL bytes in strings copied to the system clipboard are now
+replaced with "\0".
+
 +++
 ** The new variable 'x-ctrl-keysym' has been added to the existing
 roster of X keysyms.  It can be used in combination with another
@@ -321,6 +391,12 @@ variable of this kind to swap modifiers in Emacs.
 
 ---
 ** New input methods: 'cyrillic-tuvan', 'polish-prefix'.
+
+---
+** The 'dutch' input method no longer attempts to support Turkish too.
+Also, it no longer converts 'IJ' and 'ij' to the compatibility
+characters U+0132 LATIN CAPITAL LIGATURE IJ and U+0133 LATIN SMALL
+LIGATURE IJ.
 
 +++
 ** File name quoting by adding the prefix "/:" is now possible for the
@@ -358,11 +434,89 @@ use the local Emacs to edit remote files via Tramp.  See the node
 "emacsclient Options" in the user manual for the details.
 
 +++
+** 'describe-key-briefly' now ignores mouse movement events.
+
++++
 ** The new variable 'eval-expression-print-maximum-character' prevents
 large integers from being displayed as characters.
 
 ** Two new commands for finding the source code of Emacs Lisp
 libraries: 'find-library-other-window' and 'find-library-other-frame'.
+
++++
+** The new variable 'display-raw-bytes-as-hex' allows to change the
+display of raw bytes from octal to hex.
+
+** You can now provide explicit field numbers in format specifiers.
+For example, '(format "%2$s %1$s" "X" "Y")' produces "Y X".
+
+** 'comment-indent-function' values may now return a cons to specify a
+range of indentation.
+
++++
+** Emacs now supports optional display of line numbers in the buffer.
+This is similar to what linum-mode provides, but much faster and
+doesn't usurp the display margin for the line numbers.  Customize the
+buffer-local variable 'display-line-numbers' to activate this optional
+display.  Alternatively, you can use the `display-line-numbers-mode'
+minor mode or the global `global-display-line-numbers-mode'.  When
+using these modes, customize `display-line-numbers-type' with the same
+value as you would use with `display-line-numbers'.
+
+If `display-line-numbers' is set to t, Emacs will display the number
+of each line before the line.  If set to 'relative', Emacs will
+display the line number relative to the line showing point, with that
+line's number displayed as absolute.  If set to 'visual', Emacs will
+display a relative number for every screen line, i.e. it will count
+screen lines rather than buffer lines.  The default is nil, which
+doesn't display the line numbers.
+
+In 'relative' and 'visual' modes, the variable
+'display-line-numbers-current-absolute' controls what number is
+displayed for the line showing point.  By default, this variable's
+value is t, which means display the absolute line number for the line
+showing point.  Customizing this variable to a nil value will cause
+Emacs to show zero instead, which preserves horizontal space of the
+window in large buffers.
+
+Line numbers are not displayed at all in minibuffer windows and in
+tooltips, as they are not useful there.
+
+The new face 'line-number' is used to display the line numbers.  The
+new face 'line-number-current-line' can be customized to display the
+current line's number differently from all the other line numbers; by
+default these two faces are identical.
+
+You can also customize the new buffer-local variable
+'display-line-numbers-width' to specify a fixed minimal with of the
+area allocated to line-number display.  The default is nil, meaning
+that Emacs will dynamically calculate the area width, enlarging or
+shrinking it as needed.  Setting it to a non-negative integer
+specifies that as the minimal width; selecting a value that is large
+enough to display all line numbers in a buffer will then keep the
+line-number display area of constant width at all times, if that is
+desired.
+
+When using `display-line-numbers-mode', you can customize the variable
+`display-line-numbers-grow-only' to a non-nil value; this means that
+Emacs may grow the above area width dynamically, but never shrink it.
+Under this mode, customizing the variable
+`display-line-numbers-width-start' to a non-nil value will cause Emacs
+to set `display-line-numbers-width' to the minimum width necessary to
+display all line numbers in the current buffer when first visiting it.
+
+Lisp programs can disable line-number display for a particular screen
+line by putting the 'display-line-numbers-disable' text property or
+overlay property on the first character of that screen line.  This is
+intended for add-on packages that need a finer control of the display.
+
+Lisp programs that need to know how much screen estate is used up for
+line-number display in a window can use the new function
+'line-number-display-width'.
+
+Linum mode and all similar packages are henceforth becoming obsolete.
+Users and developers are encouraged to switch to this new feature
+instead.
 
 
 * Editing Changes in Emacs 26.1
@@ -449,8 +603,43 @@ Negative prefix arg flips the direction of selection.  Also,
 defun are selected unless they are separated from the defun by a blank
 line.
 
+** New command 'replace-buffer-contents'.
+This command replaces the contents of the accessible portion of the
+current buffer with the contents of the accessible portion of a
+different buffer while keeping point, mark, markers, and text
+properties as intact as possible.
+
++++
+** New commands 'apropos-local-variable' and 'apropos-local-value.
+These are buffer-local versions of 'apropos-variable' and
+'apropos-value', respectively.  They show buffer-local variables whose
+names and values, respectively, match a given pattern.
+
++++
+** More user control of reordering bidirectional text for display.
+The two new variables, 'bidi-paragraph-start-re' and
+'bidi-paragraph-separate-re', allow customization of what exactly are
+paragraphs, for the purposes of bidirectional display.
+
 
 * Changes in Specialized Modes and Packages in Emacs 26.1
+
+** New function `cl-generic-p'.
+
+** Dired
+
++++
+*** You can answer 'all' in 'dired-do-delete' to delete recursively all
+remaining directories without more prompts.
+
++++
+*** Dired supports wildcards in the directory part of the file names.
+
++++
+*** You can now use '`?`' in 'dired-do-shell-command'; as ' ? ', it gets replaced
+by the current file name.
+
+*** html2text is now marked obsolete.
 
 *** smerge-refine-regions can refine regions in separate buffers
 
@@ -565,6 +754,11 @@ where to place point after C-c M-r and C-c M-s.
 *** Messages from CMake are now recognized.
 
 +++
+*** The number of errors, warnings, and informational messages is now
+displayed in the mode line.  These are updated as compilation
+proceeds.
+
++++
 *** A new option 'dired-always-read-filesystem' default to nil.
 If non-nil, buffers visiting files are reverted before search them;
 for instance, in 'dired-mark-files-containing-regexp' a non-nil value
@@ -580,6 +774,18 @@ this is controlled by the 'wdired-create-parent-directories' variable.
 +++
 *** 'W' is now bound to 'browse-url-of-dired-file', and is useful for
 viewing HTML files and the like.
+
+** Grep
+
+---
+*** Grep commands will now use GNU grep's '--null' option if
+available, which allows distinguishing the filename from contents if
+they contain colons.  This can be controlled by the new custom option
+'grep-use-null-filename-separator'.
+
+*** The grep/rgrep/lgrep functions will now ask about saving files
+before running.  This is controlled by the 'grep-save-buffers'
+variable.
 
 ** Edebug
 
@@ -623,6 +829,13 @@ replaced by the real images asynchronously, which will also now
 respect width/height HTML specs (unless they specify widths/heights
 bigger than the current window).
 
+---
+*** The 'w' command on links is now 'shr-maybe-probe-and-copy-url'.
+'shr-copy-url' now only copies the url at point; users who wish to
+avoid accidentally accessing remote links may rebind 'w' and 'u' in
+'eww-link-keymap' to it.
+
+
 ** Ido
 
 *** The commands 'find-alternate-file-other-window',
@@ -636,6 +849,14 @@ Ido mode is active.
 *** Images are automatically scaled before displaying based on the
 'image-scaling-factor' variable (if Emacs supports scaling the images
 in question).
+
++++
+*** It's now possible to specify aspect-ratio preserving combinations
+of :width/:max-height and :height/:max-width keywords.  In either
+case, the "max" keywords win.  (Previously some combinations would,
+depending on the aspect ratio of the image, just be ignored and in
+other instances this would lead to the aspect ratio not being
+preserved.)
 
 +++
 *** Images inserted with 'insert-image' and related functions get a
@@ -736,6 +957,9 @@ header's value.
 where the GnuPG home directory (used for signature verification) is
 located and whether GnuPG's option "--homedir" is used or not.
 
+---
+*** Deleting a package no longer respects 'delete-by-moving-to-trash'.
+
 ** Tramp
 
 +++
@@ -771,13 +995,23 @@ manual documents how to configure ssh and PuTTY accordingly.
 initialization files.
 
 ---
+*** Tramp is able now to send SIGINT to remote asynchronous processes.
+
+---
 *** Variable 'tramp-completion-mode' is obsoleted.
 
 ---
 ** 'auto-revert-use-notify' is set back to t in 'global-auto-revert-mode'.
 
+** JS mode
+
 ---
-** JS mode now sets 'comment-multi-line' to t.
+*** JS mode now sets 'comment-multi-line' to t.
+
+---
+*** New variable 'js-indent-align-list-continuation', when set to nil,
+will not align continuations of bracketed lists, but will indent them
+by the fixed width 'js-indent-level'.
 
 ** CSS mode
 
@@ -860,6 +1094,17 @@ file.
 ** New DNS mode command 'dns-mode-ipv6-to-nibbles' to convert IPv6 addresses
 to a format suitable for reverse lookup zone files.
 
+** Ispell
+
++++
+*** Enchant (version 2.1.0 or later required) is now supported as a
+spell-checker.  Enchant is a meta-spell-checker that uses providers
+such as Hunspell to do the actual checking.  With it, users can use
+spell-checkers not directly supported by Emacs, such as Voikko, Hspell
+and AppleSpell, more easily share personal word-lists with other
+programs, and configure different spelling-checkers for different
+languages.
+
 ** Flymake
 
 +++
@@ -880,10 +1125,19 @@ processes on exit.
 mode for *.html files.  This mode handles indentation,
 fontification, and commenting for embedded JavaScript and CSS.
 
+** New mode 'conf-toml-mode' is a sub-mode of conf-mode, specialized
+   for editing TOML files.
+
 ** New minor mode 'pixel-scroll-mode' provides smooth pixel-level scrolling.
+
+** New major mode 'less-css-mode' (a minor variant of 'css-mode') for
+editing Less files.
 
 
 * Incompatible Lisp Changes in Emacs 26.1
+
+*** password-data is now a hash-table
+so that `password-read' can use any object for the `key' argument.
 
 +++
 *** Command 'dired-mark-extension' now automatically prepends a '.' to the
@@ -904,10 +1158,6 @@ things like forward-word in readline work.
 ** hideshow mode got four key bindings that are analogous to outline
 mode bindings: 'C-c @ C-a', 'C-c @ C-t', 'C-c @ C-d', and 'C-c @ C-e.'
 
-** The grep/rgrep/lgrep functions will now ask about saving files
-before running.  This is controlled by the 'grep-save-buffers'
-variable.
-
 ---
 ** Customizable variable 'query-replace-from-to-separator'
 now doesn't propertize the string value of the separator.
@@ -919,6 +1169,7 @@ of not providing replacement pairs via the history.
 *** make-variable-frame-local.  Variables cannot be frame-local any more.
 *** From subr.el: window-dot, set-window-dot, read-input, show-buffer,
 eval-current-buffer, string-to-int
+*** icomplete-prospects-length.
 *** All the default-FOO variables that hold the default value of the
 FOO variable.  Use 'default-value' and 'setq-default' to access and
 change FOO, respectively.  The exhaustive list of removed variables is:
@@ -966,17 +1217,80 @@ instead of its first.
 renamed to 'lread--old-style-backquotes'.  No user code should use
 this variable.
 
+** To avoid confusion caused by "smart quotes", the reader no longer
+accepts Lisp symbols which begin with the following quotation
+characters: ‘’‛“”‟〞＂＇, unless they are escaped with backslash.
+
++++
+** 'default-file-name-coding-system' now defaults to a coding system
+that does not process CRLF.  For example, it defaults to utf-8-unix
+instead of to utf-8.  Before this change, Emacs would sometimes
+mishandle file names containing these control characters.
+
++++
+** 'file-attributes', 'file-symlink-p' and 'make-symbolic-link' no
+longer quietly mutate the target of a local symbolic link, so that
+Emacs can access and copy them reliably regardless of their contents.
+The following changes are involved.
+
+*** 'file-attributes' and 'file-symlink-p' no longer prepend "/:" to
+symbolic links whose targets begin with "/" and contain ":".  For
+example, if a symbolic link "x" has a target "/y:z", (file-symlink-p
+"x") now returns "/y:z" rather than "/:/y:z".
+
+*** 'make-symbolic-link' no longer looks for file name handlers when
+creating a local symbolic link.  For example, (make-symbolic-link
+"/y:z" "x") now creates a symlink to "/y:z" instead of failing.
+
+*** 'make-symbolic-link' now expands a link target with leading "~"
+only when the optional third arg is an integer, as when invoked
+interactively.  For example, (make-symbolic-link "~y" "x") now creates
+a link with target the literal string "~y"; to get the old behavior,
+use (make-symbolic-link (expand-file-name "~y") "x").  To avoid this
+expansion in interactive use, you can now prefix the link target with
+"/:".  For example, (make-symbolic-link "/:~y" "x" 1) now creates a
+link to literal "~y".
+
 +++
 ** Module functions are now implemented slightly differently; in
 particular, the function 'internal--module-call' has been removed.
 Code that depends on undocumented internals of the module system might
 break.
 
+---
+** The arguments LOCKNAME and MUSTBENEW of 'write-region' are
+propagated to file name handlers now.
+
+** When built against recent versions of GTK+, Emacs always uses
+gtk_window_move for moving frames and ignores the value of the
+variable 'x-gtk-use-window-move'.  The variable is now obsolete.
+
 
 * Lisp Changes in Emacs 26.1
 
+** New optional argument TEXT in 'make-temp-file'.
+
+** New function `define-symbol-prop'.
+
++++
+** New optional argument TESTFN in 'alist-get', 'map-elt' and 'map-put'.
+
 ** New function 'seq-set-equal-p' to check if SEQUENCE1 and SEQUENCE2
 contain the same elements, regardless of the order.
+
+** Checksum/Hash
+
++++
+** New function 'secure-hash-algorithms' to list the algorithms that
+'secure-hash' supports.
+See the node "(elisp) Checksum/Hash" in the ELisp manual for details.
+
++++
+** Emacs now exposes the GnuTLS cryptographic API with the functions
+'gnutls-macs' and 'gnutls-hash-mac'; 'gnutls-digests' and
+'gnutls-hash-digest'; 'gnutls-ciphers' and 'gnutls-symmetric-encrypt'
+and 'gnutls-symmetric-decrypt'.
+See the node "(elisp) GnuTLS Cryptography" in the ELisp manual for details.
 
 +++
 ** Emacs now supports records for user-defined types, via the new
@@ -1142,6 +1456,12 @@ job of signaling list cycles instead of looping indefinitely.
 can be used for creation of temporary files of remote or mounted directories.
 
 +++
+** On GNU platforms when operating on a local file, 'file-attributes'
+no longer suffers from a race when called while another process is
+altering the filesystem.  On non-GNU platforms 'file-attributes'
+attempts to detect the race, and returns nil if it does so.
+
++++
 ** The new function 'file-local-name' can be used to specify arguments
 of remote processes.
 
@@ -1164,6 +1484,13 @@ or its files before 'delete-directory' gets to them.
 *** New error type 'user-search-failed' like 'search-failed' but
 avoids debugger like 'user-error'.
 
++++
+** The function 'line-number-at-pos' now takes a second optional
+argument 'absolute'. If this parameter is nil, the default, this
+function keeps on returning the line number taking potential narrowing
+into account. If this parameter is non-nil, the function ignores
+narrowing and returns the absolute line number.
+
 ** Changes in Frame- and Window- Handling
 
 +++
@@ -1180,7 +1507,7 @@ run.
 frame's outer border.
 
 +++
-*** New frame parameters
+*** New frame parameters and changed semantics for older ones
 
 +++
 **** 'z-group' positions a frame above or below all others.
@@ -1225,10 +1552,32 @@ focus via the mouse.
 frame.
 
 +++
-*** The 'width' and 'height' frame parameters allow to specify pixel
-values now.
+**** 'width' and 'height' allow to specify pixel values and ratios now.
 
 +++
+**** 'left' and 'top' allow to specify ratios now.
+
++++
+**** 'keep-ratio' preserves size and position of child frames when their
+parent frame is resized.
+
++++
+**** 'no-special-glyphs' suppresses display of truncation and
+continuation glyphs in a frame.
+
++++
+**** 'auto-hide-function' and 'minibuffer-exit' handle auto hiding of
+frames and exiting from minibuffer individually.
+
++++
+**** 'fit-frame-to-buffer-margins' and 'fit-frame-to-buffer-sizes'
+handle fitting a frame to its buffer individually.
+
++++
+**** 'drag-internal-border', 'drag-with-header-line',
+'drag-with-mode-line', 'snap-width', 'top-visible' and 'bottom-visible'
+allow to drag and resize frames with the mouse.
+
 *** The new function 'frame-list-z-order' returns a list of all frames
 in Z (stacking) order.
 
@@ -1283,8 +1632,12 @@ a new window when opening man pages when there's already one, use
         (mode . Man-mode))))
 
 +++
-*** New window parameter 'no-delete-other-window' prevents that
+*** New window parameter 'no-delete-other-windows' prevents that
 its window gets deleted by 'delete-other-windows'.
+
++++
+*** New window parameters 'mode-line-format' and 'header-line-format'
+allow to override the buffer-local formats for this window.
 
 +++
 *** New command 'window-swap-states' swaps the states of two live
@@ -1296,9 +1649,26 @@ windows.
 window changed size when 'window-size-change-functions' are run.
 
 +++
+*** The new function 'window-lines-pixel-dimensions' returns the pixel
+dimensions of a window's text lines.
+
++++
+*** The new function 'window-largest-empty-rectangle' returns the
+dimensions of the largest rectangular area not occupying any text in a
+window's body.
+
++++
 *** The semantics of 'mouse-autoselect-window' has changed slightly.
 For details see the section "Mouse Window Auto-selection" in the Elisp
 manual.
+
+---
+** 'tcl-auto-fill-mode' is now declared obsolete.  Its functionality
+can be replicated simply by setting 'comment-auto-fill-only-comments'.
+
+** New pcase pattern 'rx' to match against a rx-style regular
+expression.
+
 
 * Changes in Emacs 26.1 on Non-Free Operating Systems
 
@@ -1341,8 +1711,11 @@ This is in contrast to the default action on POSIX Systems, where it
 causes the receiving process to terminate with a core dump if no
 debugger has been attached to it.
 
-** `set-mouse-position' and `set-mouse-absolute-pixel-position' work
+** 'set-mouse-position' and 'set-mouse-absolute-pixel-position' work
 on macOS.
+
+** Emacs can now be run as a GUI application from the command line on
+macOS.
 
 
 ----------------------------------------------------------------------

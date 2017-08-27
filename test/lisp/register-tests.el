@@ -1,6 +1,9 @@
-;;; puny.el --- tests for net/puny.el  -*- coding: utf-8; -*-
+;;; register-tests.el --- tests for register.el  -*- lexical-binding: t-*-
 
 ;; Copyright (C) 2017 Free Software Foundation, Inc.
+
+;; Author: Tino Calacha <tino.calancha@gmail.com>
+;; Keywords:
 
 ;; This file is part of GNU Emacs.
 
@@ -17,25 +20,24 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
 
+;;; Commentary:
+
+
 ;;; Code:
-
 (require 'ert)
-(require 'puny)
+(require 'cl-lib)
 
-(ert-deftest puny-test-encode ()
-  "Test puny encoding."
-  (should (string= (puny-encode-string "bücher") "xn--bcher-kva")))
+(ert-deftest register-test-bug27634 ()
+  "Test for http://debbugs.gnu.org/27634 ."
+  (dolist (event (list ?\C-g 'escape ?\C-\[))
+    (cl-letf (((symbol-function 'read-key) #'ignore)
+              (last-input-event event)
+              (register-alist nil))
+      (should (equal 'quit
+                     (condition-case err
+                         (call-interactively 'point-to-register)
+                       (quit (car err)))))
+      (should-not register-alist))))
 
-(ert-deftest puny-test-decode ()
-  "Test puny decoding."
-  (should (string= (puny-decode-string "xn--bcher-kva") "bücher")))
-
-(ert-deftest puny-test-encode2 ()
-  "Test puny encoding."
-  (should (string= (puny-encode-string "חנוך") "xn--9dbdkw")))
-
-(ert-deftest puny-test-decode2 ()
-  "Test puny decoding."
-  (should (string= (puny-decode-string "xn--9dbdkw") "חנוך")))
-
-;;; puny.el ends here
+(provide 'register-tests)
+;;; register-tests.el ends here

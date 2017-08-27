@@ -228,8 +228,6 @@ for example, (type-of 1) returns `integer'.  */)
 	  return Qmarker;
 	case Lisp_Misc_Overlay:
 	  return Qoverlay;
-	case Lisp_Misc_Float:
-          return Qfloat;
         case Lisp_Misc_Finalizer:
           return Qfinalizer;
 #ifdef HAVE_MODULES
@@ -700,12 +698,10 @@ global value outside of any lexical scope.  */)
   return (EQ (valcontents, Qunbound) ? Qnil : Qt);
 }
 
-/* FIXME: It has been previously suggested to make this function an
-   alias for symbol-function, but upon discussion at Bug#23957,
-   there is a risk breaking backward compatibility, as some users of
-   fboundp may expect `t' in particular, rather than any true
-   value.  An alias is still welcome so long as the compatibility
-   issues are addressed.  */
+/* It has been previously suggested to make this function an alias for
+   symbol-function, but upon discussion at Bug#23957, there is a risk
+   breaking backward compatibility, as some users of fboundp may
+   expect `t' in particular, rather than any true value.  */
 DEFUN ("fboundp", Ffboundp, Sfboundp, 1, 1, 0,
        doc: /* Return t if SYMBOL's function definition is not void.  */)
   (register Lisp_Object symbol)

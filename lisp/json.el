@@ -193,13 +193,12 @@ Unlike `reverse', this keeps the property-value pairs intact."
 
 (defsubst json-peek ()
   "Return the character at point."
-  (let ((char (char-after (point))))
-    (or char :json-eof)))
+  (following-char))
 
 (defsubst json-pop ()
   "Advance past the character at point, returning it."
   (let ((char (json-peek)))
-    (if (eq char :json-eof)
+    (if (zerop char)
         (signal 'json-end-of-file nil)
       (json-advance)
       char)))
@@ -381,7 +380,7 @@ representation will be parsed correctly."
      (special (cdr special))
      ((not (eq char ?u)) char)
      ;; Special-case UTF-16 surrogate pairs,
-     ;; cf. https://tools.ietf.org/html/rfc7159#section-7.  Note that
+     ;; cf. <https://tools.ietf.org/html/rfc7159#section-7>.  Note that
      ;; this clause overlaps with the next one and therefore has to
      ;; come first.
      ((looking-at
@@ -407,6 +406,8 @@ representation will be parsed correctly."
   (let ((characters '())
         (char (json-peek)))
     (while (not (= char ?\"))
+      (when (< char 32)
+        (signal 'json-string-format (list (prin1-char char))))
       (push (if (= char ?\\)
                 (json-read-escaped-char)
               (json-pop))
@@ -415,7 +416,7 @@ representation will be parsed correctly."
     ;; Skip over the '"'
     (json-advance)
     (if characters
-        (apply 'string (nreverse characters))
+        (concat (nreverse characters))
       "")))
 
 ;; String encoding
@@ -639,7 +640,9 @@ become JSON objects."
           (signal 'json-error (list 'bleah)))))
     ;; Skip over the "]"
     (json-advance)
-    (apply json-array-type (nreverse elements))))
+    (pcase json-array-type
+      (`vector (nreverse (vconcat elements)))
+      (`list (nreverse elements)))))
 
 ;; Array encoding
 
@@ -685,12 +688,12 @@ become JSON objects."
 Advances point just past JSON object."
   (json-skip-whitespace)
   (let ((char (json-peek)))
-    (if (not (eq char :json-eof))
-        (let ((record (cdr (assq char json-readtable))))
-          (if (functionp (car record))
-              (apply (car record) (cdr record))
-            (signal 'json-readtable-error record)))
-      (signal 'json-end-of-file nil))))
+    (if (zerop char)
+        (signal 'json-end-of-file nil)
+      (let ((record (cdr (assq char json-readtable))))
+        (if (functionp (car record))
+            (apply (car record) (cdr record))
+          (signal 'json-readtable-error record))))))
 
 ;; Syntactic sugar for the reader
 

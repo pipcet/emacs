@@ -35,12 +35,24 @@ VPATH = $(srcdir)
 
 FIND_DELETE = @FIND_DELETE@
 MKDIR_P = @MKDIR_P@
+CC = @CC@
+CFLAGS = @CFLAGS@
+PROFILING_CFLAGS = @PROFILING_CFLAGS@
+WARN_CFLAGS = @WARN_CFLAGS@
+WERROR_CFLAGS = @WERROR_CFLAGS@
+CPPFLAGS = @CPPFLAGS@
+SO = @MODULES_SUFFIX@
 
 SEPCHAR = @SEPCHAR@
 
 
 # 'make' verbosity.
 AM_DEFAULT_VERBOSITY = @AM_DEFAULT_VERBOSITY@
+
+AM_V_CCLD = $(am__v_CCLD_@AM_V@)
+am__v_CCLD_ = $(am__v_CCLD_@AM_DEFAULT_V@)
+am__v_CCLD_0 = @echo "  CCLD    " $@;
+am__v_CCLD_1 =
 
 AM_V_ELC = $(am__v_ELC_@AM_V@)
 am__v_ELC_ = $(am__v_ELC_@AM_DEFAULT_V@)
@@ -85,11 +97,19 @@ TEST_LOCALE = C
 # this by default since it gives nicer stacktraces.
 TEST_LOAD_EL ?= yes
 
+ifeq (@HAVE_MODULES@, yes)
+MODULES_EMACSOPT := --module-assertions
+else
+MODULES_EMACSOPT :=
+endif
+
 # The actual Emacs command run in the targets below.
 # Prevent any setting of EMACSLOADPATH in user environment causing problems.
 emacs = EMACSLOADPATH= LC_ALL=$(TEST_LOCALE) \
  EMACS_TEST_DIRECTORY=$(abspath $(srcdir)) \
- $(GDB) "$(EMACS)" $(EMACSOPT)
+ $(GDB) "$(EMACS)" $(MODULES_EMACSOPT) $(EMACSOPT)
+
+test_module_dir := $(srcdir)/data/emacs-module
 
 .PHONY: all check
 
@@ -116,7 +136,8 @@ endif
 	$(AM_V_ELC)$(emacs) -f batch-byte-compile $<
 
 ## Save logs, and show logs for failed tests.
-WRITE_LOG = > $@ 2>&1 || { STAT=$$?; cat $@; exit $$STAT; }
+WRITE_LOG = $(if $(and ${EMACS_HYDRA_CI}, $(findstring tramp, $@)), |& tee $@, > $@ 2>&1) \
+		|| { STAT=$$?; cat $@; exit $$STAT; }
 
 ifeq ($(TEST_LOAD_EL), yes)
 testloadfile = $*.el
@@ -124,10 +145,9 @@ else
 testloadfile = $*
 endif
 
-## Ignore any test errors so we can continue to test other files.
 %.log: %.elc
 	$(AM_V_at)${MKDIR_P} $(dir $@)
-	-$(AM_V_GEN)HOME=/nonexistent $(emacs) -l ert -l $(testloadfile) \
+	$(AM_V_GEN)HOME=/nonexistent $(emacs) -l ert -l $(testloadfile) \
 	  --eval "(ert-run-tests-batch-and-exit ${SELECTOR_ACTUAL})" ${WRITE_LOG}
 
 ifeq (@HAVE_MODULES@, yes)
@@ -151,19 +171,19 @@ TESTS := $(LOGFILES:.log=)
 .PRECIOUS: %.log
 
 ## Stop make deleting these as intermediate files.
-.SECONDARY: ${ELFILES:.el=.elc}
+.SECONDARY: ${ELFILES:.el=.elc} $(test_module_dir)/*.o
 
 .PHONY: ${TESTS}
 
 define test_template
   ## A test FOO-tests depends on the source file with the similar
   ## name, unless FOO itself contains the string '-tests/'.
-  ## The similar name is FOO.c if FOO begins with 'src/', FOO.el
+  ## The similar name is FOO.c if FOO begins with '{lib-,}src/', FOO.el
   ## otherwise.  Although this heuristic does not identify all the
   ## dependencies, it is better than nothing.
   ifeq (,$(patsubst %-tests,,$(1))$(findstring -tests/,$(1)))
     $(1).log: $(patsubst %-tests,$(srcdir)/../%,$(1))$(if \
-					$(patsubst src/%,,$(1)),.el,.c)
+					$(patsubst src/%,,$(patsubst lib-src/%,,$(1))),.el,.c)
   endif
 
   ## Short aliases that always re-run the tests, with no logging.
@@ -178,12 +198,21 @@ endef
 $(foreach test,${TESTS},$(eval $(call test_template,${test})))
 
 ifeq (@HAVE_MODULES@, yes)
-test_module_dir := $(srcdir)/data/emacs-module
-test_module_name := mod-test@MODULES_SUFFIX@
-test_module := $(test_module_dir)/$(test_module_name)
-$(srcdir)/src/emacs-module-tests.log: $(test_module)
-$(test_module): $(srcdir)/../src/emacs-module.[ch]
-	$(MAKE) -C $(test_module_dir) $(test_module_name) SO=@MODULES_SUFFIX@
+# -fPIC is a no-op on Windows, but causes a compiler warning
+ifeq ($(SO),.dll)
+FPIC_CFLAGS =
+else
+FPIC_CFLAGS = -fPIC
+endif
+
+MODULE_CFLAGS = -I$(srcdir)/../src $(FPIC_CFLAGS) $(PROFILING_CFLAGS) \
+  $(WARN_CFLAGS) $(WERROR_CFLAGS) $(CFLAGS)
+
+test_module = $(test_module_dir)/mod-test${SO}
+src/emacs-module-tests.log: $(test_module)
+$(test_module): $(test_module:${SO}=.c) $(srcdir)/../src/emacs-module.h
+	$(AM_V_CCLD)$(CC) -shared $(CPPFLAGS) $(MODULE_CFLAGS) $(LDFLAGS) \
+	  -o $@ $<
 endif
 
 ## Check that there is no 'automated' subdirectory, which would
@@ -211,8 +240,11 @@ check-maybe: check-no-automated-subdir
 
 ## Run the tests.
 .PHONY: check-doit
-check-doit: ${LOGFILES}
-	@$(emacs) -l ert -f ert-summarize-tests-batch-and-exit $^
+## We can't put LOGFILES as prerequisites, because that would stop the
+## summarizing step from running when there is an error.
+check-doit:
+	-@${MAKE} -k  ${LOGFILES}
+	@$(emacs) -l ert -f ert-summarize-tests-batch-and-exit ${LOGFILES}
 
 .PHONY: mostlyclean clean bootstrap-clean distclean maintainer-clean
 
@@ -222,6 +254,8 @@ mostlyclean:
 
 clean:
 	find . '(' -name '*.log' -o -name '*.log~' ')' $(FIND_DELETE)
+	rm -f $(test_module_dir)/*.o $(test_module_dir)/*.so \
+	  $(test_module_dir)/*.dll
 
 bootstrap-clean: clean
 	find $(srcdir) -name '*.elc' $(FIND_DELETE)

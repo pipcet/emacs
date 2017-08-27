@@ -57,7 +57,9 @@ typedef bool bool_bf;
 #endif
 
 /* Simulate __has_attribute on compilers that lack it.  It is used only
-   on arguments like alloc_size that are handled in this simulation.  */
+   on arguments like alloc_size that are handled in this simulation.
+   __has_attribute should be used only in #if expressions, as Oracle
+   Studio 12.5's __has_attribute does not work in plain code.  */
 #ifndef __has_attribute
 # define __has_attribute(a) __has_attribute_##a
 # define __has_attribute_alloc_size GNUC_PREREQ (4, 3, 0)

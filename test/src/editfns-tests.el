@@ -177,4 +177,66 @@
            (format-time-string "%Y-%m-%d %H:%M:%S.%3N %z" nil
                                (concat (make-string 2048 ?X) "0")))))
 
+(ert-deftest format-with-field ()
+  (should (equal (format "First argument %2$s, then %3$s, then %1$s" 1 2 3)
+                 "First argument 2, then 3, then 1"))
+  (should (equal (format "a %2$s %3$d %1$d %2$S %3$d %4$d b" 11 "22" 33 44)
+                 "a 22 33 11 \"22\" 33 44 b"))
+  (should (equal (format "a %08$s %0000000000000000009$s b" 1 2 3 4 5 6 7 8 9)
+                 "a 8 9 b"))
+  (should (equal (should-error (format "a %999999$s b" 11))
+                 '(error "Not enough arguments for format string")))
+  (should (equal (should-error (format "a %2147483647$s b"))
+                 '(error "Not enough arguments for format string")))
+  (should (equal (should-error (format "a %9223372036854775807$s b"))
+                 '(error "Not enough arguments for format string")))
+  (should (equal (should-error (format "a %9223372036854775808$s b"))
+                 '(error "Not enough arguments for format string")))
+  (should (equal (should-error (format "a %18446744073709551615$s b"))
+                 '(error "Not enough arguments for format string")))
+  (should (equal (should-error (format "a %18446744073709551616$s b"))
+                 '(error "Not enough arguments for format string")))
+  (should (equal (should-error
+                  (format (format "a %%%d$d b" most-positive-fixnum)))
+                 '(error "Not enough arguments for format string")))
+  (should (equal (should-error
+                  (format (format "a %%%d$d b" (+ 1.0 most-positive-fixnum))))
+                 '(error "Not enough arguments for format string")))
+  (should (equal (should-error (format "a %$s b" 11))
+                 '(error "Invalid format operation %$")))
+  (should (equal (should-error (format "a %-1$s b" 11))
+                 '(error "Invalid format operation %$")))
+  (should (equal (format "%1$c %1$s" ?±) "± 177")))
+
+(ert-deftest replace-buffer-contents-1 ()
+  (with-temp-buffer
+    (insert #("source" 2 4 (prop 7)))
+    (let ((source (current-buffer)))
+      (with-temp-buffer
+        (insert "before dest after")
+        (let ((marker (set-marker (make-marker) 14)))
+          (save-restriction
+            (narrow-to-region 8 12)
+            (replace-buffer-contents source))
+          (should (equal (marker-buffer marker) (current-buffer)))
+          (should (equal (marker-position marker) 16)))
+        (should (equal-including-properties
+                 (buffer-string)
+                 #("before source after" 9 11 (prop 7))))
+        (should (equal (point) 9))))
+    (should (equal-including-properties
+             (buffer-string)
+             #("source" 2 4 (prop 7))))))
+
+(ert-deftest replace-buffer-contents-2 ()
+  (with-temp-buffer
+    (insert "foo bar baz qux")
+    (let ((source (current-buffer)))
+      (with-temp-buffer
+        (insert "foo BAR baz qux")
+        (replace-buffer-contents source)
+        (should (equal-including-properties
+                 (buffer-string)
+                 "foo bar baz qux"))))))
+
 ;;; editfns-tests.el ends here

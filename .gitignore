@@ -34,7 +34,6 @@ InfoPlist.strings
 Makefile
 makefile
 !etc/refcards/Makefile
-!test/data/emacs-module/Makefile
 !test/lisp/progmodes/flymake-resources/Makefile
 !test/manual/etags/Makefile
 !test/manual/etags/make-src/Makefile
@@ -47,6 +46,7 @@ makefile
 lib/gnulib.mk
 src/config.h
 src/epaths.h
+src/emacs-module.h
 
 # C-level sources built by 'make'.
 lib/alloca.h
@@ -111,7 +111,6 @@ lisp/mh-e/mh-autoloads.el
 lisp/subdirs.el
 
 # Dependencies.
-.deps/
 deps/
 
 # Logs and temporaries.
@@ -138,6 +137,7 @@ gmon.out
 oo/
 oo-spd/
 src/*.map
+vgcore.*[0-9]
 
 # Tests.
 test/manual/biditest.txt

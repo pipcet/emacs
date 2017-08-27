@@ -4640,7 +4640,7 @@
 	Fill the doc string of font-lock-keywords
 
 	* lisp/font-lock.el (font-lock-keywords): Fill the lines and
-	reorganise some explanations (bug#21427).
+	reorganize some explanations (bug#21427).
 
 	(cherry picked from commit c05716d3a26ea7518b89eacfccaf70c9d0731df7)
 
@@ -5982,10 +5982,6 @@
 	* lisp/progmodes/cc-engine.el (c-record-parse-state-state): Terminate stale
 	markers.
 
-2016-03-30  Alan Mackenzie  <acm@muc.de>
-
-	Merge branch 'emacs-25' of /home/acm/emacs/emacs.git/emacs-25 into emacs-25
-
 2016-03-29  Xue Fuqiao  <xfq.free@gmail.com>
 
 	* doc/lispref/text.texi (Columns): Remove a nonexistent reference.
@@ -7278,10 +7274,6 @@
 
 	* doc/emacs/maintaining.texi (Identifier Search)
 	(Looking Up Identifiers): Remove the word "valid" (bug#22692).
-
-2016-02-28  Michael Albinus  <michael.albinus@gmx.de>
-
-	Merge branch 'emacs-25' of git.sv.gnu.org:/srv/git/emacs into emacs-25
 
 2016-02-28  Michael Albinus  <michael.albinus@gmx.de>
 
@@ -8740,10 +8732,6 @@
 	that we get case-insensitive completion.
 	(erc-completion-at-point): Remove.
 
-2016-02-05  Eli Zaretskii  <eliz@gnu.org>
-
-	Merge branch 'emacs-25' of git.savannah.gnu.org:/srv/git/emacs into emacs-25
-
 2016-02-05  Michael Albinus  <michael.albinus@gmx.de>
 
 	* test/automated/file-notify-tests.el (file-notify-test06-many-events):
@@ -10159,15 +10147,7 @@
 	alternative, such as "This allow you to do something", "This allows
 	something to be done" or "This allows the doing of something".
 
-2016-01-24  l3thal  <kwhite@gnu.org>
-
-	Merge branch 'emacs-25' of git.sv.gnu.org:/srv/git/emacs into emacs-25
-
 2016-01-24  Kelvin White  <kwhite@gnu.org>
-
-	Add NEWS entry for asynchronous reconnect in ERC
-
-2016-01-24  l3thal  <kwhite@gnu.org>
 
 	Add NEWS entry for asynchronous reconnect in ERC
 
@@ -11065,10 +11045,6 @@
 
 2016-01-15  Phillip Lord  <phillip.lord@russet.org.uk>
 
-	Merge branch 'emacs-25' of git.sv.gnu.org:/srv/git/emacs into emacs-25
-
-2016-01-15  Phillip Lord  <phillip.lord@russet.org.uk>
-
 	Enable test selector from command line
 
 	* test/automated/Makefile.in: Change variable manipulation to avoid
@@ -11904,10 +11880,6 @@
 	to allow modification by before-change functions.
 	(c-after-change): Amend c-new-END here, rather than initializing it and
 	c-new-BEG.
-
-2016-01-04  Michael Albinus  <michael.albinus@gmx.de>
-
-	Merge branch 'emacs-25' of git.sv.gnu.org:/srv/git/emacs into emacs-25
 
 2016-01-04  Michael Albinus  <michael.albinus@gmx.de>
 
@@ -13579,7 +13551,7 @@
 	to window primitives (e.g. window-start) with a GROUP argument by calls to
 	new functions (e.g. window-group-start).
 
-	* lisp/ispell.el (ispell-command-loop): Replace call to
+	* lisp/textmodes/ispell.el (ispell-command-loop): Replace call to
 	pos-visible-in-window-p with pos-visible-in-window-group-p.
 
 	* lisp/window.el (window-group-start, window-group-end)
@@ -13593,10 +13565,6 @@
 2015-12-14  Vitorio Miguel  <vdrbandeiras@gmail.com>  (tiny change)
 
 	* etc/tutorials/TUTORIAL.pt_BR: Fix a typo.  (Bug#22165)
-
-2015-12-13  Eli Zaretskii  <eliz@gnu.org>
-
-	Merge branch 'emacs-25' of git.savannah.gnu.org:/srv/git/emacs into emacs-25
 
 2015-12-13  Tassilo Horn  <tsdh@gnu.org>
 
@@ -14202,18 +14170,12 @@
 	(ifconfig-program-options): Check the actual program in use.
 	(arp-program): Check sbin directories.
 
-2015-12-04  (tiny change) Arash Esbati  <esbati@gmx.de>  (tiny change)
+2015-12-04  Arash Esbati  <esbati@gmx.de>  (tiny change)
 
 	Fix wrong-type-argument integer-or-marker-p nil error
 
 	* lisp/textmodes/reftex-auc.el (reftex-what-index-tag):
 	Fix (wrong-type-argument integer-or-marker-p nil) error (bug#22077).
-
-2015-12-04  Alan Mackenzie  <acm@muc.de>
-
-	Merge branch 'scratch/follow' of /home/acm/emacs/emacs.git/emacs-25 into scratch/follow
-
-	Merge necessitated by a rebase operation.
 
 2015-12-04  Alan Mackenzie  <acm@muc.de>
 
@@ -15012,10 +14974,6 @@
 	(isearch-new-regexp-function): Define variable.
 	(isearch-new-word): Define as an obsolete alias. (Bug#22018)
 
-2015-11-27  Eli Zaretskii  <eliz@gnu.org>
-
-	Merge branch 'emacs-25' of git.savannah.gnu.org:/srv/git/emacs into emacs-25
-
 2015-11-27  Lee Bochicchio  <lboc.home@gmail.com>
 
 	* test/automated/abbrev-tests.el: Define more tests
@@ -15098,10 +15056,6 @@
 	* src/insdel.c (prepare_to_modify_buffer_1): Mention in commentary
 	that this function runs Lisp.  Suggested by Richard Stallman
 	<rms@gnu.org>.
-
-2015-11-26  Phillip Lord  <phillip.lord@russet.org.uk>
-
-	Merge branch 'emacs-25' of git.sv.gnu.org:/srv/git/emacs into emacs-25
 
 2015-11-26  Phillip Lord  <phillip.lord@russet.org.uk>
 
@@ -15362,10 +15316,6 @@
 
 2015-11-24  Alan Mackenzie  <acm@muc.de>
 
-	Merge branch 'emacs-25' of git.sv.gnu.org:/srv/git/emacs into emacs-25
-
-2015-11-24  Alan Mackenzie  <acm@muc.de>
-
 	Squashed commit of the following:
 
 	commit e1ecf76585bef2eb87995f7a7f92cc12003a6f70
@@ -15539,10 +15489,6 @@
 	make_multibyte_string.
 	(module_copy_string_contents): Encode before reading the byte
 	size.  Return false if and only if an error occurred.
-
-2015-11-23  Eli Zaretskii  <eliz@gnu.org>
-
-	Merge branch 'emacs-25' of git.savannah.gnu.org:/srv/git/emacs into emacs-25
 
 2015-11-23  Shakthi Kannan  <shakthimaan@gmail.com>
 
@@ -16595,7 +16541,7 @@
 	* lisp/faces.el (faces--attribute-at-point): Fix an issue
 
 	Previous code would signal an error when the face at point was
-	a manually built list of attributes such as '(:foregroud "white").
+	a manually built list of attributes such as '(:foreground "white").
 
 	* test/automated/faces-tests.el (faces--test-color-at-point): Add a test
 
@@ -16721,10 +16667,6 @@
 
 2015-11-14  Dmitry Gutov  <dgutov@yandex.ru>
 
-	Merge branch 'master' into emacs-25
-
-2015-11-14  Dmitry Gutov  <dgutov@yandex.ru>
-
 	Use generic dispatch for xref backends
 
 	* lisp/progmodes/xref.el (xref-backend-functions):
@@ -16814,15 +16756,9 @@
 	(xref-query-replace): Ditto.  And check that the search results
 	are up-to-date.
 
-2015-11-13  John Wiegley  <johnw@newartisans.com>
+2015-11-13  Kelvin White  <kwhite@gnu.org>
 
-	Merge remote-tracking branch 'origin/master' into emacs-25
-
-2015-11-13  l3thal  <kwhite@gnu.org>
-
-	Merge branch 'erc-async-reconnect' into emacs-25
-
-	Reconnect asynchronously.
+	Reconnect asynchronously in erc.
 
 2015-11-13  Paul Eggert  <eggert@cs.ucla.edu>
 
@@ -16842,10 +16778,6 @@
 	reallocating buffers; this simplifies the code.  Do not trust
 	mflt_run to leave the output areas unchanged on failure, as
 	this isn’t part of its interface spec.
-
-2015-11-13  Eli Zaretskii  <eliz@gnu.org>
-
-	Merge branch 'emacs-25' of git.savannah.gnu.org:/srv/git/emacs into emacs-25
 
 2015-11-13  Paul Eggert  <eggert@cs.ucla.edu>
 
@@ -17636,7 +17568,7 @@
 
 2015-11-09  Michael Sperber  <mike@xemacs.org>
 
-	* lisp/gnus-sum.el (gnus-summary-backend-map): Bind B-backspace to
+	* lisp/gnus/gnus-sum.el (gnus-summary-backend-map): Bind B-backspace to
 	`gnus-summary-delete-article` in a way that also works on XEmacs.
 
 2015-11-08  Simen Heggestøyl  <simenheg@gmail.com>
@@ -23928,7 +23860,7 @@
 	* lisp/thingatpt.el (thing-at-point): Only call 'length' on
 	sequences.  (Bug#21391)
 
-2015-09-05  Philip  <pipcet@gmail.com>  (tiny change)
+2015-09-05  Pip Cet  <pipcet@gmail.com>  (tiny change)
 
 	Fix segfaults due to using a stale face ID
 	* src/xdisp.c (forget_escape_and_glyphless_faces): New function.
@@ -27046,7 +26978,7 @@
 	both cases.  This has been regularized.  Error signaling behavior
 	has been explicitly added to the doc string.
 
-	* lisp/cl-extra.el (cl-subseq): Defers to (seq-subseq) and is
+	* lisp/emacs-lisp/cl-extra.el (cl-subseq): Defers to (seq-subseq) and is
 	therefore also impacted by this change.  Update the doc string
 	to reflect this.
 
@@ -28907,7 +28839,7 @@
 
 2015-06-29  Wolfgang Jenkner  <wjenkner@inode.at>
 
-	* lisp/calc-store.el (calc-insert-permanent-variable): Heed case.
+	* lisp/calc/calc-store.el (calc-insert-permanent-variable): Heed case.
 	Otherwise `s p' of f and F will stomp on each other's value.
 	(Bug#20916)
 
@@ -31789,7 +31721,7 @@
 	* lisp/emacs-lisp/package.el (package-menu-execute):
 	Remove reference to remove-dups.
 
-2015-05-21  kwhite  <kwhite@gnu.org>
+2015-05-21  Kelvin White  <kwhite@gnu.org>
 
 	* lisp/erc/erc.el: Hide network/channel messages.
 	(erc-network-hide-list, erc-channel-hide-list): New lists to define
@@ -32085,10 +32017,10 @@
 
 2015-05-18  Dmitry Gutov  <dgutov@yandex.ru>
 
-	Add a test case for Maven warning ouput
+	Add a test case for Maven warning output
 	* test/automated/compile-tests.el
 	(compile-tests--test-regexps-data): Add a case for Maven warning
-	ouput.
+	output.
 	(compile--test-error-line): Check the compilation message type, if
 	it's specified in the test data.
 
@@ -32188,13 +32120,7 @@
 	* lisp/eshell/esh-arg.el (eshell-parse-special-reference): Parse
 	'#<buffer-name>'.
 
-2015-05-17  Jan D  <jan.h.d@swipnet.se>
-
-	Merge branch 'master' into cairo
-
 2015-04-26  Jan D  <jan.h.d@swipnet.se>
-
-	Merge branch 'master' into cairo
 
 	Add PBM support for cairo
 	* src/image.c (xcolor_to_argb32): New function.
@@ -32216,7 +32142,7 @@
 	(xpm_load): Call the above functions.  Handle XPM without mask
 	when USE_CAIRO.
 	(png_load_body): Handle USE_CAIRO case.
-	(png_load): Remove USE_CAIRO specific fuction, modify png_load_body
+	(png_load): Remove USE_CAIRO specific function, modify png_load_body
 	instead.
 	(jpeg_load_body): Call create_cairo_image_surface.
 	(gif_load, svg_load_image): Handle specified background, call
@@ -32261,10 +32187,6 @@
 	Tool tips for menus did not show any text.
 	* src/xterm.c (x_update_begin): Don't create any surface for non-visible
 	tip frames, the geometry may be wrong.
-
-	Merge branch 'master' into cairo, fixes tooltips not shown.
-
-	Merge branch 'master' into cairo
 
 	Add CAIRO_CFLAGS to lwlib/Makefile.in
 	* Makefile.in (CAIRO_CFLAGS): Add.

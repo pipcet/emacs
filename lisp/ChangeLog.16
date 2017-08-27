@@ -11992,11 +11992,11 @@
 	* progmodes/verilog-mode.el (verilog-pretty-expr): Don't line up
 	assignment with tests in ifs and for loops.
 	(verilog-extended-complete-re, verilog-complete-reg): Change so
-	that DPI inport functions don't look like fuction declarations.
+	that DPI inport functions don't look like function declarations.
 	(verilog-pretty-expr): Don't line up assignment
 	operations to the test and increment in if and for loops
 	(verilog-extended-complete-re, verilog-complete-reg): Change so
-	that DPI inport functions don't look like fuction declarations.
+	that DPI inport functions don't look like function declarations.
 
 2012-05-03  Kenichi Handa  <handa@m17n.org>
 
@@ -22485,7 +22485,7 @@
 	* nxml/nxml-mode.el (nxml-electric-slash): Reindent when completion is
 	enabled.  Suggested by James Ahlborn <jahlborn@gmail.com> (bug#8704).
 
-2011-05-20  Nix  <nix@esperi.org.uk>
+2011-05-20  Nick Alcock  <nix@esperi.org.uk>
 
 	* files.el (basic-save-buffer-2):
 	Fix handling of break-hardlink-on-save with non-existent files.

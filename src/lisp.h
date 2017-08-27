@@ -466,9 +466,6 @@ enum Lisp_Misc_Type
 #ifdef HAVE_MODULES
     Lisp_Misc_User_Ptr,
 #endif
-    /* Currently floats are not a misc type,
-       but let's define this in case we want to change that.  */
-    Lisp_Misc_Float,
     /* This is not a type code.  It is for range checking.  */
     Lisp_Misc_Limit
   };
@@ -841,13 +838,13 @@ make_lisp_symbol (struct Lisp_Symbol *sym)
 INLINE Lisp_Object
 builtin_lisp_symbol (int index)
 {
-  return make_lisp_symbol (lispsym + index);
+  return make_lisp_symbol (&lispsym[index].s);
 }
 
 INLINE void
 (CHECK_SYMBOL) (Lisp_Object x)
 {
- lisp_h_CHECK_SYMBOL (x);
+  lisp_h_CHECK_SYMBOL (x);
 }
 
 /* In the size word of a vector, this bit means the vector has been marked.  */
@@ -1346,7 +1343,9 @@ SSET (Lisp_Object string, ptrdiff_t index, unsigned char new)
 INLINE ptrdiff_t
 SCHARS (Lisp_Object string)
 {
-  return XSTRING (string)->size;
+  ptrdiff_t nchars = XSTRING (string)->size;
+  eassume (0 <= nchars);
+  return nchars;
 }
 
 #ifdef GC_CHECK_STRING_BYTES
@@ -1356,10 +1355,12 @@ INLINE ptrdiff_t
 STRING_BYTES (struct Lisp_String *s)
 {
 #ifdef GC_CHECK_STRING_BYTES
-  return string_bytes (s);
+  ptrdiff_t nbytes = string_bytes (s);
 #else
-  return s->size_byte < 0 ? s->size : s->size_byte;
+  ptrdiff_t nbytes = s->size_byte < 0 ? s->size : s->size_byte;
 #endif
+  eassume (0 <= nbytes);
+  return nbytes;
 }
 
 INLINE ptrdiff_t
@@ -1373,7 +1374,7 @@ STRING_SET_CHARS (Lisp_Object string, ptrdiff_t newsize)
   /* This function cannot change the size of data allocated for the
      string when it was created.  */
   eassert (STRING_MULTIBYTE (string)
-	   ? newsize <= SBYTES (string)
+	   ? 0 <= newsize && newsize <= SBYTES (string)
 	   : newsize == SCHARS (string));
   XSTRING (string)->size = newsize;
 }
@@ -3385,6 +3386,7 @@ enum { NEXT_ALMOST_PRIME_LIMIT = 11 };
 extern EMACS_INT next_almost_prime (EMACS_INT) ATTRIBUTE_CONST;
 extern Lisp_Object larger_vector (Lisp_Object, ptrdiff_t, ptrdiff_t);
 extern void sweep_weak_hash_tables (void);
+extern char *extract_data_from_object (Lisp_Object, ptrdiff_t *, ptrdiff_t *);
 EMACS_UINT hash_string (char const *, ptrdiff_t);
 EMACS_UINT sxhash (Lisp_Object, int);
 Lisp_Object make_hash_table (struct hash_table_test, EMACS_INT, float, float,
@@ -3844,6 +3846,7 @@ extern Lisp_Object call4 (Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, Li
 extern Lisp_Object call5 (Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object);
 extern Lisp_Object call6 (Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object);
 extern Lisp_Object call7 (Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object);
+extern Lisp_Object call8 (Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object);
 extern Lisp_Object internal_catch (Lisp_Object, Lisp_Object (*) (Lisp_Object), Lisp_Object);
 extern Lisp_Object internal_lisp_condition_case (Lisp_Object, Lisp_Object, Lisp_Object);
 extern Lisp_Object internal_condition_case (Lisp_Object (*) (void), Lisp_Object, Lisp_Object (*) (Lisp_Object));
@@ -3873,7 +3876,6 @@ extern Lisp_Object vformat_string (const char *, va_list)
   ATTRIBUTE_FORMAT_PRINTF (1, 0);
 extern void un_autoload (Lisp_Object);
 extern Lisp_Object call_debugger (Lisp_Object arg);
-extern void *near_C_stack_top (void);
 extern void init_eval_once (void);
 extern Lisp_Object safe_call (ptrdiff_t, Lisp_Object, ...);
 extern Lisp_Object safe_call1 (Lisp_Object, Lisp_Object);
@@ -3921,16 +3923,6 @@ struct Lisp_Module_Function
   void *data;
 };
 
-INLINE struct Lisp_Module_Function *
-allocate_module_function (void)
-{
-  return ALLOCATE_PSEUDOVECTOR (struct Lisp_Module_Function,
-                                /* Name of the first field to be
-                                   ignored by GC.  */
-                                min_arity,
-                                PVEC_MODULE_FUNCTION);
-}
-
 INLINE bool
 MODULE_FUNCTIONP (Lisp_Object o)
 {
@@ -3944,18 +3936,15 @@ XMODULE_FUNCTION (Lisp_Object o)
   return XUNTAG (o, Lisp_Vectorlike);
 }
 
-#define XSET_MODULE_FUNCTION(var, ptr)                  \
-  (XSETPSEUDOVECTOR (var, ptr, PVEC_MODULE_FUNCTION))
-
 #ifdef HAVE_MODULES
 /* Defined in alloc.c.  */
 extern Lisp_Object make_user_ptr (void (*finalizer) (void *), void *p);
 
 /* Defined in emacs-module.c.  */
-extern Lisp_Object funcall_module (const struct Lisp_Module_Function *,
-                                   ptrdiff_t, Lisp_Object *);
+extern Lisp_Object funcall_module (Lisp_Object, ptrdiff_t, Lisp_Object *);
 extern Lisp_Object module_function_arity (const struct Lisp_Module_Function *);
-extern Lisp_Object module_format_fun_env (const struct Lisp_Module_Function *);
+extern void mark_modules (void);
+extern void init_module_assertions (bool);
 extern void syms_of_module (void);
 #endif
 
@@ -3977,6 +3966,7 @@ extern void syms_of_editfns (void);
 
 /* Defined in buffer.c.  */
 extern bool mouse_face_overlay_overlaps (Lisp_Object);
+extern Lisp_Object disable_line_numbers_overlay_at_eob (void);
 extern _Noreturn void nsberror (Lisp_Object);
 extern void adjust_overlays_for_insert (ptrdiff_t, ptrdiff_t);
 extern void adjust_overlays_for_delete (ptrdiff_t, ptrdiff_t);
@@ -4008,7 +3998,7 @@ extern void syms_of_marker (void);
 
 /* Defined in fileio.c.  */
 
-extern Lisp_Object expand_and_dir_to_file (Lisp_Object, Lisp_Object);
+extern Lisp_Object expand_and_dir_to_file (Lisp_Object);
 extern Lisp_Object write_region (Lisp_Object, Lisp_Object, Lisp_Object,
 				 Lisp_Object, Lisp_Object, Lisp_Object,
 				 Lisp_Object, int);
@@ -4024,7 +4014,6 @@ extern bool file_directory_p (const char *);
 extern bool file_accessible_directory_p (Lisp_Object);
 extern void init_fileio (void);
 extern void syms_of_fileio (void);
-extern Lisp_Object make_temp_name (Lisp_Object, bool);
 
 /* Defined in search.c.  */
 extern void shrink_regexp_cache (void);
@@ -4309,13 +4298,15 @@ extern ptrdiff_t emacs_write (int, void const *, ptrdiff_t);
 extern ptrdiff_t emacs_write_sig (int, void const *, ptrdiff_t);
 extern ptrdiff_t emacs_write_quit (int, void const *, ptrdiff_t);
 extern void emacs_perror (char const *);
+extern int renameat_noreplace (int, char const *, int, char const *);
+extern int str_collate (Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object);
 
-extern void unlock_all_files (void);
+/* Defined in filelock.c.  */
 extern void lock_file (Lisp_Object);
 extern void unlock_file (Lisp_Object);
+extern void unlock_all_files (void);
 extern void unlock_buffer (struct buffer *);
 extern void syms_of_filelock (void);
-extern int str_collate (Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object);
 
 /* Defined in sound.c.  */
 extern void syms_of_sound (void);

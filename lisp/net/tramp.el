@@ -1597,6 +1597,12 @@ signal identifier to be raised, remaining arguments passed to
 `tramp-message'.  Finally, signal SIGNAL is raised."
   (let (tramp-message-show-message)
     (tramp-backtrace vec-or-proc)
+    (unless arguments
+      ;; FMT-STRING could be just a file name, as in
+      ;; `file-already-exists' errors.  It could contain the ?\%
+      ;; character, as in smb domain spec.
+      (setq arguments (list fmt-string)
+	    fmt-string "%s"))
     (when vec-or-proc
       (tramp-message
        vec-or-proc 1 "%s"
@@ -1640,6 +1646,18 @@ an input event arrives.  The other arguments are passed to `tramp-error'."
 	;; Reset timestamp.  It would be wrong after waiting for a while.
 	(when (tramp-file-name-equal-p vec (car tramp-current-connection))
 	  (setcdr tramp-current-connection (current-time)))))))
+
+(defmacro tramp-with-demoted-errors (vec-or-proc format &rest body)
+  "Execute BODY while redirecting the error message to `tramp-message'.
+BODY is executed like wrapped by `with-demoted-errors'.  FORMAT
+is a format-string containing a %-sequence meaning to substitute
+the resulting error message."
+  (declare (debug (symbolp body))
+           (indent 2))
+  (let ((err (make-symbol "err")))
+    `(condition-case-unless-debug ,err
+         (progn ,@body)
+       (error (tramp-message ,vec-or-proc 3 ,format ,err) nil))))
 
 (defmacro with-parsed-tramp-file-name (filename var &rest body)
   "Parse a Tramp filename and make components available in the body.
@@ -1997,6 +2015,11 @@ ARGS are the arguments OPERATION has been called with."
 	    '(add-name-to-file copy-directory copy-file expand-file-name
 	      file-equal-p file-in-directory-p
 	      file-name-all-completions file-name-completion
+	      ;; Starting with Emacs 26.1, just the 2nd argument of
+	      ;; `make-symbolic-link' matters.  For backward
+	      ;; compatibility, we still accept the first argument as
+	      ;; file name to be checked.  Handled properly in
+	      ;; `tramp-handle-*-make-symbolic-link'.
 	      file-newer-than-file-p make-symbolic-link rename-file))
     (save-match-data
       (cond
@@ -2053,6 +2076,33 @@ ARGS are the arguments OPERATION has been called with."
   `(let ((debug-on-error tramp-debug-on-error))
      (condition-case-unless-debug ,var ,bodyform ,@handlers)))
 
+;; In Emacs, there is some concurrency due to timers.  If a timer
+;; interrupts Tramp and wishes to use the same connection buffer as
+;; the "main" Emacs, then garbage might occur in the connection
+;; buffer.  Therefore, we need to make sure that a timer does not use
+;; the same connection buffer as the "main" Emacs.  We implement a
+;; cheap global lock, instead of locking each connection buffer
+;; separately.  The global lock is based on two variables,
+;; `tramp-locked' and `tramp-locker'.  `tramp-locked' is set to true
+;; (with setq) to indicate a lock.  But Tramp also calls itself during
+;; processing of a single file operation, so we need to allow
+;; recursive calls.  That's where the `tramp-locker' variable comes in
+;; -- it is let-bound to t during the execution of the current
+;; handler.  So if `tramp-locked' is t and `tramp-locker' is also t,
+;; then we should just proceed because we have been called
+;; recursively.  But if `tramp-locker' is nil, then we are a timer
+;; interrupting the "main" Emacs, and then we signal an error.
+
+(defvar tramp-locked nil
+  "If non-nil, then Tramp is currently busy.
+Together with `tramp-locker', this implements a locking mechanism
+preventing reentrant calls of Tramp.")
+
+(defvar tramp-locker nil
+  "If non-nil, then a caller has locked Tramp.
+Together with `tramp-locked', this implements a locking mechanism
+preventing reentrant calls of Tramp.")
+
 ;; Main function.
 (defun tramp-file-name-handler (operation &rest args)
   "Invoke Tramp file name handler.
@@ -2075,7 +2125,7 @@ Falls back to normal file name handler if no Tramp file name handler exists."
 		      ;; are already loaded.  This results in
 		      ;; recursive loading.  Therefore, we load the
 		      ;; Tramp packages locally.
-		      (when (and (listp sf) (eq (car sf) 'autoload))
+		      (when (autoloadp sf)
 			(let ((default-directory
 				(tramp-compat-temporary-file-directory)))
 			  (load (cadr sf) 'noerror 'nomessage)))
@@ -2090,7 +2140,18 @@ Falls back to normal file name handler if no Tramp file name handler exists."
 		      (setq result
 			    (catch 'non-essential
 			      (catch 'suppress
-				(apply foreign operation args))))
+				(when (and tramp-locked (not tramp-locker))
+				  (setq tramp-locked nil)
+				  (tramp-error
+				   (car-safe tramp-current-connection)
+				   'file-error
+				   "Forbidden reentrant call of Tramp"))
+				(let ((tl tramp-locked))
+				  (setq tramp-locked t)
+				  (unwind-protect
+				      (let ((tramp-locker t))
+					(apply foreign operation args))
+				    (setq tramp-locked tl))))))
 		      (cond
 		       ((eq result 'non-essential)
 			(tramp-message
@@ -2145,33 +2206,6 @@ Falls back to normal file name handler if no Tramp file name handler exists."
       ;; we don't do anything.
       (tramp-run-real-handler operation args))))
 
-;; In Emacs, there is some concurrency due to timers.  If a timer
-;; interrupts Tramp and wishes to use the same connection buffer as
-;; the "main" Emacs, then garbage might occur in the connection
-;; buffer.  Therefore, we need to make sure that a timer does not use
-;; the same connection buffer as the "main" Emacs.  We implement a
-;; cheap global lock, instead of locking each connection buffer
-;; separately.  The global lock is based on two variables,
-;; `tramp-locked' and `tramp-locker'.  `tramp-locked' is set to true
-;; (with setq) to indicate a lock.  But Tramp also calls itself during
-;; processing of a single file operation, so we need to allow
-;; recursive calls.  That's where the `tramp-locker' variable comes in
-;; -- it is let-bound to t during the execution of the current
-;; handler.  So if `tramp-locked' is t and `tramp-locker' is also t,
-;; then we should just proceed because we have been called
-;; recursively.  But if `tramp-locker' is nil, then we are a timer
-;; interrupting the "main" Emacs, and then we signal an error.
-
-(defvar tramp-locked nil
-  "If non-nil, then Tramp is currently busy.
-Together with `tramp-locker', this implements a locking mechanism
-preventing reentrant calls of Tramp.")
-
-(defvar tramp-locker nil
-  "If non-nil, then a caller has locked Tramp.
-Together with `tramp-locked', this implements a locking mechanism
-preventing reentrant calls of Tramp.")
-
 ;;;###autoload
 (defun tramp-completion-file-name-handler (operation &rest args)
   "Invoke Tramp file name completion handler.
@@ -2209,6 +2243,31 @@ Falls back to normal file name handler if no Tramp file name handler exists."
 
 ;;;###autoload
 (tramp-register-autoload-file-name-handlers)
+
+(defun tramp-use-absolute-autoload-file-names ()
+  "Change Tramp autoload objects to use absolute file names.
+This avoids problems during autoload, when `load-path' contains
+remote file names."
+  ;; We expect all other Tramp files in the same directory as tramp.el.
+  (let* ((dir (expand-file-name (file-name-directory (locate-library "tramp"))))
+	 (files-regexp
+	  (format
+	   "^%s$"
+	   (regexp-opt
+	    (mapcar
+	     'file-name-sans-extension
+	     (directory-files dir nil "^tramp.+\\.elc?$"))
+	    'paren))))
+    (mapatoms
+     (lambda (atom)
+       (when (and (functionp atom)
+		  (autoloadp (symbol-function atom))
+		  (string-match files-regexp (cadr (symbol-function atom))))
+	 (ignore-errors
+	   (setf (cadr (symbol-function atom))
+		 (expand-file-name (cadr (symbol-function atom)) dir))))))))
+
+(eval-after-load 'tramp (tramp-use-absolute-autoload-file-names))
 
 (defun tramp-register-file-name-handlers ()
   "Add Tramp file name handlers to `file-name-handler-alist'."
@@ -2876,44 +2935,47 @@ User is always nil."
      (tramp-get-method-parameter v 'tramp-case-insensitive)
 
      ;; There isn't. So we must check, in case there's a connection already.
-     (and (tramp-connectable-p filename)
+     (and (file-remote-p filename nil 'connected)
           (with-tramp-connection-property v "case-insensitive"
-	    (with-tramp-progress-reporter v 5 "Checking case-insensitive"
-              ;; The idea is to compare a file with lower case letters
-              ;; with the same file with upper case letters.
-              (let ((candidate
-		     (tramp-compat-file-name-unquote
-		      (directory-file-name filename)))
-                    tmpfile)
-		;; Check, whether we find an existing file with lower
-		;; case letters.  This avoids us to create a temporary
-		;; file.
-		(while (and (string-match
-                             "[a-z]" (file-remote-p candidate 'localname))
-                            (not (file-exists-p candidate)))
-                  (setq candidate
-			(directory-file-name (file-name-directory candidate))))
-		;; Nothing found, so we must use a temporary file for
-		;; comparison.  `make-nearby-temp-file' is added to
-		;; Emacs 26+ like `file-name-case-insensitive-p', so
-		;; there is no compatibility problem calling it.
-		(unless
-                    (string-match "[a-z]" (file-remote-p candidate 'localname))
-                  (setq tmpfile
-			(let ((default-directory
-				(file-name-directory filename)))
-                          (tramp-compat-funcall
-			   'make-nearby-temp-file "tramp."))
-			candidate tmpfile))
-		;; Check for the existence of the same file with upper
-		;; case letters.
-		(unwind-protect
-                    (file-exists-p
-                     (concat
-                      (file-remote-p candidate)
-                      (upcase (file-remote-p candidate 'localname))))
-                  ;; Cleanup.
-                  (when tmpfile (delete-file tmpfile))))))))))
+	    (ignore-errors
+	      (with-tramp-progress-reporter v 5 "Checking case-insensitive"
+		;; The idea is to compare a file with lower case
+		;; letters with the same file with upper case letters.
+		(let ((candidate
+		       (tramp-compat-file-name-unquote
+			(directory-file-name filename)))
+		      tmpfile)
+		  ;; Check, whether we find an existing file with
+		  ;; lower case letters.  This avoids us to create a
+		  ;; temporary file.
+		  (while (and (string-match
+			       "[a-z]" (file-remote-p candidate 'localname))
+			      (not (file-exists-p candidate)))
+		    (setq candidate
+			  (directory-file-name
+			   (file-name-directory candidate))))
+		  ;; Nothing found, so we must use a temporary file
+		  ;; for comparison.  `make-nearby-temp-file' is added
+		  ;; to Emacs 26+ like `file-name-case-insensitive-p',
+		  ;; so there is no compatibility problem calling it.
+		  (unless
+		      (string-match
+		       "[a-z]" (file-remote-p candidate 'localname))
+		    (setq tmpfile
+			  (let ((default-directory
+				  (file-name-directory filename)))
+			    (tramp-compat-funcall
+			     'make-nearby-temp-file "tramp."))
+			  candidate tmpfile))
+		  ;; Check for the existence of the same file with
+		  ;; upper case letters.
+		  (unwind-protect
+		      (file-exists-p
+		       (concat
+			(file-remote-p candidate)
+			(upcase (file-remote-p candidate 'localname))))
+		    ;; Cleanup.
+		    (when tmpfile (delete-file tmpfile)))))))))))
 
 (defun tramp-handle-file-name-completion
   (filename directory &optional predicate)
@@ -3211,11 +3273,18 @@ User is always nil."
       t)))
 
 (defun tramp-handle-make-symbolic-link
-  (filename linkname &optional _ok-if-already-exists)
-  "Like `make-symbolic-link' for Tramp files."
-  (with-parsed-tramp-file-name
-      (if (tramp-tramp-file-p filename) filename linkname) nil
-    (tramp-error v 'file-error "make-symbolic-link not supported")))
+  (target linkname &optional ok-if-already-exists)
+  "Like `make-symbolic-link' for Tramp files.
+This is the fallback implementation for backends which do not
+support symbolic links."
+  (if (tramp-tramp-file-p (expand-file-name linkname))
+      (tramp-error
+       (tramp-dissect-file-name (expand-file-name linkname)) 'file-error
+       "make-symbolic-link not supported")
+    ;; This is needed prior Emacs 26.1, where TARGET has also be
+    ;; checked for a file name handler.
+    (tramp-run-real-handler
+     'make-symbolic-link (list target linkname ok-if-already-exists))))
 
 (defun tramp-handle-shell-command
   (command &optional output-buffer error-buffer)
@@ -3547,14 +3616,14 @@ The terminal type can be configured with `tramp-terminal-type'."
 PROC and VEC indicate the remote connection to be used.  POS, if
 set, is the starting point of the region to be deleted in the
 connection buffer."
-  ;; Enable `auth-source'.  We must use tramp-current-* variables in
-  ;; case we have several hops.
+  ;; Enable `auth-source', unless "emacs -Q" has been called.  We must
+  ;; use `tramp-current-*' variables in case we have several hops.
   (tramp-set-connection-property
-   (tramp-dissect-file-name
-    (tramp-make-tramp-file-name
-     tramp-current-method tramp-current-user tramp-current-domain
-     tramp-current-host tramp-current-port ""))
-   "first-password-request" t)
+   (make-tramp-file-name
+    :method tramp-current-method :user tramp-current-user
+    :domain tramp-current-domain :host tramp-current-host
+    :port tramp-current-port)
+   "first-password-request" tramp-cache-read-persistent-data)
   (save-restriction
     (with-tramp-progress-reporter
 	proc 3 "Waiting for prompts from remote shell"
@@ -3603,31 +3672,17 @@ connection buffer."
   "Like `accept-process-output' for Tramp processes.
 This is needed in order to hide `last-coding-system-used', which is set
 for process communication also."
-  ;; FIXME: There are problems, when an asynchronous process runs in
-  ;; parallel, and also timers are active.  See
-  ;; <http://lists.gnu.org/archive/html/tramp-devel/2017-01/msg00010.html>.
-  (when (and timer-event-last
-	     (string-prefix-p "*tramp/" (process-name proc))
-	     (let (result)
-	       (maphash
-		(lambda (key _value)
-		  (and (processp key)
-		       (not (string-prefix-p "*tramp/" (process-name key)))
-		       (process-live-p key)
-		       (setq result t)))
-		tramp-cache-data)
-	       result))
-    (sit-for 0.01 'nodisp))
   (with-current-buffer (process-buffer proc)
     (let (buffer-read-only last-coding-system-used)
-      ;; Under Windows XP, accept-process-output doesn't return
+      ;; Under Windows XP, `accept-process-output' doesn't return
       ;; sometimes.  So we add an additional timeout.  JUST-THIS-ONE
-      ;; is set due to Bug#12145.
+      ;; is set due to Bug#12145.  It is an integer, in order to avoid
+      ;; running timers as well.
       (tramp-message
        proc 10 "%s %s %s\n%s"
        proc (process-status proc)
        (with-timeout (timeout)
-	 (accept-process-output proc timeout nil t))
+	 (accept-process-output proc timeout nil 0))
        (buffer-string)))))
 
 (defun tramp-check-for-regexp (proc regexp)
@@ -4230,8 +4285,19 @@ Invokes `password-read' if available, `read-passwd' else."
 			    (auth-source-search
 			     :max 1
 			     (and tramp-current-user :user)
-			     tramp-current-user
-			     :host tramp-current-host
+			     (if tramp-current-domain
+				 (format
+				  "%s%s%s"
+				  tramp-current-user tramp-prefix-domain-format
+				  tramp-current-domain)
+			       tramp-current-user)
+			     :host
+			     (if tramp-current-port
+				 (format
+				  "%s%s%s"
+				  tramp-current-host tramp-prefix-port-format
+				  tramp-current-port)
+			       tramp-current-host)
 			     :port tramp-current-method
 			     :require
 			     (cons
@@ -4257,8 +4323,10 @@ Invokes `password-read' if available, `read-passwd' else."
   (let ((method (tramp-file-name-method vec))
 	(user (tramp-file-name-user vec))
 	(domain (tramp-file-name-domain vec))
+	(user-domain (tramp-file-name-user-domain vec))
 	(host (tramp-file-name-host vec))
 	(port (tramp-file-name-port vec))
+	(host-port (tramp-file-name-host-port vec))
 	(hop (tramp-file-name-hop vec)))
     (when hop
       ;; Clear also the passwords of the hops.
@@ -4270,7 +4338,8 @@ Invokes `password-read' if available, `read-passwd' else."
 	  (concat tramp-postfix-hop-regexp "$")
 	  (tramp-postfix-host-format) hop)))))
     (auth-source-forget
-     `(:max 1 ,(and user :user) ,user :host ,host :port ,method))
+     `(:max 1 ,(and user-domain :user) ,user-domain
+       :host ,host-port :port ,method))
     (password-cache-remove
      (tramp-make-tramp-file-name method user domain host port ""))))
 
@@ -4326,6 +4395,40 @@ Only works for Bourne-like shells."
 	  (setq result (replace-match (format "'%s'" tramp-rsh-end-of-line)
 				      t t result)))
 	result))))
+
+;;; Signal handling.  This works for remote processes, which have set
+;;; the process property `remote-pid'.
+
+(defun tramp-interrupt-process (&optional process _current-group)
+  "Interrupt remote process PROC."
+  ;; CURRENT-GROUP is not implemented yet.
+  (let ((proc (cond
+	       ((processp process) process)
+	       ((bufferp process)  (get-buffer-process process))
+	       ((stringp process)  (or (get-process process)
+				       (get-buffer-process process)))
+	       ((null process)     (get-buffer-process (current-buffer)))
+	       (t                  process)))
+	pid)
+    ;; If it's a Tramp process, send the INT signal remotely.
+    (when (and (processp proc) (process-live-p proc)
+	       (setq pid (process-get proc 'remote-pid)))
+      (tramp-message proc 5 "Interrupt process %s with pid %s" proc pid)
+      ;; This is for tramp-sh.el.  Other backends do not support this (yet).
+      (tramp-compat-funcall
+       'tramp-send-command
+       (tramp-get-connection-property proc "vector" nil)
+       (format "kill -2 %d" pid))
+      ;; Report success.
+      proc)))
+
+;; `interrupt-process-functions' exists since Emacs 26.1.
+(when (boundp 'interrupt-process-functions)
+  (add-hook 'interrupt-process-functions 'tramp-interrupt-process)
+  (add-hook
+   'tramp-unload-hook
+   (lambda ()
+     (remove-hook 'interrupt-process-functions 'tramp-interrupt-process))))
 
 ;;; Integration of eshell.el:
 

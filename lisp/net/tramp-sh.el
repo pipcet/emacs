@@ -200,7 +200,7 @@ The string is used in `tramp-methods'.")
     (tramp-remote-shell-login   ("-l"))
     (tramp-remote-shell-args    ("-c"))
     (tramp-copy-program         "rsync")
-    (tramp-copy-args            (("-t" "%k") ("-p") ("-r") ("-s")))
+    (tramp-copy-args            (("-t" "%k") ("-p") ("-r") ("-s") ("-c")))
     (tramp-copy-env             (("RSYNC_RSH") ("ssh" "%c")))
     (tramp-copy-keep-date       t)
     (tramp-copy-keep-tmpfile    t)
@@ -1057,63 +1057,61 @@ Operations not mentioned here will be handled by the normal Emacs functions.")
 ;;; File Name Handler Functions:
 
 (defun tramp-sh-handle-make-symbolic-link
-  (filename linkname &optional ok-if-already-exists)
+    (target linkname &optional ok-if-already-exists)
   "Like `make-symbolic-link' for Tramp files.
-If LINKNAME is a non-Tramp file, it is used verbatim as the target of
-the symlink.  If LINKNAME is a Tramp file, only the localname component is
-used as the target of the symlink.
+If TARGET is a non-Tramp file, it is used verbatim as the target
+of the symlink.  If TARGET is a Tramp file, only the localname
+component is used as the target of the symlink."
+  (if (not (tramp-tramp-file-p (expand-file-name linkname)))
+      (tramp-run-real-handler
+       'make-symbolic-link (list target linkname ok-if-already-exists))
 
-If LINKNAME is a Tramp file and the localname component is relative, then
-it is expanded first, before the localname component is taken.  Note that
-this can give surprising results if the user/host for the source and
-target of the symlink differ."
-  (with-parsed-tramp-file-name linkname l
-    (let ((ln (tramp-get-remote-ln l))
-	  (cwd (tramp-run-real-handler
-		'file-name-directory (list l-localname))))
-      (unless ln
-	(tramp-error
-	 l 'file-error
-	 "Making a symbolic link.  ln(1) does not exist on the remote host."))
+    (with-parsed-tramp-file-name linkname nil
+      (let ((ln (tramp-get-remote-ln v))
+	    (cwd (tramp-run-real-handler
+		  'file-name-directory (list localname))))
+	(unless ln
+	  (tramp-error
+	   v 'file-error
+	   "Making a symbolic link.  ln(1) does not exist on the remote host."))
 
-      ;; Do the 'confirm if exists' thing.
-      (when (file-exists-p linkname)
-	;; What to do?
-	(if (or (null ok-if-already-exists) ; not allowed to exist
-		(and (numberp ok-if-already-exists)
-		     (not (yes-or-no-p
-			   (format
-			    "File %s already exists; make it a link anyway? "
-			    l-localname)))))
-	    (tramp-error
-	     l 'file-already-exists "File %s already exists" l-localname)
-	  (delete-file linkname)))
+	;; Do the 'confirm if exists' thing.
+	(when (file-exists-p linkname)
+	  ;; What to do?
+	  (if (or (null ok-if-already-exists) ; not allowed to exist
+		  (and (numberp ok-if-already-exists)
+		       (not (yes-or-no-p
+			     (format
+			      "File %s already exists; make it a link anyway? "
+			      localname)))))
+	      (tramp-error v 'file-already-exists localname)
+	    (delete-file linkname)))
 
-      ;; If FILENAME is a Tramp name, use just the localname component.
-      (when (tramp-tramp-file-p filename)
-	(setq filename
-	      (tramp-file-name-localname
-	       (tramp-dissect-file-name (expand-file-name filename)))))
+	;; If TARGET is a Tramp name, use just the localname component.
+	(when (tramp-file-name-equal-p
+	       v (tramp-dissect-file-name (expand-file-name target)))
+	  (setq target
+		(tramp-file-name-localname
+		 (tramp-dissect-file-name (expand-file-name target)))))
 
-      (tramp-flush-file-property l (file-name-directory l-localname))
-      (tramp-flush-file-property l l-localname)
+	(tramp-flush-file-property v (file-name-directory localname))
+	(tramp-flush-file-property v localname)
 
-      ;; Right, they are on the same host, regardless of user, method,
-      ;; etc.  We now make the link on the remote machine. This will
-      ;; occur as the user that FILENAME belongs to.
-      (and (tramp-send-command-and-check
-            l (format "cd %s" (tramp-shell-quote-argument cwd)))
-           (tramp-send-command-and-check
-            l (format
-               "%s -sf %s %s"
-               ln
-               (tramp-shell-quote-argument filename)
-               ;; The command could exceed PATH_MAX, so we use
-               ;; relative file names.  However, relative file names
-               ;; could start with "-".  `tramp-shell-quote-argument'
-               ;; does not handle this, we must do it ourselves.
-               (tramp-shell-quote-argument
-                (concat "./" (file-name-nondirectory l-localname)))))))))
+	;; Right, they are on the same host, regardless of user, method,
+	;; etc.  We now make the link on the remote machine. This will
+	;; occur as the user that TARGET belongs to.
+	(and (tramp-send-command-and-check
+              v (format "cd %s" (tramp-shell-quote-argument cwd)))
+             (tramp-send-command-and-check
+              v (format
+		 "%s -sf %s %s" ln
+		 (tramp-shell-quote-argument target)
+		 ;; The command could exceed PATH_MAX, so we use
+		 ;; relative file names.  However, relative file names
+		 ;; could start with "-".  `tramp-shell-quote-argument'
+		 ;; does not handle this, we must do it ourselves.
+		 (tramp-shell-quote-argument
+                  (concat "./" (file-name-nondirectory localname))))))))))
 
 (defun tramp-sh-handle-file-truename (filename)
   "Like `file-truename' for Tramp files."
@@ -1543,9 +1541,8 @@ be non-negative integers."
 		  (tramp-shell-quote-argument localname))))))
 
       ;; We handle also the local part, because there doesn't exist
-      ;; `set-file-uid-gid'.  On W32 "chown" might not work.  We add a
-      ;; timeout for this.
-      (with-timeout (5 nil)
+      ;; `set-file-uid-gid'.  On W32 "chown" does not work.
+      (unless (memq system-type '(ms-dos windows-nt))
 	(let ((uid (or (and (natnump uid) uid) (tramp-get-local-uid 'integer)))
 	      (gid (or (and (natnump gid) gid) (tramp-get-local-gid 'integer))))
 	  (tramp-call-process
@@ -1920,16 +1917,18 @@ tramp-sh-handle-file-name-all-completions: internal error accessing `%s': `%s'"
   (with-parsed-tramp-file-name filename v1
     (with-parsed-tramp-file-name newname v2
       (let ((ln (when v1 (tramp-get-remote-ln v1))))
-	(when (and (numberp ok-if-already-exists)
-		   (file-exists-p newname)
-		   (yes-or-no-p
-		    (format
-		     "File %s already exists; make it a new name anyway? "
-		     newname)))
-	  (tramp-error
-	   v2 'file-already-exists
-	   "add-name-to-file: file %s already exists" newname))
-	(when ok-if-already-exists (setq ln (concat ln " -f")))
+
+	;; Do the 'confirm if exists' thing.
+	(when (file-exists-p newname)
+	  ;; What to do?
+	  (if (or (null ok-if-already-exists) ; not allowed to exist
+		  (and (numberp ok-if-already-exists)
+		       (not (yes-or-no-p
+			     (format
+			      "File %s already exists; make it a link anyway? "
+			      v2-localname)))))
+	      (tramp-error v2 'file-already-exists newname)
+	    (delete-file newname)))
 	(tramp-flush-file-property v2 (file-name-directory v2-localname))
 	(tramp-flush-file-property v2 v2-localname)
 	(tramp-barf-unless-okay
@@ -2042,8 +2041,7 @@ file names."
 
     (with-parsed-tramp-file-name (if t1 filename newname) nil
       (when (and (not ok-if-already-exists) (file-exists-p newname))
-	(tramp-error
-	 v 'file-already-exists "File %s already exists" newname))
+	(tramp-error v 'file-already-exists newname))
 
       (with-tramp-progress-reporter
 	  v 0 (format "%s %s to %s"
@@ -2345,13 +2343,14 @@ The method used must be an out-of-band method."
 		     (expand-file-name ".." tmpfile) 'recursive)
 		  (delete-file tmpfile)))))
 
-	;; Set variables for computing the prompt for reading
-	;; password.
+	;; Set variables for computing the prompt for reading password.
 	(setq tramp-current-method (tramp-file-name-method v)
 	      tramp-current-user (or (tramp-file-name-user v)
 				     (tramp-get-connection-property
 				      v "login-as" nil))
-	      tramp-current-host (tramp-file-name-host v))
+	      tramp-current-domain (tramp-file-name-domain v)
+	      tramp-current-host (tramp-file-name-host v)
+	      tramp-current-port (tramp-file-name-port v))
 
 	;; Check which ones of source and target are Tramp files.
 	(setq source (funcall
@@ -2879,7 +2878,8 @@ the result will be a local, non-Tramp, file name."
 	   ;; We do not want to raise an error when
 	   ;; `start-file-process' has been started several times in
 	   ;; `eshell' and friends.
-	   (tramp-current-connection nil))
+	   (tramp-current-connection nil)
+	   p)
 
       (while (get-process name1)
 	;; NAME must be unique as process name.
@@ -2909,33 +2909,37 @@ the result will be a local, non-Tramp, file name."
 		  ;; to cleanup the prompt afterwards.
 		  (catch 'suppress
 		    (tramp-maybe-open-connection v)
+		    (setq p (tramp-get-connection-process v))
+		    ;; Set the pid of the remote shell.  This is
+		    ;; needed when sending signals remotely.
+		    (let ((pid (tramp-send-command-and-read v "echo $$")))
+		      (process-put p 'remote-pid pid)
+		      (tramp-set-connection-property p "remote-pid" pid))
 		    (widen)
-		    (delete-region mark (point))
+		    (delete-region mark (point-max))
 		    (narrow-to-region (point-max) (point-max))
 		    ;; Now do it.
 		    (if command
 			;; Send the command.
 			(tramp-send-command v command nil t) ; nooutput
 		      ;; Check, whether a pty is associated.
-		      (unless (process-get
-			       (tramp-get-connection-process v) 'remote-tty)
+		      (unless (process-get p 'remote-tty)
 			(tramp-error
 			 v 'file-error
 			 "pty association is not supported for `%s'" name))))
-		  (let ((p (tramp-get-connection-process v)))
-		    ;; Set query flag and process marker for this
-		    ;; process.  We ignore errors, because the process
-		    ;; could have finished already.
-		    (ignore-errors
-		      (set-process-query-on-exit-flag p t)
-		      (set-marker (process-mark p) (point)))
-		    ;; Return process.
-		    p))))
+		  ;; Set query flag and process marker for this
+		  ;; process.  We ignore errors, because the process
+		  ;; could have finished already.
+		  (ignore-errors
+		    (set-process-query-on-exit-flag p t)
+		    (set-marker (process-mark p) (point)))
+		  ;; Return process.
+		  p)))
 
 	  ;; Save exit.
 	  (if (string-match tramp-temp-buffer-name (buffer-name))
 	      (ignore-errors
-		(set-process-buffer (tramp-get-connection-process v) nil)
+		(set-process-buffer p nil)
 		(kill-buffer (current-buffer)))
 	    (set-buffer-modified-p bmp))
 	  (tramp-set-connection-property v "process-name" nil)
@@ -3150,23 +3154,16 @@ the result will be a local, non-Tramp, file name."
 
 ;; CCC grok LOCKNAME
 (defun tramp-sh-handle-write-region
-  (start end filename &optional append visit lockname confirm)
+  (start end filename &optional append visit lockname mustbenew)
   "Like `write-region' for Tramp files."
   (setq filename (expand-file-name filename))
   (with-parsed-tramp-file-name filename nil
-    ;; Following part commented out because we don't know what to do about
-    ;; file locking, and it does not appear to be a problem to ignore it.
-    ;; Ange-ftp ignores it, too.
-    ;;  (when (and lockname (stringp lockname))
-    ;;    (setq lockname (expand-file-name lockname)))
-    ;;  (unless (or (eq lockname nil)
-    ;;              (string= lockname filename))
-    ;;    (error
-    ;;     "tramp-sh-handle-write-region: LOCKNAME must be nil or equal FILENAME"))
-
-    (when (and confirm (file-exists-p filename))
-      (unless (y-or-n-p (format "File %s exists; overwrite anyway? " filename))
-	(tramp-error v 'file-error "File not overwritten")))
+    (when (and mustbenew (file-exists-p filename)
+	       (or (eq mustbenew 'excl)
+		   (not
+		    (y-or-n-p
+		     (format "File %s exists; overwrite anyway? " filename)))))
+      (tramp-error v 'file-already-exists filename))
 
     (let ((uid (or (tramp-compat-file-attribute-user-id
 		    (file-attributes filename 'integer))
@@ -3185,8 +3182,7 @@ the result will be a local, non-Tramp, file name."
 		      (file-writable-p localname)))))
 	  ;; Short track: if we are on the local host, we can run directly.
 	  (tramp-run-real-handler
-	   'write-region
-	   (list start end localname append 'no-message lockname confirm))
+	   'write-region (list start end localname append 'no-message lockname))
 
 	(let* ((modes (save-excursion (tramp-default-file-modes filename)))
 	       ;; We use this to save the value of
@@ -3223,7 +3219,7 @@ the result will be a local, non-Tramp, file name."
 	    (condition-case err
 		(tramp-run-real-handler
 		 'write-region
-		 (list start end tmpfile append 'no-message lockname confirm))
+		 (list start end tmpfile append 'no-message lockname))
 	      ((error quit)
 	       (setq tramp-temp-buffer-file-name nil)
 	       (delete-file tmpfile)
@@ -3432,7 +3428,9 @@ the result will be a local, non-Tramp, file name."
 	       `((,(tramp-file-name-regexp) . tramp-vc-file-name-handler))))
 
 	  ;; Here we collect only file names, which need an operation.
-	  (ignore-errors (tramp-run-real-handler 'vc-registered (list file)))
+	  (tramp-with-demoted-errors
+	      v "Error in 1st pass of `vc-registered': %s"
+	    (tramp-run-real-handler 'vc-registered (list file)))
 	  (tramp-message v 10 "\n%s" tramp-vc-registered-file-names)
 
 	  ;; Send just one command, in order to fill the cache.
@@ -3493,28 +3491,18 @@ the result will be a local, non-Tramp, file name."
 			     v vc-hg-program (tramp-get-remote-path v)))))
 	    (setq vc-handled-backends (remq 'Hg vc-handled-backends)))
 	  ;; Run.
-	  (ignore-errors
+	  (tramp-with-demoted-errors
+	      v "Error in 2nd pass of `vc-registered': %s"
 	    (tramp-run-real-handler 'vc-registered (list file))))))))
 
 ;;;###tramp-autoload
 (defun tramp-sh-file-name-handler (operation &rest args)
   "Invoke remote-shell Tramp file name handler.
 Fall back to normal file name handler if no Tramp handler exists."
-  (when (and tramp-locked (not tramp-locker))
-    (setq tramp-locked nil)
-    (tramp-error
-     (car-safe tramp-current-connection) 'file-error
-     "Forbidden reentrant call of Tramp"))
-  (let ((tl tramp-locked))
-    (setq tramp-locked t)
-    (unwind-protect
-	(let ((tramp-locker t))
-	  (save-match-data
-	    (let ((fn (assoc operation tramp-sh-file-name-handler-alist)))
-	      (if fn
-		  (apply (cdr fn) args)
-		(tramp-run-real-handler operation args)))))
-      (setq tramp-locked tl))))
+  (let ((fn (assoc operation tramp-sh-file-name-handler-alist)))
+    (if fn
+	(save-match-data (apply (cdr fn) args))
+      (tramp-run-real-handler operation args))))
 
 ;; This must be the last entry, because `identity' always matches.
 ;;;###tramp-autoload
@@ -4131,7 +4119,8 @@ process to set up.  VEC specifies the connection."
     ;; Set `remote-tty' process property.
     (let ((tty (tramp-send-command-and-read vec "echo \\\"`tty`\\\"" 'noerror)))
       (unless (zerop (length tty))
-	(process-put proc 'remote-tty tty)))
+	(process-put proc 'remote-tty tty)
+	(tramp-set-connection-property proc "remote-tty" tty)))
 
     ;; Dump stty settings in the traces.
     (when (>= tramp-verbose 9)
@@ -4425,7 +4414,8 @@ Goes through the list `tramp-inline-compress-commands'."
 		 (if (memq system-type '(windows-nt))
 		     "echo %s | \"%s\" | \"%s\""
 		   "echo %s | %s | %s")
-		 magic compress decompress) nil nil))
+		 magic compress decompress)
+		nil nil))
 	    (throw 'next nil))
 	  (tramp-message
 	   vec 5
@@ -4719,8 +4709,9 @@ connection if a previous connection has died for some reason."
 		  (let* ((hop (car target-alist))
 			 (l-method (tramp-file-name-method hop))
 			 (l-user (tramp-file-name-user hop))
+			 (l-domain (tramp-file-name-domain hop))
 			 (l-host (tramp-file-name-host hop))
-			 (l-port nil)
+			 (l-port (tramp-file-name-port hop))
 			 (login-program
 			  (tramp-get-method-parameter hop 'tramp-login-program))
 			 (login-args
@@ -4755,12 +4746,6 @@ connection if a previous connection has died for some reason."
 		    (when (and process-name async-args)
 		      (setq login-args (append async-args login-args)))
 
-		    ;; Check for port number.  Until now, there's no
-		    ;; need for handling like method, user, host.
-		    (when (string-match tramp-host-with-port-regexp l-host)
-		      (setq l-port (match-string 2 l-host)
-			    l-host (match-string 1 l-host)))
-
 		    ;; Check, whether there is a restricted shell.
 		    (dolist (elt tramp-restricted-shell-hosts-alist)
 		      (when (string-match elt tramp-current-host)
@@ -4770,7 +4755,9 @@ connection if a previous connection has died for some reason."
 		    ;; reading password.
 		    (setq tramp-current-method l-method
 			  tramp-current-user   l-user
-			  tramp-current-host   l-host)
+			  tramp-current-domain l-domain
+			  tramp-current-host   l-host
+			  tramp-current-port   l-port)
 
 		    ;; Add login environment.
 		    (when login-env
@@ -5708,9 +5695,6 @@ function cell is returned to be applied on a buffer."
 ;;
 ;; * Reconnect directly to a compliant shell without first going
 ;;   through the user's default shell.  (Pete Forman)
-;;
-;; * How can I interrupt the remote process with a signal
-;;   (interrupt-process seems not to work)?  (Markus Triska)
 ;;
 ;; * Avoid the local shell entirely for starting remote processes.  If
 ;;   so, I think even a signal, when delivered directly to the local

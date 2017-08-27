@@ -764,7 +764,6 @@ cannot be completed sensibly: `custom-ident',
   "Self inserting keys which should trigger re-indentation."
   :version "22.2"
   :type '(repeat character)
-  :options '((?\} ?\;))
   :group 'css)
 
 (defvar css-mode-syntax-table
@@ -836,7 +835,7 @@ cannot be completed sensibly: `custom-ident',
 (defface css-selector '((t :inherit font-lock-function-name-face))
   "Face to use for selectors."
   :group 'css)
-(defface css-property '((t :inherit font-lock-variable-name-face))
+(defface css-property '((t :inherit font-lock-keyword-face))
   "Face to use for properties."
   :group 'css)
 (defface css-proprietary-property '((t :inherit (css-property italic)))
@@ -852,8 +851,6 @@ cannot be completed sensibly: `custom-ident',
     ;; Since "An at-rule consists of everything up to and including the next
     ;; semicolon (;) or the next block, whichever comes first."
     (,(concat "@" css-ident-re) (0 font-lock-builtin-face))
-    ;; Variables.
-    (,(concat "--" css-ident-re) (0 font-lock-variable-name-face))
     ;; Selectors.
     ;; Allow plain ":root" as a selector.
     ("^[ \t]*\\(:root\\)\\(?:[\n \t]*\\)*{" (1 'css-selector keep))
@@ -898,6 +895,8 @@ cannot be completed sensibly: `custom-ident',
                                         'font-lock-multiline t)
                      ;; No face.
                      nil)))
+    ;; Variables.
+    (,(concat "--" css-ident-re) (0 font-lock-variable-name-face))
     ;; Properties.  Again, we don't limit ourselves to css-property-ids.
     (,(concat "\\(?:[{;]\\|^\\)[ \t]*\\("
               "\\(?:\\(" css-proprietary-nmstart-re "\\)\\|"
@@ -1206,9 +1205,15 @@ for determining whether point is within a selector."
     (`(:before . "{")
      (when (or (smie-rule-hanging-p) (smie-rule-bolp))
        (smie-backward-sexp ";")
-       (smie-indent-virtual)))
-    (`(:before . ,(or "{" "("))
-     (if (smie-rule-hanging-p) (smie-rule-parent 0)))))
+       (unless (eq (char-after) ?\{)
+         (smie-indent-virtual))))
+    (`(:before . "(")
+     (cond
+      ((smie-rule-hanging-p) (smie-rule-parent 0))
+      ((not (smie-rule-bolp)) 0)))
+    (`(:after . ":-property")
+     (when (smie-rule-hanging-p)
+       css-indent-offset))))
 
 ;;; Completion
 
@@ -1286,10 +1291,11 @@ the string PROPERTY."
   (let ((property
          (save-excursion
            (re-search-backward ":[^/]" (line-beginning-position) t)
-           (let ((property-end (point)))
-             (skip-chars-backward "-[:alnum:]")
-             (let ((property (buffer-substring (point) property-end)))
-               (car (member property css-property-ids)))))))
+           (when (eq (char-after) ?:)
+             (let ((property-end (point)))
+               (skip-chars-backward "-[:alnum:]")
+               (let ((prop (buffer-substring (point) property-end)))
+                 (car (member prop css-property-ids))))))))
     (when property
       (let ((end (point)))
         (save-excursion

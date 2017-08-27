@@ -37,6 +37,11 @@ along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.  */
 #include "sysselect.h"
 #include "blockinput.h"
 
+#ifdef HAVE_LINUX_FS_H
+# include <linux/fs.h>
+# include <sys/syscall.h>
+#endif
+
 #if defined DARWIN_OS || defined __FreeBSD__
 # include <sys/sysctl.h>
 #endif
@@ -1408,7 +1413,7 @@ reset_sys_modes (struct tty_display_info *tty_out)
 {
   if (noninteractive)
     {
-      fflush (stdout);
+      fflush_unlocked (stdout);
       return;
     }
   if (!tty_out->term_initted)
@@ -1428,17 +1433,14 @@ reset_sys_modes (struct tty_display_info *tty_out)
     }
   else
     {			/* have to do it the hard way */
-      int i;
       tty_turn_off_insert (tty_out);
 
-      for (i = cursorX (tty_out); i < FrameCols (tty_out) - 1; i++)
-        {
-          fputc (' ', tty_out->output);
-        }
+      for (int i = cursorX (tty_out); i < FrameCols (tty_out) - 1; i++)
+	fputc_unlocked (' ', tty_out->output);
     }
 
   cmgoto (tty_out, FrameRows (tty_out) - 1, 0);
-  fflush (tty_out->output);
+  fflush_unlocked (tty_out->output);
 
   if (tty_out->terminal->reset_terminal_modes_hook)
     tty_out->terminal->reset_terminal_modes_hook (tty_out->terminal);
@@ -1775,7 +1777,7 @@ stack_overflow (siginfo_t *siginfo)
   /* The known top and bottom of the stack.  The actual stack may
      extend a bit beyond these boundaries.  */
   char *bot = stack_bottom;
-  char *top = near_C_stack_top ();
+  char *top = current_thread->stack_top;
 
   /* Log base 2 of the stack heuristic ratio.  This ratio is the size
      of the known stack divided by the size of the guard area past the
@@ -2391,8 +2393,6 @@ emacs_open (const char *file, int oflags, int mode)
   oflags |= O_CLOEXEC;
   while ((fd = open (file, oflags, mode)) < 0 && errno == EINTR)
     maybe_quit ();
-  if (! O_CLOEXEC && 0 <= fd)
-    fcntl (fd, F_SETFD, FD_CLOEXEC);
   return fd;
 }
 
@@ -2434,13 +2434,7 @@ emacs_pipe (int fd[2])
 #ifdef MSDOS
   return pipe (fd);
 #else  /* !MSDOS */
-  int result = pipe2 (fd, O_BINARY | O_CLOEXEC);
-  if (! O_CLOEXEC && result == 0)
-    {
-      fcntl (fd[0], F_SETFD, FD_CLOEXEC);
-      fcntl (fd[1], F_SETFD, FD_CLOEXEC);
-    }
-  return result;
+  return pipe2 (fd, O_BINARY | O_CLOEXEC);
 #endif	/* !MSDOS */
 }
 
@@ -2681,6 +2675,27 @@ set_file_times (int fd, const char *filename,
   timespec[1] = mtime;
   return fdutimens (fd, filename, timespec);
 }
+
+/* Rename directory SRCFD's entry SRC to directory DSTFD's entry DST.
+   This is like renameat except that it fails if DST already exists,
+   or if this operation is not supported atomically.  Return 0 if
+   successful, -1 (setting errno) otherwise.  */
+int
+renameat_noreplace (int srcfd, char const *src, int dstfd, char const *dst)
+{
+#if defined SYS_renameat2 && defined RENAME_NOREPLACE
+  return syscall (SYS_renameat2, srcfd, src, dstfd, dst, RENAME_NOREPLACE);
+#elif defined RENAME_EXCL
+  return renameatx_np (srcfd, src, dstfd, dst, RENAME_EXCL);
+#else
+# ifdef WINDOWSNT
+  if (srcfd == AT_FDCWD && dstfd == AT_FDCWD)
+    return sys_rename_replace (src, dst, 0);
+# endif
+  errno = ENOSYS;
+  return -1;
+#endif
+}
 
 /* Like strsignal, except async-signal-safe, and this function typically
    returns a string in the C locale rather than the current locale.  */
@@ -2915,7 +2930,7 @@ list_system_processes (void)
      process.  */
   procdir = build_string ("/proc");
   match = build_string ("[0-9]+");
-  proclist = directory_files_internal (procdir, Qnil, match, Qt, 0, Qnil);
+  proclist = directory_files_internal (procdir, Qnil, match, Qt, false, Qnil);
 
   /* `proclist' gives process IDs as strings.  Destructively convert
      each string into a number.  */
@@ -3079,7 +3094,7 @@ procfs_ttyname (int rdev)
       char minor[25];	/* 2 32-bit numbers + dash */
       char *endp;
 
-      for (; !feof (fdev) && !ferror (fdev); name[0] = 0)
+      for (; !feof_unlocked (fdev) && !ferror_unlocked (fdev); name[0] = 0)
 	{
 	  if (fscanf (fdev, "%*s %s %u %s %*s\n", name, &major, minor) >= 3
 	      && major == MAJOR (rdev))
@@ -3129,7 +3144,7 @@ procfs_get_total_memory (void)
 	    break;
 
 	  case 0:
-	    while ((c = getc (fmem)) != EOF && c != '\n')
+	    while ((c = getc_unlocked (fmem)) != EOF && c != '\n')
 	      continue;
 	    done = c == EOF;
 	    break;

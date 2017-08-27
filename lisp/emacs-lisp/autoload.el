@@ -873,18 +873,24 @@ FILE's modification time."
 ;; For parallel builds, to stop another process reading a half-written file.
 (defun autoload--save-buffer ()
   "Save current buffer to its file, atomically."
-  ;; Copied from byte-compile-file.
+  ;; Similar to byte-compile-file.
   (let* ((version-control 'never)
-         (tempfile (make-temp-name buffer-file-name))
+         (tempfile (make-temp-file buffer-file-name))
+	 (default-modes (default-file-modes))
+	 (temp-modes (logand default-modes #o600))
+	 (desired-modes (logand default-modes
+				(or (file-modes buffer-file-name) #o666)))
          (kill-emacs-hook
           (cons (lambda () (ignore-errors (delete-file tempfile)))
                 kill-emacs-hook)))
+    (unless (= temp-modes desired-modes)
+      (set-file-modes tempfile desired-modes))
     (write-region (point-min) (point-max) tempfile nil 1)
     (backup-buffer)
-    (rename-file tempfile buffer-file-name t)
-    (set-buffer-modified-p nil)
-    (set-visited-file-modtime)
-    (or noninteractive (message "Wrote %s" buffer-file-name))))
+    (rename-file tempfile buffer-file-name t))
+  (set-buffer-modified-p nil)
+  (set-visited-file-modtime)
+  (or noninteractive (message "Wrote %s" buffer-file-name)))
 
 (defun autoload-save-buffers ()
   (while autoload-modified-buffers

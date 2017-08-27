@@ -711,6 +711,12 @@ Similar to @code{mode-line} for a window's header line, which appears
 at the top of a window just as the mode line appears at the bottom.
 Most windows do not have a header line---only some special modes, such
 Info mode, create one.
+@item header-line-highlight
+@cindex header-line-highlight face
+Similar to @code{highlight} and @code{mode-line-highlight}, but used
+for mouse-sensitive portions of text on header lines.  This is a
+separate face because the @code{header-line} face might be customized
+in a way that does not interact well with @code{highlight}.
 @item vertical-border
 @cindex vertical-border face
 This face is used for the vertical divider between windows on text
@@ -1333,7 +1339,7 @@ characters in the buffer, which means that @samp{k} for 10^3, @samp{M}
 for 10^6, @samp{G} for 10^9, etc., are used to abbreviate.
 
 @cindex line number display
-@cindex display of line number
+@cindex display of current line number
 @findex line-number-mode
   The current line number of point appears in the mode line when Line
 Number mode is enabled.  Use the command @kbd{M-x line-number-mode} to
@@ -1710,6 +1716,66 @@ variable @code{visual-line-fringe-indicators}.
   This section describes variables that control miscellaneous aspects
 of the appearance of the Emacs screen.  Beginning users can skip it.
 
+@vindex display-line-numbers
+@cindex number lines in a buffer
+@cindex display line numbers
+  If you want to have Emacs display line numbers for every line in the
+buffer, customize the buffer-local variable
+@code{display-line-numbers}; it is @code{nil} by default.  This
+variable can have several different values to support various modes of
+line-number display:
+
+@table @asis
+@item @code{t}
+Display (an absolute) line number before each non-continuation screen
+line that displays buffer text.  If the line is a continuation line,
+or if the entire screen line displays a display or an overlay string,
+that line will not be numbered.
+
+@item @code{relative}
+Display relative line numbers before non-continuation lines which show
+buffer text.  The line numbers are relative to the line showing point,
+so the numbers grow both up and down as lines become farther from the
+current line.
+
+@item @code{visual}
+This value causes Emacs to count lines visually: only lines actually
+shown on the display will be counted (disregarding any lines in
+invisible parts of text), and lines which wrap to consume more than
+one screen line will be numbered that many times.  The displayed
+numbers are relative, as with @code{relative} value above.  This is
+handy in modes that fold text, such as Outline mode (@pxref{Outline
+Mode}), and need to move by exact number of screen lines.
+
+@item anything else
+Any other non-@code{nil} value is treated as @code{t}.
+@end table
+
+@vindex display-line-numbers-current-absolute
+When Emacs displays relative line numbers, you can control the number
+displayed before the current line, the line showing point.  By
+default, Emacs displays the absolute number of the current line there,
+even though all the other line numbers are relative.  If you customize
+the variable @code{display-line-numbers-current-absolute} to a
+@code{nil} value, the number displayed for the current line will be
+zero.  This is handy if you don't care about the number of the current
+line, and want to leave more horizontal space for text in large
+buffers.
+
+@vindex display-line-numbers-widen
+In a narrowed buffer (@pxref{Narrowing}) lines are normally numbered
+starting at the beginning of the narrowing.  However, if you customize
+the variable @code{display-line-numbers-widen} to a non-@code{nil}
+value, line numbers will disregard any narrowing and will start at the
+first character of the buffer.
+
+@cindex line-number face
+The line numbers are displayed in a special face @code{line-number}.
+The current line number is displayed in a different face,
+@code{line-number-current-line}, so you can make the current line's
+number have a distinct appearance, which will help locating the line
+showing point.
+
 @vindex visible-bell
   If the variable @code{visible-bell} is non-@code{nil}, Emacs attempts
 to make the whole screen blink when it would normally make an audible bell
@@ -1763,3 +1829,9 @@ itself, in pixels; the default is 2.
 in text that is hard to read.  Call the function
 @code{tty-suppress-bold-inverse-default-colors} with a non-@code{nil}
 argument to suppress the effect of bold-face in this case.
+
+@vindex display-raw-bytes-as-hex
+  Raw bytes are displayed in octal format by default, for example a
+byte with a decimal value of 128 is displayed as @code{\200}.  To
+change display to the hexadecimal format of @code{\x80}, set the
+variable @code{display-raw-bytes-as-hex} to @code{t}.

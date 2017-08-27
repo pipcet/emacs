@@ -996,23 +996,24 @@ instead of deleted."
   :version "24.1")
 
 (defvar region-extract-function
-  (lambda (delete)
+  (lambda (method)
     (when (region-beginning)
       (cond
-       ((eq delete 'bounds)
+       ((eq method 'bounds)
         (list (cons (region-beginning) (region-end))))
-       ((eq delete 'delete-only)
+       ((eq method 'delete-only)
         (delete-region (region-beginning) (region-end)))
        (t
-        (filter-buffer-substring (region-beginning) (region-end) delete)))))
+        (filter-buffer-substring (region-beginning) (region-end) method)))))
   "Function to get the region's content.
-Called with one argument DELETE.
-If DELETE is `delete-only', then only delete the region and the return value
-is undefined.  If DELETE is nil, just return the content as a string.
-If DELETE is `bounds', then don't delete, but just return the
-boundaries of the region as a list of (START . END) positions.
-If anything else, delete the region and return its content as a string,
-after filtering it with `filter-buffer-substring'.")
+Called with one argument METHOD.
+If METHOD is `delete-only', then delete the region; the return value
+is undefined.  If METHOD is nil, then return the content as a string.
+If METHOD is `bounds', then return the boundaries of the region
+as a list of the form (START . END).
+If METHOD is anything else, delete the region and return its content
+as a string, after filtering it with `filter-buffer-substring', which
+is called with METHOD as its 3rd argument.")
 
 (defvar region-insert-function
   (lambda (lines)
@@ -1270,18 +1271,25 @@ and the greater of them is not at the start of a line."
 		done)))
 	(- (buffer-size) (forward-line (buffer-size)))))))
 
-(defun line-number-at-pos (&optional pos)
-  "Return (narrowed) buffer line number at position POS.
+(defun line-number-at-pos (&optional pos absolute)
+  "Return buffer line number at position POS.
 If POS is nil, use current buffer location.
-Counting starts at (point-min), so the value refers
-to the contents of the accessible portion of the buffer."
-  (let ((opoint (or pos (point))) start)
-    (save-excursion
-      (goto-char (point-min))
-      (setq start (point))
-      (goto-char opoint)
-      (forward-line 0)
-      (1+ (count-lines start (point))))))
+
+If ABSOLUTE is nil, the default, counting starts
+at (point-min), so the value refers to the contents of the
+accessible portion of the (potentially narrowed) buffer.  If
+ABSOLUTE is non-nil, ignore any narrowing and return the
+absolute line number."
+  (save-restriction
+    (when absolute
+      (widen))
+    (let ((opoint (or pos (point))) start)
+      (save-excursion
+        (goto-char (point-min))
+        (setq start (point))
+        (goto-char opoint)
+        (forward-line 0)
+        (1+ (count-lines start (point)))))))
 
 (defun what-cursor-position (&optional detail)
   "Print info on cursor position (on screen and within buffer).
@@ -1484,6 +1492,7 @@ display the result of expression evaluation."
           ;; FIXME: call emacs-lisp-mode?
           (add-function :before-until (local 'eldoc-documentation-function)
                         #'elisp-eldoc-documentation-function)
+          (eldoc-mode 1)
           (add-hook 'completion-at-point-functions
                     #'elisp-completion-at-point nil t)
           (run-hooks 'eval-expression-minibuffer-setup-hook))
@@ -2588,8 +2597,12 @@ Return what remains of the list."
                (goto-char pos))
              ;; Adjust the valid marker adjustments
              (dolist (adj valid-marker-adjustments)
-               (set-marker (car adj)
-                           (- (car adj) (cdr adj))))))
+               ;; Insert might have invalidated some of the markers
+               ;; via modification hooks.  Update only the currently
+               ;; valid ones (bug#25599).
+               (if (marker-buffer (car adj))
+                   (set-marker (car adj)
+                               (- (car adj) (cdr adj)))))))
           ;; (MARKER . OFFSET) means a marker MARKER was adjusted by OFFSET.
           (`(,(and marker (pred markerp)) . ,(and offset (pred integerp)))
            (warn "Encountered %S entry in undo list with no matching (TEXT . POS) entry"
@@ -3266,6 +3279,17 @@ output buffer and running a new command in the default buffer,
   :group 'shell
   :version "24.3")
 
+(defcustom async-shell-command-display-buffer t
+  "Whether to display the command buffer immediately.
+If t, display the buffer immediately; if nil, wait until there
+is output."
+  :type '(choice (const :tag "Display buffer immediately"
+			t)
+		 (const :tag "Display buffer on output"
+			nil))
+  :group 'shell
+  :version "26.1")
+
 (defun shell-command--save-pos-or-erase ()
   "Store a buffer position or erase the buffer.
 See `shell-command-dont-erase-buffer'."
@@ -3512,7 +3536,6 @@ the use of a shell (with its need to quote arguments)."
 		    (setq buffer (get-buffer-create
 				  (or output-buffer "*Async Shell Command*"))))))
 		(with-current-buffer buffer
-		  (display-buffer buffer '(nil (allow-no-window . t)))
                   (shell-command--save-pos-or-erase)
 		  (setq default-directory directory)
 		  (setq proc (start-process "Shell" buffer shell-file-name
@@ -3523,7 +3546,16 @@ the use of a shell (with its need to quote arguments)."
 		  ;; Use the comint filter for proper handling of carriage motion
 		  ;; (see `comint-inhibit-carriage-motion'),.
 		  (set-process-filter proc 'comint-output-filter)
-		  ))
+                  (if async-shell-command-display-buffer
+                      (display-buffer buffer '(nil (allow-no-window . t)))
+                    (add-function :before (process-filter proc)
+                                  `(lambda (process string)
+                                     (when (and (= 0 (buffer-size (process-buffer process)))
+                                                (string= (buffer-name (process-buffer process))
+                                                    ,(or output-buffer "*Async Shell Command*")))
+                                       (display-buffer (process-buffer process))))
+                                  ))
+                  ))
 	    ;; Otherwise, command is executed synchronously.
 	    (shell-command-on-region (point) (point) command
 				     output-buffer nil error-buffer)))))))
@@ -3896,8 +3928,7 @@ support pty association, if PROGRAM is nil."
 			       ("Command"  0 t)])
   (make-local-variable 'process-menu-query-only)
   (setq tabulated-list-sort-key (cons "Process" nil))
-  (add-hook 'tabulated-list-revert-hook 'list-processes--refresh nil t)
-  (tabulated-list-init-header))
+  (add-hook 'tabulated-list-revert-hook 'list-processes--refresh nil t))
 
 (defun process-menu-delete-process ()
   "Kill process at point in a `list-processes' buffer."
@@ -3958,7 +3989,8 @@ Also, delete any process that is exited or signaled."
 				       "")))))
 		     (mapconcat 'identity (process-command p) " "))))
 	     (push (list p (vector name pid status buf-label tty cmd))
-		   tabulated-list-entries))))))
+		   tabulated-list-entries)))))
+  (tabulated-list-init-header))
 
 (defun process-menu-visit-buffer (button)
   (display-buffer (button-get button 'process-buffer)))
@@ -5930,6 +5962,10 @@ columns by which window is scrolled from left margin.
 When the `track-eol' feature is doing its job, the value is
 `most-positive-fixnum'.")
 
+(defvar last--line-number-width 0
+  "Last value of width used for displaying line numbers.
+Used internally by `line-move-visual'.")
+
 (defcustom line-move-ignore-invisible t
   "Non-nil means commands that move by lines ignore invisible newlines.
 When this option is non-nil, \\[next-line], \\[previous-line], \\[move-end-of-line], and \\[move-beginning-of-line] behave
@@ -6200,6 +6236,7 @@ not vscroll."
 If NOERROR, don't signal an error if we can't move that many lines."
   (let ((opoint (point))
 	(hscroll (window-hscroll))
+        (lnum-width (line-number-display-width t))
 	target-hscroll)
     ;; Check if the previous command was a line-motion command, or if
     ;; we were called from some other command.
@@ -6207,16 +6244,27 @@ If NOERROR, don't signal an error if we can't move that many lines."
 	     (memq last-command `(next-line previous-line ,this-command)))
 	;; If so, there's no need to reset `temporary-goal-column',
 	;; but we may need to hscroll.
-	(if (or (/= (cdr temporary-goal-column) hscroll)
-		(>  (cdr temporary-goal-column) 0))
-	    (setq target-hscroll (cdr temporary-goal-column)))
+        (progn
+          (if (or (/= (cdr temporary-goal-column) hscroll)
+                  (>  (cdr temporary-goal-column) 0))
+              (setq target-hscroll (cdr temporary-goal-column)))
+          ;; Update the COLUMN part of temporary-goal-column if the
+          ;; line-number display changed its width since the last
+          ;; time.
+          (setq temporary-goal-column
+                (cons (+ (car temporary-goal-column)
+                         (/ (float (- lnum-width last--line-number-width))
+                            (frame-char-width)))
+                      (cdr temporary-goal-column)))
+          (setq last--line-number-width lnum-width))
       ;; Otherwise, we should reset `temporary-goal-column'.
       (let ((posn (posn-at-point))
 	    x-pos)
 	(cond
-	 ;; Handle the `overflow-newline-into-fringe' case:
-	 ((eq (nth 1 posn) 'right-fringe)
-	  (setq temporary-goal-column (cons (- (window-width) 1) hscroll)))
+	 ;; Handle the `overflow-newline-into-fringe' case
+	 ;; (left-fringe is for the R2L case):
+	 ((memq (nth 1 posn) '(right-fringe left-fringe))
+	  (setq temporary-goal-column (cons (window-width) hscroll)))
 	 ((car (posn-x-y posn))
 	  (setq x-pos (car (posn-x-y posn)))
 	  ;; In R2L lines, the X pixel coordinate is measured from the
@@ -6575,6 +6623,8 @@ which are part of the text that the image rests on.)
 
 With argument ARG not nil or 1, move forward ARG - 1 lines first.
 If point reaches the beginning or end of buffer, it stops there.
+\(But if the buffer doesn't end in a newline, it stops at the
+beginning of the last line.)
 To ignore intangibility, bind `inhibit-point-motion-hooks' to t."
   (interactive "^p")
   (or arg (setq arg 1))
@@ -6663,6 +6713,8 @@ To ignore intangibility, bind `inhibit-point-motion-hooks' to t."
   "Move point to beginning of current visual line.
 With argument N not nil or 1, move forward N - 1 visual lines first.
 If point reaches the beginning or end of buffer, it stops there.
+\(But if the buffer doesn't end in a newline, it stops at the
+beginning of the last visual line.)
 To ignore intangibility, bind `inhibit-point-motion-hooks' to t."
   (interactive "^p")
   (or n (setq n 1))
@@ -6776,9 +6828,12 @@ other purposes."
 
 (define-minor-mode visual-line-mode
   "Toggle visual line based editing (Visual Line mode).
-With a prefix argument ARG, enable Visual Line mode if ARG is
-positive, and disable it otherwise.  If called from Lisp, enable
-the mode if ARG is omitted or nil.
+Interactively, with a prefix argument, enable
+Visual Line mode if the prefix argument is positive,
+and disable it otherwise.  If called from Lisp, toggle
+the mode if ARG is `toggle', disable the mode if ARG is
+a non-positive integer, and enable the mode otherwise
+\(including if ARG is omitted or nil or a positive integer).
 
 When Visual Line mode is enabled, `word-wrap' is turned on in
 this buffer, and simple editing commands are redefined to act on
@@ -7191,6 +7246,13 @@ unless optional argument SOFT is non-nil."
        ;; If we're not inside a comment, just try to indent.
        (t (indent-according-to-mode))))))
 
+(defun internal-auto-fill ()
+  "The function called by `self-insert-command' to perform auto-filling."
+  (when (or (not comment-start)
+            (not comment-auto-fill-only-comments)
+            (nth 4 (syntax-ppss)))
+    (funcall auto-fill-function)))
+
 (defvar normal-auto-fill-function 'do-auto-fill
   "The function to use for `auto-fill-function' if Auto Fill mode is turned on.
 Some major modes set this.")
@@ -7203,9 +7265,12 @@ Some major modes set this.")
 
 (define-minor-mode auto-fill-mode
   "Toggle automatic line breaking (Auto Fill mode).
-With a prefix argument ARG, enable Auto Fill mode if ARG is
-positive, and disable it otherwise.  If called from Lisp, enable
-the mode if ARG is omitted or nil.
+Interactively, with a prefix argument, enable
+Auto Fill mode if the prefix argument is positive,
+and disable it otherwise.  If called from Lisp, toggle
+the mode if ARG is `toggle', disable the mode if ARG is
+a non-positive integer, and enable the mode otherwise
+\(including if ARG is omitted or nil or a positive integer).
 
 When Auto Fill mode is enabled, inserting a space at a column
 beyond `current-fill-column' automatically breaks the line at a

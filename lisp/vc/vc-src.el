@@ -3,7 +3,7 @@
 ;; Copyright (C) 1992-2017 Free Software Foundation, Inc.
 
 ;; Author:     FSF (see vc.el for full credits)
-;; Maintainer: Eric S. Raymond <esr@thyrsus.com>
+;; Maintainer: emacs-devel@gnu.org
 ;; Package: vc
 
 ;; This file is part of GNU Emacs.
@@ -180,7 +180,7 @@ For a description of possible values, see `vc-check-master-templates'."
 
 (defun vc-src-dir-status-files (dir files update-function)
   ;; FIXME: Use one src status -a call for this
-  (if (not files) (setq files (vc-expand-dirs (list dir) 'RCS)))
+  (if (not files) (setq files (vc-expand-dirs (list dir) 'SRC)))
   (let ((result nil))
     (dolist (file files)
       (let ((state (vc-state file))

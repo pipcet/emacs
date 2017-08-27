@@ -278,7 +278,7 @@ Used in `bookmark-set' to get the default bookmark name."
   :type 'hook
   :group 'man)
 
-(defvar Man-name-regexp "[-a-zA-Z0-9_­+][-a-zA-Z0-9_.:­+]*"
+(defvar Man-name-regexp "[-[:alnum:]_­+][-[:alnum:]_.:­+]*"
   "Regular expression describing the name of a manpage (without section).")
 
 (defvar Man-section-regexp "[0-9][a-zA-Z0-9+]*\\|[LNln]"
@@ -286,16 +286,16 @@ Used in `bookmark-set' to get the default bookmark name."
 
 (defvar Man-page-header-regexp
   (if (string-match "-solaris2\\." system-configuration)
-      (concat "^[-A-Za-z0-9_].*[ \t]\\(" Man-name-regexp
+      (concat "^[-[:alnum:]_].*[ \t]\\(" Man-name-regexp
 	      "(\\(" Man-section-regexp "\\))\\)$")
     (concat "^[ \t]*\\(" Man-name-regexp
 	    "(\\(" Man-section-regexp "\\))\\).*\\1"))
   "Regular expression describing the heading of a page.")
 
-(defvar Man-heading-regexp "^\\([A-Z][A-Z0-9 /-]+\\)$"
+(defvar Man-heading-regexp "^\\([[:upper:]][[:upper:]0-9 /-]+\\)$"
   "Regular expression describing a manpage heading entry.")
 
-(defvar Man-see-also-regexp "SEE ALSO"
+(defvar Man-see-also-regexp "\\(SEE ALSO\\|VOIR AUSSI\\|SIEHE AUCH\\|VÉASE TAMBIÉN\\|VEJA TAMBÉM\\|VEDERE ANCHE\\|ZOBACZ TAKŻE\\|İLGİLİ BELGELER\\|参照\\|参见 SEE ALSO\\|參見 SEE ALSO\\)"
   "Regular expression for SEE ALSO heading (or your equivalent).
 This regexp should not start with a `^' character.")
 
