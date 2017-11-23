@@ -216,7 +216,7 @@ extern void _DebPrint (const char *fmt, ...);
 
 #ifdef emacs /* Don't do this for lib-src.  */
 /* Tell regex.c to use a type compatible with Emacs.  */
-#define RE_TRANSLATE_TYPE Lisp_Object
+#define RE_TRANSLATE_TYPE ELisp_Value
 #define RE_TRANSLATE(TBL, C) char_table_translate (TBL, C)
 #define RE_TRANSLATE_P(TBL) (!EQ (TBL, make_number (0)))
 #endif
@@ -393,7 +393,7 @@ extern int emacs_setenv_TZ (char const *);
 /* 'int x UNINIT;' is equivalent to 'int x;', except it cajoles GCC
    into not warning incorrectly about use of an uninitialized variable.  */
 #if defined GCC_LINT || defined lint
-# define UNINIT = {0,}
+# define UNINIT /* empty */
 #else
 # define UNINIT /* empty */
 #endif

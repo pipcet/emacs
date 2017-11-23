@@ -705,8 +705,8 @@ INLINE double
 default_pixels_per_inch_x (void)
 {
   Lisp_Object v = (CONSP (Vdisplay_pixels_per_inch)
-		   ? XCAR (Vdisplay_pixels_per_inch)
-		   : Vdisplay_pixels_per_inch);
+		   ? ELisp_Return_Value(XCAR (Vdisplay_pixels_per_inch))
+		   : ELisp_Return_Value(Vdisplay_pixels_per_inch));
   return NUMVAL (v) > 0 ? NUMVAL (v) : 72.0;
 }
 
@@ -714,8 +714,8 @@ INLINE double
 default_pixels_per_inch_y (void)
 {
   Lisp_Object v = (CONSP (Vdisplay_pixels_per_inch)
-		   ? XCDR (Vdisplay_pixels_per_inch)
-		   : Vdisplay_pixels_per_inch);
+		   ? ELisp_Return_Value(XCDR (Vdisplay_pixels_per_inch))
+		   : ELisp_Return_Value(Vdisplay_pixels_per_inch));
   return NUMVAL (v) > 0 ? NUMVAL (v) : 72.0;
 }
 
@@ -724,9 +724,8 @@ default_pixels_per_inch_y (void)
 /* Return a pointer to the image cache of frame F.  */
 #define FRAME_IMAGE_CACHE(F) ((F)->terminal->image_cache)
 
-#define XFRAME(p) \
-  (eassert (FRAMEP (p)), (struct frame *) XUNTAG (p, Lisp_Vectorlike))
-#define XSETFRAME(a, b) (XSETPSEUDOVECTOR (a, b, PVEC_FRAME))
+#define XFRAME(p) ((struct frame *)(p).xvector())
+#define XSETFRAME(a, b) ((a).xsetvector((struct Lisp_Vector *)(b)))
 
 /* Given a window, return its frame as a Lisp_Object.  */
 #define WINDOW_FRAME(w) ((w)->frame)

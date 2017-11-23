@@ -33,6 +33,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
    Let's hope this is never more than 1000000 characters.  */
 
 #define INFINITY 1000000
+#define C_INFINITY 1000000
 
 struct matrix_elt
   {

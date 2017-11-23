@@ -815,6 +815,7 @@ The value is nil if the FILENAME is not locked,
 t if it is locked by you, else a string saying which user has locked it.  */)
   (Lisp_Object filename)
 {
+  ;
 #ifdef MSDOS
   return Qnil;
 #else

@@ -4025,7 +4025,7 @@ dnl tputs in the test program, due to portability hassles.  When
 dnl cross-compiling, assume the test program will run if it links.
 AC_DEFUN([tputs_link_source], [
   AC_LANG_SOURCE(
-     [[extern void tputs (const char *, int, int (*)(int));
+     [[extern "C" void tputs (const char *, int, int (*)(int));
        int main (int argc, char **argv)
        {
 	  if (argc == 10000)

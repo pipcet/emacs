@@ -112,7 +112,7 @@ struct kboard
     Lisp_Object defining_kbd_macro_;
 
     /* The start of storage for the current keyboard macro.  */
-    Lisp_Object *kbd_macro_buffer;
+    ELisp_Struct_Value *kbd_macro_buffer;
 
     /* Where to store the next keystroke of the macro.  */
     Lisp_Object *kbd_macro_ptr;
@@ -125,7 +125,7 @@ struct kboard
        macro by the last command: all the events between kbd_macro_end and
        kbd_macro_ptr belong to the last command; see
        cancel-kbd-macro-events.  */
-    Lisp_Object *kbd_macro_end;
+    ELisp_Struct_Value *kbd_macro_end;
 
     /* Allocated size of kbd_macro_buffer.  */
     ptrdiff_t kbd_macro_bufsize;
@@ -222,7 +222,7 @@ kset_window_system (struct kboard *kb, Lisp_Object val)
   kb->Vwindow_system_ = val;
 }
 
-union buffered_input_event
+struct buffered_input_event
 {
   ENUM_BF (event_kind) kind : EVENT_KIND_WIDTH;
   struct input_event ie;
@@ -384,7 +384,7 @@ extern void unuse_menu_items (void);
 /* Extract the head from an event.
    This works on composite and simple events.  */
 #define EVENT_HEAD(event) \
-  (EVENT_HAS_PARAMETERS (event) ? XCAR (event) : (event))
+  (EVENT_HAS_PARAMETERS (event) ? XCAR (event) : ELisp_Return_Value(event))
 
 /* Extract the starting and ending positions from a composite event.  */
 #define EVENT_START(event) (CAR_SAFE (CDR_SAFE (event)))

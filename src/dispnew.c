@@ -18,7 +18,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 
-#include <config.h>
+#include "config.h"
 
 #include "sysstdio.h"
 #include <stdlib.h>
@@ -43,7 +43,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #include "xwidget.h"
 
 #ifdef HAVE_WINDOW_SYSTEM
-#include TERM_HEADER
+#include TERM_HEADER ".hh"
 #endif /* HAVE_WINDOW_SYSTEM */
 
 #include <errno.h>
@@ -3279,7 +3279,7 @@ redraw_overlapped_rows (struct window *w, int yb)
 	{
 	  enum glyph_row_area area;
 
-	  for (area = LEFT_MARGIN_AREA; area < LAST_AREA; ++area)
+	  for (area = LEFT_MARGIN_AREA; area < LAST_AREA; area = area + 1)
 	    {
 	      output_cursor_to (w, i, 0, row->y,
 				area == TEXT_AREA ? row->x : 0);
@@ -4675,6 +4675,7 @@ scrolling (struct frame *frame)
 	  /* This line cannot be redrawn, so don't let scrolling mess it.  */
 	  new_hash[i] = old_hash[i];
 #define INFINITY 1000000	/* Taken from scroll.c */
+#define C_INFINITY 1000000	/* Taken from scroll.c */
 	  draw_cost[i] = INFINITY;
 	}
       else

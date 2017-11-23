@@ -93,6 +93,8 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #include "getpagesize.h"
 #include "gnutls.h"
 
+extern void syms_of_js(void);
+
 #if (defined PROFILING \
      && (defined __FreeBSD__ || defined GNU_LINUX || defined __MINGW32__))
 # include <sys/gmon.h>
@@ -1241,6 +1243,8 @@ Using an Emacs configured with --with-x-toolkit=lucid does not have this problem
 	 Vcoding_system_hash_table.  */
       syms_of_coding ();	/* This should be after syms_of_fileio.  */
 
+      syms_of_js ();
+
       init_window_once ();	/* Init the window system.  */
 #ifdef HAVE_WINDOW_SYSTEM
       init_fringe_once ();	/* Swap bitmaps if necessary.  */
@@ -2248,7 +2252,7 @@ fixup_locale (void)
 static void
 synchronize_locale (int category, Lisp_Object *plocale, Lisp_Object desired_locale)
 {
-  if (! EQ (*plocale, desired_locale))
+  if (! EQ (plocale.ref(0), desired_locale))
     {
       *plocale = desired_locale;
 #ifdef WINDOWSNT

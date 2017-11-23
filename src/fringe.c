@@ -472,7 +472,7 @@ static struct fringe_bitmap standard_bitmaps[] =
 #define MAX_STANDARD_FRINGE_BITMAPS ARRAYELTS (standard_bitmaps)
 
 static struct fringe_bitmap **fringe_bitmaps;
-static Lisp_Object *fringe_faces;
+static ELisp_Pointer fringe_faces;
 static int max_fringe_bitmaps;
 
 int max_used_fringe_bitmap = MAX_STANDARD_FRINGE_BITMAPS;
@@ -585,7 +585,7 @@ draw_fringe_bitmap_1 (struct window *w, struct glyph_row *row, int left_p, int o
 
   if (face_id == DEFAULT_FACE_ID)
     {
-      Lisp_Object face = fringe_faces[which];
+      Lisp_Object face = fringe_faces.ref(which);
       face_id = NILP (face) ? lookup_named_face (f, Qfringe, false)
 	: lookup_derived_face (f, face, FRINGE_FACE_ID, 0);
       if (face_id < 0)
@@ -1331,7 +1331,7 @@ destroy_fringe_bitmap (int n)
 {
   struct fringe_bitmap **fbp;
 
-  fringe_faces[n] = Qnil;
+  fringe_faces.sref(n, Qnil);
 
   fbp = &fringe_bitmaps[n];
   if (*fbp && (*fbp)->dynamic)
@@ -1571,13 +1571,13 @@ If BITMAP already exists, the existing definition is replaced.  */)
 	      i = max_fringe_bitmaps;
 	      fringe_bitmaps = xrealloc (fringe_bitmaps,
 					 bitmaps * sizeof *fringe_bitmaps);
-	      fringe_faces = xrealloc (fringe_faces,
-				       bitmaps * sizeof *fringe_faces);
+	      fringe_faces = (ELisp_Struct_Value *)xrealloc (fringe_faces,
+                                                             bitmaps * sizeof *fringe_faces); // XXX rootme
 
 	      for (i = max_fringe_bitmaps; i < bitmaps; i++)
 		{
 		  fringe_bitmaps[i] = NULL;
-		  fringe_faces[i] = Qnil;
+		  fringe_faces.sref(i, Qnil);
 		}
 
 	      max_fringe_bitmaps = bitmaps;
@@ -1644,7 +1644,7 @@ If FACE is nil, reset face to default fringe face.  */)
 	error ("No such face");
     }
 
-  fringe_faces[n] = face;
+  fringe_faces.sref(n, face);
   return Qnil;
 }
 
@@ -1729,11 +1729,6 @@ If nil, also continue lines which are exactly as wide as the window.  */);
 void
 mark_fringe_data (void)
 {
-  int i;
-
-  for (i = 0; i < max_fringe_bitmaps; i++)
-    if (!NILP (fringe_faces[i]))
-      mark_object (fringe_faces[i]);
 }
 
 /* Initialize this module when Emacs starts.  */
@@ -1755,7 +1750,7 @@ init_fringe (void)
   fringe_bitmaps = xzalloc (max_fringe_bitmaps * sizeof *fringe_bitmaps);
 
   verify (NIL_IS_ZERO);
-  fringe_faces = xzalloc (max_fringe_bitmaps * sizeof *fringe_faces);
+  fringe_faces = (ELisp_Struct_Value *)xzalloc (max_fringe_bitmaps * sizeof *fringe_faces); // XXX rootme
 }
 
 #if defined (HAVE_NTGUI) || defined (USE_CAIRO)

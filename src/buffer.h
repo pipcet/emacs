@@ -294,7 +294,7 @@ extern void enlarge_buffer_text (struct buffer *, ptrdiff_t);
 #define DECODE_POSITION(charpos, bytepos, pos)				\
   do									\
     {									\
-      Lisp_Object __pos = (pos);					\
+      ELisp_Value __pos = (pos);					\
       if (NUMBERP (__pos))						\
 	{								\
 	  charpos = __pos;						\
@@ -315,7 +315,7 @@ extern void enlarge_buffer_text (struct buffer *, ptrdiff_t);
    nor can it be so large that C pointer arithmetic stops working.
    The ptrdiff_t cast ensures that this is signed, not unsigned.  */
 #define BUF_BYTES_MAX \
-  (ptrdiff_t) min (MOST_POSITIVE_FIXNUM - 1, min (SIZE_MAX, PTRDIFF_MAX))
+  (ptrdiff_t) c_min (MOST_POSITIVE_FIXNUM - 1, c_min (SIZE_MAX, PTRDIFF_MAX))
 
 /* Maximum gap size after compact_buffer, in bytes.  Also
    used in make_gap_larger to get some extra reserved space.  */
@@ -504,7 +504,7 @@ struct buffer_text
 
 struct buffer
 {
-  union vectorlike_header header;
+  struct vectorlike_header header;
 
   /* The name of this buffer.  */
   Lisp_Object name_;
@@ -763,6 +763,13 @@ struct buffer
      See `cursor-type' for other values.  */
   Lisp_Object cursor_in_non_selected_windows_;
 
+  /* Changes in the buffer are recorded here for undo, and t means
+     don't record anything.  This information belongs to the base
+     buffer of an indirect buffer.  But we can't store it in the
+     struct buffer_text because local variables have to be right in
+     the struct buffer. So we copy it around in set_buffer_internal.  */
+  Lisp_Object undo_list_;
+
   /* No more Lisp_Object beyond this point.  Except undo_list,
      which is handled specially in Fgarbage_collect.  */
 
@@ -888,12 +895,6 @@ struct buffer
   /* Position where the overlay lists are centered.  */
   ptrdiff_t overlay_center;
 
-  /* Changes in the buffer are recorded here for undo, and t means
-     don't record anything.  This information belongs to the base
-     buffer of an indirect buffer.  But we can't store it in the
-     struct buffer_text because local variables have to be right in
-     the struct buffer. So we copy it around in set_buffer_internal.  */
-  Lisp_Object undo_list_;
 };
 
 INLINE bool
@@ -911,8 +912,7 @@ CHECK_BUFFER (Lisp_Object x)
 INLINE struct buffer *
 XBUFFER (Lisp_Object a)
 {
-  eassert (BUFFERP (a));
-  return XUNTAG (a, Lisp_Vectorlike);
+  return (struct buffer *)a.xvector();
 }
 
 /* Most code should use these functions to set Lisp fields in struct
@@ -1165,13 +1165,13 @@ record_unwind_current_buffer (void)
 #define GET_OVERLAYS_AT(posn, overlays, noverlays, nextp, chrq)		\
   do {									\
     ptrdiff_t maxlen = 40;						\
-    SAFE_NALLOCA (overlays, 1, maxlen);					\
+    SAFE_ALLOCA_LISP (overlays, maxlen);					\
     (noverlays) = overlays_at (posn, false, &(overlays), &maxlen,	\
 			       nextp, NULL, chrq);			\
     if ((noverlays) > maxlen)						\
       {									\
 	maxlen = noverlays;						\
-	SAFE_NALLOCA (overlays, 1, maxlen);				\
+	SAFE_ALLOCA_LISP (overlays, maxlen);				\
 	(noverlays) = overlays_at (posn, false, &(overlays), &maxlen,	\
 				   nextp, NULL, chrq);			\
       }									\
@@ -1339,7 +1339,7 @@ extern int last_per_buffer_idx;
 
 
 #define PER_BUFFER_IDX(OFFSET) \
-      XINT (*(Lisp_Object *)((OFFSET) + (char *) &buffer_local_flags))
+      XINT (*(ELisp_Struct_Value *)((OFFSET) + (char *) &buffer_local_flags))
 
 /* Functions to get and set default value of the per-buffer
    variable at offset OFFSET in the buffer structure.  */
@@ -1347,13 +1347,13 @@ extern int last_per_buffer_idx;
 INLINE Lisp_Object
 per_buffer_default (int offset)
 {
-  return *(Lisp_Object *)(offset + (char *) &buffer_defaults);
+  return *(ELisp_Struct_Value *)(offset + (char *) &buffer_defaults);
 }
 
 INLINE void
 set_per_buffer_default (int offset, Lisp_Object value)
 {
-  *(Lisp_Object *)(offset + (char *) &buffer_defaults) = value;
+  *(ELisp_Struct_Value *)(offset + (char *) &buffer_defaults) = value;
 }
 
 /* Functions to get and set buffer-local value of the per-buffer
@@ -1362,13 +1362,13 @@ set_per_buffer_default (int offset, Lisp_Object value)
 INLINE Lisp_Object
 per_buffer_value (struct buffer *b, int offset)
 {
-  return *(Lisp_Object *)(offset + (char *) b);
+  return *(ELisp_Struct_Value *)(offset + (char *) b);
 }
 
 INLINE void
 set_per_buffer_value (struct buffer *b, int offset, Lisp_Object value)
 {
-  *(Lisp_Object *)(offset + (char *) b) = value;
+  *(ELisp_Struct_Value *)(offset + (char *) b) = value;
 }
 
 /* Downcase a character C, or make no change if that cannot be done.  */

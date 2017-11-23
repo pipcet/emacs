@@ -484,14 +484,14 @@ A watch can become invalid if the file or directory it watches is
 deleted, or if the watcher thread exits abnormally for any other
 reason.  Removing the watch by calling `inotify-rm-watch' also makes
 it invalid.  */)
-     (Lisp_Object watch_descriptor)
+     (ELisp_Handle watch_descriptor)
 {
   if (! valid_watch_descriptor (watch_descriptor))
     return Qnil;
-  Lisp_Object tail = assoc_no_quit (XCAR (watch_descriptor), watch_list);
+  ELisp_Value tail = assoc_no_quit (XCAR (watch_descriptor), watch_list);
   if (NILP (tail))
     return Qnil;
-  Lisp_Object watch = assq_no_quit (XCDR (watch_descriptor), XCDR (tail));
+  ELisp_Value watch = assq_no_quit (XCDR (watch_descriptor), XCDR (tail));
   return ! NILP (watch) ? Qt : Qnil;
 }
 

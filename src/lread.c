@@ -52,6 +52,8 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #endif
 #endif
 
+#define C_INFINITY INFINITY
+
 #ifdef HAVE_NS
 #include "nsterm.h"
 #endif
@@ -198,7 +200,7 @@ readchar (Lisp_Object readcharfun, bool *multibyte)
 {
   Lisp_Object tem;
   register int c;
-  int (*readbyte) (int, Lisp_Object);
+  int (*readbyte) (int, ELisp_Handle);
   unsigned char buf[MAX_MULTIBYTE_LENGTH];
   int i, len;
   bool emacs_mule_encoding = 0;
@@ -1278,7 +1280,7 @@ Return t if the file exists and loads successfully.  */)
   hist_file_name = (! NILP (Vpurify_flag)
                     ? concat2 (Ffile_name_directory (file),
                                Ffile_name_nondirectory (found))
-                    : found) ;
+                    : ELisp_Return_Value(found)) ;
 
   version = -1;
 
@@ -1982,13 +1984,13 @@ readevalloop (Lisp_Object readcharfun,
       if (! HASH_TABLE_P (read_objects_map)
 	  || XHASH_TABLE (read_objects_map)->count)
 	read_objects_map
-	  = make_hash_table (hashtest_eq, DEFAULT_HASH_SIZE,
+	  = make_hash_table (&hashtest_eq, DEFAULT_HASH_SIZE,
 			     DEFAULT_REHASH_SIZE, DEFAULT_REHASH_THRESHOLD,
 			     Qnil, false);
       if (! HASH_TABLE_P (read_objects_completed)
 	  || XHASH_TABLE (read_objects_completed)->count)
 	read_objects_completed
-	  = make_hash_table (hashtest_eq, DEFAULT_HASH_SIZE,
+	  = make_hash_table (&hashtest_eq, DEFAULT_HASH_SIZE,
 			     DEFAULT_REHASH_SIZE, DEFAULT_REHASH_THRESHOLD,
 			     Qnil, false);
       if (!NILP (Vpurify_flag) && c == '(')
@@ -2200,12 +2202,12 @@ read_internal_start (Lisp_Object stream, Lisp_Object start, Lisp_Object end)
   if (! HASH_TABLE_P (read_objects_map)
       || XHASH_TABLE (read_objects_map)->count)
     read_objects_map
-      = make_hash_table (hashtest_eq, DEFAULT_HASH_SIZE, DEFAULT_REHASH_SIZE,
+      = make_hash_table (&hashtest_eq, DEFAULT_HASH_SIZE, DEFAULT_REHASH_SIZE,
 			 DEFAULT_REHASH_THRESHOLD, Qnil, false);
   if (! HASH_TABLE_P (read_objects_completed)
       || XHASH_TABLE (read_objects_completed)->count)
     read_objects_completed
-      = make_hash_table (hashtest_eq, DEFAULT_HASH_SIZE, DEFAULT_REHASH_SIZE,
+      = make_hash_table (&hashtest_eq, DEFAULT_HASH_SIZE, DEFAULT_REHASH_SIZE,
 			 DEFAULT_REHASH_THRESHOLD, Qnil, false);
   if (EQ (Vread_with_symbol_positions, Qt)
       || EQ (Vread_with_symbol_positions, stream))
@@ -2773,7 +2775,7 @@ read1 (Lisp_Object readcharfun, int *pch, bool first_in_list)
 	      data = Fplist_get (tmp, Qdata);
 
 	      /* Now use params to make a new hash table and fill it.  */
-	      ht = Fmake_hash_table (param_count, params);
+	      ht = Fmake_hash_table (LV (param_count, params));
 
 	      while (CONSP (data))
 	      	{
@@ -4043,19 +4045,19 @@ intern_sym (Lisp_Object sym, Lisp_Object obarray, Lisp_Object index)
 {
   Lisp_Object *ptr;
 
-  XSYMBOL (sym)->u.s.interned = (EQ (obarray, initial_obarray)
-				 ? SYMBOL_INTERNED_IN_INITIAL_OBARRAY
-				 : SYMBOL_INTERNED);
+  XSYMBOL (sym)->interned = (EQ (obarray, initial_obarray)
+			     ? SYMBOL_INTERNED_IN_INITIAL_OBARRAY
+			     : SYMBOL_INTERNED);
 
   if (SREF (SYMBOL_NAME (sym), 0) == ':' && EQ (obarray, initial_obarray))
     {
       make_symbol_constant (sym);
-      XSYMBOL (sym)->u.s.redirect = SYMBOL_PLAINVAL;
+      XSYMBOL (sym)->redirect = SYMBOL_PLAINVAL;
       SET_SYMBOL_VAL (XSYMBOL (sym), sym);
     }
 
   ptr = aref_addr (obarray, XINT (index));
-  set_symbol_next (sym, SYMBOLP (*ptr) ? XSYMBOL (*ptr) : NULL);
+  set_symbol_next (sym, SYMBOLP (ptr.ref(0)) ? XSYMBOL (ptr.ref(0)) : NULL);
   *ptr = sym;
   return sym;
 }
@@ -4077,7 +4079,7 @@ intern_1 (const char *str, ptrdiff_t len)
   Lisp_Object obarray = check_obarray (Vobarray);
   Lisp_Object tem = oblookup (obarray, str, len, len);
 
-  return (SYMBOLP (tem) ? tem
+  return (SYMBOLP (tem) ? ELisp_Return_Value(tem)
 	  /* The above `oblookup' was done on the basis of nchars==nbytes, so
 	     the string has to be unibyte.  */
 	  : intern_driver (make_unibyte_string (str, len),
@@ -4126,12 +4128,12 @@ it defaults to the value of `obarray'.  */)
 {
   Lisp_Object tem;
 
-  obarray = check_obarray (NILP (obarray) ? Vobarray : obarray);
+  obarray = check_obarray (NILP (obarray) ? ELisp_Return_Value(Vobarray) : ELisp_Return_Value(obarray));
   CHECK_STRING (string);
 
   tem = oblookup (obarray, SSDATA (string), SCHARS (string), SBYTES (string));
   if (!SYMBOLP (tem))
-    tem = intern_driver (NILP (Vpurify_flag) ? string : Fpurecopy (string),
+    tem = intern_driver (NILP (Vpurify_flag) ? ELisp_Return_Value(string) : Fpurecopy (string),
 			 obarray, tem);
   return tem;
 }
@@ -4203,16 +4205,16 @@ usage: (unintern NAME OBARRAY)  */)
   /* if (EQ (tem, Qnil) || EQ (tem, Qt))
        error ("Attempt to unintern t or nil"); */
 
-  XSYMBOL (tem)->u.s.interned = SYMBOL_UNINTERNED;
+  XSYMBOL (tem)->interned = SYMBOL_UNINTERNED;
 
   hash = oblookup_last_bucket_number;
 
   if (EQ (AREF (obarray, hash), tem))
     {
-      if (XSYMBOL (tem)->u.s.next)
+      if (XSYMBOL (tem)->next)
 	{
 	  Lisp_Object sym;
-	  XSETSYMBOL (sym, XSYMBOL (tem)->u.s.next);
+	  XSETSYMBOL (sym, XSYMBOL (tem)->next);
 	  ASET (obarray, hash, sym);
 	}
       else
@@ -4223,13 +4225,13 @@ usage: (unintern NAME OBARRAY)  */)
       Lisp_Object tail, following;
 
       for (tail = AREF (obarray, hash);
-	   XSYMBOL (tail)->u.s.next;
+	   XSYMBOL (tail)->next;
 	   tail = following)
 	{
-	  XSETSYMBOL (following, XSYMBOL (tail)->u.s.next);
+	  XSETSYMBOL (following, XSYMBOL (tail)->next);
 	  if (EQ (following, tem))
 	    {
-	      set_symbol_next (tail, XSYMBOL (following)->u.s.next);
+	      set_symbol_next (tail, XSYMBOL (following)->next);
 	      break;
 	    }
 	}
@@ -4264,13 +4266,13 @@ oblookup (Lisp_Object obarray, register const char *ptr, ptrdiff_t size, ptrdiff
   else if (!SYMBOLP (bucket))
     error ("Bad data in guts of obarray"); /* Like CADR error message.  */
   else
-    for (tail = bucket; ; XSETSYMBOL (tail, XSYMBOL (tail)->u.s.next))
+    for (tail = bucket; ; XSETSYMBOL (tail, XSYMBOL (tail)->next))
       {
 	if (SBYTES (SYMBOL_NAME (tail)) == size_byte
 	    && SCHARS (SYMBOL_NAME (tail)) == size
 	    && !memcmp (SDATA (SYMBOL_NAME (tail)), ptr, size_byte))
 	  return tail;
-	else if (XSYMBOL (tail)->u.s.next == 0)
+	else if (XSYMBOL (tail)->next == 0)
 	  break;
       }
   XSETINT (tem, hash);
@@ -4290,9 +4292,9 @@ map_obarray (Lisp_Object obarray, void (*fn) (Lisp_Object, Lisp_Object), Lisp_Ob
 	while (1)
 	  {
 	    (*fn) (tail, arg);
-	    if (XSYMBOL (tail)->u.s.next == 0)
+	    if (XSYMBOL (tail)->next == 0)
 	      break;
-	    XSETSYMBOL (tail, XSYMBOL (tail)->u.s.next);
+	    XSETSYMBOL (tail, XSYMBOL (tail)->next);
 	  }
     }
 }
@@ -4332,12 +4334,12 @@ init_obarray (void)
   DEFSYM (Qnil, "nil");
   SET_SYMBOL_VAL (XSYMBOL (Qnil), Qnil);
   make_symbol_constant (Qnil);
-  XSYMBOL (Qnil)->u.s.declared_special = true;
+  XSYMBOL (Qnil)->declared_special = true;
 
   DEFSYM (Qt, "t");
   SET_SYMBOL_VAL (XSYMBOL (Qt), Qt);
   make_symbol_constant (Qt);
-  XSYMBOL (Qt)->u.s.declared_special = true;
+  XSYMBOL (Qt)->declared_special = true;
 
   /* Qt is correct even if CANNOT_DUMP.  loadup.el will set to nil at end.  */
   Vpurify_flag = Qt;
@@ -4361,7 +4363,7 @@ defalias (struct Lisp_Subr *sname, char *string)
 {
   Lisp_Object sym;
   sym = intern (string);
-  XSETSUBR (XSYMBOL (sym)->u.s.function, sname);
+  XSETSUBR (XSYMBOL (sym)->function, sname);
 }
 #endif /* NOTDEF */
 
@@ -4376,8 +4378,8 @@ defvar_int (struct Lisp_Intfwd *i_fwd,
   sym = intern_c_string (namestring);
   i_fwd->type = Lisp_Fwd_Int;
   i_fwd->intvar = address;
-  XSYMBOL (sym)->u.s.declared_special = true;
-  XSYMBOL (sym)->u.s.redirect = SYMBOL_FORWARDED;
+  XSYMBOL (sym)->declared_special = 1;
+  XSYMBOL (sym)->redirect = SYMBOL_FORWARDED;
   SET_SYMBOL_FWD (XSYMBOL (sym), (union Lisp_Fwd *)i_fwd);
 }
 
@@ -4391,8 +4393,8 @@ defvar_bool (struct Lisp_Boolfwd *b_fwd,
   sym = intern_c_string (namestring);
   b_fwd->type = Lisp_Fwd_Bool;
   b_fwd->boolvar = address;
-  XSYMBOL (sym)->u.s.declared_special = true;
-  XSYMBOL (sym)->u.s.redirect = SYMBOL_FORWARDED;
+  XSYMBOL (sym)->declared_special = 1;
+  XSYMBOL (sym)->redirect = SYMBOL_FORWARDED;
   SET_SYMBOL_FWD (XSYMBOL (sym), (union Lisp_Fwd *)b_fwd);
   Vbyte_boolean_vars = Fcons (sym, Vbyte_boolean_vars);
 }
@@ -4410,8 +4412,8 @@ defvar_lisp_nopro (struct Lisp_Objfwd *o_fwd,
   sym = intern_c_string (namestring);
   o_fwd->type = Lisp_Fwd_Obj;
   o_fwd->objvar = address;
-  XSYMBOL (sym)->u.s.declared_special = true;
-  XSYMBOL (sym)->u.s.redirect = SYMBOL_FORWARDED;
+  XSYMBOL (sym)->declared_special = 1;
+  XSYMBOL (sym)->redirect = SYMBOL_FORWARDED;
   SET_SYMBOL_FWD (XSYMBOL (sym), (union Lisp_Fwd *)o_fwd);
 }
 
@@ -4434,8 +4436,8 @@ defvar_kboard (struct Lisp_Kboard_Objfwd *ko_fwd,
   sym = intern_c_string (namestring);
   ko_fwd->type = Lisp_Fwd_Kboard_Obj;
   ko_fwd->offset = offset;
-  XSYMBOL (sym)->u.s.declared_special = true;
-  XSYMBOL (sym)->u.s.redirect = SYMBOL_FORWARDED;
+  XSYMBOL (sym)->declared_special = 1;
+  XSYMBOL (sym)->redirect = SYMBOL_FORWARDED;
   SET_SYMBOL_FWD (XSYMBOL (sym), (union Lisp_Fwd *)ko_fwd);
 }
 
@@ -4769,7 +4771,7 @@ to find all the symbols in an obarray, use `mapatoms'.  */);
   DEFVAR_LISP ("values", Vvalues,
 	       doc: /* List of values of all expressions which were read, evaluated and printed.
 Order is reverse chronological.  */);
-  XSYMBOL (intern ("values"))->u.s.declared_special = true;
+  XSYMBOL (intern ("values"))->declared_special = 0;
 
   DEFVAR_LISP ("standard-input", Vstandard_input,
 	       doc: /* Stream for read to get input from.

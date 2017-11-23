@@ -136,7 +136,7 @@ int _cdecl _spawnlp (int, const char *, const char *, ...);
 #endif
 
 /* Declare here, including term.h is problematic on some systems.  */
-extern void tputs (const char *, int, int (*)(int));
+extern "C" void tputs (const char *, int, int (*)(int));
 
 static const int baud_convert[] =
   {
@@ -2107,7 +2107,7 @@ init_signals (bool dumping)
      NEWS if you change this.  */
 
   maybe_fatal_sig (SIGHUP);
-  maybe_fatal_sig (SIGINT);
+  //maybe_fatal_sig (SIGINT);
   maybe_fatal_sig (SIGTERM);
 
   /* Emacs checks for write errors, so it can safely ignore SIGPIPE.
@@ -2163,8 +2163,8 @@ init_signals (bool dumping)
 #ifdef SIGBUS
   sigaction (SIGBUS, &thread_fatal_action, 0);
 #endif
-  if (!init_sigsegv ())
-    sigaction (SIGSEGV, &thread_fatal_action, 0);
+  //if (!init_sigsegv ())
+  //  sigaction (SIGSEGV, &thread_fatal_action, 0);
 #ifdef SIGSYS
   sigaction (SIGSYS, &thread_fatal_action, 0);
 #endif
@@ -2173,7 +2173,7 @@ init_signals (bool dumping)
   signal (SIGPROF, SIG_IGN);
 #endif
 #ifdef SIGVTALRM
-  sigaction (SIGVTALRM, &process_fatal_action, 0);
+  //sigaction (SIGVTALRM, &process_fatal_action, 0);
 #endif
 #ifdef SIGXCPU
   sigaction (SIGXCPU, &process_fatal_action, 0);

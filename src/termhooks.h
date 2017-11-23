@@ -668,8 +668,7 @@ TERMINALP (Lisp_Object a)
 INLINE struct terminal *
 XTERMINAL (Lisp_Object a)
 {
-  eassert (TERMINALP (a));
-  return XUNTAG (a, Lisp_Vectorlike);
+  return (struct terminal *)a.xvector();
 }
 
 /* Most code should use these functions to set Lisp fields in struct
@@ -714,7 +713,7 @@ extern struct terminal *terminal_list;
    name is grossly misleading, actually it is (NAME . FONT-LIST-CACHE).  */
 #if defined (HAVE_X_WINDOWS)
 #define TERMINAL_FONT_CACHE(t)						\
-  (t->type == output_x_window ? t->display_info.x->name_list_element : Qnil)
+  (t->type == output_x_window ? ELisp_Return_Value(t->display_info.x->name_list_element) : Qnil)
 #elif defined (HAVE_NTGUI)
 #define TERMINAL_FONT_CACHE(t)						\
   (t->type == output_w32 ? t->display_info.w32->name_list_element : Qnil)

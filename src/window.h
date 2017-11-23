@@ -178,6 +178,12 @@ struct window
     /* An alist with parameters.  */
     Lisp_Object window_parameters;
 
+    /* Alist of <buffer, window-start, window-point> triples listing
+       buffers previously shown in this window.  */
+    Lisp_Object prev_buffers;
+    /* List of buffers re-shown in this window.  */
+    Lisp_Object next_buffers;
+
     /* No Lisp data may follow below this point without changing
        mark_object in alloc.c.  The member current_matrix must be the
        first non-Lisp member.  */
@@ -185,14 +191,6 @@ struct window
     /* Glyph matrices.  */
     struct glyph_matrix *current_matrix;
     struct glyph_matrix *desired_matrix;
-
-    /* The two Lisp_Object fields below are marked in a special way,
-       which is why they're placed after `current_matrix'.  */
-    /* Alist of <buffer, window-start, window-point> triples listing
-       buffers previously shown in this window.  */
-    Lisp_Object prev_buffers;
-    /* List of buffers re-shown in this window.  */
-    Lisp_Object next_buffers;
 
     /* Number saying how recently window was selected.  */
     EMACS_INT use_time;
@@ -413,8 +411,7 @@ CHECK_WINDOW (Lisp_Object x)
 INLINE struct window *
 XWINDOW (Lisp_Object a)
 {
-  eassert (WINDOWP (a));
-  return XUNTAG (a, Lisp_Vectorlike);
+  return (struct window *)a.xvector();
 }
 
 /* Most code should use these functions to set Lisp fields in struct
@@ -543,7 +540,7 @@ wset_next_buffers (struct window *w, Lisp_Object val)
 /* Window W's buffer.  */
 #define WINDOW_BUFFER(W)			\
   (WINDOW_LEAF_P(W)				\
-   ? (W)->contents				\
+   ? ELisp_Return_Value((W)->contents)          \
    : Qnil)					\
 
 /* Return the canonical column width of the frame of window W.  */

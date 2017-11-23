@@ -182,6 +182,13 @@ Status x_parse_color (struct frame *f, const char *color_name,
 /* For each X display, we have a structure that records
    information about it.  */
 
+enum wm_type
+  {
+   X_WMTYPE_UNKNOWN,
+   X_WMTYPE_A,
+   X_WMTYPE_B
+  };
+
 struct x_display_info
 {
   /* Chain of all x_display_info structures.  */
@@ -429,12 +436,7 @@ struct x_display_info
      Other window managers (type B) puts the window including decorations
      at 0/0, so FRAME_OUTER_WINDOW is a bit below 0/0.
      Record the type of WM in use so we can compensate for type A WMs.  */
-  enum
-    {
-      X_WMTYPE_UNKNOWN,
-      X_WMTYPE_A,
-      X_WMTYPE_B
-    } wm_type;
+  enum wm_type wm_type;
 
 
   /* Atoms that are drag and drop atoms */

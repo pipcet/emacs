@@ -407,7 +407,9 @@ pset_stderrproc (struct Lisp_Process *p, Lisp_Object val)
 static Lisp_Object
 make_lisp_proc (struct Lisp_Process *p)
 {
-  return make_lisp_ptr (p, Lisp_Vectorlike);
+  ELisp_Value ret;
+  ret.xsetvector((struct Lisp_Vector *)p);
+  return ret;
 }
 
 enum fd_bits
@@ -1586,7 +1588,7 @@ Return nil if format of ADDRESS is invalid.  */)
 	  args[i + 1] = p->contents[i];
 	}
 
-      return Fformat (nargs + 1, args);
+      return Fformat (LV (nargs + 1, args));
     }
 
   if (CONSP (address))
@@ -1786,7 +1788,7 @@ usage: (make-process &rest ARGS)  */)
 	for (tem2 = command; CONSP (tem2); tem2 = XCDR (tem2))
 	  args2[i++] = XCAR (tem2);
 	if (!NILP (program))
-	  coding_systems = Ffind_operation_coding_system (nargs2, args2);
+	  coding_systems = Ffind_operation_coding_system (LV (nargs2, args2));
 	if (CONSP (coding_systems))
 	  val = XCAR (coding_systems);
 	else if (CONSP (Vdefault_process_coding_system))
@@ -1816,7 +1818,7 @@ usage: (make-process &rest ARGS)  */)
 	    for (tem2 = command; CONSP (tem2); tem2 = XCDR (tem2))
 	      args2[i++] = XCAR (tem2);
 	    if (!NILP (program))
-	      coding_systems = Ffind_operation_coding_system (nargs2, args2);
+	      coding_systems = Ffind_operation_coding_system (LV (nargs2, args2));
 	  }
 	if (CONSP (coding_systems))
 	  val = XCDR (coding_systems);
@@ -2069,8 +2071,8 @@ create_process (Lisp_Object process, char **new_argv, Lisp_Object current_dir)
   pid = vfork ();
 #endif
 
-  current_dir = current_dir_volatile;
-  lisp_pty_name = lisp_pty_name_volatile;
+  current_dir = *(ELisp_Value *)(void *)(&current_dir_volatile);
+  lisp_pty_name = *(ELisp_Value *)(void *)(&lisp_pty_name_volatile);
   new_argv = new_argv_volatile;
   forkin = forkin_volatile;
   forkout = forkout_volatile;
@@ -2729,6 +2731,9 @@ set up yet, this function will block until socket setup has completed.  */)
 #endif
 
 
+enum opt_type { SOPT_UNKNOWN, SOPT_BOOL, SOPT_INT, SOPT_IFNAME, SOPT_LINGER };
+enum opt_bit { OPIX_NONE = 0, OPIX_MISC = 1, OPIX_REUSEADDR = 2 };
+
 static const struct socket_options {
   /* The name of this option.  Should be lowercase version of option
      name without SO_ prefix.  */
@@ -2737,8 +2742,8 @@ static const struct socket_options {
   int optlevel;
   /* Option number SO_...  */
   int optnum;
-  enum { SOPT_UNKNOWN, SOPT_BOOL, SOPT_INT, SOPT_IFNAME, SOPT_LINGER } opttype;
-  enum { OPIX_NONE = 0, OPIX_MISC = 1, OPIX_REUSEADDR = 2 } optbit;
+  enum opt_type opttype;
+  enum opt_bit optbit;
 } socket_options[] =
   {
 #ifdef SO_BINDTODEVICE
@@ -4768,7 +4773,7 @@ server_accept_connection (Lisp_Object server, int channel)
       if (!NILP (buffer))
 	{
 	  args[1] = buffer;
-	  buffer = Fget_buffer_create (Fformat (nargs, args));
+	  buffer = Fget_buffer_create (Fformat (LV (nargs, args)));
 	}
     }
 
@@ -4776,7 +4781,7 @@ server_accept_connection (Lisp_Object server, int channel)
      server process name with the caller identification.  */
 
   args[1] = ps->name;
-  Lisp_Object name = Fformat (nargs, args);
+  Lisp_Object name = Fformat (LV (nargs, args));
   Lisp_Object proc = make_process (name);
 
   chan_process[s] = proc;
@@ -6188,7 +6193,7 @@ write_queue_pop (struct Lisp_Process *p, Lisp_Object *obj,
 
   *len = XINT (XCDR (offset_length));
   offset = XINT (XCAR (offset_length));
-  *buf = SSDATA (*obj) + offset;
+  *buf = SSDATA (obj.ref(0)) + offset;
 
   return 1;
 }
@@ -7324,9 +7329,9 @@ This inserts a status message into the process's buffer, if there is one.  */)
       bset_read_only (current_buffer, Qnil);
       insert_string ("\nProcess ");
       { /* FIXME: temporary kludge.  */
-	Lisp_Object tem2 = p->name; Finsert (1, &tem2); }
+	Lisp_Object tem2 = p->name; Finsert (LV (1, &tem2)); }
       insert_string (" ");
-      Finsert (1, &msg);
+      Finsert (LV (1, &msg));
       bset_read_only (current_buffer, tem);
       set_marker_both (p->mark, p->buffer, PT, PT_BYTE);
 
@@ -7710,7 +7715,7 @@ remove_slash_colon (Lisp_Object name)
     (SREF (name, 0) == '/' && SREF (name, 1) == ':'
      ? make_specified_string (SSDATA (name) + 2, SCHARS (name) - 2,
 			      SBYTES (name) - 2, STRING_MULTIBYTE (name))
-     : name);
+     : ELisp_Return_Value(name));
 }
 
 /* Add DESC to the set of keyboard input descriptors.  */

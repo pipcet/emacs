@@ -85,7 +85,7 @@ static bool xd_in_read_queued_messages = 0;
     /* Remove the trailing newline.  */					\
     char const *mess = error.message;					\
     char const *nl = strchr (mess, '\n');				\
-    Lisp_Object err = make_string (mess, nl ? nl - mess : strlen (mess)); \
+    ELisp_Value err = make_string (mess, nl ? nl - mess : strlen (mess)); \
     dbus_error_free (&error);						\
     XD_SIGNAL1 (err);							\
   } while (0)
@@ -216,7 +216,7 @@ xd_symbol_to_dbus_type (Lisp_Object object)
 
 /* Return a list pointer which does not have a Lisp symbol as car.  */
 #define XD_NEXT_VALUE(object)						\
-  ((XD_DBUS_TYPE_P (CAR_SAFE (object))) ? CDR_SAFE (object) : object)
+  ((XD_DBUS_TYPE_P (CAR_SAFE (object))) ? CDR_SAFE (object) : ELisp_Return_Value(object))
 
 /* Transform the message type to its string representation for debug
    messages.  */
@@ -1120,6 +1120,7 @@ this connection to those buses.  */)
   Lisp_Object val;
   ptrdiff_t refcount;
 
+  MODIFY_ARG(&bus);
   /* Check parameter.  */
   XD_DBUS_VALIDATE_BUS_ADDRESS (bus);
 
@@ -1209,6 +1210,7 @@ DEFUN ("dbus-get-unique-name", Fdbus_get_unique_name, Sdbus_get_unique_name,
   DBusConnection *connection;
   const char *name;
 
+  MODIFY_ARG(&bus);
   /* Check parameter.  */
   XD_DBUS_VALIDATE_BUS_ADDRESS (bus);
 

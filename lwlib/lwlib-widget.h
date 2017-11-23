@@ -23,7 +23,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #ifndef LWLIB_WIDGET_H
 #define LWLIB_WIDGET_H
 
-#include "../src/lisp.h"
+#include "../src/lisp.h.hh"
 
 typedef enum
 {

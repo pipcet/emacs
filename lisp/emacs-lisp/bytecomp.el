@@ -196,7 +196,7 @@ adds `c' to it; otherwise adds `.elc'."
 (autoload 'byte-decompile-bytecode "byte-opt")
 
 (defcustom byte-compile-verbose
-  (and (not noninteractive) (> baud-rate search-slow-speed))
+  t
   "Non-nil means print messages describing progress of byte-compiler."
   :group 'bytecomp
   :type 'boolean)

@@ -101,7 +101,7 @@ syntax_property_entry (int c, bool via_property)
 {
   if (via_property)
     return (gl_state.use_global
-	    ? gl_state.global_code
+	    ? ELisp_Return_Value(gl_state.global_code)
 	    : CHAR_TABLE_REF (gl_state.current_syntax_table, c));
   return CHAR_TABLE_REF (BVAR (current_buffer, syntax_table), c);
 }

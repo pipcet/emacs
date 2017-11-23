@@ -2475,8 +2475,11 @@ term_mouse_position (struct frame **fp, int insist, Lisp_Object *bar_window,
   *bar_window = Qnil;
   *part = scroll_bar_above_handle;
 
-  XSETINT (*x, last_mouse_x);
-  XSETINT (*y, last_mouse_y);
+  ELisp_Value tem;
+  XSETINT (tem, last_mouse_x);
+  x.set(tem);
+  XSETINT (tem, last_mouse_y);
+  y.set(tem);
   gettimeofday(&now, 0);
   *timeptr = timeval_to_Time (&now);
 }

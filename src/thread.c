@@ -674,7 +674,7 @@ invoke_thread_function (void)
 {
   ptrdiff_t count = SPECPDL_INDEX ();
 
-  Ffuncall (1, &current_thread->function);
+  Ffuncall (LV (1, &current_thread->function));
   return unbind_to (count, Qnil);
 }
 

@@ -587,8 +587,8 @@ void
 wset_redisplay (struct window *w)
 {
   /* Beware: selected_window can be nil during early stages.  */
-  if (!EQ (make_lisp_ptr (w, Lisp_Vectorlike), selected_window))
-    redisplay_other_windows ();
+  //if (!EQ (make_lisp_ptr (w, Lisp_Vectorlike), selected_window)) XXX
+  //  redisplay_other_windows ();
   w->redisplay = true;
 }
 
@@ -706,7 +706,7 @@ static struct props it_props[] =
 /* Value is the position described by X.  If X is a marker, value is
    the marker_position of X.  Otherwise, value is X.  */
 
-#define COERCE_MARKER(X) (MARKERP ((X)) ? Fmarker_position (X) : (X))
+#define COERCE_MARKER(X) (MARKERP ((X)) ? Fmarker_position (X) : ELisp_Return_Value(X))
 
 /* Enumeration returned by some move_it_.* functions internally.  */
 
@@ -2592,14 +2592,14 @@ safe__call (bool inhibit_quit, ptrdiff_t nargs, Lisp_Object func, va_list ap)
 
       args[0] = func;
       for (i = 1; i < nargs; i++)
-	args[i] = va_arg (ap, Lisp_Object);
+	args[i] = va_arg (ap, ELisp_Handle);
 
       specbind (Qinhibit_redisplay, Qt);
       if (inhibit_quit)
 	specbind (Qinhibit_quit, Qt);
       /* Use Qt to ensure debugger does not run,
 	 so there is no possibility of wanting to redisplay.  */
-      val = internal_condition_case_n (Ffuncall, nargs, args, Qt,
+      val = internal_condition_case_n (Ffuncall, LV (nargs, args), Qt,
 				       safe_eval_handler);
       SAFE_FREE ();
       val = unbind_to (count, val);
@@ -3964,8 +3964,8 @@ handle_face_prop (struct it *it)
       int i;
       Lisp_Object from_overlay
 	= (it->current.overlay_string_index >= 0
-	   ? it->string_overlays[it->current.overlay_string_index
-				 % OVERLAY_STRING_CHUNK_SIZE]
+	   ? ELisp_Return_Value(it->string_overlays[it->current.overlay_string_index
+                                                    % OVERLAY_STRING_CHUNK_SIZE])
 	   : Qnil);
 
       /* See if we got to this string directly or indirectly from
@@ -5804,7 +5804,7 @@ load_overlay_strings (struct it *it, ptrdiff_t charpos)
 #define RECORD_OVERLAY_STRING(OVERLAY, STRING, AFTER_P)			\
   do									\
     {									\
-      Lisp_Object priority;						\
+      ELisp_Value priority;						\
 									\
       if (n == size)							\
 	{								\
@@ -5826,7 +5826,7 @@ load_overlay_strings (struct it *it, ptrdiff_t charpos)
   /* Process overlay before the overlay center.  */
   for (ov = current_buffer->overlays_before; ov; ov = ov->next)
     {
-      XSETMISC (overlay, ov);
+      XSETOVERLAY (overlay, ov);
       eassert (OVERLAYP (overlay));
       start = OVERLAY_POSITION (OVERLAY_START (overlay));
       end = OVERLAY_POSITION (OVERLAY_END (overlay));
@@ -5866,7 +5866,7 @@ load_overlay_strings (struct it *it, ptrdiff_t charpos)
   /* Process overlays after the overlay center.  */
   for (ov = current_buffer->overlays_after; ov; ov = ov->next)
     {
-      XSETMISC (overlay, ov);
+      XSETOVERLAY (overlay, ov);
       eassert (OVERLAYP (overlay));
       start = OVERLAY_POSITION (OVERLAY_START (overlay));
       end = OVERLAY_POSITION (OVERLAY_END (overlay));
@@ -10192,9 +10192,9 @@ vadd_to_log (char const *format, va_list ap)
   AUTO_STRING (args0, format);
   args[0] = args0;
   for (ptrdiff_t i = 1; i <= nargs; i++)
-    args[i] = va_arg (ap, Lisp_Object);
+    args[i] = va_arg (ap, ELisp_Handle);
   Lisp_Object msg = Qnil;
-  msg = Fformat_message (nargs, args);
+  msg = Fformat_message (LV (nargs, args));
 
   ptrdiff_t len = SBYTES (msg) + 1;
   USE_SAFE_ALLOCA;
@@ -14020,7 +14020,7 @@ redisplay_internal (void)
 
 #define AINC(a,i)							\
   {									\
-    Lisp_Object entry = Fgethash (make_number (i), a, make_number (0));	\
+    ELisp_Value entry = Fgethash (make_number (i), a, make_number (0));	\
     if (INTEGERP (entry))						\
       Fputhash (make_number (i), make_number (1 + XINT (entry)), a);	\
   }
@@ -25076,7 +25076,7 @@ else if the text is replaced by an ellipsis.  */)
   Lisp_Object prop
     = (NATNUMP (pos_or_prop) || MARKERP (pos_or_prop)
        ? Fget_char_property (pos_or_prop, Qinvisible, Qnil)
-       : pos_or_prop);
+       : ELisp_Return_Value(pos_or_prop));
   int invis = TEXT_PROP_MEANS_INVISIBLE (prop);
   return (invis == 0 ? Qnil
 	  : invis == 1 ? Qt
@@ -26335,7 +26335,7 @@ compute_overhangs_and_x (struct glyph_string *s, int x, bool backward_p)
   do {									  \
     int face_id;							  \
     XChar2b *char2b;							  \
-    Lisp_Object gstring;						  \
+    ELisp_Value gstring;						  \
     									  \
     face_id = (row)->glyphs[area][START].face_id;			  \
     gstring = (composition_gstring_from_id				  \
@@ -30540,7 +30540,7 @@ on_hot_spot_p (Lisp_Object hot_spot, int x, int y)
       if (VECTORP (XCDR (hot_spot)))
 	{
 	  struct Lisp_Vector *v = XVECTOR (XCDR (hot_spot));
-	  Lisp_Object *poly = v->contents;
+	  ELisp_Pointer poly = v->contents;
 	  ptrdiff_t n = v->header.size;
 	  ptrdiff_t i;
 	  bool inside = false;
@@ -31869,7 +31869,7 @@ x_draw_bottom_divider (struct window *w)
       int x1 = WINDOW_RIGHT_EDGE_X (w);
       int y0 = WINDOW_BOTTOM_EDGE_Y (w) - WINDOW_BOTTOM_DIVIDER_WIDTH (w);
       int y1 = WINDOW_BOTTOM_EDGE_Y (w);
-      struct window *p = !NILP (w->parent) ? XWINDOW (w->parent) : false;
+      struct window *p = !NILP (w->parent) ? XWINDOW (w->parent) : NULL;
 
       /* If W is vertically combined and has a sibling below, don't draw
 	 over any right divider.  */
@@ -32967,11 +32967,11 @@ display table takes effect; in this case, Emacs does not consult
 
   DEFVAR_LISP ("redisplay--all-windows-cause", Vredisplay__all_windows_cause,
 	       doc: /*  */);
-  Vredisplay__all_windows_cause = Fmake_hash_table (0, NULL);
+  Vredisplay__all_windows_cause = Fmake_hash_table (LV (0, NULL));
 
   DEFVAR_LISP ("redisplay--mode-lines-cause", Vredisplay__mode_lines_cause,
 	       doc: /*  */);
-  Vredisplay__mode_lines_cause = Fmake_hash_table (0, NULL);
+  Vredisplay__mode_lines_cause = Fmake_hash_table (LV (0, NULL));
 
   DEFVAR_BOOL ("redisplay--inhibit-bidi", redisplay__inhibit_bidi,
      doc: /* Non-nil means it is not safe to attempt bidi reordering for display.  */);

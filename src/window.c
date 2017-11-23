@@ -1467,7 +1467,9 @@ check_window_containing (struct window *w, void *user_data)
   else
     {
       *cw->part = found;
-      XSETWINDOW (*cw->window, w);
+      ELisp_Value tem;
+      XSETWINDOW (tem, w);
+      cw->window.set(tem);
       return false;
     }
 }
@@ -2407,10 +2409,10 @@ delete_deletable_window (Lisp_Object window)
 static bool
 add_window_to_list (struct window *w, void *user_data)
 {
-  Lisp_Object *list = user_data;
+  Lisp_Object *list = (ELisp_Value *)user_data;
   Lisp_Object window;
   XSETWINDOW (window, w);
-  *list = Fcons (window, *list);
+  *list = Fcons (window, list.ref(0));
   return true;
 }
 
@@ -2531,32 +2533,33 @@ decode_next_window_args (Lisp_Object *window, Lisp_Object *minibuf, Lisp_Object 
 {
   struct window *w = decode_live_window (*window);
 
-  XSETWINDOW (*window, w);
+  ELisp_Value tem;
+  XSETWINDOW (tem, w);
+  *window = tem;
   /* MINIBUF nil may or may not include minibuffers.  Decide if it
      does.  */
-  if (NILP (*minibuf))
-    *minibuf = minibuf_level ? minibuf_window : Qlambda;
-  else if (!EQ (*minibuf, Qt))
-    *minibuf = Qlambda;
+  if (NILP (minibuf.ref(0)))
+    minibuf.set(minibuf_level ? ELisp_Return_Value(minibuf_window) : Qlambda);
+  else if (!EQ (minibuf.ref(0), Qt))
+    minibuf.set(Qlambda);
 
   /* Now *MINIBUF can be t => count all minibuffer windows, `lambda'
      => count none of them, or a specific minibuffer window (the
      active one) to count.  */
 
   /* ALL_FRAMES nil doesn't specify which frames to include.  */
-  if (NILP (*all_frames))
-    *all_frames
-      = (!EQ (*minibuf, Qlambda)
-	 ? FRAME_MINIBUF_WINDOW (XFRAME (w->frame))
-	 : Qnil);
-  else if (EQ (*all_frames, Qvisible))
+  if (NILP (all_frames.ref(0)))
+    all_frames.set((!EQ (*minibuf, Qlambda)
+	 ? ELisp_Return_Value(FRAME_MINIBUF_WINDOW (XFRAME (w->frame)))
+                    : Qnil));
+  else if (EQ (all_frames.ref(0), Qvisible))
     ;
-  else if (EQ (*all_frames, make_number (0)))
+  else if (EQ (all_frames.ref(0), make_number (0)))
     ;
-  else if (FRAMEP (*all_frames))
+  else if (FRAMEP (all_frames.ref(0)))
     ;
-  else if (!EQ (*all_frames, Qt))
-    *all_frames = Qnil;
+  else if (!EQ (all_frames.ref(0), Qt))
+    all_frames.set(Qnil);
 }
 
 
@@ -3733,8 +3736,8 @@ make_parent_window (Lisp_Object window, bool horflag)
 
   o = XWINDOW (window);
   p = allocate_window ();
-  memcpy ((char *) p + sizeof (union vectorlike_header),
-	  (char *) o + sizeof (union vectorlike_header),
+  memcpy ((char *) p + sizeof (struct vectorlike_header),
+	  (char *) o + sizeof (struct vectorlike_header),
 	  word_size * VECSIZE (struct window));
   /* P's buffer slot may change from nil to a buffer...  */
   adjust_window_count (p, 1);
@@ -6232,7 +6235,7 @@ from the top of the window.  */)
 
 struct save_window_data
   {
-    union vectorlike_header header;
+    struct vectorlike_header header;
     Lisp_Object selected_frame;
     Lisp_Object current_window;
     Lisp_Object f_current_buffer;
@@ -6260,7 +6263,7 @@ struct save_window_data
 /* This is saved as a Lisp_Vector.  */
 struct saved_window
 {
-  union vectorlike_header header;
+  struct vectorlike_header header;
 
   Lisp_Object window, buffer, start, pointm, old_pointm;
   Lisp_Object pixel_left, pixel_top, pixel_height, pixel_width;
@@ -6825,7 +6828,7 @@ save_window_save (Lisp_Object window, struct Lisp_Vector *vector, ptrdiff_t i)
 
       wset_temslot (w, make_number (i)); i++;
       p->window = window;
-      p->buffer = (WINDOW_LEAF_P (w) ? w->contents : Qnil);
+      p->buffer = (WINDOW_LEAF_P (w) ? ELisp_Return_Value(w->contents) : Qnil);
       p->pixel_left = make_number (w->pixel_left);
       p->pixel_top = make_number (w->pixel_top);
       p->pixel_width = make_number (w->pixel_width);
@@ -6988,7 +6991,7 @@ saved by this function.  */)
     ASET (tem, i,
 	  Fmake_vector (make_number (VECSIZE (struct saved_window)), Qnil));
   save_window_save (FRAME_ROOT_WINDOW (f), XVECTOR (tem), 0);
-  XSETWINDOW_CONFIGURATION (tem, data);
+  XSETWINDOW_CONFIGURATION (tem, (struct window_configuration *)data);
   return (tem);
 }
 

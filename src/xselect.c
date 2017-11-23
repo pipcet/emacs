@@ -91,8 +91,8 @@ static void lisp_data_to_selection_data (struct x_display_info *, Lisp_Object,
    subscript calculations.  Similarly for PTRDIFF_MAX - 1 or SIZE_MAX
    - 1 in place of INT_MAX.  */
 #define MAX_SELECTION_QUANTUM						\
-  ((int) min (0xFFFFFF, (min (INT_MAX, min (PTRDIFF_MAX, SIZE_MAX) - 1)	\
-			 / max (X_LONG_SIZE, sizeof (long)))))
+  ((int) c_min (0xFFFFFF, (c_min (INT_MAX, c_min (PTRDIFF_MAX, SIZE_MAX) - 1) \
+                           / c_max (X_LONG_SIZE, sizeof (long)))))
 
 static int
 selection_quantum (Display *display)

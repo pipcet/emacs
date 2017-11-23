@@ -218,7 +218,7 @@ get_composition_id (ptrdiff_t charpos, ptrdiff_t bytepos, ptrdiff_t nchars,
   if (INTEGERP (components))
     key = Fmake_vector (make_number (1), components);
   else if (STRINGP (components) || CONSP (components))
-    key = Fvconcat (1, &components);
+    key = Fvconcat (LV (1, &components));
   else if (VECTORP (components))
     key = components;
   else if (NILP (components))
@@ -758,27 +758,28 @@ composition_gstring_width (Lisp_Object gstring, ptrdiff_t from, ptrdiff_t to,
 	}
       metrics->width = metrics->lbearing = metrics->rbearing = 0;
     }
-  for (glyph = lgstring_glyph_addr (gstring, from); from < to; from++, glyph++)
+  for (; from < to; from++)
     {
       int x;
+      ELisp_Value glyph = AREF(gstring, from);
 
-      if (NILP (LGLYPH_ADJUSTMENT (*glyph)))
-	width += LGLYPH_WIDTH (*glyph);
+      if (NILP (LGLYPH_ADJUSTMENT (glyph)))
+	width += LGLYPH_WIDTH (glyph);
       else
-	width += LGLYPH_WADJUST (*glyph);
+	width += LGLYPH_WADJUST (glyph);
       if (metrics)
 	{
-	  x = metrics->width + LGLYPH_LBEARING (*glyph) + LGLYPH_XOFF (*glyph);
+	  x = metrics->width + LGLYPH_LBEARING (glyph) + LGLYPH_XOFF (glyph);
 	  if (metrics->lbearing > x)
 	    metrics->lbearing = x;
-	  x = metrics->width + LGLYPH_RBEARING (*glyph) + LGLYPH_XOFF (*glyph);
+	  x = metrics->width + LGLYPH_RBEARING (glyph) + LGLYPH_XOFF (glyph);
 	  if (metrics->rbearing < x)
 	    metrics->rbearing = x;
 	  metrics->width = width;
-	  x = LGLYPH_ASCENT (*glyph) - LGLYPH_YOFF (*glyph);
+	  x = LGLYPH_ASCENT (glyph) - LGLYPH_YOFF (glyph);
 	  if (metrics->ascent < x)
 	    metrics->ascent = x;
-	  x = LGLYPH_DESCENT (*glyph) + LGLYPH_YOFF (*glyph);
+	  x = LGLYPH_DESCENT (glyph) + LGLYPH_YOFF (glyph);
 	  if (metrics->descent < x)
 	    metrics->descent = x;
 	}

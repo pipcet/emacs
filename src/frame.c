@@ -89,7 +89,7 @@ fset_minibuffer_window (struct frame *f, Lisp_Object val)
 }
 
 struct frame *
-decode_live_frame (register Lisp_Object frame)
+decode_live_frame (Lisp_Object frame)
 {
   if (NILP (frame))
     frame = selected_frame;
@@ -2778,7 +2778,10 @@ store_in_alist (Lisp_Object *alistptr, Lisp_Object prop, Lisp_Object val)
 
   tem = Fassq (prop, *alistptr);
   if (EQ (tem, Qnil))
-    *alistptr = Fcons (Fcons (prop, val), *alistptr);
+    {
+      Lisp_Object old = *alistptr;
+      *alistptr = Fcons (Fcons (prop, val), old);
+    }
   else
     Fsetcdr (tem, val);
 }
@@ -3165,7 +3168,7 @@ list, but are otherwise ignored.  */)
       Lisp_Object *values;
       USE_SAFE_ALLOCA;
       SAFE_ALLOCA_LISP (parms, 2 * length);
-      values = parms + length;
+      values = ELisp_Pointer(parms) + length;
 
       /* Extract parm names and values into those vectors.  */
 
@@ -3791,7 +3794,7 @@ x_set_frame_parameters (struct frame *f, Lisp_Object alist)
 
   USE_SAFE_ALLOCA;
   SAFE_ALLOCA_LISP (parms, 2 * size);
-  values = parms + size;
+  values = ELisp_Pointer (parms) + size;
 
   /* Extract parm names and values into those vectors.  */
 

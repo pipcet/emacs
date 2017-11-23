@@ -94,11 +94,11 @@ struct thread_state
 #define specpdl_size (current_thread->m_specpdl_size)
 
   /* Pointer to beginning of specpdl.  */
-  union specbinding *m_specpdl;
+  struct specbinding *m_specpdl;
 #define specpdl (current_thread->m_specpdl)
 
   /* Pointer to first unused element in specpdl.  */
-  union specbinding *m_specpdl_ptr;
+  struct specbinding *m_specpdl_ptr;
 #define specpdl_ptr (current_thread->m_specpdl_ptr)
 
   /* Depth in Lisp evaluations and function calls.  */
@@ -207,8 +207,7 @@ CHECK_THREAD (Lisp_Object x)
 INLINE struct thread_state *
 XTHREAD (Lisp_Object a)
 {
-  eassert (THREADP (a));
-  return XUNTAG (a, Lisp_Vectorlike);
+  return (struct thread_state *)a.xvector();
 }
 
 /* A mutex in lisp is represented by a system condition variable.
@@ -254,8 +253,7 @@ CHECK_MUTEX (Lisp_Object x)
 INLINE struct Lisp_Mutex *
 XMUTEX (Lisp_Object a)
 {
-  eassert (MUTEXP (a));
-  return XUNTAG (a, Lisp_Vectorlike);
+  return (struct Lisp_Mutex *)(a.xvector());
 }
 
 /* A condition variable as a lisp object.  */
@@ -288,8 +286,7 @@ CHECK_CONDVAR (Lisp_Object x)
 INLINE struct Lisp_CondVar *
 XCONDVAR (Lisp_Object a)
 {
-  eassert (CONDVARP (a));
-  return XUNTAG (a, Lisp_Vectorlike);
+  return (struct Lisp_CondVar *)a.xvector();
 }
 
 extern struct thread_state *current_thread;

@@ -41,7 +41,7 @@ struct interval
   struct interval *right;	/* Intervals which succeed me.  */
 
   /* Parent in the tree, or the Lisp_Object containing this interval tree.  */
-  union
+  struct
   {
     struct interval *interval;
     Lisp_Object obj;

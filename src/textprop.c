@@ -137,20 +137,24 @@ validate_interval_range (Lisp_Object object, Lisp_Object *begin,
   ptrdiff_t searchpos;
 
   CHECK_STRING_OR_BUFFER (object);
-  CHECK_NUMBER_COERCE_MARKER (*begin);
-  CHECK_NUMBER_COERCE_MARKER (*end);
+  ELisp_Value b = begin.ref(0);
+  ELisp_Value e = end.ref(0);
+  CHECK_NUMBER_COERCE_MARKER (b);
+  CHECK_NUMBER_COERCE_MARKER (e);
+  begin.set(b);
+  end.set(e);
 
   /* If we are asked for a point, but from a subr which operates
      on a range, then return nothing.  */
-  if (EQ (*begin, *end) && begin != end)
+  if (EQ (begin.ref(0), end.ref(0)) && begin != end)
     return NULL;
 
-  if (XINT (*begin) > XINT (*end))
+  if (XINT (begin.ref(0)) > XINT (end.ref(0)))
     {
       Lisp_Object n;
-      n = *begin;
-      *begin = *end;
-      *end = n;
+      n = begin.ref(0);
+      begin.set(end.ref(0));
+      end.set(n);
     }
 
   if (BUFFERP (object))
@@ -640,8 +644,11 @@ get_char_property_and_overlay (Lisp_Object position, register Lisp_Object prop, 
 	  if (!NILP (tem))
 	    {
 	      if (overlay)
-		/* Return the overlay we got the property from.  */
-		*overlay = overlay_vec[noverlays];
+                {
+                  /* Return the overlay we got the property from.  */
+                  ELisp_Value tem = overlay_vec[noverlays];
+                  *overlay = tem;
+                }
 	      SAFE_FREE ();
 	      return tem;
 	    }

@@ -244,7 +244,7 @@ enum font_property_index
 
 struct font_spec
 {
-  union vectorlike_header header;
+  struct vectorlike_header header;
   Lisp_Object props[FONT_SPEC_MAX];
 };
 
@@ -252,7 +252,7 @@ struct font_spec
 
 struct font_entity
 {
-  union vectorlike_header header;
+  struct vectorlike_header header;
   Lisp_Object props[FONT_ENTITY_MAX];
 };
 
@@ -265,7 +265,7 @@ struct font_entity
 
 struct font
 {
-  union vectorlike_header header;
+  struct vectorlike_header header;
 
   /* All Lisp_Object components must come first.
      That ensures they are all aligned normally.  */
@@ -493,46 +493,42 @@ CHECK_FONT_OBJECT (Lisp_Object x)
 INLINE struct font_spec *
 XFONT_SPEC (Lisp_Object p)
 {
-  eassert (FONT_SPEC_P (p));
-  return XUNTAG (p, Lisp_Vectorlike);
+  return (struct font_spec *)p.xvector();
 }
 
 INLINE struct font_spec *
 GC_XFONT_SPEC (Lisp_Object p)
 {
-  eassert (GC_FONT_SPEC_P (p));
-  return XUNTAG (p, Lisp_Vectorlike);
+  return (struct font_spec *)p.xvector();
 }
 
 INLINE struct font_entity *
 XFONT_ENTITY (Lisp_Object p)
 {
-  eassert (FONT_ENTITY_P (p));
-  return XUNTAG (p, Lisp_Vectorlike);
+  return (struct font_entity *)p.xvector();
 }
 
 INLINE struct font_entity *
 GC_XFONT_ENTITY (Lisp_Object p)
 {
-  eassert (GC_FONT_ENTITY_P (p));
-  return XUNTAG (p, Lisp_Vectorlike);
+  return (struct font_entity *)p.xvector();
 }
 
 INLINE struct font *
 XFONT_OBJECT (Lisp_Object p)
 {
-  eassert (FONT_OBJECT_P (p));
-  return XUNTAG (p, Lisp_Vectorlike);
+  return (struct font *)p.xvector();
 }
 
 INLINE struct font *
 GC_XFONT_OBJECT (Lisp_Object p)
 {
-  eassert (GC_FONT_OBJECT_P (p));
-  return XUNTAG (p, Lisp_Vectorlike);
+  return (struct font *)p.xvector();
 }
 
-#define XSETFONT(a, b) (XSETPSEUDOVECTOR (a, b, PVEC_FONT))
+#define XSETFONT(a, b) ((a).xsetvector((struct Lisp_Vector *)(b)))
+#define XSETFONT_SPEC(a, b) ((a).xsetvector((struct Lisp_Vector *)(b)))
+#define XSETFONT_ENTITY(a, b) ((a).xsetvector((struct Lisp_Vector *)(b)))
 
 INLINE struct font *
 CHECK_FONT_GET_OBJECT (Lisp_Object x)
@@ -852,6 +848,7 @@ valid_font_driver (struct font_driver const *d)
   return true;
 }
 #endif
+
 extern Lisp_Object font_update_drivers (struct frame *f, Lisp_Object list);
 extern Lisp_Object font_range (ptrdiff_t, ptrdiff_t, ptrdiff_t *,
 			       struct window *, struct face *,
@@ -896,15 +893,15 @@ extern void ftfont_text_extents (struct font *, unsigned *, int,
 extern void syms_of_ftfont (void);
 #endif	/* HAVE_FREETYPE */
 #ifdef HAVE_X_WINDOWS
-extern struct font_driver const xfont_driver;
+extern struct font_driver xfont_driver;
 extern Lisp_Object xfont_get_cache (struct frame *);
 extern void syms_of_xfont (void);
 extern void syms_of_ftxfont (void);
 #ifdef HAVE_XFT
-extern struct font_driver const xftfont_driver;
+extern struct font_driver xftfont_driver;
 #endif
 #if defined HAVE_FREETYPE || defined HAVE_XFT
-extern struct font_driver const ftxfont_driver;
+extern struct font_driver ftxfont_driver;
 extern void syms_of_xftfont (void);
 #endif
 #ifdef HAVE_BDFFONT

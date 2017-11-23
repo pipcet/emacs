@@ -61,7 +61,7 @@ struct buffer *all_buffers;
    Setting the default value also goes through the alist of buffers
    and stores into each buffer that does not say it has a local value.  */
 
-struct buffer buffer_defaults;
+struct buffer alignas (GCALIGNMENT) buffer_defaults;
 
 /* This structure marks which slots in a buffer have corresponding
    default values in buffer_defaults.
@@ -84,18 +84,18 @@ struct buffer buffer_local_flags;
 /* This structure holds the names of symbols whose values may be
    buffer-local.  It is indexed and accessed in the same way as the above.  */
 
-struct buffer buffer_local_symbols;
+struct buffer alignas (GCALIGNMENT) buffer_local_symbols;
 
 /* Return the symbol of the per-buffer variable at offset OFFSET in
    the buffer structure.  */
 
 #define PER_BUFFER_SYMBOL(OFFSET) \
-      (*(Lisp_Object *)((OFFSET) + (char *) &buffer_local_symbols))
+      (*(ELisp_Struct_Value *)((OFFSET) + (char *) &buffer_local_symbols))
 
 /* Maximum length of an overlay vector.  */
 #define OVERLAY_COUNT_MAX						\
-  ((ptrdiff_t) min (MOST_POSITIVE_FIXNUM,				\
-		    min (PTRDIFF_MAX, SIZE_MAX) / word_size))
+  ((ptrdiff_t) c_min (MOST_POSITIVE_FIXNUM,				\
+		    c_min (PTRDIFF_MAX, SIZE_MAX) / word_size))
 
 /* Flags indicating which built-in buffer-local variables
    are permanent locals.  */
@@ -1021,8 +1021,7 @@ reset_buffer_local_variables (struct buffer *b, bool permanent_too)
                           newlist = Fcons (elt, newlist);
                       }
                   newlist = Fnreverse (newlist);
-                  if (XSYMBOL (local_var)->u.s.trapped_write
-		      == SYMBOL_TRAPPED_WRITE)
+                  if (XSYMBOL (local_var)->trapped_write == SYMBOL_TRAPPED_WRITE)
                     notify_variable_watchers (local_var, newlist,
                                               Qmakunbound, Fcurrent_buffer ());
                   XSETCDR (XCAR (tmp), newlist);
@@ -1035,7 +1034,7 @@ reset_buffer_local_variables (struct buffer *b, bool permanent_too)
           else
             XSETCDR (last, XCDR (tmp));
 
-          if (XSYMBOL (local_var)->u.s.trapped_write == SYMBOL_TRAPPED_WRITE)
+          if (XSYMBOL (local_var)->trapped_write == SYMBOL_TRAPPED_WRITE)
             notify_variable_watchers (local_var, Qnil,
                                       Qmakunbound, Fcurrent_buffer ());
         }
@@ -1167,7 +1166,7 @@ buffer_local_value (Lisp_Object variable, Lisp_Object buffer)
   sym = XSYMBOL (variable);
 
  start:
-  switch (sym->u.s.redirect)
+  switch (sym->redirect)
     {
     case SYMBOL_VARALIAS: sym = indirect_variable (sym); goto start;
     case SYMBOL_PLAINVAL: result = SYMBOL_VAL (sym); break;
@@ -2097,7 +2096,7 @@ void set_buffer_internal_2 (register struct buffer *b)
 	{
 	  Lisp_Object var = XCAR (XCAR (tail));
 	  struct Lisp_Symbol *sym = XSYMBOL (var);
-	  if (sym->u.s.redirect == SYMBOL_LOCALIZED /* Just to be sure.  */
+	  if (sym->redirect == SYMBOL_LOCALIZED /* Just to be sure.  */
 	      && SYMBOL_BLV (sym)->fwd)
 	    /* Just reference the variable
 	       to cause it to become set for this buffer.  */
@@ -2206,17 +2205,21 @@ so the buffer is truly empty after this.  */)
 void
 validate_region (register Lisp_Object *b, register Lisp_Object *e)
 {
-  CHECK_NUMBER_COERCE_MARKER (*b);
-  CHECK_NUMBER_COERCE_MARKER (*e);
+  ELisp_Value bv = b.ref(0);
+  ELisp_Value ev = e.ref(0);
+  CHECK_NUMBER_COERCE_MARKER (bv);
+  CHECK_NUMBER_COERCE_MARKER (ev);
+  b.set(bv);
+  e.set(ev);
 
-  if (XINT (*b) > XINT (*e))
+  if (XINT (b.ref(0)) > XINT (e.ref(0)))
     {
-      Lisp_Object tem;
-      tem = *b;  *b = *e;  *e = tem;
+      ELisp_Value tem;
+      tem = b.ref(0);  b.set(e.ref(0));  e.set(tem);
     }
 
-  if (! (BEGV <= XINT (*b) && XINT (*e) <= ZV))
-    args_out_of_range_3 (Fcurrent_buffer (), *b, *e);
+  if (! (BEGV <= XINT (b.ref(0)) && XINT (e.ref(0)) <= ZV))
+    args_out_of_range_3 (Fcurrent_buffer (), b.ref(0), e.ref(0));
 }
 
 /* Advance BYTE_POS up to a character boundary
@@ -2328,18 +2331,18 @@ results, see Info node `(elisp)Swapping Text'.  */)
   swapfield (overlays_before, struct Lisp_Overlay *);
   swapfield (overlays_after, struct Lisp_Overlay *);
   swapfield (overlay_center, ptrdiff_t);
-  swapfield_ (undo_list, Lisp_Object);
-  swapfield_ (mark, Lisp_Object);
-  swapfield_ (enable_multibyte_characters, Lisp_Object);
-  swapfield_ (bidi_display_reordering, Lisp_Object);
-  swapfield_ (bidi_paragraph_direction, Lisp_Object);
-  swapfield_ (bidi_paragraph_separate_re, Lisp_Object);
-  swapfield_ (bidi_paragraph_start_re, Lisp_Object);
+  swapfield_ (undo_list, ELisp_Struct_Value);
+  swapfield_ (mark, ELisp_Struct_Value);
+  swapfield_ (enable_multibyte_characters, ELisp_Struct_Value);
+  swapfield_ (bidi_display_reordering, ELisp_Struct_Value);
+  swapfield_ (bidi_paragraph_direction, ELisp_Struct_Value);
+  swapfield_ (bidi_paragraph_separate_re, ELisp_Struct_Value);
+  swapfield_ (bidi_paragraph_start_re, ELisp_Struct_Value);
   /* FIXME: Not sure what we should do with these *_marker fields.
      Hopefully they're just nil anyway.  */
-  swapfield_ (pt_marker, Lisp_Object);
-  swapfield_ (begv_marker, Lisp_Object);
-  swapfield_ (zv_marker, Lisp_Object);
+  swapfield_ (pt_marker, ELisp_Struct_Value);
+  swapfield_ (begv_marker, ELisp_Struct_Value);
+  swapfield_ (zv_marker, ELisp_Struct_Value);
   bset_point_before_scroll (current_buffer, Qnil);
   bset_point_before_scroll (other_buffer, Qnil);
 
@@ -2753,7 +2756,7 @@ swap_out_buffer_local_variables (struct buffer *b)
   for (alist = oalist; CONSP (alist); alist = XCDR (alist))
     {
       Lisp_Object sym = XCAR (XCAR (alist));
-      eassert (XSYMBOL (sym)->u.s.redirect == SYMBOL_LOCALIZED);
+      eassert (XSYMBOL (sym)->redirect == SYMBOL_LOCALIZED);
       /* Need not do anything if some other buffer's binding is
 	 now cached.  */
       if (EQ (SYMBOL_BLV (XSYMBOL (sym))->where, buffer))
@@ -2788,7 +2791,7 @@ swap_out_buffer_local_variables (struct buffer *b)
    default (BEGV or ZV).  */
 
 ptrdiff_t
-overlays_at (EMACS_INT pos, bool extend, Lisp_Object **vec_ptr,
+overlays_at (EMACS_INT pos, bool extend, ELisp_Pointer*vec_ptr,
 	     ptrdiff_t *len_ptr,
 	     ptrdiff_t *next_ptr, ptrdiff_t *prev_ptr, bool change_req)
 {
@@ -2805,7 +2808,7 @@ overlays_at (EMACS_INT pos, bool extend, Lisp_Object **vec_ptr,
     {
       ptrdiff_t startpos, endpos;
 
-      XSETMISC (overlay, tail);
+      XSETOVERLAY (overlay, tail);
 
       start = OVERLAY_START (overlay);
       end = OVERLAY_END (overlay);
@@ -2831,8 +2834,8 @@ overlays_at (EMACS_INT pos, bool extend, Lisp_Object **vec_ptr,
 		 Either make it bigger, or don't store any more in it.  */
 	      if (extend)
 		{
-		  vec = xpalloc (vec, len_ptr, 1, OVERLAY_COUNT_MAX,
-				 sizeof *vec);
+		  vec = (ELisp_Struct_Value *)xpalloc (vec, len_ptr, 1, OVERLAY_COUNT_MAX,
+                                                       sizeof *vec); // XXX rootme?
 		  *vec_ptr = vec;
 		  len = *len_ptr;
 		}
@@ -2853,7 +2856,7 @@ overlays_at (EMACS_INT pos, bool extend, Lisp_Object **vec_ptr,
     {
       ptrdiff_t startpos, endpos;
 
-      XSETMISC (overlay, tail);
+      XSETOVERLAY (overlay, tail);
 
       start = OVERLAY_START (overlay);
       end = OVERLAY_END (overlay);
@@ -2871,8 +2874,8 @@ overlays_at (EMACS_INT pos, bool extend, Lisp_Object **vec_ptr,
 	    {
 	      if (extend)
 		{
-		  vec = xpalloc (vec, len_ptr, 1, OVERLAY_COUNT_MAX,
-				 sizeof *vec);
+		  vec = (ELisp_Struct_Value *)xpalloc (vec, len_ptr, 1, OVERLAY_COUNT_MAX,
+                                                       sizeof *vec); // XXX rootme
 		  *vec_ptr = vec;
 		  len = *len_ptr;
 		}
@@ -2923,7 +2926,7 @@ overlays_at (EMACS_INT pos, bool extend, Lisp_Object **vec_ptr,
 
 static ptrdiff_t
 overlays_in (EMACS_INT beg, EMACS_INT end, bool extend,
-	     Lisp_Object **vec_ptr, ptrdiff_t *len_ptr,
+	     ELisp_Pointer*vec_ptr, ptrdiff_t *len_ptr,
 	     ptrdiff_t *next_ptr, ptrdiff_t *prev_ptr)
 {
   Lisp_Object overlay, ostart, oend;
@@ -2940,7 +2943,7 @@ overlays_in (EMACS_INT beg, EMACS_INT end, bool extend,
     {
       ptrdiff_t startpos, endpos;
 
-      XSETMISC (overlay, tail);
+      XSETOVERLAY (overlay, tail);
 
       ostart = OVERLAY_START (overlay);
       oend = OVERLAY_END (overlay);
@@ -2965,8 +2968,8 @@ overlays_in (EMACS_INT beg, EMACS_INT end, bool extend,
 		 Either make it bigger, or don't store any more in it.  */
 	      if (extend)
 		{
-		  vec = xpalloc (vec, len_ptr, 1, OVERLAY_COUNT_MAX,
-				 sizeof *vec);
+		  vec = (ELisp_Struct_Value *)xpalloc (vec, len_ptr, 1, OVERLAY_COUNT_MAX,
+                                                       sizeof *vec); // XXX rootme
 		  *vec_ptr = vec;
 		  len = *len_ptr;
 		}
@@ -2987,7 +2990,7 @@ overlays_in (EMACS_INT beg, EMACS_INT end, bool extend,
     {
       ptrdiff_t startpos, endpos;
 
-      XSETMISC (overlay, tail);
+      XSETOVERLAY (overlay, tail);
 
       ostart = OVERLAY_START (overlay);
       oend = OVERLAY_END (overlay);
@@ -3010,8 +3013,8 @@ overlays_in (EMACS_INT beg, EMACS_INT end, bool extend,
 	    {
 	      if (extend)
 		{
-		  vec = xpalloc (vec, len_ptr, 1, OVERLAY_COUNT_MAX,
-				 sizeof *vec);
+		  vec = (ELisp_Struct_Value *)xpalloc (vec, len_ptr, 1, OVERLAY_COUNT_MAX,
+                                                       sizeof *vec); // XXX rootme
 		  *vec_ptr = vec;
 		  len = *len_ptr;
 		}
@@ -3045,6 +3048,7 @@ mouse_face_overlay_overlaps (Lisp_Object overlay)
   ptrdiff_t end = OVERLAY_POSITION (OVERLAY_END (overlay));
   ptrdiff_t n, i, size;
   Lisp_Object *v, tem;
+  Lisp_Object *vv;
   Lisp_Object vbuf[10];
   USE_SAFE_ALLOCA;
 
@@ -3053,7 +3057,8 @@ mouse_face_overlay_overlaps (Lisp_Object overlay)
   n = overlays_in (start, end, 0, &v, &size, NULL, NULL);
   if (n > size)
     {
-      SAFE_NALLOCA (v, 1, n);
+      SAFE_ALLOCA_LISP (vv, n);
+      v = vv;
       overlays_in (start, end, 0, &v, &n, NULL, NULL);
     }
 
@@ -3074,6 +3079,7 @@ disable_line_numbers_overlay_at_eob (void)
 {
   ptrdiff_t n, i, size;
   Lisp_Object *v, tem = Qnil;
+  Lisp_Object *vv;
   Lisp_Object vbuf[10];
   USE_SAFE_ALLOCA;
 
@@ -3082,7 +3088,8 @@ disable_line_numbers_overlay_at_eob (void)
   n = overlays_in (ZV, ZV, 0, &v, &size, NULL, NULL);
   if (n > size)
     {
-      SAFE_NALLOCA (v, 1, n);
+      SAFE_ALLOCA_LISP (vv, n);
+      v = vv;
       overlays_in (ZV, ZV, 0, &v, &n, NULL, NULL);
     }
 
@@ -3107,7 +3114,7 @@ overlay_touches_p (ptrdiff_t pos)
     {
       ptrdiff_t endpos;
 
-      XSETMISC (overlay ,tail);
+      XSETOVERLAY (overlay ,tail);
       eassert (OVERLAYP (overlay));
 
       endpos = OVERLAY_POSITION (OVERLAY_END (overlay));
@@ -3121,7 +3128,7 @@ overlay_touches_p (ptrdiff_t pos)
     {
       ptrdiff_t startpos;
 
-      XSETMISC (overlay, tail);
+      XSETOVERLAY (overlay, tail);
       eassert (OVERLAYP (overlay));
 
       startpos = OVERLAY_POSITION (OVERLAY_START (overlay));
@@ -3167,7 +3174,7 @@ compare_overlays (const void *v1, const void *v2)
        between "equal" overlays.  The result can still change between
        invocations of Emacs, but it won't change in the middle of
        `find_field' (bug#6830).  */
-    return XLI (s1->overlay) < XLI (s2->overlay) ? -1 : 1;
+    return 0; // XLI (s1->overlay) < XLI (s2->overlay) ? -1 : 1; XXX
 }
 
 /* Sort an array of overlays by priority.  The array is modified in place.
@@ -3349,7 +3356,7 @@ overlay_strings (ptrdiff_t pos, struct window *w, unsigned char **pstr)
   overlay_tails.used = overlay_tails.bytes = 0;
   for (ov = current_buffer->overlays_before; ov; ov = ov->next)
     {
-      XSETMISC (overlay, ov);
+      XSETOVERLAY (overlay, ov);
       eassert (OVERLAYP (overlay));
 
       startpos = OVERLAY_POSITION (OVERLAY_START (overlay));
@@ -3377,7 +3384,7 @@ overlay_strings (ptrdiff_t pos, struct window *w, unsigned char **pstr)
     }
   for (ov = current_buffer->overlays_after; ov; ov = ov->next)
     {
-      XSETMISC (overlay, ov);
+      XSETOVERLAY (overlay, ov);
       eassert (OVERLAYP (overlay));
 
       startpos = OVERLAY_POSITION (OVERLAY_START (overlay));
@@ -3475,7 +3482,7 @@ recenter_overlay_lists (struct buffer *buf, ptrdiff_t pos)
   for (tail = buf->overlays_before; tail; prev = tail, tail = next)
     {
       next = tail->next;
-      XSETMISC (overlay, tail);
+      XSETOVERLAY (overlay, tail);
       eassert (OVERLAYP (overlay));
 
       beg = OVERLAY_START (overlay);
@@ -3500,7 +3507,7 @@ recenter_overlay_lists (struct buffer *buf, ptrdiff_t pos)
 	    {
 	      Lisp_Object otherbeg, otheroverlay;
 
-	      XSETMISC (otheroverlay, other);
+	      XSETOVERLAY (otheroverlay, other);
 	      eassert (OVERLAYP (otheroverlay));
 
 	      otherbeg = OVERLAY_START (otheroverlay);
@@ -3528,7 +3535,7 @@ recenter_overlay_lists (struct buffer *buf, ptrdiff_t pos)
   for (tail = buf->overlays_after; tail; prev = tail, tail = next)
     {
       next = tail->next;
-      XSETMISC (overlay, tail);
+      XSETOVERLAY (overlay, tail);
       eassert (OVERLAYP (overlay));
 
       beg = OVERLAY_START (overlay);
@@ -3558,7 +3565,7 @@ recenter_overlay_lists (struct buffer *buf, ptrdiff_t pos)
 	    {
 	      Lisp_Object otherend, otheroverlay;
 
-	      XSETMISC (otheroverlay, other);
+	      XSETOVERLAY (otheroverlay, other);
 	      eassert (OVERLAYP (otheroverlay));
 
 	      otherend = OVERLAY_END (otheroverlay);
@@ -3638,7 +3645,7 @@ fix_start_end_in_overlays (register ptrdiff_t start, register ptrdiff_t end)
      strange.  */
   for (parent = NULL, tail = current_buffer->overlays_before; tail;)
     {
-      XSETMISC (overlay, tail);
+      XSETOVERLAY (overlay, tail);
 
       endpos = OVERLAY_POSITION (OVERLAY_END (overlay));
       startpos = OVERLAY_POSITION (OVERLAY_START (overlay));
@@ -3686,7 +3693,7 @@ fix_start_end_in_overlays (register ptrdiff_t start, register ptrdiff_t end)
     }
   for (parent = NULL, tail = current_buffer->overlays_after; tail;)
     {
-      XSETMISC (overlay, tail);
+      XSETOVERLAY (overlay, tail);
 
       startpos = OVERLAY_POSITION (OVERLAY_START (overlay));
       endpos = OVERLAY_POSITION (OVERLAY_END (overlay));
@@ -3779,7 +3786,7 @@ fix_overlays_before (struct buffer *bp, ptrdiff_t prev, ptrdiff_t pos)
      overlay whose ending marker is after-insertion-marker if disorder
      exists).  */
   while (tail
-	 && (XSETMISC (tem, tail),
+	 && (XSETOVERLAY (tem, tail),
 	     (end = OVERLAY_POSITION (OVERLAY_END (tem))) >= pos))
     {
       parent = tail;
@@ -3804,7 +3811,7 @@ fix_overlays_before (struct buffer *bp, ptrdiff_t prev, ptrdiff_t pos)
      overlays are in correct order.  */
   while (tail)
     {
-      XSETMISC (tem, tail);
+      XSETOVERLAY (tem, tail);
       end = OVERLAY_POSITION (OVERLAY_END (tem));
 
       if (end == pos)
@@ -4166,7 +4173,7 @@ If SORTED is non-nil, then sort them by decreasing priority.  */)
 
   len = 10;
   /* We can't use alloca here because overlays_at can call xrealloc.  */
-  overlay_vec = xmalloc (len * sizeof *overlay_vec);
+  overlay_vec = (ELisp_Struct_Value *)xmalloc (len * sizeof *overlay_vec); // XXX rootme
 
   /* Put all the overlays we want in a vector in overlay_vec.
      Store the length in len.  */
@@ -4178,7 +4185,7 @@ If SORTED is non-nil, then sort them by decreasing priority.  */)
 			       WINDOWP (sorted) ? XWINDOW (sorted) : NULL);
 
   /* Make a list of them all.  */
-  result = Flist (noverlays, overlay_vec);
+  result = Flist (LV (noverlays, overlay_vec));
 
   /* The doc string says the list should be in decreasing order of
      priority, so we reverse the list, because sort_overlays sorts in
@@ -4210,7 +4217,7 @@ end of the buffer.  */)
     return Qnil;
 
   len = 10;
-  overlay_vec = xmalloc (len * sizeof *overlay_vec);
+  overlay_vec = (ELisp_Struct_Value *)xmalloc (len * sizeof *overlay_vec); // XXX rootme
 
   /* Put all the overlays we want in a vector in overlay_vec.
      Store the length in len.  */
@@ -4218,7 +4225,7 @@ end of the buffer.  */)
 			   NULL, NULL);
 
   /* Make a list of them all.  */
-  result = Flist (noverlays, overlay_vec);
+  result = Flist (LV (noverlays, overlay_vec));
 
   xfree (overlay_vec);
   return result;
@@ -4241,7 +4248,7 @@ the value is (point-max).  */)
     return make_number (ZV);
 
   len = 10;
-  overlay_vec = xmalloc (len * sizeof *overlay_vec);
+  overlay_vec = (ELisp_Struct_Value *)xmalloc (len * sizeof *overlay_vec); // XX rootme
 
   /* Put all the overlays we want in a vector in overlay_vec.
      Store the length in len.
@@ -4288,7 +4295,7 @@ the value is (point-min).  */)
     return pos;
 
   len = 10;
-  overlay_vec = xmalloc (len * sizeof *overlay_vec);
+  overlay_vec = (ELisp_Struct_Value *)xmalloc (len * sizeof *overlay_vec); // XXX rootme
 
   /* Put all the overlays we want in a vector in overlay_vec.
      Store the length in len.
@@ -4316,12 +4323,12 @@ However, the overlays you get are the real objects that the buffer uses.  */)
 
   for (ol = current_buffer->overlays_before; ol; ol = ol->next)
     {
-      XSETMISC (tmp, ol);
+      XSETOVERLAY (tmp, ol);
       before = Fcons (tmp, before);
     }
   for (ol = current_buffer->overlays_after; ol; ol = ol->next)
     {
-      XSETMISC (tmp, ol);
+      XSETOVERLAY (tmp, ol);
       after = Fcons (tmp, after);
     }
 
@@ -4468,7 +4475,7 @@ report_overlay_modification (Lisp_Object start, Lisp_Object end, bool after,
 	  ptrdiff_t startpos, endpos;
 	  Lisp_Object ostart, oend;
 
-	  XSETMISC (overlay, tail);
+	  XSETOVERLAY (overlay, tail);
 
 	  ostart = OVERLAY_START (overlay);
 	  oend = OVERLAY_END (overlay);
@@ -4505,7 +4512,7 @@ report_overlay_modification (Lisp_Object start, Lisp_Object end, bool after,
 	  ptrdiff_t startpos, endpos;
 	  Lisp_Object ostart, oend;
 
-	  XSETMISC (overlay, tail);
+	  XSETOVERLAY (overlay, tail);
 
 	  ostart = OVERLAY_START (overlay);
 	  oend = OVERLAY_END (overlay);
@@ -4565,8 +4572,8 @@ report_overlay_modification (Lisp_Object start, Lisp_Object end, bool after,
 
     USE_SAFE_ALLOCA;
     SAFE_ALLOCA_LISP (copy, size);
-    memcpy (copy, XVECTOR (last_overlay_modification_hooks)->contents,
-	    size * word_size);
+    for (size_t i = 0; i < size; i++)
+      copy.sref(i, XVECTOR (last_overlay_modification_hooks)->contents[i]);
 
     for (i = 0; i < size;)
       {
@@ -4607,7 +4614,7 @@ evaporate_overlays (ptrdiff_t pos)
     for (tail = current_buffer->overlays_before; tail; tail = tail->next)
       {
 	ptrdiff_t endpos;
-	XSETMISC (overlay, tail);
+	XSETOVERLAY (overlay, tail);
 	endpos = OVERLAY_POSITION (OVERLAY_END (overlay));
 	if (endpos < pos)
 	  break;
@@ -4619,7 +4626,7 @@ evaporate_overlays (ptrdiff_t pos)
     for (tail = current_buffer->overlays_after; tail; tail = tail->next)
       {
 	ptrdiff_t startpos;
-	XSETMISC (overlay, tail);
+	XSETOVERLAY (overlay, tail);
 	startpos = OVERLAY_POSITION (OVERLAY_START (overlay));
 	if (startpos > pos)
 	  break;
@@ -5419,13 +5426,13 @@ defvar_per_buffer (struct Lisp_Buffer_Objfwd *bo_fwd, const char *namestring,
   int offset;
 
   sym = XSYMBOL (intern (namestring));
-  offset = (char *)address - (char *)current_buffer;
+  offset = (char *)address.u.heap - (char *)current_buffer;
 
   bo_fwd->type = Lisp_Fwd_Buffer_Obj;
   bo_fwd->offset = offset;
   bo_fwd->predicate = predicate;
-  sym->u.s.declared_special = true;
-  sym->u.s.redirect = SYMBOL_FORWARDED;
+  sym->declared_special = 1;
+  sym->redirect = SYMBOL_FORWARDED;
   SET_SYMBOL_FWD (sym, (union Lisp_Fwd *) bo_fwd);
   XSETSYMBOL (PER_BUFFER_SYMBOL (offset), sym);
 
@@ -5440,6 +5447,9 @@ defvar_per_buffer (struct Lisp_Buffer_Objfwd *bo_fwd, const char *namestring,
 void
 syms_of_buffer (void)
 {
+  ELisp_Value tem;
+  XSETBUFFER (tem, &buffer_defaults);
+  XSETBUFFER (tem, &buffer_local_symbols);
   staticpro (&last_overlay_modification_hooks);
   last_overlay_modification_hooks
     = Fmake_vector (make_number (10), Qnil);

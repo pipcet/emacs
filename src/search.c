@@ -1140,7 +1140,7 @@ do						\
   {						\
     if (! NILP (trt))				\
       {						\
-	Lisp_Object temp;			\
+	ELisp_Value temp;			\
 	temp = Faref (trt, make_number (d));	\
 	if (INTEGERP (temp))			\
 	  out = XINT (temp);			\
@@ -2451,25 +2451,25 @@ since only regular expressions have distinguished subexpressions.  */)
 	      /* Cannot be all caps if any original char is lower case */
 
 	      some_lowercase = 1;
-	      if (SYNTAX (prevc) != Sword)
-		some_nonuppercase_initial = 1;
-	      else
+	      //if (SYNTAX (prevc) != Sword)
+              //some_nonuppercase_initial = 1;
+	      //else
 		some_multiletter_word = 1;
 	    }
 	  else if (uppercasep (c))
 	    {
 	      some_uppercase = 1;
-	      if (SYNTAX (prevc) != Sword)
-		;
-	      else
+	      //if (SYNTAX (prevc) != Sword)
+              //;
+	      //else
 		some_multiletter_word = 1;
 	    }
 	  else
 	    {
 	      /* If the initial is a caseless word constituent,
 		 treat that like a lowercase initial.  */
-	      if (SYNTAX (prevc) != Sword)
-		some_nonuppercase_initial = 1;
+              // if (SYNTAX (prevc) != Sword)
+              //some_nonuppercase_initial = 1;
 	    }
 
 	  prevc = c;
@@ -2860,7 +2860,7 @@ Return value is undefined if the last search failed.  */)
   prev = Qnil;
 
   USE_SAFE_ALLOCA;
-  SAFE_NALLOCA (data, 1, 2 * search_regs.num_regs + 1);
+  SAFE_ALLOCA_LISP (data, 2 * search_regs.num_regs + 1);
 
   len = 0;
   for (i = 0; i < search_regs.num_regs; i++)
@@ -2871,8 +2871,11 @@ Return value is undefined if the last search failed.  */)
 	  if (EQ (last_thing_searched, Qt)
 	      || ! NILP (integers))
 	    {
-	      XSETFASTINT (data[2 * i], start);
-	      XSETFASTINT (data[2 * i + 1], search_regs.end[i]);
+              ELisp_Value tem;
+              XSETFASTINT (tem, start);
+              data.sref(2 * i, tem);
+              XSETFASTINT (tem, search_regs.end[i]);
+              data.sref(2 * i + 1, tem);
 	    }
 	  else if (BUFFERP (last_thing_searched))
 	    {
@@ -2892,7 +2895,10 @@ Return value is undefined if the last search failed.  */)
 	  len = 2 * i + 2;
 	}
       else
-	data[2 * i] = data[2 * i + 1] = Qnil;
+        {
+          data[2 * i] = Qnil;
+          data[2 * i + 1] = Qnil;
+        }
     }
 
   if (BUFFERP (last_thing_searched) && !NILP (integers))
@@ -2903,7 +2909,7 @@ Return value is undefined if the last search failed.  */)
 
   /* If REUSE is not usable, cons up the values and return them.  */
   if (! CONSP (reuse))
-    reuse = Flist (len, data);
+    reuse = Flist (LV (len, data));
   else
     {
       /* If REUSE is a list, store as many value elements as will fit
@@ -2921,7 +2927,7 @@ Return value is undefined if the last search failed.  */)
       /* If we couldn't fit all value elements into REUSE,
 	 cons up the rest of them and add them to the end of REUSE.  */
       if (i < len)
-	XSETCDR (prev, Flist (len - i, data + i));
+	XSETCDR (prev, Flist (LV (len - i, ELisp_Pointer (data) + i)));
     }
 
   SAFE_FREE ();
@@ -3370,9 +3376,9 @@ syms_of_search (void)
       searchbufs[i].regexp = Qnil;
       searchbufs[i].f_whitespace_regexp = Qnil;
       searchbufs[i].syntax_table = Qnil;
-      staticpro (&searchbufs[i].regexp);
-      staticpro (&searchbufs[i].f_whitespace_regexp);
-      staticpro (&searchbufs[i].syntax_table);
+      staticpro (&(searchbufs[i].regexp));
+      staticpro (&(searchbufs[i].f_whitespace_regexp));
+      staticpro (&(searchbufs[i].syntax_table));
       searchbufs[i].next = (i == REGEXP_CACHE_SIZE-1 ? 0 : &searchbufs[i+1]);
     }
   searchbuf_head = &searchbufs[0];

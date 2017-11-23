@@ -217,8 +217,7 @@ CHECK_PROCESS (Lisp_Object x)
 INLINE struct Lisp_Process *
 XPROCESS (Lisp_Object a)
 {
-  eassert (PROCESSP (a));
-  return XUNTAG (a, Lisp_Vectorlike);
+  return (struct Lisp_Process *)a.xvector();
 }
 
 /* Every field in the preceding structure except for the first two

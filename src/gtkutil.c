@@ -701,6 +701,7 @@ xg_prepare_tooltip (struct frame *f,
                     int *width,
                     int *height)
 {
+  ;
 #ifndef USE_GTK_TOOLTIP
   return 0;
 #else

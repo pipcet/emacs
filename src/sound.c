@@ -175,7 +175,7 @@ struct au_header
 /* Maximum of all sound file headers sizes.  */
 
 #define MAX_SOUND_HEADER_BYTES \
-     max (sizeof (struct wav_header), sizeof (struct au_header))
+     c_max (sizeof (struct wav_header), sizeof (struct au_header))
 
 /* Interface structure for sound devices.  */
 

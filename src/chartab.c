@@ -127,9 +127,9 @@ the char-table has no extra slot.  */)
   size = CHAR_TABLE_STANDARD_SLOTS + n_extras;
   vector = Fmake_vector (make_number (size), init);
   XSETPVECTYPE (XVECTOR (vector), PVEC_CHAR_TABLE);
+  XSETCHAR_TABLE (vector, (struct Lisp_Char_Table *)XVECTOR (vector));
   set_char_table_parent (vector, Qnil);
   set_char_table_purpose (vector, purpose);
-  XSETCHAR_TABLE (vector, XCHAR_TABLE (vector));
   return vector;
 }
 
@@ -174,7 +174,7 @@ copy_sub_char_table (Lisp_Object table)
     {
       Lisp_Object val = XSUB_CHAR_TABLE (table)->contents[i];
       set_sub_char_table_contents
-	(copy, i, SUB_CHAR_TABLE_P (val) ? copy_sub_char_table (val) : val);
+	(copy, i, SUB_CHAR_TABLE_P (val) ? copy_sub_char_table (val) : ELisp_Return_Value(val));
     }
 
   return copy;
@@ -198,13 +198,13 @@ copy_char_table (Lisp_Object table)
       (copy, i,
        (SUB_CHAR_TABLE_P (XCHAR_TABLE (table)->contents[i])
 	? copy_sub_char_table (XCHAR_TABLE (table)->contents[i])
-	: XCHAR_TABLE (table)->contents[i]));
+	: ELisp_Return_Value(XCHAR_TABLE (table)->contents[i])));
   set_char_table_ascii (copy, char_table_ascii (copy));
   size -= CHAR_TABLE_STANDARD_SLOTS;
   for (i = 0; i < size; i++)
     set_char_table_extras (copy, i, XCHAR_TABLE (table)->extras[i]);
 
-  XSETCHAR_TABLE (copy, XCHAR_TABLE (copy));
+  XSETCHAR_TABLE (copy, (struct Lisp_Char_Table *)XVECTOR (copy));
   return copy;
 }
 
@@ -1219,7 +1219,7 @@ uniprop_encode_value_character (Lisp_Object table, Lisp_Object value)
 static Lisp_Object
 uniprop_encode_value_run_length (Lisp_Object table, Lisp_Object value)
 {
-  Lisp_Object *value_table = XVECTOR (XCHAR_TABLE (table)->extras[4])->contents;
+  ELisp_Pointer value_table = XVECTOR (XCHAR_TABLE (table)->extras[4])->contents;
   int i, size = ASIZE (XCHAR_TABLE (table)->extras[4]);
 
   for (i = 0; i < size; i++)
@@ -1237,7 +1237,7 @@ uniprop_encode_value_run_length (Lisp_Object table, Lisp_Object value)
 static Lisp_Object
 uniprop_encode_value_numeric (Lisp_Object table, Lisp_Object value)
 {
-  Lisp_Object *value_table = XVECTOR (XCHAR_TABLE (table)->extras[4])->contents;
+  ELisp_Pointer value_table = XVECTOR (XCHAR_TABLE (table)->extras[4])->contents;
   int i, size = ASIZE (XCHAR_TABLE (table)->extras[4]);
 
   CHECK_NUMBER (value);
@@ -1339,7 +1339,7 @@ CHAR-TABLE must be what returned by `unicode-property-table-internal'. */)
     error ("Invalid Unicode property table");
   val = CHAR_TABLE_REF (char_table, XINT (ch));
   decoder = uniprop_get_decoder (char_table);
-  return (decoder ? decoder (char_table, val) : val);
+  return (decoder ? decoder (char_table, val) : ELisp_Return_Value(val));
 }
 
 DEFUN ("put-unicode-property-internal", Fput_unicode_property_internal,

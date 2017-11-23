@@ -91,6 +91,7 @@ init_lcms_functions (void)
 static bool
 parse_lab_list (Lisp_Object lab_list, cmsCIELab *color)
 {
+  MODIFY_ARG(&lab_list);
 #define PARSE_LAB_LIST_FIELD(field)					\
   if (CONSP (lab_list) && NUMBERP (XCAR (lab_list)))			\
     {									\
@@ -182,6 +183,7 @@ default_viewing_conditions (const cmsCIEXYZ *wp, cmsViewingConditions *vc)
 static bool
 parse_xyz_list (Lisp_Object xyz_list, cmsCIEXYZ *color)
 {
+  MODIFY_ARG(&xyz_list);
 #define PARSE_XYZ_LIST_FIELD(field)					\
   if (CONSP (xyz_list) && NUMBERP (XCAR (xyz_list)))			\
     {									\
@@ -201,6 +203,7 @@ parse_xyz_list (Lisp_Object xyz_list, cmsCIEXYZ *color)
 static bool
 parse_jch_list (Lisp_Object jch_list, cmsJCh *color)
 {
+  MODIFY_ARG(&jch_list);
 #define PARSE_JCH_LIST_FIELD(field)					\
   if (CONSP (jch_list) && NUMBERP (XCAR (jch_list)))			\
     {									\
@@ -222,6 +225,7 @@ parse_jch_list (Lisp_Object jch_list, cmsJCh *color)
 static bool
 parse_jab_list (Lisp_Object jab_list, lcmsJab_t *color)
 {
+  MODIFY_ARG(&jab_list);
 #define PARSE_JAB_LIST_FIELD(field)					\
   if (CONSP (jab_list) && NUMBERP (XCAR (jab_list)))			\
     {									\
@@ -242,6 +246,7 @@ static bool
 parse_viewing_conditions (Lisp_Object view, const cmsCIEXYZ *wp,
                           cmsViewingConditions *vc)
 {
+  MODIFY_ARG(&view);
 #define PARSE_VIEW_CONDITION_FLOAT(field)				\
   if (CONSP (view) && NUMBERP (XCAR (view)))				\
     {									\

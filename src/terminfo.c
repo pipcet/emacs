@@ -21,6 +21,8 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 
 #include "lisp.h"
 
+extern "C" {
+
 /* Define these variables that serve as global parameters to termcap,
    so that we do not need to conditionalize the places in Emacs
    that set them.  */
@@ -36,6 +38,7 @@ char *UP, *BC, PC;
 
 extern char *tparm (const char *str, ...);
 
+};
 
 char *
 tparam (const char *string, char *outstring, int len,

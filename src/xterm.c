@@ -2001,7 +2001,7 @@ x_draw_glyphless_glyph_string_foreground (struct glyph_string *s)
 		= (! glyph->u.glyphless.for_no_font
 		   ? CHAR_TABLE_REF (Vglyphless_char_display,
 				     glyph->u.glyphless.ch)
-		   : XCHAR_TABLE (Vglyphless_char_display)->extras[0]);
+		   : ELisp_Return_Value (XCHAR_TABLE (Vglyphless_char_display)->extras[0]));
 	      if (STRINGP (acronym))
 		str = SSDATA (acronym);
 	    }
@@ -5197,8 +5197,11 @@ XTmouse_position (struct frame **fp, int insist, Lisp_Object *bar_window,
 	    *bar_window = Qnil;
 	    *part = 0;
 	    *fp = f1;
-	    XSETINT (*x, win_x);
-	    XSETINT (*y, win_y);
+            ELisp_Value tem;
+            XSETINT (tem, win_x);
+            x.set(tem);
+            XSETINT (tem, win_y);
+            y.set(tem);
 	    *timestamp = dpyinfo->last_mouse_movement_time;
 	  }
       }
@@ -6580,10 +6583,10 @@ x_scroll_bar_create (struct window *w, int top, int left,
   /* Add bar to its frame's list of scroll bars.  */
   bar->next = FRAME_SCROLL_BARS (f);
   bar->prev = Qnil;
-  XSETVECTOR (barobj, bar);
+  XSETSCROLL_BAR (barobj, bar);
   fset_scroll_bars (f, barobj);
   if (!NILP (bar->next))
-    XSETVECTOR (XSCROLL_BAR (bar->next)->prev, bar);
+    XSETSCROLL_BAR (XSCROLL_BAR (bar->next)->prev, bar);
 
   /* Map the window/widget.  */
 #ifdef USE_TOOLKIT_SCROLL_BARS
@@ -6863,7 +6866,7 @@ XTset_vertical_scroll_bar (struct window *w, int portion, int whole, int positio
     }
 #endif /* not USE_TOOLKIT_SCROLL_BARS */
 
-  XSETVECTOR (barobj, bar);
+  XSETSCROLL_BAR (barobj, bar);
   wset_vertical_scroll_bar (w, barobj);
 }
 
@@ -6993,7 +6996,7 @@ XTset_horizontal_scroll_bar (struct window *w, int portion, int whole, int posit
     }
 #endif /* not USE_TOOLKIT_SCROLL_BARS */
 
-  XSETVECTOR (barobj, bar);
+  XSETSCROLL_BAR (barobj, bar);
   wset_horizontal_scroll_bar (w, barobj);
 }
 
@@ -7075,10 +7078,10 @@ XTredeem_scroll_bar (struct window *w)
 
       bar->next = FRAME_SCROLL_BARS (f);
       bar->prev = Qnil;
-      XSETVECTOR (barobj, bar);
+      XSETSCROLL_BAR (barobj, bar);
       fset_scroll_bars (f, barobj);
       if (! NILP (bar->next))
-	XSETVECTOR (XSCROLL_BAR (bar->next)->prev, bar);
+	XSETSCROLL_BAR (XSCROLL_BAR (bar->next)->prev, bar);
     }
 
  horizontal:
@@ -7110,10 +7113,10 @@ XTredeem_scroll_bar (struct window *w)
 
       bar->next = FRAME_SCROLL_BARS (f);
       bar->prev = Qnil;
-      XSETVECTOR (barobj, bar);
+      XSETSCROLL_BAR (barobj, bar);
       fset_scroll_bars (f, barobj);
       if (! NILP (bar->next))
-	XSETVECTOR (XSCROLL_BAR (bar->next)->prev, bar);
+	XSETSCROLL_BAR (XSCROLL_BAR (bar->next)->prev, bar);
     }
 }
 
@@ -7369,8 +7372,11 @@ x_scroll_bar_report_motion (struct frame **fp, Lisp_Object *bar_window,
       else
 	*part = scroll_bar_below_handle;
 
-      XSETINT (*x, win_y);
-      XSETINT (*y, top_range);
+      ELisp_Value tem;
+      XSETINT (tem, win_y);
+      x.set (tem);
+      XSETINT (tem, top_range);
+      y.set (tem);
 
       f->mouse_moved = false;
       dpyinfo->last_mouse_scroll_bar = NULL;
@@ -7438,8 +7444,11 @@ x_horizontal_scroll_bar_report_motion (struct frame **fp, Lisp_Object *bar_windo
       else
 	*part = scroll_bar_after_handle;
 
-      XSETINT (*y, win_x);
-      XSETINT (*x, left_range);
+      ELisp_Value tem;
+      XSETINT (tem, win_x);
+      y.set (tem);
+      XSETINT (tem, left_range);
+      x.set (tem);
 
       f->mouse_moved = false;
       dpyinfo->last_mouse_scroll_bar = NULL;
@@ -9724,6 +9733,7 @@ x_fully_uncatch_errors (void)
 
 #if false
 static unsigned int x_wire_count;
+void
 x_trace_wire (void)
 {
   fprintf (stderr, "Lib call: %d\n", ++x_wire_count);
@@ -12515,7 +12525,7 @@ x_term_init (Lisp_Object display_name, char *xrm_option, char *resource_name)
       {
 	terminal->kboard = allocate_kboard (Qx);
 
-	if (!EQ (XSYMBOL (Qvendor_specific_keysyms)->u.s.function, Qunbound))
+	if (!EQ (XSYMBOL (Qvendor_specific_keysyms)->function, Qunbound))
 	  {
 	    char *vendor = ServerVendor (dpy);
 
@@ -12525,7 +12535,7 @@ x_term_init (Lisp_Object display_name, char *xrm_option, char *resource_name)
 	    kset_system_key_alist
 	      (terminal->kboard,
 	       call1 (Qvendor_specific_keysyms,
-		      vendor ? build_string (vendor) : empty_unibyte_string));
+		      vendor ? build_string (vendor) : ELisp_Return_Value(empty_unibyte_string)));
 	    block_input ();
 	    terminal->next_terminal = terminal_list;
  	    terminal_list = terminal;
@@ -13340,7 +13350,7 @@ If set to a non-float value, there will be no wait at all.  */);
 
   DEFVAR_LISP ("x-keysym-table", Vx_keysym_table,
     doc: /* Hash table of character codes indexed by X keysym codes.  */);
-  Vx_keysym_table = make_hash_table (hashtest_eql, 900,
+  Vx_keysym_table = make_hash_table (&hashtest_eql, 900,
 				     DEFAULT_REHASH_SIZE,
 				     DEFAULT_REHASH_THRESHOLD,
 				     Qnil, false);

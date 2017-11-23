@@ -172,29 +172,7 @@
    that returns 1.  If R is false, fail at compile-time, preferably
    with a diagnostic that includes the string-literal DIAGNOSTIC.  */
 
-#define _GL_VERIFY_TRUE(R, DIAGNOSTIC) \
-   (!!sizeof (_GL_VERIFY_TYPE (R, DIAGNOSTIC)))
-
-#ifdef __cplusplus
-# if !GNULIB_defined_struct__gl_verify_type
-template <int w>
-  struct _gl_verify_type {
-    unsigned int _gl_verify_error_if_negative: w;
-  };
-#  define GNULIB_defined_struct__gl_verify_type 1
-# endif
-# define _GL_VERIFY_TYPE(R, DIAGNOSTIC) \
-    _gl_verify_type<(R) ? 1 : -1>
-#elif defined _GL_HAVE__STATIC_ASSERT
-# define _GL_VERIFY_TYPE(R, DIAGNOSTIC) \
-    struct {                                   \
-      _Static_assert (R, DIAGNOSTIC);          \
-      int _gl_dummy;                          \
-    }
-#else
-# define _GL_VERIFY_TYPE(R, DIAGNOSTIC) \
-    struct { unsigned int _gl_verify_error_if_negative: (R) ? 1 : -1; }
-#endif
+#define _GL_VERIFY_TRUE(R, DIAGNOSTIC) 1
 
 /* Verify requirement R at compile-time, as a declaration without a
    trailing ';'.  If R is false, fail at compile-time, preferably

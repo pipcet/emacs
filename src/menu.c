@@ -894,7 +894,7 @@ find_and_call_menu_selection (struct frame *f, int menu_bar_items_used,
   USE_SAFE_ALLOCA;
 
   entry = Qnil;
-  SAFE_NALLOCA (subprefix_stack, 1, menu_bar_items_used);
+  SAFE_ALLOCA_LISP (subprefix_stack, menu_bar_items_used);
   prefix = Qnil;
   i = 0;
 

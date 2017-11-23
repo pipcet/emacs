@@ -1328,7 +1328,7 @@ silly_event_symbol_error (Lisp_Object c)
 /* We can't put these variables inside current_minor_maps, since under
    some systems, static gets macro-defined to be the empty string.
    Ickypoo.  */
-static Lisp_Object *cmm_modes = NULL, *cmm_maps = NULL;
+static ELisp_Struct_Value *cmm_modes; static ELisp_Struct_Value *cmm_maps;
 static ptrdiff_t cmm_size = 0;
 
 /* Store a pointer to an array of the currently active minor modes in
@@ -1350,7 +1350,7 @@ static ptrdiff_t cmm_size = 0;
    list, let the key sequence be read, and hope some other piece of
    code signals the error.  */
 ptrdiff_t
-current_minor_maps (Lisp_Object **modeptr, Lisp_Object **mapptr)
+current_minor_maps (ELisp_Pointer *modeptr, ELisp_Pointer *mapptr)
 {
   ptrdiff_t i = 0;
   int list_number = 0;
@@ -1411,7 +1411,7 @@ current_minor_maps (Lisp_Object **modeptr, Lisp_Object **mapptr)
 		/* Use malloc here.  See the comment above this function.
 		   Avoid realloc here; it causes spurious traps on GNU/Linux [KFS] */
 		block_input ();
-		newmodes = malloc (allocsize);
+		newmodes = (ELisp_Pointer)((ELisp_Struct_Value *)malloc (allocsize)); // XXX rootme
 		if (newmodes)
 		  {
 		    if (cmm_modes)
@@ -1423,7 +1423,7 @@ current_minor_maps (Lisp_Object **modeptr, Lisp_Object **mapptr)
 		    cmm_modes = newmodes;
 		  }
 
-		newmaps = malloc (allocsize);
+		newmaps = (ELisp_Struct_Value *)malloc (allocsize); // XXX rootme
 		if (newmaps)
 		  {
 		    if (cmm_maps)
@@ -1738,12 +1738,18 @@ bindings; see the description of `lookup-key' for more details about this.  */)
 	&& !INTEGERP (binding))
       {
 	if (KEYMAPP (binding))
-	  maps[j++] = Fcons (modes[i], binding);
+          {
+            Lisp_Object mode = modes[i];
+            maps[j++] = Fcons (mode, binding);
+          }
 	else if (j == 0)
-	  return list1 (Fcons (modes[i], binding));
+          {
+            Lisp_Object mode = modes[i];
+            return list1 (Fcons (mode, binding));
+          }
       }
 
-  return Flist (j, maps);
+  return Flist (LV (j, maps));
 }
 
 DEFUN ("define-prefix-command", Fdefine_prefix_command, Sdefine_prefix_command, 1, 3, 0,
@@ -1814,7 +1820,7 @@ DEFUN ("current-minor-mode-maps", Fcurrent_minor_mode_maps, Scurrent_minor_mode_
   Lisp_Object *maps;
   int nmaps = current_minor_maps (0, &maps);
 
-  return Flist (nmaps, maps);
+  return Flist (LV (nmaps, maps));
 }
 
 /* Help functions for describing and documenting keymaps.		*/
@@ -2018,12 +2024,12 @@ For an approximate inverse of this, see `kbd'.  */)
       if (add_meta)
 	{
 	  args[len] = Fsingle_key_description (meta_prefix_char, Qnil);
-	  result = Fconcat (len + 1, args);
+	  result = Fconcat (LV (len + 1, args));
 	}
       else if (len == 0)
 	result = empty_unibyte_string;
       else
-	result = Fconcat (len - 1, args);
+	result = Fconcat (LV (len - 1, args));
       SAFE_FREE ();
       return result;
     }
@@ -2418,7 +2424,7 @@ where_is_internal (Lisp_Object definition, Lisp_Object keymaps,
       if (NILP (where_is_cache))
 	{
 	  /* We need to create the cache.  */
-	  where_is_cache = Fmake_hash_table (0, NULL);
+	  where_is_cache = Fmake_hash_table (LV (0, NULL));
 	  where_is_cache_keymaps = Qt;
 	}
       else
@@ -3240,10 +3246,10 @@ describe_map (Lisp_Object map, Lisp_Object prefix,
 	  /* The same keymap might be in the structure twice, if we're
 	     using an inherited keymap.  So skip anything we've already
 	     encountered.  */
-	  tem = Fassq (tail, *seen);
+	  tem = Fassq (tail, seen.ref(0));
 	  if (CONSP (tem) && !NILP (Fequal (XCAR (tem), prefix)))
 	    break;
-	  *seen = Fcons (Fcons (tail, prefix), *seen);
+	  seen.set(Fcons (Fcons (tail, prefix), seen.ref(0)));
 	}
     }
 

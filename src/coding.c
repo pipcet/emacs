@@ -3455,7 +3455,7 @@ finish_composition (int *charbuf, struct composition_status *cmp_status)
     *charbuf++ = -2;			\
     *charbuf++ = rule;			\
     cmp_status->length += 2;		\
-    cmp_status->state--;		\
+    cmp_status->state = cmp_status->state - 1;  \
   } while (0)
 
 /* Store a composed char or a component char C in charbuf, and update
@@ -3472,7 +3472,7 @@ finish_composition (int *charbuf, struct composition_status *cmp_status)
     if (cmp_status->method == COMPOSITION_WITH_RULE			\
 	|| (cmp_status->method == COMPOSITION_WITH_RULE_ALTCHARS	\
 	    && cmp_status->state == COMPOSING_COMPONENT_CHAR))		\
-      cmp_status->state++;						\
+      cmp_status->state = cmp_status->state + 1;                        \
   } while (0)
 
 
@@ -6938,7 +6938,7 @@ get_translation_table (Lisp_Object attrs, bool encodep, int *max_lookup)
       }								\
     else if (CONSP (table))					\
       {								\
-	Lisp_Object tail;					\
+	ELisp_Value tail;					\
 								\
 	for (tail = table; CONSP (tail); tail = XCDR (tail))	\
 	  if (CHAR_TABLE_P (XCAR (tail)))			\
@@ -7229,7 +7229,7 @@ produce_composition (struct coding_system *coding, int *charbuf, ptrdiff_t pos)
 	      args[j] = make_number (charbuf[i] % 0x100);
 	    }
 	}
-      components = (i == j ? Fstring (j, args) : Fvector (j, args));
+      components = (i == j ? Fstring (LV (j, args)) : Fvector (LV (j, args)));
     }
   compose_text (pos, to, components, Qnil, coding->dst_object);
 }
@@ -7259,8 +7259,8 @@ produce_charset (struct coding_system *coding, int *charbuf, ptrdiff_t pos)
 
 #define ALLOC_CONVERSION_WORK_AREA(coding, size)		\
   do {								\
-    ptrdiff_t units = min ((size) + MAX_CHARBUF_EXTRA_SIZE,	\
-			   MAX_CHARBUF_SIZE);			\
+    ptrdiff_t units = c_min ((size) + MAX_CHARBUF_EXTRA_SIZE,	\
+                             MAX_CHARBUF_SIZE);			\
     coding->charbuf = SAFE_ALLOCA (units * sizeof (int));	\
     coding->charbuf_size = units;				\
   } while (0)
@@ -8870,7 +8870,7 @@ detect_coding_system (const unsigned char *src,
       }
   }
 
-  return (highest ? (CONSP (val) ? XCAR (val) : Qnil) : val);
+  return (highest ? (CONSP (val) ? XCAR (val) : Qnil) : ELisp_Return_Value(val));
 }
 
 
@@ -9368,7 +9368,7 @@ code_convert_region (Lisp_Object start, Lisp_Object end,
 
   return (BUFFERP (dst_object)
 	  ? make_number (coding.produced_char)
-	  : coding.dst_object);
+	  : ELisp_Return_Value(coding.dst_object));
 }
 
 
@@ -9430,7 +9430,7 @@ code_convert_string (Lisp_Object string, Lisp_Object coding_system,
       if (! norecord)
 	Vlast_coding_system_used = Qno_conversion;
       if (NILP (dst_object))
-	return (nocopy ? Fcopy_sequence (string) : string);
+	return (nocopy ? Fcopy_sequence (string) : ELisp_Return_Value(string));
     }
 
   if (NILP (coding_system))
@@ -9464,7 +9464,7 @@ code_convert_string (Lisp_Object string, Lisp_Object coding_system,
 
   return (BUFFERP (dst_object)
 	  ? make_number (coding.produced_char)
-	  : coding.dst_object);
+	  : ELisp_Return_Value(coding.dst_object));
 }
 
 
@@ -9486,6 +9486,7 @@ code_convert_string_norecord (Lisp_Object string, Lisp_Object coding_system,
 Lisp_Object
 decode_file_name (Lisp_Object fname)
 {
+  ;
 #ifdef WINDOWSNT
   /* The w32 build pretends to use UTF-8 for file-name encoding, and
      converts the file names either to UTF-16LE or to the system ANSI
@@ -9774,7 +9775,7 @@ frame's terminal device.  */)
   Lisp_Object coding_system = CODING_ID_NAME (terminal_coding->id);
 
   /* For backward compatibility, return nil if it is `undecided'.  */
-  return (! EQ (coding_system, Qundecided) ? coding_system : Qnil);
+  return (! EQ (coding_system, Qundecided) ? ELisp_Return_Value(coding_system) : Qnil);
 }
 
 DEFUN ("set-keyboard-coding-system-internal", Fset_keyboard_coding_system_internal,
@@ -11273,22 +11274,23 @@ internal character representation.  */);
   Vtranslation_table_for_input = Qnil;
 
   Lisp_Object args[coding_arg_undecided_max];
-  memclear (args, sizeof args);
+  for (ptrdiff_t i = 0; i < ARRAYELTS(args); i++)
+    args[i] = Qnil;
 
   Lisp_Object plist[] =
     {
       QCname,
-      args[coding_arg_name] = Qno_conversion,
+      args.vec[coding_arg_name] = Qno_conversion,
       QCmnemonic,
-      args[coding_arg_mnemonic] = make_number ('='),
+      args.vec[coding_arg_mnemonic] = make_number ('='),
       intern_c_string (":coding-type"),
-      args[coding_arg_coding_type] = Qraw_text,
+      args.vec[coding_arg_coding_type] = Qraw_text,
       QCascii_compatible_p,
-      args[coding_arg_ascii_compatible_p] = Qt,
+      args.vec[coding_arg_ascii_compatible_p] = Qt,
       QCdefault_char,
-      args[coding_arg_default_char] = make_number (0),
+      args.vec[coding_arg_default_char] = make_number (0),
       intern_c_string (":for-unibyte"),
-      args[coding_arg_for_unibyte] = Qt,
+      args.vec[coding_arg_for_unibyte] = Qt,
       intern_c_string (":docstring"),
       (build_pure_c_string
        ("Do no conversion.\n"
@@ -11297,10 +11299,10 @@ internal character representation.  */);
 	"unibyte buffer as is, thus each byte of a file is treated as a\n"
 	"character.")),
       intern_c_string (":eol-type"),
-      args[coding_arg_eol_type] = Qunix,
+      args.vec[coding_arg_eol_type] = Qunix,
     };
   args[coding_arg_plist] = CALLMANY (Flist, plist);
-  Fdefine_coding_system_internal (coding_arg_max, args);
+  Fdefine_coding_system_internal (LV (coding_arg_max, args));
 
   plist[1] = args[coding_arg_name] = Qundecided;
   plist[3] = args[coding_arg_mnemonic] = make_number ('-');
@@ -11316,7 +11318,7 @@ internal character representation.  */);
   args[coding_arg_plist] = CALLMANY (Flist, plist);
   args[coding_arg_undecided_inhibit_null_byte_detection] = make_number (0);
   args[coding_arg_undecided_inhibit_iso_escape_detection] = make_number (0);
-  Fdefine_coding_system_internal (coding_arg_undecided_max, args);
+  Fdefine_coding_system_internal (LV (coding_arg_undecided_max, args));
 
   setup_coding_system (Qno_conversion, &safe_terminal_coding);
 

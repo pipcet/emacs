@@ -623,7 +623,7 @@ read_minibuf (Lisp_Object map, Lisp_Object initial, Lisp_Object prompt,
       minibuf_prompt = Fstring_make_multibyte (minibuf_prompt);
 
     /* Insert the prompt, record where it ends.  */
-    Finsert (1, &minibuf_prompt);
+    Finsert (LV (1, &minibuf_prompt));
     if (PT > BEG)
       {
 	Fput_text_property (make_number (BEG), make_number (PT),
@@ -666,7 +666,7 @@ read_minibuf (Lisp_Object map, Lisp_Object initial, Lisp_Object prompt,
   /* Put in the initial input.  */
   if (!NILP (initial))
     {
-      Finsert (1, &initial);
+      Finsert (LV (1, &initial));
       Fforward_char (make_number (pos));
     }
 
@@ -1280,8 +1280,8 @@ is used to further constrain the set of candidates.  */)
 		error ("Bad data in guts of obarray");
 	      elt = bucket;
 	      eltstring = elt;
-	      if (XSYMBOL (bucket)->u.s.next)
-		XSETSYMBOL (bucket, XSYMBOL (bucket)->u.s.next);
+	      if (XSYMBOL (bucket)->next)
+		XSETSYMBOL (bucket, XSYMBOL (bucket)->next);
 	      else
 		XSETFASTINT (bucket, 0);
 	    }
@@ -1533,8 +1533,8 @@ with a space are ignored unless STRING itself starts with a space.  */)
 		error ("Bad data in guts of obarray");
 	      elt = bucket;
 	      eltstring = elt;
-	      if (XSYMBOL (bucket)->u.s.next)
-		XSETSYMBOL (bucket, XSYMBOL (bucket)->u.s.next);
+	      if (XSYMBOL (bucket)->next)
+		XSETSYMBOL (bucket, XSYMBOL (bucket)->next);
 	      else
 		XSETFASTINT (bucket, 0);
 	    }
@@ -1754,9 +1754,9 @@ the values STRING, PREDICATE and `lambda'.  */)
 			tem = tail;
 			break;
 		      }
-		    if (XSYMBOL (tail)->u.s.next == 0)
+		    if (XSYMBOL (tail)->next == 0)
 		      break;
-		    XSETSYMBOL (tail, XSYMBOL (tail)->u.s.next);
+		    XSETSYMBOL (tail, XSYMBOL (tail)->next);
 		  }
 	    }
 	}

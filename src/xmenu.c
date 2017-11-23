@@ -728,8 +728,8 @@ set_frame_menubar (struct frame *f, bool first_time, bool deep_p)
       Lisp_Object buffer;
       ptrdiff_t specpdl_count = SPECPDL_INDEX ();
       int previous_menu_items_used = f->menu_bar_items_used;
-      Lisp_Object *previous_items
-	= alloca (previous_menu_items_used * sizeof *previous_items);
+      Lisp_Object *previous_items = (ELisp_Struct_Value *)
+	(alloca (previous_menu_items_used * sizeof(ELisp_Struct_Value)));
       int subitems;
 
       /* If we are making a new widget, its contents are empty,
@@ -1132,7 +1132,7 @@ free_frame_menubar (struct frame *f)
 #if defined (USE_X_TOOLKIT) || defined (USE_GTK)
 
 /* The item selected in the popup menu.  */
-static Lisp_Object *volatile menu_item_selection;
+static ELisp_Pointer menu_item_selection;
 
 #ifdef USE_GTK
 
@@ -1210,7 +1210,7 @@ popup_selection_callback (GtkWidget *widget, gpointer client_data)
   xg_menu_item_cb_data *cb_data = client_data;
 
   if (xg_crazy_callback_abort) return;
-  if (cb_data) menu_item_selection = cb_data->call_data;
+  if (cb_data) menu_item_selection = (ELisp_Struct_Value *)cb_data->call_data; // XXX rootme
 }
 
 static void
@@ -1448,7 +1448,7 @@ x_menu_show (struct frame *f, int x, int y, int menuflags,
   widget_value **submenu_stack
     = alloca (menu_items_used * sizeof *submenu_stack);
   Lisp_Object *subprefix_stack
-    = alloca (menu_items_used * sizeof *subprefix_stack);
+    = (ELisp_Struct_Value *)(alloca (menu_items_used * sizeof(ELisp_Struct_Value)));
   int submenu_depth = 0;
 
   ptrdiff_t specpdl_count = SPECPDL_INDEX ();
@@ -1708,7 +1708,7 @@ dialog_selection_callback (GtkWidget *widget, gpointer client_data)
   /* Treat the pointer as an integer.  There's no problem
      as long as pointers have enough bits to hold small integers.  */
   if ((intptr_t) client_data != -1)
-    menu_item_selection = client_data;
+    menu_item_selection = (ELisp_Struct_Value *)client_data;
 
   popup_activated_flag = 0;
 }

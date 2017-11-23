@@ -467,7 +467,7 @@ overlays_around (EMACS_INT pos, Lisp_Object *vec, ptrdiff_t len)
 
   for (tail = current_buffer->overlays_before; tail; tail = tail->next)
     {
-      XSETMISC (overlay, tail);
+      XSETOVERLAY (overlay, tail);
 
       end = OVERLAY_END (overlay);
       endpos = OVERLAY_POSITION (end);
@@ -486,7 +486,7 @@ overlays_around (EMACS_INT pos, Lisp_Object *vec, ptrdiff_t len)
 
   for (tail = current_buffer->overlays_after; tail; tail = tail->next)
     {
-      XSETMISC (overlay, tail);
+      XSETOVERLAY (overlay, tail);
 
       start = OVERLAY_START (overlay);
       startpos = OVERLAY_POSITION (start);
@@ -532,6 +532,7 @@ at POSITION.  */)
       EMACS_INT posn = XINT (position);
       ptrdiff_t noverlays;
       Lisp_Object *overlay_vec, tem;
+      Lisp_Object *overlay_vec_v;
       struct buffer *obuf = current_buffer;
       USE_SAFE_ALLOCA;
 
@@ -547,7 +548,8 @@ at POSITION.  */)
 	 make enough space for all, and try again.  */
       if (ARRAYELTS (overlay_vecbuf) < noverlays)
 	{
-	  SAFE_ALLOCA_LISP (overlay_vec, noverlays);
+	  SAFE_ALLOCA_LISP (overlay_vec_v, noverlays);
+          overlay_vec = overlay_vec_v;
 	  noverlays = overlays_around (posn, overlay_vec, noverlays);
 	}
       noverlays = sort_overlays (overlay_vec, noverlays, NULL);
@@ -2548,7 +2550,7 @@ general_insert_function (void (*insert_func)
 void
 insert1 (Lisp_Object arg)
 {
-  Finsert (1, &arg);
+  Finsert (LV (1, &arg));
 }
 
 
@@ -3714,7 +3716,7 @@ It returns the number of characters changed.  */)
 
 	      if (VECTORP (val))
 		{
-		  string = Fconcat (1, &val);
+		  string = Fconcat (LV (1, &val));
 		}
 	      else
 		{

@@ -1139,7 +1139,7 @@ struct mouse_cursor_types {
   /* FIXME: A couple of these variables are defined in the C code but
      are not actually accessible from Lisp.  They should probably be
      made accessible or removed.  */
-  Lisp_Object *shape_var_ptr;
+  ELisp_Struct_Value *shape_var_ptr;
 
   /* The default shape.  */
   int default_shape;
@@ -5261,7 +5261,7 @@ menu bar or tool bar of FRAME.  */)
 {
   return frame_geometry (frame, ((EQ (type, Qouter_edges)
 				  || EQ (type, Qinner_edges))
-				 ? type
+				 ? ELisp_Return_Value(type)
 				 : Qnative_edges));
 }
 
@@ -6828,7 +6828,7 @@ Text larger than the specified size is clipped.  */)
   specbind (Qinhibit_modification_hooks, Qt);
   specbind (Qinhibit_point_motion_hooks, Qt);
   Ferase_buffer ();
-  Finsert (1, &string);
+  Finsert (LV (1, &string));
   clear_glyph_matrix (w->desired_matrix);
   clear_glyph_matrix (w->current_matrix);
   SET_TEXT_POS (pos, BEGV, BEGV_BYTE);
@@ -7251,6 +7251,7 @@ usual X keysyms.  Value is `lambda' if we cannot determine if both keys are
 present and mapped to the usual X keysyms.  */)
   (Lisp_Object frame)
 {
+  ;
 #ifndef HAVE_XKB
   return Qlambda;
 #else

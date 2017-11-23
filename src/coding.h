@@ -649,15 +649,15 @@ struct coding_system
    for system functions, if any.  */
 #define ENCODE_SYSTEM(str)						   \
   (! NILP (Vlocale_coding_system)					   \
-   ? code_convert_string_norecord (str, Vlocale_coding_system, true)	   \
-   : str)
+   ? ELisp_Return_Value(code_convert_string_norecord (str, Vlocale_coding_system, true)) \
+   : ELisp_Return_Value(str))
 
 /* Decode the string STR using the specified coding system
    for system functions, if any.  */
 #define DECODE_SYSTEM(str)						   \
   (! NILP (Vlocale_coding_system)					   \
    ? code_convert_string_norecord (str, Vlocale_coding_system, false)	   \
-   : str)
+   : ELisp_Return_Value(str))
 
 /* Note that this encodes utf-8, not utf-8-emacs, so it's not a no-op.  */
 #define ENCODE_UTF_8(str) code_convert_string_norecord (str, Qutf_8, true)
@@ -719,7 +719,7 @@ extern Lisp_Object from_unicode_buffer (const wchar_t *wstr);
   (STRING_MULTIBYTE(string) ?						\
     (encode_coding_object (coding, string, 0, 0, SCHARS (string),	\
 			   SBYTES (string), Qt),			\
-     (coding)->dst_object) : (string))
+     ELisp_Return_Value((coding)->dst_object)) : ELisp_Return_Value(string))
 
 
 #define decode_coding_c_string(coding, src, bytes, dst_object)		\
@@ -727,7 +727,7 @@ extern Lisp_Object from_unicode_buffer (const wchar_t *wstr);
     (coding)->source = (src);						\
     (coding)->src_chars = (coding)->src_bytes = (bytes);		\
     decode_coding_object ((coding), Qnil, 0, 0, (bytes), (bytes),	\
-			  (dst_object));				\
+			  ELisp_Return_Value(dst_object));              \
   } while (false)
 
 

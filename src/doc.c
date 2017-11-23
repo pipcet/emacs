@@ -116,7 +116,7 @@ get_doc_string (Lisp_Object filepos, bool unibyte, bool definition)
   tem = Ffile_name_absolute_p (file);
   file = ENCODE_FILE (file);
   Lisp_Object docdir
-    = NILP (tem) ? ENCODE_FILE (Vdoc_directory) : empty_unibyte_string;
+    = NILP (tem) ? ENCODE_FILE (Vdoc_directory) : ELisp_Return_Value(empty_unibyte_string);
   ptrdiff_t docdir_sizemax = SBYTES (docdir) + 1;
 #ifndef CANNOT_DUMP
   docdir_sizemax = max (docdir_sizemax, sizeof sibling_etc);
@@ -472,7 +472,7 @@ store_function_docstring (Lisp_Object obj, EMACS_INT offset)
 {
   /* Don't use indirect_function here, or defaliases will apply their
      docstrings to the base functions (Bug#2603).  */
-  Lisp_Object fun = SYMBOLP (obj) ? XSYMBOL (obj)->u.s.function : obj;
+  Lisp_Object fun = SYMBOLP (obj) ? ELisp_Return_Value(XSYMBOL (obj)->function) : obj;
 
   /* The type determines where the docstring is stored.  */
 
@@ -527,13 +527,13 @@ The function takes one argument, FILENAME, a string;
 it specifies the file name (without a directory) of the DOC file.
 That file is found in `../etc' now; later, when the dumped Emacs is run,
 the same file name is found in the `doc-directory'.  */)
-  (Lisp_Object filename)
+  (ELisp_Handle filename)
 {
   int fd;
   char buf[1024 + 1];
   int filled;
   EMACS_INT pos;
-  Lisp_Object sym;
+  ELisp_Value sym;
   char *p, *name;
   bool skip_file = 0;
   ptrdiff_t count;
@@ -541,7 +541,7 @@ the same file name is found in the `doc-directory'.  */)
   ptrdiff_t dirlen;
   /* Preloaded defcustoms using custom-initialize-delay are added to
      this list, but kept unbound.  See https://debbugs.gnu.org/11565  */
-  Lisp_Object delayed_init =
+  ELisp_Value delayed_init =
     find_symbol_value (intern ("custom-delayed-init-variables"));
 
   if (EQ (delayed_init, Qunbound)) delayed_init = Qnil;

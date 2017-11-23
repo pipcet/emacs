@@ -1,4 +1,3 @@
-#if 0
 /* Fundamental definitions for GNU Emacs Lisp interpreter. -*- coding: utf-8 -*-
 
 Copyright (C) 1985-1987, 1993-1995, 1997-2017 Free Software Foundation,
@@ -22,6 +21,79 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #ifndef EMACS_LISP_H
 #define EMACS_LISP_H
 
+#include "js-config.h"
+#include "jsapi.h"
+
+#include "js/Class.h"
+#include "js/Initialization.h"
+#include "js/RootingAPI.h"
+#include "js/Conversions.h" // as of SpiderMonkey 38; previously in jsapi.h
+
+#define ARG(x) (x ## _arg)
+#define MODIFY_ARG(x) 0
+
+extern bool js_init();
+
+extern JSContext* global_js_context;
+
+class JSG {
+ public:
+  JSG() {
+    js_init();
+    cx = global_js_context;
+    stack = (JS::Value*)buf;
+    sp = stack;
+  }
+
+  JS::Value *next()
+  {
+    sp++;
+    if (sp == stack + 1024)
+      sp = stack;
+
+    return sp;
+  }
+
+  unsigned long buf[1024];
+
+  JSContext *cx;
+  JS::Value* stack;
+  JS::Value* sp;
+};
+
+extern JSG &jsg();
+extern JSClass elisp_cons_class;
+extern JSClass elisp_string_class;
+extern JSClass elisp_symbol_class;
+//extern JSClass elisp_marker_class;
+//extern JSClass elisp_overlay_class;
+//extern JSClass elisp_buffer_class;
+//extern JSClass elisp_module_function_class;
+extern JSClass elisp_vector_class;
+//extern JSClass elisp_bool_vector_class;
+//extern JSClass elisp_char_table_class;
+//extern JSClass elisp_sub_char_table_class;
+//extern JSClass elisp_subr_class;
+//extern JSClass elisp_thread_class;
+//extern JSClass elisp_mutex_class;
+//extern JSClass elisp_condvar_class;
+//extern JSClass elisp_save_value_class;
+//extern JSClass elisp_finalizer_class;
+//extern JSClass elisp_hash_table_class;
+//extern JSClass elisp_frame_class;
+//extern JSClass elisp_font_spec_class;
+//extern JSClass elisp_font_entity_class;
+//extern JSClass elisp_font_object_class;
+//extern JSClass elisp_terminal_class;
+//extern JSClass elisp_window_class;
+//extern JSClass elisp_window_configuration_class;
+//extern JSClass elisp_process_class;
+//extern JSClass elisp_scroll_bar_class;
+//extern JSClass elisp_compiled_class;
+extern JSClass elisp_misc_class;
+//extern JSClass elisp_misc_any_class;
+//extern JSClass elisp_vectorlike_class;
+  
 #include <alloca.h>
 #include <setjmp.h>
 #include <stdalign.h>
@@ -31,22 +103,22 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #include <float.h>
 #include <inttypes.h>
 #include <limits.h>
-
+  
 #include <intprops.h>
 #include <verify.h>
-
+  
 INLINE_HEADER_BEGIN
-
+  
 /* Define a TYPE constant ID as an externally visible name.  Use like this:
-
+  
       DEFINE_GDB_SYMBOL_BEGIN (TYPE, ID)
       # define ID (some integer preprocessor expression of type TYPE)
       DEFINE_GDB_SYMBOL_END (ID)
-
+  
    This hack is for the benefit of compilers that do not make macro
    definitions or enums visible to the debugger.  It's used for symbols
    that .gdbinit needs.  */
-
+  
 #define DECLARE_GDB_SYM(type, id) type const id EXTERNALLY_VISIBLE
 #ifdef MAIN_PROGRAM
 # define DEFINE_GDB_SYMBOL_BEGIN(type, id) DECLARE_GDB_SYM (type, id)
@@ -55,21 +127,21 @@ INLINE_HEADER_BEGIN
 # define DEFINE_GDB_SYMBOL_BEGIN(type, id) extern DECLARE_GDB_SYM (type, id)
 # define DEFINE_GDB_SYMBOL_END(val) ;
 #endif
-
+  
 /* The ubiquitous max and min macros.  */
-#undef min
-#undef max
-#define max(a, b) ((a) > (b) ? (a) : (b))
-#define min(a, b) ((a) < (b) ? (a) : (b))
-
+#undef c_min
+#undef c_max
+#define c_max(a, b) ((a) > (b) ? (a) : (b))
+#define c_min(a, b) ((a) < (b) ? (a) : (b))
+  
 /* Number of elements in an array.  */
 #define ARRAYELTS(arr) (sizeof (arr) / sizeof (arr)[0])
-
+  
 /* Number of bits in a Lisp_Object tag.  */
 DEFINE_GDB_SYMBOL_BEGIN (int, GCTYPEBITS)
 #define GCTYPEBITS 3
 DEFINE_GDB_SYMBOL_END (GCTYPEBITS)
-
+  
 /* EMACS_INT - signed integer wide enough to hold an Emacs value
    EMACS_INT_WIDTH - width in bits of EMACS_INT
    EMACS_INT_MAX - maximum value of EMACS_INT; can be used in #if
@@ -103,7 +175,7 @@ enum { EMACS_INT_WIDTH = LLONG_WIDTH, EMACS_UINT_WIDTH = ULLONG_WIDTH };
 #  if defined __MINGW32__						\
   && (!defined __USE_MINGW_ANSI_STDIO					\
       || (!defined MINGW_W64						\
-	  && !(GNUC_PREREQ (6, 0, 0) && __MINGW32_MAJOR_VERSION >= 5)))
+          && !(GNUC_PREREQ (6, 0, 0) && __MINGW32_MAJOR_VERSION >= 5)))
 #   define pI "I64"
 #  else	 /* ! MinGW */
 #   define pI "ll"
@@ -112,14 +184,14 @@ enum { EMACS_INT_WIDTH = LLONG_WIDTH, EMACS_UINT_WIDTH = ULLONG_WIDTH };
 #  error "INTPTR_MAX too large"
 # endif
 #endif
-
+  
 /* Number of bits to put in each character in the internal representation
    of bool vectors.  This should not vary across implementations.  */
 enum {  BOOL_VECTOR_BITS_PER_CHAR =
 #define BOOL_VECTOR_BITS_PER_CHAR 8
         BOOL_VECTOR_BITS_PER_CHAR
 };
-
+  
 /* An unsigned integer type representing a fixed-length bit sequence,
    suitable for bool vector words, GC mark bits, etc.  Normally it is size_t
    for speed, but on weird platforms it is unsigned char and not all
@@ -134,7 +206,7 @@ typedef unsigned char bits_word;
 enum { BITS_PER_BITS_WORD = BOOL_VECTOR_BITS_PER_CHAR };
 #endif
 verify (BITS_WORD_MAX >> (BITS_PER_BITS_WORD - 1) == 1);
-
+  
 /* printmax_t and uprintmax_t are types for printing large integers.
    These are the widest integers that are supported for printing.
    pMd etc. are conversions for printing them.
@@ -151,7 +223,7 @@ typedef EMACS_UINT uprintmax_t;
 # define pMd pI"d"
 # define pMu pI"u"
 #endif
-
+  
 /* Use pD to format ptrdiff_t values, which suffice for indexes into
    buffers and strings.  Emacs never allocates objects larger than
    PTRDIFF_MAX bytes, as they cause problems with pointer subtraction.
@@ -166,43 +238,43 @@ typedef EMACS_UINT uprintmax_t;
 #else
 # define pD "t"
 #endif
-
+  
 /* Extra internal type checking?  */
-
+  
 /* Define Emacs versions of <assert.h>'s 'assert (COND)' and <verify.h>'s
    'assume (COND)'.  COND should be free of side effects, as it may or
    may not be evaluated.
-
+  
    'eassert (COND)' checks COND at runtime if ENABLE_CHECKING is
    defined and suppress_checking is false, and does nothing otherwise.
    Emacs dies if COND is checked and is false.  The suppress_checking
    variable is initialized to 0 in alloc.c.  Set it to 1 using a
    debugger to temporarily disable aborting on detected internal
    inconsistencies or error conditions.
-
+  
    In some cases, a good compiler may be able to optimize away the
    eassert macro even if ENABLE_CHECKING is true, e.g., if XSTRING (x)
    uses eassert to test STRINGP (x), but a particular use of XSTRING
    is invoked only after testing that STRINGP (x) is true, making the
    test redundant.
-
+  
    eassume is like eassert except that it also causes the compiler to
    assume that COND is true afterwards, regardless of whether runtime
    checking is enabled.  This can improve performance in some cases,
    though it can degrade performance in others.  It's often suboptimal
    for COND to call external functions or access volatile storage.  */
-
+  
 #ifndef ENABLE_CHECKING
 # define eassert(cond) ((void) (false && (cond))) /* Check COND compiles.  */
 # define eassume(cond) assume (cond)
 #else /* ENABLE_CHECKING */
-
+  
 extern _Noreturn void die (const char *, const char *, int);
-
+  
 extern bool suppress_checking EXTERNALLY_VISIBLE;
-
+  
 # define eassert(cond)						\
-   (suppress_checking || (cond) 				\
+   (suppress_checking || (cond)                                 \
     ? (void) 0							\
     : die (# cond, __FILE__, __LINE__))
 # define eassume(cond)						\
@@ -212,12 +284,12 @@ extern bool suppress_checking EXTERNALLY_VISIBLE;
     ? (void) 0							\
     : die (# cond, __FILE__, __LINE__))
 #endif /* ENABLE_CHECKING */
-
+  
 
 /* Use the configure flag --enable-check-lisp-object-type to make
    Lisp_Object use a struct type instead of the default int.  The flag
    causes CHECK_LISP_OBJECT_TYPE to be defined.  */
-
+  
 /***** Select the tagging scheme.  *****/
 /* The following option controls the tagging scheme:
    - USE_LSB_TAG means that we can assume the least 3 bits of pointers are
@@ -229,13 +301,13 @@ extern bool suppress_checking EXTERNALLY_VISIBLE;
 
    USE_LSB_TAG not only requires the least 3 bits of pointers returned by
    malloc to be 0 but also needs to be able to impose a mult-of-8 alignment
-   on the few static Lisp_Objects used, all of which are aligned via
-   'char alignas (GCALIGNMENT) gcaligned;' inside a union.  */
+   on the few static Lisp_Objects used: lispsym, all the defsubr, and
+   the two special buffers buffer_defaults and buffer_local_symbols.  */
 
 enum Lisp_Bits
   {
     /* 2**GCTYPEBITS.  This must be a macro that expands to a literal
-       integer constant, for older versions of GCC (through at least 4.9).  */
+       integer constant, for MSVC.  */
 #define GCALIGNMENT 8
 
     /* Number of bits in a Lisp_Object value, not counting the tag.  */
@@ -245,7 +317,7 @@ enum Lisp_Bits
     INTTYPEBITS = GCTYPEBITS - 1,
 
     /* Number of bits in a Lisp fixnum value, not counting the tag.  */
-    FIXNUM_BITS = VALBITS + 1
+   FIXNUM_BITS = VALBITS + 1
   };
 
 #if GCALIGNMENT != 1 << GCTYPEBITS
@@ -275,7 +347,12 @@ DEFINE_GDB_SYMBOL_END (VALMASK)
 #if !USE_LSB_TAG && !defined WIDE_EMACS_INT
 # error "USE_LSB_TAG not supported on this platform; please report this." \
 	"Try 'configure --with-wide-int' to work around the problem."
-error !;
+#endif
+
+#ifdef HAVE_STRUCT_ATTRIBUTE_ALIGNED
+# define GCALIGNED __attribute__ ((aligned (GCALIGNMENT)))
+#else
+# define GCALIGNED /* empty */
 #endif
 
 /* Some operations are so commonly executed that they are implemented
@@ -306,101 +383,61 @@ error !;
    Commentary for these macros can be found near their corresponding
    functions, below.  */
 
-#if CHECK_LISP_OBJECT_TYPE
-# define lisp_h_XLI(o) ((o).i)
-# define lisp_h_XIL(i) ((Lisp_Object) { i })
-#else
-# define lisp_h_XLI(o) (o)
-# define lisp_h_XIL(i) (i)
-#endif
 #define lisp_h_CHECK_NUMBER(x) CHECK_TYPE (INTEGERP (x), Qintegerp, x)
 #define lisp_h_CHECK_SYMBOL(x) CHECK_TYPE (SYMBOLP (x), Qsymbolp, x)
 #define lisp_h_CHECK_TYPE(ok, predicate, x) \
    ((ok) ? (void) 0 : wrong_type_argument (predicate, x))
 #define lisp_h_CONSP(x) (XTYPE (x) == Lisp_Cons)
-#define lisp_h_EQ(x, y) (XLI (x) == XLI (y))
+#define lisp_h_EQ(x, y) (x).eq(y)
 #define lisp_h_FLOATP(x) (XTYPE (x) == Lisp_Float)
 #define lisp_h_INTEGERP(x) ((XTYPE (x) & (Lisp_Int0 | ~Lisp_Int1)) == Lisp_Int0)
 #define lisp_h_MARKERP(x) (MISCP (x) && XMISCTYPE (x) == Lisp_Misc_Marker)
 #define lisp_h_MISCP(x) (XTYPE (x) == Lisp_Misc)
 #define lisp_h_NILP(x) EQ (x, Qnil)
 #define lisp_h_SET_SYMBOL_VAL(sym, v) \
-   (eassert ((sym)->u.s.redirect == SYMBOL_PLAINVAL), \
-    (sym)->u.s.val.value = (v))
-#define lisp_h_SYMBOL_CONSTANT_P(sym) \
-   (XSYMBOL (sym)->u.s.trapped_write == SYMBOL_NOWRITE)
-#define lisp_h_SYMBOL_TRAPPED_WRITE_P(sym) (XSYMBOL (sym)->u.s.trapped_write)
+   (eassert ((sym)->redirect == SYMBOL_PLAINVAL), (sym)->val.value = (v))
+#define lisp_h_SYMBOL_CONSTANT_P(sym) (XSYMBOL (sym)->trapped_write == SYMBOL_NOWRITE)
+#define lisp_h_SYMBOL_TRAPPED_WRITE_P(sym) (XSYMBOL (sym)->trapped_write)
 #define lisp_h_SYMBOL_VAL(sym) \
-   (eassert ((sym)->u.s.redirect == SYMBOL_PLAINVAL), (sym)->u.s.val.value)
+   (eassert ((sym)->redirect == SYMBOL_PLAINVAL), (sym)->val.value)
 #define lisp_h_SYMBOLP(x) (XTYPE (x) == Lisp_Symbol)
-#define lisp_h_VECTORLIKEP(x) (XTYPE (x) == Lisp_Vectorlike)
-#define lisp_h_XCAR(c) XCONS (c)->u.s.car
-#define lisp_h_XCDR(c) XCONS (c)->u.s.u.cdr
-#define lisp_h_XCONS(a) \
-   (eassert (CONSP (a)), (struct Lisp_Cons *) XUNTAG (a, Lisp_Cons))
+#define lisp_h_XCAR(c) XCONS (c)->car
+#define lisp_h_XCDR(c) XCONS (c)->u.cdr
 #define lisp_h_XHASH(a) XUINT (a)
 #ifndef GC_CHECK_CONS_LIST
 # define lisp_h_check_cons_list() ((void) 0)
 #endif
 #if USE_LSB_TAG
-# define lisp_h_make_number(n) \
-    XIL ((EMACS_INT) (((EMACS_UINT) (n) << INTTYPEBITS) + Lisp_Int0))
-# define lisp_h_XFASTINT(a) XINT (a)
-# define lisp_h_XINT(a) (XLI (a) >> INTTYPEBITS)
-# define lisp_h_XSYMBOL(a) \
-    (eassert (SYMBOLP (a)), \
-     (struct Lisp_Symbol *) ((intptr_t) XLI (a) - Lisp_Symbol \
-			     + (char *) lispsym))
-# define lisp_h_XTYPE(a) ((enum Lisp_Type) (XLI (a) & ~VALMASK))
-# define lisp_h_XUNTAG(a, type) \
-    __builtin_assume_aligned ((void *) (intptr_t) (XLI (a) - (type)), \
-			      GCALIGNMENT)
 #endif
 
 /* When compiling via gcc -O0, define the key operations as macros, as
    Emacs is too slow otherwise.  To disable this optimization, compile
    with -DINLINING=false.  */
-#if (defined __NO_INLINE__ \
-     && ! defined __OPTIMIZE__ && ! defined __OPTIMIZE_SIZE__ \
-     && ! (defined INLINING && ! INLINING))
 # define DEFINE_KEY_OPS_AS_MACROS true
-#else
-# define DEFINE_KEY_OPS_AS_MACROS false
-#endif
 
 #if DEFINE_KEY_OPS_AS_MACROS
-# define XLI(o) lisp_h_XLI (o)
-# define XIL(i) lisp_h_XIL (i)
 # define CHECK_NUMBER(x) lisp_h_CHECK_NUMBER (x)
 # define CHECK_SYMBOL(x) lisp_h_CHECK_SYMBOL (x)
 # define CHECK_TYPE(ok, predicate, x) lisp_h_CHECK_TYPE (ok, predicate, x)
-# define CONSP(x) lisp_h_CONSP (x)
-# define EQ(x, y) lisp_h_EQ (x, y)
-# define FLOATP(x) lisp_h_FLOATP (x)
-# define INTEGERP(x) lisp_h_INTEGERP (x)
-# define MARKERP(x) lisp_h_MARKERP (x)
-# define MISCP(x) lisp_h_MISCP (x)
-# define NILP(x) lisp_h_NILP (x)
+# define CONSP(x) ((x).consp())
+# define EQ(x, y) ((x).eq(y))
+# define FLOATP(x) ((x).floatp())
+# define INTEGERP(x) ((x).integerp())
+# define MARKERP(x) (MISCP (x) && XMISCTYPE (x) == Lisp_Misc_Marker)
+# define MISCP(x) ((x).miscp())
 # define SET_SYMBOL_VAL(sym, v) lisp_h_SET_SYMBOL_VAL (sym, v)
 # define SYMBOL_CONSTANT_P(sym) lisp_h_SYMBOL_CONSTANT_P (sym)
 # define SYMBOL_TRAPPED_WRITE_P(sym) lisp_h_SYMBOL_TRAPPED_WRITE_P (sym)
 # define SYMBOL_VAL(sym) lisp_h_SYMBOL_VAL (sym)
-# define SYMBOLP(x) lisp_h_SYMBOLP (x)
-# define VECTORLIKEP(x) lisp_h_VECTORLIKEP (x)
-# define XCAR(c) lisp_h_XCAR (c)
-# define XCDR(c) lisp_h_XCDR (c)
-# define XCONS(a) lisp_h_XCONS (a)
-# define XHASH(a) lisp_h_XHASH (a)
+# define SYMBOLP(x) ((x).symbolp())
 # ifndef GC_CHECK_CONS_LIST
 #  define check_cons_list() lisp_h_check_cons_list ()
 # endif
 # if USE_LSB_TAG
-#  define make_number(n) lisp_h_make_number (n)
-#  define XFASTINT(a) lisp_h_XFASTINT (a)
-#  define XINT(a) lisp_h_XINT (a)
-#  define XSYMBOL(a) lisp_h_XSYMBOL (a)
-#  define XTYPE(a) lisp_h_XTYPE (a)
-#  define XUNTAG(a, type) lisp_h_XUNTAG (a, type)
+#  define XFASTINT(a) (a).xfastint()
+#  define XINT(a) (a).xint()
+#  define XSYMBOL(a) (a).xsymbol()
+#  define XTYPE(a) (a).xtype()
 # endif
 #endif
 
@@ -417,8 +454,9 @@ error !;
 #define case_Lisp_Int case Lisp_Int0: case Lisp_Int1
 
 /* Idea stolen from GDB.  Pedantic GCC complains about enum bitfields,
-   and xlc and Oracle Studio c99 complain vociferously about them.  */
-#if (defined __STRICT_ANSI__ || defined __IBMC__ \
+   MSVC doesn't support them, and xlc and Oracle Studio c99 complain
+   vociferously about them.  */
+#if (defined __STRICT_ANSI__ || defined _MSC_VER || defined __IBMC__ \
      || (defined __SUNPRO_C && __STDC__))
 #define ENUM_BF(TYPE) unsigned int
 #else
@@ -429,7 +467,8 @@ error !;
 enum Lisp_Type
   {
     /* Symbol.  XSYMBOL (object) points to a struct Lisp_Symbol.  */
-    Lisp_Symbol = 0,
+
+   Lisp_Symbol = 0,
 
     /* Miscellaneous.  XMISC (object) points to a union Lisp_Misc,
        whose first member indicates the subtype.  */
@@ -544,39 +583,1879 @@ enum Lisp_Fwd_Type
    your object -- this way, the same object could be used to represent
    several disparate C structures.  */
 
-#ifdef CHECK_LISP_OBJECT_TYPE
+#if defined (USE_TOOLKIT_SCROLL_BARS) && !defined (USE_GTK)
+  /* Last value of whole for horizontal scrollbars.  */
+  int whole;
+#endif
 
-typedef struct Lisp_Object { EMACS_INT i; } Lisp_Object;
+#define FORWARDED                                       \
+  void setNull() { v.setNull(); }                       \
+  void setObject(JSObject &obj) { v.setObject(obj); }   \
+  void setInt32(int32_t x) { v.setInt32(x); }   \
+  void setDouble(double x) { v.setDouble(x); }   \
+                                                        \
+  bool isNull() { return v.isNull(); }                  \
+  bool isObject() { return v.isObject(); }              \
+  bool isInt32() { return v.isInt32(); }                  \
+  bool isSymbol() { return v.isSymbol(); }                \
+  bool isNumber() { return v.isNumber(); }                \
+  bool isDouble() { return v.isDouble(); }                \
+  bool isString() { return v.isString(); }                \
+                                                        \
+  JSObject& toObject() { return v.toObject(); }         \
+  int32_t toInt32() { return v.toInt32(); }             \
+  auto toSymbol() { return v.toSymbol(); }           \
+  double toNumber() { return v.toNumber(); }                \
+  double toDouble() { return v.toDouble(); }                \
+  auto toString() { return v.toString(); }                \
 
-#define LISP_INITIALLY(i) {i}
+class JSUnsafeValue {
+public:
+  JS::Value v;
+  static const int nothandle = 1;
 
-#undef CHECK_LISP_OBJECT_TYPE
-enum CHECK_LISP_OBJECT_TYPE { CHECK_LISP_OBJECT_TYPE = true };
-#else /* CHECK_LISP_OBJECT_TYPE */
+  JSUnsafeValue() {}
+  JSUnsafeValue(JS::Value v) : v(v) {}
+  operator JS::Value&()
+  {
+    return v;
+  }
 
-/* If a struct type is not wanted, define Lisp_Object as just a number.  */
+  inline EMACS_INT
+  xint ()
+  {
+    return v.toInt32();
+  }
 
-typedef EMACS_INT Lisp_Object;
-#define LISP_INITIALLY(i) (i)
-enum CHECK_LISP_OBJECT_TYPE { CHECK_LISP_OBJECT_TYPE = false };
-#endif /* CHECK_LISP_OBJECT_TYPE */
+  inline EMACS_UINT
+  xuint ()
+  {
+    return (uint32_t) v.toInt32();
+  }
+
+  inline EMACS_INT
+  xfastint ()
+  {
+    return v.toInt32();
+  }
+
+  inline EMACS_INT
+  xhash ()
+  {
+    if (v.isObject())
+      return ((EMACS_INT)(JS_GetPrivate(&v.toObject()))) & 0x7fffffff;
+    return 0; // XXXXXX
+    return reinterpret_cast<EMACS_INT>(&v.toObject()); // XXX
+  }
+
+  inline void
+  xsetint (EMACS_INT x)
+  {
+    v.setInt32(x);
+  }
+
+  inline void
+  xsetfastint (EMACS_INT x)
+  {
+    v.setInt32(x);
+  }
+
+  inline void xsetfloat (double f)
+  {
+    v.setDouble (f);
+  }
+
+  inline enum Lisp_Type xtype ()
+  {
+    if (v.isSymbol ())
+      return Lisp_Symbol;
+    if (v.isObject ())
+      {
+        const JSClass *clasp = JS_GetClass(&v.toObject());
+
+        if (clasp == &elisp_cons_class)
+          return Lisp_Cons;
+        else if (clasp == &elisp_misc_class)
+          return Lisp_Misc;
+        else if (clasp == &elisp_vector_class)
+          return Lisp_Vectorlike;
+        else if (clasp == &elisp_symbol_class)
+          return Lisp_Symbol;
+        else if (clasp == &elisp_string_class)
+          return Lisp_String;
+        while(1);
+      }
+    if (v.isInt32 ())
+      return Lisp_Int0;
+    if (v.isString ())
+      return Lisp_String;
+    if (v.isDouble ())
+      return Lisp_Float;
+
+    return Lisp_Cons;
+  }
+
+#define XCLASS(name, clas, c_class)                                     \
+  inline void xset ## name (c_class x)                                  \
+  {                                                                     \
+    if (!x) {                                                           \
+      v.setNull();                                                      \
+      return;                                                           \
+    }                                                                   \
+    JS::RootedValue val(jsg().cx, *(JS::Value *)x);                     \
+    if (val.isObject() && JS_GetClass (&val.toObject()) == &clas)       \
+      v = val;                                                        \
+    else {                                                              \
+      JSObject *obj = JS_NewObject(jsg().cx, &clas);                    \
+      JS_SetPrivate(obj, x);                                            \
+      v.setObject(*obj); /* XXX check error */                            \
+      JS::RootedValue val2(jsg().cx, v);                              \
+      *(JS::Value *)x = val2;                                           \
+    }                                                                   \
+                                                                        \
+                                                                        \
+  }                                                                     \
+                                                                        \
+  inline bool name ## p ()                                              \
+  {                                                                     \
+    if (!v.isObject() && !v.isNull())                                   \
+      return false;                                                     \
+                                                                        \
+    return JS_GetClass (&v.toObject()) == &clas;                        \
+  }                                                                     \
+                                                                        \
+  inline c_class x ## name ()                                           \
+  {                                                                     \
+    if (!v.isObject())                                                  \
+      return NULL;                                                      \
+                                                                        \
+    if (JS_GetClass (&v.toObject()) != &clas)                           \
+      return NULL;                                                      \
+                                                                        \
+    return (c_class)JS_GetPrivate(&v.toObject());                       \
+  }
+
+  XCLASS(cons, elisp_cons_class, struct Lisp_Cons *);
+  XCLASS(string, elisp_string_class, struct Lisp_String *);
+  XCLASS(symbol, elisp_symbol_class, struct Lisp_Symbol *);
+  //XCLASS(overlay, elisp_overlay_class, struct Lisp_Overlay *);
+  //XCLASS(buffer, elisp_buffer_class, struct buffer *);
+  //XCLASS(marker, elisp_marker_class, struct Lisp_Marker *);
+  //XCLASS(module_function, elisp_module_function_class, struct Lisp_Module_Function *);
+  XCLASS(vector, elisp_vector_class, struct Lisp_Vector *);
+  //XCLASS(bool_vector, elisp_bool_vector_class, struct Lisp_Bool_Vector *);
+  //XCLASS(char_table, elisp_char_table_class, struct Lisp_Char_Table *);
+  //XCLASS(sub_char_table, elisp_sub_char_table_class, struct Lisp_Sub_Char_Table *);
+  //XCLASS(subr, elisp_subr_class, struct Lisp_Subr *);
+  //XCLASS(thread, elisp_thread_class, struct thread_state *);
+  //XCLASS(mutex, elisp_mutex_class, struct Lisp_Mutex *);
+  //XCLASS(condvar, elisp_condvar_class, struct Lisp_CondVar *);
+  //XCLASS(save_value, elisp_save_value_class, struct Lisp_Save_Value *);
+  //XCLASS(finalizer, elisp_finalizer_class, struct Lisp_Finalizer *);
+  //XCLASS(hash_table, elisp_hash_table_class, struct Lisp_Hash_Table *);
+  //XCLASS(frame, elisp_frame_class, struct frame *);
+  //XCLASS(font_spec, elisp_font_spec_class, struct font_spec *);
+  //XCLASS(font_entity, elisp_font_entity_class, struct font_entity *);
+  //XCLASS(font, elisp_font_object_class, struct font *);
+  //XCLASS(terminal, elisp_terminal_class, struct terminal *);
+  //XCLASS(window, elisp_window_class, struct window *);
+  //XCLASS(window_configuration, elisp_window_configuration_class, struct window_configuration *);
+  //XCLASS(process, elisp_process_class, struct Lisp_Process *);
+  //XCLASS(scroll_bar, elisp_scroll_bar_class, struct scroll_bar *);
+  //XCLASS(compiled, elisp_compiled_class, void *);
+  XCLASS(misc, elisp_misc_class, union Lisp_Misc *);
+  //XCLASS(miscany, elisp_misc_any_class, struct Lisp_Misc_Any *);
+  //XCLASS(vectorlike, elisp_vectorlike_class, struct vectorlike_header *);
+
+  inline bool
+    integerp ()
+  {
+    return v.isInt32();
+  }
+
+  inline bool floatp ()
+  {
+    return v.isNumber() && !v.isInt32();
+  }
+
+  inline double xfloat ()
+  {
+    return v.toNumber();
+  }
+
+  inline bool eq (const JSUnsafeValue b)
+  {
+    return v == b.v;
+  }
+
+  void set(JS::Value v2)
+  {
+    v = v2;
+  }
+
+  inline bool operator==(JSUnsafeValue other)
+    {
+     bool ret;
+     JS::RootedValue v1(jsg().cx, v);
+     JS::RootedValue v2(jsg().cx, other.v);
+     JS_StrictlyEqual(jsg().cx, v1, v2, &ret);
+     return ret;
+    }
+  
+  FORWARDED
+};
+
+class JSHeapValue {
+public:
+  JS::Heap<JS::Value> v;
+  static const int nothandle = 1;
+
+  JSHeapValue() {}
+  JSHeapValue(JSUnsafeValue v2) : v(v2) {}
+
+  operator JS::Heap<JS::Value>&()
+  {
+    return v;
+  }
+
+  operator JSUnsafeValue&() const {
+    return *(JSUnsafeValue *)v.address();
+  }
+
+  inline bool operator==(JSHeapValue other)
+    {
+     bool ret;
+     JS::RootedValue v1(jsg().cx, v);
+     JS::RootedValue v2(jsg().cx, other.v);
+     JS_StrictlyEqual(jsg().cx, v1, v2, &ret);
+     return ret;
+    }
+  JSHeapValue operator=(JSUnsafeValue v2)
+  {
+    v = v2;
+    return *this;
+  }
+
+  FORWARDED
+
+  void set(JS::Value v2)
+  {
+    v = v2;
+  }
+};
+class JSStackValue {
+public:
+  JS::Rooted<JS::Value> v;
+  static const int nothandle = 1;
+
+  JSStackValue() : v(jsg().cx) {}
+
+  JSStackValue(const JSUnsafeValue &v) : v(jsg().cx, v) {}
+  JSStackValue(const JSStackValue & v) : v(jsg().cx, JSUnsafeValue(v.v)) {}
+  JSStackValue(JSStackValue && v) : v(jsg().cx, JSUnsafeValue(v.v)) {}
+
+  operator JSUnsafeValue() const {
+    return v.get();
+  }
+
+  JSUnsafeValue operator=(const JSStackValue &other)
+  {
+    return (v = other.v).get();
+  }
+
+  inline bool operator==(JSUnsafeValue other)
+    {
+     bool ret;
+     JS::RootedValue v2(jsg().cx, other.v);
+     JS_StrictlyEqual(jsg().cx, v, v2, &ret);
+     return ret;
+    }
+
+  operator JS::Rooted<JS::Value>&()
+  {
+    return v;
+  }
+
+  JSUnsafeValue operator=(JSHeapValue v2)
+  {
+    return JSUnsafeValue(v = v2.v);
+  }
+
+  JSUnsafeValue operator=(JSUnsafeValue v2)
+  {
+    return JSUnsafeValue(v = v2);
+  }
+
+  FORWARDED
+
+  void set(JS::Value v2)
+  {
+    v.set(v2);
+  }
+
+  inline enum Lisp_Type xtype ()
+  {
+    if (v.isSymbol ())
+      return Lisp_Symbol;
+    if (v.isObject ())
+      {
+        const JSClass *clasp = JS_GetClass(&v.toObject());
+
+        if (clasp == &elisp_cons_class)
+          return Lisp_Cons;
+        else if (clasp == &elisp_misc_class)
+          return Lisp_Misc;
+        else if (clasp == &elisp_vector_class)
+          return Lisp_Vectorlike;
+        else if (clasp == &elisp_symbol_class)
+          return Lisp_Symbol;
+        else if (clasp == &elisp_string_class)
+          return Lisp_String;
+        while(1);
+      }
+    if (v.isInt32 ())
+      return Lisp_Int0;
+    if (v.isString ())
+      return Lisp_String;
+    if (v.isDouble ())
+      return Lisp_Float;
+
+    return Lisp_Cons;
+  }
+
+  inline void *
+  xuntag (int type)
+  {
+    if (v.isString ())
+      return v.toString (); // .XXX
+    if (v.isObject ())
+      return &v.toObject (); // .XXX
+  }
+
+  inline EMACS_INT
+  xint ()
+  {
+    return v.toInt32();
+  }
+
+  inline EMACS_UINT
+  xuint ()
+  {
+    return (uint32_t) v.toInt32();
+  }
+
+  inline EMACS_INT
+  xfastint ()
+  {
+    return v.toInt32();
+  }
+
+  inline EMACS_INT
+  xhash ()
+  {
+    return 0; // XXXXXX
+    return reinterpret_cast<EMACS_INT>(&v.toObject()); // XXX
+  }
+
+  inline void
+  xsetint (EMACS_INT x)
+  {
+    v.setInt32(x);
+  }
+
+  inline void
+  xsetfastint (EMACS_INT x)
+  {
+    v.setInt32(x);
+  }
+
+  inline void xsetfloat (double f)
+  {
+    v.setDouble (f);
+  }
+
+#define XCLASS(name, clas, c_class)                                     \
+  inline void xset ## name (c_class x)                                  \
+  {                                                                     \
+    if (!x) {                                                           \
+      v.setNull();                                                      \
+      return;                                                           \
+    }                                                                   \
+    JS::RootedValue val(jsg().cx, *(JSUnsafeValue *)x);                 \
+    if (val.isObject() && JS_GetClass (&val.toObject()) == &clas)       \
+      v = val;                                                          \
+    else {                                                              \
+      JSObject *obj = JS_NewObject(jsg().cx, &clas);                    \
+      JS_SetPrivate(obj, x);                                            \
+      v.setObject(*obj); /* XXX check error */                          \
+      JS::RootedValue val2(jsg().cx, v);                                \
+      ((JSUnsafeValue *)x)->v = val2;                                   \
+    }                                                                   \
+                                                                        \
+                                                                        \
+  }                                                                     \
+                                                                        \
+  inline bool name ## p ()                                              \
+  {                                                                     \
+    if (!v.isObject() && !v.isNull())                                   \
+      return false;                                                     \
+                                                                        \
+    return JS_GetClass (&v.toObject()) == &clas;                        \
+  }                                                                     \
+                                                                        \
+  inline c_class x ## name ()                                           \
+  {                                                                     \
+    if (!v.isObject())                                                  \
+      return NULL;                                                      \
+                                                                        \
+    if (JS_GetClass (&v.toObject()) != &clas)                           \
+      return NULL;                                                      \
+                                                                        \
+    return (c_class)JS_GetPrivate(&v.toObject());                       \
+  }
+
+  XCLASS(cons, elisp_cons_class, struct Lisp_Cons *);
+  XCLASS(string, elisp_string_class, struct Lisp_String *);
+  XCLASS(symbol, elisp_symbol_class, struct Lisp_Symbol *);
+  //XCLASS(overlay, elisp_overlay_class, struct Lisp_Overlay *);
+  //XCLASS(buffer, elisp_buffer_class, struct buffer *);
+  //XCLASS(marker, elisp_marker_class, struct Lisp_Marker *);
+  //XCLASS(module_function, elisp_module_function_class, struct Lisp_Module_Function *);
+  XCLASS(vector, elisp_vector_class, struct Lisp_Vector *);
+  //XCLASS(bool_vector, elisp_bool_vector_class, struct Lisp_Bool_Vector *);
+  //XCLASS(char_table, elisp_char_table_class, struct Lisp_Char_Table *);
+  //XCLASS(sub_char_table, elisp_sub_char_table_class, struct Lisp_Sub_Char_Table *);
+  //XCLASS(subr, elisp_subr_class, struct Lisp_Subr *);
+  //XCLASS(thread, elisp_thread_class, struct thread_state *);
+  //XCLASS(mutex, elisp_mutex_class, struct Lisp_Mutex *);
+  //XCLASS(condvar, elisp_condvar_class, struct Lisp_CondVar *);
+  //XCLASS(save_value, elisp_save_value_class, struct Lisp_Save_Value *);
+  //XCLASS(finalizer, elisp_finalizer_class, struct Lisp_Finalizer *);
+  //XCLASS(hash_table, elisp_hash_table_class, struct Lisp_Hash_Table *);
+  //XCLASS(frame, elisp_frame_class, struct frame *);
+  //XCLASS(font_spec, elisp_font_spec_class, struct font_spec *);
+  //XCLASS(font_entity, elisp_font_entity_class, struct font_entity *);
+  //XCLASS(font, elisp_font_object_class, struct font *);
+  //XCLASS(terminal, elisp_terminal_class, struct terminal *);
+  //XCLASS(window, elisp_window_class, struct window *);
+  //XCLASS(window_configuration, elisp_window_configuration_class, struct window_configuration *);
+  //XCLASS(process, elisp_process_class, struct Lisp_Process *);
+  //XCLASS(scroll_bar, elisp_scroll_bar_class, struct scroll_bar *);
+  //XCLASS(compiled, elisp_compiled_class, void *);
+  XCLASS(misc, elisp_misc_class, union Lisp_Misc *);
+  //XCLASS(miscany, elisp_misc_any_class, struct Lisp_Misc_Any *);
+  //XCLASS(vectorlike, elisp_vectorlike_class, struct vectorlike_header *);
+
+  inline bool
+    integerp ()
+  {
+    return v.isInt32();
+  }
+
+  inline bool floatp ()
+  {
+    return v.isNumber() && !v.isInt32();
+  }
+
+  inline double xfloat ()
+  {
+    return v.toNumber();
+  }
+
+
+};
+class JSHandleValue {
+public:
+  JS::MutableHandleValue v;
+  static const int ishandle = 1;
+
+  JSHandleValue(JSUnsafeValue* v) : v(JS::MutableHandleValue::fromMarkedLocation((JS::Value*)v)) {}
+  JSHandleValue(JS::Heap<JS::Value> *v) : v(JS::MutableHandleValue::fromMarkedLocation(v->address())) {}
+  JSHandleValue(JS::Rooted<JS::Value> *v) : v(JS::MutableHandleValue::fromMarkedLocation(v->address())) {}
+  JSHandleValue(JS::MutableHandleValue const &v) : v(JS::MutableHandleValue::fromMarkedLocation(v.address())) {}
+
+  operator JSUnsafeValue()
+  {
+    return v.get();
+  }
+
+  operator JS::MutableHandleValue&()
+  {
+    return v;
+  }
+
+  JSHandleValue operator=(JSUnsafeValue v2)
+  {
+    v.set(v2);
+  }
+  FORWARDED
+
+  void set(JS::Value v2)
+  {
+    v.set(v2);
+  }
+
+  inline bool operator==(JSHandleValue other)
+    {
+     bool ret;
+     JS::RootedValue v1(jsg().cx, v);
+     JS::RootedValue v2(jsg().cx, other.v);
+     JS_StrictlyEqual(jsg().cx, v1, v2, &ret);
+     return ret;
+    }
+};
+template<class V>
+class Lisp_Value {
+public:
+  V v;
+
+  Lisp_Value() {}
+  Lisp_Value(const JSUnsafeValue v) : v(v) { &V::nothandle; }
+  Lisp_Value(JSUnsafeValue &v) : v(v) { &V::ishandle; }
+  explicit Lisp_Value(V v) : v(v) {}
+
+  //Lisp_Value(Lisp_Value &&) = delete;
+
+  operator const JSUnsafeValue() {
+    return v;
+  }
+
+  operator const JSUnsafeValue() const {
+    return v;
+  }
+
+  operator JS::Handle<JS::Value>() {
+    return v;
+  }
+
+  operator JSHandleValue() {
+    return v;
+  }
+
+  operator const Lisp_Value<JSHandleValue>&() {
+    return Lisp_Value<JSHandleValue>(JSHandleValue(&v.v));
+  }
+
+  template<class V2>
+  operator Lisp_Value<V2>() {
+    Lisp_Value<V2> ret;
+    ret = *this;
+    return ret;
+  }
+
+  Lisp_Value &operator=(JSUnsafeValue v2) {
+    v = v2;
+    return *this;
+  }
+
+  Lisp_Value &operator=(Lisp_Value<JSHandleValue> v2) {
+    v = v2.v;
+    return *this;
+  }
+
+  Lisp_Value &operator=(Lisp_Value<JSHeapValue> v2) {
+    v = v2.v.v.get();
+    return *this;
+  }
+
+  Lisp_Value &operator=(Lisp_Value<JSStackValue> v2) {
+    v = v2.v.v.get();
+    return *this;
+  }
+
+  operator Lisp_Value<JS::Handle<JS::Value>>()
+  {
+    return v;
+  }
+
+  operator Lisp_Value<JS::Heap<JS::Value>>()
+  {
+    return v;
+  }
+
+  inline bool operator==(Lisp_Value<V> other)
+    {
+     bool ret;
+     JS_StrictlyEqual(jsg().cx, v.v, other.v.v, &ret);
+     return ret;
+    }
+
+  inline enum Lisp_Type xtype ()
+  {
+    if (v.isSymbol ())
+      return Lisp_Symbol;
+    if (v.isObject ())
+      {
+        const JSClass *clasp = JS_GetClass(&v.toObject());
+
+        if (clasp == &elisp_cons_class)
+          return Lisp_Cons;
+        else if (clasp == &elisp_misc_class)
+          return Lisp_Misc;
+        else if (clasp == &elisp_vector_class)
+          return Lisp_Vectorlike;
+        else if (clasp == &elisp_symbol_class)
+          return Lisp_Symbol;
+        else if (clasp == &elisp_string_class)
+          return Lisp_String;
+        while(1);
+      }
+    if (v.isInt32 ())
+      return Lisp_Int0;
+    if (v.isString ())
+      return Lisp_String;
+    if (v.isDouble ())
+      return Lisp_Float;
+
+    return Lisp_Cons;
+  }
+
+  inline void *
+  xuntag (int type)
+  {
+    if (v.isString ())
+      return v.toString (); // .XXX
+    if (v.isObject ())
+      return &v.toObject (); // .XXX
+  }
+
+  inline EMACS_INT
+  xint ()
+  {
+    return v.toInt32();
+  }
+
+  inline EMACS_UINT
+  xuint ()
+  {
+    return (uint32_t) v.toInt32();
+  }
+
+  inline EMACS_INT
+  xfastint ()
+  {
+    return v.toInt32();
+  }
+
+  inline EMACS_INT
+  xhash ()
+  {
+    return 0; // XXXXXX
+    return reinterpret_cast<EMACS_INT>(&v.toObject()); // XXX
+  }
+
+  inline void
+  xsetint (EMACS_INT x)
+  {
+    v.setInt32(x);
+  }
+
+  inline void
+  xsetfastint (EMACS_INT x)
+  {
+    v.setInt32(x);
+  }
+
+  inline void xsetfloat (double f)
+  {
+    v.setDouble (f);
+  }
+
+#define XCLASS(name, clas, c_class)                                     \
+  inline void xset ## name (c_class x)                                  \
+  {                                                                     \
+    if (!x) {                                                           \
+      v.setNull();                                                      \
+      return;                                                           \
+    }                                                                   \
+    JS::RootedValue val(jsg().cx, *(JSUnsafeValue *)x);                     \
+    if (val.isObject() && JS_GetClass (&val.toObject()) == &clas)       \
+      v.v = val;                                                        \
+    else {                                                              \
+      JSObject *obj = JS_NewObject(jsg().cx, &clas);                    \
+      JS_SetPrivate(obj, x);                                            \
+      v.setObject(*obj); /* XXX check error */                          \
+      JS::RootedValue val2(jsg().cx, v.v);                              \
+      ((JSUnsafeValue *)x)->v = val2;                                   \
+    }                                                                   \
+                                                                        \
+                                                                        \
+  }                                                                     \
+                                                                        \
+  inline bool name ## p ()                                              \
+  {                                                                     \
+    if (!v.isObject() && !v.isNull())                                   \
+      return false;                                                     \
+                                                                        \
+    return JS_GetClass (&v.toObject()) == &clas;                        \
+  }                                                                     \
+                                                                        \
+  inline c_class x ## name ()                                           \
+  {                                                                     \
+    if (!v.isObject())                                                  \
+      return NULL;                                                      \
+                                                                        \
+    if (JS_GetClass (&v.toObject()) != &clas)                           \
+      return NULL;                                                      \
+                                                                        \
+    return (c_class)JS_GetPrivate(&v.toObject());                       \
+  }
+
+  XCLASS(cons, elisp_cons_class, struct Lisp_Cons *);
+  XCLASS(string, elisp_string_class, struct Lisp_String *);
+  XCLASS(symbol, elisp_symbol_class, struct Lisp_Symbol *);
+  //XCLASS(overlay, elisp_overlay_class, struct Lisp_Overlay *);
+  //XCLASS(buffer, elisp_buffer_class, struct buffer *);
+  //XCLASS(marker, elisp_marker_class, struct Lisp_Marker *);
+  //XCLASS(module_function, elisp_module_function_class, struct Lisp_Module_Function *);
+  XCLASS(vector, elisp_vector_class, struct Lisp_Vector *);
+  //XCLASS(bool_vector, elisp_bool_vector_class, struct Lisp_Bool_Vector *);
+  //XCLASS(char_table, elisp_char_table_class, struct Lisp_Char_Table *);
+  //XCLASS(sub_char_table, elisp_sub_char_table_class, struct Lisp_Sub_Char_Table *);
+  //XCLASS(subr, elisp_subr_class, struct Lisp_Subr *);
+  //XCLASS(thread, elisp_thread_class, struct thread_state *);
+  //XCLASS(mutex, elisp_mutex_class, struct Lisp_Mutex *);
+  //XCLASS(condvar, elisp_condvar_class, struct Lisp_CondVar *);
+  //XCLASS(save_value, elisp_save_value_class, struct Lisp_Save_Value *);
+  //XCLASS(finalizer, elisp_finalizer_class, struct Lisp_Finalizer *);
+  //XCLASS(hash_table, elisp_hash_table_class, struct Lisp_Hash_Table *);
+  //XCLASS(frame, elisp_frame_class, struct frame *);
+  //XCLASS(font_spec, elisp_font_spec_class, struct font_spec *);
+  //XCLASS(font_entity, elisp_font_entity_class, struct font_entity *);
+  //XCLASS(font, elisp_font_object_class, struct font *);
+  //XCLASS(terminal, elisp_terminal_class, struct terminal *);
+  //XCLASS(window, elisp_window_class, struct window *);
+  //XCLASS(window_configuration, elisp_window_configuration_class, struct window_configuration *);
+  //XCLASS(process, elisp_process_class, struct Lisp_Process *);
+  //XCLASS(scroll_bar, elisp_scroll_bar_class, struct scroll_bar *);
+  //XCLASS(compiled, elisp_compiled_class, void *);
+  XCLASS(misc, elisp_misc_class, union Lisp_Misc *);
+  //XCLASS(miscany, elisp_misc_any_class, struct Lisp_Misc_Any *);
+  //XCLASS(vectorlike, elisp_vectorlike_class, struct vectorlike_header *);
+
+  inline bool
+    integerp ()
+  {
+    return v.isInt32();
+  }
+
+  inline bool floatp ()
+  {
+    return v.isNumber() && !v.isInt32();
+  }
+
+  inline double xfloat ()
+  {
+    return v.toNumber();
+  }
+
+
+  inline bool eq (Lisp_Value<V> b)
+  {
+    return v == b.v;
+  }
+};
+class Lisp_Value_Stack;
+class Lisp_Value_Handle;
+class Lisp_Value_Heap {
+public:
+  JSHeapValue v;
+
+  Lisp_Value_Heap() {}
+  Lisp_Value_Heap(const JSUnsafeValue v) : v(v) {}
+  explicit Lisp_Value_Heap(JSHeapValue v) : v(v) {}
+
+  Lisp_Value_Heap(Lisp_Value_Heap const&r) {
+    v.set(JS::Value(JSUnsafeValue(r.v)));
+  };
+  inline Lisp_Value_Heap(Lisp_Value_Stack const&);
+  inline Lisp_Value_Heap(Lisp_Value_Handle const);
+  //Lisp_Value(Lisp_Value &&) = delete;
+
+  operator JSUnsafeValue&() const {
+    return v;
+  }
+
+  Lisp_Value_Heap &operator=(JSUnsafeValue v2) {
+    v = v2;
+    return *this;
+  }
+  inline Lisp_Value_Heap &operator=(Lisp_Value_Stack &v2);
+  inline Lisp_Value_Heap &operator=(Lisp_Value_Handle v2);
+
+  inline bool operator==(Lisp_Value_Heap other)
+    {
+     bool ret;
+     JS::RootedValue v1(jsg().cx, v.v);
+     JS::RootedValue v2(jsg().cx, other.v.v);
+
+     JS_StrictlyEqual(jsg().cx, v1, v2, &ret);
+     return ret;
+    }
+
+  inline enum Lisp_Type xtype ()
+  {
+    if (v.isSymbol ())
+      return Lisp_Symbol;
+    if (v.isObject ())
+      {
+        const JSClass *clasp = JS_GetClass(&v.toObject());
+
+        if (clasp == &elisp_cons_class)
+          return Lisp_Cons;
+        else if (clasp == &elisp_misc_class)
+          return Lisp_Misc;
+        else if (clasp == &elisp_vector_class)
+          return Lisp_Vectorlike;
+        else if (clasp == &elisp_symbol_class)
+          return Lisp_Symbol;
+        else if (clasp == &elisp_string_class)
+          return Lisp_String;
+        while(1);
+      }
+    if (v.isInt32 ())
+      return Lisp_Int0;
+    if (v.isString ())
+      return Lisp_String;
+    if (v.isDouble ())
+      return Lisp_Float;
+
+    return Lisp_Cons;
+  }
+
+  inline void *
+  xuntag (int type)
+  {
+    if (v.isString ())
+      return v.toString (); // .XXX
+    if (v.isObject ())
+      return &v.toObject (); // .XXX
+  }
+
+  inline EMACS_INT
+  xint ()
+  {
+    return v.toInt32();
+  }
+
+  inline EMACS_UINT
+  xuint ()
+  {
+    return (uint32_t) v.toInt32();
+  }
+
+  inline EMACS_INT
+  xfastint ()
+  {
+    return v.toInt32();
+  }
+
+  inline EMACS_INT
+  xhash ()
+  {
+    return 0; // XXXXXX
+    return reinterpret_cast<EMACS_INT>(&v.toObject()); // XXX
+  }
+
+  inline void
+  xsetint (EMACS_INT x)
+  {
+    v.setInt32(x);
+  }
+
+  inline void
+  xsetfastint (EMACS_INT x)
+  {
+    v.setInt32(x);
+  }
+
+  inline void xsetfloat (double f)
+  {
+    v.setDouble (f);
+  }
+
+#define XCLASS(name, clas, c_class)                                     \
+  inline void xset ## name (c_class x)                                  \
+  {                                                                     \
+    if (!x) {                                                           \
+      v.setNull();                                                      \
+      return;                                                           \
+    }                                                                   \
+    JS::RootedValue val(jsg().cx, *(JSUnsafeValue *)x);                     \
+    if (val.isObject() && JS_GetClass (&val.toObject()) == &clas)       \
+      v.v = val;                                                        \
+    else {                                                              \
+      JSObject *obj = JS_NewObject(jsg().cx, &clas);                    \
+      JS_SetPrivate(obj, x);                                            \
+      v.setObject(*obj); /* XXX check error */                          \
+      JS::RootedValue val2(jsg().cx, v.v);                              \
+      ((JSUnsafeValue *)x)->v = val2;                                   \
+    }                                                                   \
+                                                                        \
+                                                                        \
+  }                                                                     \
+                                                                        \
+  inline bool name ## p ()                                              \
+  {                                                                     \
+    if (!v.isObject() && !v.isNull())                                   \
+      return false;                                                     \
+                                                                        \
+    return JS_GetClass (&v.toObject()) == &clas;                        \
+  }                                                                     \
+                                                                        \
+  inline c_class x ## name ()                                           \
+  {                                                                     \
+    if (!v.isObject())                                                  \
+      return NULL;                                                      \
+                                                                        \
+    if (JS_GetClass (&v.toObject()) != &clas)                           \
+      return NULL;                                                      \
+                                                                        \
+    return (c_class)JS_GetPrivate(&v.toObject());                       \
+  }
+
+  XCLASS(cons, elisp_cons_class, struct Lisp_Cons *);
+  XCLASS(string, elisp_string_class, struct Lisp_String *);
+  XCLASS(symbol, elisp_symbol_class, struct Lisp_Symbol *);
+  //XCLASS(overlay, elisp_overlay_class, struct Lisp_Overlay *);
+  //XCLASS(buffer, elisp_buffer_class, struct buffer *);
+  //XCLASS(marker, elisp_marker_class, struct Lisp_Marker *);
+  //XCLASS(module_function, elisp_module_function_class, struct Lisp_Module_Function *);
+  XCLASS(vector, elisp_vector_class, struct Lisp_Vector *);
+  //XCLASS(bool_vector, elisp_bool_vector_class, struct Lisp_Bool_Vector *);
+  //XCLASS(char_table, elisp_char_table_class, struct Lisp_Char_Table *);
+  //XCLASS(sub_char_table, elisp_sub_char_table_class, struct Lisp_Sub_Char_Table *);
+  //XCLASS(subr, elisp_subr_class, struct Lisp_Subr *);
+  //XCLASS(thread, elisp_thread_class, struct thread_state *);
+  //XCLASS(mutex, elisp_mutex_class, struct Lisp_Mutex *);
+  //XCLASS(condvar, elisp_condvar_class, struct Lisp_CondVar *);
+  //XCLASS(save_value, elisp_save_value_class, struct Lisp_Save_Value *);
+  //XCLASS(finalizer, elisp_finalizer_class, struct Lisp_Finalizer *);
+  //XCLASS(hash_table, elisp_hash_table_class, struct Lisp_Hash_Table *);
+  //XCLASS(frame, elisp_frame_class, struct frame *);
+  //XCLASS(font_spec, elisp_font_spec_class, struct font_spec *);
+  //XCLASS(font_entity, elisp_font_entity_class, struct font_entity *);
+  //XCLASS(font, elisp_font_object_class, struct font *);
+  //XCLASS(terminal, elisp_terminal_class, struct terminal *);
+  //XCLASS(window, elisp_window_class, struct window *);
+  //XCLASS(window_configuration, elisp_window_configuration_class, struct window_configuration *);
+  //XCLASS(process, elisp_process_class, struct Lisp_Process *);
+  //XCLASS(scroll_bar, elisp_scroll_bar_class, struct scroll_bar *);
+  //XCLASS(compiled, elisp_compiled_class, void *);
+  XCLASS(misc, elisp_misc_class, union Lisp_Misc *);
+  //XCLASS(miscany, elisp_misc_any_class, struct Lisp_Misc_Any *);
+  //XCLASS(vectorlike, elisp_vectorlike_class, struct vectorlike_header *);
+
+  inline bool
+    integerp ()
+  {
+    return v.isInt32();
+  }
+
+  inline bool floatp ()
+  {
+    return v.isNumber() && !v.isInt32();
+  }
+
+  inline double xfloat ()
+  {
+    return v.toNumber();
+  }
+
+  inline bool eq (JSUnsafeValue b)
+  {
+    return v == b;
+  }
+  inline bool eq (Lisp_Value_Stack &b);
+  inline bool eq (Lisp_Value_Handle b);
+  inline bool eq (Lisp_Value_Heap b)
+  {
+    return v == b.v;
+  }
+};
+class Lisp_Value_Stack {
+public:
+  JSStackValue v;
+
+  Lisp_Value_Stack() {}
+  Lisp_Value_Stack(const JSUnsafeValue v) : v(v) {}
+  Lisp_Value_Stack(const Lisp_Value_Heap v) : v(JSUnsafeValue(v)) {}
+  Lisp_Value_Stack(const Lisp_Value_Handle v);
+  explicit Lisp_Value_Stack(JSStackValue v) : v(v) {}
+
+  Lisp_Value_Stack(Lisp_Value_Stack const&r) {
+    v.set(JS::Value(JSUnsafeValue(r.v)));
+  };
+  //Lisp_Value(Lisp_Value &&) = delete;
+
+  operator JSUnsafeValue() {
+    return v;
+  }
+
+  template<class V2>
+  operator Lisp_Value<V2>() {
+    Lisp_Value<V2> ret;
+    ret = *this;
+    return ret;
+  }
+
+  JSUnsafeValue operator=(JSUnsafeValue v2) {
+    return v = v2;
+  }
+  JSUnsafeValue operator=(Lisp_Value_Heap v2) {
+    return *this = JSUnsafeValue(v2);
+  }
+  inline JSUnsafeValue operator=(Lisp_Value_Handle &v2);
+
+  inline bool operator==(JSUnsafeValue other)
+    {
+     bool ret;
+     JS::RootedValue v2(jsg().cx, other.v);
+     JS_StrictlyEqual(jsg().cx, v.v, v2, &ret);
+     return ret;
+    }
+
+  inline enum Lisp_Type xtype ()
+  {
+    if (v.isSymbol ())
+      return Lisp_Symbol;
+    if (v.isObject ())
+      {
+        const JSClass *clasp = JS_GetClass(&v.toObject());
+
+        if (clasp == &elisp_cons_class)
+          return Lisp_Cons;
+        else if (clasp == &elisp_misc_class)
+          return Lisp_Misc;
+        else if (clasp == &elisp_vector_class)
+          return Lisp_Vectorlike;
+        else if (clasp == &elisp_symbol_class)
+          return Lisp_Symbol;
+        else if (clasp == &elisp_string_class)
+          return Lisp_String;
+        while(1);
+      }
+    if (v.isInt32 ())
+      return Lisp_Int0;
+    if (v.isString ())
+      return Lisp_String;
+    if (v.isDouble ())
+      return Lisp_Float;
+
+    return Lisp_Cons;
+  }
+
+  inline void *
+  xuntag (int type)
+  {
+    if (v.isString ())
+      return v.toString (); // .XXX
+    if (v.isObject ())
+      return &v.toObject (); // .XXX
+  }
+
+  inline EMACS_INT
+  xint ()
+  {
+    return v.toInt32();
+  }
+
+  inline EMACS_UINT
+  xuint ()
+  {
+    return (uint32_t) v.toInt32();
+  }
+
+  inline EMACS_INT
+  xfastint ()
+  {
+    return v.toInt32();
+  }
+
+  inline EMACS_INT
+  xhash ()
+  {
+    return 0; // XXXXXX
+    return reinterpret_cast<EMACS_INT>(&v.toObject()); // XXX
+  }
+
+  inline void
+  xsetint (EMACS_INT x)
+  {
+    v.setInt32(x);
+  }
+
+  inline void
+  xsetfastint (EMACS_INT x)
+  {
+    v.setInt32(x);
+  }
+
+  inline void xsetfloat (double f)
+  {
+    v.setDouble (f);
+  }
+
+#define XCLASS(name, clas, c_class)                                     \
+  inline void xset ## name (c_class x)                                  \
+  {                                                                     \
+    if (!x) {                                                           \
+      v.setNull();                                                      \
+      return;                                                           \
+    }                                                                   \
+    JS::RootedValue val(jsg().cx, *(JSUnsafeValue *)x);                     \
+    if (val.isObject() && JS_GetClass (&val.toObject()) == &clas)       \
+      v.v = val;                                                        \
+    else {                                                              \
+      JSObject *obj = JS_NewObject(jsg().cx, &clas);                    \
+      JS_SetPrivate(obj, x);                                            \
+      v.setObject(*obj); /* XXX check error */                          \
+      JS::RootedValue val2(jsg().cx, v.v);                              \
+      ((JSUnsafeValue *)x)->v = val2;                                   \
+    }                                                                   \
+                                                                        \
+                                                                        \
+  }                                                                     \
+                                                                        \
+  inline bool name ## p ()                                              \
+  {                                                                     \
+    if (!v.isObject() && !v.isNull())                                   \
+      return false;                                                     \
+                                                                        \
+    return JS_GetClass (&v.toObject()) == &clas;                        \
+  }                                                                     \
+                                                                        \
+  inline c_class x ## name ()                                           \
+  {                                                                     \
+    if (!v.isObject())                                                  \
+      return NULL;                                                      \
+                                                                        \
+    if (JS_GetClass (&v.toObject()) != &clas)                           \
+      return NULL;                                                      \
+                                                                        \
+    return (c_class)JS_GetPrivate(&v.toObject());                       \
+  }
+
+  XCLASS(cons, elisp_cons_class, struct Lisp_Cons *);
+  XCLASS(string, elisp_string_class, struct Lisp_String *);
+  XCLASS(symbol, elisp_symbol_class, struct Lisp_Symbol *);
+  //XCLASS(overlay, elisp_overlay_class, struct Lisp_Overlay *);
+  //XCLASS(buffer, elisp_buffer_class, struct buffer *);
+  //XCLASS(marker, elisp_marker_class, struct Lisp_Marker *);
+  //XCLASS(module_function, elisp_module_function_class, struct Lisp_Module_Function *);
+  XCLASS(vector, elisp_vector_class, struct Lisp_Vector *);
+  //XCLASS(bool_vector, elisp_bool_vector_class, struct Lisp_Bool_Vector *);
+  //XCLASS(char_table, elisp_char_table_class, struct Lisp_Char_Table *);
+  //XCLASS(sub_char_table, elisp_sub_char_table_class, struct Lisp_Sub_Char_Table *);
+  //XCLASS(subr, elisp_subr_class, struct Lisp_Subr *);
+  //XCLASS(thread, elisp_thread_class, struct thread_state *);
+  //XCLASS(mutex, elisp_mutex_class, struct Lisp_Mutex *);
+  //XCLASS(condvar, elisp_condvar_class, struct Lisp_CondVar *);
+  //XCLASS(save_value, elisp_save_value_class, struct Lisp_Save_Value *);
+  //XCLASS(finalizer, elisp_finalizer_class, struct Lisp_Finalizer *);
+  //XCLASS(hash_table, elisp_hash_table_class, struct Lisp_Hash_Table *);
+  //XCLASS(frame, elisp_frame_class, struct frame *);
+  //XCLASS(font_spec, elisp_font_spec_class, struct font_spec *);
+  //XCLASS(font_entity, elisp_font_entity_class, struct font_entity *);
+  //XCLASS(font, elisp_font_object_class, struct font *);
+  //XCLASS(terminal, elisp_terminal_class, struct terminal *);
+  //XCLASS(window, elisp_window_class, struct window *);
+  //XCLASS(window_configuration, elisp_window_configuration_class, struct window_configuration *);
+  //XCLASS(process, elisp_process_class, struct Lisp_Process *);
+  //XCLASS(scroll_bar, elisp_scroll_bar_class, struct scroll_bar *);
+  //XCLASS(compiled, elisp_compiled_class, void *);
+  XCLASS(misc, elisp_misc_class, union Lisp_Misc *);
+  //XCLASS(miscany, elisp_misc_any_class, struct Lisp_Misc_Any *);
+  //XCLASS(vectorlike, elisp_vectorlike_class, struct vectorlike_header *);
+
+  inline bool
+    integerp ()
+  {
+    return v.isInt32();
+  }
+
+  inline bool floatp ()
+  {
+    return v.isNumber() && !v.isInt32();
+  }
+
+  inline double xfloat ()
+  {
+    return v.toNumber();
+  }
+
+  inline bool eq (JSUnsafeValue b)
+  {
+    return v == b;
+  }
+  inline bool eq (Lisp_Value_Handle b);
+  inline bool eq (Lisp_Value_Stack &b)
+  {
+    return v == b.v;
+  }
+  inline bool eq (Lisp_Value_Heap b)
+  {
+    JS::RootedValue v2(jsg().cx, b.v.v);
+    return v.v == v2;
+  }
+};
+inline bool Lisp_Value_Heap::eq (Lisp_Value_Stack &b)
+{
+  JS::RootedValue v1(jsg().cx, v.v);
+  JS::RootedValue v2(jsg().cx, b.v.v);
+
+  bool ret;
+  JS_StrictlyEqual(jsg().cx, v1, v2, &ret);
+  return ret;
+}
+class Lisp_Value_Handle {
+public:
+  JSHandleValue v;
+
+  inline Lisp_Value_Handle(const JSUnsafeValue &v2) : v(JS::MutableHandleValue::fromMarkedLocation(jsg().next())) { v.set(v2); }
+  Lisp_Value_Handle(Lisp_Value_Heap &v) : v(JS::MutableHandleValue::fromMarkedLocation(v.v.v.address())) {}
+  Lisp_Value_Handle(Lisp_Value_Heap const &v) : v(JS::MutableHandleValue::fromMarkedLocation(v.v.v.address())) {}
+  Lisp_Value_Handle(Lisp_Value_Stack &v) : v(JS::MutableHandleValue::fromMarkedLocation(v.v.v.address())) {}
+  explicit Lisp_Value_Handle(JSHandleValue &v) : v(v) {}
+
+  //Lisp_Value(Lisp_Value &&) = delete;
+
+  operator const JSUnsafeValue() {
+    return v;
+  }
+
+  operator const JSUnsafeValue() const {
+    return v;
+  }
+
+  operator JS::MutableHandleValue() {
+    return v;
+  }
+
+  operator JSHandleValue() {
+    return v;
+  }
+
+  operator const Lisp_Value<JSHandleValue>() {
+    return Lisp_Value<JSHandleValue>(JSHandleValue(v.v));
+  }
+
+  template<class V2>
+  operator Lisp_Value<V2>() {
+    Lisp_Value<V2> ret;
+    ret = *this;
+    return ret;
+  }
+
+  Lisp_Value_Handle &operator=(JSUnsafeValue v2);
+  Lisp_Value_Handle &operator=(Lisp_Value_Heap v2);
+  Lisp_Value_Handle &operator=(Lisp_Value_Stack &v2);
+
+  inline bool operator==(Lisp_Value_Handle other)
+    {
+     bool ret;
+     JS_StrictlyEqual(jsg().cx, v.v, other.v.v, &ret);
+     return ret;
+    }
+
+  inline bool operator==(JSUnsafeValue other)
+    {
+     bool ret;
+     JS::RootedValue val(jsg().cx, v.v);
+     JS::RootedValue val2(jsg().cx, other.v);
+     JS_StrictlyEqual(jsg().cx, val, val2, &ret);
+     return ret;
+    }
+
+  inline enum Lisp_Type xtype ()
+  {
+    if (v.isSymbol ())
+      return Lisp_Symbol;
+    if (v.isObject ())
+      {
+        const JSClass *clasp = JS_GetClass(&v.toObject());
+
+        if (clasp == &elisp_cons_class)
+          return Lisp_Cons;
+        else if (clasp == &elisp_misc_class)
+          return Lisp_Misc;
+        else if (clasp == &elisp_vector_class)
+          return Lisp_Vectorlike;
+        else if (clasp == &elisp_symbol_class)
+          return Lisp_Symbol;
+        else if (clasp == &elisp_string_class)
+          return Lisp_String;
+        while(1);
+      }
+    if (v.isInt32 ())
+      return Lisp_Int0;
+    if (v.isString ())
+      return Lisp_String;
+    if (v.isDouble ())
+      return Lisp_Float;
+
+    return Lisp_Cons;
+  }
+
+  inline void *
+  xuntag (int type)
+  {
+    if (v.isString ())
+      return v.toString (); // .XXX
+    if (v.isObject ())
+      return &v.toObject (); // .XXX
+  }
+
+  inline EMACS_INT
+  xint ()
+  {
+    return v.toInt32();
+  }
+
+  inline EMACS_UINT
+  xuint ()
+  {
+    return (uint32_t) v.toInt32();
+  }
+
+  inline EMACS_INT
+  xfastint ()
+  {
+    return v.toInt32();
+  }
+
+  inline EMACS_INT
+  xhash ()
+  {
+    if (v.isObject())
+      return reinterpret_cast<EMACS_INT>(JS_GetPrivate(&v.toObject())); // XXX
+    else if (v.isInt32())
+      return v.toInt32();
+    else
+      return 0;
+  }
+
+  inline void
+  xsetint (EMACS_INT x)
+  {
+    v.setInt32(x);
+  }
+
+  inline void
+  xsetfastint (EMACS_INT x)
+  {
+    v.setInt32(x);
+  }
+
+  inline void xsetfloat (double f)
+  {
+    v.setDouble (f);
+  }
+
+#define XCLASS(name, clas, c_class)                                     \
+  inline void xset ## name (c_class x)                                  \
+  {                                                                     \
+    if (!x) {                                                           \
+      v.setNull();                                                      \
+      return;                                                           \
+    }                                                                   \
+    JS::RootedValue val(jsg().cx, *(JSUnsafeValue *)x);                     \
+    if (val.isObject() && JS_GetClass (&val.toObject()) == &clas)       \
+      v.v.set(val);                                                     \
+    else {                                                              \
+      JSObject *obj = JS_NewObject(jsg().cx, &clas);                    \
+      JS_SetPrivate(obj, x);                                            \
+      v.setObject(*obj); /* XXX check error */                          \
+      JS::RootedValue val2(jsg().cx, v.v);                              \
+      ((JSUnsafeValue *)x)->v = val2;                                   \
+    }                                                                   \
+                                                                        \
+                                                                        \
+  }                                                                     \
+                                                                        \
+  inline bool name ## p ()                                              \
+  {                                                                     \
+    if (!v.isObject() && !v.isNull())                                   \
+      return false;                                                     \
+                                                                        \
+    return JS_GetClass (&v.toObject()) == &clas;                        \
+  }                                                                     \
+                                                                        \
+  inline c_class x ## name ()                                           \
+  {                                                                     \
+    if (!v.isObject())                                                  \
+      return NULL;                                                      \
+                                                                        \
+    if (JS_GetClass (&v.toObject()) != &clas)                           \
+      return NULL;                                                      \
+                                                                        \
+    return (c_class)JS_GetPrivate(&v.toObject());                       \
+  }
+
+  XCLASS(cons, elisp_cons_class, struct Lisp_Cons *);
+  XCLASS(string, elisp_string_class, struct Lisp_String *);
+  XCLASS(symbol, elisp_symbol_class, struct Lisp_Symbol *);
+  //XCLASS(overlay, elisp_overlay_class, struct Lisp_Overlay *);
+  //XCLASS(buffer, elisp_buffer_class, struct buffer *);
+  //XCLASS(marker, elisp_marker_class, struct Lisp_Marker *);
+  //XCLASS(module_function, elisp_module_function_class, struct Lisp_Module_Function *);
+  XCLASS(vector, elisp_vector_class, struct Lisp_Vector *);
+  //XCLASS(bool_vector, elisp_bool_vector_class, struct Lisp_Bool_Vector *);
+  //XCLASS(char_table, elisp_char_table_class, struct Lisp_Char_Table *);
+  //XCLASS(sub_char_table, elisp_sub_char_table_class, struct Lisp_Sub_Char_Table *);
+  //XCLASS(subr, elisp_subr_class, struct Lisp_Subr *);
+  //XCLASS(thread, elisp_thread_class, struct thread_state *);
+  //XCLASS(mutex, elisp_mutex_class, struct Lisp_Mutex *);
+  //XCLASS(condvar, elisp_condvar_class, struct Lisp_CondVar *);
+  //XCLASS(save_value, elisp_save_value_class, struct Lisp_Save_Value *);
+  //XCLASS(finalizer, elisp_finalizer_class, struct Lisp_Finalizer *);
+  //XCLASS(hash_table, elisp_hash_table_class, struct Lisp_Hash_Table *);
+  //XCLASS(frame, elisp_frame_class, struct frame *);
+  //XCLASS(font_spec, elisp_font_spec_class, struct font_spec *);
+  //XCLASS(font_entity, elisp_font_entity_class, struct font_entity *);
+  //XCLASS(font, elisp_font_object_class, struct font *);
+  //XCLASS(terminal, elisp_terminal_class, struct terminal *);
+  //XCLASS(window, elisp_window_class, struct window *);
+  //XCLASS(window_configuration, elisp_window_configuration_class, struct window_configuration *);
+  //XCLASS(process, elisp_process_class, struct Lisp_Process *);
+  //XCLASS(scroll_bar, elisp_scroll_bar_class, struct scroll_bar *);
+  //XCLASS(compiled, elisp_compiled_class, void *);
+  XCLASS(misc, elisp_misc_class, union Lisp_Misc *);
+  //XCLASS(miscany, elisp_misc_any_class, struct Lisp_Misc_Any *);
+  //XCLASS(vectorlike, elisp_vectorlike_class, struct vectorlike_header *);
+
+  inline bool
+    integerp ()
+  {
+    return v.isInt32();
+  }
+
+  inline bool floatp ()
+  {
+    return v.isNumber() && !v.isInt32();
+  }
+
+  inline double xfloat ()
+  {
+    return v.toNumber();
+  }
+
+  inline bool eq (Lisp_Value_Handle b)
+  {
+    return v == b.v;
+  }
+};
+inline bool Lisp_Value_Heap::eq (Lisp_Value_Handle b)
+{
+  JS::RootedValue v1(jsg().cx, v.v);
+  JS::RootedValue v2(jsg().cx, b.v.v);
+
+  bool ret;
+  JS_StrictlyEqual(jsg().cx, v1, v2, &ret);
+  return ret;
+}
+class ELisp_Pointer {
+public:
+  enum {
+        UNSAFE, STACK, HEAP
+  } type;
+  union {
+    JSUnsafeValue *unsafe;
+    Lisp_Value_Stack *stack;
+    Lisp_Value_Heap *heap;
+  } u;
+  ELisp_Pointer()
+  {
+    type = UNSAFE;
+    u.unsafe = 0;
+  }
+  ELisp_Pointer(JSUnsafeValue* x)
+  {
+    type = UNSAFE;
+    u.unsafe = x;
+  }
+  ELisp_Pointer(Lisp_Value_Stack* x)
+  {
+    type = STACK;
+    u.stack = x;
+  }
+  ELisp_Pointer(Lisp_Value_Heap* x)
+  {
+    type = HEAP;
+    u.heap = x;
+  }
+  ELisp_Pointer(Lisp_Value_Handle *x);
+  JSUnsafeValue operator*();
+  /*
+    
+  {
+    switch (type) {
+    case UNSAFE:
+      return *u.unsafe;
+    case HEAP:
+      return u.heap->v;
+    case STACK:
+      return u.stack->v;
+    }
+    asm volatile("ud2");
+    while (1);
+  }
+  */
+  ELisp_Pointer operator+(ptrdiff_t off)
+  {
+    switch (type) {
+    case UNSAFE:
+      return ELisp_Pointer(u.unsafe + off);
+    case HEAP:
+      return ELisp_Pointer(&u.heap[off]);
+    case STACK:
+      return ELisp_Pointer(&u.stack[off]);
+    }
+    asm volatile("ud2");
+    while (1);
+  }
+  ELisp_Pointer operator-(ptrdiff_t off)
+  {
+    switch (type) {
+    case UNSAFE:
+      return ELisp_Pointer(u.unsafe - off);
+    case HEAP:
+      return ELisp_Pointer(&u.heap[-off]);
+    case STACK:
+      return ELisp_Pointer(&u.stack[-off]);
+    }
+    asm volatile("ud2");
+    while (1);
+  }
+  ELisp_Pointer operator+=(ptrdiff_t off)
+  {
+    switch (type) {
+    case UNSAFE:
+      return *this = ELisp_Pointer(u.unsafe + off);
+    case HEAP:
+      return *this = ELisp_Pointer(&u.heap[off]);
+    case STACK:
+      return *this = ELisp_Pointer(&u.stack[off]);
+    }
+    asm volatile("ud2");
+    while (1);
+  }
+  ptrdiff_t operator-(ELisp_Pointer other)
+  {
+    if (other.type != type)
+      asm volatile("ud2");
+    switch (type) {
+    case UNSAFE:
+      return other.u.unsafe - u.unsafe;
+    case HEAP:
+      return other.u.heap - u.heap;
+    case STACK:
+      return other.u.stack - u.stack;
+    }
+    asm volatile("ud2");
+  }
+  ELisp_Pointer operator++(int)
+  {
+    auto ret = *this;
+    *this = *this + 1;
+    return ret;
+  }
+  ELisp_Pointer& operator++()
+  {
+    return *this = *this + 1;
+  }
+  ELisp_Pointer operator--(int)
+  {
+    auto ret = *this;
+    *this = *this + (-1);
+    return ret;
+  }
+  ELisp_Pointer& operator--()
+  {
+    return *this = *this + (-1);
+  }
+  const JSUnsafeValue operator[](ptrdiff_t off) const;
+  /*  {
+    switch (type) {
+    case UNSAFE:
+      return u.unsafe[off];
+    case HEAP:
+      return u.heap[off];
+    case STACK:
+      return *(JSUnsafeValue *)(u.stack[off].v.v.address());
+    }
+    asm volatile("ud2");
+    while(1);
+    } */
+  void set(JSUnsafeValue x)
+  {
+    switch (type) {
+    case UNSAFE:
+      *u.unsafe = x.v;
+      return;
+    case HEAP:
+      u.heap->v = x.v;
+      return;
+    case STACK:
+      u.stack->v = x.v;
+      return;
+    }
+    asm volatile("ud2");
+    while(1);
+  }
+  JSUnsafeValue sref(ptrdiff_t off, JSUnsafeValue x)
+  {
+    switch (type) {
+    case UNSAFE:
+      return JSUnsafeValue(u.unsafe[off] = x.v);
+    case HEAP:
+      return JSUnsafeValue(u.heap[off].v = x.v);
+    case STACK:
+      return JSUnsafeValue(u.stack[off].v = x.v);
+    }
+    asm volatile("ud2");
+    while(1);
+  }
+  JSUnsafeValue ref(ptrdiff_t off)
+  {
+    switch (type) {
+    case UNSAFE:
+      return u.unsafe[off].v;
+      return;
+    case HEAP:
+      return u.heap[off].v;
+      return;
+    case STACK:
+      return u.stack[off].v;
+      return;
+    }
+    asm volatile("ud2");
+    while(1);
+  }
+  void set(Lisp_Value_Stack &x)
+  {
+    switch (type) {
+    case UNSAFE:
+      *u.unsafe = x.v;
+      return;
+    case HEAP:
+      u.heap->v = x.v;
+      return;
+    case STACK:
+      u.stack->v = x.v;
+      return;
+    }
+    asm volatile("ud2");
+    while(1);
+  }
+  void set(Lisp_Value_Heap x)
+  {
+    switch (type) {
+    case UNSAFE:
+      *u.unsafe = x.v;
+      return;
+    case HEAP:
+      u.heap->v = x.v;
+      return;
+    case STACK:
+      u.stack->v = x.v;
+      return;
+    }
+    asm volatile("ud2");
+    while(1);
+  }
+  void set(Lisp_Value_Handle x)
+  {
+    switch (type) {
+    case UNSAFE:
+      *u.unsafe = x.v;
+      return;
+    case HEAP:
+      u.heap->v = x.v;
+      return;
+    case STACK:
+      u.stack->v = x.v;
+      return;
+    }
+    asm volatile("ud2");
+    while(1);
+  }
+  bool operator==(int other)
+  {
+    switch (type) {
+    case UNSAFE:
+      return u.unsafe == 0;
+    case HEAP:
+      return u.heap == 0;
+    case STACK:
+      return u.stack == 0;
+    }
+    asm volatile("ud2");
+    while(1);
+  }
+  ELisp_Pointer(char *ptr);
+  ELisp_Pointer(void *ptr);
+  ELisp_Pointer(ptrdiff_t null)
+  {
+    type = STACK;
+    u.stack = 0;
+  }
+  ELisp_Pointer(int null)
+  {
+    type = STACK;
+    u.stack = 0;
+  }
+  operator void*()
+  {
+    switch (type) {
+    case UNSAFE:
+      return u.unsafe;
+    case HEAP:
+      return u.heap;
+    case STACK:
+      return u.stack;
+    }
+    asm volatile("ud2");
+    while(1);
+  }
+};
+
+inline bool Lisp_Value_Stack::eq (Lisp_Value_Handle b)
+{
+  JS::RootedValue v1(jsg().cx, v.v);
+  JS::RootedValue v2(jsg().cx, b.v.v);
+
+  bool ret;
+  JS_StrictlyEqual(jsg().cx, v1, v2, &ret);
+  return ret;
+}
+
+inline Lisp_Value_Heap &Lisp_Value_Heap::operator=(Lisp_Value_Stack &v2)
+{
+  v = JSUnsafeValue(v2.v);
+  return *this;
+}
+inline Lisp_Value_Heap &Lisp_Value_Heap::operator=(Lisp_Value_Handle v2)
+{
+  v = JSUnsafeValue(v2.v);
+  return *this;
+}
+inline JSUnsafeValue Lisp_Value_Stack::operator=(Lisp_Value_Handle &v2) {
+  return *this = JSUnsafeValue(v2.v);
+}
+
+inline Lisp_Value_Stack::Lisp_Value_Stack(const Lisp_Value_Handle v) : v(v)
+{
+}
+
+inline Lisp_Value_Heap::Lisp_Value_Heap(const Lisp_Value_Stack &v2) {
+  v.set(v2.v.v);
+}
+
+inline Lisp_Value_Heap::Lisp_Value_Heap(const Lisp_Value_Handle v2) {
+  v.set(v2.v.v);
+}
+
+///#poison Lisp_Object
+//typedef JSUnsafeValue Lisp_Object;
+typedef JSUnsafeValue ELisp_Return_Value;
+typedef JSUnsafeValue ELisp_Handle;
+typedef Lisp_Value_Heap ELisp_Heap_Value;
+typedef Lisp_Value_Heap ELisp_Struct_Value;
+typedef Lisp_Value_Stack ELisp_Value;
+
+//extern void jsprint(Lisp_Object *x);
+
+class JSVector {
+public:
+  JS::AutoValueVector vec;
+
+  JSVector(JSContext *cx) : vec(cx) {}
+
+  void resize(size_t n2) {
+    if (!vec.resize(n2))
+      while(1);
+  }
+};
+
+class ELisp_Dynvector {
+public:
+  size_t n;
+  JSVector vec;
+
+  ELisp_Dynvector() : vec(jsg().cx) {}
+
+  ELisp_Dynvector(size_t n2) : vec(jsg().cx) {
+    resize(n2);
+  }
+
+  operator ELisp_Pointer()
+  {
+    return (JSUnsafeValue *)vec.vec.begin();
+  }
+
+  JSUnsafeValue sref(size_t i, JSUnsafeValue v)
+  {
+    vec.vec[i].set(v.v);
+    return JSUnsafeValue(v.v);
+  }
+
+  JSUnsafeValue ref(size_t i)
+  {
+    return JSUnsafeValue(vec.vec[i]);
+  }
+
+  void resize(size_t n2) {
+    vec.resize(n2);
+    n = n2;
+  }
+};
+
+template<size_t n0>
+class JSArray {
+public:
+  static const size_t n = n0;
+  JS::AutoValueArray<n0> vec;
+
+  JSArray() : vec(jsg().cx) {
+  }
+};
+
+class JSMutabledVectorHandle {
+public:
+  JS::HandleValueArray vec;
+
+  JSMutabledVectorHandle(JS::HandleValueArray vec) : vec(vec) {}
+
+  JS::MutableHandleValue operator[](size_t i)
+  {
+    return JS::MutableHandleValue::fromMarkedLocation(vec.begin() + i);
+  }
+};
+
+struct ELisp_Vector { ptrdiff_t n; ELisp_Pointer vec;};
+
+typedef struct ELisp_Vector ELisp_Vector_Handle;
+
+#define ELisp_Array(symbol, n) ELisp_Value symbol ## _arr[(n)] = { }; struct ELisp_Vector symbol = { (n), symbol ## _arr }
+#define ELisp_Array_Imm(symbol, ...) ELisp_Value symbol ## _arr[] = { __VA_ARGS__ }; struct ELisp_Vector symbol = { ARRAYELTS(symbol ## _arr), symbol ## _arr }
 
 /* Forward declarations.  */
 
 /* Defined in this file.  */
-INLINE void set_sub_char_table_contents (Lisp_Object, ptrdiff_t,
-					      Lisp_Object);
+INLINE void set_sub_char_table_contents (ELisp_Handle, ptrdiff_t,
+					      ELisp_Handle);
 
 /* Defined in chartab.c.  */
-extern Lisp_Object char_table_ref (Lisp_Object, int);
-extern void char_table_set (Lisp_Object, int, Lisp_Object);
+extern ELisp_Return_Value char_table_ref (ELisp_Handle, int);
+extern void char_table_set (ELisp_Handle, int, ELisp_Handle);
 
 /* Defined in data.c.  */
-extern _Noreturn void wrong_type_argument (Lisp_Object, Lisp_Object);
+extern _Noreturn void wrong_type_argument (ELisp_Handle, ELisp_Handle);
 
 
 #ifdef CANNOT_DUMP
-enum { might_dump = false };
+enum { smight_dump = false };
 #elif defined DOUG_LEA_MALLOC
 /* Defined in emacs.c.  */
 extern bool might_dump;
@@ -586,57 +2465,7 @@ extern bool might_dump;
 extern bool initialized;
 
 /* Defined in floatfns.c.  */
-extern double extract_float (Lisp_Object);
-
-
-/* Low-level conversion and type checking.  */
-
-/* Convert a Lisp_Object to the corresponding EMACS_INT and vice versa.
-   At the machine level, these operations are no-ops.  */
-
-INLINE EMACS_INT
-(XLI) (Lisp_Object o)
-{
-  return lisp_h_XLI (o);
-}
-
-INLINE Lisp_Object
-(XIL) (EMACS_INT i)
-{
-  return lisp_h_XIL (i);
-}
-
-/* Extract A's type.  */
-
-INLINE enum Lisp_Type
-(XTYPE) (Lisp_Object a)
-{
-#if USE_LSB_TAG
-  return lisp_h_XTYPE (a);
-#else
-  EMACS_UINT i = XLI (a);
-  return USE_LSB_TAG ? i & ~VALMASK : i >> VALBITS;
-#endif
-}
-
-INLINE void
-(CHECK_TYPE) (int ok, Lisp_Object predicate, Lisp_Object x)
-{
-  lisp_h_CHECK_TYPE (ok, predicate, x);
-}
-
-/* Extract A's pointer value, assuming A's type is TYPE.  */
-
-INLINE void *
-(XUNTAG) (Lisp_Object a, int type)
-{
-#if USE_LSB_TAG
-  return lisp_h_XUNTAG (a, type);
-#else
-  intptr_t i = USE_LSB_TAG ? XLI (a) - type : XLI (a) & VALMASK;
-  return (void *) i;
-#endif
-}
+extern double extract_float (ELisp_Handle);
 
 
 /* Interned state of a symbol.  */
@@ -665,85 +2494,78 @@ enum symbol_trapped_write
 
 struct Lisp_Symbol
 {
-  union
-  {
-    struct
-    {
-      bool_bf gcmarkbit : 1;
+  JS::Heap<JS::Value> jsval;
+  bool_bf gcmarkbit : 1;
 
-      /* Indicates where the value can be found:
-	 0 : it's a plain var, the value is in the `value' field.
-	 1 : it's a varalias, the value is really in the `alias' symbol.
-	 2 : it's a localized var, the value is in the `blv' object.
-	 3 : it's a forwarding variable, the value is in `forward'.  */
-      ENUM_BF (symbol_redirect) redirect : 3;
+  /* Indicates where the value can be found:
+     0 : it's a plain var, the value is in the `value' field.
+     1 : it's a varalias, the value is really in the `alias' symbol.
+     2 : it's a localized var, the value is in the `blv' object.
+     3 : it's a forwarding variable, the value is in `forward'.  */
+  ENUM_BF (symbol_redirect) redirect : 3;
 
-      /* 0 : normal case, just set the value
-	 1 : constant, cannot set, e.g. nil, t, :keywords.
-	 2 : trap the write, call watcher functions.  */
-      ENUM_BF (symbol_trapped_write) trapped_write : 2;
+  /* 0 : normal case, just set the value
+     1 : constant, cannot set, e.g. nil, t, :keywords.
+     2 : trap the write, call watcher functions.  */
+  ENUM_BF (symbol_trapped_write) trapped_write : 2;
 
-      /* Interned state of the symbol.  This is an enumerator from
-	 enum symbol_interned.  */
-      unsigned interned : 2;
+  /* Interned state of the symbol.  This is an enumerator from
+     enum symbol_interned.  */
+  unsigned interned : 2;
 
-      /* True means that this variable has been explicitly declared
-	 special (with `defvar' etc), and shouldn't be lexically bound.  */
-      bool_bf declared_special : 1;
+  /* True means that this variable has been explicitly declared
+     special (with `defvar' etc), and shouldn't be lexically bound.  */
+  bool_bf declared_special : 1;
 
-      /* True if pointed to from purespace and hence can't be GC'd.  */
-      bool_bf pinned : 1;
+  /* True if pointed to from purespace and hence can't be GC'd.  */
+  bool_bf pinned : 1;
 
-      /* The symbol's name, as a Lisp string.  */
-      Lisp_Object name;
+  /* The symbol's name, as a Lisp string.  */
+  ELisp_Struct_Value name;
 
-      /* Value of the symbol or Qunbound if unbound.  Which alternative of the
-	 union is used depends on the `redirect' field above.  */
-      union {
-	Lisp_Object value;
-	struct Lisp_Symbol *alias;
-	struct Lisp_Buffer_Local_Value *blv;
-	union Lisp_Fwd *fwd;
-      } val;
+  /* Value of the symbol or Qunbound if unbound.  Which alternative of the
+     union is used depends on the `redirect' field above.  */
+  struct {
+    ELisp_Struct_Value value;
+    struct Lisp_Symbol *alias;
+    struct Lisp_Buffer_Local_Value *blv;
+    union Lisp_Fwd *fwd;
+  } val;
 
-      /* Function value of the symbol or Qnil if not fboundp.  */
-      Lisp_Object function;
+  /* Function value of the symbol or Qnil if not fboundp.  */
+  ELisp_Struct_Value function;
 
-      /* The symbol's property list.  */
-      Lisp_Object plist;
+  /* The symbol's property list.  */
+  ELisp_Struct_Value plist;
 
-      /* Next symbol in obarray bucket, if the symbol is interned.  */
-      struct Lisp_Symbol *next;
-    } s;
-    char alignas (GCALIGNMENT) gcaligned;
-  } u;
+  /* Next symbol in obarray bucket, if the symbol is interned.  */
+  struct Lisp_Symbol *next;
 };
-verify (alignof (struct Lisp_Symbol) % GCALIGNMENT == 0);
 
 /* Declare a Lisp-callable function.  The MAXARGS parameter has the same
    meaning as in the DEFUN macro, and is used to construct a prototype.  */
 /* We can use the same trick as in the DEFUN macro to generate the
    appropriate prototype.  */
 #define EXFUN(fnname, maxargs) \
-  extern Lisp_Object fnname DEFUN_ARGS_ ## maxargs
+  extern ELisp_Return_Value fnname DEFUN_ARGS_ ## maxargs
 
 /* Note that the weird token-substitution semantics of ANSI C makes
    this work for MANY and UNEVALLED.  */
-#define DEFUN_ARGS_MANY		(ptrdiff_t, Lisp_Object *)
-#define DEFUN_ARGS_UNEVALLED	(Lisp_Object)
+#define DEFUN_ARGS_MANY		(ELisp_Vector_Handle)
+#define DEFUN_ARGS_UNEVALLED	(ELisp_Handle)
 #define DEFUN_ARGS_0	(void)
-#define DEFUN_ARGS_1	(Lisp_Object)
-#define DEFUN_ARGS_2	(Lisp_Object, Lisp_Object)
-#define DEFUN_ARGS_3	(Lisp_Object, Lisp_Object, Lisp_Object)
-#define DEFUN_ARGS_4	(Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object)
-#define DEFUN_ARGS_5	(Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, \
-			 Lisp_Object)
-#define DEFUN_ARGS_6	(Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, \
-			 Lisp_Object, Lisp_Object)
-#define DEFUN_ARGS_7	(Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, \
-			 Lisp_Object, Lisp_Object, Lisp_Object)
-#define DEFUN_ARGS_8	(Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, \
-			 Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object)
+#define DEFUN_ARGS_1	(ELisp_Handle)
+#define DEFUN_ARGS_2	(ELisp_Handle, ELisp_Handle)
+#define DEFUN_ARGS_3	(ELisp_Handle, ELisp_Handle, ELisp_Handle)
+#define DEFUN_ARGS_4	(ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle)
+#define DEFUN_ARGS_5	(ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle, \
+			 ELisp_Handle)
+#define DEFUN_ARGS_6	(ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle, \
+			 ELisp_Handle, ELisp_Handle)
+#define DEFUN_ARGS_7	(ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle, \
+			 ELisp_Handle, ELisp_Handle, ELisp_Handle)
+#define DEFUN_ARGS_8	(ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle, \
+			 ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle)
 
 /* Yield a signed integer that contains TAG along with PTR.
 
@@ -755,6 +2577,17 @@ verify (alignof (struct Lisp_Symbol) % GCALIGNMENT == 0);
    ? (intptr_t) (ptr) + (tag) \
    : (EMACS_INT) (((EMACS_UINT) (tag) << VALBITS) + (uintptr_t) (ptr)))
 
+/* Declare extern constants for Lisp symbols.  These can be helpful
+   when using a debugger like GDB, on older platforms where the debug
+   format does not represent C macros.  */
+#define DEFINE_LISP_SYMBOL(name) \
+  DEFINE_GDB_SYMBOL_BEGIN (ELisp_Struct_Value, name) \
+  DEFINE_GDB_SYMBOL_END (LISPSYM_INITIALLY (name))
+
+/* The index of the C-defined Lisp symbol SYM.
+   This can be used in a static initializer.  */
+#define SYMBOL_INDEX(sym) i##sym
+
 /* Yield an integer that contains a symbol tag along with OFFSET.
    OFFSET should be the offset in bytes from 'lispsym' to the symbol.  */
 #define TAG_SYMOFFSET(offset) TAG_PTR (Lisp_Symbol, offset)
@@ -764,20 +2597,15 @@ verify (alignof (struct Lisp_Symbol) % GCALIGNMENT == 0);
    except the former expands to an integer constant expression.  */
 #define XLI_BUILTIN_LISPSYM(iname) TAG_SYMOFFSET ((iname) * sizeof *lispsym)
 
+INLINE ELisp_Return_Value lispsym_initially(struct Lisp_Symbol *s)
+{
+  ELisp_Value ret;
+  ret.xsetsymbol(s);
+  return ret;
+}
 /* LISPSYM_INITIALLY (Qfoo) is equivalent to Qfoo except it is
    designed for use as an initializer, even for a constant initializer.  */
-#define LISPSYM_INITIALLY(name) LISP_INITIALLY (XLI_BUILTIN_LISPSYM (i##name))
-
-/* Declare extern constants for Lisp symbols.  These can be helpful
-   when using a debugger like GDB, on older platforms where the debug
-   format does not represent C macros.  */
-#define DEFINE_LISP_SYMBOL(name) \
-  DEFINE_GDB_SYMBOL_BEGIN (Lisp_Object, name) \
-  DEFINE_GDB_SYMBOL_END (LISPSYM_INITIALLY (name))
-
-/* The index of the C-defined Lisp symbol SYM.
-   This can be used in a static initializer.  */
-#define SYMBOL_INDEX(sym) i##sym
+#define LISPSYM_INITIALLY(name) lispsym_initially(&lispsym[i##name])
 
 /* By default, define macros for Qt, etc., as this leads to a bit
    better performance in the core Emacs interpreter.  A plugin can
@@ -787,18 +2615,35 @@ verify (alignof (struct Lisp_Symbol) % GCALIGNMENT == 0);
 # define DEFINE_NON_NIL_Q_SYMBOL_MACROS true
 #endif
 
-#include "globals.h"
+extern struct Lisp_Symbol lispsym[1214];
+
+INLINE ELisp_Return_Value
+make_lisp_symbol (struct Lisp_Symbol *sym)
+{
+  ELisp_Value ret;
+  ret.xsetsymbol (sym);
+  return ret;
+}
+
+INLINE ELisp_Return_Value
+builtin_lisp_symbol (int index)
+{
+  return make_lisp_symbol (&lispsym[index]);
+}
+
+#include "globals.h.hh"
 
 /* Header of vector-like objects.  This documents the layout constraints on
    vectors and pseudovectors (objects of PVEC_xxx subtype).  It also prevents
    compilers from being fooled by Emacs's type punning: XSETPSEUDOVECTOR
-   and PSEUDOVECTORP cast their pointers to union vectorlike_header *,
+   and PSEUDOVECTORP cast their pointers to struct vectorlike_header *,
    because when two such pointers potentially alias, a compiler won't
    incorrectly reorder loads and stores to their size fields.  See
    Bug#8546.  */
-union vectorlike_header
+struct vectorlike_header
   {
-    /* The main member contains various pieces of information:
+    JS::Heap<JS::Value> jsval;
+    /* The only field contains various pieces of information:
        - The MSB (ARRAY_MARK_FLAG) holds the gcmarkbit.
        - The next bit (PSEUDOVECTOR_FLAG) indicates whether this is a plain
          vector (0) or a pseudovector (1).
@@ -818,45 +2663,22 @@ union vectorlike_header
 	 Current layout limits the pseudovectors to 63 PVEC_xxx subtypes,
 	 4095 Lisp_Objects in GC-ed area and 4095 word-sized other slots.  */
     ptrdiff_t size;
-    char alignas (GCALIGNMENT) gcaligned;
   };
-verify (alignof (union vectorlike_header) % GCALIGNMENT == 0);
 
 INLINE bool
-(SYMBOLP) (Lisp_Object x)
+(SYMBOLP) (ELisp_Handle x)
 {
-  return lisp_h_SYMBOLP (x);
+  return x.symbolp();
 }
 
 INLINE struct Lisp_Symbol *
-(XSYMBOL) (Lisp_Object a)
+(XSYMBOL) (ELisp_Handle a)
 {
-#if USE_LSB_TAG
-  return lisp_h_XSYMBOL (a);
-#else
-  eassert (SYMBOLP (a));
-  intptr_t i = (intptr_t) XUNTAG (a, Lisp_Symbol);
-  void *p = (char *) lispsym + i;
-  return p;
-#endif
-}
-
-INLINE Lisp_Object
-make_lisp_symbol (struct Lisp_Symbol *sym)
-{
-  Lisp_Object a = XIL (TAG_SYMOFFSET ((char *) sym - (char *) lispsym));
-  eassert (XSYMBOL (a) == sym);
-  return a;
-}
-
-INLINE Lisp_Object
-builtin_lisp_symbol (int index)
-{
-  return make_lisp_symbol (&lispsym[index]);
+  return a.xsymbol();
 }
 
 INLINE void
-(CHECK_SYMBOL) (Lisp_Object x)
+(CHECK_SYMBOL) (ELisp_Handle x)
 {
   lisp_h_CHECK_SYMBOL (x);
 }
@@ -938,24 +2760,24 @@ enum More_Lisp_Bits
 
 #if USE_LSB_TAG
 
-INLINE Lisp_Object
+INLINE ELisp_Return_Value
 (make_number) (EMACS_INT n)
 {
-  return lisp_h_make_number (n);
+  ELisp_Value ret;
+  ret.v.v.setInt32(n);
+  return ret;
 }
 
 INLINE EMACS_INT
-(XINT) (Lisp_Object a)
+(XINT) (ELisp_Handle a)
 {
-  return lisp_h_XINT (a);
+  return a.xint();
 }
 
 INLINE EMACS_INT
-(XFASTINT) (Lisp_Object a)
+(XFASTINT) (ELisp_Handle a)
 {
-  EMACS_INT n = lisp_h_XFASTINT (a);
-  eassume (0 <= n);
-  return n;
+  return a.xint();
 }
 
 #else /* ! USE_LSB_TAG */
@@ -966,7 +2788,7 @@ INLINE EMACS_INT
 
 /* Make a Lisp integer representing the value of the low order
    bits of N.  */
-INLINE Lisp_Object
+INLINE ELisp_Return_Value
 make_number (EMACS_INT n)
 {
   EMACS_INT int0 = Lisp_Int0;
@@ -986,7 +2808,7 @@ make_number (EMACS_INT n)
 
 /* Extract A's value as a signed integer.  */
 INLINE EMACS_INT
-XINT (Lisp_Object a)
+XINT (ELisp_Handle a)
 {
   EMACS_INT i = XLI (a);
   if (! USE_LSB_TAG)
@@ -1001,7 +2823,7 @@ XINT (Lisp_Object a)
    If ! USE_LSB_TAG, this takes advantage of the fact that Lisp
    integers have zero-bits in their tags.  */
 INLINE EMACS_INT
-XFASTINT (Lisp_Object a)
+XFASTINT (ELisp_Handle a)
 {
   EMACS_INT int0 = Lisp_Int0;
   EMACS_INT n = USE_LSB_TAG ? XINT (a) : XLI (a) - (int0 << VALBITS);
@@ -1013,10 +2835,9 @@ XFASTINT (Lisp_Object a)
 
 /* Extract A's value as an unsigned integer.  */
 INLINE EMACS_UINT
-XUINT (Lisp_Object a)
+XUINT (ELisp_Handle a)
 {
-  EMACS_UINT i = XLI (a);
-  return USE_LSB_TAG ? i >> INTTYPEBITS : i & INTMASK;
+  return a.xuint();
 }
 
 /* Return A's (Lisp-integer sized) hash.  Happens to be like XUINT
@@ -1024,26 +2845,26 @@ XUINT (Lisp_Object a)
    integers.  */
 
 INLINE EMACS_INT
-(XHASH) (Lisp_Object a)
+(XHASH) (ELisp_Handle a)
 {
-  return lisp_h_XHASH (a);
+  return a.xhash();
 }
 
 /* Like make_number (N), but may be faster.  N must be in nonnegative range.  */
-INLINE Lisp_Object
+INLINE ELisp_Return_Value
 make_natnum (EMACS_INT n)
 {
-  eassert (0 <= n && n <= MOST_POSITIVE_FIXNUM);
-  EMACS_INT int0 = Lisp_Int0;
-  return USE_LSB_TAG ? make_number (n) : XIL (n + (int0 << VALBITS));
+  ELisp_Value ret;
+  ret.v.v = JS::NumberValue(n);
+  return ret;
 }
 
 /* Return true if X and Y are the same object.  */
 
 INLINE bool
-(EQ) (Lisp_Object x, Lisp_Object y)
+(EQ) (ELisp_Handle x, ELisp_Handle y)
 {
-  return lisp_h_EQ (x, y);
+  return x.eq(y);
 }
 
 /* True if the possibly-unsigned integer I doesn't fit in a Lisp fixnum.  */
@@ -1057,30 +2878,21 @@ clip_to_bounds (ptrdiff_t lower, EMACS_INT num, ptrdiff_t upper)
   return num < lower ? lower : num <= upper ? num : upper;
 }
 
-/* Construct a Lisp_Object from a value or address.  */
-
-INLINE Lisp_Object
-make_lisp_ptr (void *ptr, enum Lisp_Type type)
-{
-  Lisp_Object a = XIL (TAG_PTR (type, ptr));
-  eassert (XTYPE (a) == type && XUNTAG (a, type) == ptr);
-  return a;
-}
-
 INLINE bool
-(INTEGERP) (Lisp_Object x)
+(INTEGERP) (ELisp_Handle x)
 {
-  return lisp_h_INTEGERP (x);
+  return x.integerp();
 }
 
-#define XSETINT(a, b) ((a) = make_number (b))
-#define XSETFASTINT(a, b) ((a) = make_natnum (b))
-#define XSETCONS(a, b) ((a) = make_lisp_ptr (b, Lisp_Cons))
-#define XSETVECTOR(a, b) ((a) = make_lisp_ptr (b, Lisp_Vectorlike))
-#define XSETSTRING(a, b) ((a) = make_lisp_ptr (b, Lisp_String))
-#define XSETSYMBOL(a, b) ((a) = make_lisp_symbol (b))
-#define XSETFLOAT(a, b) ((a) = make_lisp_ptr (b, Lisp_Float))
-#define XSETMISC(a, b) ((a) = make_lisp_ptr (b, Lisp_Misc))
+#define XSETINT(a, b) ((a).xsetint (b))
+#define XSETFASTINT(a, b) ((a).xsetint (b))
+#define XSETCONS(a, b) ((a).xsetcons (b))
+#define XSETVECTOR(a, b) ((a).xsetvector ((struct Lisp_Vector *)b))
+#define XSETSTRING(a, b) ((a).xsetstring (b))
+#define XSETSYMBOL(a, b) ((a).xsetsymbol (b))
+#define XSETFLOAT(a, b) ((a).xsetfloat (b))
+#define XSETMISC(a, b) ((a).xsetmisc (b))
+#define XSETMARKER(a, b) ((a).xsetmisc ((struct Lisp_Misc *)(b)))
 
 /* Pseudovector types.  */
 
@@ -1088,21 +2900,21 @@ INLINE bool
   ((v)->header.size |= PSEUDOVECTOR_FLAG | ((code) << PSEUDOVECTOR_AREA_BITS))
 #define XSETPVECTYPESIZE(v, code, lispsize, restsize)		\
   ((v)->header.size = (PSEUDOVECTOR_FLAG			\
-		       | ((code) << PSEUDOVECTOR_AREA_BITS)	\
-		       | ((restsize) << PSEUDOVECTOR_SIZE_BITS) \
-		       | (lispsize)))
+                       | ((code) << PSEUDOVECTOR_AREA_BITS)	\
+                       | ((restsize) << PSEUDOVECTOR_SIZE_BITS) \
+                       | (lispsize)))
 
-/* The cast to union vectorlike_header * avoids aliasing issues.  */
+/* The cast to struct vectorlike_header * avoids aliasing issues.  */
 #define XSETPSEUDOVECTOR(a, b, code) \
   XSETTYPED_PSEUDOVECTOR (a, b,					\
-			  (((union vectorlike_header *)	\
-			    XUNTAG (a, Lisp_Vectorlike))	\
-			   ->size),				\
-			  code)
+                          (((struct vectorlike_header *)	\
+                            (a).xvector())                      \
+                           ->size),				\
+                          code)
 #define XSETTYPED_PSEUDOVECTOR(a, b, size, code)			\
   (XSETVECTOR (a, b),							\
    eassert ((size & (PSEUDOVECTOR_FLAG | PVEC_TYPE_MASK))		\
-	    == (PSEUDOVECTOR_FLAG | (code << PSEUDOVECTOR_AREA_BITS))))
+            == (PSEUDOVECTOR_FLAG | (code << PSEUDOVECTOR_AREA_BITS))))
 
 #define XSETWINDOW_CONFIGURATION(a, b) \
   (XSETPSEUDOVECTOR (a, b, PVEC_WINDOW_CONFIGURATION))
@@ -1124,101 +2936,60 @@ INLINE bool
    does not know about it.  The pointer should not have both Lisp_Int1
    bits set, which makes this conversion inherently unportable.  */
 
-INLINE void *
-XINTPTR (Lisp_Object a)
-{
-  return XUNTAG (a, Lisp_Int0);
-}
-
-INLINE Lisp_Object
-make_pointer_integer (void *p)
-{
-  Lisp_Object a = XIL (TAG_PTR (Lisp_Int0, p));
-  eassert (INTEGERP (a) && XINTPTR (a) == p);
-  return a;
-}
-
 /* See the macros in intervals.h.  */
 
 typedef struct interval *INTERVAL;
 
-struct Lisp_Cons
-{
-  union
+struct GCALIGNED Lisp_Cons
   {
-    struct
+    JS::Heap<JS::Value> jsval;
+    /* Car of this cons cell.  */
+    ELisp_Struct_Value car;
+
+    union
     {
-      /* Car of this cons cell.  */
-      Lisp_Object car;
+      /* Cdr of this cons cell.  */
+      ELisp_Struct_Value cdr;
 
-      union
-      {
-	/* Cdr of this cons cell.  */
-	Lisp_Object cdr;
-
-	/* Used to chain conses on a free list.  */
-	struct Lisp_Cons *chain;
-      } u;
-    } s;
-    char alignas (GCALIGNMENT) gcaligned;
-  } u;
-};
-verify (alignof (struct Lisp_Cons) % GCALIGNMENT == 0);
+      /* Used to chain conses on a free list.  */
+      struct Lisp_Cons *chain;
+    } u;
+  };
 
 INLINE bool
-(NILP) (Lisp_Object x)
+(NILP) (ELisp_Handle x)
 {
-  return lisp_h_NILP (x);
+  return x == Qnil;
 }
 
 INLINE bool
-(CONSP) (Lisp_Object x)
+(CONSP) (ELisp_Handle ARG(x))
 {
-  return lisp_h_CONSP (x);
+  ELisp_Value x = ARG(x);
+  return x.consp();
 }
 
 INLINE void
-CHECK_CONS (Lisp_Object x)
+CHECK_CONS (ELisp_Handle x)
 {
   CHECK_TYPE (CONSP (x), Qconsp, x);
 }
 
 INLINE struct Lisp_Cons *
-(XCONS) (Lisp_Object a)
+(XCONS) (ELisp_Handle ARG(a))
 {
-  return lisp_h_XCONS (a);
-}
-
-/* Take the car or cdr of something known to be a cons cell.  */
-/* The _addr functions shouldn't be used outside of the minimal set
-   of code that has to know what a cons cell looks like.  Other code not
-   part of the basic lisp implementation should assume that the car and cdr
-   fields are not accessible.  (What if we want to switch to
-   a copying collector someday?  Cached cons cell field addresses may be
-   invalidated at arbitrary points.)  */
-INLINE Lisp_Object *
-xcar_addr (Lisp_Object c)
-{
-  return &XCONS (c)->u.s.car;
-}
-INLINE Lisp_Object *
-xcdr_addr (Lisp_Object c)
-{
-  return &XCONS (c)->u.s.u.cdr;
+  ELisp_Value a = ARG(a);
+  return a.xcons();
 }
 
 /* Use these from normal code.  */
-
-INLINE Lisp_Object
-(XCAR) (Lisp_Object c)
+INLINE ELisp_Return_Value XCAR(ELisp_Handle v)
 {
-  return lisp_h_XCAR (c);
+  return XCONS(v)->car;
 }
-
-INLINE Lisp_Object
-(XCDR) (Lisp_Object c)
+INLINE ELisp_Return_Value XCDR(ELisp_Handle v)
 {
-  return lisp_h_XCDR (c);
+  return XCONS(v)->u.cdr;
 }
 
 /* Use these to set the fields of a cons cell.
@@ -1226,19 +2997,19 @@ INLINE Lisp_Object
    Note that both arguments may refer to the same object, so 'n'
    should not be read after 'c' is first modified.  */
 INLINE void
-XSETCAR (Lisp_Object c, Lisp_Object n)
+XSETCAR (ELisp_Handle c, ELisp_Handle n)
 {
-  *xcar_addr (c) = n;
+  XCONS(c)->car = n;
 }
 INLINE void
-XSETCDR (Lisp_Object c, Lisp_Object n)
+XSETCDR (ELisp_Handle c, ELisp_Handle n)
 {
-  *xcdr_addr (c) = n;
+  XCONS(c)->u.cdr = n;
 }
 
 /* Take the car or cdr of something whose type is not known.  */
-INLINE Lisp_Object
-CAR (Lisp_Object c)
+INLINE ELisp_Return_Value
+CAR (ELisp_Handle c)
 {
   if (CONSP (c))
     return XCAR (c);
@@ -1246,8 +3017,8 @@ CAR (Lisp_Object c)
     wrong_type_argument (Qlistp, c);
   return Qnil;
 }
-INLINE Lisp_Object
-CDR (Lisp_Object c)
+INLINE ELisp_Return_Value
+CDR (ELisp_Handle c)
 {
   if (CONSP (c))
     return XCDR (c);
@@ -1257,60 +3028,51 @@ CDR (Lisp_Object c)
 }
 
 /* Take the car or cdr of something whose type is not known.  */
-INLINE Lisp_Object
-CAR_SAFE (Lisp_Object c)
+INLINE ELisp_Return_Value
+CAR_SAFE (ELisp_Handle c)
 {
-  return CONSP (c) ? XCAR (c) : Qnil;
+  return CONSP (c)? ELisp_Return_Value(XCAR (c)): ELisp_Return_Value(Qnil);
 }
-INLINE Lisp_Object
-CDR_SAFE (Lisp_Object c)
+INLINE ELisp_Return_Value
+CDR_SAFE (ELisp_Handle c)
 {
-  return CONSP (c) ? XCDR (c) : Qnil;
+  return CONSP (c)? ELisp_Return_Value(XCDR (c)): ELisp_Return_Value(Qnil);
 }
 
-/* In a string or vector, the sign bit of u.s.size is the gc mark bit.  */
+/* In a string or vector, the sign bit of the `size' is the gc mark bit.  */
 
-struct Lisp_String
-{
-  union
+struct GCALIGNED Lisp_String
   {
-    struct
-    {
-      ptrdiff_t size;
-      ptrdiff_t size_byte;
-      INTERVAL intervals;	/* Text properties in this string.  */
-      unsigned char *data;
-    } s;
-    struct Lisp_String *next;
-    char alignas (GCALIGNMENT) gcaligned;
-  } u;
-};
-verify (alignof (struct Lisp_String) % GCALIGNMENT == 0);
+    JS::Heap<JS::Value> jsval;
+    ptrdiff_t size;
+    ptrdiff_t size_byte;
+    INTERVAL intervals;		/* Text properties in this string.  */
+    unsigned char *data;
+  };
 
 INLINE bool
-STRINGP (Lisp_Object x)
+STRINGP (ELisp_Handle x)
 {
-  return XTYPE (x) == Lisp_String;
+  return x.stringp();
 }
 
 INLINE void
-CHECK_STRING (Lisp_Object x)
+CHECK_STRING (ELisp_Handle x)
 {
   CHECK_TYPE (STRINGP (x), Qstringp, x);
 }
 
 INLINE struct Lisp_String *
-XSTRING (Lisp_Object a)
+XSTRING (ELisp_Handle a)
 {
-  eassert (STRINGP (a));
-  return XUNTAG (a, Lisp_String);
+  return a.xstring();
 }
 
 /* True if STR is a multibyte string.  */
 INLINE bool
-STRING_MULTIBYTE (Lisp_Object str)
+STRING_MULTIBYTE (ELisp_Handle str)
 {
-  return 0 <= XSTRING (str)->u.s.size_byte;
+  return 0 <= XSTRING (str)->size_byte;
 }
 
 /* An upper bound on the number of bytes in a Lisp string, not
@@ -1327,54 +3089,54 @@ STRING_MULTIBYTE (Lisp_Object str)
    This is a macro for use in static initializers.  The cast to
    ptrdiff_t ensures that the macro is signed.  */
 #define STRING_BYTES_BOUND  \
-  ((ptrdiff_t) min (MOST_POSITIVE_FIXNUM, min (SIZE_MAX, PTRDIFF_MAX) - 1))
+  ((ptrdiff_t) c_min (MOST_POSITIVE_FIXNUM, c_min (SIZE_MAX, PTRDIFF_MAX) - 1))
 
 /* Mark STR as a unibyte string.  */
 #define STRING_SET_UNIBYTE(STR)				\
   do {							\
-    if (XSTRING (STR)->u.s.size == 0)			\
+    if (XSTRING (STR)->size == 0)			\
       (STR) = empty_unibyte_string;			\
     else						\
-      XSTRING (STR)->u.s.size_byte = -1;		\
+      XSTRING (STR)->size_byte = -1;			\
   } while (false)
 
 /* Mark STR as a multibyte string.  Assure that STR contains only
    ASCII characters in advance.  */
 #define STRING_SET_MULTIBYTE(STR)			\
   do {							\
-    if (XSTRING (STR)->u.s.size == 0)			\
+    if (XSTRING (STR)->size == 0)			\
       (STR) = empty_multibyte_string;			\
     else						\
-      XSTRING (STR)->u.s.size_byte = XSTRING (STR)->u.s.size; \
+      XSTRING (STR)->size_byte = XSTRING (STR)->size;	\
   } while (false)
 
 /* Convenience functions for dealing with Lisp strings.  */
 
 INLINE unsigned char *
-SDATA (Lisp_Object string)
+SDATA (ELisp_Handle string)
 {
-  return XSTRING (string)->u.s.data;
+  return XSTRING (string)->data;
 }
 INLINE char *
-SSDATA (Lisp_Object string)
+SSDATA (ELisp_Handle string)
 {
   /* Avoid "differ in sign" warnings.  */
   return (char *) SDATA (string);
 }
 INLINE unsigned char
-SREF (Lisp_Object string, ptrdiff_t index)
+SREF (ELisp_Handle string, ptrdiff_t index)
 {
   return SDATA (string)[index];
 }
 INLINE void
-SSET (Lisp_Object string, ptrdiff_t index, unsigned char new)
+SSET (ELisp_Handle string, ptrdiff_t index, unsigned char c_new)
 {
-  SDATA (string)[index] = new;
+  SDATA (string)[index] = c_new;
 }
 INLINE ptrdiff_t
-SCHARS (Lisp_Object string)
+SCHARS (ELisp_Handle string)
 {
-  ptrdiff_t nchars = XSTRING (string)->u.s.size;
+  ptrdiff_t nchars = XSTRING (string)->size;
   eassume (0 <= nchars);
   return nchars;
 }
@@ -1388,51 +3150,50 @@ STRING_BYTES (struct Lisp_String *s)
 #ifdef GC_CHECK_STRING_BYTES
   ptrdiff_t nbytes = string_bytes (s);
 #else
-  ptrdiff_t nbytes = s->u.s.size_byte < 0 ? s->u.s.size : s->u.s.size_byte;
+  ptrdiff_t nbytes = s->size_byte < 0 ? s->size : s->size_byte;
 #endif
   eassume (0 <= nbytes);
   return nbytes;
 }
 
 INLINE ptrdiff_t
-SBYTES (Lisp_Object string)
+SBYTES (ELisp_Handle string)
 {
   return STRING_BYTES (XSTRING (string));
 }
 INLINE void
-STRING_SET_CHARS (Lisp_Object string, ptrdiff_t newsize)
+STRING_SET_CHARS (ELisp_Handle string, ptrdiff_t newsize)
 {
   /* This function cannot change the size of data allocated for the
      string when it was created.  */
   eassert (STRING_MULTIBYTE (string)
-	   ? 0 <= newsize && newsize <= SBYTES (string)
-	   : newsize == SCHARS (string));
-  XSTRING (string)->u.s.size = newsize;
+           ? 0 <= newsize && newsize <= SBYTES (string)
+           : newsize == SCHARS (string));
+  XSTRING (string)->size = newsize;
 }
 
 /* A regular vector is just a header plus an array of Lisp_Objects.  */
 
 struct Lisp_Vector
   {
-    union vectorlike_header header;
-    Lisp_Object contents[FLEXIBLE_ARRAY_MEMBER];
+    struct vectorlike_header header;
+    ELisp_Struct_Value contents[FLEXIBLE_ARRAY_MEMBER];
   };
 
 INLINE bool
-(VECTORLIKEP) (Lisp_Object x)
+(VECTORLIKEP) (ELisp_Handle x)
 {
-  return lisp_h_VECTORLIKEP (x);
+  return x.vectorp();
 }
 
 INLINE struct Lisp_Vector *
-XVECTOR (Lisp_Object a)
+XVECTOR (ELisp_Handle a)
 {
-  eassert (VECTORLIKEP (a));
-  return XUNTAG (a, Lisp_Vectorlike);
+  return a.xvector();
 }
 
 INLINE ptrdiff_t
-ASIZE (Lisp_Object array)
+ASIZE (ELisp_Handle array)
 {
   ptrdiff_t size = XVECTOR (array)->header.size;
   eassume (0 <= size);
@@ -1440,19 +3201,19 @@ ASIZE (Lisp_Object array)
 }
 
 INLINE ptrdiff_t
-PVSIZE (Lisp_Object pv)
+PVSIZE (ELisp_Handle pv)
 {
   return ASIZE (pv) & PSEUDOVECTOR_SIZE_MASK;
 }
 
 INLINE bool
-VECTORP (Lisp_Object x)
+VECTORP (ELisp_Handle x)
 {
-  return VECTORLIKEP (x) && ! (ASIZE (x) & PSEUDOVECTOR_FLAG);
+  return x.vectorp() && !(x.xvector()->header.size & PSEUDOVECTOR_FLAG);
 }
 
 INLINE void
-CHECK_VECTOR (Lisp_Object x)
+CHECK_VECTOR (ELisp_Handle x)
 {
   CHECK_TYPE (VECTORP (x), Qvectorp, x);
 }
@@ -1471,24 +3232,24 @@ PSEUDOVECTOR_TYPE (struct Lisp_Vector *v)
 
 /* Can't be used with PVEC_NORMAL_VECTOR.  */
 INLINE bool
-PSEUDOVECTOR_TYPEP (union vectorlike_header *a, enum pvec_type code)
+PSEUDOVECTOR_TYPEP (struct vectorlike_header *a, enum pvec_type code)
 {
   /* We don't use PSEUDOVECTOR_TYPE here so as to avoid a shift
    * operation when `code' is known.  */
   return ((a->size & (PSEUDOVECTOR_FLAG | PVEC_TYPE_MASK))
-	  == (PSEUDOVECTOR_FLAG | (code << PSEUDOVECTOR_AREA_BITS)));
+          == (PSEUDOVECTOR_FLAG | (code << PSEUDOVECTOR_AREA_BITS)));
 }
 
 /* True if A is a pseudovector whose code is CODE.  */
 INLINE bool
-PSEUDOVECTORP (Lisp_Object a, int code)
+PSEUDOVECTORP (ELisp_Handle a, int code)
 {
   if (! VECTORLIKEP (a))
     return false;
   else
     {
-      /* Converting to union vectorlike_header * avoids aliasing issues.  */
-      union vectorlike_header *h = XUNTAG (a, Lisp_Vectorlike);
+      /* Converting to struct vectorlike_header * avoids aliasing issues.  */
+      struct vectorlike_header *h = (struct vectorlike_header *)a.xvector();
       return PSEUDOVECTOR_TYPEP (h, code);
     }
 }
@@ -1499,7 +3260,7 @@ struct Lisp_Bool_Vector
   {
     /* HEADER.SIZE is the vector's size field.  It doesn't have the real size,
        just the subtype information.  */
-    union vectorlike_header header;
+    struct vectorlike_header header;
     /* This is the size in bits.  */
     EMACS_INT size;
     /* The actual bits, packed into bytes.
@@ -1516,7 +3277,7 @@ enum
   {
     header_size = offsetof (struct Lisp_Vector, contents),
     bool_header_size = offsetof (struct Lisp_Bool_Vector, data),
-    word_size = sizeof (Lisp_Object)
+    word_size = sizeof (ELisp_Return_Value)
   };
 
 /* The number of data words and bytes in a bool vector with SIZE bits.  */
@@ -1536,26 +3297,25 @@ bool_vector_bytes (EMACS_INT size)
 }
 
 INLINE bool
-BOOL_VECTOR_P (Lisp_Object a)
+BOOL_VECTOR_P (ELisp_Handle a)
 {
   return PSEUDOVECTORP (a, PVEC_BOOL_VECTOR);
 }
 
 INLINE void
-CHECK_BOOL_VECTOR (Lisp_Object x)
+CHECK_BOOL_VECTOR (ELisp_Handle x)
 {
   CHECK_TYPE (BOOL_VECTOR_P (x), Qbool_vector_p, x);
 }
 
 INLINE struct Lisp_Bool_Vector *
-XBOOL_VECTOR (Lisp_Object a)
+XBOOL_VECTOR (ELisp_Handle a)
 {
-  eassert (BOOL_VECTOR_P (a));
-  return XUNTAG (a, Lisp_Vectorlike);
+  return (struct Lisp_Bool_Vector *)a.xvector();
 }
 
 INLINE EMACS_INT
-bool_vector_size (Lisp_Object a)
+bool_vector_size (ELisp_Handle a)
 {
   EMACS_INT size = XBOOL_VECTOR (a)->size;
   eassume (0 <= size);
@@ -1563,13 +3323,13 @@ bool_vector_size (Lisp_Object a)
 }
 
 INLINE bits_word *
-bool_vector_data (Lisp_Object a)
+bool_vector_data (ELisp_Handle a)
 {
   return XBOOL_VECTOR (a)->data;
 }
 
 INLINE unsigned char *
-bool_vector_uchar_data (Lisp_Object a)
+bool_vector_uchar_data (ELisp_Handle a)
 {
   return (unsigned char *) bool_vector_data (a);
 }
@@ -1577,23 +3337,23 @@ bool_vector_uchar_data (Lisp_Object a)
 /* True if A's Ith bit is set.  */
 
 INLINE bool
-bool_vector_bitref (Lisp_Object a, EMACS_INT i)
+bool_vector_bitref (ELisp_Handle a, EMACS_INT i)
 {
   eassume (0 <= i && i < bool_vector_size (a));
   return !! (bool_vector_uchar_data (a)[i / BOOL_VECTOR_BITS_PER_CHAR]
 	     & (1 << (i % BOOL_VECTOR_BITS_PER_CHAR)));
 }
 
-INLINE Lisp_Object
-bool_vector_ref (Lisp_Object a, EMACS_INT i)
+INLINE ELisp_Return_Value
+bool_vector_ref (ELisp_Handle a, EMACS_INT i)
 {
-  return bool_vector_bitref (a, i) ? Qt : Qnil;
+  return bool_vector_bitref (a, i)? ELisp_Return_Value(Qt): ELisp_Return_Value(Qnil);
 }
 
 /* Set A's Ith bit to B.  */
 
 INLINE void
-bool_vector_set (Lisp_Object a, EMACS_INT i, bool b)
+bool_vector_set (ELisp_Handle a, EMACS_INT i, bool b)
 {
   unsigned char *addr;
 
@@ -1608,34 +3368,34 @@ bool_vector_set (Lisp_Object a, EMACS_INT i, bool b)
 
 /* Conveniences for dealing with Lisp arrays.  */
 
-INLINE Lisp_Object
-AREF (Lisp_Object array, ptrdiff_t idx)
+INLINE ELisp_Return_Value
+AREF (ELisp_Handle array, ptrdiff_t idx)
 {
   return XVECTOR (array)->contents[idx];
 }
 
-INLINE Lisp_Object *
-aref_addr (Lisp_Object array, ptrdiff_t idx)
+INLINE ELisp_Struct_Value *
+aref_addr (ELisp_Handle array, ptrdiff_t idx)
 {
   return & XVECTOR (array)->contents[idx];
 }
 
 INLINE ptrdiff_t
-gc_asize (Lisp_Object array)
+gc_asize (ELisp_Handle array)
 {
   /* Like ASIZE, but also can be used in the garbage collector.  */
   return XVECTOR (array)->header.size & ~ARRAY_MARK_FLAG;
 }
 
 INLINE void
-ASET (Lisp_Object array, ptrdiff_t idx, Lisp_Object val)
+ASET (ELisp_Handle array, ptrdiff_t idx, ELisp_Handle val)
 {
   eassert (0 <= idx && idx < ASIZE (array));
   XVECTOR (array)->contents[idx] = val;
 }
 
 INLINE void
-gc_aset (Lisp_Object array, ptrdiff_t idx, Lisp_Object val)
+gc_aset (ELisp_Handle array, ptrdiff_t idx, ELisp_Handle val)
 {
   /* Like ASET, but also can be used in the garbage collector:
      sweep_weak_table calls set_hash_key etc. while the table is marked.  */
@@ -1678,7 +3438,7 @@ memclear (void *p, ptrdiff_t nbytes)
    returns true.  For efficiency, prefer plain unsigned comparison if A
    and B's sizes both fit (after integer promotion).  */
 #define UNSIGNED_CMP(a, op, b)						\
-  (max (sizeof ((a) + 0), sizeof ((b) + 0)) <= sizeof (unsigned)	\
+  (c_max (sizeof ((a) + 0), sizeof ((b) + 0)) <= sizeof (unsigned)	\
    ? ((a) + (unsigned) 0) op ((b) + (unsigned) 0)			\
    : ((a) + (uintmax_t) 0) op ((b) + (uintmax_t) 0))
 
@@ -1712,49 +3472,48 @@ struct Lisp_Char_Table
        pseudovector type information.  It holds the size, too.
        The size counts the defalt, parent, purpose, ascii,
        contents, and extras slots.  */
-    union vectorlike_header header;
+    struct vectorlike_header header;
 
     /* This holds a default value,
        which is used whenever the value for a specific character is nil.  */
-    Lisp_Object defalt;
+    ELisp_Struct_Value defalt;
 
     /* This points to another char table, which we inherit from when the
        value for a specific character is nil.  The `defalt' slot takes
        precedence over this.  */
-    Lisp_Object parent;
+    ELisp_Struct_Value parent;
 
     /* This is a symbol which says what kind of use this char-table is
        meant for.  */
-    Lisp_Object purpose;
+    ELisp_Struct_Value purpose;
 
     /* The bottom sub char-table for characters of the range 0..127.  It
        is nil if none of ASCII character has a specific value.  */
-    Lisp_Object ascii;
+    ELisp_Struct_Value ascii;
 
-    Lisp_Object contents[(1 << CHARTAB_SIZE_BITS_0)];
+    ELisp_Struct_Value contents[(1 << CHARTAB_SIZE_BITS_0)];
 
     /* These hold additional data.  It is a vector.  */
-    Lisp_Object extras[FLEXIBLE_ARRAY_MEMBER];
+    ELisp_Struct_Value extras[FLEXIBLE_ARRAY_MEMBER];
   };
 
 INLINE bool
-CHAR_TABLE_P (Lisp_Object a)
+CHAR_TABLE_P (ELisp_Handle a)
 {
   return PSEUDOVECTORP (a, PVEC_CHAR_TABLE);
 }
 
 INLINE struct Lisp_Char_Table *
-XCHAR_TABLE (Lisp_Object a)
+XCHAR_TABLE (ELisp_Handle a)
 {
-  eassert (CHAR_TABLE_P (a));
-  return XUNTAG (a, Lisp_Vectorlike);
+  return (struct Lisp_Char_Table *)a.xvector();
 }
 
 struct Lisp_Sub_Char_Table
   {
     /* HEADER.SIZE is the vector's size field, which also holds the
        pseudovector type information.  It holds the size, too.  */
-    union vectorlike_header header;
+    struct vectorlike_header header;
 
     /* Depth of this sub char-table.  It should be 1, 2, or 3.  A sub
        char-table of depth 1 contains 16 elements, and each element
@@ -1768,34 +3527,33 @@ struct Lisp_Sub_Char_Table
     int min_char;
 
     /* Use set_sub_char_table_contents to set this.  */
-    Lisp_Object contents[FLEXIBLE_ARRAY_MEMBER];
+    ELisp_Struct_Value contents[FLEXIBLE_ARRAY_MEMBER];
   };
 
 INLINE bool
-SUB_CHAR_TABLE_P (Lisp_Object a)
+SUB_CHAR_TABLE_P (ELisp_Handle a)
 {
   return PSEUDOVECTORP (a, PVEC_SUB_CHAR_TABLE);
 }
 
 INLINE struct Lisp_Sub_Char_Table *
-XSUB_CHAR_TABLE (Lisp_Object a)
+XSUB_CHAR_TABLE (ELisp_Handle a)
 {
-  eassert (SUB_CHAR_TABLE_P (a));
-  return XUNTAG (a, Lisp_Vectorlike);
+  return (struct Lisp_Sub_Char_Table *)a.xvector();
 }
 
-INLINE Lisp_Object
-CHAR_TABLE_REF_ASCII (Lisp_Object ct, ptrdiff_t idx)
+INLINE ELisp_Return_Value
+CHAR_TABLE_REF_ASCII (ELisp_Handle ct, ptrdiff_t idx)
 {
   struct Lisp_Char_Table *tbl = NULL;
-  Lisp_Object val;
+  ELisp_Value val;
   do
     {
       tbl = tbl ? XCHAR_TABLE (tbl->parent) : XCHAR_TABLE (ct);
       val = (! SUB_CHAR_TABLE_P (tbl->ascii) ? tbl->ascii
-	     : XSUB_CHAR_TABLE (tbl->ascii)->contents[idx]);
+             : XSUB_CHAR_TABLE (tbl->ascii)->contents[idx]);
       if (NILP (val))
-	val = tbl->defalt;
+        val = tbl->defalt;
     }
   while (NILP (val) && ! NILP (tbl->parent));
 
@@ -1804,18 +3562,18 @@ CHAR_TABLE_REF_ASCII (Lisp_Object ct, ptrdiff_t idx)
 
 /* Almost equivalent to Faref (CT, IDX) with optimization for ASCII
    characters.  Do not check validity of CT.  */
-INLINE Lisp_Object
-CHAR_TABLE_REF (Lisp_Object ct, int idx)
+INLINE ELisp_Return_Value
+CHAR_TABLE_REF (ELisp_Handle ct, int idx)
 {
   return (ASCII_CHAR_P (idx)
-	  ? CHAR_TABLE_REF_ASCII (ct, idx)
-	  : char_table_ref (ct, idx));
+          ? CHAR_TABLE_REF_ASCII (ct, idx)
+          : char_table_ref (ct, idx));
 }
 
 /* Equivalent to Faset (CT, IDX, VAL) with optimization for ASCII and
    8-bit European characters.  Do not check validity of CT.  */
 INLINE void
-CHAR_TABLE_SET (Lisp_Object ct, int idx, Lisp_Object val)
+CHAR_TABLE_SET (ELisp_Handle ct, int idx, ELisp_Handle val)
 {
   if (ASCII_CHAR_P (idx) && SUB_CHAR_TABLE_P (XCHAR_TABLE (ct)->ascii))
     set_sub_char_table_contents (XCHAR_TABLE (ct)->ascii, idx, val);
@@ -1827,39 +3585,39 @@ CHAR_TABLE_SET (Lisp_Object ct, int idx, Lisp_Object val)
    It is generated by the DEFUN macro only.
    defsubr makes it into a Lisp object.  */
 
+union subr_function {
+  ELisp_Return_Value (*a0) (void);
+  ELisp_Return_Value (*a1) (ELisp_Handle);
+  ELisp_Return_Value (*a2) (ELisp_Handle, ELisp_Handle);
+  ELisp_Return_Value (*a3) (ELisp_Handle, ELisp_Handle, ELisp_Handle);
+  ELisp_Return_Value (*a4) (ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle);
+  ELisp_Return_Value (*a5) (ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle);
+  ELisp_Return_Value (*a6) (ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle);
+  ELisp_Return_Value (*a7) (ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle);
+  ELisp_Return_Value (*a8) (ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle);
+  ELisp_Return_Value (*aUNEVALLED) (ELisp_Handle args);
+  ELisp_Return_Value (*aMANY) (ELisp_Vector);
+};
 struct Lisp_Subr
   {
-    union vectorlike_header header;
-    union {
-      Lisp_Object (*a0) (void);
-      Lisp_Object (*a1) (Lisp_Object);
-      Lisp_Object (*a2) (Lisp_Object, Lisp_Object);
-      Lisp_Object (*a3) (Lisp_Object, Lisp_Object, Lisp_Object);
-      Lisp_Object (*a4) (Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object);
-      Lisp_Object (*a5) (Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object);
-      Lisp_Object (*a6) (Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object);
-      Lisp_Object (*a7) (Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object);
-      Lisp_Object (*a8) (Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object);
-      Lisp_Object (*aUNEVALLED) (Lisp_Object args);
-      Lisp_Object (*aMANY) (ptrdiff_t, Lisp_Object *);
-    } function;
-    short min_args, max_args;
+    struct vectorlike_header header;
+    union subr_function function;
+    short min_args; short max_args;
     const char *symbol_name;
     const char *intspec;
     EMACS_INT doc;
   };
 
 INLINE bool
-SUBRP (Lisp_Object a)
+SUBRP (ELisp_Handle a)
 {
   return PSEUDOVECTORP (a, PVEC_SUBR);
 }
 
 INLINE struct Lisp_Subr *
-XSUBR (Lisp_Object a)
+XSUBR (ELisp_Handle a)
 {
-  eassert (SUBRP (a));
-  return XUNTAG (a, Lisp_Vectorlike);
+  return (struct Lisp_Subr *)a.xvector();
 }
 
 enum char_table_specials
@@ -1880,13 +3638,13 @@ INLINE int
 CHAR_TABLE_EXTRA_SLOTS (struct Lisp_Char_Table *ct)
 {
   return ((ct->header.size & PSEUDOVECTOR_SIZE_MASK)
-	  - CHAR_TABLE_STANDARD_SLOTS);
+          - CHAR_TABLE_STANDARD_SLOTS);
 }
 
 /* Make sure that sub char-table contents slot is where we think it is.  */
 verify (offsetof (struct Lisp_Sub_Char_Table, contents)
-	== (offsetof (struct Lisp_Vector, contents)
-	    + SUB_CHAR_TABLE_OFFSET * sizeof (Lisp_Object)));
+        == (offsetof (struct Lisp_Vector, contents)
+            + SUB_CHAR_TABLE_OFFSET * sizeof (Lisp_Object)));
 
 
 /* Save and restore the instruction and environment pointers,
@@ -1908,7 +3666,7 @@ typedef jmp_buf sys_jmp_buf;
 # define sys_longjmp(j, v) longjmp (j, v)
 #endif
 
-#include "thread.h"
+#include "thread.h.hh"
 
 /***********************************************************************
 			       Symbols
@@ -1916,7 +3674,7 @@ typedef jmp_buf sys_jmp_buf;
 
 /* Value is name of symbol.  */
 
-INLINE Lisp_Object
+INLINE ELisp_Return_Value
 (SYMBOL_VAL) (struct Lisp_Symbol *sym)
 {
   return lisp_h_SYMBOL_VAL (sym);
@@ -1925,24 +3683,24 @@ INLINE Lisp_Object
 INLINE struct Lisp_Symbol *
 SYMBOL_ALIAS (struct Lisp_Symbol *sym)
 {
-  eassume (sym->u.s.redirect == SYMBOL_VARALIAS && sym->u.s.val.alias);
-  return sym->u.s.val.alias;
+  eassume (sym->redirect == SYMBOL_VARALIAS && sym->val.alias);
+  return sym->val.alias;
 }
 INLINE struct Lisp_Buffer_Local_Value *
 SYMBOL_BLV (struct Lisp_Symbol *sym)
 {
-  eassume (sym->u.s.redirect == SYMBOL_LOCALIZED && sym->u.s.val.blv);
-  return sym->u.s.val.blv;
+  eassume (sym->redirect == SYMBOL_LOCALIZED && sym->val.blv);
+  return sym->val.blv;
 }
 INLINE union Lisp_Fwd *
 SYMBOL_FWD (struct Lisp_Symbol *sym)
 {
-  eassume (sym->u.s.redirect == SYMBOL_FORWARDED && sym->u.s.val.fwd);
-  return sym->u.s.val.fwd;
+  eassume (sym->redirect == SYMBOL_FORWARDED && sym->val.fwd);
+  return sym->val.fwd;
 }
 
 INLINE void
-(SET_SYMBOL_VAL) (struct Lisp_Symbol *sym, Lisp_Object v)
+(SET_SYMBOL_VAL) (struct Lisp_Symbol *sym, ELisp_Handle v)
 {
   lisp_h_SET_SYMBOL_VAL (sym, v);
 }
@@ -1950,42 +3708,42 @@ INLINE void
 INLINE void
 SET_SYMBOL_ALIAS (struct Lisp_Symbol *sym, struct Lisp_Symbol *v)
 {
-  eassume (sym->u.s.redirect == SYMBOL_VARALIAS && v);
-  sym->u.s.val.alias = v;
+  eassume (sym->redirect == SYMBOL_VARALIAS && v);
+  sym->val.alias = v;
 }
 INLINE void
 SET_SYMBOL_BLV (struct Lisp_Symbol *sym, struct Lisp_Buffer_Local_Value *v)
 {
-  eassume (sym->u.s.redirect == SYMBOL_LOCALIZED && v);
-  sym->u.s.val.blv = v;
+  eassume (sym->redirect == SYMBOL_LOCALIZED && v);
+  sym->val.blv = v;
 }
 INLINE void
 SET_SYMBOL_FWD (struct Lisp_Symbol *sym, union Lisp_Fwd *v)
 {
-  eassume (sym->u.s.redirect == SYMBOL_FORWARDED && v);
-  sym->u.s.val.fwd = v;
+  eassume (sym->redirect == SYMBOL_FORWARDED && v);
+  sym->val.fwd = v;
 }
 
-INLINE Lisp_Object
-SYMBOL_NAME (Lisp_Object sym)
+INLINE ELisp_Return_Value
+SYMBOL_NAME (ELisp_Handle sym)
 {
-  return XSYMBOL (sym)->u.s.name;
+  return XSYMBOL (sym)->name;
 }
 
 /* Value is true if SYM is an interned symbol.  */
 
 INLINE bool
-SYMBOL_INTERNED_P (Lisp_Object sym)
+SYMBOL_INTERNED_P (ELisp_Handle sym)
 {
-  return XSYMBOL (sym)->u.s.interned != SYMBOL_UNINTERNED;
+  return XSYMBOL (sym)->interned != SYMBOL_UNINTERNED;
 }
 
 /* Value is true if SYM is interned in initial_obarray.  */
 
 INLINE bool
-SYMBOL_INTERNED_IN_INITIAL_OBARRAY_P (Lisp_Object sym)
+SYMBOL_INTERNED_IN_INITIAL_OBARRAY_P (ELisp_Handle sym)
 {
-  return XSYMBOL (sym)->u.s.interned == SYMBOL_INTERNED_IN_INITIAL_OBARRAY;
+  return XSYMBOL (sym)->interned == SYMBOL_INTERNED_IN_INITIAL_OBARRAY;
 }
 
 /* Value is non-zero if symbol cannot be changed through a simple set,
@@ -1993,7 +3751,7 @@ SYMBOL_INTERNED_IN_INITIAL_OBARRAY_P (Lisp_Object sym)
    watching functions.  */
 
 INLINE int
-(SYMBOL_TRAPPED_WRITE_P) (Lisp_Object sym)
+(SYMBOL_TRAPPED_WRITE_P) (ELisp_Handle sym)
 {
   return lisp_h_SYMBOL_TRAPPED_WRITE_P (sym);
 }
@@ -2004,7 +3762,7 @@ INLINE int
    functions.  */
 
 INLINE int
-(SYMBOL_CONSTANT_P) (Lisp_Object sym)
+(SYMBOL_CONSTANT_P) (ELisp_Handle sym)
 {
   return lisp_h_SYMBOL_CONSTANT_P (sym);
 }
@@ -2023,45 +3781,50 @@ INLINE int
 struct hash_table_test
 {
   /* Name of the function used to compare keys.  */
-  Lisp_Object name;
+  ELisp_Struct_Value name;
 
   /* User-supplied hash function, or nil.  */
-  Lisp_Object user_hash_function;
+  ELisp_Struct_Value user_hash_function;
 
   /* User-supplied key comparison function, or nil.  */
-  Lisp_Object user_cmp_function;
+  ELisp_Struct_Value user_cmp_function;
 
   /* C function to compare two keys.  */
-  bool (*cmpfn) (struct hash_table_test *t, Lisp_Object, Lisp_Object);
+  bool (*cmpfn) (struct hash_table_test *t, ELisp_Handle, ELisp_Handle);
 
   /* C function to compute hash code.  */
-  EMACS_UINT (*hashfn) (struct hash_table_test *t, Lisp_Object);
+  EMACS_UINT (*hashfn) (struct hash_table_test *t, ELisp_Handle);
 };
 
 struct Lisp_Hash_Table
 {
   /* This is for Lisp; the hash table code does not refer to it.  */
-  union vectorlike_header header;
+  struct vectorlike_header header;
 
   /* Nil if table is non-weak.  Otherwise a symbol describing the
      weakness of the table.  */
-  Lisp_Object weak;
+  ELisp_Struct_Value weak;
 
   /* Vector of hash codes.  If hash[I] is nil, this means that the
      I-th entry is unused.  */
-  Lisp_Object hash;
+  ELisp_Struct_Value hash;
 
   /* Vector used to chain entries.  If entry I is free, next[I] is the
      entry number of the next free item.  If entry I is non-free,
      next[I] is the index of the next entry in the collision chain,
      or -1 if there is such entry.  */
-  Lisp_Object next;
+  ELisp_Struct_Value next;
 
   /* Bucket vector.  An entry of -1 indicates no item is present,
      and a nonnegative entry is the index of the first item in
      a collision chain.  This vector's size can be larger than the
      hash table size to reduce collisions.  */
-  Lisp_Object index;
+  ELisp_Struct_Value index;
+
+  /* Vector of keys and values.  The key of item I is found at index
+     2 * I, the value is found at index 2 * I + 1.
+     This is gc_marked specially if the table is weak.  */
+  ELisp_Struct_Value key_and_value;
 
   /* Only the fields above are traced normally by the GC.  The ones below
      `count' are special and are either ignored by the GC or traced in
@@ -2088,11 +3851,6 @@ struct Lisp_Hash_Table
      new size is the old size times REHASH_SIZE + 1.  */
   float rehash_size;
 
-  /* Vector of keys and values.  The key of item I is found at index
-     2 * I, the value is found at index 2 * I + 1.
-     This is gc_marked specially if the table is weak.  */
-  Lisp_Object key_and_value;
-
   /* The comparison and hash functions.  */
   struct hash_table_test test;
 
@@ -2103,37 +3861,36 @@ struct Lisp_Hash_Table
 
 
 INLINE bool
-HASH_TABLE_P (Lisp_Object a)
+HASH_TABLE_P (ELisp_Handle a)
 {
   return PSEUDOVECTORP (a, PVEC_HASH_TABLE);
 }
 
 INLINE struct Lisp_Hash_Table *
-XHASH_TABLE (Lisp_Object a)
+XHASH_TABLE (ELisp_Handle a)
 {
-  eassert (HASH_TABLE_P (a));
-  return XUNTAG (a, Lisp_Vectorlike);
+  return (struct Lisp_Hash_Table *)a.xvector();
 }
 
 #define XSET_HASH_TABLE(VAR, PTR) \
      (XSETPSEUDOVECTOR (VAR, PTR, PVEC_HASH_TABLE))
 
 /* Value is the key part of entry IDX in hash table H.  */
-INLINE Lisp_Object
+INLINE ELisp_Return_Value
 HASH_KEY (struct Lisp_Hash_Table *h, ptrdiff_t idx)
 {
   return AREF (h->key_and_value, 2 * idx);
 }
 
 /* Value is the value part of entry IDX in hash table H.  */
-INLINE Lisp_Object
+INLINE ELisp_Return_Value
 HASH_VALUE (struct Lisp_Hash_Table *h, ptrdiff_t idx)
 {
   return AREF (h->key_and_value, 2 * idx + 1);
 }
 
 /* Value is the hash code computed for entry IDX in hash table H.  */
-INLINE Lisp_Object
+INLINE ELisp_Return_Value
 HASH_HASH (struct Lisp_Hash_Table *h, ptrdiff_t idx)
 {
   return AREF (h->hash, idx);
@@ -2181,32 +3938,34 @@ SXHASH_REDUCE (EMACS_UINT x)
 
 struct Lisp_Misc_Any		/* Supertype of all Misc types.  */
 {
+  JS::Heap<JS::Value> jsval;
   ENUM_BF (Lisp_Misc_Type) type : 16;		/* = Lisp_Misc_??? */
   bool_bf gcmarkbit : 1;
   unsigned spacer : 15;
 };
 
 INLINE bool
-(MISCP) (Lisp_Object x)
+(MISCP) (ELisp_Handle x)
 {
   return lisp_h_MISCP (x);
 }
 
+
 INLINE struct Lisp_Misc_Any *
-XMISCANY (Lisp_Object a)
+XMISCANY (ELisp_Handle a)
 {
-  eassert (MISCP (a));
-  return XUNTAG (a, Lisp_Misc);
+  return (struct Lisp_Misc_Any *)a.xmisc();
 }
 
 INLINE enum Lisp_Misc_Type
-XMISCTYPE (Lisp_Object a)
+XMISCTYPE (ELisp_Handle a)
 {
   return XMISCANY (a)->type;
 }
 
 struct Lisp_Marker
 {
+  JS::Heap<JS::Value> jsval;
   ENUM_BF (Lisp_Misc_Type) type : 16;		/* = Lisp_Misc_Marker */
   bool_bf gcmarkbit : 1;
   unsigned spacer : 13;
@@ -2261,13 +4020,14 @@ struct Lisp_Overlay
    I.e. 9words plus 2 bits, 3words of which are for external linked lists.
 */
   {
+    JS::Heap<JS::Value> jsval;
     ENUM_BF (Lisp_Misc_Type) type : 16;	/* = Lisp_Misc_Overlay */
     bool_bf gcmarkbit : 1;
     unsigned spacer : 15;
     struct Lisp_Overlay *next;
-    Lisp_Object start;
-    Lisp_Object end;
-    Lisp_Object plist;
+    ELisp_Struct_Value start;
+    ELisp_Struct_Value end;
+    ELisp_Struct_Value plist;
   };
 
 /* Number of bits needed to store one of the values
@@ -2309,9 +4069,9 @@ enum Lisp_Save_Type
 
 /* SAVE_SLOT_BITS must be large enough to represent these values.  */
 verify (((SAVE_UNUSED | SAVE_INTEGER | SAVE_FUNCPOINTER
-	  | SAVE_POINTER | SAVE_OBJECT)
-	 >> SAVE_SLOT_BITS)
-	== 0);
+          | SAVE_POINTER | SAVE_OBJECT)
+         >> SAVE_SLOT_BITS)
+        == 0);
 
 /* Special object used to hold a different values for later use.
 
@@ -2342,6 +4102,7 @@ typedef void (*voidfuncptr) (void);
 
 struct Lisp_Save_Value
   {
+    JS::Heap<JS::Value> jsval;
     ENUM_BF (Lisp_Misc_Type) type : 16;	/* = Lisp_Misc_Save_Value */
     bool_bf gcmarkbit : 1;
     unsigned spacer : 32 - (16 + 1 + SAVE_TYPE_BITS);
@@ -2358,21 +4119,20 @@ struct Lisp_Save_Value
       void *pointer;
       voidfuncptr funcpointer;
       ptrdiff_t integer;
-      Lisp_Object object;
+      ELisp_Struct_Value object;
     } data[SAVE_VALUE_SLOTS];
   };
 
 INLINE bool
-SAVE_VALUEP (Lisp_Object x)
+SAVE_VALUEP (ELisp_Handle x)
 {
   return MISCP (x) && XMISCTYPE (x) == Lisp_Misc_Save_Value;
 }
 
 INLINE struct Lisp_Save_Value *
-XSAVE_VALUE (Lisp_Object a)
+XSAVE_VALUE (ELisp_Handle a)
 {
-  eassert (SAVE_VALUEP (a));
-  return XUNTAG (a, Lisp_Misc);
+  return (struct Lisp_Save_Value *)a.xmisc();
 }
 
 /* Return the type of V's Nth saved value.  */
@@ -2386,19 +4146,19 @@ save_type (struct Lisp_Save_Value *v, int n)
 /* Get and set the Nth saved pointer.  */
 
 INLINE void *
-XSAVE_POINTER (Lisp_Object obj, int n)
+XSAVE_POINTER (ELisp_Handle obj, int n)
 {
   eassert (save_type (XSAVE_VALUE (obj), n) == SAVE_POINTER);
   return XSAVE_VALUE (obj)->data[n].pointer;
 }
 INLINE void
-set_save_pointer (Lisp_Object obj, int n, void *val)
+set_save_pointer (ELisp_Handle obj, int n, void *val)
 {
   eassert (save_type (XSAVE_VALUE (obj), n) == SAVE_POINTER);
   XSAVE_VALUE (obj)->data[n].pointer = val;
 }
 INLINE voidfuncptr
-XSAVE_FUNCPOINTER (Lisp_Object obj, int n)
+XSAVE_FUNCPOINTER (ELisp_Handle obj, int n)
 {
   eassert (save_type (XSAVE_VALUE (obj), n) == SAVE_FUNCPOINTER);
   return XSAVE_VALUE (obj)->data[n].funcpointer;
@@ -2407,13 +4167,13 @@ XSAVE_FUNCPOINTER (Lisp_Object obj, int n)
 /* Likewise for the saved integer.  */
 
 INLINE ptrdiff_t
-XSAVE_INTEGER (Lisp_Object obj, int n)
+XSAVE_INTEGER (ELisp_Handle obj, int n)
 {
   eassert (save_type (XSAVE_VALUE (obj), n) == SAVE_INTEGER);
   return XSAVE_VALUE (obj)->data[n].integer;
 }
 INLINE void
-set_save_integer (Lisp_Object obj, int n, ptrdiff_t val)
+set_save_integer (ELisp_Handle obj, int n, ptrdiff_t val)
 {
   eassert (save_type (XSAVE_VALUE (obj), n) == SAVE_INTEGER);
   XSAVE_VALUE (obj)->data[n].integer = val;
@@ -2421,8 +4181,8 @@ set_save_integer (Lisp_Object obj, int n, ptrdiff_t val)
 
 /* Extract Nth saved object.  */
 
-INLINE Lisp_Object
-XSAVE_OBJECT (Lisp_Object obj, int n)
+INLINE ELisp_Return_Value
+XSAVE_OBJECT (ELisp_Handle obj, int n)
 {
   eassert (save_type (XSAVE_VALUE (obj), n) == SAVE_OBJECT);
   return XSAVE_VALUE (obj)->data[n].object;
@@ -2431,6 +4191,7 @@ XSAVE_OBJECT (Lisp_Object obj, int n)
 #ifdef HAVE_MODULES
 struct Lisp_User_Ptr
 {
+  JS::Heap<JS::Value> jsval;
   ENUM_BF (Lisp_Misc_Type) type : 16;	     /* = Lisp_Misc_User_Ptr */
   bool_bf gcmarkbit : 1;
   unsigned spacer : 15;
@@ -2443,6 +4204,7 @@ struct Lisp_User_Ptr
 /* A finalizer sentinel.  */
 struct Lisp_Finalizer
   {
+    JS::Heap<JS::Value> jsval;
     struct Lisp_Misc_Any base;
 
     /* Circular list of all active weak references.  */
@@ -2452,25 +4214,25 @@ struct Lisp_Finalizer
     /* Call FUNCTION when the finalizer becomes unreachable, even if
        FUNCTION contains a reference to the finalizer; i.e., call
        FUNCTION when it is reachable _only_ through finalizers.  */
-    Lisp_Object function;
+    ELisp_Struct_Value function;
   };
 
 INLINE bool
-FINALIZERP (Lisp_Object x)
+FINALIZERP (ELisp_Handle x)
 {
   return MISCP (x) && XMISCTYPE (x) == Lisp_Misc_Finalizer;
 }
 
 INLINE struct Lisp_Finalizer *
-XFINALIZER (Lisp_Object a)
+XFINALIZER (ELisp_Handle a)
 {
-  eassert (FINALIZERP (a));
-  return XUNTAG (a, Lisp_Misc);
+  return (struct Lisp_Finalizer *)a.xmisc();
 }
 
 /* A miscellaneous object, when it's on the free list.  */
 struct Lisp_Free
   {
+    JS::Heap<JS::Value> jsval;
     ENUM_BF (Lisp_Misc_Type) type : 16;	/* = Lisp_Misc_Free */
     bool_bf gcmarkbit : 1;
     unsigned spacer : 15;
@@ -2494,49 +4256,42 @@ union Lisp_Misc
   };
 
 INLINE union Lisp_Misc *
-XMISC (Lisp_Object a)
+XMISC (ELisp_Handle a)
 {
-  return XUNTAG (a, Lisp_Misc);
-}
-
-INLINE bool
-(MARKERP) (Lisp_Object x)
-{
-  return lisp_h_MARKERP (x);
+  return a.xmisc();
 }
 
 INLINE struct Lisp_Marker *
-XMARKER (Lisp_Object a)
+XMARKER (ELisp_Handle a)
 {
-  eassert (MARKERP (a));
-  return XUNTAG (a, Lisp_Misc);
+  return (struct Lisp_Marker *)a.xmisc();
 }
 
 INLINE bool
-OVERLAYP (Lisp_Object x)
+OVERLAYP (ELisp_Handle x)
 {
   return MISCP (x) && XMISCTYPE (x) == Lisp_Misc_Overlay;
 }
 
+#define XSETOVERLAY(a, b) (a).xsetmisc((struct Lisp_Misc *)(b))
+
 INLINE struct Lisp_Overlay *
-XOVERLAY (Lisp_Object a)
+XOVERLAY (ELisp_Handle a)
 {
-  eassert (OVERLAYP (a));
-  return XUNTAG (a, Lisp_Misc);
+  return (struct Lisp_Overlay *)a.xmisc();
 }
 
 #ifdef HAVE_MODULES
 INLINE bool
-USER_PTRP (Lisp_Object x)
+USER_PTRP (ELisp_Handle x)
 {
   return MISCP (x) && XMISCTYPE (x) == Lisp_Misc_User_Ptr;
 }
 
 INLINE struct Lisp_User_Ptr *
-XUSER_PTR (Lisp_Object a)
+XUSER_PTR (ELisp_Handle a)
 {
-  eassert (USER_PTRP (a));
-  return XUNTAG (a, Lisp_Misc);
+  return (struct Lisp_User_Ptr *)a.xmisc();
 }
 #endif
 
@@ -2568,7 +4323,7 @@ struct Lisp_Boolfwd
 struct Lisp_Objfwd
   {
     enum Lisp_Fwd_Type type;	/* = Lisp_Fwd_Obj */
-    Lisp_Object *objvar;
+    ELisp_Pointer objvar;
   };
 
 /* Like Lisp_Objfwd except that value lives in a slot in the
@@ -2578,7 +4333,7 @@ struct Lisp_Buffer_Objfwd
     enum Lisp_Fwd_Type type;	/* = Lisp_Fwd_Buffer_Obj */
     int offset;
     /* One of Qnil, Qintegerp, Qsymbolp, Qstringp, Qfloatp or Qnumberp.  */
-    Lisp_Object predicate;
+    ELisp_Struct_Value predicate;
   };
 
 /* struct Lisp_Buffer_Local_Value is used in a symbol value cell when
@@ -2616,16 +4371,16 @@ struct Lisp_Buffer_Local_Value
     /* If non-NULL, a forwarding to the C var where it should also be set.  */
     union Lisp_Fwd *fwd;	/* Should never be (Buffer|Kboard)_Objfwd.  */
     /* The buffer or frame for which the loaded binding was found.  */
-    Lisp_Object where;
+    ELisp_Struct_Value where;
     /* A cons cell that holds the default value.  It has the form
        (SYMBOL . DEFAULT-VALUE).  */
-    Lisp_Object defcell;
+    ELisp_Struct_Value defcell;
     /* The cons cell from `where's parameter alist.
        It always has the form (SYMBOL . VALUE)
        Note that if `forward' is non-nil, VALUE may be out of date.
        Also if the currently loaded binding is the default binding, then
        this is `eq'ual to defcell.  */
-    Lisp_Object valcell;
+    ELisp_Struct_Value valcell;
   };
 
 /* Like Lisp_Objfwd except that value lives in a slot in the
@@ -2664,33 +4419,22 @@ XBUFFER_OBJFWD (union Lisp_Fwd *a)
   return &a->u_buffer_objfwd;
 }
 
-/* Lisp floating point type.  */
-struct Lisp_Float
-  {
-    union
-    {
-      double data;
-      struct Lisp_Float *chain;
-    } u;
-  };
-
 INLINE bool
-(FLOATP) (Lisp_Object x)
+(FLOATP) (ELisp_Handle x)
 {
   return lisp_h_FLOATP (x);
 }
 
-INLINE struct Lisp_Float *
-XFLOAT (Lisp_Object a)
+INLINE double
+XFLOAT (ELisp_Handle a)
 {
-  eassert (FLOATP (a));
-  return XUNTAG (a, Lisp_Float);
+  return a.xfloat();
 }
 
 INLINE double
-XFLOAT_DATA (Lisp_Object f)
+XFLOAT_DATA (ELisp_Handle f)
 {
-  return XFLOAT (f)->u.data;
+  return XFLOAT (f);
 }
 
 /* Most hosts nowadays use IEEE floating point, so they use IEC 60559
@@ -2704,7 +4448,7 @@ enum
   {
     IEEE_FLOATING_POINT
       = (FLT_RADIX == 2 && FLT_MANT_DIG == 24
-	 && FLT_MIN_EXP == -125 && FLT_MAX_EXP == 128)
+         && FLT_MIN_EXP == -125 && FLT_MAX_EXP == 128)
   };
 
 /* A character, declared with the following typedef, is a member
@@ -2750,18 +4494,18 @@ enum char_bits
 /* Data type checking.  */
 
 INLINE bool
-NUMBERP (Lisp_Object x)
+NUMBERP (ELisp_Handle x)
 {
   return INTEGERP (x) || FLOATP (x);
 }
 INLINE bool
-NATNUMP (Lisp_Object x)
+NATNUMP (ELisp_Handle x)
 {
   return INTEGERP (x) && 0 <= XINT (x);
 }
 
 INLINE bool
-RANGED_INTEGERP (intmax_t lo, Lisp_Object x, intmax_t hi)
+RANGED_INTEGERP (intmax_t lo, ELisp_Handle x, intmax_t hi)
 {
   return INTEGERP (x) && lo <= XINT (x) && XINT (x) <= hi;
 }
@@ -2772,7 +4516,7 @@ RANGED_INTEGERP (intmax_t lo, Lisp_Object x, intmax_t hi)
    && XINT (x) <= TYPE_MAXIMUM (type))
 
 INLINE bool
-AUTOLOADP (Lisp_Object x)
+AUTOLOADP (ELisp_Handle x)
 {
   return CONSP (x) && EQ (Qautoload, XCAR (x));
 }
@@ -2781,75 +4525,75 @@ AUTOLOADP (Lisp_Object x)
 /* Test for specific pseudovector types.  */
 
 INLINE bool
-WINDOW_CONFIGURATIONP (Lisp_Object a)
+WINDOW_CONFIGURATIONP (ELisp_Handle a)
 {
   return PSEUDOVECTORP (a, PVEC_WINDOW_CONFIGURATION);
 }
 
 INLINE bool
-COMPILEDP (Lisp_Object a)
+COMPILEDP (ELisp_Handle a)
 {
   return PSEUDOVECTORP (a, PVEC_COMPILED);
 }
 
 INLINE bool
-FRAMEP (Lisp_Object a)
+FRAMEP (ELisp_Handle a)
 {
   return PSEUDOVECTORP (a, PVEC_FRAME);
 }
 
 INLINE bool
-RECORDP (Lisp_Object a)
+RECORDP (ELisp_Handle a)
 {
   return PSEUDOVECTORP (a, PVEC_RECORD);
 }
 
 INLINE void
-CHECK_RECORD (Lisp_Object x)
+CHECK_RECORD (ELisp_Handle x)
 {
   CHECK_TYPE (RECORDP (x), Qrecordp, x);
 }
 
 /* Test for image (image . spec)  */
 INLINE bool
-IMAGEP (Lisp_Object x)
+IMAGEP (ELisp_Handle x)
 {
   return CONSP (x) && EQ (XCAR (x), Qimage);
 }
 
 /* Array types.  */
 INLINE bool
-ARRAYP (Lisp_Object x)
+ARRAYP (ELisp_Handle x)
 {
   return VECTORP (x) || STRINGP (x) || CHAR_TABLE_P (x) || BOOL_VECTOR_P (x);
 }
 
 INLINE void
-CHECK_LIST (Lisp_Object x)
+CHECK_LIST (ELisp_Handle x)
 {
   CHECK_TYPE (CONSP (x) || NILP (x), Qlistp, x);
 }
 
 INLINE void
-CHECK_LIST_END (Lisp_Object x, Lisp_Object y)
+CHECK_LIST_END (ELisp_Handle x, ELisp_Handle y)
 {
   CHECK_TYPE (NILP (x), Qlistp, y);
 }
 
 INLINE void
-(CHECK_NUMBER) (Lisp_Object x)
+(CHECK_NUMBER) (ELisp_Handle x)
 {
   lisp_h_CHECK_NUMBER (x);
 }
 
 INLINE void
-CHECK_STRING_CAR (Lisp_Object x)
+CHECK_STRING_CAR (ELisp_Handle x)
 {
   CHECK_TYPE (STRINGP (XCAR (x)), Qstringp, XCAR (x));
 }
 /* This is a bit special because we always need size afterwards.  */
 INLINE ptrdiff_t
-CHECK_VECTOR_OR_STRING (Lisp_Object x)
+CHECK_VECTOR_OR_STRING (ELisp_Handle x)
 {
   if (VECTORP (x))
     return ASIZE (x);
@@ -2858,12 +4602,12 @@ CHECK_VECTOR_OR_STRING (Lisp_Object x)
   wrong_type_argument (Qarrayp, x);
 }
 INLINE void
-CHECK_ARRAY (Lisp_Object x, Lisp_Object predicate)
+CHECK_ARRAY (ELisp_Handle x, ELisp_Handle predicate)
 {
   CHECK_TYPE (ARRAYP (x), predicate, x);
 }
 INLINE void
-CHECK_NATNUM (Lisp_Object x)
+CHECK_NATNUM (ELisp_Handle x)
 {
   CHECK_TYPE (NATNUMP (x), Qwholenump, x);
 }
@@ -2873,11 +4617,11 @@ CHECK_NATNUM (Lisp_Object x)
     CHECK_NUMBER (x);							\
     if (! ((lo) <= XINT (x) && XINT (x) <= (hi)))			\
       args_out_of_range_3						\
-	(x,								\
-	 make_number ((lo) < 0 && (lo) < MOST_NEGATIVE_FIXNUM		\
-		      ? MOST_NEGATIVE_FIXNUM				\
-		      : (lo)),						\
-	 make_number (min (hi, MOST_POSITIVE_FIXNUM)));			\
+        (x,								\
+         make_number ((lo) < 0 && (lo) < MOST_NEGATIVE_FIXNUM		\
+                      ? MOST_NEGATIVE_FIXNUM				\
+                      : (lo)),						\
+         make_number (c_min (hi, MOST_POSITIVE_FIXNUM)));               \
   } while (false)
 #define CHECK_TYPE_RANGED_INTEGER(type, x) \
   do {									\
@@ -2896,13 +4640,13 @@ CHECK_NATNUM (Lisp_Object x)
   } while (false)
 
 INLINE double
-XFLOATINT (Lisp_Object n)
+XFLOATINT (ELisp_Handle n)
 {
   return FLOATP (n) ? XFLOAT_DATA (n) : XINT (n);
 }
 
 INLINE void
-CHECK_NUMBER_OR_FLOAT (Lisp_Object x)
+CHECK_NUMBER_OR_FLOAT (ELisp_Handle x)
 {
   CHECK_TYPE (NUMBERP (x), Qnumberp, x);
 }
@@ -2918,17 +4662,17 @@ CHECK_NUMBER_OR_FLOAT (Lisp_Object x)
 /* Since we can't assign directly to the CAR or CDR fields of a cons
    cell, use these when checking that those fields contain numbers.  */
 INLINE void
-CHECK_NUMBER_CAR (Lisp_Object x)
+CHECK_NUMBER_CAR (ELisp_Handle x)
 {
-  Lisp_Object tmp = XCAR (x);
+  ELisp_Value tmp = XCAR (x);
   CHECK_NUMBER (tmp);
   XSETCAR (x, tmp);
 }
 
 INLINE void
-CHECK_NUMBER_CDR (Lisp_Object x)
+CHECK_NUMBER_CDR (ELisp_Handle x)
 {
-  Lisp_Object tmp = XCDR (x);
+  ELisp_Value tmp = XCDR (x);
   CHECK_NUMBER (tmp);
   XSETCDR (x, tmp);
 }
@@ -2946,9 +4690,9 @@ CHECK_NUMBER_CDR (Lisp_Object x)
  `maxargs' should be a number, the maximum number of arguments allowed,
     or else MANY or UNEVALLED.
     MANY means pass a vector of evaluated arguments,
-	 in the form of an integer number-of-arguments
-	 followed by the address of a vector of Lisp_Objects
-	 which contains the argument values.
+         in the form of an integer number-of-arguments
+         followed by the address of a vector of Lisp_Objects
+         which contains the argument values.
     UNEVALLED means pass the list of unevaluated arguments
  `intspec' says how interactive arguments are to be fetched.
     If the string starts with a `(', `intspec' is evaluated and the resulting
@@ -2960,12 +4704,23 @@ CHECK_NUMBER_CDR (Lisp_Object x)
 
 /* This version of DEFUN declares a function prototype with the right
    arguments, so we can catch errors with maxargs at compile-time.  */
+#ifdef _MSC_VER
 #define DEFUN(lname, fnname, sname, minargs, maxargs, intspec, doc)	\
-   static struct Lisp_Subr sname =				\
-     { { PVEC_SUBR << PSEUDOVECTOR_AREA_BITS },				\
+   ELisp_Return_Value fnname DEFUN_ARGS_ ## maxargs ;				\
+   static struct Lisp_Subr alignas (GCALIGNMENT) sname =		\
+   { { (PVEC_SUBR << PSEUDOVECTOR_AREA_BITS)				\
+       | (sizeof (struct Lisp_Subr) / sizeof (EMACS_INT)) },		\
+      { (ELisp_Return_Value (__cdecl *)(void))fnname },                        \
+       minargs, maxargs, lname, intspec, 0};				\
+   ELisp_Return_Value fnname
+#else  /* not _MSC_VER */
+#define DEFUN(lname, fnname, sname, minargs, maxargs, intspec, doc)	\
+   static struct Lisp_Subr alignas (GCALIGNMENT) sname =		\
+     { { {}, PVEC_SUBR << PSEUDOVECTOR_AREA_BITS },                    \
        { .a ## maxargs = fnname },					\
        minargs, maxargs, lname, intspec, 0};				\
-   Lisp_Object fnname
+   ELisp_Return_Value fnname
+#endif
 
 /* defsubr (Sname);
    is how we define the symbol for function `name' at start-up time.  */
@@ -2977,17 +4732,24 @@ enum maxargs
     UNEVALLED = -1
   };
 
+#define LV(n,v) ((struct ELisp_Vector){ (n), (v) })
+
 /* Call a function F that accepts many args, passing it ARRAY's elements.  */
-#define CALLMANY(f, array) (f) (ARRAYELTS (array), array)
+#define CALLMANY(f, array) (f) (LV (ARRAYELTS (array), array))
 
 /* Call a function F that accepts many args, passing it the remaining args,
    E.g., 'return CALLN (Fformat, fmt, text);' is less error-prone than
    '{ Lisp_Object a[2]; a[0] = fmt; a[1] = text; return Fformat (2, a); }'.
    CALLN is overkill for simple usages like 'Finsert (1, &text);'.  */
-#define CALLN(f, ...) CALLMANY (f, ((Lisp_Object []) {__VA_ARGS__}))
+#define CALLN(f, ...) ({                          \
+      ELisp_Value tmp[] = { __VA_ARGS__ };        \
+      ELisp_Vector v = LV (ARRAYELTS (tmp), tmp); \
+      auto ret = f(v);                            \
+      ret;                                        \
+    })
 
-extern void defvar_lisp (struct Lisp_Objfwd *, const char *, Lisp_Object *);
-extern void defvar_lisp_nopro (struct Lisp_Objfwd *, const char *, Lisp_Object *);
+extern void defvar_lisp (struct Lisp_Objfwd *, const char *, ELisp_Pointer);
+extern void defvar_lisp_nopro (struct Lisp_Objfwd *, const char *, ELisp_Pointer);
 extern void defvar_bool (struct Lisp_Boolfwd *, const char *, bool *);
 extern void defvar_int (struct Lisp_Intfwd *, const char *, EMACS_INT *);
 extern void defvar_kboard (struct Lisp_Kboard_Objfwd *, const char *, int);
@@ -3070,41 +4832,68 @@ enum specbind_tag {
   SPECPDL_LET_DEFAULT		/* A global binding for a localized var.  */
 };
 
-union specbinding
+struct specbinding
   {
     ENUM_BF (specbind_tag) kind : CHAR_BIT;
     struct {
-      ENUM_BF (specbind_tag) kind : CHAR_BIT;
-      void (*func) (Lisp_Object);
-      Lisp_Object arg;
+      void (*func) (ELisp_Handle);
+      ELisp_Struct_Value arg;
     } unwind;
     struct {
-      ENUM_BF (specbind_tag) kind : CHAR_BIT;
       void (*func) (void *);
       void *arg;
     } unwind_ptr;
     struct {
-      ENUM_BF (specbind_tag) kind : CHAR_BIT;
       void (*func) (int);
       int arg;
     } unwind_int;
     struct {
-      ENUM_BF (specbind_tag) kind : CHAR_BIT;
       void (*func) (void);
     } unwind_void;
     struct {
-      ENUM_BF (specbind_tag) kind : CHAR_BIT;
       /* `where' is not used in the case of SPECPDL_LET.  */
-      Lisp_Object symbol, old_value, where;
+      ELisp_Struct_Value symbol; ELisp_Struct_Value old_value; ELisp_Struct_Value where;
       /* Normally this is unused; but it is set to the symbol's
-	 current value when a thread is swapped out.  */
-      Lisp_Object saved_value;
+         current value when a thread is swapped out.  */
+      ELisp_Struct_Value saved_value;
     } let;
     struct {
-      ENUM_BF (specbind_tag) kind : CHAR_BIT;
       bool_bf debug_on_exit : 1;
-      Lisp_Object function;
-      Lisp_Object *args;
+      ELisp_Struct_Value function;
+      ELisp_Pointer args;
+      ptrdiff_t nargs;
+    } bt;
+  };
+
+struct specbinding_stack
+  {
+    ENUM_BF (specbind_tag) kind : CHAR_BIT;
+    struct {
+      void (*func) (ELisp_Handle);
+      ELisp_Value arg;
+    } unwind;
+    struct {
+      void (*func) (void *);
+      void *arg;
+    } unwind_ptr;
+    struct {
+      void (*func) (int);
+      int arg;
+    } unwind_int;
+    struct {
+      void (*func) (void);
+    } unwind_void;
+    struct {
+      /* `where' is not used in the case of SPECPDL_LET.  */
+      ELisp_Value symbol; ELisp_Value old_value; ELisp_Value where;
+      /* Normally this is unused; but it is set to the symbol's
+         current value when a thread is swapped out.  */
+      ELisp_Value saved_value;
+    } let;
+    struct {
+      bool_bf debug_on_exit : 1;
+      ELisp_Value function;
+      ELisp_Pointer args;
       ptrdiff_t nargs;
     } bt;
   };
@@ -3114,11 +4903,7 @@ union specbinding
 /* extern union specbinding *specpdl_ptr; */
 /* extern ptrdiff_t specpdl_size; */
 
-INLINE ptrdiff_t
-SPECPDL_INDEX (void)
-{
-  return specpdl_ptr - specpdl;
-}
+#define SPECPDL_INDEX() (specpdl_ptr - specpdl)
 
 /* This structure helps implement the `catch/throw' and `condition-case/signal'
    control structures.  A struct handler contains all the information needed to
@@ -3147,8 +4932,8 @@ enum handlertype { CATCHER, CONDITION_CASE, CATCHER_ALL };
 struct handler
 {
   enum handlertype type;
-  Lisp_Object tag_or_ch;
-  Lisp_Object val;
+  ELisp_Struct_Value tag_or_ch;
+  ELisp_Struct_Value val;
   struct handler *next;
   struct handler *nextfree;
 
@@ -3157,11 +4942,12 @@ struct handler
      this was and what was the corresponding internal state.  This is stored
      here, and when we longjmp we make sure that handlerlist points to the
      proper handler.  */
-  Lisp_Object *bytecode_top;
+  ELisp_Pointer bytecode_top;
   int bytecode_dest;
 
   /* Most global vars are reset to their value via the specpdl mechanism,
      but a few others are handled by storing their value here.  */
+  void *jmp_stack;
   sys_jmp_buf jmp;
   EMACS_INT f_lisp_eval_depth;
   ptrdiff_t pdlcount;
@@ -3169,7 +4955,7 @@ struct handler
   int interrupt_input_blocked;
 };
 
-extern Lisp_Object memory_signal_data;
+extern ELisp_Heap_Value memory_signal_data;
 
 extern void maybe_quit (void);
 
@@ -3188,12 +4974,12 @@ rarely_quit (unsigned short int count)
     maybe_quit ();
 }
 
-extern Lisp_Object Vascii_downcase_table;
-extern Lisp_Object Vascii_canon_table;
+extern ELisp_Heap_Value Vascii_downcase_table;
+extern ELisp_Heap_Value Vascii_canon_table;
 
 /* Call staticpro (&var) to protect static variable `var'.  */
 
-void staticpro (Lisp_Object *);
+void staticpro (ELisp_Pointer);
 
 /* Forward declarations for prototypes.  */
 struct window;
@@ -3202,22 +4988,23 @@ struct frame;
 /* Copy COUNT Lisp_Objects from ARGS to contents of V starting from OFFSET.  */
 
 INLINE void
-vcopy (Lisp_Object v, ptrdiff_t offset, Lisp_Object *args, ptrdiff_t count)
+vcopy (ELisp_Handle v, ELisp_Vector_Handle args, ptrdiff_t count)
 {
-  eassert (0 <= offset && 0 <= count && offset + count <= ASIZE (v));
-  memcpy (XVECTOR (v)->contents + offset, args, count * sizeof *args);
+  eassert (0 <= args.n && 0 <= count && args.n + count <= ASIZE (v));
+  for (ptrdiff_t i = 0; i < count; i++)
+    XVECTOR (v)->contents[args.n+i] = args.vec.ref(i);
 }
 
 /* Functions to modify hash tables.  */
 
 INLINE void
-set_hash_key_slot (struct Lisp_Hash_Table *h, ptrdiff_t idx, Lisp_Object val)
+set_hash_key_slot (struct Lisp_Hash_Table *h, ptrdiff_t idx, ELisp_Handle val)
 {
   gc_aset (h->key_and_value, 2 * idx, val);
 }
 
 INLINE void
-set_hash_value_slot (struct Lisp_Hash_Table *h, ptrdiff_t idx, Lisp_Object val)
+set_hash_value_slot (struct Lisp_Hash_Table *h, ptrdiff_t idx, ELisp_Handle val)
 {
   gc_aset (h->key_and_value, 2 * idx + 1, val);
 }
@@ -3226,27 +5013,27 @@ set_hash_value_slot (struct Lisp_Hash_Table *h, ptrdiff_t idx, Lisp_Object val)
    or pointer slots of struct Lisp_Symbol.  */
 
 INLINE void
-set_symbol_function (Lisp_Object sym, Lisp_Object function)
+set_symbol_function (ELisp_Handle sym, ELisp_Handle function)
 {
-  XSYMBOL (sym)->u.s.function = function;
+  XSYMBOL (sym)->function = function;
 }
 
 INLINE void
-set_symbol_plist (Lisp_Object sym, Lisp_Object plist)
+set_symbol_plist (ELisp_Handle sym, ELisp_Handle plist)
 {
-  XSYMBOL (sym)->u.s.plist = plist;
+  XSYMBOL (sym)->plist = plist;
 }
 
 INLINE void
-set_symbol_next (Lisp_Object sym, struct Lisp_Symbol *next)
+set_symbol_next (ELisp_Handle sym, struct Lisp_Symbol *next)
 {
-  XSYMBOL (sym)->u.s.next = next;
+  XSYMBOL (sym)->next = next;
 }
 
 INLINE void
-make_symbol_constant (Lisp_Object sym)
+make_symbol_constant (ELisp_Handle sym)
 {
-  XSYMBOL (sym)->u.s.trapped_write = SYMBOL_NOWRITE;
+  XSYMBOL (sym)->trapped_write = SYMBOL_NOWRITE;
 }
 
 /* Buffer-local variable access functions.  */
@@ -3261,7 +5048,7 @@ blv_found (struct Lisp_Buffer_Local_Value *blv)
 /* Set overlay's property list.  */
 
 INLINE void
-set_overlay_plist (Lisp_Object overlay, Lisp_Object plist)
+set_overlay_plist (ELisp_Handle overlay, ELisp_Handle plist)
 {
   XOVERLAY (overlay)->plist = plist;
 }
@@ -3269,29 +5056,29 @@ set_overlay_plist (Lisp_Object overlay, Lisp_Object plist)
 /* Get text properties of S.  */
 
 INLINE INTERVAL
-string_intervals (Lisp_Object s)
+string_intervals (ELisp_Handle s)
 {
-  return XSTRING (s)->u.s.intervals;
+  return XSTRING (s)->intervals;
 }
 
 /* Set text properties of S to I.  */
 
 INLINE void
-set_string_intervals (Lisp_Object s, INTERVAL i)
+set_string_intervals (ELisp_Handle s, INTERVAL i)
 {
-  XSTRING (s)->u.s.intervals = i;
+  XSTRING (s)->intervals = i;
 }
 
 /* Set a Lisp slot in TABLE to VAL.  Most code should use this instead
    of setting slots directly.  */
 
 INLINE void
-set_char_table_defalt (Lisp_Object table, Lisp_Object val)
+set_char_table_defalt (ELisp_Handle table, ELisp_Handle val)
 {
   XCHAR_TABLE (table)->defalt = val;
 }
 INLINE void
-set_char_table_purpose (Lisp_Object table, Lisp_Object val)
+set_char_table_purpose (ELisp_Handle table, ELisp_Handle val)
 {
   XCHAR_TABLE (table)->purpose = val;
 }
@@ -3299,31 +5086,31 @@ set_char_table_purpose (Lisp_Object table, Lisp_Object val)
 /* Set different slots in (sub)character tables.  */
 
 INLINE void
-set_char_table_extras (Lisp_Object table, ptrdiff_t idx, Lisp_Object val)
+set_char_table_extras (ELisp_Handle table, ptrdiff_t idx, ELisp_Handle val)
 {
   eassert (0 <= idx && idx < CHAR_TABLE_EXTRA_SLOTS (XCHAR_TABLE (table)));
   XCHAR_TABLE (table)->extras[idx] = val;
 }
 
 INLINE void
-set_char_table_contents (Lisp_Object table, ptrdiff_t idx, Lisp_Object val)
+set_char_table_contents (ELisp_Handle table, ptrdiff_t idx, ELisp_Handle val)
 {
   eassert (0 <= idx && idx < (1 << CHARTAB_SIZE_BITS_0));
   XCHAR_TABLE (table)->contents[idx] = val;
 }
 
 INLINE void
-set_sub_char_table_contents (Lisp_Object table, ptrdiff_t idx, Lisp_Object val)
+set_sub_char_table_contents (ELisp_Handle table, ptrdiff_t idx, ELisp_Handle val)
 {
   XSUB_CHAR_TABLE (table)->contents[idx] = val;
 }
 
 /* Defined in data.c.  */
-extern _Noreturn void wrong_choice (Lisp_Object, Lisp_Object);
-extern void notify_variable_watchers (Lisp_Object, Lisp_Object,
-				      Lisp_Object, Lisp_Object);
-extern Lisp_Object indirect_function (Lisp_Object);
-extern Lisp_Object find_symbol_value (Lisp_Object);
+extern _Noreturn void wrong_choice (ELisp_Handle, ELisp_Handle);
+extern void notify_variable_watchers (ELisp_Handle, ELisp_Handle,
+                                      ELisp_Handle, ELisp_Handle);
+extern ELisp_Return_Value indirect_function (ELisp_Handle);
+extern ELisp_Return_Value find_symbol_value (ELisp_Handle);
 enum Arith_Comparison {
   ARITH_EQUAL,
   ARITH_NOTEQUAL,
@@ -3332,7 +5119,7 @@ enum Arith_Comparison {
   ARITH_LESS_OR_EQUAL,
   ARITH_GRTR_OR_EQUAL
 };
-extern Lisp_Object arithcompare (Lisp_Object num1, Lisp_Object num2,
+extern ELisp_Return_Value arithcompare (ELisp_Handle num1, ELisp_Handle num2,
                                  enum Arith_Comparison comparison);
 
 /* Convert the integer I to an Emacs representation, either the integer
@@ -3342,8 +5129,8 @@ extern Lisp_Object arithcompare (Lisp_Object num1, Lisp_Object num2,
   (! FIXNUM_OVERFLOW_P (i)					    \
    ? make_number (i)						    \
    : EXPR_SIGNED (i) ? intbig_to_lisp (i) : uintbig_to_lisp (i))
-extern Lisp_Object intbig_to_lisp (intmax_t);
-extern Lisp_Object uintbig_to_lisp (uintmax_t);
+extern ELisp_Return_Value intbig_to_lisp (intmax_t);
+extern ELisp_Return_Value uintbig_to_lisp (uintmax_t);
 
 /* Convert the Emacs representation CONS back to an integer of type
    TYPE, storing the result the variable VAR.  Signal an error if CONS
@@ -3352,24 +5139,24 @@ extern Lisp_Object uintbig_to_lisp (uintmax_t);
  (TYPE_SIGNED (type)							\
   ? ((var) = cons_to_signed (cons, TYPE_MINIMUM (type), TYPE_MAXIMUM (type))) \
   : ((var) = cons_to_unsigned (cons, TYPE_MAXIMUM (type))))
-extern intmax_t cons_to_signed (Lisp_Object, intmax_t, intmax_t);
-extern uintmax_t cons_to_unsigned (Lisp_Object, uintmax_t);
+extern intmax_t cons_to_signed (ELisp_Handle, intmax_t, intmax_t);
+extern uintmax_t cons_to_unsigned (ELisp_Handle, uintmax_t);
 
 extern struct Lisp_Symbol *indirect_variable (struct Lisp_Symbol *);
-extern _Noreturn void args_out_of_range (Lisp_Object, Lisp_Object);
-extern _Noreturn void args_out_of_range_3 (Lisp_Object, Lisp_Object,
-					   Lisp_Object);
-extern _Noreturn void circular_list (Lisp_Object);
-extern Lisp_Object do_symval_forwarding (union Lisp_Fwd *);
+extern _Noreturn void args_out_of_range (ELisp_Handle, ELisp_Handle);
+extern _Noreturn void args_out_of_range_3 (ELisp_Handle, ELisp_Handle,
+                                           ELisp_Handle);
+extern _Noreturn void circular_list (ELisp_Handle);
+extern ELisp_Return_Value do_symval_forwarding (union Lisp_Fwd *);
 enum Set_Internal_Bind {
   SET_INTERNAL_SET,
   SET_INTERNAL_BIND,
   SET_INTERNAL_UNBIND,
   SET_INTERNAL_THREAD_SWITCH
 };
-extern void set_internal (Lisp_Object, Lisp_Object, Lisp_Object,
+extern void set_internal (ELisp_Handle, ELisp_Handle, ELisp_Handle,
                           enum Set_Internal_Bind);
-extern void set_default_internal (Lisp_Object, Lisp_Object,
+extern void set_default_internal (ELisp_Handle, ELisp_Handle,
                                   enum Set_Internal_Bind bindflag);
 
 extern void syms_of_data (void);
@@ -3380,8 +5167,8 @@ extern void syms_of_cmds (void);
 extern void keys_of_cmds (void);
 
 /* Defined in coding.c.  */
-extern Lisp_Object detect_coding_system (const unsigned char *, ptrdiff_t,
-                                         ptrdiff_t, bool, bool, Lisp_Object);
+extern ELisp_Return_Value detect_coding_system (const unsigned char *, ptrdiff_t,
+                                         ptrdiff_t, bool, bool, ELisp_Handle);
 extern void init_coding (void);
 extern void init_coding_once (void);
 extern void syms_of_coding (void);
@@ -3405,40 +5192,40 @@ extern void syms_of_syntax (void);
 /* Defined in fns.c.  */
 enum { NEXT_ALMOST_PRIME_LIMIT = 11 };
 extern EMACS_INT next_almost_prime (EMACS_INT) ATTRIBUTE_CONST;
-extern Lisp_Object larger_vector (Lisp_Object, ptrdiff_t, ptrdiff_t);
+extern ELisp_Return_Value larger_vector (ELisp_Handle, ptrdiff_t, ptrdiff_t);
 extern void sweep_weak_hash_tables (void);
-extern char *extract_data_from_object (Lisp_Object, ptrdiff_t *, ptrdiff_t *);
+extern char *extract_data_from_object (ELisp_Handle, ptrdiff_t *, ptrdiff_t *);
 EMACS_UINT hash_string (char const *, ptrdiff_t);
-EMACS_UINT sxhash (Lisp_Object, int);
-Lisp_Object make_hash_table (struct hash_table_test, EMACS_INT, float, float,
-			     Lisp_Object, bool);
-ptrdiff_t hash_lookup (struct Lisp_Hash_Table *, Lisp_Object, EMACS_UINT *);
-ptrdiff_t hash_put (struct Lisp_Hash_Table *, Lisp_Object, Lisp_Object,
-		    EMACS_UINT);
-void hash_remove_from_table (struct Lisp_Hash_Table *, Lisp_Object);
-extern struct hash_table_test const hashtest_eq, hashtest_eql, hashtest_equal;
-extern void validate_subarray (Lisp_Object, Lisp_Object, Lisp_Object,
-			       ptrdiff_t, ptrdiff_t *, ptrdiff_t *);
-extern Lisp_Object substring_both (Lisp_Object, ptrdiff_t, ptrdiff_t,
-				   ptrdiff_t, ptrdiff_t);
-extern Lisp_Object merge (Lisp_Object, Lisp_Object, Lisp_Object);
-extern Lisp_Object do_yes_or_no_p (Lisp_Object);
-extern Lisp_Object concat2 (Lisp_Object, Lisp_Object);
-extern Lisp_Object concat3 (Lisp_Object, Lisp_Object, Lisp_Object);
-extern bool equal_no_quit (Lisp_Object, Lisp_Object);
-extern Lisp_Object nconc2 (Lisp_Object, Lisp_Object);
-extern Lisp_Object assq_no_quit (Lisp_Object, Lisp_Object);
-extern Lisp_Object assoc_no_quit (Lisp_Object, Lisp_Object);
+EMACS_UINT sxhash (ELisp_Handle, int);
+ELisp_Return_Value make_hash_table (struct hash_table_test *, EMACS_INT, float, float,
+                             ELisp_Handle, bool);
+ptrdiff_t hash_lookup (struct Lisp_Hash_Table *, ELisp_Handle, EMACS_UINT *);
+ptrdiff_t hash_put (struct Lisp_Hash_Table *, ELisp_Handle, ELisp_Handle,
+                    EMACS_UINT);
+void hash_remove_from_table (struct Lisp_Hash_Table *, ELisp_Handle);
+extern struct hash_table_test hashtest_eq; extern struct hash_table_test hashtest_eql; extern struct hash_table_test hashtest_equal;
+extern void validate_subarray (ELisp_Handle, ELisp_Handle, ELisp_Handle,
+                               ptrdiff_t, ptrdiff_t *, ptrdiff_t *);
+extern ELisp_Return_Value substring_both (ELisp_Handle, ptrdiff_t, ptrdiff_t,
+                                   ptrdiff_t, ptrdiff_t);
+extern ELisp_Return_Value merge (ELisp_Handle, ELisp_Handle, ELisp_Handle);
+extern ELisp_Return_Value do_yes_or_no_p (ELisp_Handle);
+extern ELisp_Return_Value concat2 (ELisp_Handle, ELisp_Handle);
+extern ELisp_Return_Value concat3 (ELisp_Handle, ELisp_Handle, ELisp_Handle);
+extern bool equal_no_quit (ELisp_Handle, ELisp_Handle);
+extern ELisp_Return_Value nconc2 (ELisp_Handle, ELisp_Handle);
+extern ELisp_Return_Value assq_no_quit (ELisp_Handle, ELisp_Handle);
+extern ELisp_Return_Value assoc_no_quit (ELisp_Handle, ELisp_Handle);
 extern void clear_string_char_byte_cache (void);
-extern ptrdiff_t string_char_to_byte (Lisp_Object, ptrdiff_t);
-extern ptrdiff_t string_byte_to_char (Lisp_Object, ptrdiff_t);
-extern Lisp_Object string_to_multibyte (Lisp_Object);
-extern Lisp_Object string_make_unibyte (Lisp_Object);
+extern ptrdiff_t string_char_to_byte (ELisp_Handle, ptrdiff_t);
+extern ptrdiff_t string_byte_to_char (ELisp_Handle, ptrdiff_t);
+extern ELisp_Return_Value string_to_multibyte (ELisp_Handle);
+extern ELisp_Return_Value string_make_unibyte (ELisp_Handle);
 extern void syms_of_fns (void);
 
 /* Defined in floatfns.c.  */
 extern void syms_of_floatfns (void);
-extern Lisp_Object fmod_float (Lisp_Object x, Lisp_Object y);
+extern ELisp_Return_Value fmod_float (ELisp_Handle x, ELisp_Handle y);
 
 /* Defined in fringe.c.  */
 extern void syms_of_fringe (void);
@@ -3459,46 +5246,46 @@ extern _Noreturn void buffer_overflow (void);
 extern void make_gap (ptrdiff_t);
 extern void make_gap_1 (struct buffer *, ptrdiff_t);
 extern ptrdiff_t copy_text (const unsigned char *, unsigned char *,
-			    ptrdiff_t, bool, bool);
+                            ptrdiff_t, bool, bool);
 extern int count_combining_before (const unsigned char *,
-				   ptrdiff_t, ptrdiff_t, ptrdiff_t);
+                                   ptrdiff_t, ptrdiff_t, ptrdiff_t);
 extern int count_combining_after (const unsigned char *,
-				  ptrdiff_t, ptrdiff_t, ptrdiff_t);
+                                  ptrdiff_t, ptrdiff_t, ptrdiff_t);
 extern void insert (const char *, ptrdiff_t);
 extern void insert_and_inherit (const char *, ptrdiff_t);
 extern void insert_1_both (const char *, ptrdiff_t, ptrdiff_t,
-			   bool, bool, bool);
+                           bool, bool, bool);
 extern void insert_from_gap (ptrdiff_t, ptrdiff_t, bool text_at_gap_tail);
-extern void insert_from_string (Lisp_Object, ptrdiff_t, ptrdiff_t,
-				ptrdiff_t, ptrdiff_t, bool);
+extern void insert_from_string (ELisp_Handle, ptrdiff_t, ptrdiff_t,
+                                ptrdiff_t, ptrdiff_t, bool);
 extern void insert_from_buffer (struct buffer *, ptrdiff_t, ptrdiff_t, bool);
 extern void insert_char (int);
 extern void insert_string (const char *);
 extern void insert_before_markers (const char *, ptrdiff_t);
 extern void insert_before_markers_and_inherit (const char *, ptrdiff_t);
-extern void insert_from_string_before_markers (Lisp_Object, ptrdiff_t,
-					       ptrdiff_t, ptrdiff_t,
-					       ptrdiff_t, bool);
+extern void insert_from_string_before_markers (ELisp_Handle, ptrdiff_t,
+                                               ptrdiff_t, ptrdiff_t,
+                                               ptrdiff_t, bool);
 extern void del_range (ptrdiff_t, ptrdiff_t);
-extern Lisp_Object del_range_1 (ptrdiff_t, ptrdiff_t, bool, bool);
+extern ELisp_Return_Value del_range_1 (ptrdiff_t, ptrdiff_t, bool, bool);
 extern void del_range_byte (ptrdiff_t, ptrdiff_t);
 extern void del_range_both (ptrdiff_t, ptrdiff_t, ptrdiff_t, ptrdiff_t, bool);
-extern Lisp_Object del_range_2 (ptrdiff_t, ptrdiff_t,
-				ptrdiff_t, ptrdiff_t, bool);
+extern ELisp_Return_Value del_range_2 (ptrdiff_t, ptrdiff_t,
+                                ptrdiff_t, ptrdiff_t, bool);
 extern void modify_text (ptrdiff_t, ptrdiff_t);
 extern void prepare_to_modify_buffer (ptrdiff_t, ptrdiff_t, ptrdiff_t *);
 extern void prepare_to_modify_buffer_1 (ptrdiff_t, ptrdiff_t, ptrdiff_t *);
 extern void invalidate_buffer_caches (struct buffer *, ptrdiff_t, ptrdiff_t);
 extern void signal_after_change (ptrdiff_t, ptrdiff_t, ptrdiff_t);
 extern void adjust_after_insert (ptrdiff_t, ptrdiff_t, ptrdiff_t,
-				 ptrdiff_t, ptrdiff_t);
+                                 ptrdiff_t, ptrdiff_t);
 extern void adjust_markers_for_delete (ptrdiff_t, ptrdiff_t,
-				       ptrdiff_t, ptrdiff_t);
+                                       ptrdiff_t, ptrdiff_t);
 extern void adjust_markers_bytepos (ptrdiff_t, ptrdiff_t,
-				    ptrdiff_t, ptrdiff_t, int);
-extern void replace_range (ptrdiff_t, ptrdiff_t, Lisp_Object, bool, bool, bool, bool);
+                                    ptrdiff_t, ptrdiff_t, int);
+extern void replace_range (ptrdiff_t, ptrdiff_t, ELisp_Handle, bool, bool, bool, bool);
 extern void replace_range_2 (ptrdiff_t, ptrdiff_t, ptrdiff_t, ptrdiff_t,
-			     const char *, ptrdiff_t, ptrdiff_t, bool);
+                             const char *, ptrdiff_t, ptrdiff_t, bool);
 extern void syms_of_insdel (void);
 
 /* Defined in dispnew.c.  */
@@ -3506,40 +5293,40 @@ extern void syms_of_insdel (void);
      && (defined __FreeBSD__ || defined GNU_LINUX || defined __MINGW32__))
 _Noreturn void __executable_start (void);
 #endif
-extern Lisp_Object Vwindow_system;
-extern Lisp_Object sit_for (Lisp_Object, bool, int);
+extern ELisp_Heap_Value Vwindow_system;
+extern ELisp_Return_Value sit_for (ELisp_Handle, bool, int);
 
 /* Defined in xdisp.c.  */
 extern bool noninteractive_need_newline;
-extern Lisp_Object echo_area_buffer[2];
+extern ELisp_Heap_Value echo_area_buffer[2];
 extern void add_to_log (char const *, ...);
 extern void vadd_to_log (char const *, va_list);
 extern void check_message_stack (void);
 extern void setup_echo_area_for_printing (bool);
 extern bool push_message (void);
 extern void pop_message_unwind (void);
-extern Lisp_Object restore_message_unwind (Lisp_Object);
+extern ELisp_Return_Value restore_message_unwind (ELisp_Handle);
 extern void restore_message (void);
-extern Lisp_Object current_message (void);
+extern ELisp_Return_Value current_message (void);
 extern void clear_message (bool, bool);
 extern void message (const char *, ...) ATTRIBUTE_FORMAT_PRINTF (1, 2);
 extern void message1 (const char *);
 extern void message1_nolog (const char *);
-extern void message3 (Lisp_Object);
-extern void message3_nolog (Lisp_Object);
+extern void message3 (ELisp_Handle);
+extern void message3_nolog (ELisp_Handle);
 extern void message_dolog (const char *, ptrdiff_t, bool, bool);
-extern void message_with_string (const char *, Lisp_Object, bool);
+extern void message_with_string (const char *, ELisp_Handle, bool);
 extern void message_log_maybe_newline (void);
 extern void update_echo_area (void);
 extern void truncate_echo_area (ptrdiff_t);
 extern void redisplay (void);
 
-void set_frame_cursor_types (struct frame *, Lisp_Object);
+void set_frame_cursor_types (struct frame *, ELisp_Handle);
 extern void syms_of_xdisp (void);
 extern void init_xdisp (void);
-extern Lisp_Object safe_eval (Lisp_Object);
+extern ELisp_Return_Value safe_eval (ELisp_Handle);
 extern bool pos_visible_p (struct window *, ptrdiff_t, int *,
-			   int *, int *, int *, int *, int *);
+                           int *, int *, int *, int *, int *);
 
 /* Defined in xsettings.c.  */
 extern void syms_of_xsettings (void);
@@ -3549,18 +5336,18 @@ extern void memory_warnings (void *, void (*warnfun) (const char *));
 
 /* Defined in character.c.  */
 extern void parse_str_as_multibyte (const unsigned char *, ptrdiff_t,
-				    ptrdiff_t *, ptrdiff_t *);
+                                    ptrdiff_t *, ptrdiff_t *);
 
 /* Defined in alloc.c.  */
 extern void *my_heap_start (void);
 extern void check_pure_size (void);
-extern void free_misc (Lisp_Object);
+extern void free_misc (ELisp_Handle);
 extern void allocate_string_data (struct Lisp_String *, EMACS_INT, EMACS_INT);
 extern void malloc_warning (const char *);
 extern _Noreturn void memory_full (size_t);
 extern _Noreturn void buffer_memory_full (ptrdiff_t);
-extern bool survives_gc_p (Lisp_Object);
-extern void mark_object (Lisp_Object);
+extern bool survives_gc_p (ELisp_Handle);
+extern void mark_object (ELisp_Handle);
 #if defined REL_ALLOC && !defined SYSTEM_MALLOC && !defined HYBRID_MALLOC
 extern void refill_memory_reserve (void);
 #endif
@@ -3569,69 +5356,83 @@ extern void alloc_unexec_post (void);
 extern void mark_stack (char *, char *);
 extern void flush_stack_call_func (void (*func) (void *arg), void *arg);
 extern const char *pending_malloc_warning;
-extern Lisp_Object zero_vector;
+extern ELisp_Heap_Value zero_vector;
 extern EMACS_INT consing_since_gc;
 extern EMACS_INT gc_relative_threshold;
 extern EMACS_INT memory_full_cons_threshold;
-extern Lisp_Object list1 (Lisp_Object);
-extern Lisp_Object list2 (Lisp_Object, Lisp_Object);
-extern Lisp_Object list3 (Lisp_Object, Lisp_Object, Lisp_Object);
-extern Lisp_Object list4 (Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object);
-extern Lisp_Object list5 (Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object,
-			  Lisp_Object);
+extern ELisp_Return_Value list1 (ELisp_Handle);
+extern ELisp_Return_Value list2 (ELisp_Handle, ELisp_Handle);
+extern ELisp_Return_Value list3 (ELisp_Handle, ELisp_Handle, ELisp_Handle);
+extern ELisp_Return_Value list4 (ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle);
+extern ELisp_Return_Value list5 (ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle,
+                          ELisp_Handle);
 enum constype {CONSTYPE_HEAP, CONSTYPE_PURE};
-extern Lisp_Object listn (enum constype, ptrdiff_t, Lisp_Object, ...);
+
+template<class... A>
+inline ELisp_Return_Value listn (enum constype ct, ptrdiff_t len, A...);
+
+template<class X, class... A>
+inline ELisp_Return_Value listn (enum constype ct, ptrdiff_t len, X arg0, A... args)
+{
+  return Fcons (arg0, listn(ct, len-1, args...));
+}
+
+template<>
+inline ELisp_Return_Value listn (enum constype, ptrdiff_t)
+{
+  return Qnil;
+}
 
 /* Build a frequently used 2/3/4-integer lists.  */
 
-INLINE Lisp_Object
+INLINE ELisp_Return_Value
 list2i (EMACS_INT x, EMACS_INT y)
 {
   return list2 (make_number (x), make_number (y));
 }
 
-INLINE Lisp_Object
+INLINE ELisp_Return_Value
 list3i (EMACS_INT x, EMACS_INT y, EMACS_INT w)
 {
   return list3 (make_number (x), make_number (y), make_number (w));
 }
 
-INLINE Lisp_Object
+INLINE ELisp_Return_Value
 list4i (EMACS_INT x, EMACS_INT y, EMACS_INT w, EMACS_INT h)
 {
   return list4 (make_number (x), make_number (y),
-		make_number (w), make_number (h));
+                make_number (w), make_number (h));
 }
 
-extern Lisp_Object make_uninit_bool_vector (EMACS_INT);
-extern Lisp_Object bool_vector_fill (Lisp_Object, Lisp_Object);
+extern ELisp_Return_Value make_uninit_bool_vector (EMACS_INT);
+extern ELisp_Return_Value bool_vector_fill (ELisp_Handle, ELisp_Handle);
 extern _Noreturn void string_overflow (void);
-extern Lisp_Object make_string (const char *, ptrdiff_t);
-extern Lisp_Object make_formatted_string (char *, const char *, ...)
+extern ELisp_Return_Value make_string (const char *, ptrdiff_t);
+extern ELisp_Return_Value make_formatted_string (char *, const char *, ...)
   ATTRIBUTE_FORMAT_PRINTF (2, 3);
-extern Lisp_Object make_unibyte_string (const char *, ptrdiff_t);
+extern ELisp_Return_Value make_unibyte_string (const char *, ptrdiff_t);
 
 /* Make unibyte string from C string when the length isn't known.  */
 
-INLINE Lisp_Object
+INLINE ELisp_Return_Value
 build_unibyte_string (const char *str)
 {
   return make_unibyte_string (str, strlen (str));
 }
 
-extern Lisp_Object make_multibyte_string (const char *, ptrdiff_t, ptrdiff_t);
-extern Lisp_Object make_event_array (ptrdiff_t, Lisp_Object *);
-extern Lisp_Object make_uninit_string (EMACS_INT);
-extern Lisp_Object make_uninit_multibyte_string (EMACS_INT, EMACS_INT);
-extern Lisp_Object make_string_from_bytes (const char *, ptrdiff_t, ptrdiff_t);
-extern Lisp_Object make_specified_string (const char *,
-					  ptrdiff_t, ptrdiff_t, bool);
-extern Lisp_Object make_pure_string (const char *, ptrdiff_t, ptrdiff_t, bool);
-extern Lisp_Object make_pure_c_string (const char *, ptrdiff_t);
+extern ELisp_Return_Value make_multibyte_string (const char *, ptrdiff_t, ptrdiff_t);
+extern ELisp_Return_Value make_event_array (ELisp_Vector_Handle);
+extern ELisp_Return_Value make_uninit_string (EMACS_INT);
+extern ELisp_Return_Value make_uninit_multibyte_string (EMACS_INT, EMACS_INT);
+extern ELisp_Return_Value make_string_from_bytes (const char *, ptrdiff_t, ptrdiff_t);
+extern ELisp_Return_Value make_specified_string (const char *,
+                                          ptrdiff_t, ptrdiff_t, bool);
+extern ELisp_Return_Value make_pure_string (const char *, ptrdiff_t, ptrdiff_t, bool);
+extern ELisp_Return_Value make_pure_c_string (const char *, ptrdiff_t);
 
 /* Make a string allocated in pure space, use STR as string data.  */
 
-INLINE Lisp_Object
+INLINE ELisp_Return_Value
 build_pure_c_string (const char *str)
 {
   return make_pure_c_string (str, strlen (str));
@@ -3640,13 +5441,13 @@ build_pure_c_string (const char *str)
 /* Make a string from the data at STR, treating it as multibyte if the
    data warrants.  */
 
-INLINE Lisp_Object
+INLINE ELisp_Return_Value
 build_string (const char *str)
 {
   return make_string (str, strlen (str));
 }
 
-extern Lisp_Object pure_cons (Lisp_Object, Lisp_Object);
+extern ELisp_Return_Value pure_cons (ELisp_Handle, ELisp_Handle);
 extern void make_byte_code (struct Lisp_Vector *);
 extern struct Lisp_Vector *allocate_vector (EMACS_INT);
 
@@ -3659,10 +5460,10 @@ extern struct Lisp_Vector *allocate_vector (EMACS_INT);
    ASET (v, 1, Ffunction_can_gc ());
    ASET (v, 2, obj1);  */
 
-INLINE Lisp_Object
+INLINE ELisp_Return_Value
 make_uninit_vector (ptrdiff_t size)
 {
-  Lisp_Object v;
+  ELisp_Value v;
   struct Lisp_Vector *p;
 
   p = allocate_vector (size);
@@ -3672,59 +5473,60 @@ make_uninit_vector (ptrdiff_t size)
 
 /* Like above, but special for sub char-tables.  */
 
-INLINE Lisp_Object
+INLINE ELisp_Return_Value
 make_uninit_sub_char_table (int depth, int min_char)
 {
   int slots = SUB_CHAR_TABLE_OFFSET + chartab_size[depth];
-  Lisp_Object v = make_uninit_vector (slots);
+  ELisp_Value v = make_uninit_vector (slots);
 
   XSETPVECTYPE (XVECTOR (v), PVEC_SUB_CHAR_TABLE);
+  XSETSUB_CHAR_TABLE (v, (struct Lisp_Sub_Char_Table *)XVECTOR (v));
   XSUB_CHAR_TABLE (v)->depth = depth;
   XSUB_CHAR_TABLE (v)->min_char = min_char;
   return v;
 }
 
 extern struct Lisp_Vector *allocate_pseudovector (int, int, int,
-						  enum pvec_type);
+                                                  enum pvec_type);
 
 /* Allocate partially initialized pseudovector where all Lisp_Object
    slots are set to Qnil but the rest (if any) is left uninitialized.  */
 
 #define ALLOCATE_PSEUDOVECTOR(type, field, tag)			       \
   ((type *) allocate_pseudovector (VECSIZE (type),		       \
-				   PSEUDOVECSIZE (type, field),	       \
-				   PSEUDOVECSIZE (type, field), tag))
+                                   PSEUDOVECSIZE (type, field),	       \
+                                   PSEUDOVECSIZE (type, field), tag))
 
 /* Allocate fully initialized pseudovector where all Lisp_Object
    slots are set to Qnil and the rest (if any) is zeroed.  */
 
 #define ALLOCATE_ZEROED_PSEUDOVECTOR(type, field, tag)		       \
   ((type *) allocate_pseudovector (VECSIZE (type),		       \
-				   PSEUDOVECSIZE (type, field),	       \
-				   VECSIZE (type), tag))
+                                   PSEUDOVECSIZE (type, field),	       \
+                                   VECSIZE (type), tag))
 
 extern bool gc_in_progress;
-extern Lisp_Object make_float (double);
+extern ELisp_Return_Value make_float (double);
 extern void display_malloc_warning (void);
 extern ptrdiff_t inhibit_garbage_collection (void);
-extern Lisp_Object make_save_int_int_int (ptrdiff_t, ptrdiff_t, ptrdiff_t);
-extern Lisp_Object make_save_obj_obj_obj_obj (Lisp_Object, Lisp_Object,
-					      Lisp_Object, Lisp_Object);
-extern Lisp_Object make_save_ptr (void *);
-extern Lisp_Object make_save_ptr_int (void *, ptrdiff_t);
-extern Lisp_Object make_save_ptr_ptr (void *, void *);
-extern Lisp_Object make_save_funcptr_ptr_obj (void (*) (void), void *,
-					      Lisp_Object);
-extern Lisp_Object make_save_memory (Lisp_Object *, ptrdiff_t);
-extern void free_save_value (Lisp_Object);
-extern Lisp_Object build_overlay (Lisp_Object, Lisp_Object, Lisp_Object);
-extern void free_marker (Lisp_Object);
+extern ELisp_Return_Value make_save_int_int_int (ptrdiff_t, ptrdiff_t, ptrdiff_t);
+extern ELisp_Return_Value make_save_obj_obj_obj_obj (ELisp_Handle, ELisp_Handle,
+                                              ELisp_Handle, ELisp_Handle);
+extern ELisp_Return_Value make_save_ptr (void *);
+extern ELisp_Return_Value make_save_ptr_int (void *, ptrdiff_t);
+extern ELisp_Return_Value make_save_ptr_ptr (void *, void *);
+extern ELisp_Return_Value make_save_funcptr_ptr_obj (void (*) (void), void *,
+                                              ELisp_Handle);
+extern ELisp_Return_Value make_save_memory (ELisp_Pointer, ptrdiff_t);
+extern void free_save_value (ELisp_Handle);
+extern ELisp_Return_Value build_overlay (ELisp_Handle, ELisp_Handle, ELisp_Handle);
+extern void free_marker (ELisp_Handle);
 extern void free_cons (struct Lisp_Cons *);
 extern void init_alloc_once (void);
 extern void init_alloc (void);
 extern void syms_of_alloc (void);
 extern struct buffer * allocate_buffer (void);
-extern int valid_lisp_object_p (Lisp_Object);
+extern int valid_lisp_object_p (ELisp_Handle);
 #ifdef GC_CHECK_CONS_LIST
 extern void check_cons_list (void);
 #else
@@ -3750,29 +5552,29 @@ extern void r_alloc_inhibit_buffer_relocation (int);
 #endif
 
 /* Defined in chartab.c.  */
-extern Lisp_Object copy_char_table (Lisp_Object);
-extern Lisp_Object char_table_ref_and_range (Lisp_Object, int,
+extern ELisp_Return_Value copy_char_table (ELisp_Handle);
+extern ELisp_Return_Value char_table_ref_and_range (ELisp_Handle, int,
                                              int *, int *);
-extern void char_table_set_range (Lisp_Object, int, int, Lisp_Object);
-extern void map_char_table (void (*) (Lisp_Object, Lisp_Object,
-                            Lisp_Object),
-                            Lisp_Object, Lisp_Object, Lisp_Object);
-extern void map_char_table_for_charset (void (*c_function) (Lisp_Object, Lisp_Object),
-					Lisp_Object, Lisp_Object,
-					Lisp_Object, struct charset *,
-					unsigned, unsigned);
-extern Lisp_Object uniprop_table (Lisp_Object);
+extern void char_table_set_range (ELisp_Handle, int, int, ELisp_Handle);
+extern void map_char_table (void (*) (ELisp_Handle, ELisp_Handle,
+                            ELisp_Handle),
+                            ELisp_Handle, ELisp_Handle, ELisp_Handle);
+extern void map_char_table_for_charset (void (*c_function) (ELisp_Handle, ELisp_Handle),
+                                        ELisp_Handle, ELisp_Handle,
+                                        ELisp_Handle, struct charset *,
+                                        unsigned, unsigned);
+extern ELisp_Return_Value uniprop_table (ELisp_Handle);
 extern void syms_of_chartab (void);
 
 /* Defined in print.c.  */
-extern Lisp_Object Vprin1_to_string_buffer;
-extern void debug_print (Lisp_Object) EXTERNALLY_VISIBLE;
+extern ELisp_Heap_Value Vprin1_to_string_buffer;
+extern void debug_print (ELisp_Handle) EXTERNALLY_VISIBLE;
 extern void temp_output_buffer_setup (const char *);
 extern int print_level;
-extern void print_error_message (Lisp_Object, Lisp_Object, const char *,
-				 Lisp_Object);
-extern Lisp_Object internal_with_output_to_temp_buffer
-        (const char *, Lisp_Object (*) (Lisp_Object), Lisp_Object);
+extern void print_error_message (ELisp_Handle, ELisp_Handle, const char *,
+                                 ELisp_Handle);
+extern ELisp_Return_Value internal_with_output_to_temp_buffer
+        (const char *, ELisp_Return_Value (*) (ELisp_Handle), ELisp_Handle);
 #define FLOAT_TO_STRING_BUFSIZE 350
 extern int float_to_string (char *, double);
 extern void init_print_once (void);
@@ -3780,56 +5582,56 @@ extern void syms_of_print (void);
 
 /* Defined in doprnt.c.  */
 extern ptrdiff_t doprnt (char *, ptrdiff_t, const char *, const char *,
-			 va_list);
+                         va_list);
 extern ptrdiff_t esprintf (char *, char const *, ...)
   ATTRIBUTE_FORMAT_PRINTF (2, 3);
 extern ptrdiff_t exprintf (char **, ptrdiff_t *, char const *, ptrdiff_t,
-			   char const *, ...)
+                           char const *, ...)
   ATTRIBUTE_FORMAT_PRINTF (5, 6);
 extern ptrdiff_t evxprintf (char **, ptrdiff_t *, char const *, ptrdiff_t,
-			    char const *, va_list)
+                            char const *, va_list)
   ATTRIBUTE_FORMAT_PRINTF (5, 0);
 
 /* Defined in lread.c.  */
-extern Lisp_Object check_obarray (Lisp_Object);
-extern Lisp_Object intern_1 (const char *, ptrdiff_t);
-extern Lisp_Object intern_c_string_1 (const char *, ptrdiff_t);
-extern Lisp_Object intern_driver (Lisp_Object, Lisp_Object, Lisp_Object);
-extern void init_symbol (Lisp_Object, Lisp_Object);
-extern Lisp_Object oblookup (Lisp_Object, const char *, ptrdiff_t, ptrdiff_t);
+extern ELisp_Return_Value check_obarray (ELisp_Handle);
+extern ELisp_Return_Value intern_1 (const char *, ptrdiff_t);
+extern ELisp_Return_Value intern_c_string_1 (const char *, ptrdiff_t);
+extern ELisp_Return_Value intern_driver (ELisp_Handle, ELisp_Handle, ELisp_Handle);
+extern void init_symbol (ELisp_Handle, ELisp_Handle);
+extern ELisp_Return_Value oblookup (ELisp_Handle, const char *, ptrdiff_t, ptrdiff_t);
 INLINE void
-LOADHIST_ATTACH (Lisp_Object x)
+LOADHIST_ATTACH (ELisp_Handle x)
 {
   if (initialized)
     Vcurrent_load_list = Fcons (x, Vcurrent_load_list);
 }
-extern int openp (Lisp_Object, Lisp_Object, Lisp_Object,
-                  Lisp_Object *, Lisp_Object, bool);
-extern Lisp_Object string_to_number (char const *, int, bool);
-extern void map_obarray (Lisp_Object, void (*) (Lisp_Object, Lisp_Object),
-                         Lisp_Object);
-extern void dir_warning (const char *, Lisp_Object);
+extern int openp (ELisp_Handle, ELisp_Handle, ELisp_Handle,
+                  ELisp_Pointer, ELisp_Handle, bool);
+extern ELisp_Return_Value string_to_number (char const *, int, bool);
+extern void map_obarray (ELisp_Handle, void (*) (ELisp_Handle, ELisp_Handle),
+                         ELisp_Handle);
+extern void dir_warning (const char *, ELisp_Handle);
 extern void init_obarray (void);
 extern void init_lread (void);
 extern void syms_of_lread (void);
 
-INLINE Lisp_Object
+INLINE ELisp_Return_Value
 intern (const char *str)
 {
   return intern_1 (str, strlen (str));
 }
 
-INLINE Lisp_Object
+INLINE ELisp_Return_Value
 intern_c_string (const char *str)
 {
   return intern_c_string_1 (str, strlen (str));
 }
 
 /* Defined in eval.c.  */
-extern Lisp_Object Vautoload_queue;
-extern Lisp_Object Vrun_hooks;
-extern Lisp_Object Vsignaling_function;
-extern Lisp_Object inhibit_lisp_code;
+extern ELisp_Heap_Value Vautoload_queue;
+extern ELisp_Heap_Value Vrun_hooks;
+extern ELisp_Heap_Value Vsignaling_function;
+extern ELisp_Heap_Value inhibit_lisp_code;
 
 /* To run a normal hook, use the appropriate function from the list below.
    The calling convention:
@@ -3838,76 +5640,82 @@ extern Lisp_Object inhibit_lisp_code;
      call1 (Vrun_hooks, Qmy_funny_hook);
 
    should no longer be used.  */
-extern void run_hook (Lisp_Object);
-extern void run_hook_with_args_2 (Lisp_Object, Lisp_Object, Lisp_Object);
-extern Lisp_Object run_hook_with_args (ptrdiff_t nargs, Lisp_Object *args,
-				       Lisp_Object (*funcall)
-				       (ptrdiff_t nargs, Lisp_Object *args));
-extern Lisp_Object quit (void);
+extern void run_hook (ELisp_Handle);
+extern void run_hook_with_args_2 (ELisp_Handle, ELisp_Handle, ELisp_Handle);
+extern ELisp_Return_Value run_hook_with_args (ELisp_Vector_Handle args,
+                                       ELisp_Return_Value (*funcall)
+                                       (ELisp_Vector_Handle args));
+extern ELisp_Return_Value quit (void);
 INLINE _Noreturn void
-xsignal (Lisp_Object error_symbol, Lisp_Object data)
+xsignal (ELisp_Handle error_symbol, ELisp_Handle data)
 {
   Fsignal (error_symbol, data);
 }
-extern _Noreturn void xsignal0 (Lisp_Object);
-extern _Noreturn void xsignal1 (Lisp_Object, Lisp_Object);
-extern _Noreturn void xsignal2 (Lisp_Object, Lisp_Object, Lisp_Object);
-extern _Noreturn void xsignal3 (Lisp_Object, Lisp_Object, Lisp_Object,
-				Lisp_Object);
-extern _Noreturn void signal_error (const char *, Lisp_Object);
-extern bool FUNCTIONP (Lisp_Object);
-extern Lisp_Object funcall_subr (struct Lisp_Subr *subr, ptrdiff_t numargs, Lisp_Object *arg_vector);
-extern Lisp_Object eval_sub (Lisp_Object form);
-extern Lisp_Object apply1 (Lisp_Object, Lisp_Object);
-extern Lisp_Object call0 (Lisp_Object);
-extern Lisp_Object call1 (Lisp_Object, Lisp_Object);
-extern Lisp_Object call2 (Lisp_Object, Lisp_Object, Lisp_Object);
-extern Lisp_Object call3 (Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object);
-extern Lisp_Object call4 (Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object);
-extern Lisp_Object call5 (Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object);
-extern Lisp_Object call6 (Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object);
-extern Lisp_Object call7 (Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object);
-extern Lisp_Object call8 (Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object);
-extern Lisp_Object internal_catch (Lisp_Object, Lisp_Object (*) (Lisp_Object), Lisp_Object);
-extern Lisp_Object internal_lisp_condition_case (Lisp_Object, Lisp_Object, Lisp_Object);
-extern Lisp_Object internal_condition_case (Lisp_Object (*) (void), Lisp_Object, Lisp_Object (*) (Lisp_Object));
-extern Lisp_Object internal_condition_case_1 (Lisp_Object (*) (Lisp_Object), Lisp_Object, Lisp_Object, Lisp_Object (*) (Lisp_Object));
-extern Lisp_Object internal_condition_case_2 (Lisp_Object (*) (Lisp_Object, Lisp_Object), Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object (*) (Lisp_Object));
-extern Lisp_Object internal_condition_case_n
-    (Lisp_Object (*) (ptrdiff_t, Lisp_Object *), ptrdiff_t, Lisp_Object *,
-     Lisp_Object, Lisp_Object (*) (Lisp_Object, ptrdiff_t, Lisp_Object *));
-extern struct handler *push_handler (Lisp_Object, enum handlertype);
-extern struct handler *push_handler_nosignal (Lisp_Object, enum handlertype);
-extern void specbind (Lisp_Object, Lisp_Object);
-extern void record_unwind_protect (void (*) (Lisp_Object), Lisp_Object);
+extern _Noreturn void xsignal0 (ELisp_Handle);
+extern _Noreturn void xsignal1 (ELisp_Handle, ELisp_Handle);
+extern _Noreturn void xsignal2 (ELisp_Handle, ELisp_Handle, ELisp_Handle);
+extern _Noreturn void xsignal3 (ELisp_Handle, ELisp_Handle, ELisp_Handle,
+                                ELisp_Handle);
+extern _Noreturn void signal_error (const char *, ELisp_Handle);
+extern bool FUNCTIONP (ELisp_Handle);
+extern ELisp_Return_Value funcall_subr (struct Lisp_Subr *subr, ELisp_Vector_Handle arg_vector);
+extern ELisp_Return_Value eval_sub (ELisp_Handle form);
+extern ELisp_Return_Value apply1 (ELisp_Handle, ELisp_Handle);
+extern ELisp_Return_Value call0 (ELisp_Handle);
+extern ELisp_Return_Value call1 (ELisp_Handle, ELisp_Handle);
+extern ELisp_Return_Value call2 (ELisp_Handle, ELisp_Handle, ELisp_Handle);
+extern ELisp_Return_Value call3 (ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle);
+extern ELisp_Return_Value call4 (ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle);
+extern ELisp_Return_Value call5 (ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle);
+extern ELisp_Return_Value call6 (ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle);
+extern ELisp_Return_Value call7 (ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle);
+extern ELisp_Return_Value call8 (ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle);
+extern ELisp_Return_Value internal_catch (ELisp_Handle, ELisp_Return_Value (*) (ELisp_Handle), ELisp_Handle);
+extern ELisp_Return_Value internal_lisp_condition_case (ELisp_Handle, ELisp_Handle, ELisp_Handle);
+extern ELisp_Return_Value internal_condition_case (ELisp_Return_Value (*) (void), ELisp_Handle, ELisp_Return_Value (*) (ELisp_Handle));
+extern ELisp_Return_Value internal_condition_case_1 (ELisp_Return_Value (*) (ELisp_Handle), ELisp_Handle, ELisp_Handle, ELisp_Return_Value (*) (ELisp_Handle));
+extern ELisp_Return_Value internal_condition_case_2 (ELisp_Return_Value (*) (ELisp_Handle, ELisp_Handle), ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Return_Value (*) (ELisp_Handle));
+extern ELisp_Return_Value internal_condition_case_n
+    (ELisp_Return_Value (*) (ELisp_Vector_Handle), ELisp_Vector_Handle,
+     ELisp_Handle, ELisp_Return_Value (*) (ELisp_Handle, ELisp_Vector_Handle));
+extern struct handler *push_handler (ELisp_Handle, enum handlertype);
+extern struct handler *push_handler_nosignal (ELisp_Handle, enum handlertype);
+extern void specbind (ELisp_Handle, ELisp_Handle);
+extern void record_unwind_protect (void (*) (ELisp_Handle), ELisp_Handle);
 extern void record_unwind_protect_ptr (void (*) (void *), void *);
 extern void record_unwind_protect_int (void (*) (int), int);
 extern void record_unwind_protect_void (void (*) (void));
 extern void record_unwind_protect_nothing (void);
 extern void clear_unwind_protect (ptrdiff_t);
-extern void set_unwind_protect (ptrdiff_t, void (*) (Lisp_Object), Lisp_Object);
+extern void set_unwind_protect (ptrdiff_t, void (*) (ELisp_Handle), ELisp_Handle);
 extern void set_unwind_protect_ptr (ptrdiff_t, void (*) (void *), void *);
-extern Lisp_Object unbind_to (ptrdiff_t, Lisp_Object);
+extern ELisp_Return_Value unbind_to (ptrdiff_t, ELisp_Handle);
 extern void rebind_for_thread_switch (void);
 extern void unbind_for_thread_switch (struct thread_state *);
 extern _Noreturn void error (const char *, ...) ATTRIBUTE_FORMAT_PRINTF (1, 2);
 extern _Noreturn void verror (const char *, va_list)
   ATTRIBUTE_FORMAT_PRINTF (1, 0);
-extern Lisp_Object vformat_string (const char *, va_list)
+extern ELisp_Return_Value vformat_string (const char *, va_list)
   ATTRIBUTE_FORMAT_PRINTF (1, 0);
-extern void un_autoload (Lisp_Object);
-extern Lisp_Object call_debugger (Lisp_Object arg);
+extern void un_autoload (ELisp_Handle);
+extern ELisp_Return_Value call_debugger (ELisp_Handle arg);
 extern void init_eval_once (void);
-extern Lisp_Object safe_call (ptrdiff_t, Lisp_Object, ...);
-extern Lisp_Object safe_call1 (Lisp_Object, Lisp_Object);
-extern Lisp_Object safe_call2 (Lisp_Object, Lisp_Object, Lisp_Object);
+/*
+template<class... A>
+extern ELisp_Return_Value safe_call (ptrdiff_t, ELisp_Handle, A...);
+template<class X, class... A>
+extern ELisp_Return_Value safe_call (ptrdiff_t, ELisp_Handle, X, A...);
+*/
+extern ELisp_Return_Value safe_call (ptrdiff_t, ELisp_Handle, ...);
+extern ELisp_Return_Value safe_call1 (ELisp_Handle, ELisp_Handle);
+extern ELisp_Return_Value safe_call2 (ELisp_Handle, ELisp_Handle, ELisp_Handle);
 extern void init_eval (void);
 extern void syms_of_eval (void);
-extern void prog_ignore (Lisp_Object);
-extern ptrdiff_t record_in_backtrace (Lisp_Object, Lisp_Object *, ptrdiff_t);
-extern void mark_specpdl (union specbinding *first, union specbinding *ptr);
-extern void get_backtrace (Lisp_Object array);
-Lisp_Object backtrace_top_function (void);
+extern void prog_ignore (ELisp_Handle);
+extern ptrdiff_t record_in_backtrace (ELisp_Handle, ELisp_Pointer, ptrdiff_t);
+extern void mark_specpdl (struct specbinding *first, struct specbinding *ptr);
+extern void get_backtrace (ELisp_Handle array);
+ELisp_Return_Value backtrace_top_function (void);
 extern bool let_shadows_buffer_binding_p (struct Lisp_Symbol *symbol);
 
 /* Defined in unexmacosx.c.  */
@@ -3918,11 +5726,11 @@ extern void *unexec_realloc (void *, size_t);
 extern void unexec_free (void *);
 #endif
 
-#include "emacs-module.h"
+#include "emacs-module.h.hh"
 
 /* Function prototype for the module Lisp functions.  */
 typedef emacs_value (*emacs_subr) (emacs_env *, ptrdiff_t,
-				   emacs_value [], void *);
+                                   emacs_value [], void *);
 
 /* Module function.  */
 
@@ -3933,37 +5741,36 @@ typedef emacs_value (*emacs_subr) (emacs_env *, ptrdiff_t,
 
 struct Lisp_Module_Function
 {
-  union vectorlike_header header;
+  struct vectorlike_header header;
 
   /* Fields traced by GC; these must come first.  */
-  Lisp_Object documentation;
+  ELisp_Struct_Value documentation;
 
   /* Fields ignored by GC.  */
-  ptrdiff_t min_arity, max_arity;
+  ptrdiff_t min_arity; ptrdiff_t max_arity;
   emacs_subr subr;
   void *data;
 };
 
 INLINE bool
-MODULE_FUNCTIONP (Lisp_Object o)
+MODULE_FUNCTIONP (ELisp_Handle o)
 {
   return PSEUDOVECTORP (o, PVEC_MODULE_FUNCTION);
 }
 
 INLINE struct Lisp_Module_Function *
-XMODULE_FUNCTION (Lisp_Object o)
+XMODULE_FUNCTION (ELisp_Handle o)
 {
-  eassert (MODULE_FUNCTIONP (o));
-  return XUNTAG (o, Lisp_Vectorlike);
+  return (struct Lisp_Module_Function *)o.xvector();
 }
 
 #ifdef HAVE_MODULES
 /* Defined in alloc.c.  */
-extern Lisp_Object make_user_ptr (void (*finalizer) (void *), void *p);
+extern ELisp_Return_Value make_user_ptr (void (*finalizer) (void *), void *p);
 
 /* Defined in emacs-module.c.  */
-extern Lisp_Object funcall_module (Lisp_Object, ptrdiff_t, Lisp_Object *);
-extern Lisp_Object module_function_arity (const struct Lisp_Module_Function *);
+extern ELisp_Return_Value funcall_module (ELisp_Handle, ELisp_Vector_Handle);
+extern ELisp_Return_Value module_function_arity (const struct Lisp_Module_Function *);
 extern void mark_modules (void);
 extern void init_module_assertions (bool);
 extern void syms_of_module (void);
@@ -3973,30 +5780,30 @@ extern void syms_of_module (void);
 extern void mark_threads (void);
 
 /* Defined in editfns.c.  */
-extern void insert1 (Lisp_Object);
-extern Lisp_Object save_excursion_save (void);
-extern Lisp_Object save_restriction_save (void);
-extern void save_excursion_restore (Lisp_Object);
-extern void save_restriction_restore (Lisp_Object);
+extern void insert1 (ELisp_Handle);
+extern ELisp_Return_Value save_excursion_save (void);
+extern ELisp_Return_Value save_restriction_save (void);
+extern void save_excursion_restore (ELisp_Handle);
+extern void save_restriction_restore (ELisp_Handle);
 extern _Noreturn void time_overflow (void);
-extern Lisp_Object make_buffer_string (ptrdiff_t, ptrdiff_t, bool);
-extern Lisp_Object make_buffer_string_both (ptrdiff_t, ptrdiff_t, ptrdiff_t,
-					    ptrdiff_t, bool);
+extern ELisp_Return_Value make_buffer_string (ptrdiff_t, ptrdiff_t, bool);
+extern ELisp_Return_Value make_buffer_string_both (ptrdiff_t, ptrdiff_t, ptrdiff_t,
+                                            ptrdiff_t, bool);
 extern void init_editfns (bool);
 extern void syms_of_editfns (void);
 
 /* Defined in buffer.c.  */
-extern bool mouse_face_overlay_overlaps (Lisp_Object);
-extern Lisp_Object disable_line_numbers_overlay_at_eob (void);
-extern _Noreturn void nsberror (Lisp_Object);
+extern bool mouse_face_overlay_overlaps (ELisp_Handle);
+extern ELisp_Return_Value disable_line_numbers_overlay_at_eob (void);
+extern _Noreturn void nsberror (ELisp_Handle);
 extern void adjust_overlays_for_insert (ptrdiff_t, ptrdiff_t);
 extern void adjust_overlays_for_delete (ptrdiff_t, ptrdiff_t);
 extern void fix_start_end_in_overlays (ptrdiff_t, ptrdiff_t);
-extern void report_overlay_modification (Lisp_Object, Lisp_Object, bool,
-                                         Lisp_Object, Lisp_Object, Lisp_Object);
+extern void report_overlay_modification (ELisp_Handle, ELisp_Handle, bool,
+                                         ELisp_Handle, ELisp_Handle, ELisp_Handle);
 extern bool overlay_touches_p (ptrdiff_t);
-extern Lisp_Object other_buffer_safely (Lisp_Object);
-extern Lisp_Object get_truename_buffer (Lisp_Object);
+extern ELisp_Return_Value other_buffer_safely (ELisp_Handle);
+extern ELisp_Return_Value get_truename_buffer (ELisp_Handle);
 extern void init_buffer_once (void);
 extern void init_buffer (int);
 extern void syms_of_buffer (void);
@@ -4004,35 +5811,35 @@ extern void keys_of_buffer (void);
 
 /* Defined in marker.c.  */
 
-extern ptrdiff_t marker_position (Lisp_Object);
-extern ptrdiff_t marker_byte_position (Lisp_Object);
+extern ptrdiff_t marker_position (ELisp_Handle);
+extern ptrdiff_t marker_byte_position (ELisp_Handle);
 extern void clear_charpos_cache (struct buffer *);
 extern ptrdiff_t buf_charpos_to_bytepos (struct buffer *, ptrdiff_t);
 extern ptrdiff_t buf_bytepos_to_charpos (struct buffer *, ptrdiff_t);
 extern void unchain_marker (struct Lisp_Marker *marker);
-extern Lisp_Object set_marker_restricted (Lisp_Object, Lisp_Object, Lisp_Object);
-extern Lisp_Object set_marker_both (Lisp_Object, Lisp_Object, ptrdiff_t, ptrdiff_t);
-extern Lisp_Object set_marker_restricted_both (Lisp_Object, Lisp_Object,
+extern ELisp_Return_Value set_marker_restricted (ELisp_Handle, ELisp_Handle, ELisp_Handle);
+extern ELisp_Return_Value set_marker_both (ELisp_Handle, ELisp_Handle, ptrdiff_t, ptrdiff_t);
+extern ELisp_Return_Value set_marker_restricted_both (ELisp_Handle, ELisp_Handle,
                                                ptrdiff_t, ptrdiff_t);
-extern Lisp_Object build_marker (struct buffer *, ptrdiff_t, ptrdiff_t);
+extern ELisp_Return_Value build_marker (struct buffer *, ptrdiff_t, ptrdiff_t);
 extern void syms_of_marker (void);
 
 /* Defined in fileio.c.  */
 
-extern Lisp_Object expand_and_dir_to_file (Lisp_Object);
-extern Lisp_Object write_region (Lisp_Object, Lisp_Object, Lisp_Object,
-				 Lisp_Object, Lisp_Object, Lisp_Object,
-				 Lisp_Object, int);
+extern ELisp_Return_Value expand_and_dir_to_file (ELisp_Handle);
+extern ELisp_Return_Value write_region (ELisp_Handle, ELisp_Handle, ELisp_Handle,
+                                 ELisp_Handle, ELisp_Handle, ELisp_Handle,
+                                 ELisp_Handle, int);
 extern void close_file_unwind (int);
 extern void fclose_unwind (void *);
-extern void restore_point_unwind (Lisp_Object);
-extern _Noreturn void report_file_errno (const char *, Lisp_Object, int);
-extern _Noreturn void report_file_error (const char *, Lisp_Object);
-extern _Noreturn void report_file_notify_error (const char *, Lisp_Object);
-extern bool internal_delete_file (Lisp_Object);
-extern Lisp_Object emacs_readlinkat (int, const char *);
+extern void restore_point_unwind (ELisp_Handle);
+extern _Noreturn void report_file_errno (const char *, ELisp_Handle, int);
+extern _Noreturn void report_file_error (const char *, ELisp_Handle);
+extern _Noreturn void report_file_notify_error (const char *, ELisp_Handle);
+extern bool internal_delete_file (ELisp_Handle);
+extern ELisp_Return_Value emacs_readlinkat (int, const char *);
 extern bool file_directory_p (const char *);
-extern bool file_accessible_directory_p (Lisp_Object);
+extern bool file_accessible_directory_p (ELisp_Handle);
 extern void init_fileio (void);
 extern void syms_of_fileio (void);
 
@@ -4043,45 +5850,45 @@ extern void update_search_regs (ptrdiff_t oldstart,
                                 ptrdiff_t oldend, ptrdiff_t newend);
 extern void record_unwind_save_match_data (void);
 struct re_registers;
-extern struct re_pattern_buffer *compile_pattern (Lisp_Object,
-						  struct re_registers *,
-						  Lisp_Object, bool, bool);
-extern ptrdiff_t fast_string_match_internal (Lisp_Object, Lisp_Object,
-					     Lisp_Object);
+extern struct re_pattern_buffer *compile_pattern (ELisp_Handle,
+                                                  struct re_registers *,
+                                                  ELisp_Handle, bool, bool);
+extern ptrdiff_t fast_string_match_internal (ELisp_Handle, ELisp_Handle,
+                                             ELisp_Handle);
 
 INLINE ptrdiff_t
-fast_string_match (Lisp_Object regexp, Lisp_Object string)
+fast_string_match (ELisp_Handle regexp, ELisp_Handle string)
 {
   return fast_string_match_internal (regexp, string, Qnil);
 }
 
 INLINE ptrdiff_t
-fast_string_match_ignore_case (Lisp_Object regexp, Lisp_Object string)
+fast_string_match_ignore_case (ELisp_Handle regexp, ELisp_Handle string)
 {
   return fast_string_match_internal (regexp, string, Vascii_canon_table);
 }
 
-extern ptrdiff_t fast_c_string_match_ignore_case (Lisp_Object, const char *,
-						  ptrdiff_t);
-extern ptrdiff_t fast_looking_at (Lisp_Object, ptrdiff_t, ptrdiff_t,
-                                  ptrdiff_t, ptrdiff_t, Lisp_Object);
+extern ptrdiff_t fast_c_string_match_ignore_case (ELisp_Handle, const char *,
+                                                  ptrdiff_t);
+extern ptrdiff_t fast_looking_at (ELisp_Handle, ptrdiff_t, ptrdiff_t,
+                                  ptrdiff_t, ptrdiff_t, ELisp_Handle);
 extern ptrdiff_t find_newline (ptrdiff_t, ptrdiff_t, ptrdiff_t, ptrdiff_t,
-			       ptrdiff_t, ptrdiff_t *, ptrdiff_t *, bool);
+                               ptrdiff_t, ptrdiff_t *, ptrdiff_t *, bool);
 extern ptrdiff_t scan_newline (ptrdiff_t, ptrdiff_t, ptrdiff_t, ptrdiff_t,
-			       ptrdiff_t, bool);
+                               ptrdiff_t, bool);
 extern ptrdiff_t scan_newline_from_point (ptrdiff_t, ptrdiff_t *, ptrdiff_t *);
 extern ptrdiff_t find_newline_no_quit (ptrdiff_t, ptrdiff_t,
-				       ptrdiff_t, ptrdiff_t *);
+                                       ptrdiff_t, ptrdiff_t *);
 extern ptrdiff_t find_before_next_newline (ptrdiff_t, ptrdiff_t,
-					   ptrdiff_t, ptrdiff_t *);
+                                           ptrdiff_t, ptrdiff_t *);
 extern void syms_of_search (void);
 extern void clear_regexp_cache (void);
 
 /* Defined in minibuf.c.  */
 
-extern Lisp_Object Vminibuffer_list;
-extern Lisp_Object last_minibuf_string;
-extern Lisp_Object get_minibuffer (EMACS_INT);
+extern ELisp_Heap_Value Vminibuffer_list;
+extern ELisp_Heap_Value last_minibuf_string;
+extern ELisp_Return_Value get_minibuffer (EMACS_INT);
 extern void init_minibuf_once (void);
 extern void syms_of_minibuf (void);
 
@@ -4101,28 +5908,28 @@ extern void syms_of_casetab (void);
 
 /* Defined in keyboard.c.  */
 
-extern Lisp_Object echo_message_buffer;
+extern ELisp_Heap_Value echo_message_buffer;
 extern struct kboard *echo_kboard;
 extern void cancel_echoing (void);
 extern bool input_pending;
 #ifdef HAVE_STACK_OVERFLOW_HANDLING
 extern sigjmp_buf return_to_command_loop;
 #endif
-extern Lisp_Object menu_bar_items (Lisp_Object);
-extern Lisp_Object tool_bar_items (Lisp_Object, int *);
+extern ELisp_Return_Value menu_bar_items (ELisp_Handle);
+extern ELisp_Return_Value tool_bar_items (ELisp_Handle, int *);
 extern void discard_mouse_events (void);
 #ifdef USABLE_SIGIO
 void handle_input_available_signal (int);
 #endif
-extern Lisp_Object pending_funcalls;
+extern ELisp_Heap_Value pending_funcalls;
 extern bool detect_input_pending (void);
 extern bool detect_input_pending_ignore_squeezables (void);
 extern bool detect_input_pending_run_timers (bool);
-extern void safe_run_hooks (Lisp_Object);
-extern void cmd_error_internal (Lisp_Object, const char *);
-extern Lisp_Object command_loop_1 (void);
-extern Lisp_Object read_menu_command (void);
-extern Lisp_Object recursive_edit_1 (void);
+extern void safe_run_hooks (ELisp_Handle);
+extern void cmd_error_internal (ELisp_Handle, const char *);
+extern ELisp_Return_Value command_loop_1 (void);
+extern ELisp_Return_Value read_menu_command (void);
+extern ELisp_Return_Value recursive_edit_1 (void);
 extern void record_auto_save (void);
 extern void force_auto_save_soon (void);
 extern void init_keyboard (void);
@@ -4136,11 +5943,11 @@ extern bool indented_beyond_p (ptrdiff_t, ptrdiff_t, EMACS_INT);
 extern void syms_of_indent (void);
 
 /* Defined in frame.c.  */
-extern void store_frame_param (struct frame *, Lisp_Object, Lisp_Object);
-extern void store_in_alist (Lisp_Object *, Lisp_Object, Lisp_Object);
-extern Lisp_Object do_switch_frame (Lisp_Object, int, int, Lisp_Object);
-extern Lisp_Object get_frame_param (struct frame *, Lisp_Object);
-extern void frames_discard_buffer (Lisp_Object);
+extern void store_frame_param (struct frame *, ELisp_Handle, ELisp_Handle);
+extern void store_in_alist (ELisp_Pointer, ELisp_Handle, ELisp_Handle);
+extern ELisp_Return_Value do_switch_frame (ELisp_Handle, int, int, ELisp_Handle);
+extern ELisp_Return_Value get_frame_param (struct frame *, ELisp_Handle);
+extern void frames_discard_buffer (ELisp_Handle);
 extern void syms_of_frame (void);
 
 /* Defined in emacs.c.  */
@@ -4149,11 +5956,11 @@ extern int initial_argc;
 #if defined (HAVE_X_WINDOWS) || defined (HAVE_NS)
 extern bool display_arg;
 #endif
-extern Lisp_Object decode_env_path (const char *, const char *, bool);
-extern Lisp_Object empty_unibyte_string, empty_multibyte_string;
+extern ELisp_Return_Value decode_env_path (const char *, const char *, bool);
+extern ELisp_Heap_Value empty_unibyte_string; extern ELisp_Heap_Value empty_multibyte_string;
 extern _Noreturn void terminate_due_to_signal (int, int);
 #ifdef WINDOWSNT
-extern Lisp_Object Vlibrary_cache;
+extern ELisp_Heap_Value Vlibrary_cache;
 #endif
 #if HAVE_SETLOCALE
 void fixup_locale (void);
@@ -4165,7 +5972,7 @@ INLINE void synchronize_system_messages_locale (void) {}
 INLINE void synchronize_system_time_locale (void) {}
 #endif
 extern char *emacs_strerror (int);
-extern void shut_down_emacs (int, Lisp_Object);
+extern void shut_down_emacs (int, ELisp_Handle);
 
 /* True means don't do interactive redisplay and don't change tty modes.  */
 extern bool noninteractive;
@@ -4197,9 +6004,9 @@ extern bool running_asynch_code;
 
 /* Defined in process.c.  */
 struct Lisp_Process;
-extern void kill_buffer_processes (Lisp_Object);
-extern int wait_reading_process_output (intmax_t, int, int, bool, Lisp_Object,
-					struct Lisp_Process *, int);
+extern void kill_buffer_processes (ELisp_Handle);
+extern int wait_reading_process_output (intmax_t, int, int, bool, ELisp_Handle,
+                                        struct Lisp_Process *, int);
 /* Max value for the first argument of wait_reading_process_output.  */
 #if GNUC_PREREQ (3, 0, 0) && ! GNUC_PREREQ (4, 6, 0)
 /* Work around a bug in GCC 3.4.2, known to be fixed in GCC 4.6.0.
@@ -4219,7 +6026,7 @@ extern void delete_gpm_wait_descriptor (int);
 #endif
 extern void init_process_emacs (int);
 extern void syms_of_process (void);
-extern void setup_process_coding_systems (Lisp_Object);
+extern void setup_process_coding_systems (ELisp_Handle);
 
 /* Defined in callproc.c.  */
 #ifndef DOS_NT
@@ -4227,7 +6034,7 @@ extern void setup_process_coding_systems (Lisp_Object);
 #else
 # define CHILD_SETUP_TYPE int
 #endif
-extern CHILD_SETUP_TYPE child_setup (int, int, int, char **, bool, Lisp_Object);
+extern CHILD_SETUP_TYPE child_setup (int, int, int, char **, bool, ELisp_Handle);
 extern void init_callproc_1 (void);
 extern void init_callproc (void);
 extern void set_initial_environment (void);
@@ -4246,16 +6053,16 @@ enum text_quoting_style
     STRAIGHT_QUOTING_STYLE
   };
 extern enum text_quoting_style text_quoting_style (void);
-extern Lisp_Object read_doc_string (Lisp_Object);
-extern Lisp_Object get_doc_string (Lisp_Object, bool, bool);
+extern ELisp_Return_Value read_doc_string (ELisp_Handle);
+extern ELisp_Return_Value get_doc_string (ELisp_Handle, bool, bool);
 extern void syms_of_doc (void);
 extern int read_bytecode_char (bool);
 
 /* Defined in bytecode.c.  */
 extern void syms_of_bytecode (void);
-extern Lisp_Object exec_byte_code (Lisp_Object, Lisp_Object, Lisp_Object,
-				   Lisp_Object, ptrdiff_t, Lisp_Object *);
-extern Lisp_Object get_byte_code_arity (Lisp_Object);
+extern ELisp_Return_Value exec_byte_code (ELisp_Handle, ELisp_Handle, ELisp_Handle,
+                                   ELisp_Handle, ELisp_Vector_Handle);
+extern ELisp_Return_Value get_byte_code_arity (ELisp_Handle);
 
 /* Defined in macros.c.  */
 extern void init_macros (void);
@@ -4264,16 +6071,16 @@ extern void syms_of_macros (void);
 /* Defined in undo.c.  */
 extern void truncate_undo_list (struct buffer *);
 extern void record_insert (ptrdiff_t, ptrdiff_t);
-extern void record_delete (ptrdiff_t, Lisp_Object, bool);
+extern void record_delete (ptrdiff_t, ELisp_Handle, bool);
 extern void record_first_change (void);
 extern void record_change (ptrdiff_t, ptrdiff_t);
 extern void record_property_change (ptrdiff_t, ptrdiff_t,
-				    Lisp_Object, Lisp_Object,
-                                    Lisp_Object);
+                                    ELisp_Handle, ELisp_Handle,
+                                    ELisp_Handle);
 extern void syms_of_undo (void);
 
 /* Defined in textprop.c.  */
-extern void report_interval_modification (Lisp_Object, Lisp_Object);
+extern void report_interval_modification (ELisp_Handle, ELisp_Handle);
 
 /* Defined in menu.c.  */
 extern void syms_of_menu (void);
@@ -4320,11 +6127,11 @@ extern ptrdiff_t emacs_write_sig (int, void const *, ptrdiff_t);
 extern ptrdiff_t emacs_write_quit (int, void const *, ptrdiff_t);
 extern void emacs_perror (char const *);
 extern int renameat_noreplace (int, char const *, int, char const *);
-extern int str_collate (Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object);
+extern int str_collate (ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle);
 
 /* Defined in filelock.c.  */
-extern void lock_file (Lisp_Object);
-extern void unlock_file (Lisp_Object);
+extern void lock_file (ELisp_Handle);
+extern void unlock_file (ELisp_Handle);
 extern void unlock_all_files (void);
 extern void unlock_buffer (struct buffer *);
 extern void syms_of_filelock (void);
@@ -4334,7 +6141,7 @@ extern void syms_of_sound (void);
 
 /* Defined in category.c.  */
 extern void init_category_once (void);
-extern Lisp_Object char_category_set (int);
+extern ELisp_Return_Value char_category_set (int);
 extern void syms_of_category (void);
 
 /* Defined in ccl.c.  */
@@ -4342,9 +6149,9 @@ extern void syms_of_ccl (void);
 
 /* Defined in dired.c.  */
 extern void syms_of_dired (void);
-extern Lisp_Object directory_files_internal (Lisp_Object, Lisp_Object,
-                                             Lisp_Object, Lisp_Object,
-                                             bool, Lisp_Object);
+extern ELisp_Return_Value directory_files_internal (ELisp_Handle, ELisp_Handle,
+                                             ELisp_Handle, ELisp_Handle,
+                                             bool, ELisp_Handle);
 
 /* Defined in term.c.  */
 extern int *char_ins_del_vector;
@@ -4387,8 +6194,8 @@ extern void syms_of_w32notify (void);
 #endif
 
 /* Defined in xfaces.c.  */
-extern Lisp_Object Vface_alternative_font_family_alist;
-extern Lisp_Object Vface_alternative_font_registry_alist;
+extern ELisp_Heap_Value Vface_alternative_font_family_alist;
+extern ELisp_Heap_Value Vface_alternative_font_registry_alist;
 extern void syms_of_xfaces (void);
 
 #ifdef HAVE_X_WINDOWS
@@ -4411,9 +6218,9 @@ extern void syms_of_xterm (void);
 extern char *x_get_keysym_name (int);
 #endif /* HAVE_WINDOW_SYSTEM */
 
+#ifdef HAVE_LIBXML2
 /* Defined in xml.c.  */
 extern void syms_of_xml (void);
-#ifdef HAVE_LIBXML2
 extern void xml_cleanup_parser (void);
 #endif
 
@@ -4460,14 +6267,14 @@ extern void *xnrealloc (void *, ptrdiff_t, ptrdiff_t)
 extern void *xpalloc (void *, ptrdiff_t *, ptrdiff_t, ptrdiff_t, ptrdiff_t);
 
 extern char *xstrdup (const char *) ATTRIBUTE_MALLOC;
-extern char *xlispstrdup (Lisp_Object) ATTRIBUTE_MALLOC;
+extern char *xlispstrdup (ELisp_Handle) ATTRIBUTE_MALLOC;
 extern void dupstring (char **, char const *);
 
 /* Make DEST a copy of STRING's data.  Return a pointer to DEST's terminating
    null byte.  This is like stpcpy, except the source is a Lisp string.  */
 
 INLINE char *
-lispstpcpy (char *dest, Lisp_Object string)
+lispstpcpy (char *dest, ELisp_Handle string)
 {
   ptrdiff_t len = SBYTES (string);
   memcpy (dest, SDATA (string), len + 1);
@@ -4516,8 +6323,8 @@ extern void *record_xmalloc (size_t) ATTRIBUTE_ALLOC_SIZE ((1));
 /* SAFE_ALLOCA allocates a simple buffer.  */
 
 #define SAFE_ALLOCA(size) ((size) <= sa_avail				\
-			   ? AVAIL_ALLOCA (size)			\
-			   : (sa_must_free = true, record_xmalloc (size)))
+                           ? AVAIL_ALLOCA (size)			\
+                           : (sa_must_free = true, record_xmalloc (size)))
 
 /* SAFE_NALLOCA sets BUF to a newly allocated array of MULTIPLIER *
    NITEMS items, each of the same type as *BUF.  MULTIPLIER must
@@ -4529,9 +6336,9 @@ extern void *record_xmalloc (size_t) ATTRIBUTE_ALLOC_SIZE ((1));
       (buf) = AVAIL_ALLOCA (sizeof *(buf) * (multiplier) * (nitems)); \
     else							 \
       {								 \
-	(buf) = xnmalloc (nitems, sizeof *(buf) * (multiplier)); \
-	sa_must_free = true;					 \
-	record_unwind_protect_ptr (xfree, buf);			 \
+        (buf) = xnmalloc (nitems, sizeof *(buf) * (multiplier)); \
+        sa_must_free = true;					 \
+        record_unwind_protect_ptr (xfree, buf);			 \
       }								 \
   } while (false)
 
@@ -4558,20 +6365,21 @@ extern void *record_xmalloc (size_t) ATTRIBUTE_ALLOC_SIZE ((1));
 
 #define SAFE_ALLOCA_LISP_EXTRA(buf, nelt, extra)	       \
   do {							       \
+    JSUnsafeValue* ptr;                                            \
     ptrdiff_t alloca_nbytes;				       \
     if (INT_MULTIPLY_WRAPV (nelt, word_size, &alloca_nbytes)   \
-	|| INT_ADD_WRAPV (alloca_nbytes, extra, &alloca_nbytes) \
-	|| SIZE_MAX < alloca_nbytes)			       \
+        || INT_ADD_WRAPV (alloca_nbytes, extra, &alloca_nbytes) \
+        || SIZE_MAX < alloca_nbytes)			       \
       memory_full (SIZE_MAX);				       \
     else if (alloca_nbytes <= sa_avail)			       \
-      (buf) = AVAIL_ALLOCA (alloca_nbytes);		       \
+      (buf) = ptr =  AVAIL_ALLOCA (alloca_nbytes);             \
     else						       \
       {							       \
-	Lisp_Object arg_;				       \
-	(buf) = xmalloc (alloca_nbytes);		       \
-	arg_ = make_save_memory (buf, nelt);		       \
-	sa_must_free = true;				       \
-	record_unwind_protect (free_save_value, arg_);	       \
+        ELisp_Value arg_;				       \
+        (buf) = ptr = xmalloc (alloca_nbytes);		       \
+        arg_ = make_save_memory (ptr, nelt);              \
+        sa_must_free = true;				       \
+        record_unwind_protect (free_save_value, arg_);	       \
       }							       \
   } while (false)
 
@@ -4604,6 +6412,20 @@ enum { defined_GC_CHECK_STRING_BYTES = true };
 enum { defined_GC_CHECK_STRING_BYTES = false };
 #endif
 
+/* Struct inside unions that are typically no larger and aligned enough.  */
+
+union Aligned_Cons
+{
+  struct Lisp_Cons s;
+  double d; intmax_t i; void *p;
+};
+
+union Aligned_String
+{
+  struct Lisp_String s;
+  double d; intmax_t i; void *p;
+};
+
 /* True for stack-based cons and string implementations, respectively.
    Use stack-based strings only if stack-based cons also works.
    Otherwise, STACK_CONS would create heap-based cons cells that
@@ -4611,41 +6433,36 @@ enum { defined_GC_CHECK_STRING_BYTES = false };
 
 enum
   {
-    USE_STACK_CONS = USE_STACK_LISP_OBJECTS,
+    USE_STACK_CONS = (USE_STACK_LISP_OBJECTS
+                      && alignof (union Aligned_Cons) % GCALIGNMENT == 0),
     USE_STACK_STRING = (USE_STACK_CONS
-			&& !defined_GC_CHECK_STRING_BYTES)
+                        && !defined_GC_CHECK_STRING_BYTES
+                        && alignof (union Aligned_String) % GCALIGNMENT == 0)
   };
 
 /* Auxiliary macros used for auto allocation of Lisp objects.  Please
    use these only in macros like AUTO_CONS that declare a local
    variable whose lifetime will be clear to the programmer.  */
 #define STACK_CONS(a, b) \
-  make_lisp_ptr (&((struct Lisp_Cons) {{{a, {b}}}}), Lisp_Cons)
+  make_lisp_ptr (&((union Aligned_Cons) { { a, { b } } }).s, Lisp_Cons)
 #define AUTO_CONS_EXPR(a, b) \
-  (USE_STACK_CONS ? STACK_CONS (a, b) : Fcons (a, b))
+  (Fcons (a, b))
 
 /* Declare NAME as an auto Lisp cons or short list if possible, a
    GC-based one otherwise.  This is in the sense of the C keyword
    'auto'; i.e., the object has the lifetime of the containing block.
    The resulting object should not be made visible to user Lisp code.  */
 
-#define AUTO_CONS(name, a, b) Lisp_Object name = AUTO_CONS_EXPR (a, b)
+#define AUTO_CONS(name, a, b) ELisp_Value name = AUTO_CONS_EXPR (a, b)
 #define AUTO_LIST1(name, a)						\
-  Lisp_Object name = (USE_STACK_CONS ? STACK_CONS (a, Qnil) : list1 (a))
+  ELisp_Value name = (list1 (a))
 #define AUTO_LIST2(name, a, b)						\
-  Lisp_Object name = (USE_STACK_CONS					\
-		      ? STACK_CONS (a, STACK_CONS (b, Qnil))		\
-		      : list2 (a, b))
+  ELisp_Value name = (list2 (a, b))
 #define AUTO_LIST3(name, a, b, c)					\
-  Lisp_Object name = (USE_STACK_CONS					\
-		      ? STACK_CONS (a, STACK_CONS (b, STACK_CONS (c, Qnil))) \
-		      : list3 (a, b, c))
+  ELisp_Value name = (list3 (a, b, c))
 #define AUTO_LIST4(name, a, b, c, d)					\
-    Lisp_Object name							\
-      = (USE_STACK_CONS							\
-	 ? STACK_CONS (a, STACK_CONS (b, STACK_CONS (c,			\
-						     STACK_CONS (d, Qnil)))) \
-	 : list4 (a, b, c, d))
+    ELisp_Value name							\
+      = (list4 (a, b, c, d))
 
 /* Declare NAME as an auto Lisp string if possible, a GC-based one if not.
    Take its unibyte value from the null-terminated string STR,
@@ -4663,12 +6480,8 @@ enum
    should not be modified or made visible to user code.  */
 
 #define AUTO_STRING_WITH_LEN(name, str, len)				\
-  Lisp_Object name =							\
-    (USE_STACK_STRING							\
-     ? (make_lisp_ptr							\
-	((&(struct Lisp_String) {{{len, -1, 0, (unsigned char *) (str)}}}), \
-	 Lisp_String))							\
-     : make_unibyte_string (str, len))
+  ELisp_Value name =							\
+     make_unibyte_string (str, len)
 
 /* Loop over conses of the list TAIL, signaling if a cycle is found,
    and possibly quitting after each loop iteration.  In the loop body,
@@ -4689,8 +6502,8 @@ enum
 /* Iterator intended for use only within FOR_EACH_TAIL_INTERNAL.  */
 struct for_each_tail_internal
 {
-  Lisp_Object tortoise;
-  intptr_t max, n;
+  ELisp_Value tortoise; /* not a typo; this struct lives only on the stack. */
+  intptr_t c_max; intptr_t n;
   unsigned short int q;
 };
 
@@ -4712,12 +6525,12 @@ struct for_each_tail_internal
   for (struct for_each_tail_internal li = { tail, 2, 0, 2 };		\
        CONSP (tail);							\
        ((tail) = XCDR (tail),						\
-	((--li.q != 0							\
-	  || ((check_quit) ? maybe_quit () : (void) 0, 0 < --li.n)	\
-	  || (li.q = li.n = li.max <<= 1, li.n >>= USHRT_WIDTH,		\
-	      li.tortoise = (tail), false))				\
-	 && EQ (tail, li.tortoise))					\
-	? (cycle) : (void) 0))
+        ((--li.q != 0							\
+          || ((check_quit) ? maybe_quit () : (void) 0, 0 < --li.n)	\
+          || (li.q = li.n = li.c_max <<= 1, li.n >>= USHRT_WIDTH,		\
+              li.tortoise = (tail), false))				\
+         && EQ (tail, li.tortoise))					\
+        ? (cycle) : (void) 0))
 
 /* Do a `for' loop over alist values.  */
 
@@ -4734,13 +6547,12 @@ maybe_gc (void)
   if ((consing_since_gc > gc_cons_threshold
        && consing_since_gc > gc_relative_threshold)
       || (!NILP (Vmemory_full)
-	  && consing_since_gc > memory_full_cons_threshold))
+          && consing_since_gc > memory_full_cons_threshold))
     Fgarbage_collect ();
 }
+
+#define XSETSCROLL_BAR(a,b) (a).xsetvector((struct Lisp_Vector *)b)
 
 INLINE_HEADER_END
 
 #endif /* EMACS_LISP_H */
-#else
-#include "jslisp.h"
-#endif

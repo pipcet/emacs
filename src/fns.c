@@ -41,8 +41,8 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 # define gnutls_rnd w32_gnutls_rnd
 #endif
 
-static void sort_vector_copy (Lisp_Object, ptrdiff_t,
-			      Lisp_Object *restrict, Lisp_Object *restrict);
+static void sort_vector_copy (Lisp_Object,
+                              ELisp_Vector_Handle, ELisp_Pointer);
 enum equal_kind { EQUAL_NO_QUIT, EQUAL_PLAIN, EQUAL_INCLUDING_PROPERTIES };
 static bool internal_equal (Lisp_Object, Lisp_Object,
 			    enum equal_kind, int, Lisp_Object);
@@ -102,6 +102,7 @@ To get the number of bytes, use `string-bytes'.  */)
   (register Lisp_Object sequence)
 {
   register Lisp_Object val;
+  MODIFY_ARG(&sequence);
 
   if (STRINGP (sequence))
     XSETFASTINT (val, SCHARS (sequence));
@@ -138,6 +139,7 @@ it returns 0.  If LIST is circular, it returns a finite value
 which is at least the number of distinct elements.  */)
   (Lisp_Object list)
 {
+  MODIFY_ARG(&list);
   intptr_t len = 0;
   FOR_EACH_TAIL_SAFE (list)
     len++;
@@ -437,14 +439,16 @@ static Lisp_Object concat (ptrdiff_t nargs, Lisp_Object *args,
 Lisp_Object
 concat2 (Lisp_Object s1, Lisp_Object s2)
 {
-  return concat (2, ((Lisp_Object []) {s1, s2}), Lisp_String, 0);
+  ELisp_Value tmp[] = { s1, s2 };
+  return concat (LV (2, tmp), Lisp_String, 0);
 }
 
 /* ARGSUSED */
 Lisp_Object
 concat3 (Lisp_Object s1, Lisp_Object s2, Lisp_Object s3)
 {
-  return concat (3, ((Lisp_Object []) {s1, s2, s3}), Lisp_String, 0);
+  ELisp_Value tmp[] = { s1, s2, s3 };
+  return concat (LV (3, tmp), Lisp_String, 0);
 }
 
 DEFUN ("append", Fappend, Sappend, 0, MANY, 0,
@@ -491,7 +495,7 @@ the same empty object instead of its copy.  */)
 
   if (RECORDP (arg))
     {
-      return Frecord (PVSIZE (arg), XVECTOR (arg)->contents);
+      return Frecord (LV (PVSIZE (arg), XVECTOR (arg)->contents));
     }
 
   if (CHAR_TABLE_P (arg))
@@ -511,7 +515,7 @@ the same empty object instead of its copy.  */)
   if (!CONSP (arg) && !VECTORP (arg) && !STRINGP (arg))
     wrong_type_argument (Qsequencep, arg);
 
-  return concat (1, &arg, XTYPE (arg), 0);
+  return concat (LV (1, &arg), XTYPE (arg), 0);
 }
 
 /* This structure holds information of an argument of `concat' that is
@@ -1170,7 +1174,7 @@ Elements of ALIST that are not conses are also shared.  */)
 {
   if (NILP (alist))
     return alist;
-  alist = concat (1, &alist, Lisp_Cons, false);
+  alist = concat (LV (1, &alist), Lisp_Cons, false);
   for (Lisp_Object tem = alist; !NILP (tem); tem = XCDR (tem))
     {
       Lisp_Object car = XCAR (tem);
@@ -1255,7 +1259,7 @@ With one argument, just copy STRING (with properties, if any).  */)
 			    string, make_number (0), res, Qnil);
     }
   else
-    res = Fvector (ito - ifrom, aref_addr (string, ifrom));
+    res = Fvector (LV (ito - ifrom, aref_addr (string, ifrom)));
 
   return res;
 }
@@ -1308,7 +1312,7 @@ substring_both (Lisp_Object string, ptrdiff_t from, ptrdiff_t from_byte,
 			    string, make_number (0), res, Qnil);
     }
   else
-    res = Fvector (to - from, aref_addr (string, from));
+    res = Fvector (LV (to - from, aref_addr (string, from)));
 
   return res;
 }
@@ -1708,6 +1712,7 @@ See also the function `nreverse', which is used more often.  */)
   (Lisp_Object seq)
 {
   Lisp_Object new;
+  MODIFY_ARG(&seq);
 
   if (NILP (seq))
     return Qnil;
@@ -1807,19 +1812,20 @@ inorder (Lisp_Object pred, Lisp_Object a, Lisp_Object b)
    except that B might be the last part of DEST.  */
 static void
 merge_vectors (Lisp_Object pred,
-	       ptrdiff_t alen, Lisp_Object const a[restrict VLA_ELEMS (alen)],
-	       ptrdiff_t blen, Lisp_Object const b[VLA_ELEMS (blen)],
-	       Lisp_Object dest[VLA_ELEMS (alen + blen)])
+	       ptrdiff_t alen, Lisp_Object *a,
+	       ptrdiff_t blen, Lisp_Object *b,
+	       Lisp_Object *dest)
 {
   eassume (0 < alen && 0 < blen);
-  Lisp_Object const *alim = a + alen;
-  Lisp_Object const *blim = b + blen;
+  ELisp_Pointer alim = a + alen;
+  ELisp_Pointer blim = b + blen;
 
   while (true)
     {
       if (inorder (pred, a[0], b[0]))
 	{
-	  *dest++ = *a++;
+          ELisp_Value tmp = (a++).ref(0);
+	  (dest++).set(tmp);
 	  if (a == alim)
 	    {
 	      if (dest != b)
@@ -1829,7 +1835,8 @@ merge_vectors (Lisp_Object pred,
 	}
       else
 	{
-	  *dest++ = *b++;
+          ELisp_Value tmp = (b++).ref(0);
+	  (dest++).set(tmp);
 	  if (b == blim)
 	    {
 	      memcpy (dest, a, (alim - a) * sizeof *dest);
@@ -1843,23 +1850,23 @@ merge_vectors (Lisp_Object pred,
    temporary storage.  LEN must be at least 2.  */
 static void
 sort_vector_inplace (Lisp_Object pred, ptrdiff_t len,
-		     Lisp_Object vec[restrict VLA_ELEMS (len)],
-		     Lisp_Object tmp[restrict VLA_ELEMS (len >> 1)])
+		     Lisp_Object *vec,
+		     ptrdiff_t halfl, Lisp_Object *tmp)
 {
   eassume (2 <= len);
   ptrdiff_t halflen = len >> 1;
-  sort_vector_copy (pred, halflen, vec, tmp);
+  sort_vector_copy (pred, len, vec, tmp);
   if (1 < len - halflen)
-    sort_vector_inplace (pred, len - halflen, vec + halflen, vec);
-  merge_vectors (pred, halflen, tmp, len - halflen, vec + halflen, vec);
+    sort_vector_inplace (pred, LV (len - halflen, vec + halflen), len, vec);
+  merge_vectors (pred, LV (halflen, tmp), LV (len - halflen, vec + halflen), vec);
 }
 
 /* Using PRED to compare, sort from LEN-length SRC into DST.
    Len must be positive.  */
 static void
 sort_vector_copy (Lisp_Object pred, ptrdiff_t len,
-		  Lisp_Object src[restrict VLA_ELEMS (len)],
-		  Lisp_Object dest[restrict VLA_ELEMS (len)])
+		  Lisp_Object *src,
+		  Lisp_Object *dest)
 {
   eassume (0 < len);
   ptrdiff_t halflen = len >> 1;
@@ -1868,10 +1875,10 @@ sort_vector_copy (Lisp_Object pred, ptrdiff_t len,
   else
     {
       if (1 < halflen)
-	sort_vector_inplace (pred, halflen, src, dest);
+	sort_vector_inplace (pred, LV (halflen, src), LV (len, dest));
       if (1 < len - halflen)
-	sort_vector_inplace (pred, len - halflen, src + halflen, dest);
-      merge_vectors (pred, halflen, src, len - halflen, src + halflen, dest);
+	sort_vector_inplace (pred, LV (len - halflen, src + halflen), LV (len, dest));
+      merge_vectors (pred, LV (halflen, src), LV (len - halflen, src + halflen), dest);
     }
 }
 
@@ -1890,7 +1897,7 @@ sort_vector (Lisp_Object vector, Lisp_Object predicate)
   SAFE_ALLOCA_LISP (tmp, halflen);
   for (ptrdiff_t i = 0; i < halflen; i++)
     tmp[i] = make_number (0);
-  sort_vector_inplace (predicate, len, XVECTOR (vector)->contents, tmp);
+  sort_vector_inplace (predicate, LV (len, XVECTOR (vector)->contents), LV (halflen, tmp));
   SAFE_FREE ();
 }
 
@@ -1993,7 +2000,7 @@ This is the last value stored with `(put SYMBOL PROPNAME VALUE)'.  */)
                                     propname);
   if (!NILP (propval))
     return propval;
-  return Fplist_get (XSYMBOL (symbol)->u.s.plist, propname);
+  return Fplist_get (XSYMBOL (symbol)->plist, propname);
 }
 
 DEFUN ("plist-put", Fplist_put, Splist_put, 3, 3, 0,
@@ -2039,7 +2046,7 @@ It can be retrieved with `(get SYMBOL PROPNAME)'.  */)
 {
   CHECK_SYMBOL (symbol);
   set_symbol_plist
-    (symbol, Fplist_put (XSYMBOL (symbol)->u.s.plist, propname, value));
+    (symbol, Fplist_put (XSYMBOL (symbol)->plist, propname, value));
   return value;
 }
 
@@ -2381,6 +2388,7 @@ This makes STRING unibyte and may change its length.  */)
   (Lisp_Object string)
 {
   ptrdiff_t len;
+  MODIFY_ARG(&string);
   CHECK_STRING (string);
   len = SBYTES (string);
   memset (SDATA (string), 0, len);
@@ -2513,12 +2521,15 @@ SEQUENCE may be a list, a vector, a bool-vector, or a string.  */)
   ptrdiff_t nargs = 2 * nmapped - 1;
 
   for (ptrdiff_t i = nmapped - 1; i > 0; i--)
-    args[i + i] = args[i];
+    {
+      ELisp_Value tmp = args[i];
+      args[i + i] = tmp;
+    }
 
   for (ptrdiff_t i = 1; i < nargs; i += 2)
     args[i] = separator;
 
-  Lisp_Object ret = Fconcat (nargs, args);
+  Lisp_Object ret = Fconcat (LV (nargs, args));
   SAFE_FREE ();
   return ret;
 }
@@ -2536,7 +2547,7 @@ SEQUENCE may be a list, a vector, a bool-vector, or a string.  */)
   Lisp_Object *args;
   SAFE_ALLOCA_LISP (args, leni);
   ptrdiff_t nmapped = mapcar1 (leni, args, function, sequence);
-  Lisp_Object ret = Flist (nmapped, args);
+  Lisp_Object ret = Flist (LV (nmapped, args));
   SAFE_FREE ();
   return ret;
 }
@@ -2570,7 +2581,7 @@ SEQUENCE may be a list, a vector, a bool-vector, or a string. */)
   Lisp_Object *args;
   SAFE_ALLOCA_LISP (args, leni);
   ptrdiff_t nmapped = mapcar1 (leni, args, function, sequence);
-  Lisp_Object ret = Fnconc (nmapped, args);
+  Lisp_Object ret = Fnconc (LV (nmapped, args));
   SAFE_FREE ();
   return ret;
 }
@@ -2909,7 +2920,7 @@ usage: (widget-apply WIDGET PROPERTY &rest ARGS)  */)
   Lisp_Object widget = args[0];
   Lisp_Object property = args[1];
   Lisp_Object propval = Fwidget_get (widget, property);
-  Lisp_Object trailing_args = Flist (nargs - 2, args + 2);
+  Lisp_Object trailing_args = Flist (LV (nargs - 2, args + 2));
   Lisp_Object result = CALLN (Fapply, propval, widget, trailing_args);
   return result;
 }
@@ -3720,7 +3731,7 @@ hashfn_user_defined (struct hash_table_test *ht, Lisp_Object key)
   return hashfn_eq (ht, hash);
 }
 
-struct hash_table_test const
+struct hash_table_test
   hashtest_eq = { LISPSYM_INITIALLY (Qeq), LISPSYM_INITIALLY (Qnil),
 		  LISPSYM_INITIALLY (Qnil), 0, hashfn_eq },
   hashtest_eql = { LISPSYM_INITIALLY (Qeql), LISPSYM_INITIALLY (Qnil),
@@ -3740,7 +3751,7 @@ allocate_hash_table (void)
 /* An upper bound on the size of a hash table index.  It must fit in
    ptrdiff_t and be a valid Emacs fixnum.  */
 #define INDEX_SIZE_BOUND \
-  ((ptrdiff_t) min (MOST_POSITIVE_FIXNUM, PTRDIFF_MAX / word_size))
+  ((ptrdiff_t) c_min (MOST_POSITIVE_FIXNUM, PTRDIFF_MAX / word_size))
 
 /* Create and initialize a new hash table.
 
@@ -3769,7 +3780,7 @@ allocate_hash_table (void)
    changed after purecopy.  */
 
 Lisp_Object
-make_hash_table (struct hash_table_test test, EMACS_INT size,
+make_hash_table (struct hash_table_test *test, EMACS_INT size,
 		 float rehash_size, float rehash_threshold,
 		 Lisp_Object weak, bool pure)
 {
@@ -3778,9 +3789,12 @@ make_hash_table (struct hash_table_test test, EMACS_INT size,
   EMACS_INT index_size;
   ptrdiff_t i;
   double index_float;
+  ELisp_Value name = test->name;
+  ELisp_Value user_hash_function = test->user_hash_function;
+  ELisp_Value user_cmp_function = test->user_cmp_function;
 
-  /* Preconditions.  */
-  eassert (SYMBOLP (test.name));
+   /* Preconditions.  */
+  eassert (SYMBOLP (name));
   eassert (0 <= size && size <= MOST_POSITIVE_FIXNUM);
   eassert (rehash_size <= -1 || 0 < rehash_size);
   eassert (0 < rehash_threshold && rehash_threshold <= 1);
@@ -3800,7 +3814,11 @@ make_hash_table (struct hash_table_test test, EMACS_INT size,
   h = allocate_hash_table ();
 
   /* Initialize hash table slots.  */
-  h->test = test;
+  h->test.name = name;
+  h->test.user_hash_function = user_hash_function;
+  h->test.user_cmp_function = user_cmp_function;
+  h->test.cmpfn = test->cmpfn;
+  h->test.hashfn = test->hashfn;
   h->weak = weak;
   h->rehash_threshold = rehash_threshold;
   h->rehash_size = rehash_size;
@@ -4470,6 +4488,7 @@ usage: (make-hash-table &rest KEYWORD-ARGS)  */)
   Lisp_Object test, weak;
   bool pure;
   struct hash_table_test testdesc;
+  struct hash_table_test *testp = &testdesc;
   ptrdiff_t i;
   USE_SAFE_ALLOCA;
 
@@ -4481,26 +4500,6 @@ usage: (make-hash-table &rest KEYWORD-ARGS)  */)
   /* See if there's a `:test TEST' among the arguments.  */
   i = get_key_arg (QCtest, nargs, args, used);
   test = i ? args[i] : Qeql;
-  if (EQ (test, Qeq))
-    testdesc = hashtest_eq;
-  else if (EQ (test, Qeql))
-    testdesc = hashtest_eql;
-  else if (EQ (test, Qequal))
-    testdesc = hashtest_equal;
-  else
-    {
-      /* See if it is a user-defined test.  */
-      Lisp_Object prop;
-
-      prop = Fget (test, Qhash_table_test);
-      if (!CONSP (prop) || !CONSP (XCDR (prop)))
-	signal_error ("Invalid hash table test", test);
-      testdesc.name = test;
-      testdesc.user_cmp_function = XCAR (prop);
-      testdesc.user_hash_function = XCAR (XCDR (prop));
-      testdesc.hashfn = hashfn_user_defined;
-      testdesc.cmpfn = cmpfn_user_defined;
-    }
 
   /* See if there's a `:purecopy PURECOPY' argument.  */
   i = get_key_arg (QCpurecopy, nargs, args, used);
@@ -4554,7 +4553,28 @@ usage: (make-hash-table &rest KEYWORD-ARGS)  */)
       signal_error ("Invalid argument list", args[i]);
 
   SAFE_FREE ();
-  return make_hash_table (testdesc, size, rehash_size, rehash_threshold, weak,
+  if (EQ (test, Qeq))
+    testp = &hashtest_eq;
+  else if (EQ (test, Qeql))
+    testp = &hashtest_eql;
+  else if (EQ (test, Qequal))
+    testp = &hashtest_equal;
+  else
+    {
+      /* See if it is a user-defined test.  */
+      Lisp_Object prop;
+
+      prop = Fget (test, Qhash_table_test);
+      if (!CONSP (prop) || !CONSP (XCDR (prop)))
+	signal_error ("Invalid hash table test", test);
+      testdesc.name = test;
+      testdesc.user_cmp_function = XCAR (prop);
+      testdesc.user_hash_function = XCAR (XCDR (prop));
+      testdesc.hashfn = hashfn_user_defined;
+      testdesc.cmpfn = cmpfn_user_defined;
+    }
+
+  return make_hash_table (testp, size, rehash_size, rehash_threshold, weak,
                           pure);
 }
 

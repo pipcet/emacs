@@ -55,7 +55,7 @@ macro before appending to it.  */)
 
   if (!current_kboard->kbd_macro_buffer)
     {
-      current_kboard->kbd_macro_buffer = xmalloc (30 * word_size);
+      current_kboard->kbd_macro_buffer = (ELisp_Struct_Value *)xmalloc (30 * word_size); // XXX rootme;
       current_kboard->kbd_macro_bufsize = 30;
       current_kboard->kbd_macro_ptr = current_kboard->kbd_macro_buffer;
       current_kboard->kbd_macro_end = current_kboard->kbd_macro_buffer;
@@ -66,7 +66,7 @@ macro before appending to it.  */)
       if (current_kboard->kbd_macro_bufsize > 200)
 	{
 	  current_kboard->kbd_macro_buffer
-	    = xrealloc (current_kboard->kbd_macro_buffer,
+	    = (ELisp_Struct_Value *)xrealloc (current_kboard->kbd_macro_buffer,
 			30 * word_size);
 	  current_kboard->kbd_macro_bufsize = 30;
 	}
@@ -86,11 +86,11 @@ macro before appending to it.  */)
       /* Copy last-kbd-macro into the buffer, in case the Lisp code
 	 has put another macro there.  */
       if (current_kboard->kbd_macro_bufsize - incr < len)
-	current_kboard->kbd_macro_buffer =
+	current_kboard->kbd_macro_buffer = (ELisp_Struct_Value *)
 	  xpalloc (current_kboard->kbd_macro_buffer,
 		   &current_kboard->kbd_macro_bufsize,
 		   len - current_kboard->kbd_macro_bufsize + incr, -1,
-		   sizeof *current_kboard->kbd_macro_buffer);
+		   sizeof *current_kboard->kbd_macro_buffer); // XXX rootme
 
       /* Must convert meta modifier when copying string to vector.  */
       cvt = STRINGP (KVAR (current_kboard, Vlast_kbd_macro));
@@ -128,9 +128,9 @@ end_kbd_macro (void)
   update_mode_lines = 20;
   kset_last_kbd_macro
     (current_kboard,
-     make_event_array ((current_kboard->kbd_macro_end
-			- current_kboard->kbd_macro_buffer),
-		       current_kboard->kbd_macro_buffer));
+     make_event_array (LV ((current_kboard->kbd_macro_end
+                            - current_kboard->kbd_macro_buffer),
+                           current_kboard->kbd_macro_buffer)));
 }
 
 DEFUN ("end-kbd-macro", Fend_kbd_macro, Send_kbd_macro, 0, 2, "p",
@@ -186,14 +186,14 @@ store_kbd_macro_char (Lisp_Object c)
 	{
 	  ptrdiff_t ptr_offset = kb->kbd_macro_ptr - kb->kbd_macro_buffer;
 	  ptrdiff_t end_offset = kb->kbd_macro_end - kb->kbd_macro_buffer;
-	  kb->kbd_macro_buffer = xpalloc (kb->kbd_macro_buffer,
+	  kb->kbd_macro_buffer = (ELisp_Struct_Value *)xpalloc (kb->kbd_macro_buffer,
 					  &kb->kbd_macro_bufsize,
-					  1, -1, sizeof *kb->kbd_macro_buffer);
+                                                                1, -1, sizeof *kb->kbd_macro_buffer); // XXX rootme
 	  kb->kbd_macro_ptr = kb->kbd_macro_buffer + ptr_offset;
 	  kb->kbd_macro_end = kb->kbd_macro_buffer + end_offset;
 	}
 
-      *kb->kbd_macro_ptr++ = c;
+      (kb->kbd_macro_ptr++).set(c);
     }
 }
 

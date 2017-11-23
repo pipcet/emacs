@@ -133,13 +133,13 @@ enum
 
 #define CHECK_CHARACTER_CAR(x) \
   do {					\
-    Lisp_Object tmp = XCAR (x);		\
+    ELisp_Value tmp = XCAR (x);		\
     CHECK_CHARACTER (tmp);		\
   } while (false)
 
 #define CHECK_CHARACTER_CDR(x) \
   do {					\
-    Lisp_Object tmp = XCDR (x);		\
+    ELisp_Value tmp = XCDR (x);		\
     CHECK_CHARACTER (tmp);		\
   } while (false)
 
@@ -690,8 +690,9 @@ extern bool blankp (int);
    an integer.  If the element is not a character, return CH itself.  */
 
 INLINE int
-char_table_translate (Lisp_Object obj, int ch)
+char_table_translate (ELisp_Handle ARG(obj), int ch)
 {
+  ELisp_Value obj = ARG(obj);
   /* This internal function is expected to be called with valid arguments,
      so there is a eassert instead of CHECK_xxx for the sake of speed.  */
   eassert (CHAR_VALID_P (ch));
@@ -700,7 +701,7 @@ char_table_translate (Lisp_Object obj, int ch)
   return CHARACTERP (obj) ? XINT (obj) : ch;
 }
 
-#if defined __GNUC__ && !defined __STRICT_ANSI__
+#if defined __GNUC__ && !defined __STRICT_ANSI__ && !defined __cplusplus
 # define HEXDIGIT_CONST const
 # define HEXDIGIT_IS_CONST true
 #else

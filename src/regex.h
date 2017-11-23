@@ -29,10 +29,8 @@
 
 #include <sys/types.h>
 
-/* Allow the use in C++ code.  */
-#ifdef __cplusplus
-extern "C" {
-#endif
+#define min c_min
+#define max c_max
 
 #if !defined _POSIX_C_SOURCE && !defined _POSIX_SOURCE && defined VMS
 /* VMS doesn't have `size_t' in <sys/types.h>, even though POSIX says it
@@ -350,6 +348,14 @@ typedef enum
 # define RE_TRANSLATE_TYPE char *
 #endif
 
+#ifndef RE_TRANSLATE_HANDLE
+# define RE_TRANSLATE_HANDLE RE_TRANSLATE_TYPE
+#endif
+
+#ifndef RE_TRANSLATE_STRUCT
+# define RE_TRANSLATE_STRUCT RE_TRANSLATE_TYPE
+#endif
+
 struct re_pattern_buffer
 {
 /* [[[begin pattern_buffer]]] */
@@ -377,7 +383,7 @@ struct re_pattern_buffer
            comparing them, or zero for no translation.  The translation
            is applied to a pattern when it is compiled and to a string
            when it is matched.  */
-  RE_TRANSLATE_TYPE translate;
+  RE_TRANSLATE_STRUCT translate;
 
 	/* Number of subexpressions found by the compiler.  */
   size_t re_nsub;
@@ -599,10 +605,6 @@ extern size_t regerror (int __errcode, const regex_t * __preg,
 
 extern void regfree (regex_t *__preg);
 
-
-#ifdef __cplusplus
-}
-#endif	/* C++ */
 
 /* For platform which support the ISO C amendment 1 functionality we
    support user defined character classes.  */

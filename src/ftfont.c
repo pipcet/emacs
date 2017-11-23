@@ -35,7 +35,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #include "font.h"
 #include "ftfont.h"
 
-static struct font_driver const ftfont_driver;
+extern struct font_driver ftfont_driver;
 
 /* Flag to tell if FcInit is already called or not.  */
 static bool fc_initialized;
@@ -2695,38 +2695,36 @@ ftfont_combining_capability (struct font *font)
 #endif
 }
 
-static struct font_driver const ftfont_driver =
-  {
-  /* We can't draw a text without device dependent functions.  */
-  .type = LISPSYM_INITIALLY (Qfreetype),
-  .get_cache = ftfont_get_cache,
-  .list = ftfont_list,
-  .match = ftfont_match,
-  .list_family = ftfont_list_family,
-  .open = ftfont_open,
-  .close = ftfont_close,
-  .has_char = ftfont_has_char,
-  .encode_char = ftfont_encode_char,
-  .text_extents = ftfont_text_extents,
-  .get_bitmap = ftfont_get_bitmap,
-  .anchor_point = ftfont_anchor_point,
-#ifdef HAVE_LIBOTF
-  .otf_capability = ftfont_otf_capability,
-#endif
-#if defined HAVE_M17N_FLT && defined HAVE_LIBOTF
-  .shape = ftfont_shape,
-#endif
-#ifdef HAVE_OTF_GET_VARIATION_GLYPHS
-  .get_variation_glyphs = ftfont_variation_glyphs,
-#endif
-  .filter_properties = ftfont_filter_properties,
-  .combining_capability = ftfont_combining_capability,
-  };
+struct font_driver ftfont_driver;
 
 void
 syms_of_ftfont (void)
 {
-  /* Symbolic type of this font-driver.  */
+  ftfont_driver.type = LISPSYM_INITIALLY (Qfreetype);
+  ftfont_driver.get_cache = ftfont_get_cache;
+  ftfont_driver.list = ftfont_list;
+  ftfont_driver.match = ftfont_match;
+  ftfont_driver.list_family = ftfont_list_family;
+  ftfont_driver.open = ftfont_open;
+  ftfont_driver.close = ftfont_close;
+  ftfont_driver.has_char = ftfont_has_char;
+  ftfont_driver.encode_char = ftfont_encode_char;
+  ftfont_driver.text_extents = ftfont_text_extents;
+  ftfont_driver.get_bitmap = ftfont_get_bitmap;
+  ftfont_driver.anchor_point = ftfont_anchor_point;
+#ifdef HAVE_LIBOTF
+  ftfont_driver.otf_capability = ftfont_otf_capability;
+#endif
+#if defined HAVE_M17N_FLT && defined HAVE_LIBOTF
+  ftfont_driver.shape = ftfont_shape;
+#endif
+#ifdef HAVE_OTF_GET_VARIATION_GLYPHS
+  ftfont_driver.get_variation_glyphs = ftfont_variation_glyphs;
+#endif
+  ftfont_driver.filter_properties = ftfont_filter_properties;
+  ftfont_driver.combining_capability = ftfont_combining_capability;
+
+    /* Symbolic type of this font-driver.  */
   DEFSYM (Qfreetype, "freetype");
 
   /* Fontconfig's generic families and their aliases.  */

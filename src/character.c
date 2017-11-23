@@ -1055,16 +1055,34 @@ signed char HEXDIGIT_CONST hexdigit[UCHAR_MAX + 1] =
 #if HEXDIGIT_IS_CONST
     [0 ... UCHAR_MAX] = -1,
 #endif
-    ['0'] = 0, ['1'] = 1, ['2'] = 2, ['3'] = 3, ['4'] = 4,
-    ['5'] = 5, ['6'] = 6, ['7'] = 7, ['8'] = 8, ['9'] = 9,
-    ['A'] = 10, ['B'] = 11, ['C'] = 12, ['D'] = 13, ['E'] = 14, ['F'] = 15,
-    ['a'] = 10, ['b'] = 11, ['c'] = 12, ['d'] = 13, ['e'] = 14, ['f'] = 15
   };
 
 void
 syms_of_character (void)
 {
 #if !HEXDIGIT_IS_CONST
+  hexdigit['0'] = 0;
+  hexdigit['1'] = 1;
+  hexdigit['2'] = 2;
+  hexdigit['3'] = 3;
+  hexdigit['4'] = 4;
+  hexdigit['5'] = 5;
+  hexdigit['6'] = 6;
+  hexdigit['7'] = 7;
+  hexdigit['8'] = 8;
+  hexdigit['9'] = 9;
+  hexdigit['a'] = 10;
+  hexdigit['b'] = 11;
+  hexdigit['c'] = 12;
+  hexdigit['d'] = 13;
+  hexdigit['e'] = 14;
+  hexdigit['f'] = 15;
+  hexdigit['A'] = 10;
+  hexdigit['B'] = 11;
+  hexdigit['C'] = 12;
+  hexdigit['D'] = 13;
+  hexdigit['E'] = 14;
+  hexdigit['F'] = 15;
   /* Set the non-hex digit values to -1.  */
   for (int i = 0; i <= UCHAR_MAX; i++)
     hexdigit[i] -= i != '0' && !hexdigit[i];

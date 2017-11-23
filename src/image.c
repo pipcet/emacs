@@ -56,7 +56,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #endif /* HAVE_SYS_TYPES_H */
 
 #ifdef HAVE_WINDOW_SYSTEM
-#include TERM_HEADER
+#include TERM_HEADER ".hh"
 #endif /* HAVE_WINDOW_SYSTEM */
 
 /* Work around GCC bug 54561.  */
@@ -276,6 +276,7 @@ x_create_bitmap_from_data (struct frame *f, char *bits, unsigned int width, unsi
 ptrdiff_t
 x_create_bitmap_from_file (struct frame *f, Lisp_Object file)
 {
+  ;
 #ifdef HAVE_NTGUI
   return -1;  /* W32_TODO : bitmap support */
 #else
@@ -1630,6 +1631,7 @@ FRAME nil or omitted means use the selected frame.
 FRAME t means refresh the image on all frames.  */)
   (Lisp_Object spec, Lisp_Object frame)
 {
+  MODIFY_ARG(&frame);
   if (!valid_image_p (spec))
     error ("Invalid image specification");
 
@@ -3179,14 +3181,14 @@ static bool xpm_load (struct frame *f, struct image *img);
 #ifdef CYGWIN
 #include "noX/xpm.h"
 #else  /* not CYGWIN */
-#include "X11/xpm.h"
+#include <X11/xpm.h>
 #endif	/* not CYGWIN */
 #undef FOR_MSW
 #undef XColor
 #undef XImage
 #undef Display
 #else  /* not HAVE_NTGUI */
-#include "X11/xpm.h"
+#include <X11/xpm.h>
 #endif /* not HAVE_NTGUI */
 #endif /* HAVE_XPM */
 
@@ -4030,7 +4032,7 @@ xpm_make_color_table_h (void (**put_func) (Lisp_Object, const char *, int,
 {
   *put_func = xpm_put_color_table_h;
   *get_func = xpm_get_color_table_h;
-  return make_hash_table (hashtest_equal, DEFAULT_HASH_SIZE,
+  return make_hash_table (&hashtest_equal, DEFAULT_HASH_SIZE,
 			  DEFAULT_REHASH_SIZE, DEFAULT_REHASH_THRESHOLD,
 			  Qnil, false);
 }
@@ -6472,6 +6474,13 @@ jpeg_resync_to_restart_wrapper (j_decompress_ptr cinfo, int desired)
 
 # endif /* WINDOWSNT */
 
+enum failure_code
+  {
+   MY_JPEG_ERROR_EXIT,
+   MY_JPEG_INVALID_IMAGE_SIZE,
+   MY_JPEG_CANNOT_CREATE_X
+  };
+
 struct my_jpeg_error_mgr
 {
   struct jpeg_error_mgr pub;
@@ -6480,12 +6489,7 @@ struct my_jpeg_error_mgr
   /* The remaining members are so that longjmp doesn't munge local
      variables.  */
   struct jpeg_decompress_struct cinfo;
-  enum
-    {
-      MY_JPEG_ERROR_EXIT,
-      MY_JPEG_INVALID_IMAGE_SIZE,
-      MY_JPEG_CANNOT_CREATE_X
-    } failure_code;
+  enum failure_code failure_code;
 };
 
 
@@ -7181,7 +7185,7 @@ tiff_handler (const char *log_format, const char *title,
   char buf[4000];
   int len = vsnprintf (buf, sizeof buf, format, ap);
   add_to_log (log_format, build_string (title),
-	      make_string (buf, max (0, min (len, sizeof buf - 1))));
+	      make_string (buf, c_max (0, c_min (len, sizeof buf - 1))));
 }
 # undef MINGW_STATIC
 
@@ -8255,7 +8259,7 @@ imagemagick_clear_image (struct frame *f,
    identify the IMAGEMAGICK format.   */
 
 static bool
-imagemagick_image_p (Lisp_Object object)
+imagemagick_image_p (ELisp_Handle object)
 {
   struct image_keyword fmt[IMAGEMAGICK_LAST];
   memcpy (fmt, imagemagick_format, sizeof fmt);

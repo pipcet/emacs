@@ -351,10 +351,10 @@ call_process (ptrdiff_t nargs, Lisp_Object *args, int filefd,
 	  val = Qraw_text;
 	else
 	  {
-	    SAFE_NALLOCA (args2, 1, nargs + 1);
+	    SAFE_ALLOCA_LISP (args2, nargs + 1);
 	    args2[0] = Qcall_process;
 	    for (i = 0; i < nargs; i++) args2[i + 1] = args[i];
-	    coding_systems = Ffind_operation_coding_system (nargs + 1, args2);
+	    coding_systems = Ffind_operation_coding_system (LV (nargs + 1, args2));
 	    val = CONSP (coding_systems) ? XCDR (coding_systems) : Qnil;
 	  }
 	val = complement_process_encoding_system (val);
@@ -595,9 +595,9 @@ call_process (ptrdiff_t nargs, Lisp_Object *args, int filefd,
 
   /* vfork, and prevent local vars from being clobbered by the vfork.  */
   {
-    Lisp_Object volatile buffer_volatile = buffer;
-    Lisp_Object volatile coding_systems_volatile = coding_systems;
-    Lisp_Object volatile current_dir_volatile = current_dir;
+    Lisp_Object volatile buffer_volatile = (buffer);
+    Lisp_Object volatile coding_systems_volatile = (coding_systems);
+    Lisp_Object volatile current_dir_volatile = (current_dir);
     bool volatile display_p_volatile = display_p;
     bool volatile sa_must_free_volatile = sa_must_free;
     int volatile fd_error_volatile = fd_error;
@@ -612,9 +612,9 @@ call_process (ptrdiff_t nargs, Lisp_Object *args, int filefd,
 
     pid = vfork ();
 
-    buffer = buffer_volatile;
-    coding_systems = coding_systems_volatile;
-    current_dir = current_dir_volatile;
+    buffer = *(ELisp_Return_Value *)(void *)(&buffer_volatile);
+    coding_systems = *(ELisp_Return_Value *)(void *)(&coding_systems_volatile);
+    current_dir = *(ELisp_Return_Value *)(void *)(&current_dir_volatile);
     display_p = display_p_volatile;
     sa_must_free = sa_must_free_volatile;
     fd_error = fd_error_volatile;
@@ -726,11 +726,11 @@ call_process (ptrdiff_t nargs, Lisp_Object *args, int filefd,
 	    {
 	      ptrdiff_t i;
 
-	      SAFE_NALLOCA (args2, 1, nargs + 1);
+	      SAFE_ALLOCA_LISP (args2, nargs + 1);
 	      args2[0] = Qcall_process;
 	      for (i = 0; i < nargs; i++) args2[i + 1] = args[i];
 	      coding_systems
-		= Ffind_operation_coding_system (nargs + 1, args2);
+		= Ffind_operation_coding_system (LV (nargs + 1, args2));
 	    }
 	  if (CONSP (coding_systems))
 	    val = XCAR (coding_systems);
@@ -988,10 +988,14 @@ create_temp_file (ptrdiff_t nargs, Lisp_Object *args,
       Lisp_Object coding_systems;
       Lisp_Object *args2;
       USE_SAFE_ALLOCA;
-      SAFE_NALLOCA (args2, 1, nargs + 1);
+      SAFE_ALLOCA_LISP (args2, nargs + 1);
       args2[0] = Qcall_process_region;
-      memcpy (args2 + 1, args, nargs * sizeof *args);
-      coding_systems = Ffind_operation_coding_system (nargs + 1, args2);
+      for (size_t i = 0; i < nargs; i++)
+        {
+          ELisp_Value tem = args[i];
+          args2[i+1] = tem;
+        }
+      coding_systems = Ffind_operation_coding_system (LV (nargs + 1, args2));
       val = CONSP (coding_systems) ? XCDR (coding_systems) : Qnil;
       SAFE_FREE ();
     }
@@ -1066,7 +1070,7 @@ usage: (call-process-region START END PROGRAM &optional DELETE BUFFER DISPLAY &r
     empty_input = BEG == Z;
   else
     {
-      validate_region (&args[0], &args[1]);
+      validate_region (args, args+1);
       start = args[0];
       end = args[1];
       empty_input = XINT (start) == XINT (end);
@@ -1088,7 +1092,7 @@ usage: (call-process-region START END PROGRAM &optional DELETE BUFFER DISPLAY &r
 
   if (nargs > 3)
     {
-      args += 2;
+      args = args + 2;
       nargs -= 2;
     }
   else
@@ -1425,7 +1429,7 @@ getenv_internal (const char *var, ptrdiff_t varlen, char **value,
   if (strcmp (var, "DISPLAY") == 0)
     {
       Lisp_Object display
-	= Fframe_parameter (NILP (frame) ? selected_frame : frame, Qdisplay);
+	= Fframe_parameter (NILP (frame) ? ELisp_Return_Value(selected_frame) : ELisp_Return_Value(frame), Qdisplay);
       if (STRINGP (display))
 	{
 	  *value    = SSDATA (display);

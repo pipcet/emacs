@@ -439,8 +439,8 @@ xfont_list_pattern (Display *display, const char *pattern,
 			word_size * 7)
 		|| ! EQ (AREF (entity, FONT_SPACING_INDEX), props[7]))
 	      {
-		vcopy (xfont_scratch_props, 0,
-		       aref_addr (entity, FONT_FOUNDRY_INDEX), 7);
+		vcopy (xfont_scratch_props, LV (0,
+                                                aref_addr (entity, FONT_FOUNDRY_INDEX)), 7);
 		ASET (xfont_scratch_props, 7, AREF (entity, FONT_SPACING_INDEX));
 		scripts = xfont_supported_scripts (display, indices[i],
 						   xfont_scratch_props,
@@ -1078,26 +1078,25 @@ xfont_check (struct frame *f, struct font *font)
 
 
 
-struct font_driver const xfont_driver =
-  {
-  .type = LISPSYM_INITIALLY (Qx),
-  .get_cache = xfont_get_cache,
-  .list = xfont_list,
-  .match = xfont_match,
-  .list_family = xfont_list_family,
-  .open = xfont_open,
-  .close = xfont_close,
-  .prepare_face = xfont_prepare_face,
-  .has_char = xfont_has_char,
-  .encode_char = xfont_encode_char,
-  .text_extents = xfont_text_extents,
-  .draw = xfont_draw,
-  .check = xfont_check,
-  };
+struct font_driver xfont_driver;
 
 void
 syms_of_xfont (void)
 {
+  xfont_driver.type = LISPSYM_INITIALLY (Qx);
+  xfont_driver.get_cache = xfont_get_cache;
+  xfont_driver.list = xfont_list;
+  xfont_driver.match = xfont_match;
+  xfont_driver.list_family = xfont_list_family;
+  xfont_driver.open = xfont_open;
+  xfont_driver.close = xfont_close;
+  xfont_driver.prepare_face = xfont_prepare_face;
+  xfont_driver.has_char = xfont_has_char;
+  xfont_driver.encode_char = xfont_encode_char;
+  xfont_driver.text_extents = xfont_text_extents;
+  xfont_driver.draw = xfont_draw;
+  xfont_driver.check = xfont_check;
+
   staticpro (&xfont_scripts_cache);
   xfont_scripts_cache = CALLN (Fmake_hash_table, QCtest, Qequal);
   staticpro (&xfont_scratch_props);

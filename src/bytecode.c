@@ -47,7 +47,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
    as currently implemented, is incompatible with BYTE_CODE_SAFE and
    BYTE_CODE_METER.  */
 #if (defined __GNUC__ && !defined __STRICT_ANSI__ && !defined __CHKP__ \
-     && !BYTE_CODE_SAFE && !defined BYTE_CODE_METER)
+     && !BYTE_CODE_SAFE && !defined BYTE_CODE_METER && !defined __cplusplus)
 #define BYTE_CODE_THREADED
 #endif
 
@@ -295,20 +295,20 @@ enum byte_code_op
 /* Push X onto the execution stack.  The expression X should not
    contain TOP, to avoid competing side effects.  */
 
-#define PUSH(x) (*++top = (x))
+#define PUSH(x) ((top = top + 1).set(x))
 
 /* Pop a value off the execution stack.  */
 
-#define POP (*top--)
+#define POP ({ ELisp_Return_Value ret = top.ref(0); top = top - 1; ret; })
 
 /* Discard n values from the execution stack.  */
 
-#define DISCARD(n) (top -= (n))
+#define DISCARD(n) (top = top - (n))
 
 /* Get the value which is at the top of the execution stack, but don't
    pop it.  */
 
-#define TOP (*top)
+#define TOP (top.ref(0))
 
 DEFUN ("byte-code", Fbyte_code, Sbyte_code, 3, 3, 0,
        doc: /* Function used internally in byte-compiled code.
@@ -318,13 +318,13 @@ the third, MAXDEPTH, the maximum stack depth used in this function.
 If the third argument is incorrect, Emacs may crash.  */)
   (Lisp_Object bytestr, Lisp_Object vector, Lisp_Object maxdepth)
 {
-  return exec_byte_code (bytestr, vector, maxdepth, Qnil, 0, NULL);
+  return exec_byte_code (bytestr, vector, maxdepth, Qnil, LV (0, NULL));
 }
 
 static void
 bcall0 (Lisp_Object f)
 {
-  Ffuncall (1, &f);
+  Ffuncall (LV (1, &f));
 }
 
 /* Execute the byte-code in BYTESTR.  VECTOR is the constant vector, and
@@ -339,6 +339,8 @@ Lisp_Object
 exec_byte_code (Lisp_Object bytestr, Lisp_Object vector, Lisp_Object maxdepth,
 		Lisp_Object args_template, ptrdiff_t nargs, Lisp_Object *args)
 {
+  ;
+
 #ifdef BYTE_CODE_METER
   int volatile this_op = 0;
 #endif
@@ -364,7 +366,10 @@ exec_byte_code (Lisp_Object bytestr, Lisp_Object vector, Lisp_Object maxdepth,
   EMACS_INT stack_items = XFASTINT (maxdepth) + 1;
   USE_SAFE_ALLOCA;
   Lisp_Object *stack_base;
+  Lisp_Object *stack_base_v;
   SAFE_ALLOCA_LISP_EXTRA (stack_base, stack_items, bytestr_length);
+  SAFE_ALLOCA_LISP (stack_base_v, stack_items);
+  stack_base = stack_base_v;
   Lisp_Object *stack_lim = stack_base + stack_items;
   Lisp_Object *top = stack_base;
   memcpy (stack_lim, SDATA (bytestr), bytestr_length);
@@ -387,9 +392,9 @@ exec_byte_code (Lisp_Object bytestr, Lisp_Object vector, Lisp_Object maxdepth,
 			make_number (nargs)));
       ptrdiff_t pushedargs = min (nonrest, nargs);
       for (ptrdiff_t i = 0; i < pushedargs; i++, args++)
-	PUSH (*args);
+	PUSH (args.ref(0));
       if (nonrest < nargs)
-	PUSH (Flist (nargs - nonrest, args));
+	PUSH (Flist (LV (nargs - nonrest, args)));
       else
 	for (ptrdiff_t i = nargs - rest; i < nonrest; i++)
 	  PUSH (Qnil);
@@ -489,7 +494,7 @@ exec_byte_code (Lisp_Object bytestr, Lisp_Object vector, Lisp_Object maxdepth,
 	  {
 	    Lisp_Object v1 = vectorp[op], v2;
 	    if (!SYMBOLP (v1)
-		|| XSYMBOL (v1)->u.s.redirect != SYMBOL_PLAINVAL
+		|| XSYMBOL (v1)->redirect != SYMBOL_PLAINVAL
 		|| (v2 = SYMBOL_VAL (XSYMBOL (v1)), EQ (v2, Qunbound)))
 	      v2 = Fsymbol_value (v1);
 	    PUSH (v2);
@@ -558,7 +563,7 @@ exec_byte_code (Lisp_Object bytestr, Lisp_Object vector, Lisp_Object maxdepth,
 	    /* Inline the most common case.  */
 	    if (SYMBOLP (sym)
 		&& !EQ (val, Qunbound)
-		&& !XSYMBOL (sym)->u.s.redirect
+		&& !XSYMBOL (sym)->redirect
 		&& !SYMBOL_TRAPPED_WRITE_P (sym))
 	      SET_SYMBOL_VAL (XSYMBOL (sym), val);
 	    else
@@ -626,7 +631,7 @@ exec_byte_code (Lisp_Object bytestr, Lisp_Object vector, Lisp_Object maxdepth,
 		  }
 	      }
 #endif
-	    TOP = Ffuncall (op + 1, &TOP);
+	    TOP = Ffuncall (LV (op + 1, top));
 	    NEXT;
 	  }
 
@@ -880,18 +885,18 @@ exec_byte_code (Lisp_Object bytestr, Lisp_Object vector, Lisp_Object maxdepth,
 
 	CASE (Blist3):
 	  DISCARD (2);
-	  TOP = Flist (3, &TOP);
+	  TOP = Flist (LV (3, top));
 	  NEXT;
 
 	CASE (Blist4):
 	  DISCARD (3);
-	  TOP = Flist (4, &TOP);
+	  TOP = Flist (LV (4, top));
 	  NEXT;
 
 	CASE (BlistN):
 	  op = FETCH;
 	  DISCARD (op - 1);
-	  TOP = Flist (op, &TOP);
+	  TOP = Flist (LV (op, top));
 	  NEXT;
 
 	CASE (Blength):
@@ -950,23 +955,23 @@ exec_byte_code (Lisp_Object bytestr, Lisp_Object vector, Lisp_Object maxdepth,
 
 	CASE (Bconcat2):
 	  DISCARD (1);
-	  TOP = Fconcat (2, &TOP);
+	  TOP = Fconcat (LV (2, top));
 	  NEXT;
 
 	CASE (Bconcat3):
 	  DISCARD (2);
-	  TOP = Fconcat (3, &TOP);
+	  TOP = Fconcat (LV (3, top));
 	  NEXT;
 
 	CASE (Bconcat4):
 	  DISCARD (3);
-	  TOP = Fconcat (4, &TOP);
+	  TOP = Fconcat (LV (4, top));
 	  NEXT;
 
 	CASE (BconcatN):
 	  op = FETCH;
 	  DISCARD (op - 1);
-	  TOP = Fconcat (op, &TOP);
+	  TOP = Fconcat (LV (op, top));
 	  NEXT;
 
 	CASE (Bsub1):
@@ -1021,36 +1026,36 @@ exec_byte_code (Lisp_Object bytestr, Lisp_Object vector, Lisp_Object maxdepth,
 
 	CASE (Bdiff):
 	  DISCARD (1);
-	  TOP = Fminus (2, &TOP);
+	  TOP = Fminus (LV (2, top));
 	  NEXT;
 
 	CASE (Bnegate):
-	  TOP = INTEGERP (TOP) ? make_number (- XINT (TOP)) : Fminus (1, &TOP);
+	  TOP = INTEGERP (TOP) ? make_number (- XINT (TOP)) : Fminus (LV (1, top));
 	  NEXT;
 
 	CASE (Bplus):
 	  DISCARD (1);
-	  TOP = Fplus (2, &TOP);
+	  TOP = Fplus (LV (2, top));
 	  NEXT;
 
 	CASE (Bmax):
 	  DISCARD (1);
-	  TOP = Fmax (2, &TOP);
+	  TOP = Fmax (LV (2, top));
 	  NEXT;
 
 	CASE (Bmin):
 	  DISCARD (1);
-	  TOP = Fmin (2, &TOP);
+	  TOP = Fmin (LV (2, top));
 	  NEXT;
 
 	CASE (Bmult):
 	  DISCARD (1);
-	  TOP = Ftimes (2, &TOP);
+	  TOP = Ftimes (LV (2, top));
 	  NEXT;
 
 	CASE (Bquo):
 	  DISCARD (1);
-	  TOP = Fquo (2, &TOP);
+	  TOP = Fquo (LV (2, top));
 	  NEXT;
 
 	CASE (Brem):
@@ -1069,13 +1074,13 @@ exec_byte_code (Lisp_Object bytestr, Lisp_Object vector, Lisp_Object maxdepth,
 	  NEXT;
 
 	CASE (Binsert):
-	  TOP = Finsert (1, &TOP);
+	  TOP = Finsert (LV (1, top));
 	  NEXT;
 
 	CASE (BinsertN):
 	  op = FETCH;
 	  DISCARD (op - 1);
-	  TOP = Finsert (op, &TOP);
+	  TOP = Finsert (LV (op, top));
 	  NEXT;
 
 	CASE (Bpoint_max):
@@ -1318,7 +1323,7 @@ exec_byte_code (Lisp_Object bytestr, Lisp_Object vector, Lisp_Object maxdepth,
 
 	CASE (Bnconc):
 	  DISCARD (1);
-	  TOP = Fnconc (2, &TOP);
+	  TOP = Fnconc (LV (2, top));
 	  NEXT;
 
 	CASE (Bnumberp):

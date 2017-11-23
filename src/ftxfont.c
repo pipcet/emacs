@@ -339,39 +339,36 @@ ftxfont_end_for_frame (struct frame *f)
 
 
 
-struct font_driver const ftxfont_driver =
-  {
-  /* We can't draw a text without device dependent functions.  */
-  .type = LISPSYM_INITIALLY (Qftx),
-  .get_cache = ftfont_get_cache,
-  .list = ftxfont_list,
-  .match = ftxfont_match,
-  .list_family = ftfont_list_family,
-  .open = ftxfont_open,
-  .close = ftxfont_close,
-  .has_char = ftfont_has_char,
-  .encode_char = ftfont_encode_char,
-  .text_extents = ftfont_text_extents,
-  .draw = ftxfont_draw,
-  .get_bitmap = ftfont_get_bitmap,
-  .anchor_point = ftfont_anchor_point,
-#ifdef HAVE_LIBOTF
-  .otf_capability = ftfont_otf_capability,
-#endif
-  .end_for_frame = ftxfont_end_for_frame,
-#if defined HAVE_M17N_FLT && defined HAVE_LIBOTF
-  .shape = ftfont_shape,
-#endif
-#ifdef HAVE_OTF_GET_VARIATION_GLYPHS
-  .get_variation_glyphs = ftfont_variation_glyphs,
-#endif
-  .filter_properties = ftfont_filter_properties,
-  .combining_capability = ftfont_combining_capability,
-  };
+struct font_driver ftxfont_driver;
 
 void
 syms_of_ftxfont (void)
 {
+  ftxfont_driver.type = LISPSYM_INITIALLY (Qftx);
+  ftxfont_driver.get_cache = ftfont_get_cache;
+  ftxfont_driver.list = ftxfont_list;
+  ftxfont_driver.match = ftxfont_match;
+  ftxfont_driver.list_family = ftfont_list_family;
+  ftxfont_driver.open = ftxfont_open;
+  ftxfont_driver.close = ftxfont_close;
+  ftxfont_driver.has_char = ftfont_has_char;
+  ftxfont_driver.encode_char = ftfont_encode_char;
+  ftxfont_driver.text_extents = ftfont_text_extents;
+  ftxfont_driver.draw = ftxfont_draw;
+  ftxfont_driver.get_bitmap = ftfont_get_bitmap;
+  ftxfont_driver.anchor_point = ftfont_anchor_point;
+#ifdef HAVE_LIBOTF
+  ftxfont_driver.otf_capability = ftfont_otf_capability;
+#endif
+  ftxfont_driver.end_for_frame = ftxfont_end_for_frame;
+#if defined HAVE_M17N_FLT && defined HAVE_LIBOTF
+  ftxfont_driver.shape = ftfont_shape;
+#endif
+#ifdef HAVE_OTF_GET_VARIATION_GLYPHS
+  ftxfont_driver.get_variation_glyphs = ftfont_variation_glyphs;
+#endif
+  ftxfont_driver.filter_properties = ftfont_filter_properties;
+  ftxfont_driver.combining_capability = ftfont_combining_capability;
   DEFSYM (Qftx, "ftx");
   register_font_driver (&ftxfont_driver, NULL);
 }

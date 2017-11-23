@@ -2062,10 +2062,10 @@ invalidate_buffer_caches (struct buffer *buf, ptrdiff_t start, ptrdiff_t end)
     end_marker = Fcopy_marker (end, Qnil);
 
 #define FETCH_START				\
-  (! NILP (start_marker) ? Fmarker_position (start_marker) : start)
+  (! NILP (start_marker) ? Fmarker_position (start_marker) : ELisp_Return_Value(start))
 
 #define FETCH_END				\
-  (! NILP (end_marker) ? Fmarker_position (end_marker) : end)
+  (! NILP (end_marker) ? Fmarker_position (end_marker) : ELisp_Return_Value(end))
 
 /* Set a variable to nil if an error occurred.
    Don't change the variable if there was no error.
@@ -2084,7 +2084,7 @@ reset_var_on_error (void *ptr)
 {
   struct rvoe_arg *p = ptr;
   if (p->errorp)
-    *p->location = Qnil;
+    p->location.set(Qnil);
 }
 
 /* Signal a change to the buffer immediately before it happens.

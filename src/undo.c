@@ -150,7 +150,7 @@ record_marker_adjustments (ptrdiff_t from, ptrdiff_t to)
 
           if (adjustment)
             {
-              XSETMISC (marker, m);
+              XSETMARKER (marker, m);
               bset_undo_list
                 (current_buffer,
                  Fcons (Fcons (marker, make_number (adjustment)),

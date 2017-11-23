@@ -700,9 +700,9 @@ This function does not grok magic file names.  */)
     {
       static char const kind_message[][32] =
 	{
-	  [GT_FILE] = "Creating file with prefix",
-	  [GT_DIR] = "Creating directory with prefix",
-	  [GT_NOCREATE] = "Creating file name with prefix"
+	  "Creating file with prefix",
+	  "Creating directory with prefix",
+	  "Creating file name with prefix"
 	};
       report_file_error (kind_message[kind], prefix);
     }
@@ -1445,8 +1445,7 @@ the current buffer's value of default-directory is used.\n\
 Filenames containing `.' or `..' as components are simplified;\n\
 initial `~/' expands to your home directory.\n\
 See also the function `substitute-in-file-name'.")
-     (name, defalt)
-     Lisp_Object name, defalt;
+     (Lisp_Object name, Lisp_Object defalt)
 {
   unsigned char *nm;
 
@@ -2750,6 +2749,7 @@ really is a readable and searchable directory.  */)
 bool
 file_accessible_directory_p (Lisp_Object file)
 {
+  ;
 #ifdef DOS_NT
 # ifdef WINDOWSNT
   /* We need a special-purpose test because (a) NTFS security data is
@@ -3050,8 +3050,7 @@ support.  */)
       acl = acl_from_text (SSDATA (acl_string));
       if (acl == NULL)
 	{
-	  if (acl_errno_valid (errno))
-	    report_file_error ("Converting ACL", absname);
+	  report_file_error ("Converting ACL", absname);
 	  return Qnil;
 	}
 
@@ -4877,15 +4876,15 @@ write_region (Lisp_Object start, Lisp_Object end, Lisp_Object filename,
     }
 
   if (STRINGP (start))
-    ok = a_write (desc, start, 0, SCHARS (start), &annotations, &coding);
+    ok = a_write (desc, start, 0, LV (SCHARS (start), &annotations), &coding);
   else if (XINT (start) != XINT (end))
-    ok = a_write (desc, Qnil, XINT (start), XINT (end) - XINT (start),
-		  &annotations, &coding);
+    ok = a_write (desc, Qnil, XINT (start), LV (XINT (end) - XINT (start),
+                                                &annotations), &coding);
   else
     {
       /* If file was empty, still need to write the annotations.  */
       coding.mode |= CODING_MODE_LAST_BLOCK;
-      ok = a_write (desc, Qnil, XINT (end), 0, &annotations, &coding);
+      ok = a_write (desc, Qnil, XINT (end), LV (0, &annotations), &coding);
     }
   save_errno = errno;
 
@@ -5167,9 +5166,9 @@ a_write (int desc, Lisp_Object string, ptrdiff_t pos,
   ptrdiff_t nextpos;
   ptrdiff_t lastpos = pos + nchars;
 
-  while (NILP (*annot) || CONSP (*annot))
+  while (NILP (annot.ref(0)) || CONSP (annot.ref(0)))
     {
-      tem = Fcar_safe (Fcar (*annot));
+      tem = Fcar_safe (Fcar (annot.ref(0)));
       nextpos = pos - 1;
       if (INTEGERP (tem))
 	nextpos = XFASTINT (tem);
@@ -5187,13 +5186,13 @@ a_write (int desc, Lisp_Object string, ptrdiff_t pos,
 	  pos = nextpos;
 	}
       /* Output the annotation.  */
-      tem = Fcdr (Fcar (*annot));
+      tem = Fcdr (Fcar (annot.ref(0)));
       if (STRINGP (tem))
 	{
 	  if (!e_write (desc, tem, 0, SCHARS (tem), coding))
 	    return 0;
 	}
-      *annot = Fcdr (*annot);
+      annot.set( Fcdr (annot.ref(0)));
     }
   return 1;
 }

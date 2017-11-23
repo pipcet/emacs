@@ -489,11 +489,12 @@ invoke it.  If KEYS is omitted or nil, the return value of
 
   /* Allocate them all at one go.  This wastes a bit of memory, but
      it's OK to trade space for speed.  */
-  SAFE_NALLOCA (args, 3, nargs);
-  visargs = args + nargs;
-  varies = (signed char *) (visargs + nargs);
+  SAFE_ALLOCA_LISP (args, 3 * nargs);
+  visargs = ELisp_Pointer(args) + nargs;
+  varies = (signed char *) (visargs + nargs).u.heap;
 
-  memclear (args, nargs * (2 * word_size + 1));
+  for (size_t i = 0; i < nargs * 3; i++)
+    args.sref(i, Qnil);
 
   if (!NILP (enable))
     specbind (Qenable_recursive_minibuffers, Qt);
@@ -502,7 +503,7 @@ invoke it.  If KEYS is omitted or nil, the return value of
   for (i = 2; *tem; i++)
     {
       visargs[1] = make_string (tem + 1, strcspn (tem + 1, "\n"));
-      callint_message = Fformat_message (i - 1, visargs + 1);
+      callint_message = Fformat_message (LV (i - 1, visargs + 1));
 
       switch (*tem)
 	{
@@ -518,8 +519,14 @@ invoke it.  If KEYS is omitted or nil, the return value of
 	case 'b':   		/* Name of existing buffer.  */
 	  args[i] = Fcurrent_buffer ();
 	  if (EQ (selected_window, minibuf_window))
-	    args[i] = Fother_buffer (args[i], Qnil, Qnil);
-	  args[i] = Fread_buffer (callint_message, args[i], Qt, Qnil);
+            {
+              ELisp_Value tem = args[i];
+              args[i] = Fother_buffer (tem, Qnil, Qnil);
+            }
+          {
+            ELisp_Value tem = args[i];
+            args[i] = Fread_buffer (callint_message, tem, Qt, Qnil);
+          }
 	  break;
 
 	case 'B':		/* Name of buffer, possibly nonexistent.  */
@@ -784,7 +791,7 @@ invoke it.  If KEYS is omitted or nil, the return value of
 	arg_from_tty = 1;
 
       if (NILP (visargs[i]) && STRINGP (args[i]))
-	visargs[i] = args[i];
+	visargs[i] = args.ref(i);
 
       tem = strchr (tem, '\n');
       if (tem) tem++;
@@ -807,9 +814,12 @@ invoke it.  If KEYS is omitted or nil, the return value of
 	  if (varies[i] > 0)
 	    visargs[i] = list1 (intern (callint_argfuns[varies[i]]));
 	  else
-	    visargs[i] = quotify_arg (args[i]);
+            {
+              ELisp_Value tem = args[i];
+              visargs[i] = quotify_arg (tem);
+            }
 	}
-      Vcommand_history = Fcons (Flist (nargs - 1, visargs + 1),
+      Vcommand_history = Fcons (Flist (LV (nargs - 1, visargs + 1)),
 				Vcommand_history);
       /* Don't keep command history around forever.  */
       if (INTEGERP (Vhistory_length) && XINT (Vhistory_length) > 0)
@@ -824,7 +834,11 @@ invoke it.  If KEYS is omitted or nil, the return value of
      temporarily, convert it to an integer now.  */
   for (i = 2; i < nargs; i++)
     if (varies[i] >= 1 && varies[i] <= 4)
-      XSETINT (args[i], marker_position (args[i]));
+      {
+        ELisp_Value tem;
+        XSETINT (tem, marker_position (args[i]));
+        args[i] = tem;
+      }
 
   if (record_then_fail)
     Fbarf_if_buffer_read_only (Qnil);
@@ -838,7 +852,7 @@ invoke it.  If KEYS is omitted or nil, the return value of
     Lisp_Object val;
     specbind (Qcommand_debug_status, Qnil);
 
-    val = Ffuncall (nargs, args);
+    val = Ffuncall (LV (nargs, args));
     val = unbind_to (speccount, val);
     SAFE_FREE ();
     return val;

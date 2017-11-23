@@ -1291,7 +1291,7 @@ define_charset_internal (Lisp_Object name,
 	   args[charset_arg_ascii_compatible_p],
 	   intern_c_string (":code-offset"),
 	   args[charset_arg_code_offset]);
-  Fdefine_charset_internal (charset_arg_max, args);
+  Fdefine_charset_internal (LV (charset_arg_max, args));
 
   return XINT (CHARSET_SYMBOL_ID (name));
 }

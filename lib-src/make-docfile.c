@@ -678,6 +678,7 @@ write_globals (void)
   bool seen_defun = false;
   ptrdiff_t symnum = 0;
   ptrdiff_t num_symbols = 0;
+  ptrdiff_t num_objects = 0;
   qsort (globals, num_globals, sizeof (struct global), compare_globals);
 
   j = 0;
@@ -694,6 +695,7 @@ write_globals (void)
 	  i++;
 	}
       num_symbols += globals[i].type == SYMBOL;
+      num_objects += globals[i].type == LISP_OBJECT;
       globals[j++] = globals[i];
     }
   num_globals = j;
@@ -728,13 +730,13 @@ write_globals (void)
 
       if (type)
 	{
-	  printf ("  %s f_%s;\n", type, globals[i].name);
-	  printf ("#define %s globals.f_%s\n",
+	  printf ("  %s f_%s;\n\n", type, globals[i].name);
+	  printf ("#define %s globals.f_%s\n\n",
 		  globals[i].name, globals[i].name);
 	}
       else if (globals[i].type == SYMBOL)
 	printf (("#define i%s %td\n"
-		 "DEFINE_LISP_SYMBOL (%s)\n"),
+		 "DEFINE_LISP_SYMBOL (%s)\n\n"),
 		globals[i].name, symnum++, globals[i].name);
       else
 	{
@@ -756,11 +758,35 @@ write_globals (void)
 	    fputs (" ATTRIBUTE_CONST", stdout);
 
 	  puts (";");
+          puts ("");
+
+#if 0
+          if (globals[i].v.value > 0)
+            {
+              int n = globals[i].v.value;
+              printf("#define %s", globals[i].name);
+              printf("(");
+              for (int j = 0; j < n; j++) {
+                printf("arg%d%c", j, (j == n - 1) ? ')' : ',');
+              }
+              printf(" ({ ");
+              for (int j = 0; j < n; j++) {
+                printf("ELisp_Value tmp%d = arg%d; ", j, j);
+              }
+              printf("%s(", globals[i].name);
+              for (int j = 0; j < n; j++) {
+                printf("tmp%d%c", j, (j == n - 1) ? ')' : ',');
+              }
+              printf("; })\n\n");
+            }
+#endif
 	}
     }
 
   if (!seen_defun)
     close_emacs_globals (num_symbols);
+
+  printf ("#define GLOBAL_OBJECTS %td\n", num_objects);
 
   puts ("#ifdef DEFINE_SYMBOLS");
   puts ("static char const *const defsym_name[] = {");

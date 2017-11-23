@@ -159,7 +159,7 @@ font_make_spec (void)
     = ((struct font_spec *)
        allocate_pseudovector (VECSIZE (struct font_spec),
 			      FONT_SPEC_MAX, FONT_SPEC_MAX, PVEC_FONT));
-  XSETFONT (font_spec, spec);
+  XSETFONT_SPEC (font_spec, spec);
   return font_spec;
 }
 
@@ -171,7 +171,7 @@ font_make_entity (void)
     = ((struct font_entity *)
        allocate_pseudovector (VECSIZE (struct font_entity),
 			      FONT_ENTITY_MAX, FONT_ENTITY_MAX, PVEC_FONT));
-  XSETFONT (font_entity, entity);
+  XSETFONT_ENTITY (font_entity, entity);
   return font_entity;
 }
 
@@ -999,9 +999,9 @@ font_expand_wildcards (Lisp_Object *field, int n)
   if (! NILP (tmp[n - 1]) && j < XLFD_REGISTRY_INDEX)
     return -1;
   memclear (field + j, (XLFD_LAST_INDEX - j) * word_size);
-  if (INTEGERP (field[XLFD_ENCODING_INDEX]))
-    field[XLFD_ENCODING_INDEX]
-      = Fintern (Fnumber_to_string (field[XLFD_ENCODING_INDEX]), Qnil);
+  if (INTEGERP (field.ref(XLFD_ENCODING_INDEX)))
+    field.sref(XLFD_ENCODING_INDEX,
+               Fintern (Fnumber_to_string (field.ref(XLFD_ENCODING_INDEX)), Qnil));
   return 0;
 }
 
@@ -1544,7 +1544,7 @@ font_parse_fcname (char *name, ptrdiff_t len, Lisp_Object font)
 	  (word_len == strlen (STR)				\
 	   && memcmp (word_start, STR, strlen (STR)) == 0)
 #define PROP_SAVE(VAR, STR)					\
-	  (VAR = NILP (VAR) ? font_intern_prop (STR, strlen (STR), 1) : VAR)
+	  (VAR = NILP (VAR) ? font_intern_prop (STR, strlen (STR), 1) : ELisp_Return_Value(VAR))
 
 	  if (PROP_MATCH ("Ultra-Light"))
 	    PROP_SAVE (weight, "ultra-light");
@@ -2182,7 +2182,7 @@ font_vconcat_entity_vectors (Lisp_Object list)
 
   for (i = 0; i < nargs; i++, list = XCDR (list))
     args[i] = XCAR (list);
-  Lisp_Object result = Fvconcat (nargs, args);
+  Lisp_Object result = Fvconcat (LV (nargs, args));
   SAFE_FREE ();
   return result;
 }
@@ -2697,7 +2697,7 @@ font_delete_unmatched (Lisp_Object vec, Lisp_Object spec, int size)
 	  val = Fcons (entity, val);
 	  continue;
 	}
-      for (prop = FONT_WEIGHT_INDEX; prop < FONT_SIZE_INDEX; prop++)
+      for (prop = FONT_WEIGHT_INDEX; prop < FONT_SIZE_INDEX; prop = prop + 1)
 	if (INTEGERP (AREF (spec, prop))
 	    && ((XINT (AREF (spec, prop)) >> 8)
 		!= (XINT (AREF (entity, prop)) >> 8)))
@@ -2727,7 +2727,7 @@ font_delete_unmatched (Lisp_Object vec, Lisp_Object spec, int size)
       if (prop < FONT_SPEC_MAX)
 	val = Fcons (entity, val);
     }
-  return (Fvconcat (1, &val));
+  return (Fvconcat (LV (1, &val)));
 }
 
 
@@ -2790,7 +2790,7 @@ font_list_entities (struct frame *f, Lisp_Object spec)
 	    if (NILP (val))
 	      val = zero_vector;
 	    else
-	      val = Fvconcat (1, &val);
+	      val = Fvconcat (LV (1, &val));
 	    copy = copy_font_spec (scratch_font_spec);
 	    ASET (copy, FONT_TYPE_INDEX, driver_list->driver->type);
 	    XSETCDR (cache, Fcons (Fcons (copy, val), XCDR (cache)));
@@ -2846,7 +2846,7 @@ font_matching_entity (struct frame *f, Lisp_Object *attrs, Lisp_Object spec)
 	    if (!NILP (entity))
 	      {
 		Lisp_Object copy = copy_font_spec (work);
-		Lisp_Object match = Fvector (1, &entity);
+		Lisp_Object match = Fvector (LV (1, &entity));
 
 		ASET (copy, FONT_TYPE_INDEX, driver_list->driver->type);
 		XSETCDR (cache, Fcons (Fcons (copy, match), XCDR (cache)));
@@ -3030,7 +3030,7 @@ font_get_name (Lisp_Object font_object)
 Lisp_Object
 font_spec_from_name (Lisp_Object font_name)
 {
-  Lisp_Object spec = Ffont_spec (0, NULL);
+  Lisp_Object spec = Ffont_spec (LV (0, NULL));
 
   CHECK_STRING (font_name);
   if (font_parse_name (SSDATA (font_name), SBYTES (font_name), spec) == -1)
@@ -3145,6 +3145,7 @@ font_find_for_lface (struct frame *f, Lisp_Object *attrs, Lisp_Object spec, int 
   Lisp_Object work;
   Lisp_Object entities, val;
   Lisp_Object foundry[3], *family, registry[3], adstyle[3];
+  Lisp_Object *family_v;
   int pixel_size;
   int i, j, k, l;
   USE_SAFE_ALLOCA;
@@ -3239,7 +3240,8 @@ font_find_for_lface (struct frame *f, Lisp_Object *attrs, Lisp_Object spec, int 
       if (! NILP (alters))
 	{
 	  EMACS_INT alterslen = XFASTINT (Flength (alters));
-	  SAFE_ALLOCA_LISP (family, alterslen + 2);
+	  SAFE_ALLOCA_LISP (family_v, alterslen + 2);
+          family = family_v;
 	  for (i = 0; CONSP (alters); i++, alters = XCDR (alters))
 	    family[i] = XCAR (alters);
 	  if (NILP (AREF (spec, FONT_FAMILY_INDEX)))
@@ -3989,15 +3991,19 @@ copy_font_spec (Lisp_Object font)
 	  (FONT_EXTRA_INDEX - 1) * word_size);
 
   /* Copy an alist of extra information but discard :font-entity property.  */
+  Lisp_Object prev = Qnil;
   pcdr = spec->props + FONT_EXTRA_INDEX;
   for (tail = AREF (font, FONT_EXTRA_INDEX); CONSP (tail); tail = XCDR (tail))
     if (!EQ (XCAR (XCAR (tail)), QCfont_entity))
       {
-        *pcdr = Fcons (Fcons (XCAR (XCAR (tail)), CDR (XCAR (tail))), Qnil);
-        pcdr = xcdr_addr (*pcdr);
+        if (NILP (prev))
+          spec->props[FONT_EXTRA_INDEX] = Fcons (Fcons (XCAR (XCAR (tail)), CDR (XCAR (tail))), Qnil);
+        else
+          XSETCDR (prev, Fcons (Fcons (XCAR (XCAR (tail)), CDR (XCAR (tail))), Qnil));
+        prev = tail;
       }
 
-  XSETFONT (new_spec, spec);
+  XSETFONT_SPEC (new_spec, spec);
   return new_spec;
 }
 
@@ -4166,7 +4172,7 @@ are to be displayed on.  If omitted, the selected frame is used.  */)
       plist[n++] = val;
     }
 
-  return Flist (n, plist);
+  return Flist (LV (n, plist));
 }
 
 #endif
@@ -4844,6 +4850,7 @@ the corresponding element is nil.  */)
   struct font *font = CHECK_FONT_GET_OBJECT (font_object);
   ptrdiff_t i, len;
   Lisp_Object *chars, vec;
+  Lisp_Object *chars_v;
   USE_SAFE_ALLOCA;
 
   if (NILP (object))
@@ -4854,7 +4861,8 @@ the corresponding element is nil.  */)
       if (EQ (from, to))
 	return Qnil;
       len = XFASTINT (to) - XFASTINT (from);
-      SAFE_ALLOCA_LISP (chars, len);
+      SAFE_ALLOCA_LISP (chars_v, len);
+      chars = chars_v;
       charpos = XFASTINT (from);
       bytepos = CHAR_TO_BYTE (charpos);
       for (i = 0; charpos < XFASTINT (to); i++)
@@ -4873,7 +4881,8 @@ the corresponding element is nil.  */)
       if (ifrom == ito)
 	return Qnil;
       len = ito - ifrom;
-      SAFE_ALLOCA_LISP (chars, len);
+      SAFE_ALLOCA_LISP (chars_v, len);
+      chars = chars_v;
       p = SDATA (object);
       if (STRING_MULTIBYTE (object))
 	{
@@ -5340,9 +5349,9 @@ syms_of_font (void)
   DEFSYM (QCuser_spec, ":user-spec");
 
   staticpro (&scratch_font_spec);
-  scratch_font_spec = Ffont_spec (0, NULL);
+  scratch_font_spec = Ffont_spec (LV (0, NULL));
   staticpro (&scratch_font_prefer);
-  scratch_font_prefer = Ffont_spec (0, NULL);
+  scratch_font_prefer = Ffont_spec (LV (0, NULL));
 
   staticpro (&Vfont_log_deferred);
   Vfont_log_deferred = Fmake_vector (make_number (3), Qnil);

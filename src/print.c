@@ -100,7 +100,7 @@ bool print_output_debug_flag EXTERNALLY_VISIBLE = 1;
    bool free_print_buffer = 0;						\
    bool multibyte							\
      = !NILP (BVAR (current_buffer, enable_multibyte_characters));	\
-   Lisp_Object original = printcharfun;					\
+   ELisp_Value original = printcharfun;					\
    if (NILP (printcharfun)) printcharfun = Qt;				\
    if (BUFFERP (printcharfun))						\
      {									\
@@ -129,7 +129,7 @@ bool print_output_debug_flag EXTERNALLY_VISIBLE = 1;
      }									\
    if (NILP (printcharfun))						\
      {									\
-       Lisp_Object string;						\
+       ELisp_Value string;						\
        if (NILP (BVAR (current_buffer, enable_multibyte_characters))	\
 	   && ! print_escape_multibyte)					\
          specbind (Qprint_escape_multibyte, Qt);			\
@@ -525,6 +525,7 @@ print_c_string (char const *string, Lisp_Object printcharfun)
 static void
 write_string (const char *data, Lisp_Object printcharfun)
 {
+  MODIFY_ARG(&printcharfun);
   PRINTPREPARE;
   print_c_string (data, printcharfun);
   PRINTFINISH;
@@ -632,7 +633,7 @@ is used instead.  */)
 }
 
 /* A buffer which is used to hold output being built by prin1-to-string.  */
-Lisp_Object Vprin1_to_string_buffer;
+ELisp_Struct_Value Vprin1_to_string_buffer = builtin_lisp_symbol(0);
 
 DEFUN ("prin1-to-string", Fprin1_to_string, Sprin1_to_string, 1, 2, 0,
        doc: /* Return a string containing the printed representation of OBJECT.
@@ -819,6 +820,29 @@ debug_print (Lisp_Object arg)
   fprintf (stderr, "\r\n");
 }
 
+void
+debug_print (ELisp_Value arg)
+{
+  Fprin1 (arg, Qexternal_debugging_output);
+  fprintf (stderr, "\r\n");
+}
+
+void
+debug_print (ELisp_Struct_Value arg)
+{
+  Fprin1 (arg, Qexternal_debugging_output);
+  fprintf (stderr, "\r\n");
+}
+
+void
+debug_print (JS::Value arg)
+{
+  ELisp_Value argarg;
+  argarg.v.v = arg;
+  Fprin1 (argarg, Qexternal_debugging_output);
+  fprintf (stderr, "\r\n");
+}
+
 void safe_debug_print (Lisp_Object) EXTERNALLY_VISIBLE;
 void
 safe_debug_print (Lisp_Object arg)
@@ -829,7 +853,7 @@ safe_debug_print (Lisp_Object arg)
     debug_print (arg);
   else
     {
-      EMACS_UINT n = XLI (arg);
+      EMACS_UINT n = *(EMACS_UINT *)(&arg.v);
       fprintf (stderr, "#<%s_LISP_OBJECT 0x%08"pI"x>\r\n",
 	       !valid ? "INVALID" : "SOME",
 	       n);
@@ -2171,7 +2195,7 @@ print_object (Lisp_Object obj, Lisp_Object printcharfun, bool escapeflag)
 		   it's OK that valid_lisp_object_p is slow.  */
 
 		int limit = min (amount, 8);
-		Lisp_Object *area = v->data[0].pointer;
+		Lisp_Object *area = (ELisp_Struct_Value *)v->data[0].pointer;
 
 		i = sprintf (buf, "with %"pD"d objects", amount);
 		strout (buf, i, i, printcharfun);

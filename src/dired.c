@@ -180,7 +180,7 @@ directory_files_internal (Lisp_Object directory, Lisp_Object full,
 
   /* Don't let the compiler optimize away all copies of DIRECTORY,
      which would break GC; see Bug#16986.  */
-  Lisp_Object volatile directory_volatile = directory;
+  ELisp_Value volatile directory_volatile = directory;
 
   /* Because of file name handlers, these functions might call
      Ffuncall, and cause a GC.  */

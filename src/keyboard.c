@@ -95,7 +95,7 @@ volatile bool pending_signals;
 
 KBOARD *initial_kboard;
 KBOARD *current_kboard;
-static KBOARD *all_kboards;
+KBOARD *all_kboards;
 
 /* True in the single-kboard state, false in the any-kboard state.  */
 static bool single_kboard;
@@ -554,8 +554,8 @@ echo_update (void)
       Lisp_Object prompt = KVAR (current_kboard, echo_prompt);
       Lisp_Object prefix = call0 (Qinternal_echo_keystrokes_prefix);
       kset_echo_string (current_kboard,
-			NILP (prompt) ? prefix
-			: NILP (prefix) ? prompt
+			NILP (prompt) ? ELisp_Return_Value(prefix)
+			: NILP (prefix) ? ELisp_Return_Value(prompt)
 			: concat2 (prompt, prefix));
 
       for (i = 0; i < this_command_key_count; i++)
@@ -1001,7 +1001,7 @@ cmd_error_internal (Lisp_Object data, const char *context)
   /* Use user's specified output function if any.  */
   if (!NILP (Vcommand_error_function))
     call3 (Vcommand_error_function, data,
-	   context ? build_string (context) : empty_unibyte_string,
+	   context ? build_string (context) : ELisp_Return_Value(empty_unibyte_string),
 	   Vsignaling_function);
 
   Vsignaling_function = Qnil;
@@ -1836,9 +1836,11 @@ static Lisp_Object
 safe_run_hook_funcall (ptrdiff_t nargs, Lisp_Object *args)
 {
   eassert (nargs == 2);
+  Lisp_Object a = args[1], b = args[0];
+  Lisp_Object tmp[] = { a, b };
   /* Yes, run_hook_with_args works with args in the other order.  */
   internal_condition_case_n (safe_run_hooks_1,
-			     2, ((Lisp_Object []) {args[1], args[0]}),
+			     LV (2, tmp),
 			     Qt, safe_run_hooks_error);
   return Qnil;
 }
@@ -1853,7 +1855,8 @@ safe_run_hooks (Lisp_Object hook)
   ptrdiff_t count = SPECPDL_INDEX ();
 
   specbind (Qinhibit_quit, Qt);
-  run_hook_with_args (2, ((Lisp_Object []) {hook, hook}), safe_run_hook_funcall);
+  Lisp_Object tmp[] = { hook, hook };
+  run_hook_with_args (LV (2, tmp), safe_run_hook_funcall);
   unbind_to (count, Qnil);
 }
 
@@ -2328,8 +2331,8 @@ read_char (int commandflag, Lisp_Object map,
   sys_jmp_buf local_getcjmp;
   sys_jmp_buf save_jump;
   Lisp_Object tem, save;
-  volatile Lisp_Object previous_echo_area_message;
-  volatile Lisp_Object also_record;
+  Lisp_Object previous_echo_area_message;
+  Lisp_Object also_record;
   volatile bool reread, recorded;
   bool volatile polling_stopped_here = false;
   struct kboard *orig_kboard = current_kboard;
@@ -2846,7 +2849,7 @@ read_char (int commandflag, Lisp_Object map,
     {
       struct buffer *prev_buffer = current_buffer;
       last_input_event = c;
-      call4 (Qcommand_execute, tem, Qnil, Fvector (1, &last_input_event), Qt);
+      call4 (Qcommand_execute, tem, Qnil, Fvector (LV (1, &last_input_event)), Qt);
 
       if (CONSP (c)
           && (EQ (XCAR (c), Qselect_window)
@@ -3606,8 +3609,8 @@ kbd_buffer_unget_event (struct selection_input_event *event)
 
 /* Limit help event positions to this range, to avoid overflow problems.  */
 #define INPUT_EVENT_POS_MAX \
-  ((ptrdiff_t) min (PTRDIFF_MAX, min (TYPE_MAXIMUM (Time) / 2, \
-				      MOST_POSITIVE_FIXNUM)))
+  ((ptrdiff_t) c_min (PTRDIFF_MAX, c_min (TYPE_MAXIMUM (Time) / 2, \
+                                          MOST_POSITIVE_FIXNUM)))
 #define INPUT_EVENT_POS_MIN (-1 - INPUT_EVENT_POS_MAX)
 
 /* Return a Time that encodes position POS.  POS must be in range.  */
@@ -6607,7 +6610,7 @@ modify_event_symbol (ptrdiff_t symbol_num, int modifiers, Lisp_Object symbol_kin
 	}
 
       if (CONSP (*symbol_table))
-        *symbol_table = Fcons (Fcons (symbol_int, value), *symbol_table);
+        *symbol_table = Fcons (Fcons (symbol_int, value), symbol_table.ref(0));
       else
 	ASET (*symbol_table, symbol_num, value);
 
@@ -7427,6 +7430,7 @@ menu_bar_items (Lisp_Object old)
   /* maps[0..nmaps-1] are the prefix definitions of KEYBUF[0..t-1]
      in the current keymaps, or nil where it is not a prefix.  */
   Lisp_Object *maps;
+  Lisp_Object *maps_v;
 
   Lisp_Object mapsbuf[3];
   Lisp_Object def, tail;
@@ -7479,7 +7483,8 @@ menu_bar_items (Lisp_Object old)
 	   recognized when the menu-bar (or mode-line) is updated,
 	   which does not normally happen after every command.  */
 	ptrdiff_t nminor = current_minor_maps (NULL, &tmaps);
-	SAFE_NALLOCA (maps, 1, nminor + 4);
+	SAFE_ALLOCA_LISP (maps_v, nminor + 4);
+        maps = maps_v;
 	nmaps = 0;
 	Lisp_Object tem = KVAR (current_kboard, Voverriding_terminal_local_map);
 	if (!NILP (tem) && !NILP (Voverriding_local_map_menu_flag))
@@ -7488,7 +7493,7 @@ menu_bar_items (Lisp_Object old)
 	  maps[nmaps++] = tem;
 	if (nminor != 0)
 	  {
-	    memcpy (maps + nmaps, tmaps, nminor * sizeof (maps[0]));
+	    memcpy (ELisp_Pointer(maps) + nmaps, tmaps, nminor * sizeof (maps[0]));
 	    nmaps += nminor;
 	  }
 	maps[nmaps++] = get_local_map (PT, current_buffer, Qlocal_map);
@@ -7904,7 +7909,7 @@ parse_menu_item (Lisp_Object item, int inmenubar)
 		       (such as lmenu.el set it up), check if the
 		       original command matches the cached command.  */
 		    && !(SYMBOLP (def)
-			 && EQ (tem, XSYMBOL (def)->u.s.function))))
+			 && EQ (tem, XSYMBOL (def)->function))))
 	      keys = Qnil;
 	  }
 
@@ -7989,6 +7994,7 @@ Lisp_Object
 tool_bar_items (Lisp_Object reuse, int *nitems)
 {
   Lisp_Object *maps;
+  Lisp_Object *maps_v;
   Lisp_Object mapsbuf[3];
   ptrdiff_t nmaps, i;
   Lisp_Object oquit;
@@ -8032,7 +8038,8 @@ tool_bar_items (Lisp_Object reuse, int *nitems)
 	 recognized when the tool-bar (or mode-line) is updated,
 	 which does not normally happen after every command.  */
       ptrdiff_t nminor = current_minor_maps (NULL, &tmaps);
-      SAFE_NALLOCA (maps, 1, nminor + 4);
+      SAFE_ALLOCA_LISP (maps_v, nminor + 4);
+      maps = maps_v;
       nmaps = 0;
       Lisp_Object tem = KVAR (current_kboard, Voverriding_terminal_local_map);
       if (!NILP (tem) && !NILP (Voverriding_local_map_menu_flag))
@@ -8041,7 +8048,11 @@ tool_bar_items (Lisp_Object reuse, int *nitems)
 	maps[nmaps++] = tem;
       if (nminor != 0)
 	{
-	  memcpy (maps + nmaps, tmaps, nminor * sizeof (maps[0]));
+          for (ptrdiff_t i = 0; i < nminor; i++)
+            {
+              ELisp_Value tem = tmaps[i];
+              maps[nmaps + i] = tem;
+            }
 	  nmaps += nminor;
 	}
       maps[nmaps++] = get_local_map (PT, current_buffer, Qlocal_map);
@@ -8403,8 +8414,8 @@ append_tool_bar_item (void)
 
   /* Append entries from tool_bar_item_properties to the end of
      tool_bar_items_vector.  */
-  vcopy (tool_bar_items_vector, ntool_bar_items,
-	 XVECTOR (tool_bar_item_properties)->contents, TOOL_BAR_ITEM_NSLOTS);
+  vcopy (tool_bar_items_vector, LV (ntool_bar_items,
+                                    XVECTOR (tool_bar_item_properties)->contents), TOOL_BAR_ITEM_NSLOTS);
   ntool_bar_items += TOOL_BAR_ITEM_NSLOTS;
 }
 
@@ -8764,9 +8775,9 @@ access_keymap_keyremap (Lisp_Object map, Lisp_Object key, Lisp_Object prompt,
   /* Handle a symbol whose function definition is a keymap
      or an array.  */
   if (SYMBOLP (next) && !NILP (Ffboundp (next))
-      && (ARRAYP (XSYMBOL (next)->u.s.function)
-	  || KEYMAPP (XSYMBOL (next)->u.s.function)))
-    next = Fautoload_do_load (XSYMBOL (next)->u.s.function, next, Qnil);
+      && (ARRAYP (XSYMBOL (next)->function)
+	  || KEYMAPP (XSYMBOL (next)->function)))
+    next = Fautoload_do_load (XSYMBOL (next)->function, next, Qnil);
 
   /* If the keymap gives a function, not an
      array, then call the function with one arg and use
@@ -8799,7 +8810,7 @@ access_keymap_keyremap (Lisp_Object map, Lisp_Object key, Lisp_Object prompt,
    Return true if the remapping actually took place.  */
 
 static bool
-keyremap_step (Lisp_Object *keybuf, int bufsize, volatile keyremap *fkey,
+keyremap_step (Lisp_Object *keybuf, int bufsize, keyremap *fkey,
 	       int input, bool doit, int *diff, Lisp_Object prompt)
 {
   Lisp_Object next, key;
@@ -8827,10 +8838,16 @@ keyremap_step (Lisp_Object *keybuf, int bufsize, volatile keyremap *fkey,
       /* Shift the keys that follow fkey->end.  */
       if (*diff < 0)
 	for (i = fkey->end; i < input; i++)
-	  keybuf[i + *diff] = keybuf[i];
+          {
+            ELisp_Value tem = keybuf[i];
+            keybuf[i + *diff] = tem;
+          }
       else if (*diff > 0)
 	for (i = input - 1; i >= fkey->end; i--)
-	  keybuf[i + *diff] = keybuf[i];
+          {
+            ELisp_Value tem = keybuf[i];
+            keybuf[i + *diff] = tem;
+          }
       /* Overwrite the old keys with the new ones.  */
       for (i = 0; i < len; i++)
 	keybuf[fkey->start + i]
@@ -9095,7 +9112,10 @@ read_key_sequence (Lisp_Object *keybuf, int bufsize, Lisp_Object prompt,
 	     like C-c ESC ESC ESC ESC ...)  */
 	  int i;
 	  for (i = first_unbound + 1; i < t; i++)
-	    keybuf[i - first_unbound - 1] = keybuf[i];
+            {
+              ELisp_Value tem = keybuf[i];
+              keybuf[i - first_unbound - 1] = tem;
+            }
 	  mock_input = t - first_unbound - 1;
 	  indec.end = indec.start -= first_unbound + 1;
 	  indec.map = indec.parent;
@@ -9861,7 +9881,7 @@ read_key_sequence_vs (Lisp_Object prompt, Lisp_Object continue_echo,
 
   return unbind_to (count,
 		    ((allow_string ? make_event_array : Fvector)
-		     (i, keybuf)));
+		     (LV (i, keybuf))));
 }
 
 DEFUN ("read-key-sequence", Fread_key_sequence, Sread_key_sequence, 1, 5, 0,
@@ -10013,8 +10033,8 @@ represented as events of the form (nil . COMMAND).  */)
 
   if (!total_keys
       || (cmds && total_keys < NUM_RECENT_KEYS))
-    return Fvector (total_keys,
-		    XVECTOR (recent_keys)->contents);
+    return Fvector (LV (total_keys,
+                        XVECTOR (recent_keys)->contents));
   else
     {
       Lisp_Object es = Qnil;
@@ -10030,7 +10050,7 @@ represented as events of the form (nil . COMMAND).  */)
 	    i = 0;
 	} while (i != recent_keys_index);
       es = Fnreverse (es);
-      return Fvconcat (1, &es);
+      return Fvconcat (LV (1, &es));
     }
 }
 
@@ -10043,8 +10063,8 @@ The value is a string or a vector.
 See also `this-command-keys-vector'.  */)
   (void)
 {
-  return make_event_array (this_command_key_count,
-			   XVECTOR (this_command_keys)->contents);
+  return make_event_array (LV (this_command_key_count,
+                               XVECTOR (this_command_keys)->contents));
 }
 
 DEFUN ("set--this-command-keys", Fset__this_command_keys,
@@ -10090,8 +10110,8 @@ the last key sequence that has been read.
 See also `this-command-keys'.  */)
   (void)
 {
-  return Fvector (this_command_key_count,
-		  XVECTOR (this_command_keys)->contents);
+  return Fvector (LV (this_command_key_count,
+                      XVECTOR (this_command_keys)->contents));
 }
 
 DEFUN ("this-single-command-keys", Fthis_single_command_keys,
@@ -10104,10 +10124,10 @@ does not include prefix arguments.
 The value is always a vector.  */)
   (void)
 {
-  return Fvector (this_command_key_count
+  return Fvector (LV (this_command_key_count
 		  - this_single_command_key_start,
 		  (XVECTOR (this_command_keys)->contents
-		   + this_single_command_key_start));
+		   + this_single_command_key_start)));
 }
 
 DEFUN ("this-single-command-raw-keys", Fthis_single_command_raw_keys,
@@ -10120,7 +10140,7 @@ shows the events before all translations (except for input methods).
 The value is always a vector.  */)
   (void)
 {
-  return Fvector (raw_keybuf_count, XVECTOR (raw_keybuf)->contents);
+  return Fvector (LV (raw_keybuf_count, XVECTOR (raw_keybuf)->contents));
 }
 
 DEFUN ("clear-this-command-keys", Fclear_this_command_keys,
@@ -11513,7 +11533,7 @@ for that character after that prefix key.  */);
 	       doc: /* Form to evaluate when Emacs starts up.
 Useful to set before you dump a modified Emacs.  */);
   Vtop_level = Qnil;
-  XSYMBOL (Qtop_level)->u.s.declared_special = false;
+  XSYMBOL (Qtop_level)->declared_special = false;
 
   DEFVAR_KBOARD ("keyboard-translate-table", Vkeyboard_translate_table,
                  doc: /* Translate table for local keyboard input, or nil.
