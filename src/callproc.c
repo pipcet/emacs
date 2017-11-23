@@ -143,6 +143,7 @@ encode_current_directory (void)
 void
 record_kill_process (struct Lisp_Process *p, Lisp_Object tempfile)
 {
+
 #ifndef MSDOS
   sigset_t oldset;
   block_child_signal (&oldset);
@@ -163,6 +164,7 @@ record_kill_process (struct Lisp_Process *p, Lisp_Object tempfile)
 static void
 delete_temp_file (Lisp_Object name)
 {
+
   unlink (SSDATA (name));
 }
 
@@ -193,6 +195,7 @@ call_process_kill (void *ptr)
 static void
 call_process_cleanup (Lisp_Object buffer)
 {
+
   Fset_buffer (buffer);
 
 #ifndef MSDOS
@@ -1367,10 +1370,12 @@ child_setup (int in, int out, int err, char **new_argv, bool set_pgrp,
 #endif  /* not WINDOWSNT */
 }
 
+
 static bool
 getenv_internal_1 (const char *var, ptrdiff_t varlen, char **value,
 		   ptrdiff_t *valuelen, Lisp_Object env)
 {
+
   for (; CONSP (env); env = XCDR (env))
     {
       Lisp_Object entry = XCAR (env);
@@ -1406,6 +1411,7 @@ static bool
 getenv_internal (const char *var, ptrdiff_t varlen, char **value,
 		 ptrdiff_t *valuelen, Lisp_Object frame)
 {
+
   /* Try to find VAR in Vprocess_environment first.  */
   if (getenv_internal_1 (var, varlen, value, valuelen,
 			 Vprocess_environment))
@@ -1457,6 +1463,7 @@ If optional parameter ENV is a list, then search this list instead of
 \(an entry for a variable with no value).  */)
   (Lisp_Object variable, Lisp_Object env)
 {
+
   char *value;
   ptrdiff_t valuelen;
 
@@ -1478,6 +1485,7 @@ If optional parameter ENV is a list, then search this list instead of
 
 /* A version of getenv that consults the Lisp environment lists,
    easily callable from C.  This is usually called from egetenv.  */
+
 char *
 egetenv_internal (const char *var, ptrdiff_t len)
 {

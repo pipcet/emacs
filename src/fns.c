@@ -1179,7 +1179,12 @@ Elements of ALIST that are not conses are also shared.  */)
     {
       Lisp_Object car = XCAR (tem);
       if (CONSP (car))
-	XSETCAR (tem, Fcons (XCAR (car), XCDR (car)));
+        {
+          Lisp_Object car2 = XCAR (car);
+          Lisp_Object cdr2 = XCDR (car);
+          Lisp_Object tem2 = Fcons (car2, cdr2);
+          XSETCAR (tem, tem2);
+        }
     }
   return alist;
 }

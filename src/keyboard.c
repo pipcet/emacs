@@ -91,8 +91,6 @@ volatile int interrupt_input_blocked;
    The maybe_quit function checks this.  */
 volatile bool pending_signals;
 
-#define KBD_BUFFER_SIZE 4096
-
 KBOARD *initial_kboard;
 KBOARD *current_kboard;
 KBOARD *all_kboards;
@@ -282,7 +280,7 @@ static bool input_was_pending;
 
 /* Circular buffer for pre-read keyboard input.  */
 
-static union buffered_input_event kbd_buffer[KBD_BUFFER_SIZE];
+union buffered_input_event kbd_buffer[KBD_BUFFER_SIZE];
 
 /* Pointer to next available character in kbd_buffer.
    If kbd_fetch_ptr == kbd_store_ptr, the buffer is empty.
@@ -2074,7 +2072,7 @@ show_help_echo (Lisp_Object help, Lisp_Object window, Lisp_Object object,
   if (!NILP (help) && !STRINGP (help))
     {
       if (FUNCTIONP (help))
-	help = safe_call (4, help, window, object, pos);
+	help = safe_call (4, help, ELisp_Handle (window), ELisp_Handle (object), ELisp_Handle (pos));
       else
 	help = safe_eval (help);
 
@@ -3494,6 +3492,7 @@ kbd_buffer_store_buffered_event (union buffered_input_event *event,
 
 		  if (event_to_kboard (&sp->ie) == kb)
 		    {
+		      sp->kind = NO_EVENT;
 		      sp->ie.kind = NO_EVENT;
 		      sp->ie.frame_or_window = Qnil;
 		      sp->ie.arg = Qnil;

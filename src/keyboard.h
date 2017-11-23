@@ -467,14 +467,17 @@ INLINE void
 kbd_buffer_store_event_hold (struct input_event *event,
 			     struct input_event *hold_quit)
 {
-  verify (alignof (struct input_event) == alignof (union buffered_input_event)
-	  && sizeof (struct input_event) == sizeof (union buffered_input_event));
-  kbd_buffer_store_buffered_event ((union buffered_input_event *) event,
-				   hold_quit);
+  struct buffered_input_event *bie = xmalloc (sizeof *bie); // XXX leax
+  bie->ie = *event;
+  bie->kind = event->kind;
+  kbd_buffer_store_buffered_event (bie, hold_quit);
 }
 #ifdef HAVE_X11
 extern void kbd_buffer_unget_event (struct selection_input_event *);
 #endif
+
+#define KBD_BUFFER_SIZE 4096
+
 extern void poll_for_input_1 (void);
 extern void show_help_echo (Lisp_Object, Lisp_Object, Lisp_Object,
                             Lisp_Object);

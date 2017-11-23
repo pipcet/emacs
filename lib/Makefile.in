@@ -90,6 +90,13 @@ $(libegnu_a_OBJECTS) $(libgnu_a_OBJECTS): $(BUILT_SOURCES)
 e-%.o: %.c
 	$(AM_V_CC)$(CC) -c $(CPPFLAGS) $(ALL_CFLAGS) -Demacs -o $@ $<
 
+.SUFFIXES:
+%.h.hh: %.h
+	perl $(top_srcdir)/chunkl.pl $*.h < $< > $@
+
+.SECONDARY:
+.DELETE_ON_ERROR:
+
 all: libgnu.a $(if $(HYBRID_MALLOC),libegnu.a)
 
 libgnu.a: $(libgnu_a_OBJECTS)

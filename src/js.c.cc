@@ -450,15 +450,8 @@ js_gc_trace(JSTracer* tracer, void* data)
 }
 
 static void
-js_gc_callback(JSContext* cx, JSGCStatus status, void *)
-{
-  fprintf(stderr, "GC wi' me!\n");
-}
-
-static void
 elisp_gc_callback_register(JSContext *cx)
 {
-  //JS_SetGCCallback(cx, js_gc_callback, NULL);
   JS_AddExtraGCRootsTracer(cx, js_gc_trace, NULL);
 }
 
@@ -478,7 +471,7 @@ bool js_init()
     return false;
   //JS_SetFutexCanWait(cx);
   JS::SetWarningReporter(cx, WarningReporter);
-  JS_SetGCParameter(cx, JSGC_MAX_BYTES, 0xffffffffffffL);
+  //JS_SetGCParameter(cx, JSGC_MAX_BYTES, 0xffffffffL);
 
   JS_SetNativeStackQuota(cx, 8 * 1024 * 1024);
 

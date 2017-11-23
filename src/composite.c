@@ -926,8 +926,8 @@ autocmp_chars (Lisp_Object rule, ptrdiff_t charpos, ptrdiff_t bytepos,
       if (NILP (string))
 	record_unwind_protect (restore_point_unwind,
 			       build_marker (current_buffer, pt, pt_byte));
-      lgstring = safe_call (6, Vauto_composition_function, AREF (rule, 2),
-			    pos, make_number (to), font_object, string);
+      lgstring = safe_call (6, Vauto_composition_function, ELisp_Handle(AREF (rule, 2)),
+			    ELisp_Handle(pos), ELisp_Handle(make_number (to)), ELisp_Handle (font_object), ELisp_Handle (string));
     }
   return unbind_to (count, lgstring);
 }

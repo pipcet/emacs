@@ -277,6 +277,8 @@ create_terminal (enum output_method type, struct redisplay_interface *rif)
   struct terminal *terminal = allocate_terminal ();
   Lisp_Object terminal_coding, keyboard_coding;
 
+  XSETVECTOR (*(JSUnsafeValue *)&terminal->header.jsval, (struct Lisp_Vector *)terminal);
+  
   terminal->next_terminal = terminal_list;
   terminal_list = terminal;
   terminal->type = type;

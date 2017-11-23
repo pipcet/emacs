@@ -153,6 +153,55 @@ specpdl_arg (union specbinding *pdl)
   return pdl->unwind.arg;
 }
 
+static Lisp_Object
+specpdl_stack_symbol (union specbinding_stack *pdl)
+{
+  eassert (pdl->kind >= SPECPDL_LET);
+  return pdl->let.symbol;
+}
+
+static enum specbind_tag
+specpdl_stack_kind (union specbinding_stack *pdl)
+{
+  eassert (pdl->kind >= SPECPDL_LET);
+  return pdl->kind;
+}
+
+static Lisp_Object
+specpdl_stack_old_value (union specbinding_stack *pdl)
+{
+  eassert (pdl->kind >= SPECPDL_LET);
+  return pdl->let.old_value;
+}
+
+static void
+set_specpdl_stack_old_value (union specbinding_stack *pdl, Lisp_Object val)
+{
+  eassert (pdl->kind >= SPECPDL_LET);
+  pdl->let.old_value = val;
+}
+
+static Lisp_Object
+specpdl_stack_where (union specbinding_stack *pdl)
+{
+  eassert (pdl->kind > SPECPDL_LET);
+  return pdl->let.where;
+}
+
+static Lisp_Object
+specpdl_stack_saved_value (union specbinding_stack *pdl)
+{
+  eassert (pdl->kind >= SPECPDL_LET);
+  return pdl->let.saved_value;
+}
+
+static Lisp_Object
+specpdl_stack_arg (union specbinding_stack *pdl)
+{
+  eassert (pdl->kind == SPECPDL_UNWIND);
+  return pdl->unwind.arg;
+}
+
 Lisp_Object
 backtrace_function (union specbinding *pdl)
 {
@@ -955,8 +1004,11 @@ usage: (let VARLIST BODY...)  */)
       if (!NILP (lexenv) && SYMBOLP (var)
 	  && !XSYMBOL (var)->declared_special
 	  && NILP (Fmemq (var, Vinternal_interpreter_environment)))
-	/* Lexically bind VAR by adding it to the lexenv alist.  */
-	lexenv = Fcons (Fcons (var, tem), lexenv);
+        {
+          tem = Fcons (var, tem);
+          /* Lexically bind VAR by adding it to the lexenv alist.  */
+          lexenv = Fcons (tem, lexenv);
+        }
       else
 	/* Dynamically bind VAR.  */
 	specbind (var, tem);
@@ -1438,11 +1490,11 @@ internal_condition_case_2 (Lisp_Object (*bfun) (Lisp_Object, Lisp_Object),
    and ARGS as second argument.  */
 
 Lisp_Object
-internal_condition_case_n (Lisp_Object (*bfun) (ptrdiff_t n, Lisp_Object *args),
+internal_condition_case_n (Lisp_Object (*bfun) (ptrdiff_t nargs, Lisp_Object *args),
 			   ptrdiff_t nargs,
 			   Lisp_Object *args,
 			   Lisp_Object handlers,
-			   Lisp_Object (*hfun) (Lisp_Object err,
+			   Lisp_Object (*hfun) (Lisp_Object,
 						ptrdiff_t nargs,
 						Lisp_Object *args))
 {
@@ -2245,8 +2297,10 @@ eval_sub (Lisp_Object form)
 	      args_left = XCDR (args_left);
 	      vals[argnum++] = eval_sub (arg);
 	    }
+          while (argnum < XINT (numargs))
+            vals.sref(argnum++, Qnil);
 
-	  set_backtrace_args (specpdl + count, vals, argnum);
+          set_backtrace_args (specpdl + count, vals, argnum);
 
 	  val = XSUBR (fun)->function.aMANY (LV (argnum, vals));
 
@@ -2374,7 +2428,7 @@ usage: (apply FUNCTION &rest ARGUMENTS)  */)
   (ptrdiff_t nargs, Lisp_Object *args)
 {
   ptrdiff_t i, numargs, funcall_nargs;
-  register Lisp_Object *funcall_args = NULL;
+  register Lisp_Object *funcall_args;
   register Lisp_Object spread_arg = args[nargs - 1];
   Lisp_Object fun = args[0];
   Lisp_Object retval;
@@ -3071,8 +3125,12 @@ funcall_lambda (Lisp_Object fun, ptrdiff_t nargs,
 
 	  /* Bind the argument.  */
 	  if (!NILP (lexenv) && SYMBOLP (next))
+            {
+              ELisp_Value tem;
 	    /* Lexically bind NEXT by adding it to the lexenv alist.  */
-	    lexenv = Fcons (Fcons (next, arg), lexenv);
+              tem = Fcons (next, arg);
+              lexenv = Fcons (tem, lexenv);
+            }
 	  else
 	    /* Dynamically bind NEXT.  */
 	    specbind (next, arg);
@@ -3439,7 +3497,7 @@ rebind_for_thread_switch (void)
 }
 
 static void
-do_one_unbind (struct specbinding *this_binding, bool unwinding,
+do_one_unbind (struct specbinding_stack *this_binding, bool unwinding,
                enum Set_Internal_Bind bindflag)
 {
   eassert (unwinding || this_binding->kind >= SPECPDL_LET);
@@ -3462,13 +3520,13 @@ do_one_unbind (struct specbinding *this_binding, bool unwinding,
     case SPECPDL_LET:
       { /* If variable has a trivial value (no forwarding), and isn't
 	   trapped, we can just set it.  */
-	Lisp_Object sym = specpdl_symbol (this_binding);
+	Lisp_Object sym = specpdl_stack_symbol (this_binding);
 	if (SYMBOLP (sym) && XSYMBOL (sym)->redirect == SYMBOL_PLAINVAL)
 	  {
 	    if (XSYMBOL (sym)->trapped_write == SYMBOL_UNTRAPPED_WRITE)
-	      SET_SYMBOL_VAL (XSYMBOL (sym), specpdl_old_value (this_binding));
+	      SET_SYMBOL_VAL (XSYMBOL (sym), specpdl_stack_old_value (this_binding));
 	    else
-	      set_internal (sym, specpdl_old_value (this_binding),
+	      set_internal (sym, specpdl_stack_old_value (this_binding),
                             Qnil, bindflag);
 	    break;
 	  }
@@ -3477,15 +3535,15 @@ do_one_unbind (struct specbinding *this_binding, bool unwinding,
 	 on this var within this let.  */
       FALLTHROUGH;
     case SPECPDL_LET_DEFAULT:
-      set_default_internal (specpdl_symbol (this_binding),
-                            specpdl_old_value (this_binding),
+      set_default_internal (specpdl_stack_symbol (this_binding),
+                            specpdl_stack_old_value (this_binding),
                             bindflag);
       break;
     case SPECPDL_LET_LOCAL:
       {
-	Lisp_Object symbol = specpdl_symbol (this_binding);
-	Lisp_Object where = specpdl_where (this_binding);
-	Lisp_Object old_value = specpdl_old_value (this_binding);
+	Lisp_Object symbol = specpdl_stack_symbol (this_binding);
+	Lisp_Object where = specpdl_stack_where (this_binding);
+	Lisp_Object old_value = specpdl_stack_old_value (this_binding);
 	eassert (BUFFERP (where));
 
 	/* If this was a local binding, reset the value in the appropriate
@@ -3562,8 +3620,24 @@ unbind_to (ptrdiff_t count, Lisp_Object value)
 	 the same entry again, and we copy the binding first
 	 in case more bindings are made during some of the code we run.  */
 
-      struct specbinding this_binding;
-      this_binding = *--specpdl_ptr;
+      struct specbinding_stack this_binding;
+      --specpdl_ptr;
+      this_binding.kind = specpdl_ptr->kind;
+      this_binding.unwind.func = specpdl_ptr->unwind.func;
+      this_binding.unwind.arg = specpdl_ptr->unwind.arg;
+      this_binding.unwind_ptr.func = specpdl_ptr->unwind_ptr.func;
+      this_binding.unwind_ptr.arg = specpdl_ptr->unwind_ptr.arg;
+      this_binding.unwind_int.func = specpdl_ptr->unwind_int.func;
+      this_binding.unwind_int.arg = specpdl_ptr->unwind_int.arg;
+      this_binding.unwind_void.func = specpdl_ptr->unwind_void.func;
+      this_binding.let.symbol = specpdl_ptr->let.symbol;
+      this_binding.let.old_value = specpdl_ptr->let.old_value;
+      this_binding.let.where = specpdl_ptr->let.where;
+      this_binding.let.saved_value = specpdl_ptr->let.saved_value;
+      this_binding.bt.debug_on_exit = specpdl_ptr->bt.debug_on_exit;
+      this_binding.bt.function = specpdl_ptr->bt.function;
+      this_binding.bt.args = specpdl_ptr->bt.args;
+      this_binding.bt.nargs = specpdl_ptr->bt.nargs;
 
       do_one_unbind (&this_binding, true, SET_INTERNAL_UNBIND);
     }
@@ -3585,7 +3659,7 @@ unbind_for_thread_switch (struct thread_state *thr)
 	{
 	  Lisp_Object sym = specpdl_symbol (bind);
 	  bind->let.saved_value = find_symbol_value (sym);
-          do_one_unbind (bind, false, SET_INTERNAL_THREAD_SWITCH);
+          // do_one_unbind (bind, false, SET_INTERNAL_THREAD_SWITCH); XXXXXX
 	}
     }
 }

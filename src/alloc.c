@@ -212,11 +212,9 @@ alloc_unexec_post (void)
    to a struct Lisp_String.  */
 
 #define MARK_STRING(S)		((S)->size |= ARRAY_MARK_FLAG)
-#define UNMARK_STRING(S)	((S)->size &= ~ARRAY_MARK_FLAG)
 #define STRING_MARKED_P(S)	(((S)->size & ARRAY_MARK_FLAG) != 0)
 
 #define VECTOR_MARK(V)		((V)->header.size |= ARRAY_MARK_FLAG)
-#define VECTOR_UNMARK(V)	((V)->header.size &= ~ARRAY_MARK_FLAG)
 #define VECTOR_MARKED_P(V)	(((V)->header.size & ARRAY_MARK_FLAG) != 0)
 
 /* Default value of gc_cons_threshold (see below).  */
@@ -502,11 +500,6 @@ pointer_align (void *ptr, int alignment)
 {
   return (void *) ROUNDUP ((uintptr_t) ptr, alignment);
 }
-
-#if DEFINE_KEY_OPS_AS_MACROS
-# define XPNTR_OR_SYMBOL_OFFSET(a) macro_XPNTR_OR_SYMBOL_OFFSET (a)
-# define XPNTR(a) macro_XPNTR (a)
-#endif
 
 static void
 XFLOAT_INIT (Lisp_Object *f, double n)
@@ -1674,8 +1667,6 @@ static EMACS_INT total_string_bytes;
    string_free_list, return a pointer to its successor in the
    free-list.  */
 
-#define NEXT_FREE_LISP_STRING(S) (*(struct Lisp_String **) (S))
-
 /* Return a pointer to the sdata structure belonging to Lisp string S.
    S must be live, i.e. S->data must not be null.  S->data is actually
    a pointer to the `u.data' member of its sdata structure; the
@@ -2616,11 +2607,6 @@ verify (VECTOR_BLOCK_SIZE <= (1 << PSEUDOVECTOR_SIZE_BITS));
 
 #define VBLOCK_BYTES_MIN vroundup_ct (header_size + sizeof (ELisp_Return_Value))
 
-/* Size of the largest vector allocated from block.  */
-
-#define VBLOCK_BYTES_MAX					\
-  vroundup ((VECTOR_BLOCK_BYTES / 2) - word_size)
-
 /* We maintain one free list for each possible block-allocated
    vector size, and this is the number of free lists we have.  */
 
@@ -2714,14 +2700,6 @@ init_vectors (void)
 {
   zero_vector = make_pure_vector (0);
 }
-
-/* Nonzero if VECTOR pointer is valid pointer inside BLOCK.  */
-
-#define VECTOR_IN_BLOCK(vector, block)		\
-  ((char *) (vector) <= (block)->data		\
-   + VECTOR_BLOCK_BYTES - VBLOCK_BYTES_MIN)
-
-/* Return the memory footprint of V in bytes.  */
 
 static ptrdiff_t
 vector_nbytes (struct Lisp_Vector *v)
@@ -3097,43 +3075,17 @@ struct marker_block
 static struct marker_block *marker_block;
 static int marker_block_index = MARKER_BLOCK_SIZE;
 
-static union Lisp_Misc *marker_free_list;
-
 /* Return a newly allocated Lisp_Misc object of specified TYPE.  */
 
 static Lisp_Object
 allocate_misc (enum Lisp_Misc_Type type)
 {
   Lisp_Object val;
+  union Lisp_Misc *m = (union Lisp_Misc *)xzalloc(sizeof *m);
+  
+  m->u_any.type = type;
+  XSETMISC (val, m);
 
-  MALLOC_BLOCK_INPUT;
-
-  if (marker_free_list)
-    {
-      XSETMISC (val, marker_free_list);
-      marker_free_list = marker_free_list->u_free.chain;
-    }
-  else
-    {
-      if (marker_block_index == MARKER_BLOCK_SIZE)
-	{
-	  struct marker_block *new = lisp_malloc (sizeof *new, MEM_TYPE_MISC);
-	  new->next = marker_block;
-	  marker_block = new;
-	  marker_block_index = 0;
-	  total_free_markers += MARKER_BLOCK_SIZE;
-	}
-      XSETMISC (val, &marker_block->markers[marker_block_index].m);
-      marker_block_index++;
-    }
-
-  MALLOC_UNBLOCK_INPUT;
-
-  --total_free_markers;
-  consing_since_gc += sizeof (union Lisp_Misc);
-  misc_objects_consed++;
-  XMISCANY (val)->type = type;
-  XMISCANY (val)->gcmarkbit = 0;
   return val;
 }
 
@@ -4060,12 +4012,6 @@ static void
 mark_maybe_pointer (void *p)
 {
 }
-
-
-/* Alignment of pointer values.  Use alignof, as it sometimes returns
-   a smaller alignment than GCC's __alignof__ and mark_memory might
-   miss objects if __alignof__ were used.  */
-#define GC_POINTER_ALIGNMENT alignof (void *)
 
 /* Mark Lisp objects referenced from the address range START+OFFSET..END
    or END+OFFSET..START.  */

@@ -354,7 +354,7 @@ sub get_global_hash {
 }
 
 sub new_from_rawtree {
-    my ($class, $rawtree, $chunk) = @_;
+    my ($class, $rawtree, $chunk, $prevend) = @_;
     my $ret = bless {}, $class;
 
     $ret->{vars} = PointedHash->new();
@@ -388,12 +388,14 @@ sub new_from_rawtree {
         return;
     }
 
+    $ret->{prevend} = $prevend
+        if defined $prevend;
     $ret->{start} = $rawtree->[0];
     $ret->{length} = $rawtree->[1];
     $ret->{children} = [];
     for (my $i = 2; $i <= $#$rawtree; $i++) {
         next if !defined $rawtree->[$i];
-        my $child = EmacsCTree->new_from_rawtree($rawtree->[$i], $chunk);
+        my $child = EmacsCTree->new_from_rawtree($rawtree->[$i], $chunk, $prevend);
         if (ref $child eq "Wildcard") {
             return EmacsCTree::Wildcard->new($child->{type}, $child->{comps});
         }
@@ -401,6 +403,7 @@ sub new_from_rawtree {
             return EmacsCTree::Lookup->new($child->{type}, $child->{comps});
         }
         next if !defined $child;
+        $prevend = $child->{start} + $child->{length};
         $ret->{children}->[$i-2] = $child;
     }
 

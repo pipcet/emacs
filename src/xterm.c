@@ -7688,6 +7688,7 @@ handle_one_xevent (struct x_display_info *dpyinfo,
   *finish = X_EVENT_NORMAL;
 
   EVENT_INIT (inev.ie);
+  inev.kind = NO_EVENT;
   inev.ie.kind = NO_EVENT;
   inev.ie.arg = Qnil;
 
@@ -7785,6 +7786,7 @@ handle_one_xevent (struct x_display_info *dpyinfo,
                 if (!f)
 		  goto OTHER; /* May be a dialog that is to be removed  */
 
+                inev.kind = DELETE_WINDOW_EVENT;
 		inev.ie.kind = DELETE_WINDOW_EVENT;
 		XSETFRAME (inev.ie.frame_or_window, f);
 		goto done;
@@ -7895,6 +7897,7 @@ handle_one_xevent (struct x_display_info *dpyinfo,
       {
         const XSelectionClearEvent *eventp = &event->xselectionclear;
 
+        inev.kind = SELECTION_CLEAR_EVENT;
         inev.sie.kind = SELECTION_CLEAR_EVENT;
         SELECTION_EVENT_DPYINFO (&inev.sie) = dpyinfo;
         SELECTION_EVENT_SELECTION (&inev.sie) = eventp->selection;
@@ -7911,6 +7914,7 @@ handle_one_xevent (struct x_display_info *dpyinfo,
       {
 	const XSelectionRequestEvent *eventp = &event->xselectionrequest;
 
+	inev.kind = SELECTION_REQUEST_EVENT;
 	inev.sie.kind = SELECTION_REQUEST_EVENT;
 	SELECTION_EVENT_DPYINFO (&inev.sie) = dpyinfo;
 	SELECTION_EVENT_REQUESTOR (&inev.sie) = eventp->requestor;
@@ -7935,6 +7939,7 @@ handle_one_xevent (struct x_display_info *dpyinfo,
 	      SET_FRAME_VISIBLE (f, 1);
 	      SET_FRAME_ICONIFIED (f, false);
 	      f->output_data.x->has_been_visible = true;
+	      inev.kind = DEICONIFY_EVENT;
 	      inev.ie.kind = DEICONIFY_EVENT;
 	      XSETFRAME (inev.ie.frame_or_window, f);
 	    }
@@ -7942,6 +7947,7 @@ handle_one_xevent (struct x_display_info *dpyinfo,
 	    {
 	      SET_FRAME_VISIBLE (f, 0);
 	      SET_FRAME_ICONIFIED (f, true);
+	      inev.kind = ICONIFY_EVENT;
 	      inev.ie.kind = ICONIFY_EVENT;
 	      XSETFRAME (inev.ie.frame_or_window, f);
 	    }
@@ -8118,6 +8124,7 @@ handle_one_xevent (struct x_display_info *dpyinfo,
           if (visible || FRAME_ICONIFIED_P (f))
             {
               SET_FRAME_ICONIFIED (f, true);
+              inev.kind = ICONIFY_EVENT;
               inev.ie.kind = ICONIFY_EVENT;
               XSETFRAME (inev.ie.frame_or_window, f);
             }
@@ -8163,6 +8170,7 @@ handle_one_xevent (struct x_display_info *dpyinfo,
 
           if (iconified)
             {
+              inev.kind = DEICONIFY_EVENT;
               inev.ie.kind = DEICONIFY_EVENT;
               XSETFRAME (inev.ie.frame_or_window, f);
             }
@@ -8327,6 +8335,7 @@ handle_one_xevent (struct x_display_info *dpyinfo,
  	  if (keysym >= 32 && keysym < 128)
  	    /* Avoid explicitly decoding each ASCII character.  */
  	    {
+ 	      inev.kind = ASCII_KEYSTROKE_EVENT;
  	      inev.ie.kind = ASCII_KEYSTROKE_EVENT;
  	      inev.ie.code = keysym;
 	      goto done_keysym;
@@ -8335,6 +8344,10 @@ handle_one_xevent (struct x_display_info *dpyinfo,
 	  /* Keysyms directly mapped to Unicode characters.  */
 	  if (keysym >= 0x01000000 && keysym <= 0x0110FFFF)
 	    {
+	      if (keysym < 0x01000080)
+		inev.kind = ASCII_KEYSTROKE_EVENT;
+	      else
+		inev.kind = MULTIBYTE_CHAR_KEYSTROKE_EVENT;
 	      if (keysym < 0x01000080)
 		inev.ie.kind = ASCII_KEYSTROKE_EVENT;
 	      else
@@ -8350,6 +8363,9 @@ handle_one_xevent (struct x_display_info *dpyinfo,
 				Qnil),
 		  NATNUMP (c)))
  	    {
+ 	      inev.kind = (SINGLE_BYTE_CHAR_P (XFASTINT (c))
+                           ? ASCII_KEYSTROKE_EVENT
+                           : MULTIBYTE_CHAR_KEYSTROKE_EVENT);
  	      inev.ie.kind = (SINGLE_BYTE_CHAR_P (XFASTINT (c))
                               ? ASCII_KEYSTROKE_EVENT
                               : MULTIBYTE_CHAR_KEYSTROKE_EVENT);
@@ -8432,6 +8448,7 @@ handle_one_xevent (struct x_display_info *dpyinfo,
 	      STORE_KEYSYM_FOR_DEBUG (keysym);
 	      /* make_lispy_event will convert this to a symbolic
 		 key.  */
+	      inev.kind = NON_ASCII_KEYSTROKE_EVENT;
 	      inev.ie.kind = NON_ASCII_KEYSTROKE_EVENT;
 	      inev.ie.code = keysym;
 	      goto done_keysym;
@@ -8482,6 +8499,9 @@ handle_one_xevent (struct x_display_info *dpyinfo,
 		  ch = copy_bufptr[i], len = 1;
 		else
 		  ch = STRING_CHAR_AND_LENGTH (copy_bufptr + i, len);
+		inev.kind = (SINGLE_BYTE_CHAR_P (ch)
+				? ASCII_KEYSTROKE_EVENT
+				: MULTIBYTE_CHAR_KEYSTROKE_EVENT);
 		inev.ie.kind = (SINGLE_BYTE_CHAR_P (ch)
 				? ASCII_KEYSTROKE_EVENT
 				: MULTIBYTE_CHAR_KEYSTROKE_EVENT);
@@ -8491,6 +8511,7 @@ handle_one_xevent (struct x_display_info *dpyinfo,
 
 	    count += nchars;
 
+	    inev.kind = NO_EVENT;  /* Already stored above.  */
 	    inev.ie.kind = NO_EVENT;  /* Already stored above.  */
 
 	    if (keysym == NoSymbol)
@@ -8631,6 +8652,7 @@ handle_one_xevent (struct x_display_info *dpyinfo,
 		    && !EQ (window, last_mouse_window)
 		    && !EQ (window, selected_window))
 		  {
+		    inev.kind = SELECT_WINDOW_EVENT;
 		    inev.ie.kind = SELECT_WINDOW_EVENT;
 		    inev.ie.frame_or_window = window;
 		  }
@@ -8806,6 +8828,7 @@ handle_one_xevent (struct x_display_info *dpyinfo,
 
 	      if (old_left != f->left_pos || old_top != f->top_pos)
 		{
+		  inev.kind = MOVE_FRAME_EVENT;
 		  inev.ie.kind = MOVE_FRAME_EVENT;
 		  XSETFRAME (inev.ie.frame_or_window, f);
 		}
@@ -8971,6 +8994,7 @@ handle_one_xevent (struct x_display_info *dpyinfo,
 	    if (!f->output_data.x->saved_menu_event)
 	      f->output_data.x->saved_menu_event = xmalloc (sizeof *event);
 	    *f->output_data.x->saved_menu_event = *event;
+	    inev.kind = MENU_BAR_ACTIVATE_EVENT;
 	    inev.ie.kind = MENU_BAR_ACTIVATE_EVENT;
 	    XSETFRAME (inev.ie.frame_or_window, f);
 	    *finish = X_EVENT_DROP;
@@ -9019,7 +9043,7 @@ handle_one_xevent (struct x_display_info *dpyinfo,
     }
 
  done:
-  if (inev.ie.kind != NO_EVENT)
+  if (inev.kind != NO_EVENT)
     {
       kbd_buffer_store_buffered_event (&inev, hold_quit);
       count++;
