@@ -4452,7 +4452,7 @@ WEAK_ALIAS (__re_search_2, re_search_2)
 
 static int bcmp_translate (re_char *s1, re_char *s2,
 			   register ssize_t len,
-			   RE_TRANSLATE_TYPE translate,
+			   RE_TRANSLATE_HANDLE translate,
 			   const int multibyte);
 
 /* This converts PTR, a pointer into one of the search strings `string1'
@@ -5600,7 +5600,7 @@ re_match_2_internal (struct re_pattern_buffer *bufp, re_char *string1,
 		/* Compare that many; failure if mismatch, else move
 		   past them.  */
 		if (RE_TRANSLATE_P (translate)
-		    ? bcmp_translate (d, d2, dcnt, translate, target_multibyte)
+		    ? bcmp_translate (d, d2, dcnt, LVH (translate), target_multibyte)
 		    : memcmp (d, d2, dcnt))
 		  {
 		    d = dfail;
@@ -6217,7 +6217,7 @@ re_match_2_internal (struct re_pattern_buffer *bufp, re_char *string1,
 
 static int
 bcmp_translate (re_char *s1, re_char *s2, ssize_t len,
-		RE_TRANSLATE_TYPE translate, const int target_multibyte)
+		RE_TRANSLATE_HANDLE translate, const int target_multibyte)
 {
   re_char *p1 = s1, *p2 = s2;
   re_char *p1_end = s1 + len;

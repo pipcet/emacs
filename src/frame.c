@@ -4199,7 +4199,7 @@ x_set_screen_gamma (struct frame *f, Lisp_Object new_value, Lisp_Object old_valu
 	  && XFASTINT (parm_index) < ARRAYELTS (frame_parms)
 	  && FRAME_RIF (f)->frame_parm_handlers[XFASTINT (parm_index)])
 	  (*FRAME_RIF (f)->frame_parm_handlers[XFASTINT (parm_index)])
-	    (f, bgcolor, Qnil);
+	    (f, LVH (bgcolor), LSH (Qnil));
     }
 
   clear_face_cache (true);	/* FIXME: Why of all frames?  */

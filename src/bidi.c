@@ -280,7 +280,7 @@ bidi_get_type (int ch, bidi_dir_t override)
   if (ch < 0 || ch > MAX_CHAR)
     emacs_abort ();
 
-  default_type = (bidi_type_t) XINT (CHAR_TABLE_REF (bidi_type_table, ch));
+  default_type = (bidi_type_t) XINT (LRH (CHAR_TABLE_REF (bidi_type_table, ch)));
   /* Every valid character code, even those that are unassigned by the
      UCD, have some bidi-class property, according to
      DerivedBidiClass.txt file.  Therefore, if we ever get UNKNOWN_BT
@@ -409,7 +409,7 @@ bidi_paired_bracket_type (int c)
   if (c < 0 || c > MAX_CHAR)
     emacs_abort ();
 
-  return (bidi_bracket_type_t) XINT (CHAR_TABLE_REF (bidi_brackets_table, c));
+  return (bidi_bracket_type_t) XINT (LRH (CHAR_TABLE_REF (bidi_brackets_table, c)));
 }
 
 /* Determine the start-of-sequence (sos) directional type given the two
@@ -1805,7 +1805,7 @@ bidi_explicit_dir_char (int ch)
       eassert (ch == BIDI_EOB);
       return false;
     }
-  ch_type = (bidi_type_t) XINT (CHAR_TABLE_REF (bidi_type_table, ch));
+  ch_type = (bidi_type_t) XINT (LRH (CHAR_TABLE_REF (bidi_type_table, ch))) ;
   return (ch_type == LRE || ch_type == LRO
 	  || ch_type == RLE || ch_type == RLO
 	  || ch_type == PDF);

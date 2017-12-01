@@ -545,7 +545,7 @@ static void x_build_heuristic_mask (struct frame *, struct image *,
 #endif
 
 #define ADD_IMAGE_TYPE(type) \
-  do { Vimage_types = Fcons (type, Vimage_types); } while (0)
+  do { Vimage_types = Fcons (LSH (type), LSH (Vimage_types)); } while (0)
 
 /* Define a new image type from TYPE.  This adds a copy of TYPE to
    image_types and caches the loading status of TYPE.  */
@@ -8264,7 +8264,7 @@ imagemagick_image_p (ELisp_Handle object)
   struct image_keyword fmt[IMAGEMAGICK_LAST];
   memcpy (fmt, imagemagick_format, sizeof fmt);
 
-  if (!parse_image_spec (object, fmt, IMAGEMAGICK_LAST, Qimagemagick))
+  if (!parse_image_spec (object, fmt, IMAGEMAGICK_LAST, LSH (Qimagemagick)))
     return 0;
 
   /* Must specify either the :data or :file keyword.  */

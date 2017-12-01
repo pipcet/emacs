@@ -45,7 +45,7 @@ static Lisp_Object Vccl_program_table;
 
 /* Return a hash table of id number ID.  */
 #define GET_HASH_TABLE(id) \
-  (XHASH_TABLE (XCDR (AREF (Vtranslation_hash_table_vector, (id)))))
+  (XHASH_TABLE (LRH (XCDR (LRH (AREF (LSH (Vtranslation_hash_table_vector), (id)))))))
 
 /* CCL (Code Conversion Language) is a simple language which has
    operations on one input buffer, one output buffer, and 7 registers.
@@ -629,7 +629,7 @@ do								\
     stack_idx++;						\
     ccl_prog = called_ccl.prog;					\
     ic = CCL_HEADER_MAIN;					\
-    eof_ic = XFASTINT (ccl_prog.ref(CCL_HEADER_EOF));		\
+    eof_ic = XFASTINT (LSH (ccl_prog.ref(CCL_HEADER_EOF)));     \
     goto ccl_repeat;						\
   }								\
 while (0)
@@ -736,7 +736,7 @@ while (0)
 #define GET_CCL_RANGE(var, ccl_prog, ic, lo, hi)		\
   do								\
     {								\
-      EMACS_INT prog_word = XINT ((ccl_prog).ref(ic));          \
+      EMACS_INT prog_word = XINT (LSH ((ccl_prog).ref(ic)));    \
       if (! ASCENDING_ORDER (lo, prog_word, hi))		\
 	CCL_INVALID_CMD;					\
       (var) = prog_word;					\
@@ -769,12 +769,12 @@ while (0)
       CCL_INVALID_CMD;						\
     else if (dst + len <= dst_end)				\
       {								\
-	if (XFASTINT (ccl_prog.ref(ic)) & 0x1000000)		\
+	if (XFASTINT (LSH (ccl_prog.ref(ic))) & 0x1000000)      \
 	  for (ccli = 0; ccli < len; ccli++)			\
-	    *dst++ = XFASTINT (ccl_prog.ref(ic + ccli)) & 0xFFFFFF;	\
+	    *dst++ = XFASTINT (LSH (ccl_prog.ref(ic + ccli))) & 0xFFFFFF; \
 	else							\
 	  for (ccli = 0; ccli < len; ccli++)			\
-	    *dst++ = ((XFASTINT (ccl_prog.ref(ic + (ccli / 3))))	\
+	    *dst++ = ((XFASTINT (LSH (ccl_prog.ref(ic + (ccli / 3)))))	\
 		      >> ((2 - (ccli % 3)) * 8)) & 0xFF;	\
       }								\
     else							\
@@ -816,7 +816,7 @@ while (0)
 								\
     charset = char_charset ((c), (charset_list), &ncode);	\
     if (! charset && ! NILP (charset_list))			\
-      charset = char_charset ((c), Qnil, &ncode);	  	\
+      charset = char_charset ((c), LSH (Qnil), &ncode);	  	\
     if (charset)						\
       {								\
 	(id) = CHARSET_ID (charset);				\

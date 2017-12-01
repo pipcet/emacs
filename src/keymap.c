@@ -3305,7 +3305,7 @@ describe_map (Lisp_Object map, Lisp_Object prefix,
       /* Print a description of the definition of this character.
 	 elt_describer will take care of spacing out far enough
 	 for alignment purposes.  */
-      (*elt_describer) (vect[i].definition, Qnil);
+      (*elt_describer) (LSH (vect[i].definition), LSH (Qnil));
 
       if (vect[i].shadowed)
 	{

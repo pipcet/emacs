@@ -1165,38 +1165,35 @@ static void
 unwind_js (void *new_stack)
 {
   {
-    JSContext* cx = jsg().cx;
+    JSContext* cx = jsg.cx;
 
     JS::AutoGCRooter *gcr = *((JS::AutoGCRooter **)((void *)cx + 0x70));
     while (gcr && gcr < new_stack) {
-      //fprintf(stderr, "stack now %p, then %p, gcr %p\n",
-      //        &gcr, c_catch->jmp_stack, gcr);
+      JS::AutoGCRooter *down = gcr->down;
       gcr->JS::AutoGCRooter::~AutoGCRooter();
-      gcr = gcr->down;
+      gcr = down;
     }
 
     JS::RootKind rk = JS::RootKind::Value;
     JS::RootedListHeads *sr = ((JS::RootedListHeads *)cx);
     JS::Rooted<void*> *rooter = (*sr)[rk];
     while (rooter && rooter < new_stack) {
-      //fprintf(stderr, "stack now %p, then %p, gcr %p\n",
-      //        &rooter, c_catch->jmp_stack, rooter);
+      JS::Rooted<void*> *prev = rooter->prev;
       rooter->JS::Rooted<void*>::~Rooted();
-      rooter = rooter->prev;
+      rooter = prev;
     }
 
   }
   {
-    JSContext* cx = jsg().cx;
+    JSContext* cx = jsg.cx;
 
     JS::RootKind rk = JS::RootKind::Traceable;
     JS::RootedListHeads *sr = ((JS::RootedListHeads *)cx);
     JS::Rooted<void*> *rooter = (*sr)[rk];
     while (rooter && rooter < new_stack) {
-      //fprintf(stderr, "stack now %p, then %p, gcr %p\n",
-      //        &rooter, c_catch->jmp_stack, rooter);
+      JS::Rooted<void*> *prev = rooter->prev;
       rooter->JS::Rooted<void*>::~Rooted();
-      rooter = rooter->prev;
+      rooter = prev;
     }
   }
 }
@@ -1334,7 +1331,8 @@ internal_lisp_condition_case (Lisp_Object var, Lisp_Object bodyform,
 
   CHECK_SYMBOL (var);
 
-  for (Lisp_Object tail = handlers; CONSP (tail); tail = XCDR (tail))
+  Lisp_Object tail;
+  for (tail = handlers; CONSP (tail); tail = XCDR (tail))
     {
       Lisp_Object tem = XCAR (tail);
       clausenb++;
@@ -1356,7 +1354,7 @@ internal_lisp_condition_case (Lisp_Object var, Lisp_Object bodyform,
     memory_full (SIZE_MAX);
   Lisp_Object *clauses = (ELisp_Struct_Value *)(alloca (clausenb * sizeof(ELisp_Struct_Value)));
   clauses += clausenb;
-  for (Lisp_Object tail = handlers; CONSP (tail); tail = XCDR (tail))
+  for (tail = handlers; CONSP (tail); tail = XCDR (tail))
     (--clauses).set(XCAR (tail));
   for (ptrdiff_t i = 0; i < clausenb; i++)
     {
@@ -1392,7 +1390,7 @@ internal_lisp_condition_case (Lisp_Object var, Lisp_Object bodyform,
 	     to us unwound the stack to C->pdlcount before throwing.  */
 	  ptrdiff_t count = SPECPDL_INDEX ();
 	  specbind (handler_var, val);
-	  return unbind_to (count, Fprogn (handler_body));
+	  return unbind_to (count, LRH (Fprogn (handler_body)));
 	}
     }
 
@@ -2331,39 +2329,39 @@ eval_sub (Lisp_Object form)
 	      val = (XSUBR (fun)->function.a0 ());
 	      break;
 	    case 1:
-	      val = (XSUBR (fun)->function.a1 (argvals[0]));
+	      val = (XSUBR (fun)->function.a1 (LRH (argvals[0])));
 	      break;
 	    case 2:
-	      val = (XSUBR (fun)->function.a2 (argvals[0], argvals[1]));
+	      val = (XSUBR (fun)->function.a2 (LRH (argvals[0]), LRH (argvals[1])));
 	      break;
 	    case 3:
 	      val = (XSUBR (fun)->function.a3
-		     (argvals[0], argvals[1], argvals[2]));
+		     (LRH (argvals[0]), LRH (argvals[1]), LRH (argvals[2])));
 	      break;
 	    case 4:
 	      val = (XSUBR (fun)->function.a4
-		     (argvals[0], argvals[1], argvals[2], argvals[3]));
+		     (LRH (argvals[0]), LRH (argvals[1]), LRH (argvals[2]), LRH (argvals[3])));
 	      break;
 	    case 5:
 	      val = (XSUBR (fun)->function.a5
-		     (argvals[0], argvals[1], argvals[2], argvals[3],
-		      argvals[4]));
+		     (LRH (argvals[0]), LRH (argvals[1]), LRH (argvals[2]), LRH (argvals[3]),
+		      LRH (argvals[4])));
 	      break;
 	    case 6:
 	      val = (XSUBR (fun)->function.a6
-		     (argvals[0], argvals[1], argvals[2], argvals[3],
-		      argvals[4], argvals[5]));
+		     (LRH (argvals[0]), LRH (argvals[1]), LRH (argvals[2]), LRH (argvals[3]),
+                                                                              LRH (argvals[4]), LRH (argvals[5])));
 	      break;
 	    case 7:
 	      val = (XSUBR (fun)->function.a7
-		     (argvals[0], argvals[1], argvals[2], argvals[3],
-		      argvals[4], argvals[5], argvals[6]));
+		     (LRH (argvals[0]), LRH (argvals[1]), LRH (argvals[2]), LRH (argvals[3]),
+                                                                              LRH (argvals[4]), LRH (argvals[5]), LRH (argvals[6])));
 	      break;
 
 	    case 8:
 	      val = (XSUBR (fun)->function.a8
-		     (argvals[0], argvals[1], argvals[2], argvals[3],
-		      argvals[4], argvals[5], argvals[6], argvals[7]));
+		     (LRH (argvals[0]), LRH (argvals[1]), LRH (argvals[2]), LRH (argvals[3]),
+                                                                              LRH (argvals[4]), LRH (argvals[5]), LRH (argvals[6]), LRH (argvals[7])));
 	      break;
 
 	    default:
@@ -2943,35 +2941,35 @@ funcall_subr (struct Lisp_Subr *subr, ptrdiff_t numargs, Lisp_Object *args)
         case 0:
           return (subr->function.a0 ());
         case 1:
-          return (subr->function.a1 (internal_args[0]));
+          return (subr->function.a1 (LRH (internal_args[0])));
         case 2:
           return (subr->function.a2
-                  (internal_args[0], internal_args[1]));
+                  (LRH (internal_args[0]), LRH (internal_args[1])));
         case 3:
           return (subr->function.a3
-                  (internal_args[0], internal_args[1], internal_args[2]));
+                  (LRH (internal_args[0]), LRH (internal_args[1]), LRH (internal_args[2])));
         case 4:
           return (subr->function.a4
-                  (internal_args[0], internal_args[1], internal_args[2],
-                   internal_args[3]));
+                  (LRH (internal_args[0]), LRH (internal_args[1]), LRH (internal_args[2]),
+                   LRH (internal_args[3])));
         case 5:
           return (subr->function.a5
-                  (internal_args[0], internal_args[1], internal_args[2],
-                   internal_args[3], internal_args[4]));
+                  (LRH (internal_args[0]), LRH (internal_args[1]), LRH (internal_args[2]),
+                   LRH (internal_args[3]), LRH (internal_args[4])));
         case 6:
           return (subr->function.a6
-                  (internal_args[0], internal_args[1], internal_args[2],
-                   internal_args[3], internal_args[4], internal_args[5]));
+                  (LRH (internal_args[0]), LRH (internal_args[1]), LRH (internal_args[2]),
+                   LRH (internal_args[3]), LRH (internal_args[4]), LRH (internal_args[5])));
         case 7:
           return (subr->function.a7
-                  (internal_args[0], internal_args[1], internal_args[2],
-                   internal_args[3], internal_args[4], internal_args[5],
-                   internal_args[6]));
+                  (LRH (internal_args[0]), LRH (internal_args[1]), LRH (internal_args[2]),
+                   LRH (internal_args[3]), LRH (internal_args[4]), LRH (internal_args[5]),
+                   LRH (internal_args[6])));
         case 8:
           return (subr->function.a8
-                  (internal_args[0], internal_args[1], internal_args[2],
-                   internal_args[3], internal_args[4], internal_args[5],
-                   internal_args[6], internal_args[7]));
+                  (LRH (internal_args[0]), LRH (internal_args[1]), LRH (internal_args[2]),
+                   LRH (internal_args[3]), LRH (internal_args[4]), LRH (internal_args[5]),
+                   LRH (internal_args[6]), LRH (internal_args[7])));
 
         default:
 

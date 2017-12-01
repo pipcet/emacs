@@ -366,8 +366,8 @@ readchar (Lisp_Object readcharfun, bool *multibyte)
 }
 
 #define FROM_FILE_P(readcharfun)			\
-  (EQ (readcharfun, Qget_file_char)			\
-   || EQ (readcharfun, Qget_emacs_mule_file_char))
+  (EQ (readcharfun, LSH (Qget_file_char))               \
+   || EQ (readcharfun, LSH (Qget_emacs_mule_file_char)))
 
 static void
 skip_dyn_bytes (Lisp_Object readcharfun, ptrdiff_t n)

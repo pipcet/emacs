@@ -280,18 +280,18 @@ static bool input_was_pending;
 
 /* Circular buffer for pre-read keyboard input.  */
 
-union buffered_input_event kbd_buffer[KBD_BUFFER_SIZE];
+struct buffered_input_event kbd_buffer[KBD_BUFFER_SIZE];
 
 /* Pointer to next available character in kbd_buffer.
    If kbd_fetch_ptr == kbd_store_ptr, the buffer is empty.
    This may be kbd_buffer + KBD_BUFFER_SIZE, meaning that the
    next available char is in kbd_buffer[0].  */
-static union buffered_input_event *kbd_fetch_ptr;
+static struct buffered_input_event *kbd_fetch_ptr;
 
 /* Pointer to next place to store character in kbd_buffer.  This
    may be kbd_buffer + KBD_BUFFER_SIZE, meaning that the next
    character should go in kbd_buffer[0].  */
-static union buffered_input_event *volatile kbd_store_ptr;
+static struct buffered_input_event *volatile kbd_store_ptr;
 
 /* The above pair of variables forms a "queue empty" flag.  When we
    enqueue a non-hook event, we increment kbd_store_ptr.  When we
@@ -3353,7 +3353,7 @@ readable_events (int flags)
 #endif
 		   ))
         {
-          union buffered_input_event *event = kbd_fetch_ptr;
+          struct buffered_input_event *event = kbd_fetch_ptr;
 
 	  do
 	    {
@@ -3454,7 +3454,7 @@ kbd_buffer_store_event (register struct input_event *event)
    subsequent input events have been parsed (and discarded).  */
 
 void
-kbd_buffer_store_buffered_event (union buffered_input_event *event,
+kbd_buffer_store_buffered_event (struct buffered_input_event *event,
 				 struct input_event *hold_quit)
 {
   if (event->kind == NO_EVENT)
@@ -3484,7 +3484,7 @@ kbd_buffer_store_buffered_event (union buffered_input_event *event,
 		(kb, list2 (make_lispy_switch_frame (event->ie.frame_or_window),
 			    make_number (c)));
 	      kb->kbd_queue_has_data = true;
-	      union buffered_input_event *sp;
+	      struct buffered_input_event *sp;
 	      for (sp = kbd_fetch_ptr; sp != kbd_store_ptr; sp++)
 		{
 		  if (sp == kbd_buffer + KBD_BUFFER_SIZE)
@@ -3596,7 +3596,7 @@ kbd_buffer_unget_event (struct selection_input_event *event)
     kbd_fetch_ptr = kbd_buffer + KBD_BUFFER_SIZE;
 
   /* Don't let the very last slot in the buffer become full,  */
-  union buffered_input_event *kp = kbd_fetch_ptr - 1;
+  struct buffered_input_event *kp = kbd_fetch_ptr - 1;
   if (kp != kbd_store_ptr)
     {
       kp->sie = *event;
@@ -3684,7 +3684,7 @@ kbd_buffer_store_help_event (Lisp_Object frame, Lisp_Object help)
 void
 discard_mouse_events (void)
 {
-  union buffered_input_event *sp;
+  struct buffered_input_event *sp;
   for (sp = kbd_fetch_ptr; sp != kbd_store_ptr; sp++)
     {
       if (sp == kbd_buffer + KBD_BUFFER_SIZE)
@@ -3714,7 +3714,7 @@ discard_mouse_events (void)
 bool
 kbd_buffer_events_waiting (void)
 {
-  union buffered_input_event *sp;
+  struct buffered_input_event *sp;
 
   for (sp = kbd_fetch_ptr;
        sp != kbd_store_ptr && sp->kind == NO_EVENT;
@@ -3732,7 +3732,7 @@ kbd_buffer_events_waiting (void)
 /* Clear input event EVENT.  */
 
 static void
-clear_event (union buffered_input_event *event)
+clear_event (struct buffered_input_event *event)
 {
   event->kind = NO_EVENT;
 }
@@ -3854,7 +3854,7 @@ kbd_buffer_get_event (KBOARD **kbp,
      mouse movement enabled and available.  */
   if (kbd_fetch_ptr != kbd_store_ptr)
     {
-      union buffered_input_event *event;
+      struct buffered_input_event *event;
 
       event = ((kbd_fetch_ptr < kbd_buffer + KBD_BUFFER_SIZE)
 	       ? kbd_fetch_ptr
@@ -4198,7 +4198,7 @@ kbd_buffer_get_event (KBOARD **kbp,
 static void
 process_special_events (void)
 {
-  union buffered_input_event *event;
+  struct buffered_input_event *event;
 
   for (event = kbd_fetch_ptr; event != kbd_store_ptr; ++event)
     {
@@ -4222,7 +4222,7 @@ process_special_events (void)
 	     cyclically.  */
 
 	  struct selection_input_event copy = event->sie;
-	  union buffered_input_event *beg
+	  struct buffered_input_event *beg
 	    = (kbd_fetch_ptr == kbd_buffer + KBD_BUFFER_SIZE)
 	    ? kbd_buffer : kbd_fetch_ptr;
 
@@ -8528,7 +8528,7 @@ read_char_minibuf_menu_prompt (int commandflag,
     return Qnil;
 
 #define PUSH_C_STR(str, listvar) \
-  listvar = Fcons (build_unibyte_string (str), listvar)
+  listvar = Fcons (LRH (build_unibyte_string (str)), listvar)
 
   /* Prompt string always starts with map's prompt, and a space.  */
   prompt_strings = Fcons (name, prompt_strings);
@@ -10916,7 +10916,7 @@ init_kboard (KBOARD *kb, Lisp_Object type)
 KBOARD *
 allocate_kboard (Lisp_Object type)
 {
-  KBOARD *kb = xmalloc (sizeof *kb);
+  KBOARD *kb = (KBOARD *)xmalloc (sizeof *kb);
 
   init_kboard (kb, type);
   kb->next_kboard = all_kboards;
@@ -12023,7 +12023,7 @@ mark_kboards (void)
       mark_object (KVAR (kb, echo_prompt));
     }
   {
-    union buffered_input_event *event;
+    struct buffered_input_event *event;
     for (event = kbd_fetch_ptr; event != kbd_store_ptr; event++)
       {
 	if (event == kbd_buffer + KBD_BUFFER_SIZE)

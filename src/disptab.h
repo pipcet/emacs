@@ -25,7 +25,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 
 #define DISP_TABLE_P(obj)						    \
   (CHAR_TABLE_P (obj)							    \
-   && EQ (XCHAR_TABLE (obj)->purpose, Qdisplay_table)			    \
+   && EQ (LSH (XCHAR_TABLE (obj)->purpose), LSH (Qdisplay_table))       \
    && CHAR_TABLE_EXTRA_SLOTS (XCHAR_TABLE (obj)) == DISP_TABLE_EXTRA_SLOTS)
 
 #define DISP_TABLE_EXTRA_SLOTS 6
@@ -40,7 +40,7 @@ extern Lisp_Object disp_char_vector (struct Lisp_Char_Table *, int);
 
 #define DISP_CHAR_VECTOR(dp, c)				\
   (ASCII_CHAR_P(c)					\
-   ? (NILP ((dp)->ascii)				\
+   ? (NILP (LSH ((dp)->ascii))				\
       ? ELisp_Return_Value((dp)->defalt)                \
       : ELisp_Return_Value(SUB_CHAR_TABLE_P ((dp)->ascii)       \
 	 ? XSUB_CHAR_TABLE ((dp)->ascii)->contents[c]	\
@@ -56,30 +56,30 @@ extern struct Lisp_Char_Table *buffer_display_table (void);
 /* Return the current length of the GLYPH table,
    or 0 if the table isn't currently valid.  */
 #define GLYPH_TABLE_LENGTH  \
-  ((VECTORP (Vglyph_table)) ? ASIZE (Vglyph_table) : 0)
+  ((VECTORP (LSH (Vglyph_table))) ? ASIZE (LSH (Vglyph_table)) : 0)
 
 /* Return the current base (for indexing) of the GLYPH table,
    or 0 if the table isn't currently valid.  */
 #define GLYPH_TABLE_BASE  \
-  ((VECTORP (Vglyph_table)) ? XVECTOR (Vglyph_table)->contents : 0)
+  ((VECTORP (LSH (Vglyph_table))) ? XVECTOR (LSH (Vglyph_table))->contents : 0)
 
 /* Given BASE and LEN returned by the two previous macros,
    return nonzero if the GLYPH code G should be output as a single
    character with code G.  Return zero if G has a string in the table.  */
 #define GLYPH_SIMPLE_P(base,len,g) \
-  (GLYPH_FACE (g) != DEFAULT_FACE_ID || GLYPH_CHAR (g) >= (len) || !STRINGP (base.ref(GLYPH_CHAR (g))))
+  (GLYPH_FACE (g) != DEFAULT_FACE_ID || GLYPH_CHAR (g) >= (len) || !STRINGP (LSH (base.ref(GLYPH_CHAR (g)))))
 
 /* Given BASE and LEN returned by the two previous macros,
    return nonzero if GLYPH code G is aliased to a different code.  */
 #define GLYPH_ALIAS_P(base,len,g) \
-  (GLYPH_FACE (g) == DEFAULT_FACE_ID && GLYPH_CHAR (g) < (len) && INTEGERP (base.ref(GLYPH_CHAR (g))))
+  (GLYPH_FACE (g) == DEFAULT_FACE_ID && GLYPH_CHAR (g) < (len) && INTEGERP (LSH (base.ref(GLYPH_CHAR (g)))))
 
 /* Follow all aliases for G in the glyph table given by (BASE,
    LENGTH), and set G to the final glyph.  */
 #define GLYPH_FOLLOW_ALIASES(base, length, g)			\
   do {								\
     while (GLYPH_ALIAS_P ((base), (length), (g)))		\
-      SET_GLYPH_CHAR ((g), XINT ((base).ref(GLYPH_CHAR (g))));	\
+      SET_GLYPH_CHAR ((g), XINT (LSH ((base).ref(GLYPH_CHAR (g)))));	\
     if (!GLYPH_CHAR_VALID_P (g))				\
       SET_GLYPH_CHAR (g, ' ');					\
   } while (false)
@@ -87,7 +87,7 @@ extern struct Lisp_Char_Table *buffer_display_table (void);
 /* Assuming that GLYPH_SIMPLE_P (BASE, LEN, G) is 0,
    return the length and the address of the character-sequence
    used for outputting GLYPH G.  */
-#define GLYPH_LENGTH(base,g)   SCHARS (base.ref(GLYPH_CHAR (g)))
+#define GLYPH_LENGTH(base,g)   SCHARS (LSH (base.ref(GLYPH_CHAR (g))))
 #define GLYPH_STRING(base,g)   SDATA (base(GLYPH_CHAR (g)))
 
 /* GLYPH for a space character.  */

@@ -387,33 +387,33 @@ extern void unuse_menu_items (void);
   (EVENT_HAS_PARAMETERS (event) ? XCAR (event) : ELisp_Return_Value(event))
 
 /* Extract the starting and ending positions from a composite event.  */
-#define EVENT_START(event) (CAR_SAFE (CDR_SAFE (event)))
-#define EVENT_END(event) (CAR_SAFE (CDR_SAFE (CDR_SAFE (event))))
+#define EVENT_START(event) (CAR_SAFE (LRH (CDR_SAFE (event))))
+#define EVENT_END(event) (CAR_SAFE (LRH (CDR_SAFE (LRH (CDR_SAFE (event))))))
 
 /* Extract the click count from a multi-click event.  */
-#define EVENT_CLICK_COUNT(event) (Fnth (make_number (2), (event)))
+#define EVENT_CLICK_COUNT(event) (Fnth (LRH (make_number (2)), (event)))
 
 /* Extract the fields of a position.  */
 #define POSN_WINDOW(posn) (CAR_SAFE (posn))
-#define POSN_POSN(posn) (CAR_SAFE (CDR_SAFE (posn)))
-#define POSN_SET_POSN(posn,x) (XSETCAR (XCDR (posn), (x)))
-#define POSN_WINDOW_POSN(posn) (CAR_SAFE (CDR_SAFE (CDR_SAFE (posn))))
-#define POSN_TIMESTAMP(posn) (CAR_SAFE (CDR_SAFE (CDR_SAFE (CDR_SAFE (posn)))))
-#define POSN_SCROLLBAR_PART(posn)	(Fnth (make_number (4), (posn)))
+#define POSN_POSN(posn) (CAR_SAFE (LRH (CDR_SAFE (posn))))
+#define POSN_SET_POSN(posn,x) (XSETCAR (LRH (XCDR (posn)), (x)))
+#define POSN_WINDOW_POSN(posn) (CAR_SAFE (LRH (CDR_SAFE (LRH (CDR_SAFE (posn))))))
+#define POSN_TIMESTAMP(posn) (CAR_SAFE (LRH (CDR_SAFE (LRH (CDR_SAFE (LRH (CDR_SAFE (posn))))))))
+#define POSN_SCROLLBAR_PART(posn)	(Fnth (LRH (make_number (4)), (posn)))
 
 /* A cons (STRING . STRING-CHARPOS), or nil in mouse-click events.
    It's a cons if the click is over a string in the mode line.  */
 
-#define POSN_STRING(posn) (Fnth (make_number (4), (posn)))
+#define POSN_STRING(posn) (Fnth (LRH (make_number (4)), (posn)))
 
 /* If POSN_STRING is nil, event refers to buffer location.  */
 
-#define POSN_INBUFFER_P(posn) (NILP (POSN_STRING (posn)))
-#define POSN_BUFFER_POSN(posn) (Fnth (make_number (5), (posn)))
+#define POSN_INBUFFER_P(posn) (NILP (LRH ((POSN_STRING (posn)))))
+#define POSN_BUFFER_POSN(posn) (Fnth (LRH (make_number (5)), (posn)))
 
 /* Getting the kind of an event head.  */
 #define EVENT_HEAD_KIND(event_head) \
-  (Fget ((event_head), Qevent_kind))
+  (Fget ((event_head), LSH (Qevent_kind)))
 
 /* Address (if not 0) of struct timespec to zero out if a SIGIO interrupt
    happens.  */
@@ -461,7 +461,7 @@ extern void clear_waiting_for_input (void);
 extern void swallow_events (bool);
 extern bool lucid_event_type_list_p (Lisp_Object);
 extern void kbd_buffer_store_event (struct input_event *);
-extern void kbd_buffer_store_buffered_event (union buffered_input_event *,
+extern void kbd_buffer_store_buffered_event (struct buffered_input_event *,
 					     struct input_event *);
 INLINE void
 kbd_buffer_store_event_hold (struct input_event *event,

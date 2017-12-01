@@ -239,7 +239,7 @@ struct text_pos
 /* Set marker MARKER from text position POS.  */
 
 #define SET_MARKER_FROM_TEXT_POS(MARKER, POS) \
-     set_marker_both ((MARKER), Qnil, CHARPOS ((POS)), BYTEPOS ((POS)))
+  set_marker_both ((MARKER), LSH (Qnil), CHARPOS ((POS)), BYTEPOS ((POS)))
 
 /* Value is non-zero if character and byte positions of POS1 and POS2
    are equal.  */
@@ -320,7 +320,7 @@ GLYPH_CODE_FACE (Lisp_Object gc)
   do									\
     {									\
       if (CONSP (gc))							\
-	SET_GLYPH (glyph, XINT (XCAR (gc)), XINT (XCDR (gc)));		\
+	SET_GLYPH (glyph, XINT (LRH (XCAR (gc))), XINT (LRH (XCDR (gc)))); \
       else								\
 	SET_GLYPH (glyph, (XINT (gc) & ((1 << CHARACTERBITS)-1)),	\
 		   (XINT (gc) >> CHARACTERBITS));			\
@@ -1419,20 +1419,20 @@ struct glyph_string
    which is compared against minibuf_selected_window (if MBW matches).  */
 
 #define CURRENT_MODE_LINE_FACE_ID_3(SELW, MBW, SCRW)		\
-     ((!mode_line_in_non_selected_windows			\
-       || (SELW) == XWINDOW (selected_window)			\
-       || (minibuf_level > 0					\
-           && !NILP (minibuf_selected_window)			\
-           && (MBW) == XWINDOW (minibuf_window)			\
-           && (SCRW) == XWINDOW (minibuf_selected_window)))	\
-      ? MODE_LINE_FACE_ID					\
-      : MODE_LINE_INACTIVE_FACE_ID)
+  ((!mode_line_in_non_selected_windows                          \
+    || (SELW) == XWINDOW (LSH (selected_window))                \
+    || (minibuf_level > 0					\
+        && !NILP (LSH (minibuf_selected_window))                \
+        && (MBW) == XWINDOW (LSH (minibuf_window))              \
+        && (SCRW) == XWINDOW (LSH (minibuf_selected_window))))	\
+   ? MODE_LINE_FACE_ID                                          \
+   : MODE_LINE_INACTIVE_FACE_ID)
 
 
 /* Return the desired face id for the mode line of window W.  */
 
 #define CURRENT_MODE_LINE_FACE_ID(W)		\
-	(CURRENT_MODE_LINE_FACE_ID_3((W), XWINDOW (selected_window), (W)))
+  (CURRENT_MODE_LINE_FACE_ID_3((W), XWINDOW (LSH (selected_window)), (W)))
 
 /* Return the current height of the mode line of window W.  If not known
    from W->mode_line_height, look at W's current glyph matrix, or return

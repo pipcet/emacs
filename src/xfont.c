@@ -496,7 +496,7 @@ xfont_list (struct frame *f, Lisp_Object spec)
       if (r - name + 10 < 256)	/* 10 == strlen (iso10646-1) */
 	{
 	  strcpy (r, "iso10646-1");
-	  list = xfont_list_pattern (display, name, Qiso10646_1, script);
+	  list = xfont_list_pattern (display, name, LSH (Qiso10646_1), script);
 	}
     }
   if (NILP (list) && ! NILP (registry))
@@ -1013,7 +1013,7 @@ xfont_draw (struct glyph_string *s, int from, int to, int x, int y,
   if (xfont->min_byte1 == 0 && xfont->max_byte1 == 0)
     {
       USE_SAFE_ALLOCA;
-      char *str = SAFE_ALLOCA (len);
+      char *str = (char *)SAFE_ALLOCA (len);
       for (i = 0; i < len ; i++)
 	str[i] = XCHAR2B_BYTE2 (s->char2b + from + i);
       block_input ();

@@ -31,7 +31,6 @@ src/config.in
 # Built by 'configure'.
 Info.plist
 InfoPlist.strings
-Makefile
 makefile
 !etc/refcards/Makefile
 !test/lisp/progmodes/flymake-resources/Makefile

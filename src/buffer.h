@@ -1183,7 +1183,7 @@ extern Lisp_Object Vbuffer_alist;
    a `for' loop which iterates over the buffers from Vbuffer_alist.  */
 
 #define FOR_EACH_LIVE_BUFFER(list_var, buf_var)			\
-  FOR_EACH_ALIST_VALUE (Vbuffer_alist, list_var, buf_var)
+  FOR_EACH_ALIST_VALUE (LSH (Vbuffer_alist), list_var, buf_var)
 
 /* Get text properties of B.  */
 

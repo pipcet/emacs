@@ -4742,5 +4742,5 @@ INLINE_HEADER_END
 
 #endif /* EMACS_LISP_H */
 #else
-#include "jslisp.h"
+#include "jslisp.hh"
 #endif

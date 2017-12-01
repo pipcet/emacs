@@ -270,6 +270,7 @@ invoke it.  If KEYS is omitted or nil, the return value of
 `this-command-keys-vector' is used.  */)
   (Lisp_Object function, Lisp_Object record_flag, Lisp_Object keys)
 {
+  ;
   /* `args' will contain the array of arguments to pass to the function.
      `visargs' will contain the same list but in a nicer form, so that if we
      pass it to Fformat_message it will be understandable to a human.  */

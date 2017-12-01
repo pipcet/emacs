@@ -775,9 +775,7 @@ if test -n "$XCRUN"; then
 fi
 
 dnl Emacs needs C99 or later.
-gl_PROG_CC_C99
-
-AC_PROG_CC_C_O
+AC_PROG_CXX
 
 if test x$GCC = xyes; then
   test "x$GCC_TEST_OPTIONS" != x && CC="$CC $GCC_TEST_OPTIONS"
@@ -1381,23 +1379,23 @@ fi
 AC_SUBST(CANNOT_DUMP)
 
 
-UNEXEC_OBJ=unexelf.o
+UNEXEC_OBJ=unexelf.c.cc.o
 case "$opsys" in
   # MSDOS uses unexcoff.o
   aix4-2)
-   UNEXEC_OBJ=unexaix.o
+   UNEXEC_OBJ=unexaix.c.cc.o
    ;;
   cygwin)
-   UNEXEC_OBJ=unexcw.o
+   UNEXEC_OBJ=unexcw.c.cc.o
    ;;
   darwin)
-   UNEXEC_OBJ=unexmacosx.o
+   UNEXEC_OBJ=unexmacosx.c.cc.o
    ;;
   hpux10-20 | hpux11)
-   UNEXEC_OBJ=unexhp9k800.o
+   UNEXEC_OBJ=unexhp9k800.c.cc.o
    ;;
   mingw32)
-   UNEXEC_OBJ=unexw32.o
+   UNEXEC_OBJ=unexw32.c.cc.o
    ;;
   sol2-10)
    # Use the Solaris dldump() function, called from unexsol.c, to dump
@@ -1407,7 +1405,7 @@ case "$opsys" in
    #
    # It is likely that dldump() works with older Solaris too, but this has
    # not been tested, so for now this change is for Solaris 10 or newer.
-   UNEXEC_OBJ=unexsol.o
+   UNEXEC_OBJ=unexsol.c.cc.o
    ;;
 esac
 test "$CANNOT_DUMP" = "yes" && UNEXEC_OBJ=
@@ -1870,7 +1868,7 @@ if test "${with_ns}" != no; then
      ns_appbindir=${ns_appdir}/Contents/MacOS
      ns_appresdir=${ns_appdir}/Contents/Resources
      ns_appsrc=Cocoa/Emacs.base
-     ns_fontfile=macfont.o
+     ns_fontfile=macfont.c.cc.o
   elif flags=$( (gnustep-config --objc-flags) 2>/dev/null); then
      NS_IMPL_GNUSTEP=yes
      NS_GNUSTEP_CONFIG=yes
@@ -1927,7 +1925,7 @@ fail;
      ns_appbindir=${ns_appdir}
      ns_appresdir=${ns_appdir}/Resources
      ns_appsrc=GNUstep/Emacs.base
-     ns_fontfile=nsfont.o
+     ns_fontfile=nsfont.c.cc.o
   fi
 
   dnl This is only used while we test the NS headers, it gets reset below.
@@ -1993,7 +1991,7 @@ if test "${HAVE_NS}" = yes; then
      INSTALL_ARCH_INDEP_EXTRA=
   fi
 
-  NS_OBJC_OBJ="nsterm.o nsfns.o nsmenu.o nsselect.o nsimage.o $ns_fontfile"
+  NS_OBJC_OBJ="nsterm.c.cc.o nsfns.c.cc.o nsmenu.c.cc.o nsselect.c.cc.o nsimage.c.cc.o $ns_fontfile"
 fi
 CFLAGS="$tmp_CFLAGS"
 CPPFLAGS="$tmp_CPPFLAGS"
@@ -2064,7 +2062,7 @@ NTDIR=
 LIBS_ECLIENT=
 LIB_WSOCK32=
 NTLIB=
-CM_OBJ="cm.o"
+CM_OBJ="cm.c.cc.o"
 XARGS_LIMIT=
 if test "${HAVE_W32}" = "yes"; then
   AC_DEFINE(HAVE_NTGUI, 1, [Define to use native MS Windows GUI.])
@@ -2073,8 +2071,8 @@ if test "${HAVE_W32}" = "yes"; then
   fi
   AC_CHECK_TOOL(WINDRES, [windres],
                 [AC_MSG_ERROR([No resource compiler found.])])
-  W32_OBJ="w32fns.o w32menu.o w32reg.o w32font.o w32term.o"
-  W32_OBJ="$W32_OBJ w32xfns.o w32select.o w32uniscribe.o"
+  W32_OBJ="w32fns.c.cc.o w32menu.c.cc.o w32reg.c.cc.o w32font.c.cc.o w32term.c.cc.o"
+  W32_OBJ="$W32_OBJ w32xfns.c.cc.o w32select.c.cc.o w32uniscribe.c.cc.o"
   EMACSRES="emacs.res"
   case "$canonical" in
     x86_64-*-*) EMACS_MANIFEST="emacs-x64.manifest" ;;
@@ -2094,13 +2092,13 @@ if test "${HAVE_W32}" = "yes"; then
     # the rc file), not a linker script.
     W32_RES_LINK="-Wl,emacs.res"
   else
-    W32_OBJ="$W32_OBJ w32.o w32console.o w32heap.o w32inevt.o w32proc.o"
+    W32_OBJ="$W32_OBJ w32.c.cc.o w32console.c.cc.o w32heap.c.cc.o w32inevt.c.cc.o w32proc.c.cc.o"
     W32_LIBS="$W32_LIBS -lwinmm -lusp10 -lgdi32 -lcomdlg32"
     W32_LIBS="$W32_LIBS -lmpr -lwinspool -lole32 -lcomctl32"
     W32_RES_LINK="\$(EMACSRES)"
     CLIENTRES="emacsclient.res"
     CLIENTW="emacsclientw\$(EXEEXT)"
-    FIRSTFILE_OBJ=firstfile.o
+    FIRSTFILE_OBJ=firstfile.c.cc.o
     NTDIR=nt
     CM_OBJ=
     LIBS_ECLIENT="-lcomctl32"
@@ -2225,7 +2223,7 @@ case "$opsys" in
 esac
 
 if test "${system_malloc}" != yes && test "${doug_lea_malloc}" != yes \
-   && test "${UNEXEC_OBJ}" = unexelf.o; then
+   && test "${UNEXEC_OBJ}" = unexelf.c.cc.o; then
   hybrid_malloc=yes
 fi
 
@@ -2245,11 +2243,11 @@ elif test "$hybrid_malloc" = yes; then
   HYBRID_MALLOC=1
   GNU_MALLOC=no
   GNU_MALLOC_reason=" (only before dumping)"
-  GMALLOC_OBJ=gmalloc.o
+  GMALLOC_OBJ=gmalloc.c.cc.o
   VMLIMIT_OBJ=
 else
-  test "$doug_lea_malloc" != "yes" && GMALLOC_OBJ=gmalloc.o
-  VMLIMIT_OBJ=vm-limit.o
+  test "$doug_lea_malloc" != "yes" && GMALLOC_OBJ=gmalloc.c.cc.o
+  VMLIMIT_OBJ=vm-limit.c.cc.o
 
   AC_CHECK_HEADERS([sys/vlimit.h])
   AC_CACHE_CHECK([for data_start], [emacs_cv_data_start],
@@ -2579,7 +2577,7 @@ if test "${opsys}" != "mingw32"; then
     fi
     if test "$pkg_check_gtk" = "yes"; then
        AC_DEFINE(HAVE_GTK3, 1, [Define to 1 if using GTK 3 or later.])
-       GTK_OBJ=emacsgtkfixed.o
+       GTK_OBJ=emacsgtkfixed.c.cc.o
        gtk_term_header=gtkutil.h
        USE_GTK_TOOLKIT="GTK3"
        if test "x$ac_enable_gtk_deprecation_warnings" = x; then
@@ -2649,14 +2647,14 @@ if test x"$pkg_check_gtk" = xyes; then
     C_SWITCH_X_SITE="$C_SWITCH_X_SITE $GTK_CFLAGS"
     HAVE_GTK=yes
     AC_DEFINE(USE_GTK, 1, [Define to 1 if using GTK.])
-    GTK_OBJ="gtkutil.o $GTK_OBJ"
+    GTK_OBJ="gtkutil.c.cc.o $GTK_OBJ"
     term_header=$gtk_term_header
     USE_X_TOOLKIT=none
     AC_MSG_WARN([[Your version of Gtk+ will have problems with
        closing open displays.  This is no problem if you just use
        one display, but if you use more than one and close one of them
        Emacs may crash.
-       See https://bugzilla.gnome.org/show_bug.cgi?id=85715]])
+       See https://bugzilla.gnome.c.cc.org/show_bug.cgi?id=85715]])
   fi
 
 fi
@@ -2726,7 +2724,7 @@ if test "$with_xwidgets" != "no"; then
   test $HAVE_XWIDGETS = yes ||
     AC_MSG_ERROR([xwidgets requested but WebKitGTK+ not found.])
 
-  XWIDGETS_OBJ=xwidget.o
+  XWIDGETS_OBJ=xwidget.c.cc.o
   AC_DEFINE([HAVE_XWIDGETS], 1, [Define to 1 if you have xwidgets support.])
 fi
 AC_SUBST(XWIDGETS_OBJ)
@@ -2754,7 +2752,7 @@ if test "${with_dbus}" = "yes"; then
 		    dbus_validate_interface \
 		    dbus_validate_member)
      LIBS=$OLD_LIBS
-     DBUS_OBJ=dbusbind.o
+     DBUS_OBJ=dbusbind.c.cc.o
    fi
 fi
 AC_SUBST(DBUS_CFLAGS)
@@ -2882,7 +2880,7 @@ case $with_file_notification,$opsys in
     AC_CHECK_HEADER(windows.h)
     if test "$ac_cv_header_windows_h" = yes ; then
        AC_DEFINE(HAVE_W32NOTIFY, 1, [Define to 1 to use w32notify.])
-       NOTIFY_OBJ=w32notify.o
+       NOTIFY_OBJ=w32notify.c.cc.o
        NOTIFY_SUMMARY="yes (w32)"
     fi ;;
 esac
@@ -2895,7 +2893,7 @@ case $with_file_notification,$NOTIFY_OBJ in
 	AC_CHECK_FUNC(inotify_init1)
 	if test "$ac_cv_func_inotify_init1" = yes; then
 	  AC_DEFINE(HAVE_INOTIFY, 1, [Define to 1 to use inotify.])
-	  NOTIFY_OBJ=inotify.o
+	  NOTIFY_OBJ=inotify.c.cc.o
 	  NOTIFY_SUMMARY="yes -lglibc (inotify)"
        fi
     fi ;;
@@ -2910,13 +2908,13 @@ case $with_file_notification,$NOTIFY_OBJ in
        CPPFLAGS="$CPPFLAGS -I/usr/include/kqueue"
        NOTIFY_CFLAGS=$KQUEUE_CFLAGS
        NOTIFY_LIBS=$KQUEUE_LIBS
-       NOTIFY_OBJ=kqueue.o
+       NOTIFY_OBJ=kqueue.c.cc.o
        NOTIFY_SUMMARY="yes -lkqueue"
     else
        AC_SEARCH_LIBS(kqueue, [])
        if test "$ac_cv_search_kqueue" != no; then
          AC_DEFINE(HAVE_KQUEUE, 1, [Define to 1 to use kqueue.])
-	 NOTIFY_OBJ=kqueue.o
+	 NOTIFY_OBJ=kqueue.c.cc.o
 	 NOTIFY_SUMMARY="yes (kqueue)"
        fi
     fi ;;
@@ -2936,7 +2934,7 @@ Consider kqueue instead.])
 	  AC_DEFINE(HAVE_GFILENOTIFY, 1, [Define to 1 if using GFile.])
 	  NOTIFY_CFLAGS=$GFILENOTIFY_CFLAGS
 	  NOTIFY_LIBS=$GFILENOTIFY_LIBS
-	  NOTIFY_OBJ=gfilenotify.o
+	  NOTIFY_OBJ=gfilenotify.c.cc.o
 	  NOTIFY_SUMMARY="yes -lgio (gfile)"
        fi
     fi ;;
@@ -3243,7 +3241,7 @@ if test "${HAVE_X11}" = "yes"; then
        HAVE_FREETYPE=no
     else
        dnl Strict linkers fail with
-       dnl ftfont.o: undefined reference to symbol 'FT_New_Face'
+       dnl ftfont.c.cc.o: undefined reference to symbol 'FT_New_Face'
        dnl if -lfreetype is not specified.
        dnl The following is needed to set FREETYPE_LIBS.
        EMACS_CHECK_MODULES([FREETYPE], [freetype2])
@@ -3536,7 +3534,7 @@ if test "${with_modules}" != "no"; then
 fi
 
 if test "${HAVE_MODULES}" = yes; then
-   MODULES_OBJ="dynlib.o emacs-module.o"
+   MODULES_OBJ="dynlib.c.cc.o emacs-module.c.cc.o"
    AC_DEFINE(HAVE_MODULES, 1, [Define to 1 if dynamic modules are enabled])
    AC_DEFINE_UNQUOTED(MODULES_SUFFIX, "$MODULES_SUFFIX",
      [System extension for dynamic libraries])
@@ -4127,10 +4125,10 @@ fail;
 
 esac
 
-TERMCAP_OBJ=tparam.o
+TERMCAP_OBJ=tparam.c.cc.o
 if test $TERMINFO = yes; then
   AC_DEFINE(TERMINFO, 1, [Define to 1 if you use terminfo instead of termcap.])
-  TERMCAP_OBJ=terminfo.o
+  TERMCAP_OBJ=terminfo.c.cc.o
 fi
 if test "X$LIBS_TERMCAP" = "X-lncurses"; then
   AC_DEFINE(USE_NCURSES, 1, [Define to 1 if you use ncurses.])
@@ -4321,7 +4319,7 @@ LIBS="$OLDLIBS"])
 if test "${emacs_cv_links_glib}" = "yes"; then
   AC_DEFINE(HAVE_GLIB, 1, [Define to 1 if GLib is linked in.])
   if test "$HAVE_NS" = no;then
-    XGSELOBJ=xgselect.o
+    XGSELOBJ=xgselect.c.cc.o
   fi
 fi
 AC_SUBST(XGSELOBJ)
@@ -5023,15 +5021,15 @@ FONT_OBJ=
 if test "${HAVE_X_WINDOWS}" = "yes" ; then
   AC_DEFINE(HAVE_X_WINDOWS, 1,
 	    [Define to 1 if you want to use the X window system.])
-  XMENU_OBJ=xmenu.o
-  XOBJ="xterm.o xfns.o xselect.o xrdb.o xsmfns.o xsettings.o"
-  FONT_OBJ=xfont.o
+  XMENU_OBJ=xmenu.c.cc.o
+  XOBJ="xterm.c.cc.o xfns.c.cc.o xselect.c.cc.o xrdb.c.cc.o xsmfns.c.cc.o xsettings.c.cc.o"
+  FONT_OBJ=xfont.c.cc.o
   if test "$HAVE_CAIRO" = "yes"; then
-    FONT_OBJ="ftfont.o ftcrfont.o"
+    FONT_OBJ="ftfont.c.cc.o ftcrfont.c.cc.o"
   elif test "$HAVE_XFT" = "yes"; then
-    FONT_OBJ="$FONT_OBJ ftfont.o xftfont.o ftxfont.o"
+    FONT_OBJ="$FONT_OBJ ftfont.c.cc.o xftfont.c.cc.o ftxfont.c.cc.o"
   elif test "$HAVE_FREETYPE" = "yes"; then
-    FONT_OBJ="$FONT_OBJ ftfont.o ftxfont.o"
+    FONT_OBJ="$FONT_OBJ ftfont.c.cc.o ftxfont.c.cc.o"
   fi
   AC_SUBST(FONT_OBJ)
 fi
@@ -5042,7 +5040,7 @@ AC_SUBST(FONT_OBJ)
 WIDGET_OBJ=
 MOTIF_LIBW=
 if test "${USE_X_TOOLKIT}" != "none" ; then
-  WIDGET_OBJ=widget.o
+  WIDGET_OBJ=widget.c.cc.o
   AC_DEFINE(USE_X_TOOLKIT, 1, [Define to 1 if using an X toolkit.])
   if test "${USE_X_TOOLKIT}" = "LUCID"; then
     AC_DEFINE(USE_LUCID, 1, [Define to 1 if using the Lucid X toolkit.])
@@ -5124,22 +5122,22 @@ if test "${REL_ALLOC}" = "yes" ; then
 	    [Define REL_ALLOC if you want to use the relocating allocator for
 	     buffer space.])
 
-  test "$system_malloc" != "yes" && RALLOC_OBJ=ralloc.o
+  test "$system_malloc" != "yes" && RALLOC_OBJ=ralloc.c.cc.o
 fi
 AC_SUBST(RALLOC_OBJ)
 
 if test "$opsys" = "cygwin"; then
-  CYGWIN_OBJ="cygw32.o"
+  CYGWIN_OBJ="cygw32.c.cc.o"
   ## Cygwin differs because of its unexec().
   PRE_ALLOC_OBJ=
-  POST_ALLOC_OBJ=lastfile.o
+  POST_ALLOC_OBJ=lastfile.c.cc.o
 elif test "$opsys" = "mingw32"; then
   CYGWIN_OBJ=
   PRE_ALLOC_OBJ=
-  POST_ALLOC_OBJ=lastfile.o
+  POST_ALLOC_OBJ=lastfile.c.cc.o
 else
   CYGWIN_OBJ=
-  PRE_ALLOC_OBJ=lastfile.o
+  PRE_ALLOC_OBJ=lastfile.c.cc.o
   POST_ALLOC_OBJ=
 fi
 AC_SUBST(CYGWIN_OBJ)
@@ -5285,7 +5283,7 @@ AC_SUBST(LD_SWITCH_SYSTEM_TEMACS)
 if test "$window_system" != "none"; then
   AC_DEFINE(HAVE_WINDOW_SYSTEM, 1, [Define if you have a window system.])
   AC_DEFINE(POLL_FOR_INPUT, 1, [Define if you poll periodically to detect C-g.])
-  WINDOW_SYSTEM_OBJ="fontset.o fringe.o image.o"
+  WINDOW_SYSTEM_OBJ="fontset.c.cc.o fringe.c.cc.o image.c.cc.o"
 fi
 
 AC_SUBST(WINDOW_SYSTEM_OBJ)

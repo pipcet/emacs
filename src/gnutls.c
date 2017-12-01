@@ -1381,7 +1381,8 @@ gnutls_verify_boot (Lisp_Object proc, Lisp_Object proplist)
   warnings = Fplist_get (Fgnutls_peer_status (proc), intern (":warnings"));
   if (!NILP (warnings))
     {
-      for (Lisp_Object tail = warnings; CONSP (tail); tail = XCDR (tail))
+      Lisp_Object tail;
+      for (tail = warnings; CONSP (tail); tail = XCDR (tail))
         {
           Lisp_Object warning = XCAR (tail);
           Lisp_Object message = Fgnutls_peer_status_warning_describe (warning);
@@ -2457,15 +2458,17 @@ void
 syms_of_gnutls (void)
 {
   DEFSYM (Qlibgnutls_version, "libgnutls-version");
-  Fset (Qlibgnutls_version,
 #ifdef HAVE_GNUTLS
+  Fset (Qlibgnutls_version,
 	make_number (GNUTLS_VERSION_MAJOR * 10000
 		     + GNUTLS_VERSION_MINOR * 100
 		     + GNUTLS_VERSION_PATCH)
-#else
-	make_number (-1)
-#endif
         );
+#else
+  Fset (Qlibgnutls_version,
+	make_number (-1)
+        );
+#endif
 #ifdef HAVE_GNUTLS
   gnutls_global_initialized = 0;
 

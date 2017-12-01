@@ -211,7 +211,6 @@ alloc_unexec_post (void)
 /* Mark, unmark, query mark bit of a Lisp string.  S must be a pointer
    to a struct Lisp_String.  */
 
-#define MARK_STRING(S)		((S)->size |= ARRAY_MARK_FLAG)
 #define STRING_MARKED_P(S)	(((S)->size & ARRAY_MARK_FLAG) != 0)
 
 #define VECTOR_MARK(V)		((V)->header.size |= ARRAY_MARK_FLAG)
@@ -243,9 +242,8 @@ bool gc_in_progress;
 
 /* Number of live and free conses etc.  */
 
-static EMACS_INT total_conses, total_markers, total_symbols, total_buffers;
-static EMACS_INT total_free_conses, total_free_markers, total_free_symbols;
-static EMACS_INT total_free_floats, total_floats;
+static EMACS_INT total_conses, total_markers, total_symbols;
+static EMACS_INT total_free_conses;
 
 /* Points to memory space allocated as "spare", to be freed if we run
    out of memory.  We keep one large block, four cons-blocks, and
@@ -326,31 +324,6 @@ static void detect_suspicious_free (void *ptr);
 #endif
 
 /* Buffer in which we save a copy of the C stack at each GC.  */
-
-#if MAX_SAVE_STACK > 0
-static char *stack_copy;
-static ptrdiff_t stack_copy_size;
-
-/* Copy to DEST a block of memory from SRC of size SIZE bytes,
-   avoiding any address sanitization.  */
-
-static void * ATTRIBUTE_NO_SANITIZE_ADDRESS
-no_sanitize_memcpy (void *dest, void const *src, size_t size)
-{
-  if (! ADDRESS_SANITIZER)
-    return memcpy (dest, src, size);
-  else
-    {
-      size_t i;
-      char *d = dest;
-      char const *s = src;
-      for (i = 0; i < size; i++)
-	d[i] = s[i];
-      return dest;
-    }
-}
-
-#endif /* MAX_SAVE_STACK > 0 */
 
 static void mark_terminals (void);
 static Lisp_Object make_pure_vector (ptrdiff_t);
@@ -1024,7 +997,7 @@ xputenv (char const *string)
 void *
 record_xmalloc (size_t size)
 {
-  void *p = xmalloc (size);
+  void *p = (void *)xmalloc (size);
   record_unwind_protect_ptr (xfree, p);
   return p;
 }
@@ -2765,7 +2738,7 @@ cleanup_vector (struct Lisp_Vector *vector)
 static struct Lisp_Vector *
 allocate_vectorlike (ptrdiff_t len)
 {
-  return (struct Lisp_Vector *)xmalloc(header_size + len * word_size);
+  return (struct Lisp_Vector *)xzalloc(header_size + len * word_size);
 }
 
 

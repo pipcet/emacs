@@ -728,8 +728,8 @@ set_frame_menubar (struct frame *f, bool first_time, bool deep_p)
       Lisp_Object buffer;
       ptrdiff_t specpdl_count = SPECPDL_INDEX ();
       int previous_menu_items_used = f->menu_bar_items_used;
-      Lisp_Object *previous_items = (ELisp_Struct_Value *)
-	(alloca (previous_menu_items_used * sizeof(ELisp_Struct_Value)));
+      Lisp_Object *previous_items;
+      SAFE_ALLOCA_LISP (previous_items, previous_menu_items_used);
       int subitems;
 
       /* If we are making a new widget, its contents are empty,
@@ -766,8 +766,8 @@ set_frame_menubar (struct frame *f, bool first_time, bool deep_p)
 
       /* Save the frame's previous menu bar contents data.  */
       if (previous_menu_items_used)
-	memcpy (previous_items, XVECTOR (f->menu_bar_vector)->contents,
-		previous_menu_items_used * word_size);
+        for (ptrdiff_t i = 0; i < previous_menu_items_used; i++)
+          previous_items[i] = XVECTOR (ELisp_Handle(ELisp_Value(f->menu_bar_vector)))->contents[i];
 
       /* Fill in menu_items with the current menu bar contents.
 	 This can evaluate Lisp code.  */
@@ -2385,6 +2385,7 @@ DEFUN ("menu-or-popup-active-p", Fmenu_or_popup_active_p, Smenu_or_popup_active_
 void
 syms_of_xmenu (void)
 {
+  ;
 #ifdef USE_X_TOOLKIT
   enum { WIDGET_ID_TICK_START = 1 << 16 };
   widget_id_tick = WIDGET_ID_TICK_START;

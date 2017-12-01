@@ -324,9 +324,9 @@ static Lisp_Object Vbig5_coding_system;
 /* ISO2022 section */
 
 #define CODING_ISO_INITIAL(coding, reg)			\
-  (XINT (AREF (AREF (CODING_ID_ATTRS ((coding)->id),	\
-		     coding_attr_iso_initial),		\
-	       reg)))
+  (XINT (LRH (AREF (LRH (AREF (LRH (CODING_ID_ATTRS ((coding)->id)),	\
+                               coding_attr_iso_initial)),		\
+                    reg))))
 
 
 #define CODING_ISO_REQUEST(coding, charset_id)		\
@@ -472,11 +472,11 @@ enum iso_code_class_type
 
 /* CCL section */
 #define CODING_CCL_DECODER(coding)	\
-  AREF (CODING_ID_ATTRS ((coding)->id), coding_attr_ccl_decoder)
+  AREF (LRH (CODING_ID_ATTRS ((coding)->id)), coding_attr_ccl_decoder)
 #define CODING_CCL_ENCODER(coding)	\
-  AREF (CODING_ID_ATTRS ((coding)->id), coding_attr_ccl_encoder)
+  AREF (LRH (CODING_ID_ATTRS ((coding)->id)), coding_attr_ccl_encoder)
 #define CODING_CCL_VALIDS(coding)					   \
-  (SDATA (AREF (CODING_ID_ATTRS ((coding)->id), coding_attr_ccl_valids)))
+    (SDATA (LRH (AREF (LRH (CODING_ID_ATTRS ((coding)->id)), coding_attr_ccl_valids))))
 
 /* Index for each coding category in `coding_categories' */
 
@@ -6941,9 +6941,9 @@ get_translation_table (Lisp_Object attrs, bool encodep, int *max_lookup)
 	ELisp_Value tail;					\
 								\
 	for (tail = table; CONSP (tail); tail = XCDR (tail))	\
-	  if (CHAR_TABLE_P (XCAR (tail)))			\
+	  if (CHAR_TABLE_P (LRH (XCAR (tail))))			\
 	    {							\
-	      trans = CHAR_TABLE_REF (XCAR (tail), c);		\
+	      trans = CHAR_TABLE_REF (LRH (XCAR (tail)), c);    \
 	      if (CHARACTERP (trans))				\
 		c = XFASTINT (trans), trans = Qnil;		\
 	      else if (! NILP (trans))				\

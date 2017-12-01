@@ -10,11 +10,13 @@
 #include "js/Conversions.h" // as of SpiderMonkey 38; previously in jsapi.h
 
 #include "thread.h.hh"
-#include "jslisp.h.hh"
+#include "jslisp.hh"
 
 #include "frame.h.hh"
 #include "intervals.h.hh"
 #include "keyboard.h.hh"
+#include "buffer.h.hh"
+#include "puresize.h.hh"
 
 typedef int64_t EMACS_INT;
 typedef uint64_t EMACS_UINT;
@@ -299,13 +301,11 @@ Print(JSContext* cx, unsigned argc, JS::Value* vp)
     return true;
 }
 
-static const JSFunctionSpec shell_functions[] = {
-                                                 JS_FN("print", Print, 0, 0),
-
-    JS_FS_END
-};
-
-
+static const JSFunctionSpec shell_functions[] =
+  {
+   JS_FN("print", Print, 0, 0),
+   JS_FS_END
+  };
                                                          void
 WarningReporter(JSContext* cx, JSErrorReport* report)
 {
@@ -465,20 +465,20 @@ bool js_init()
   if (!JS_Init())
     return false;
 
-  JSContext *cx = JS_NewContext(JS::DefaultHeapMaxBytes, JS::DefaultNurseryBytes);
+  JSContext *cx = JS_NewContext(2 * JS::DefaultHeapMaxBytes, JS::DefaultNurseryBytes);
   global_js_context = cx;
   if (!cx)
     return false;
   //JS_SetFutexCanWait(cx);
   JS::SetWarningReporter(cx, WarningReporter);
-  //JS_SetGCParameter(cx, JSGC_MAX_BYTES, 0xffffffffL);
+  //JS_SetGCParameter(cx, JSGC_MAX_BYTES, 0x7ffffffffL);
 
   JS_SetNativeStackQuota(cx, 8 * 1024 * 1024);
 
   if (!JS::InitSelfHostedCode(cx))
     return false;
 
-  JS_SetGCParameter(cx, JSGC_MODE, JSGC_MODE_GLOBAL);
+  JS_SetGCParameter(cx, JSGC_MODE, JSGC_MODE_INCREMENTAL);
 
   {
     JS_BeginRequest(cx);
@@ -509,7 +509,7 @@ bool js_init()
 
 static void eval_js(const char *source)
 {
-  JSContext* cx = jsg().cx;
+  JSContext* cx = jsg.cx;
   JS::RootedScript script(cx);
   size_t sourcelen = strlen(source);
   JS::CompileOptions options(cx);
@@ -525,20 +525,40 @@ static void eval_js(const char *source)
     return false;
 }
 
+ELisp_Return_Value jsval_to_elisp(ELisp_Handle ARG(arg))
+{
+  ELisp_Value arg = ARG(arg);
+
+  if (arg.v.v.isUndefined() || arg.v.v.isNull())
+    return Qnil;
+  else if (arg.v.v.isBoolean())
+    {
+      if (arg.v.v.toBoolean())
+        return Qt;
+      else
+        return Qnil;
+    }
+  else if (arg.v.v.isInt32() || arg.v.v.isDouble() || arg.v.v.isObject())
+    return arg;
+  else
+    return Qnil;
+}
+
 EXFUN (Fjs, 1);
 
-DEFUN ("js", Fjs, Sjs, 0, 1, 0,
+DEFUN ("js", Fjs, Sjs, 1, 1, 0,
        doc: /* Evaluate JavaScript.
 usage: (js SOURCE)  */)
   (ELisp_Handle ARG(arg))
 {
   ELisp_Value arg = ARG(arg);
+  ELisp_Value result;
   CHECK_STRING (arg);
 
   const unsigned char *source = SDATA(arg);
   ptrdiff_t len = SCHARS(arg);
 
-  JSContext* cx = jsg().cx;
+  JSContext* cx = jsg.cx;
   JS::RootedScript script(cx);
   size_t sourcelen = strlen(source);
   JS::CompileOptions options(cx);
@@ -550,18 +570,13 @@ usage: (js SOURCE)  */)
   if (!JS::Compile(cx, options, source, sourcelen, &script))
     return Qnil;
 
-  if (!JS_ExecuteScript(cx, script))
+  if (!JS_ExecuteScript(cx, script, &result.v.v))
     return Qnil;
 
-  return Qt;
+  return jsval_to_elisp(result);
 }
 
-JSG &jsg ()
-{
-  static JSG jsg = JSG();
-
-  return jsg;
-}
+JSG jsg __attribute__((init_priority(101)));
 
 JSContext* global_js_context;
 
@@ -649,7 +664,7 @@ elisp_symbol_trace(JSTracer *trc, JSObject *obj)
 static void
 elisp_symbol_finalize(JSFreeOp* cx, JSObject *obj)
 {
-  //xfree(JS_GetPrivate(obj));
+  xfree(JS_GetPrivate(obj));
 }
 
 
@@ -667,7 +682,8 @@ JSClass elisp_symbol_class = {
 static void
 elisp_marker_finalize(JSFreeOp* cx, JSObject *obj)
 {
-  //xfree(JS_GetPrivate(obj));
+  // XXX unchain marker
+  // xfree(JS_GetPrivate(obj));
 }
 
 
@@ -701,7 +717,7 @@ JSClass elisp_overlay_class = {
 static void
 elisp_buffer_finalize(JSFreeOp* cx, JSObject *obj)
 {
-  //xfree(JS_GetPrivate(obj));
+  xfree(JS_GetPrivate(obj));
 }
 
 
@@ -732,10 +748,18 @@ JSClass elisp_module_function_class = {
                             "ELisp_Module_Function", JSCLASS_HAS_PRIVATE,
                             &elisp_module_function_ops,
 };
+
 static void
 elisp_string_finalize(JSFreeOp* cx, JSObject *obj)
 {
-  //xfree(JS_GetPrivate(obj));
+  //fprintf(stderr, "finalizing string %p\n", JS_GetPrivate(obj));
+  struct Lisp_String *str = (struct Lisp_String *)JS_GetPrivate(obj);
+  if (str && !PURE_P (str))
+    {
+      //xfree(str->data);
+    }
+  if (!PURE_P (str))
+    xfree(str);
 }
 
 static void
@@ -780,6 +804,8 @@ elisp_vector_finalize(JSFreeOp* cx, JSObject *obj)
   //xfree(JS_GetPrivate(obj));
 }
 
+#define FACE_CACHE_BUCKETS_SIZE 1001
+
 static void
 elisp_vector_trace(JSTracer *trc, JSObject *obj)
 {
@@ -807,13 +833,29 @@ elisp_vector_trace(JSTracer *trc, JSObject *obj)
       TraceEdge(trc, &h->test.user_hash_function.v.v, "hash table hash function");
       TraceEdge(trc, &h->test.user_cmp_function.v.v, "hash table cmp function");
     }
-  //else if (PSEUDOVECTOR_TYPEP((struct vectorlike_hader *)s, PVEC_FRAME))
-  //  {
-  //    struct frame *f = (struct frame *)s;
+  else if (PSEUDOVECTOR_TYPEP((struct vectorlike_header *)s, PVEC_FRAME))
+    {
+      struct frame *f = (struct frame *)s;
+      for (ptrdiff_t i = 0; i < FACE_CACHE_BUCKETS_SIZE; i++)
+        {
+          struct face *face;
+          if (FRAME_FACE_CACHE (f))
+            for (face = FRAME_FACE_CACHE (f)->buckets[i]; face; face = face->next)
+              {
+                for (ptrdiff_t j = 0; j < LFACE_VECTOR_SIZE; j++)
+                  TraceEdge (trc, &face->lface[j].v.v, "face cache entry");
+              }
+        }
   //    struct x_output *x = f->output_data.x;
   //    TraceEdge(trc, &x->name_list_element.v.v, "name_list_element");
-  //  }
-
+    }
+  else if (PSEUDOVECTOR_TYPEP((struct vectorlike_header *)s, PVEC_BUFFER))
+    {
+      struct buffer *b = (struct buffer *)s;
+      struct buffer_text *text = b->text;
+      if (text && text->intervals)
+        interval_trace (trc, text->intervals);
+    }
 }
 
 static JSClassOps elisp_vector_ops =
@@ -1267,7 +1309,7 @@ JSClass elisp_misc_any_class = {
 static void
 elisp_vectorlike_finalize(JSFreeOp* cx, JSObject *obj)
 {
-  //xfree(JS_GetPrivate(obj));
+  xfree(JS_GetPrivate(obj));
 }
 
 
@@ -1372,7 +1414,7 @@ elisp_classes_init(JSContext *cx, JS::HandleObject glob)
 void jsprint(Lisp_Object *xp)
 {
   Lisp_Object x = *xp;
-  JSContext* cx = jsg().cx;
+  JSContext* cx = jsg.cx;
   if (x.v.isObject()) {
     JSObject *obj = &x.v.toObject();
     printf("%p %s %p\n", obj, JS_GetClass(obj)->name,

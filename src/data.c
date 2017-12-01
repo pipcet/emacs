@@ -1545,7 +1545,8 @@ notify_variable_watchers (Lisp_Object symbol,
   if (EQ (operation, Qset_default))
     operation = Qset;
 
-  for (Lisp_Object watchers = Fget (symbol, Qwatchers);
+  Lisp_Object watchers;
+  for (watchers = Fget (symbol, Qwatchers);
        CONSP (watchers);
        watchers = XCDR (watchers))
     {
@@ -1888,6 +1889,7 @@ Instead, use `add-hook' and specify t for the LOCAL argument.  */)
   struct Lisp_Symbol *sym;
   struct Lisp_Buffer_Local_Value *blv = NULL;
 
+  MODIFY_ARG (&variable);
   CHECK_SYMBOL (variable);
   sym = XSYMBOL (variable);
 
@@ -2326,7 +2328,7 @@ bool-vector.  IDX starts at 0.  */)
 {
   register EMACS_INT idxval;
 
-  MODIFY_ARG(&array);
+  MODIFY_ARG (&array);
   CHECK_NUMBER (idx);
   idxval = XINT (idx);
   if (! RECORDP (array))
@@ -2579,12 +2581,12 @@ DEFUN ("/=", Fneq, Sneq, 2, 2, 0,
   (eassert (FIXNUM_OVERFLOW_P (i)),				    \
    (! (FIXNUM_OVERFLOW_P ((extremum) >> 16)			    \
        && FIXNUM_OVERFLOW_P ((i) >> 16))			    \
-    ? Fcons (make_number ((i) >> 16), make_number ((i) & 0xffff))   \
+    ? Fcons (LRH (make_number ((i) >> 16)), LRH (make_number ((i) & 0xffff))) \
     : ! (FIXNUM_OVERFLOW_P ((extremum) >> 16 >> 24)		    \
 	 && FIXNUM_OVERFLOW_P ((i) >> 16 >> 24))		    \
-    ? Fcons (make_number ((i) >> 16 >> 24),			    \
-	     Fcons (make_number ((i) >> 16 & 0xffffff),		    \
-		    make_number ((i) & 0xffff)))		    \
+    ? Fcons (LRH (make_number ((i) >> 16 >> 24)),                   \
+	     LRH (Fcons (LRH (make_number ((i) >> 16 & 0xffffff)),  \
+                         LRH (make_number ((i) & 0xffff)))))        \
     : make_float (i)))
 
 Lisp_Object
@@ -3687,9 +3689,9 @@ syms_of_data (void)
   Fput (Qerror, Qerror_message,
 	build_pure_c_string ("error"));
 
-#define PUT_ERROR(sym, tail, msg)			\
-  Fput (sym, Qerror_conditions, pure_cons (sym, tail)); \
-  Fput (sym, Qerror_message, build_pure_c_string (msg))
+#define PUT_ERROR(sym, tail, msg)                                       \
+  Fput (sym, LSH (Qerror_conditions), LRH (pure_cons (LSH (sym), LVH (tail)))); \
+  Fput (sym, LSH (Qerror_message), LRH (build_pure_c_string (msg)))
 
   PUT_ERROR (Qquit, Qnil, "Quit");
 

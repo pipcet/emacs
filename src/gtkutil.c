@@ -4579,7 +4579,7 @@ xg_create_tool_bar (struct frame *f)
 }
 
 
-#define PROP(IDX) AREF (f->tool_bar_items, i * TOOL_BAR_ITEM_NSLOTS + (IDX))
+#define PROP(IDX) AREF (LSH (f->tool_bar_items), i * TOOL_BAR_ITEM_NSLOTS + (IDX))
 
 /* Find the right-to-left image named by RTL in the tool bar images for F.
    Returns IMAGE if RTL is not found.  */

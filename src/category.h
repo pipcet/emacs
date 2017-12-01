@@ -62,16 +62,16 @@ INLINE_HEADER_BEGIN
 #define CATEGORYP(x) RANGED_INTEGERP (0x20, x, 0x7E)
 
 #define CHECK_CATEGORY(x) \
-  CHECK_TYPE (CATEGORYP (x), Qcategoryp, x)
+  CHECK_TYPE (CATEGORYP (x), LSH (Qcategoryp), x)
 
 #define CATEGORY_SET_P(x) \
   (BOOL_VECTOR_P (x) && bool_vector_size (x) == 128)
 
 /* Return a new empty category set.  */
-#define MAKE_CATEGORY_SET (Fmake_bool_vector (make_number (128), Qnil))
+#define MAKE_CATEGORY_SET (Fmake_bool_vector (LRH (make_number (128)), LSH (Qnil)))
 
 #define CHECK_CATEGORY_SET(x) \
-  CHECK_TYPE (CATEGORY_SET_P (x), Qcategorysetp, x)
+  CHECK_TYPE (CATEGORY_SET_P (x), LSH (Qcategorysetp), x)
 
 /* Return the category set of character C in the current category table.  */
 #define CATEGORY_SET(c) char_category_set (c)
@@ -98,16 +98,16 @@ CHAR_HAS_CATEGORY (int ch, int category)
 
 /* Return the doc string of CATEGORY in category table TABLE.  */
 #define CATEGORY_DOCSTRING(table, category)				\
-  AREF (Fchar_table_extra_slot (table, make_number (0)), ((category) - ' '))
+  AREF (LRH (Fchar_table_extra_slot (table, LRH (make_number (0)))), ((category) - ' '))
 
 /* Set the doc string of CATEGORY to VALUE in category table TABLE.  */
 #define SET_CATEGORY_DOCSTRING(table, category, value)			\
-  ASET (Fchar_table_extra_slot (table, make_number (0)), ((category) - ' '), value)
+  ASET (LRH (Fchar_table_extra_slot (table, LRH (make_number (0)))), ((category) - ' '), value)
 
 /* Return the version number of category table TABLE.  Not used for
    the moment.  */
 #define CATEGORY_TABLE_VERSION (table) \
-  Fchar_table_extra_slot (table, make_number (1))
+  Fchar_table_extra_slot (table, LRH (make_number (1)))
 
 /* Return true if there is a word boundary between two
    word-constituent characters C1 and C2 if they appear in this order.

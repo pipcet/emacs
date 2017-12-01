@@ -23,6 +23,8 @@
 # script may need modifying in sync with changes made here.  Try to
 # avoid shell-ism because the DOS build has to use the DOS shell.
 
+.SUFFIXES:
+
 SHELL = @SHELL@
 
 # Here are the things that we expect ../configure to edit.
@@ -374,12 +376,20 @@ ALL_OBJC_CFLAGS = $(EMACS_CFLAGS) \
   $(filter-out $(NON_OBJC_CFLAGS),$(WARN_CFLAGS)) $(CFLAGS) \
   $(GNU_OBJC_CFLAGS)
 
-.SUFFIXES:
-%.c.cc: %.c
+chunkls =  atimer.h.chunkl blockinput.h.chunkl buffer.h.chunkl buildobj.h.chunkl category.h.chunkl ccl.h.chunkl character.h.chunkl charset.h.chunkl cm.h.chunkl coding.h.chunkl commands.h.chunkl composite.h.chunkl config.h.chunkl conf_post.h.chunkl cygw32.h.chunkl dispextern.h.chunkl disptab.h.chunkl dosfns.h.chunkl dynlib.h.chunkl emacsgtkfixed.h.chunkl emacs-icon.h.chunkl emacs-module.h.chunkl epaths.h.chunkl font.h.chunkl fontset.h.chunkl frame.h.chunkl ftfont.h.chunkl getpagesize.h.chunkl globals.h.chunkl gnutls.h.chunkl gtkutil.h.chunkl indent.h.chunkl intervals.h.chunkl keyboard.h.chunkl keymap.h.chunkl lisp.h.chunkl macfont.h.chunkl macros.h.chunkl menu.h.chunkl module-env-25.h.chunkl module-env-26.h.chunkl msdos.h.chunkl nsgui.h.chunkl nsterm.h.chunkl process.h.chunkl puresize.h.chunkl regex.h.chunkl region-cache.h.chunkl sheap.h.chunkl syntax.h.chunkl sysselect.h.chunkl syssignal.h.chunkl sysstdio.h.chunkl systhread.h.chunkl systime.h.chunkl systty.h.chunkl syswait.h.chunkl termchar.h.chunkl termhooks.h.chunkl termopts.h.chunkl thread.h.chunkl tparam.h.chunkl unexec.h.chunkl w32common.h.chunkl w32font.h.chunkl w32gui.h.chunkl w32.h.chunkl w32heap.h.chunkl w32inevt.h.chunkl w32select.h.chunkl w32term.h.chunkl widget.h.chunkl widgetprv.h.chunkl window.h.chunkl xgselect.h.chunkl xsettings.h.chunkl xterm.h.chunkl xwidget.h.chunkl dispnew.c.chunkl frame.c.chunkl scroll.c.chunkl xdisp.c.chunkl menu.c.chunkl xmenu.c.chunkl window.c.chunkl charset.c.chunkl coding.c.chunkl category.c.chunkl ccl.c.chunkl character.c.chunkl chartab.c.chunkl bidi.c.chunkl cm.c.chunkl term.c.chunkl terminal.c.chunkl xfaces.c.chunkl xterm.c.chunkl xfns.c.chunkl xselect.c.chunkl xrdb.c.chunkl xsmfns.c.chunkl xsettings.c.chunkl gtkutil.c.chunkl emacsgtkfixed.c.chunkl dbusbind.c.chunkl emacs.c.chunkl keyboard.c.chunkl macros.c.chunkl keymap.c.chunkl sysdep.c.chunkl buffer.c.chunkl filelock.c.chunkl insdel.c.chunkl marker.c.chunkl minibuf.c.chunkl fileio.c.chunkl dired.c.chunkl cmds.c.chunkl casetab.c.chunkl casefiddle.c.chunkl indent.c.chunkl search.c.chunkl regex.c.chunkl undo.c.chunkl alloc.c.chunkl data.c.chunkl doc.c.chunkl editfns.c.chunkl callint.c.chunkl eval.c.chunkl floatfns.c.chunkl fns.c.chunkl font.c.chunkl print.c.chunkl lread.c.chunkl syntax.c.chunkl bytecode.c.chunkl process.c.chunkl gnutls.c.chunkl callproc.c.chunkl region-cache.c.chunkl sound.c.chunkl atimer.c.chunkl doprnt.c.chunkl intervals.c.chunkl textprop.c.chunkl composite.c.chunkl xml.c.chunkl lcms.c.chunkl inotify.c.chunkl profiler.c.chunkl decompress.c.chunkl thread.c.chunkl systhread.c.chunkl fontset.c.chunkl fringe.c.chunkl image.c.chunkl xgselect.c.chunkl protos.h.chunkl
+
+chunkl.all: $(chunkls)
+	cat $(chunkls) > chunkl.all
+
+%.c.cc: %.c | chunkl.all
 	perl $(top_srcdir)/chunkl.pl $*.c < $< > $@
-%.h.hh: %.h
+%.h.hh: %.h | chunkl.all
 	perl $(top_srcdir)/chunkl.pl $*.h < $< > $@
-%.o: %.c.cc
+%.h.chunkl: %.h
+	perl $(top_srcdir)/chunkl.pl $*.h --header < $< > $@
+%.c.chunkl: %.c
+	perl $(top_srcdir)/chunkl.pl $*.c --header < $< > $@
+%.cc.o: %.cc
 	$(AM_V_CC)$(CC) -c $(CPPFLAGS) $(ALL_CFLAGS) $(PROFILING_CFLAGS) $< -o $@
 
 .SECONDARY:
@@ -387,41 +397,41 @@ ALL_OBJC_CFLAGS = $(EMACS_CFLAGS) \
 
 ## lastfile must follow all files whose initialized data areas should
 ## be dumped as pure by dump-emacs.
-base_obj = js.o dispnew.o frame.o scroll.o xdisp.o menu.o $(XMENU_OBJ) window.o \
-	charset.o coding.o category.o ccl.o character.o chartab.o bidi.o \
-	$(CM_OBJ) term.o terminal.o xfaces.o $(XOBJ) $(GTK_OBJ) $(DBUS_OBJ) \
-	emacs.o keyboard.o macros.o keymap.o sysdep.o \
-	buffer.o filelock.o insdel.o marker.o \
-	minibuf.o fileio.o dired.o \
-	cmds.o casetab.o casefiddle.o indent.o search.o regex.o undo.o \
-	alloc.o data.o doc.o editfns.o callint.o \
-	eval.o floatfns.o fns.o font.o print.o lread.o $(MODULES_OBJ) \
-	syntax.o $(UNEXEC_OBJ) bytecode.o \
-	process.o gnutls.o callproc.o \
-	region-cache.o sound.o atimer.o \
-	doprnt.o intervals.o textprop.o composite.o xml.o lcms.o $(NOTIFY_OBJ) \
+base_obj = dispnew.c.cc.o frame.c.cc.o scroll.c.cc.o xdisp.c.cc.o menu.c.cc.o $(XMENU_OBJ) window.c.cc.o \
+	charset.c.cc.o coding.c.cc.o category.c.cc.o ccl.c.cc.o character.c.cc.o chartab.c.cc.o bidi.c.cc.o \
+	$(CM_OBJ) term.c.cc.o terminal.c.cc.o xfaces.c.cc.o $(XOBJ) $(GTK_OBJ) $(DBUS_OBJ) \
+	emacs.c.cc.o keyboard.c.cc.o macros.c.cc.o keymap.c.cc.o sysdep.c.cc.o \
+	buffer.c.cc.o filelock.c.cc.o insdel.c.cc.o marker.c.cc.o \
+	minibuf.c.cc.o fileio.c.cc.o dired.c.cc.o \
+	cmds.c.cc.o casetab.c.cc.o casefiddle.c.cc.o indent.c.cc.o search.c.cc.o regex.c.cc.o undo.c.cc.o \
+	alloc.c.cc.o data.c.cc.o doc.c.cc.o editfns.c.cc.o callint.c.cc.o \
+	eval.c.cc.o floatfns.c.cc.o fns.c.cc.o font.c.cc.o print.c.cc.o lread.c.cc.o $(MODULES_OBJ) \
+	syntax.c.cc.o $(UNEXEC_OBJ) bytecode.c.cc.o \
+	process.c.cc.o gnutls.c.cc.o callproc.c.cc.o \
+	region-cache.c.cc.o sound.c.cc.o atimer.c.cc.o \
+	doprnt.c.cc.o intervals.c.cc.o textprop.c.cc.o composite.c.cc.o xml.c.cc.o lcms.c.cc.o $(NOTIFY_OBJ) \
 	$(XWIDGETS_OBJ) \
-	profiler.o decompress.o \
-	thread.o systhread.o \
-	$(if $(HYBRID_MALLOC),sheap.o) \
+	profiler.c.cc.o decompress.c.cc.o \
+	thread.c.cc.o systhread.c.cc.o \
+	$(if $(HYBRID_MALLOC),sheap.c.cc.o) \
 	$(MSDOS_OBJ) $(MSDOS_X_OBJ) $(NS_OBJ) $(CYGWIN_OBJ) $(FONT_OBJ) \
 	$(W32_OBJ) $(WINDOW_SYSTEM_OBJ) $(XGSELOBJ)
-obj = $(base_obj) $(NS_OBJC_OBJ)
+obj = js.cc.o $(base_obj) $(NS_OBJC_OBJ)
 
-$(base_obj): atimer.h.hh blockinput.h.hh buffer.h.hh buildobj.h.hh category.h.hh ccl.h.hh character.h.hh charset.h.hh cm.h.hh coding.h.hh commands.h.hh composite.h.hh config.h.hh conf_post.h.hh cygw32.h.hh dispextern.h.hh disptab.h.hh dosfns.h.hh dynlib.h.hh emacsgtkfixed.h.hh emacs-icon.h.hh emacs-module.h.hh epaths.h.hh font.h.hh fontset.h.hh frame.h.hh ftfont.h.hh getpagesize.h.hh globals.h.hh gnutls.h.hh gtkutil.h.hh indent.h.hh intervals.h.hh keyboard.h.hh keymap.h.hh lisp.h.hh macfont.h.hh macros.h.hh menu.h.hh module-env-25.h.hh module-env-26.h.hh msdos.h.hh nsgui.h.hh nsterm.h.hh process.h.hh puresize.h.hh regex.h.hh region-cache.h.hh sheap.h.hh syntax.h.hh sysselect.h.hh syssignal.h.hh sysstdio.h.hh systhread.h.hh systime.h.hh systty.h.hh syswait.h.hh termchar.h.hh termhooks.h.hh termopts.h.hh thread.h.hh tparam.h.hh unexec.h.hh w32common.h.hh w32font.h.hh w32gui.h.hh w32.h.hh w32heap.h.hh w32inevt.h.hh w32select.h.hh w32term.h.hh widget.h.hh widgetprv.h.hh window.h.hh xgselect.h.hh xsettings.h.hh xterm.h.hh xwidget.h.hh
+js.cc.o $(base_obj): atimer.h.hh blockinput.h.hh buffer.h.hh buildobj.h.hh category.h.hh ccl.h.hh character.h.hh charset.h.hh cm.h.hh coding.h.hh commands.h.hh composite.h.hh config.h.hh conf_post.h.hh cygw32.h.hh dispextern.h.hh disptab.h.hh dosfns.h.hh dynlib.h.hh emacsgtkfixed.h.hh emacs-icon.h.hh emacs-module.h.hh epaths.h.hh font.h.hh fontset.h.hh frame.h.hh ftfont.h.hh getpagesize.h.hh globals.h.hh gnutls.h.hh gtkutil.h.hh indent.h.hh intervals.h.hh keyboard.h.hh keymap.h.hh lisp.h.hh macfont.h.hh macros.h.hh menu.h.hh module-env-25.h.hh module-env-26.h.hh msdos.h.hh nsgui.h.hh nsterm.h.hh process.h.hh puresize.h.hh regex.h.hh region-cache.h.hh sheap.h.hh syntax.h.hh sysselect.h.hh syssignal.h.hh sysstdio.h.hh systhread.h.hh systime.h.hh systty.h.hh syswait.h.hh termchar.h.hh termhooks.h.hh termopts.h.hh thread.h.hh tparam.h.hh unexec.h.hh w32common.h.hh w32font.h.hh w32gui.h.hh w32.h.hh w32heap.h.hh w32inevt.h.hh w32select.h.hh w32term.h.hh widget.h.hh widgetprv.h.hh window.h.hh xgselect.h.hh xsettings.h.hh xterm.h.hh xwidget.h.hh | chunkl.all
 
 ## Object files used on some machine or other.
 ## These go in the DOC file on all machines in case they are needed.
 ## Some of them have no DOC entries, but it does no harm to have them
 ## in the list, in case they ever add any such entries.
-SOME_MACHINE_OBJECTS = dosfns.o msdos.o \
-  xterm.o xfns.o xmenu.o xselect.o xrdb.o xsmfns.o fringe.o image.o \
-  fontset.o dbusbind.o cygw32.o \
-  nsterm.o nsfns.o nsmenu.o nsselect.o nsimage.o nsfont.o macfont.o \
-  w32.o w32console.o w32fns.o w32heap.o w32inevt.o w32notify.o \
-  w32menu.o w32proc.o w32reg.o w32select.o w32term.o w32xfns.o \
-  w16select.o widget.o xfont.o ftfont.o xftfont.o ftxfont.o gtkutil.o \
-  xsettings.o xgselect.o termcap.o
+SOME_MACHINE_OBJECTS = dosfns.c.cc.o msdos.c.cc.o \
+  xterm.c.cc.o xfns.c.cc.o xmenu.c.cc.o xselect.c.cc.o xrdb.c.cc.o xsmfns.c.cc.o fringe.c.cc.o image.c.cc.o \
+  fontset.c.cc.o dbusbind.c.cc.o cygw32.c.cc.o \
+  nsterm.c.cc.o nsfns.c.cc.o nsmenu.c.cc.o nsselect.c.cc.o nsimage.c.cc.o nsfont.c.cc.o macfont.c.cc.o \
+  w32.c.cc.o w32console.c.cc.o w32fns.c.cc.o w32heap.c.cc.o w32inevt.c.cc.o w32notify.c.cc.o \
+  w32menu.c.cc.o w32proc.c.cc.o w32reg.c.cc.o w32select.c.cc.o w32term.c.cc.o w32xfns.c.cc.o \
+  w16select.c.cc.o widget.c.cc.o xfont.c.cc.o ftfont.c.cc.o xftfont.c.cc.o ftxfont.c.cc.o gtkutil.c.cc.o \
+  xsettings.c.cc.o xgselect.c.cc.o termcap.c.cc.o
 
 ## gmalloc.o if !SYSTEM_MALLOC && !DOUG_LEA_MALLOC, else empty.
 GMALLOC_OBJ=@GMALLOC_OBJ@
@@ -450,7 +460,7 @@ AUTO_DEPEND = @AUTO_DEPEND@
 DEPDIR = deps
 ifeq ($(AUTO_DEPEND),yes)
   DEPFLAGS = -MMD -MF $(DEPDIR)/$*.d -MP
-  -include $(ALLOBJS:%.o=$(DEPDIR)/%.d)
+  -include $(ALLOBJS:%.cc.o=$(DEPDIR)/%.d)
 else
   DEPFLAGS =
   include $(srcdir)/deps.mk
@@ -581,7 +591,7 @@ buildobj.h: Makefile
 	done >$@.tmp
 	$(AM_V_at)mv $@.tmp $@
 
-GLOBAL_SOURCES = $(base_obj:.o=.c) $(NS_OBJC_OBJ:.o=.m)
+GLOBAL_SOURCES = js.cc $(base_obj:.c.cc.o=.c) $(NS_OBJC_OBJ:.c.cc.o=.m)
 
 AM_V_GLOBALS = $(am__v_GLOBALS_@AM_V@)
 am__v_GLOBALS_ = $(am__v_GLOBALS_@AM_DEFAULT_V@)
@@ -589,7 +599,7 @@ am__v_GLOBALS_0 = @echo "  GEN     " globals.h;
 am__v_GLOBALS_1 =
 
 gl-stamp: $(libsrc)/make-docfile$(EXEEXT) $(GLOBAL_SOURCES)
-	$(AM_V_GLOBALS)$(libsrc)/make-docfile -d $(srcdir) -g $(obj) > globals.tmp
+	$(AM_V_GLOBALS)$(libsrc)/make-docfile -d $(srcdir) -g $(base_obj:.c.cc.o=.o) > globals.tmp
 	$(AM_V_at)$(top_srcdir)/build-aux/move-if-change globals.tmp globals.h
 	$(AM_V_at)echo timestamp > $@
 
@@ -632,7 +642,7 @@ FORCE:
 Makefile: ../config.status $(srcdir)/Makefile.in
 	$(MAKE) -C .. src/$@
 
-doc.o: buildobj.h
+doc.c.cc.o: buildobj.h
 
 emacs.res: FORCE
 	$(MAKE) -C ../nt ../src/emacs.res

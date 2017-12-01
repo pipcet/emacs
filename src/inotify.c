@@ -300,7 +300,8 @@ remove_watch (Lisp_Object descriptor, Lisp_Object id)
     return;
 
   Lisp_Object elt = XCAR (CONSP (prevtail) ? XCDR (prevtail) : watch_list);
-  for (Lisp_Object prev = elt; !NILP (XCDR (prev)); prev = XCDR (prev))
+  Lisp_Object prev;
+  for (prev = elt; !NILP (XCDR (prev)); prev = XCDR (prev))
     if (EQ (id, XCAR (XCAR (XCDR (prev)))))
       {
 	XSETCDR (prev, XCDR (XCDR (prev)));
@@ -338,7 +339,8 @@ inotify_callback (int fd, void *_)
       if (! NILP (prevtail))
         {
 	  Lisp_Object tail = CONSP (prevtail) ? XCDR (prevtail) : watch_list;
-	  for (Lisp_Object watches = XCDR (XCAR (tail)); ! NILP (watches);
+          Lisp_Object watches;
+	  for (watches = XCDR (XCAR (tail)); ! NILP (watches);
 	       watches = XCDR (watches))
             {
               event.arg = inotifyevent_to_event (XCAR (watches), ev);
@@ -496,6 +498,7 @@ it invalid.  */)
 }
 
 #ifdef INOTIFY_DEBUG
+
 DEFUN ("inotify-watch-list", Finotify_watch_list, Sinotify_watch_list, 0, 0, 0,
        doc: /* Return a copy of the internal watch_list.  */)
 {

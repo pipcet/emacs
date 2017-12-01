@@ -88,7 +88,7 @@ struct cursor_pos
 struct window
   {
     /* This is for Lisp; the terminal code does not refer to it.  */
-    union vectorlike_header header;
+    struct vectorlike_header header;
 
     /* The frame this window is on.  */
     Lisp_Object frame;
@@ -482,11 +482,11 @@ wset_next_buffers (struct window *w, Lisp_Object val)
 /* True if W is a minibuffer window on a frame that contains at least
    one other window.  */
 #define MINI_NON_ONLY_WINDOW_P(W)	 \
-  (MINI_WINDOW_P (W) && !NILP ((W)->prev))
+  (MINI_WINDOW_P (W) && !NILP (LSH ((W)->prev)))
 
 /* True if W is a minibuffer window that is alone on its frame.  */
 #define MINI_ONLY_WINDOW_P(W)		 \
-  (MINI_WINDOW_P (W) && NILP ((W)->prev))
+  (MINI_WINDOW_P (W) && NILP (LSH ((W)->prev)))
 
 /* General window layout:
 
@@ -541,7 +541,7 @@ wset_next_buffers (struct window *w, Lisp_Object val)
 #define WINDOW_BUFFER(W)			\
   (WINDOW_LEAF_P(W)				\
    ? ELisp_Return_Value((W)->contents)          \
-   : Qnil)					\
+   : ELisp_Return_Value(Qnil))
 
 /* Return the canonical column width of the frame of window W.  */
 #define WINDOW_FRAME_COLUMN_WIDTH(W) \
@@ -619,10 +619,10 @@ wset_next_buffers (struct window *w, Lisp_Object val)
 /* Width of bottom divider of window W.  */
 #define WINDOW_BOTTOM_DIVIDER_WIDTH(W)					\
   (((WINDOW_BOTTOMMOST_P (W)						\
-     && NILP ((XWINDOW (FRAME_ROOT_WINDOW				\
-			(WINDOW_XFRAME (W))))->next))			\
-    || EQ ((W)->prev, FRAME_ROOT_WINDOW (WINDOW_XFRAME (W)))		\
-    || (W)->pseudo_window_p)						\
+     && NILP (LSH (XWINDOW (LRH (FRAME_ROOT_WINDOW                      \
+                                 (WINDOW_XFRAME (W))))->next)))         \
+    || EQ (LSH ((W)->prev), FRAME_ROOT_WINDOW (WINDOW_XFRAME (W)))      \
+    || ((W)->pseudo_window_p))                                          \
    ? 0 : FRAME_BOTTOM_DIVIDER_WIDTH (WINDOW_XFRAME (W)))
 
 /* Return the canonical frame column at which window W starts.
@@ -773,15 +773,15 @@ wset_next_buffers (struct window *w, Lisp_Object val)
 
 /* Say whether vertical scroll bars are currently enabled for window W,
    and which side they are on.  */
-#define WINDOW_VERTICAL_SCROLL_BAR_TYPE(W)		\
-  (WINDOW_PSEUDO_P (W)					\
-   ? vertical_scroll_bar_none				\
-   : EQ (W->vertical_scroll_bar_type, Qt)		\
-   ? FRAME_VERTICAL_SCROLL_BAR_TYPE (WINDOW_XFRAME (W))	\
-   : EQ (W->vertical_scroll_bar_type, Qleft)		\
-   ? vertical_scroll_bar_left				\
-   : EQ (W->vertical_scroll_bar_type, Qright)		\
-   ? vertical_scroll_bar_right				\
+#define WINDOW_VERTICAL_SCROLL_BAR_TYPE(W)                      \
+  (WINDOW_PSEUDO_P (W)                                          \
+   ? vertical_scroll_bar_none                                   \
+   : EQ (LSH (W->vertical_scroll_bar_type), LSH (Qt))           \
+   ? FRAME_VERTICAL_SCROLL_BAR_TYPE (WINDOW_XFRAME (W))         \
+   : EQ (LSH (W->vertical_scroll_bar_type), LSH (Qleft))        \
+   ? vertical_scroll_bar_left                                   \
+   : EQ (LSH (W->vertical_scroll_bar_type), LSH (Qright))       \
+   ? vertical_scroll_bar_right                                  \
    : vertical_scroll_bar_none)
 
 #define WINDOW_HAS_VERTICAL_SCROLL_BAR_ON_LEFT(W)			\
@@ -808,9 +808,9 @@ wset_next_buffers (struct window *w, Lisp_Object val)
 #define WINDOW_HAS_HORIZONTAL_SCROLL_BAR(W)			\
   ((WINDOW_PSEUDO_P (W) || MINI_NON_ONLY_WINDOW_P (W))		\
    ? false							\
-   : EQ (W->horizontal_scroll_bar_type, Qt)			\
+   : EQ (W->horizontal_scroll_bar_type, LSH (Qt))              \
    ? FRAME_HAS_HORIZONTAL_SCROLL_BARS (WINDOW_XFRAME (W))	\
-   : EQ (W->horizontal_scroll_bar_type, Qbottom)		\
+   : EQ (W->horizontal_scroll_bar_type, LSH (Qbottom))		\
    ? true							\
    : false)
 #else
@@ -1067,21 +1067,21 @@ extern void redisplay_other_windows (void);
 struct glyph *get_phys_cursor_glyph (struct window *w);
 
 /* True if WINDOW is a valid window.  */
-#define WINDOW_VALID_P(WINDOW)					\
-  (WINDOWP (WINDOW) && !NILP (XWINDOW (WINDOW)->contents))	\
+#define WINDOW_VALID_P(WINDOW)                                          \
+  (WINDOWP (WINDOW) && !NILP (LSH (XWINDOW (WINDOW)->contents)))
 
 /* A window of any sort, leaf or interior, is "valid" if its
    contents slot is non-nil.  */
 #define CHECK_VALID_WINDOW(WINDOW)				\
-  CHECK_TYPE (WINDOW_VALID_P (WINDOW), Qwindow_valid_p, WINDOW)
+  CHECK_TYPE (WINDOW_VALID_P (WINDOW), LSH (Qwindow_valid_p), WINDOW)
 
 /* True if WINDOW is a live window.  */
 #define WINDOW_LIVE_P(WINDOW)					\
-  (WINDOWP (WINDOW) && BUFFERP (XWINDOW (WINDOW)->contents))
+  (WINDOWP (WINDOW) && BUFFERP (LSH (XWINDOW (WINDOW)->contents)))
 
 /* A window is "live" if and only if it shows a buffer.  */
 #define CHECK_LIVE_WINDOW(WINDOW)				\
-  CHECK_TYPE (WINDOW_LIVE_P (WINDOW), Qwindow_live_p, WINDOW)
+  CHECK_TYPE (WINDOW_LIVE_P (WINDOW), LSH (Qwindow_live_p), WINDOW)
 
 /* These used to be in lisp.h.  */
 extern Lisp_Object Vwindow_list;

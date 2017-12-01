@@ -1424,9 +1424,9 @@ term_get_fkeys_1 (void)
 	{								\
 	  char *sequence = tgetstr (cap2, address);			\
 	  if (sequence)                                                 \
-	    Fdefine_key (KVAR (kboard, Vinput_decode_map), build_string (sequence), \
-			 Fmake_vector (make_number (1),                 \
-				       intern (sym)));                  \
+	    Fdefine_key (LSH (KVAR (kboard, Vinput_decode_map)), LRH (build_string (sequence)), \
+			 LRH (Fmake_vector (LRH (make_number (1)),      \
+                                            LRH (intern (sym)))));      \
 	}
 
       /* if there's no key_next keycap, map key_npage to `next' keysym */
@@ -1452,7 +1452,7 @@ static void append_glyph (struct it *);
 static void append_composite_glyph (struct it *);
 static void produce_composite_glyph (struct it *);
 static void append_glyphless_glyph (struct it *, int, const char *);
-static void produce_glyphless_glyph (struct it *, Lisp_Object);
+static void produce_glyphless_glyph_2 (struct it *, Lisp_Object);
 
 /* Append glyphs to IT's glyph_row.  Called from produce_glyphs for
    terminal frames if IT->glyph_row != NULL.  IT->char_to_display is
@@ -1573,7 +1573,7 @@ produce_glyphs (struct it *it)
 
   if (it->what == IT_GLYPHLESS)
     {
-      produce_glyphless_glyph (it, Qnil);
+      produce_glyphless_glyph_2 (it, Qnil);
       goto done;
     }
 
@@ -1648,7 +1648,7 @@ produce_glyphs (struct it *it)
 	  Lisp_Object acronym = lookup_glyphless_char_display (-1, it);
 
 	  eassert (it->what == IT_GLYPHLESS);
-	  produce_glyphless_glyph (it, acronym);
+	  produce_glyphless_glyph_2 (it, acronym);
 	}
     }
 
@@ -1830,7 +1830,7 @@ append_glyphless_glyph (struct it *it, int face_id, const char *str)
    The glyphs actually produced are of type CHAR_GLYPH.  */
 
 static void
-produce_glyphless_glyph (struct it *it, Lisp_Object acronym)
+produce_glyphless_glyph_2 (struct it *it, Lisp_Object acronym)
 {
   int len, face_id = merge_glyphless_glyph_face (it);
   char buf[sizeof "\\x" + max (6, (INT_WIDTH + 3) / 4)];
@@ -2154,7 +2154,7 @@ set_tty_color_mode (struct tty_display_info *tty, struct frame *f)
       tty->previous_color_mode = mode;
       tty_setup_colors (tty , mode);
       /*  This recomputes all the faces given the new color definitions.  */
-      safe_call (1, intern ("tty-set-up-initial-frame-faces"));
+      safe_call (1, LRH (intern ("tty-set-up-initial-frame-faces")));
     }
 }
 

@@ -1175,7 +1175,8 @@ Elements of ALIST that are not conses are also shared.  */)
   if (NILP (alist))
     return alist;
   alist = concat (LV (1, &alist), Lisp_Cons, false);
-  for (Lisp_Object tem = alist; !NILP (tem); tem = XCDR (tem))
+  Lisp_Object tem;
+  for (tem = alist; !NILP (tem); tem = XCDR (tem))
     {
       Lisp_Object car = XCAR (tem);
       if (CONSP (car))
@@ -1988,7 +1989,7 @@ properties on the list.  This function never signals an error.  */)
       if (EQ (prop, XCAR (tail)))
 	return XCAR (XCDR (tail));
       tail = XCDR (tail);
-      if (EQ (tail, li.tortoise))
+      if (EQ (tail, LVH (li.tortoise)))
 	break;
     }
 
@@ -2032,7 +2033,7 @@ The PLIST is modified by side effects.  */)
 
       prev = tail;
       tail = XCDR (tail);
-      if (EQ (tail, li.tortoise))
+      if (EQ (tail, LVH (li.tortoise)))
 	circular_list (plist);
     }
   CHECK_TYPE (NILP (tail), Qplistp, plist);
@@ -2071,7 +2072,7 @@ one of the properties on the list.  */)
       if (! NILP (Fequal (prop, XCAR (tail))))
 	return XCAR (XCDR (tail));
       tail = XCDR (tail);
-      if (EQ (tail, li.tortoise))
+      if (EQ (tail, LVH (li.tortoise)))
 	circular_list (plist);
     }
 
@@ -2104,7 +2105,7 @@ The PLIST is modified by side effects.  */)
 
       prev = tail;
       tail = XCDR (tail);
-      if (EQ (tail, li.tortoise))
+      if (EQ (tail, LVH (li.tortoise)))
 	circular_list (plist);
     }
   CHECK_TYPE (NILP (tail), Qplistp, plist);
@@ -2873,7 +2874,7 @@ The value is actually the tail of PLIST whose car is PROP.  */)
       tail = XCDR (tail);
       if (! CONSP (tail))
 	break;
-      if (EQ (tail, li.tortoise))
+      if (EQ (tail, LVH (li.tortoise)))
 	circular_list (tail);
     }
   CHECK_TYPE (NILP (tail), Qplistp, plist);
@@ -3986,7 +3987,7 @@ hash_lookup (struct Lisp_Hash_Table *h, Lisp_Object key, EMACS_UINT *hash)
     if (EQ (key, HASH_KEY (h, i))
 	|| (h->test.cmpfn
 	    && hash_code == XUINT (HASH_HASH (h, i))
-	    && h->test.cmpfn (&h->test, key, HASH_KEY (h, i))))
+	    && h->test.cmpfn (&h->test, LVH (key), LRH (HASH_KEY (h, i)))))
       break;
 
   return i;
@@ -4043,7 +4044,7 @@ hash_remove_from_table (struct Lisp_Hash_Table *h, Lisp_Object key)
       if (EQ (key, HASH_KEY (h, i))
 	  || (h->test.cmpfn
 	      && hash_code == XUINT (HASH_HASH (h, i))
-	      && h->test.cmpfn (&h->test, key, HASH_KEY (h, i))))
+	      && h->test.cmpfn (&h->test, key, LRH (HASH_KEY (h, i)))))
 	{
 	  /* Take entry out of collision chain.  */
 	  if (prev < 0)
@@ -4536,7 +4537,7 @@ usage: (make-hash-table &rest KEYWORD-ARGS)  */)
   i = get_key_arg (QCrehash_threshold, nargs, args, used);
   float rehash_threshold = (!i ? DEFAULT_REHASH_THRESHOLD
 			    : !FLOATP (args[i]) ? 0
-			    : (float) XFLOAT_DATA (args[i]));
+			    : (float) XFLOAT_DATA (LSH (args[i])));
   if (! (0 < rehash_threshold && rehash_threshold <= 1))
     signal_error ("Invalid hash table rehash threshold", args[i]);
 

@@ -50,7 +50,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 /* Test for membership, allowing for t (actually any non-cons) to mean the
    universal set.  */
 
-#define TMEM(sym, set) (CONSP (set) ? ! NILP (Fmemq (sym, set)) : ! NILP (set))
+#define TMEM(sym, set) (CONSP (set) ? ! NILP (LRH (Fmemq (sym, set))) : ! NILP (set))
 
 static Lisp_Object merge_properties_sticky (Lisp_Object, Lisp_Object);
 static INTERVAL merge_interval_right (INTERVAL);
@@ -1687,17 +1687,17 @@ textget (Lisp_Object plist, register Lisp_Object prop)
 Lisp_Object
 lookup_char_property (Lisp_Object plist, Lisp_Object prop, bool textprop)
 {
-  Lisp_Object tail, fallback = Qnil;
+  Lisp_Object tail, fallback = Qnil, tem;
 
-  for (tail = plist; CONSP (tail); tail = Fcdr (XCDR (tail)))
+  for (tail = plist; CONSP (tail); tail = Fcdr (tem = XCDR (tail)))
     {
-      register Lisp_Object tem;
+      register Lisp_Object tem, tem2;
       tem = XCAR (tail);
       if (EQ (prop, tem))
-	return Fcar (XCDR (tail));
+	return Fcar (tem2 = XCDR (tail));
       if (EQ (tem, Qcategory))
 	{
-	  tem = Fcar (XCDR (tail));
+	  tem = Fcar (tem2 = XCDR (tail));
 	  if (SYMBOLP (tem))
 	    fallback = Fget (tem, prop);
 	}

@@ -1460,7 +1460,7 @@ struct check_window_data
 static bool
 check_window_containing (struct window *w, void *user_data)
 {
-  struct check_window_data *cw = user_data;
+  struct check_window_data *cw = (struct check_window_data *)user_data;
   enum window_part found = coordinates_in_window (w, cw->x, cw->y);
   if (found == ON_NOTHING)
     return true;

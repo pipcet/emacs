@@ -116,7 +116,7 @@ struct interval
 
 /* True if this is a default interval, which is the same as being null
    or having no properties.  */
-#define DEFAULT_INTERVAL_P(i) (!i || EQ ((i)->plist, Qnil))
+#define DEFAULT_INTERVAL_P(i) (!i || EQ ((i)->plist, LSH (Qnil)))
 
 /* Test what type of parent we have.  Three possibilities: another
    interval, a buffer or string object, or NULL.  */
@@ -173,7 +173,7 @@ set_interval_plist (INTERVAL i, Lisp_Object plist)
   (i)->write_protect = false;		      \
   (i)->visible = false;			      \
   (i)->front_sticky = (i)->rear_sticky = false;	\
-  set_interval_plist (i, Qnil);		      \
+  set_interval_plist (i, LSH (Qnil));           \
  } while (false)
 
 /* Copy the cached property values of interval FROM to interval TO.  */
@@ -196,16 +196,16 @@ set_interval_plist (INTERVAL i, Lisp_Object plist)
 
 /* Is this interval visible?  Replace later with cache access.  */
 #define INTERVAL_VISIBLE_P(i) \
-  (i && NILP (textget ((i)->plist, Qinvisible)))
+  (i && NILP (LRH (textget ((i)->plist, LSH (Qinvisible)))))
 
 /* Is this interval writable?  Replace later with cache access.  */
-#define INTERVAL_WRITABLE_P(i)					\
-  (NILP (textget ((i)->plist, Qread_only))			\
-   || !NILP (textget ((i)->plist, Qinhibit_read_only))		\
-   || ((CONSP (Vinhibit_read_only)				\
-	? !NILP (Fmemq (textget ((i)->plist, Qread_only),	\
-			Vinhibit_read_only))			\
-	: !NILP (Vinhibit_read_only))))
+#define INTERVAL_WRITABLE_P(i)                                          \
+  (NILP (LRH (textget ((i)->plist, LSH (Qread_only))))                  \
+   || !NILP (LRH (textget ((i)->plist, LSH (Qinhibit_read_only))))      \
+   || ((CONSP (LSH (Vinhibit_read_only))                                \
+	? !NILP (LRH (Fmemq (LRH (textget ((i)->plist, LSH (Qread_only))), \
+                             LSH (Vinhibit_read_only))))                \
+	: !NILP (LSH (Vinhibit_read_only)))))
 
 /* Macros to tell whether insertions before or after this interval
    should stick to it.  Now we have Vtext_property_default_nonsticky,
@@ -213,11 +213,11 @@ set_interval_plist (INTERVAL i, Lisp_Object plist)
 
 #if false
 #define FRONT_STICKY_P(i)				\
-  (i && ! NILP (textget ((i)->plist, Qfront_sticky)))
+  (i && ! NILP (textget ((i)->plist, LSH (Qfront_sticky))))
 #define END_NONSTICKY_P(i)				\
-  (i && ! NILP (textget ((i)->plist, Qrear_nonsticky)))
+  (i && ! NILP (textget ((i)->plist, LSH (Qrear_nonsticky))))
 #define FRONT_NONSTICKY_P(i)				\
-  (i && ! EQ (Qt, textget ((i)->plist, Qfront_sticky)))
+  (i && ! EQ (Qt, textget ((i)->plist, LSH (Qfront_sticky))))
 #endif
 
 /* If PROP is the `invisible' property of a character,
@@ -225,9 +225,9 @@ set_interval_plist (INTERVAL i, Lisp_Object plist)
    and 2 if it is invisible but with an ellipsis.  */
 
 #define TEXT_PROP_MEANS_INVISIBLE(prop)					\
-  (EQ (BVAR (current_buffer, invisibility_spec), Qt)			\
+  (EQ (LSH (BVAR (current_buffer, invisibility_spec)), LSH (Qt))        \
    ? !NILP (prop)							\
-   : invisible_prop (prop, BVAR (current_buffer, invisibility_spec)))
+   : invisible_prop (prop, LSH (BVAR (current_buffer, invisibility_spec))))
 
 /* Declared in alloc.c.  */
 

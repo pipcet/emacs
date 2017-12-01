@@ -78,7 +78,7 @@ enum ftfont_cache_for
 static Lisp_Object ftfont_lookup_cache (Lisp_Object,
                                         enum ftfont_cache_for);
 
-#define SYMBOL_FcChar8(SYM) (FcChar8 *) SDATA (SYMBOL_NAME (SYM))
+#define SYMBOL_FcChar8(SYM) (FcChar8 *) SDATA (LRH (SYMBOL_NAME (SYM)))
 
 static struct
 {
@@ -536,7 +536,7 @@ struct OpenTypeSpec
 
 #define OTF_SYM_TAG(SYM, TAG)					\
   do {								\
-    unsigned char *p = SDATA (SYMBOL_NAME (SYM));		\
+    unsigned char *p = SDATA (LRH (SYMBOL_NAME (SYM)));		\
     TAG = (p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3];	\
   } while (0)
 
@@ -704,7 +704,7 @@ ftfont_spec_pattern (Lisp_Object spec, char *otlayout, struct OpenTypeSpec **ots
 	  else
 	    for (; CONSP (val); val = XCDR (val))
 	      if (SYMBOLP (XCAR (val))
-		  && ! FcLangSetAdd (langset, SYMBOL_FcChar8 (XCAR (val))))
+		  && ! FcLangSetAdd (langset, SYMBOL_FcChar8 (LRH (XCAR (val)))))
 		goto err;
 	}
       else if (EQ (key, QCotf))

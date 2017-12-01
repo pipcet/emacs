@@ -1135,21 +1135,21 @@ trivial_regexp_p (Lisp_Object regexp)
    POSIX is nonzero if we want full backtracking (POSIX style)
    for this pattern.  0 means backtrack only enough to get a valid match.  */
 
-#define TRANSLATE(out, trt, d)			\
-do						\
-  {						\
-    if (! NILP (trt))				\
-      {						\
-	ELisp_Value temp;			\
-	temp = Faref (trt, make_number (d));	\
-	if (INTEGERP (temp))			\
-	  out = XINT (temp);			\
-	else					\
-	  out = d;				\
-      }						\
-    else					\
-      out = d;					\
-  }						\
+#define TRANSLATE(out, trt, d)                          \
+  do                                                    \
+  {                                                     \
+    if (! NILP (trt))                                   \
+      {                                                 \
+	ELisp_Value temp;                               \
+	temp = Faref (trt, LRH (make_number (d)));	\
+	if (INTEGERP (temp))                            \
+	  out = XINT (temp);                            \
+	else                                            \
+	  out = d;                                      \
+      }                                                 \
+    else                                                \
+      out = d;                                          \
+  }                                                     \
 while (0)
 
 /* Only used in search_buffer, to record the end position of the match

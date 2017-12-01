@@ -1,13 +1,15 @@
 #!/usr/bin/perl
+# TODO
+# !EQ(a,b) gets parsed as (!EQ)(a,b). FIXED, I think.
 use strict;
 use Marpa::R2;
 use Data::Dumper;
 use Time::HiRes qw(time);
-use Carp::Always;
+# use Carp::Always;
 
 package EmacsCGrammar;
 
-my @symbols = qw(TLS Directive Expr0 TypeStmt Stmts Stmt Label CaseLabel PExpr CExpr Expr String BinOp ModOp UnOp ModUnOp ModPostOp FunctionDefinition Junk JunkItem VarDefinition Typedef RetType Attrs Attr PArgExprs ArgExprs ArgExpr PArgs Args BBody Arg AttrType PointerType StructUnionType EnumType TypedSymbol FunType Typed BStructBody StructBody BEnumBody EnumBody PSymbol Symbol Number RewriteInit InitRests2 InitRests InitRest InitSuffixes InitRestPrefixes InitPrefix TypeNoStar StructUnion AttrTypeNoStar Type);
+my @symbols = qw(TLS Directive Expr0 TypeStmt Stmts Stmt Label CaseLabel PExpr CExpr Expr String BinOp ModOp UnOp ModUnOp ModPostOp FunctionDefinition Junk JunkItem VarDefinition Typedef RetType Attrs Attr PArgExprs ArgExprs ArgExpr PArgs Args BBody Arg AttrType PointerType StructUnionType EnumType TypedSymbol FunType Typed BStructBody StructBody BEnumBody EnumBody PSymbol Symbol Number RewriteInit InitRests2 InitRests InitRest InitSuffixes InitRestPrefixes InitPrefix TypeNoStar StructUnion AttrTypeNoStar Type StringSpec);
 
 $EmacsCGrammar::dsl = <<'EODSL';
 :default ::= action => [start, length, values] bless => ::lhs
@@ -22,14 +24,15 @@ Label ::= Symbol ':'
 CaseLabel ::= 'case' Expr ':' | 'CASE' '(' Expr ')' ':' | 'CASE_DEFAULT' | 'CASE_ABORT' ':' | 'FIRST'
 PExpr ::= '(' CExpr ')'
 CExpr ::= Expr ',' CExpr | Expr
-Expr ::=  Expr BinOp Expr rank => 3 | '...' | 'VECSIZE' '(' Type ')' | 'FLEXSIZEOF' '(' Type ',' Expr ',' Expr ')' | 'PSEUDOVECSIZE' '(' Type ',' Expr ')' | 'ALLOCATE_PSEUDOVECTOR' '(' Type ',' Expr ',' Expr ')' | 'ALLOCATE_ZEROED_PSEUDOVECTOR' '(' Type ',' Expr ',' Expr ')' | 'REGEX_TALLOC' '(' Expr ',' Type ')' | 'UNSIGNED_CMP' '(' Expr ',' BinOp ',' Expr ')' | Symbol rank => 1 | Number | Expr PArgExprs rank => 1 | 'sizeof' Type | 'sizeof' '(' Type ')' | 'sizeof' Expr | 'alignof' '(' Type ')' | 'offsetof' '(' Type ',' Symbol ')' | 'offsetof' '(' Type ',' Expr ')' | PExpr | Expr '?' Expr ':' Expr rank => 5 | UnOp Expr | '(' Type ')' Expr | Expr '[' Expr ']' | String | '{' CExpr '}' | '{' CExpr ',' '}' | Attr Expr | 'va_arg' '(' Expr ',' Type ')' | '[' Expr '...' Expr ']' '=' Expr | '[' Expr ']' '=' Expr | '.' Expr '=' Expr | '&&' Symbol | 'ELisp_Array_Imm' '(' Expr ',' CExpr ')' | '(' Expr ')' | Expr ModOp Expr rank => 6 | ModUnOp Expr | Expr ModPostOp
-String ::= string | String String | 'pI' | 'pD' | 'pMu' | 'pMd' | 'PRIu64' | 'PRIxPTR' | 'FOPEN_TEXT' | 'FOPEN_BINARY' | 'PACKAGE_BUGREPORT' | 'SCNuMAX' | 'WTMP_FILE' | 'L' String
+Expr ::=  Expr BinOp Expr rank => 3 | '...' | 'VECSIZE' '(' Type ')' | 'FLEXSIZEOF' '(' Type ',' Expr ',' Expr ')' | 'PSEUDOVECSIZE' '(' Type ',' Expr ')' | 'ALLOCATE_PSEUDOVECTOR' '(' Type ',' Expr ',' Expr ')' | 'ALLOCATE_ZEROED_PSEUDOVECTOR' '(' Type ',' Expr ',' Expr ')' | 'REGEX_TALLOC' '(' Expr ',' Type ')' | 'UNSIGNED_CMP' '(' Expr ',' BinOp ',' Expr ')' | Symbol rank => 1 | Number | Expr PArgExprs rank => 1 | 'sizeof' Type | 'sizeof' '(' Type ')' | 'sizeof' Expr | 'alignof' '(' Type ')' | 'offsetof' '(' Type ',' Symbol ')' | 'offsetof' '(' Type ',' Expr ')' | PExpr | Expr '?' Expr ':' Expr rank => 5 | UnOp Expr rank => 2 | '(' Type ')' Expr | Expr '[' Expr ']' | String | '{' '}' | '{' CExpr '}' | '{' CExpr ',' '}' | Attr Expr | 'va_arg' '(' Expr ',' Type ')' | '[' Expr '...' Expr ']' '=' Expr | '[' Expr ']' '=' Expr | '.' Expr '=' Expr | '&&' Symbol | 'ELisp_Array_Imm' '(' Expr ',' CExpr ')' | '(' Expr ')' | Expr ModOp Expr rank => 6 | ModUnOp Expr | Expr ModPostOp
+String ::= string | String String | 'FOPEN_TEXT' | 'FOPEN_BINARY' | 'PACKAGE_BUGREPORT' | 'SCNuMAX' | 'WTMP_FILE' | 'L' String | StringSpec
+StringSpec ::= 'pI' | 'pD' | 'pMu' | 'pMd' | 'PRIu64' | 'PRIxPTR'
 BinOp ::= '!=' | '==' | '>' | '>=' | '<' | '<=' | '||' | '&&' | '|' | '&' | '.' | '->' | '^' | '<<' | '>>' | '%' | '+' | '-' | '*' rank => -1 | '/'
 ModOp ::= '=' | '+=' | '-=' | '>>=' | '<<=' | '*=' | '/=' | '&=' | '|=' | '^=' | '%='
 UnOp ::= '+' | '-' | '&' | '*' | '~' | '!'
 ModUnOp ::= '++' | '--'
 ModPostOp ::= '++' | '--'
-FunctionDefinition ::= Attrs RetType PSymbol PArgs BBody | Attrs RetType PSymbol PArgs Attrs ';' | 'DEFUN' '(' CExpr ',' Junk ')' PArgs BBody | 'DEAFUN' '(' CExpr ',' Junk ')' PArgs BBody
+FunctionDefinition ::= Attrs RetType PSymbol PArgs BBody | Attrs RetType PSymbol PArgs Attrs ';' | 'DEFUN' '(' Expr ',' Symbol ',' CExpr ',' Junk ')' PArgs BBody | 'DEAFUN' '(' CExpr ',' Junk ')' PArgs BBody
 Junk ::= Empty | JunkItem Junk
 JunkItem ::= 'doc:' | 'attributes' ':' 'const' | 'attributes' ':' 'noreturn' | 'attributes' ':' 'noinline'
 VarDefinition ::= RewriteInit | Attrs Typed ';' | Typed Attrs ';' | Attrs Typed Attrs '=' Expr ';' | 'DEFVAR_LISP' '(' CExpr ',' Junk ')'  | 'DEFVAR_LISP_NOPRO' '(' CExpr ',' Junk ')' | 'DEFVAR_BOOL' '(' CExpr ',' Junk ')' | 'DEFVAR_INT' '(' CExpr ',' Junk ')' | 'DEFVAR_KBOARD' '(' CExpr ',' Junk ')' | 'DEFVAR_BUFFER_DEFAULTS' '(' CExpr ',' Junk ')' | 'DEFVAR_PER_BUFFER' '(' CExpr ',' Junk ')'
@@ -39,7 +42,7 @@ RetType ::= Type
 
 Attrs ::= Empty | Attr Attrs
 
-Attr ::= restrict | '_Restrict_' | '__restrict' | extern | 'inline' | 'INLINE' | 'NO_INLINE' | '_Noreturn' | static | 'ATTRIBUTE_UNUSED' | 'const' | 'auto' | register | 'ATTRIBUTE_CONST' | 'ATTRIBUTE_UNUSED' | 'EXTERNALLY_VISIBLE' | alignas Expr | const | signed | unsigned | short | long | volatile | auto | 'asm' PExpr | '__cdecl' | '_cdecl' | 'UNINIT' | 'ATTRIBUTE_NO_SANITIZE_ADDRESS' | '__MALLOC_HOOK_VOLATILE' | 'weak_function' | 'CACHEABLE' | 'ALIGN_STACK' | 'CALLBACK' | 'WINAPI' | 'ATTRIBUTE_MALLOC' | 'GCALIGNED' | 'WINDOW_SYSTEM_RETURN' | macro PArgExprs rank => -3 | 'ATTRIBUTE_MAY_ALIAS'
+Attr ::= restrict | '_Restrict_' | '__restrict' | extern | 'inline' | 'INLINE' | 'NO_INLINE' | '_Noreturn' | static | 'ATTRIBUTE_UNUSED' | 'const' | 'auto' | register | 'ATTRIBUTE_CONST' | 'ATTRIBUTE_UNUSED' | 'EXTERNALLY_VISIBLE' | alignas Expr | const | signed | unsigned | short | long | volatile | auto | 'asm' PExpr | '__cdecl' | '_cdecl' | 'UNINIT' | 'ATTRIBUTE_NO_SANITIZE_ADDRESS' | '__MALLOC_HOOK_VOLATILE' | 'weak_function' | 'CACHEABLE' | 'ALIGN_STACK' | 'CALLBACK' | 'WINAPI' | 'ATTRIBUTE_MALLOC' | 'GCALIGNED' | 'WINDOW_SYSTEM_RETURN' | macro PArgExprs rank => -3 | 'ATTRIBUTE_MAY_ALIAS' | '__attribute__' '(' '(' ArgExprs ')' ')'
 
 PArgExprs ::= '(' ArgExprs ')'
 ArgExprs ::= Empty | ArgExpr | ArgExpr ',' ArgExprs
@@ -61,7 +64,7 @@ AttrType ::= Attr Type
 PointerType ::= Type '*'
 StructUnionType ::= StructUnion Attrs Symbol BStructBody
 EnumType ::= 'enum' Symbol BEnumBody
-Type ::= 'void' | AttrType | StructUnion Attrs Symbol | StructUnion Attrs BStructBody | StructUnionType | 'enum' Symbol | EnumType | 'enum' BEnumBody | Symbol | PointerType rank => 1 | Type const | 'ENUM_BF' '(' Type ')' | Type '[' ']' | Type '[' Expr ']' | RetType '(' Attrs '*' ')' PArgs | Type Attr | Attrs RetType '(' '*' ')' PArgs
+Type ::= 'void' | AttrType | StructUnion Attrs Symbol | StructUnion Attrs BStructBody | StructUnionType | 'enum' Symbol | EnumType | 'enum' BEnumBody | Symbol | PointerType rank => 1 | Type const | 'ENUM_BF' '(' Type ')' | Type '[' ']' | Type '[' Expr ']' | RetType '(' Attrs '*' ')' PArgs | Type Attr | Attrs RetType '(' '*' ')' PArgs | 'typeof' Expr
 
 TypedSymbol ::= Type Symbol Attrs
 
@@ -148,6 +151,7 @@ string ~ ["]["]
 :discard ~ ws
 EODSL
 
+# create fake terminal symbols to use to inject wildcards into patterns
 for my $symbol (@symbols) {
     $EmacsCGrammar::dsl .= "$symbol ::= t_$symbol\n";
     $EmacsCGrammar::dsl .= "t_$symbol ~ \'\\\\\'\n";
@@ -662,7 +666,7 @@ sub copy_from {
 
     $self->{""} = $root;
     for my $other (@others) {
-        die unless ref $other eq "PointedHash";
+        # die ref $other unless ref $other eq "PointedHash";
         for my $key (keys %$other) {
             next if $key eq "" or $key =~ /^#/;
             die if ref $other->{$key} eq "EmacsCTree";
@@ -720,9 +724,9 @@ package Processor;
 use Data::Dumper;
 
 sub new {
-    my ($class, $ctree, $defns, $replcb, $cb) = @_;
+    my ($class, $ctree, $defns, $replcb, $cb, $vars, $counterref) = @_;
 
-    return bless {
+    my $ret = bless {
         parent => undef,
         defn => undef,
         pc => undef,
@@ -731,6 +735,17 @@ sub new {
         replcb => $replcb,
         cb => $cb,
     }, $class;
+
+    for my $key (keys %$vars) {
+        my @comps = split("#", $key);
+        my $type = shift @comps;
+        my $nkey = "#" . join("#", @comps);
+        $ret->set($nkey, EmacsCParser::parse_verbatim_ctree($type, $vars->{$key}));
+    }
+
+    $ret->{counter} = $counterref;
+
+    return $ret;
 }
 
 sub fork {
@@ -746,6 +761,7 @@ sub fork {
         replcb => $self->{replcb},
         cb => $self->{cb},
         outvar => PointedHash->new,
+        counter => $self->{counter},
     }, ref $self;
 }
 
@@ -779,7 +795,7 @@ sub lookup {
 }
 
 sub set {
-    my ($self, $str, $val) = @_;
+    my ($self, $str, $val, $or) = @_;
 
     my @comps = split '#', $str;
     shift @comps;
@@ -798,6 +814,7 @@ sub set {
     }
 
     for my $vars (@vars) {
+        next if $or && defined $vars->{""};
         $vars->{""} = $val;
         if (ref $val eq "EmacsCTree") {
             $vars->{"#tree"} = $val;
@@ -943,11 +960,11 @@ sub parse_and_bind {
         $value = ${$recce->value};
     };
 
+    die $@ if $@;
+
     $value = EmacsCTree->new_from_rawtree($value);
 
     $memo{$memostr} = $value;
-
-    die $@ if $@;
 
     die $memostr unless $value;
 
@@ -992,10 +1009,17 @@ sub step {
         return unless $self->{parent}->{defn};
         my $outvar = $self->{defn}->{outvar};
         $outvar =~ s/^#//;
+        eval {
         $self->{outvar}->copy_from($self->{vars}->{$outvar}->{""},
-                                   $self->{vars}->{$outvar}, $self->{vars});
+                                   $self->{vars}->{$outvar}, $self->{vars})
+            if ($outvar ne "");
+        };
 
-        $self->{parent}->step($self->{retpc}) if $self->{parent}->{defn};
+        if ($@) {
+            die "$outvar . $@";
+        }
+
+        $self->{parent}->step($self->{retpc}) if $self->{parent}->{defn} and defined($self->{retpc});
 
         return;
     }
@@ -1006,15 +1030,39 @@ sub step {
         ($var, $str) = ($1, $2) if($alt =~ /^(.*?) (.*)$/);
         my $val = $self->lookup($var);
         next unless $val;
-        my $type = $val->type;
+        my $type;
+        eval {
+            $type = $val->type;
+        };
+        if ($@) {
+            die "$val $var $str";
+        }
 
         if ($str =~ /^matches +(.*?)$/) {
             my $fork = $self;
+            my $pattern = $1;
             eval {
-                my $parsed = $fork->parse_and_bind($type, $1);
+                my $parsed = $fork->parse_and_bind($type, $pattern);
 
                 next unless $parsed;
                 next unless $parsed->match($val->ctree, $fork);
+            };
+            if ($@) {
+                warn $@;
+                next;
+            }
+
+            $fork->step($pc+1);
+
+            next;
+        } elsif ($str =~ /^nomatch +(.*?)$/) {
+            my $fork = $self;
+            my $pattern = $1;
+            eval {
+                my $parsed = $fork->parse_and_bind($type, $pattern);
+
+                next unless $parsed;
+                next if $parsed->match($val->ctree, $fork);
             };
             if ($@) {
                 warn $@;
@@ -1076,6 +1124,94 @@ sub step {
             }
 
             next;
+        } elsif ($str =~ /^ *element (.*?): (.*?)$/) {
+            my ($index, $pattern) = ($1, $2);
+            my $ctype;
+            if ($type eq "Args") {
+                $ctype = "Arg";
+            } elsif ($type eq "ArgExprs") {
+                $ctype = "ArgExpr";
+            } else {
+                die;
+            }
+
+            my $itree;
+
+            $itree = $self->parse_and_bind("Expr", "$index");
+
+            my $parsed;
+            eval {
+                $parsed = $self->parse_and_bind($ctype, $pattern);
+
+                next unless $parsed;
+            };
+            if ($@) {
+                warn $@;
+                next;
+            }
+
+            my @nodes = (@{$val->ctree->{children}});
+
+            my $car = sub {
+                return ref($_[0]) ? $_[0]->{children}->[0] : $_[0];
+            };
+            my $cdr = sub {
+                return ref($_[0]) ? $_[0]->{children}->[2] : undef;
+            };
+
+            my $nodes = $val->ctree;
+            for (my $i = 0; $nodes; $i++, $nodes = $cdr->($nodes)) {
+                my $node = $car->($nodes);
+                next unless $node;
+                if ($node->type eq $ctype and
+                    $parsed->match($node->ctree, $self)) {
+                    if (defined($itree)) {
+                        unless ($itree->match(EmacsCParser::parse_verbatim_ctree("Expr", "$i"), $self)) {
+                            warn "itree did not match $i";
+                            next;
+                        }
+                    }
+                    $self->step($pc + 1);
+                }
+            }
+
+            next;
+        } elsif ($str =~ /^ *count (.*?)$/) {
+            my ($count) = ($1);
+            my $ctype;
+            if ($type eq "Args") {
+                $ctype = "Arg";
+            } elsif ($type eq "ArgExprs") {
+                $ctype = "ArgExpr";
+            } else {
+                die;
+            }
+
+            my $itree;
+
+            $itree = $self->parse_and_bind("Expr", "$count");
+
+            my @nodes = (@{$val->ctree->{children}});
+
+            my $car = sub {
+                return ref($_[0]) ? $_[0]->{children}->[0] : $_[0];
+            };
+            my $cdr = sub {
+                return ref($_[0]) ? $_[0]->{children}->[2] : undef;
+            };
+
+            my $nodes = $val->ctree;
+            my $i;
+            for ($i = 0; $nodes; $i++, $nodes = $cdr->($nodes)) {
+            }
+
+            unless ($itree->match(EmacsCParser::parse_verbatim_ctree("Expr", "$i"), $self)) {
+                warn "itree did not match $i";
+                next;
+            }
+            $self->step($pc + 1);
+
+            next;
         } elsif ($str =~ /^includes +(.*?): (.*?)$/) {
             my ($runvar, $expr) = ($1, $2);
             my $ctype;
@@ -1125,16 +1261,7 @@ sub step {
             }
 
             next;
-        } elsif ($str =~ /^(.*?) ([a-zA-Z]*(#[a-zA-Z]*)+)$/ &&
-                 $self->{defns}->{$1}) {
-            my $defn = $self->{defns}->{$1};
-            my $outvar = $2;
-            my $invar = $var;
-
-            $self->run($defn, $invar, $outvar, $pc + 1)->step(0);
-
-            next;
-        } elsif ($str =~ /^ *<- *(.*)$/) {
+        } elsif ($str =~ /^ *<- ?(.*?)$/) {
             my @format;
             eval {
                 @format = $self->parse_format($1);
@@ -1228,8 +1355,49 @@ sub step {
             $self->{cb}->{prechunk}->($str);
 
             next;
-        } elsif ($str =~ /^ *set ([^#]*?)(#.*?): (.*)$/) {
-            my ($type, $var, $val) = ($1, $2, $3);
+        } elsif ($str =~ /^ *set(-or)? ([^#]*?)(#.*?): (.*)$/) {
+            my ($or, $type, $var, $val) = ($1, $2, $3, $4);
+            my $parsed;
+            eval {
+                $parsed = $self->parse_and_bind($type, $val);
+            };
+
+            if ($@ or !$parsed) {
+                warn $@ if $@;
+                next;
+            }
+
+            $parsed = $parsed->resolve($self);
+
+            $self->set($var, $parsed, $or);
+
+            $self->step($pc + 1);
+
+            next;
+        } elsif ($str =~ /^ *equate(-or)? ([^#]*?)(#.*?): (.*)$/) {
+            my ($or, $type, $var, $var2) = ($1, $2, $3, $4);
+
+            $self->set($var, $self->lookup($var2), $or);
+
+            $self->step($pc + 1);
+
+            next;
+        } elsif ($str =~ /^ *unique: ([^#]*?)(#.*?)$/) {
+            my ($type, $var) = ($1, $2);
+            my $counter;
+            if (defined $val->{uniq}) {
+                $counter = ++$val->{uniq};
+            } else {
+                my $str = $self->rec_print($val->ctree);
+
+                $counter = 0;
+                while (index($str, "__u_$counter") != -1) {
+                    $counter++;
+                }
+                $val->{uniq} = $counter;
+            }
+            warn "$val " . $val->{uniq} . " $counter";
+            my $val = "__u_$counter";
             my $parsed;
             eval {
                 $parsed = $self->parse_and_bind($type, $val);
@@ -1247,14 +1415,89 @@ sub step {
             $self->step($pc + 1);
 
             next;
+        } elsif ($str =~ /^ *free/) {
+            if ($self->{cb}->{free}->($val)) {
+                $self->step($pc + 1);
+            }
         } elsif ($str =~ /^ *dump/) {
             warn Dumper($val);
             $self->step($pc + 1);
 
             next;
+        } elsif ($str =~ /^ *flush/) {
+            $self->{cb}->{flush}->();
+            $self->step($pc + 1);
+
+            next;
+        } elsif ($str =~ /^ *print (.*?)$/) {
+            my @format = $self->parse_format($1);
+            next if !@format;
+            my $str = "";
+            for my $entry (@format) {
+                my ($type, $arg) = @$entry;
+                if ($type eq "verbatim") {
+                    $str .= $arg;
+                } else {
+                    $str .= $self->rec_print($self->lookup($arg)->ctree);
+                }
+            }
+            $str =~ s/ $//;
+            $str =~ s/ ?\. ?/./g;
+            $str =~ s/ ?, ?/, /g;
+            $str =~ s/ ?\)/)/g;
+            $str =~ s/\( +/(/g;
+            $str =~ s/\(\{/( {/g;
+            $str =~ s/\}\)/} )/g;
+            $str =~ s/ ?; ?/;/g;
+
+            print $str . "\n";
+        } elsif ($str =~ /^ *check (.*?)$/) {
+            my @format = $self->parse_format($1);
+            next if !@format;
+            my $str = "";
+            for my $entry (@format) {
+                my ($type, $arg) = @$entry;
+                if ($type eq "verbatim") {
+                    $str .= $arg;
+                } else {
+                    $str .= $self->rec_print($self->lookup($arg)->ctree);
+                }
+            }
+            $str =~ s/ $//;
+            $str =~ s/ ?\. ?/./g;
+            $str =~ s/ ?, ?/, /g;
+            $str =~ s/ ?\)/)/g;
+            $str =~ s/\( +/(/g;
+            $str =~ s/\(\{/( {/g;
+            $str =~ s/\}\)/} )/g;
+            $str =~ s/ ?; ?/;/g;
+
+            if (eval($str)) {
+                $self->step($pc + 1);
+            }
         } elsif ($str =~ /^ *exit/) {
             warn Dumper($val);
             return;
+        } elsif ($str =~ /^call: (.*?) ([a-zA-Z]*(#[a-zA-Z]*)+)$/ &&
+                 $self->{defns}->{$1}) {
+            my $defn = $self->{defns}->{$1};
+            my $outvar = $2;
+            my $invar = $var;
+
+            $self->call($defn, $invar, $outvar, $pc + 1)->step(0);
+
+            $self->step($pc + 1);
+
+            next;
+        } elsif ($str =~ /^(.*?) ([a-zA-Z]*(#[a-zA-Z]*)+)$/ &&
+                 $self->{defns}->{$1}) {
+            my $defn = $self->{defns}->{$1};
+            my $outvar = $2;
+            my $invar = $var;
+
+            $self->run($defn, $invar, $outvar, $pc + 1)->step(0);
+
+            next;
         } else {
             die "unknown str $str";
         }
@@ -1276,12 +1519,24 @@ sub run {
     return $fork;
 }
 
+sub call {
+    my ($self, $defn, $invar, $outvar, $retpc) = @_;
+
+    $outvar =~ s/^#//;
+    $self->{vars}->{$outvar} = PointedHash->new();
+    my $fork = $self->fork;
+    $fork->{defn} = $defn;
+    $fork->{outvar} = $self->{vars}->{$outvar};
+    $fork->set($defn->{invar}, $self->lookup($invar));
+    $fork->{pc} = 0;
+
+    return $fork;
+}
+
 package Defn;
 
 sub new {
     my ($class, $invar, $outvar, $arg, $defn, $clauses) = @_;
-
-    die if $outvar =~ /^#$/ and $defn !~ /AUTO/;
 
     return bless {
         defn => $defn,
@@ -1363,7 +1618,7 @@ int main(int arg0, ptrdiff_t count, Lisp_Object *vector, int arg3)
 }
 EOF
 
-my $defns = Parser::parse_defns(<<'EOF', 0);
+my $defns_header = Parser::parse_defns(<<'EOF', 0);
 [[#funtyped FunTyped #chunk]]:
 [[#chunk contains Typed#funtyped]]
 [[#funtyped matches RetType#ret (* Symbol#) (Args#args)]] ||
@@ -1379,7 +1634,83 @@ my $defns = Parser::parse_defns(<<'EOF', 0);
 
 [[#fundef FunctionDefinition #chunk]]:
 [[#chunk contains FunctionDefinition#fundef]]
-[[#fundef matches DEFUN(CExpr#, Junk#)(Args#args) BBody#body]] ||
+[[#fundef matches DEFUN(Expr#, Symbol#symbol, CExpr#, Junk#)(Args#args) BBody#body]] ||
+[[#fundef matches Attrs# RetType#ret Symbol#symbol (Args#args) BBody#body]] ||
+[[#fundef matches Attrs# RetType#ret Symbol#symbol (Args#args) Attrs# ;]]
+
+[[#vector LV arg #args]]:
+[[#args includes #run: ptrdiff_t Symbol#count,Lisp_Object*Symbol#vector]]
+
+[[# AUTO-0010 #]]:
+[[# FunctionDefinition #fundef]]
+[[#fundef#args LV arg #vector]]
+[[#vector#run <- ELisp_Vector_Handle #vector]]
+
+[[# AUTO-0015 #]]:
+[[# FunctionDefinition #fundef]]
+[[#fundef#args includes #run: ptrdiff_t, Lisp_Object *]]
+[[#run <- ELisp_Vector_Handle]]
+
+[[# AUTO-0020 #]]:
+[[# FunTypeD #funtyped]]
+[[#funtyped#args LV arg #vector]]
+[[#vector#run <- ELisp_Vector_Handle #vector]]
+
+[[# AUTO-0100-FLUSH #]]:
+
+[[# AUTO-0300 #]]:
+[[# contains Stmt#stmt]]
+[[#stmt matches ELisp_Value Symbol#symbol;]]
+[[# set Type#symbol#G#type: ELisp_Value]]
+
+[[# AUTO-030001 #]]:
+[[# contains Stmt#stmt]]
+[[#stmt matches ELisp_Value Symbol#symbol = Expr#rhs;]]
+[[# set Type#symbol#G#type: ELisp_Value]]
+
+[[# AUTO-07400 #]]:
+[[# FunctionDefinition #fundef]]
+[[#fundef#args element Expr#n: Arg#arg]]
+[[#arg matches Lisp_Object]] ||
+[[#arg matches Lisp_Object Symbol#]] ||
+[[#arg matches register Lisp_Object Symbol#]]
+[[# print $accepts_lo{#fundef#symbol}[#n] = 1; #CU;]]
+
+[[# AUTO-07500 #]]:
+[[# FunctionDefinition #fundef]]
+[[#fundef#symbol matches Symbol#symbol]]
+[[#fundef#ret matches Lisp_Object]]
+[[# print $returns_lo{#symbol} = 1; #CU;]]
+
+[[# AUTO-0900 #]]:
+[[# contains FunctionDefinition#fundef]]
+[[#fundef matches DEFUN(Expr#, Symbol#symbol, CExpr#, Junk#)(Args#args) BBody#body]]
+[[#symbol print $returns_lo{#symbol} = 1; #CU;]]
+
+[[# AUTO-0950 #]]:
+[[# contains Stmt#stmt]]
+[[#stmt matches EXFUN(Symbol#symbol, Expr#n);]]
+[[#n check "#n" ~ /^[0-9]+$/]]
+[[#symbol print for my $i (0 .. (#n-1)) { $accepts_lo{#symbol}[$i] = 1; } $returns_lo{#symbol} = 1; #CU; ]]
+EOF
+
+my $defns_main = Parser::parse_defns(<<'EOF', 0);
+[[#funtyped FunTyped #chunk]]:
+[[#chunk contains Typed#funtyped]]
+[[#funtyped matches RetType#ret (* Symbol#) (Args#args)]] ||
+[[#funtyped matches RetType#ret (** Symbol#) (Args#args)]]
+
+[[#funtype FunType #chunk]]:
+[[#chunk contains Type#funtype]]
+[[#funtype matches Attrs# RetType#ret (*) (Args#args)]]
+
+[[#funtypedb FunTypeD #chunkb]]:
+[[#chunkb FunTyped #funtypedb]] ||
+[[#chunkb FunType #funtypedb]]
+
+[[#fundef FunctionDefinition #chunk]]:
+[[#chunk contains FunctionDefinition#fundef]]
+[[#fundef matches DEFUN(Expr#, Symbol#, CExpr#, Junk#)(Args#args) BBody#body]] ||
 [[#fundef matches Attrs# RetType#ret PSymbol#psymbol (Args#args) BBody#body]] ||
 [[#fundef matches Attrs# RetType#ret PSymbol#psymbol (Args#args) Attrs# ;]]
 
@@ -1504,6 +1835,72 @@ my $defns = Parser::parse_defns(<<'EOF', 0);
 [[# contains Symbol#symbol]]
 [[#symbol matches INFINITY]]
 [[#symbol <- C_INFINITY]]
+
+[[# AUTO-0007-0016 #]]:
+[[# contains StringSpec#stringspec]]
+[[#stringspec <-  #stringspec  ]]
+
+[[# AUTO-0008-0001 #]]:
+[[# contains Stmt#stmt]]
+[[#stmt matches Type#type Symbol#symbol = xmalloc(Expr#expr);]]
+[[#stmt <- #type #symbol = (#type)xmalloc(#expr);]]
+
+[[# AUTO-0008-0002 #]]:
+[[# contains Stmt#stmt]]
+[[#stmt matches Type#type Symbol#symbol = Expr#rhs;]] ||
+[[#stmt matches Type#type Symbol#symbol;]]
+[[#stmt set Type#symbol#type: #type]]
+
+[[# AUTO-0008-0003 #]]:
+[[# contains Expr#expr]]
+[[#expr matches Symbol#symbol = Symbol#alloc(ArgExprs#argexprs)]]
+[[#alloc matches malloc]] ||
+[[#alloc matches xmalloc]] ||
+[[#alloc matches xzalloc]] ||
+[[#alloc matches xrealloc]] ||
+[[#alloc matches xpalloc]] ||
+[[#alloc matches alloca]] ||
+[[#alloc matches SAFE_ALLOCA]] ||
+[[#alloc matches SAFE_NALLOCA]]
+[[#symbol#type matches Type#type *]]
+[[#expr <- #symbol = (#symbol#type)#alloc(#argexprs)]]
+
+[[# AUTO-0008-0004 #]]:
+[[# contains Stmt#stmt]]
+[[#stmt matches Type#type Symbol#symbol = Symbol#alloc(ArgExprs#argexprs);]]
+[[#alloc matches malloc]] ||
+[[#alloc matches xmalloc]] ||
+[[#alloc matches xzalloc]]
+[[#symbol#type matches Type#typeb *]]
+[[#stmt <- #type #symbol = (#symbol#type)#alloc(#argexprs);]]
+
+[[# XAUTO-0008-0005 #]]:
+[[# contains Expr#expr]]
+[[#expr matches Expr#symbol = Symbol#alloc(ArgExprs#argexprs)]]
+[[#alloc matches malloc]] ||
+[[#alloc matches xmalloc]] ||
+[[#alloc matches xzalloc]] ||
+[[#alloc matches xrealloc]] ||
+[[#alloc matches xpalloc]] ||
+[[#alloc matches xnmalloc]] ||
+[[#alloc matches alloca]] ||
+[[#alloc matches SAFE_ALLOCA]] ||
+[[#alloc matches SAFE_NALLOCA]]
+[[#expr <- #symbol = (typeof #symbol)#alloc(#argexprs)]]
+
+[[# XAUTO-0008-0006 #]]:
+[[# contains Stmt#stmt]]
+[[#stmt matches Type#type Symbol#symbol = Symbol#alloc(ArgExprs#argexprs);]]
+[[#alloc matches malloc]] ||
+[[#alloc matches xmalloc]] ||
+[[#alloc matches xzalloc]] ||
+[[#alloc matches xrealloc]] ||
+[[#alloc matches xpalloc]] ||
+[[#alloc matches xnmalloc]] ||
+[[#alloc matches alloca]] ||
+[[#alloc matches SAFE_ALLOCA]] ||
+[[#alloc matches SAFE_NALLOCA]]
+[[#stmt <- #type #symbol = (typeof #symbol)#alloc(#argexprs);]]
 
 [[# AUTO-0009-FLUSH #]]:
 
@@ -2105,8 +2502,7 @@ my $defns = Parser::parse_defns(<<'EOF', 0);
 
 [[# XXXAUTO-0500 #]]:
 [[# FunctionDefinition #fundef]]
-[[#fundef#psymbol matches Symbol#symbol]] ||
-[[#fundef#psymbol matches (Symbol#symbol)]]
+[[#fundef#psymbol matches Symbol#symbol]]
 [[#fundef#ret matches Type#ret]]
 [[# set RetType#symbol#G#rettype: #ret]]
 
@@ -2121,15 +2517,29 @@ my $defns = Parser::parse_defns(<<'EOF', 0);
 [[#fundef#args contains Arg#arg]]
 [[#arg matches ELisp_Handle Symbol#symbol]]
 [[#fundef#body matches { Stmts#stmts }]]
+[[#fundef#body contains Expr#expr]]
+[[#expr modifies #rwexpr]]
+[[#rwexpr matches #symbol]]
 [[#stmts <<- ELisp_Value #symbol = ARG(#symbol);]]
 [[#arg <- ELisp_Handle ARG(#symbol)]]
+
+[[#expr xsets #rwexpr]]:
+[[#rwexpr matches Symbol#symbol(Expr#expr, Expr#)]]
+[[#symbol check "#symbol" =~ /^XSET/]]
+[[#symbol check "#symbol" !~ /^XSETC[AD]R/]]
+
+[[#expr coerces #rwexpr]]:
+[[#rwexpr matches Symbol#symbol(Expr#expr)]]
+[[#symbol check "#symbol" =~ /^(CHECK_NUMBER_COERCE_MARKER|CHECK_NUMBER_OR_FLOAT_COERCE_MARKER)$/]]
 
 [[#expr modifies #rwexpr]]:
 [[#rwexpr matches Expr#expr ModOp# Expr#]] ||
 [[#rwexpr matches Expr#expr ModPostOp#]] ||
 [[#rwexpr matches ModUnOp# Expr#expr]] ||
 [[#rwexpr matches & Expr#expr]] ||
-[[#rwexpr matches FOR_EACH_FRAME(Expr#, Expr#expr)]]
+[[#rwexpr matches FOR_EACH_FRAME(Expr#, Expr#expr)]] ||
+[[#rwexpr xsets #expr]] ||
+[[#rwexpr coerces #expr]]
 
 [[# AUTO-0700 #]]:
 [[# contains Expr#expr]]
@@ -2137,9 +2547,7 @@ my $defns = Parser::parse_defns(<<'EOF', 0);
 [[#symbol matches Lisp_Object]]
 [[#symbol <- ELisp_Struct_Value]]
 
-[[# AUTO-0799-FLUSH #]]:
-
-[[# AUTO-0800 #]]:
+[[# AUTO-0750 #]]:
 [[# contains Stmt#decl]]
 [[#decl matches Type#type Symbol#symbol;]]
 [[#type matches ELisp_Pointer]]
@@ -2147,6 +2555,212 @@ my $defns = Parser::parse_defns(<<'EOF', 0);
 [[#expr matches SAFE_ALLOCA_LISP(#symbol, Expr#size)]]
 [[#type <- ELisp_Dynvector]]
 [[#expr <- #symbol.resize(#size)]]
+
+[[# AUTO-0799-FLUSH #]]:
+
+[[# AUTO-07998 #]]:
+[[# contains Expr#expr]]
+[[#expr matches Qt]] ||
+[[#expr matches Qnil]] ||
+[[#expr matches BVAR(Expr#, Expr#)]]
+[[# set Type#expr#type: ELisp_Struct_Value]]
+[[#expr set Type#expr#type: ELisp_Struct_Value]]
+
+[[# AUTO-07999 #]]:
+[[# contains Expr#a]]
+[[#a matches XCAR(Expr#)]] ||
+[[#a matches XCDR(Expr#)]] ||
+[[#a matches make_number(Expr#)]]
+[[# set Type#a#type: ELisp_Return_Value]]
+[[#a set Type#a#type: ELisp_Return_Value]]
+
+[[# XAUTO-0800 #]]:
+[[# FunctionDefinition #fundef]]
+[[#fundef#args element Expr#n: Arg#arg]]
+[[#arg matches ELisp_Handle Symbol#symbol]]
+[[#fundef#body contains Expr#expr]]
+[[#expr matches #symbol]]
+[[# set Type#expr#type: ELisp_Handle]]
+
+[[# XAUTO-0801 #]]:
+[[# FunctionDefinition #fundef]]
+[[#fundef#body contains Stmt#decl]]
+[[#decl matches ELisp_Value Symbol#symbol;]] ||
+[[#decl matches ELisp_Value Symbol#symbol = Expr#rhs;]] ||
+[[#decl matches AUTO_CONS(Symbol#symbol, ArgExprs#);]] ||
+[[#decl matches AUTO_LIST1(Symbol#symbol, ArgExprs#);]] ||
+[[#decl matches AUTO_LIST2(Symbol#symbol, ArgExprs#);]] ||
+[[#decl matches AUTO_LIST3(Symbol#symbol, ArgExprs#);]] ||
+[[#decl matches AUTO_LIST4(Symbol#symbol, ArgExprs#);]] ||
+[[#decl matches AUTO_LIST5(Symbol#symbol, ArgExprs#);]] ||
+[[#decl matches AUTO_STRING(Symbol#symbol, Expr#);]] ||
+[[#decl matches AUTO_STRING_WITH_LEN(Symbol#symbol, Expr#, Expr#);]]
+[[#fundef#body contains Expr#expr]]
+[[#expr matches #symbol]]
+[[# set Type#expr#type: ELisp_Value]]
+
+[[# XAUTO-08015 #]]:
+[[# FunctionDefinition #fundef]]
+[[#fundef#body contains Expr#expr]]
+[[#expr matches AUTO_FRAME_ARG (Symbol#symbol, Expr#, Expr#)]] ||
+[[#expr matches AUTO_CONS_EXPR (Symbol#symbol, Expr#)]] ||
+[[#expr matches AUTO_LIST1 (Symbol#symbol, Expr#)]] ||
+[[#expr matches AUTO_LIST2 (Symbol#symbol, Expr#, Expr#)]] ||
+[[#expr matches AUTO_LIST3 (Symbol#symbol, Expr#, Expr#, Expr#)]] ||
+[[#expr matches AUTO_LIST4 (Symbol#symbol, Expr#, Expr#, Expr#, Expr#)]]
+[[#fundef#body contains Expr#expr]]
+[[#expr matches #symbol]]
+[[# set Type#expr#type: ELisp_Value]]
+
+[[# XAUTO-0802 #]]:
+[[# FunctionDefinition #fundef]]
+[[#fundef#body contains Expr#expr]]
+[[#expr matches Symbol#symbol(ArgExprs#)]]
+[[#symbol check $main::returns_lo->{#symbol}]]
+[[# set Type#expr#type: ELisp_Return_Value]]
+
+[[# XAUTO-0805 #]]:
+[[# contains Expr#expr]]
+[[#expr matches Symbol#symbol(ArgExprs#argexprs)]]
+[[#symbol check "#symbol" !~ /^L(SH|HH|VH|RH)$/]]
+[[#symbol nomatch LISPSYM_INITIALLY]]
+[[#argexprs element Expr#n: ArgExpr#argexpr]]
+[[#symbol check "#symbol" !~ /XSET/]] ||
+[[#symbol check "#symbol" =~ /XSETC[AD]R/]] ||
+[[#n check #n > 0]]
+[[#argexpr nomatch Symbol#symbolb(ArgExprs#)]] ||
+[[#symbolb check "#symbolb" !~ /^(L(SH|HH|VH|RH)|LISPSYM_INITIALLY)$/]]
+[[#symbol check $main::accepts_lo->{#symbol}[#n] ]]
+[[#argexpr matches Expr#expr]]
+[[#expr#type matches ELisp_Value]]
+[[#argexpr <- LVH(#argexpr)]]
+
+[[# XAUTO-0806 #]]:
+[[# contains Expr#expr]]
+[[#expr matches Symbol#symbol(ArgExprs#argexprs)]]
+[[#symbol check "#symbol" !~ /^L(SH|HH|VH|RH)$/]]
+[[#symbol nomatch LISPSYM_INITIALLY]]
+[[#argexprs element Expr#n: ArgExpr#argexpr]]
+[[#symbol check "#symbol" !~ /XSET/]] ||
+[[#symbol check "#symbol" =~ /XSETC[AD]R/]] ||
+[[#n check #n > 0]]
+[[#argexpr nomatch Symbol#symbolb(ArgExprs#)]] ||
+[[#symbolb check "#symbolb" !~ /^(L(SH|HH|VH|RH)|LISPSYM_INITIALLY)$/]]
+[[#symbol check $main::accepts_lo->{#symbol}[#n] ]]
+[[#argexpr matches Expr#expr]]
+[[#expr#type matches ELisp_Handle]]
+[[#argexpr <- LHH(#argexpr)]]
+
+[[# XAUTO-0806125 #]]:
+[[# contains Expr#a]]
+[[#a contains Expr#b]]
+[[#b equate-or #b#cfe: #a]]
+
+[[# XAUTO-080625 #]]:
+[[# contains BBody#stmt]]
+[[#stmt matches { Stmts#stmts }]]
+[[#stmt contains Expr#expr]]
+[[#expr equate Stmts#expr#ics: #stmts]]
+
+[[# XAUTO-08065 #]]:
+[[# contains Stmt#stmt]]
+[[#stmt matches { Stmts#stmts }]]
+[[#stmt contains Expr#expr]]
+[[#expr equate Stmts#expr#ics: #stmts]]
+
+[[# XAUTO-080675 #]]:
+[[# contains Stmt#stmt]]
+[[#stmt contains Expr#expr]]
+[[#expr equate Stmts#expr#icss: #stmt]]
+
+[[# XAUTO-0807 #]]:
+[[# contains Expr#expr]]
+[[#expr matches Symbol#symbol(ArgExprs#argexprs)]]
+[[#symbol check "#symbol" !~ /^L(SH|HH|VH|RH)$/]]
+[[#symbol nomatch LISPSYM_INITIALLY]]
+[[#argexprs element Expr#n: ArgExpr#argexpr]]
+[[#argexpr matches Expr#expr]]
+[[#expr#type matches ELisp_Return_Value]]
+[[#argexpr free]]
+[[#symbol check "#symbol" !~ /XSET/]] ||
+[[#symbol check "#symbol" =~ /XSETC[AD]R/]] ||
+[[#n check #n > 0]]
+[[#argexpr nomatch Symbol#symbolc = Expr#]] ||
+[[#symbolc check "#symbol" !~ /^__u_/]]
+[[#argexpr nomatch Symbol#symbolb(ArgExprs#)]] ||
+[[#symbolb check "#symbolb" !~ /^(ELisp_Handle|L(SH|HH|VH|RH)|LISPSYM_INITIALLY)$/]]
+[[#symbol check $main::accepts_lo->{#symbol}[#n] ]]
+[[#argexpr free]]
+[[#argexpr <- ELisp_Handle(ELisp_Value(#argexpr))]]
+
+[[# XAUTO-08075 #]]:
+[[# contains Expr#expr]]
+[[#expr matches Symbol#symbol(ArgExprs#argexprs)]]
+[[#symbol check "#symbol" !~ /^ELisp_Handle|L(SH|HH|VH|RH)$/]]
+[[#symbol nomatch LISPSYM_INITIALLY]]
+[[#argexprs element Expr#n: ArgExpr#argexpr]]
+[[#argexpr matches Expr#expr]]
+[[#expr#type matches ELisp_Return_Value]]
+[[#argexpr free]]
+[[#symbol check "#symbol" !~ /XSET/]] ||
+[[#symbol check "#symbol" =~ /XSETC[AD]R/]] ||
+[[#n check #n > 0]]
+[[#argexpr matches Symbol#symbolb.vec.ref(ArgExprs#)]]
+[[#symbol check $main::accepts_lo->{#symbol}[#n] ]]
+[[#argexpr free]]
+[[#argexpr <- ELisp_Handle(ELisp_Value(#argexpr))]]
+
+[[# XAUTO-0808 #]]:
+[[# contains Expr#expr]]
+[[#expr matches Symbol#symbol(ArgExprs#argexprs)]]
+[[#symbol check "#symbol" !~ /^L(SH|HH|VH|RH)$/]]
+[[#symbol nomatch LISPSYM_INITIALLY]]
+[[#argexprs element Expr#n: ArgExpr#argexpr]]
+[[#argexpr free]]
+[[#symbol check "#symbol" !~ /XSET/]] ||
+[[#symbol check "#symbol" =~ /XSETC[AD]R/]] ||
+[[#n check #n > 0]]
+[[#argexpr nomatch Symbol#symbolc = Expr#]]
+[[#argexpr nomatch Symbol#symbolb(ArgExprs#)]] ||
+[[#symbolb check "#symbolb" !~ /^(ELisp_Handle|L(SH|HH|VH|RH)|LISPSYM_INITIALLY)$/]]
+[[#symbol check $main::accepts_lo->{#symbol}[#n] ]]
+[[#argexpr matches Expr#expr]]
+[[#argexpr free]]
+[[#argexpr <- ELisp_Handle(ELisp_Value(#argexpr))]]
+
+[[# XAUTO-080825 #]]:
+[[# contains Stmt#stmt]]
+[[#stmt matches for (ELisp_Value Symbol#symbol = Expr#rhs; Expr#expra; Expr#exprb) Stmt#inner]]
+[[#stmt free]]
+[[#expra#ics <<- ELisp_Value #symbol;]]
+[[#stmt <- for (#symbol = #rhs; #expra; #exprb) #inner]]
+
+[[# XAUTO-08085 #]]:
+[[# contains Stmt#stmt]]
+[[#stmt matches ELisp_Value Symbol#symbol = Expr#rhs;]]
+[[#stmt <- ELisp_Value #symbol; #symbol = #rhs;]]
+
+[[# XAUTO-0809-FLUSH #]]:
+
+[[#dummy the eighthundreds #chunk]]:
+[[#chunk call: XAUTO-0800 #dummy]]
+[[#chunk call: XAUTO-0801 #dummy]]
+[[#chunk call: XAUTO-08015 #dummy]]
+[[#chunk call: XAUTO-0802 #dummy]]
+[[#chunk call: XAUTO-0805 #dummy]]
+[[#chunk call: XAUTO-0806 #dummy]]
+[[#chunk call: XAUTO-0806125 #dummy]]
+[[#chunk call: XAUTO-080625 #dummy]]
+[[#chunk call: XAUTO-0807 #dummy]]
+[[#chunk call: XAUTO-08075 #dummy]]
+[[#chunk call: XAUTO-0808 #dummy]]
+[[#chunk call: XAUTO-080825 #dummy]]
+[[#chunk call: XAUTO-08085 #dummy]]
+
+[[#dummy AUTO-0890-REPEAT #chunk]]:
+[[#chunk the eighthundreds #dummy]]
+
+[[# AUTO-08905-FLUSH #]]:
 
 [[# XXXAUTO-0000 #]]:
 [[# FunctionDefinition #fundef]]
@@ -2172,10 +2786,23 @@ my $defns = Parser::parse_defns(<<'EOF', 0);
 [[#arg matches Lisp_Object *Symbol#symbol]]
 [[#arg <- ELisp_Pointer_RO #symbol]]
 
+[[# find structs #]]:
 EOF
+
+my $global_defns;
 
 sub read_globals {
     my ($cu) = @_;
+    my $global_text = "";
+    for my $path ("chunkl.all") {
+        $global_text .= read_file($path);
+    }
+
+    my %returns_lo;
+    my %accepts_lo;
+    eval $global_text;
+    $main::returns_lo = \%returns_lo;
+    $main::accepts_lo = \%accepts_lo;
 }
 
 my %globals;
@@ -2203,12 +2830,22 @@ sub update_globals {
 
 sub write_globals {
     my ($cu) = @_;
-    my $fh;
-    open $fh, "> G/$cu.chunkl";
     for my $key (sort keys %globals) {
-        print $fh $globals{$key};
+        print $globals{$key};
     }
-    close $fh;
+}
+
+sub test_replacement {
+    my ($val, @repl) = @_;
+    my $repl_ok = [ $val->ctree->{start}, $val->ctree->{length} ];
+
+    for my $repl (@repl) {
+        return 0
+            if ($repl_ok->[0] + $repl_ok->[1] > $repl->[0] &&
+                $repl->[0] + $repl->[1] > $repl_ok->[0]);
+    }
+
+    return 1;
 }
 
 sub perform_replacements {
@@ -2229,7 +2866,7 @@ sub perform_replacements {
         push @repl_ok, $repl;
   }
 
-    my @repls = sort { $a->[0] <=> $b->[0] } @repl_ok;
+    my @repls = sort { ($a->[0] <=> $b->[0]) || ($a->[2] cmp $b->[2]) } @repl_ok;
 
     my $last = 1e9;
     for my $repl (reverse @repls) {
@@ -2252,23 +2889,28 @@ sub perform_replacements {
 my $cu;
 
 $cu = $ARGV[0] if ($ARGV[0]);
-$cu =~ s/\.//g;
-read_globals($cu) if $cu;
 
 my @chunks = Chunker::chunks();
 
 my %timebyrule;
 
+my $defns = $ARGV[1] eq "--header" ? $defns_header : $defns_main;
+read_globals($cu) if $cu && $defns == $defns_main;
+
 use Digest::MD5 qw(md5_hex);
 use File::Slurp qw(read_file write_file);
 
+my @md5s;
+
 for my $chunk (@chunks) {
+    my $counter = 10;
     my $md5 = md5_hex($chunk);
-    if (-e "chunkl-cache/$md5") {
+    push @md5s, $md5;
+    if ($defns == $defns_main && -e "chunkl-cache/$md5") {
         print read_file("chunkl-cache/$md5");
         next;
     }
-    $chunk =~ s/^(\#[ \t]*include[ \t]+)TERM_HEADER/$1\"gtkutil.h.hh\"/mg;
+    $chunk =~ s/^(\#[ \t]*include[ \t]+)TERM_HEADER.*$/$1\"gtkutil.h.hh\"/mg;
     $chunk =~ s/^(\#[ \t]*include[ \t]+)\"(.*\.h)\"/$1\"$2.hh\"/mg;
     my @prechunks;
     eval {
@@ -2277,25 +2919,33 @@ for my $chunk (@chunks) {
         for my $key (sort keys %$defns) {
             next unless $key =~ /^AUTO/;
             my $start = time();
-            #warn $key;
+            my $flush = 0;
             while (1) {
-                if ($key =~ /^AUTO.*FLUSH$/) {
-                $chunk = perform_replacements($chunk, @repl);
-                @repl = ();
-                $ctree = EmacsCParser::parse_verbatim_ctree("Chunk", $chunk);
-            }
-            my $processor = Processor->new($ctree, $defns, sub { push @repl, @_; }, { prechunk => sub { push @prechunks, $_[0] } });
-            my $outvar = PointedHash->new();
-            $processor->run($defns->{$key}, "", "#dummy")->step(0);
-            #update_globals($cu, $processor) if $cu;
-            if ($key =~ /^AUTO.*REPEAT$/) {
-                last if @repl == 0;
-                $chunk = perform_replacements($chunk, @repl);
-                @repl = ();
-                $ctree = EmacsCParser::parse_verbatim_ctree("Chunk", $chunk);
-            } else {
-                last;
-            }
+                #warn $key;
+                if ($key =~ /^AUTO.*FLUSH$/ or $flush) {
+                    $chunk = perform_replacements($chunk, @repl);
+                    @repl = ();
+                    $ctree = EmacsCParser::parse_verbatim_ctree("Chunk", $chunk);
+                    $flush = 0;
+                }
+                my $processor = Processor->new($ctree, $defns, sub { push @repl, @_; }, { prechunk => sub { push @prechunks, $_[0] }, flush => sub { $flush = 1 }, free => sub { test_replacement($_[0], @repl); } }, { "Expr#CU" => "\"$cu\"" }, \$counter);
+                my $outvar = PointedHash->new();
+                $processor->run($defns->{$key}, "", "#dummy")->step(0);
+                # update_globals($cu, $processor) if $defns == $defns_header && $cu;
+                if ($key =~ /^AUTO.*FLUSH$/ or $flush) {
+                    $chunk = perform_replacements($chunk, @repl);
+                    @repl = ();
+                    $ctree = EmacsCParser::parse_verbatim_ctree("Chunk", $chunk);
+                    $flush = 0;
+                }
+                if ($key =~ /^AUTO.*REPEAT$/) {
+                    $chunk = perform_replacements($chunk, @repl);
+                    $ctree = EmacsCParser::parse_verbatim_ctree("Chunk", $chunk);
+                    last if @repl == 0;
+                    @repl = ();
+                } else {
+                    last;
+                }
             }
             my $end = time();
 
@@ -2305,6 +2955,8 @@ for my $chunk (@chunks) {
         $chunk = perform_replacements($chunk, @repl);
     };
     warn $@ if $@;
+
+    next if $defns == $defns_header;
 
     my %prechunks;
     for my $prechunk (@prechunks) {
@@ -2318,13 +2970,18 @@ for my $chunk (@chunks) {
     write_file("chunkl-cache/$md5", $chunk) if $cu;
 }
 
-# write_globals($cu) if $cu;
-
 if ($cu) {
     my $fh;
     open $fh, ">stats/$cu";
     for my $key (sort { $timebyrule{$b} <=> $timebyrule{$a} } keys %timebyrule) {
         print $fh "$key took " . $timebyrule{$key} . " s\n";
+    }
+    close $fh;
+
+    my $fh;
+    open $fh, ">chunks/$cu";
+    for my $md5 (@md5s) {
+        print $fh "$md5\n";
     }
     close $fh;
 }

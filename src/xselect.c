@@ -104,7 +104,7 @@ selection_quantum (Display *display)
 }
 
 #define LOCAL_SELECTION(selection_symbol,dpyinfo)			\
-  assq_no_quit (selection_symbol, dpyinfo->terminal->Vselection_alist)
+  assq_no_quit (LSH (selection_symbol), LSH (dpyinfo->terminal->Vselection_alist))
 
 
 /* Define a queue to save up SELECTION_REQUEST_EVENT events for later

@@ -58,25 +58,25 @@ static bool xd_in_read_queued_messages = 0;
 #define XD_SIGNAL1(arg)							\
   do {									\
     if (xd_in_read_queued_messages)					\
-      Fthrow (Qdbus_error, Qnil);					\
+      Fthrow (LSH (Qdbus_error), LSH (Qnil));                           \
     else								\
-      xsignal1 (Qdbus_error, arg);					\
+      xsignal1 (LSH (Qdbus_error), arg);                                \
   } while (0)
 
 #define XD_SIGNAL2(arg1, arg2)						\
   do {									\
     if (xd_in_read_queued_messages)					\
-      Fthrow (Qdbus_error, Qnil);					\
+      Fthrow (LSH (Qdbus_error), LSH (Qnil));                           \
     else								\
-      xsignal2 (Qdbus_error, arg1, arg2);				\
+      xsignal2 (LSH (Qdbus_error), arg1, arg2);				\
   } while (0)
 
 #define XD_SIGNAL3(arg1, arg2, arg3)					\
   do {									\
     if (xd_in_read_queued_messages)					\
-      Fthrow (Qdbus_error, Qnil);					\
+      Fthrow (LSH (Qdbus_error), LSH (Qnil));                           \
     else								\
-      xsignal3 (Qdbus_error, arg1, arg2, arg3);				\
+      xsignal3 (LSH (Qdbus_error), arg1, arg2, arg3);                   \
   } while (0)
 
 /* Raise a Lisp error from a D-Bus ERROR.  */
@@ -200,23 +200,23 @@ xd_symbol_to_dbus_type (Lisp_Object object)
    `dbus-send-signal', into corresponding C values appended as
    arguments to a D-Bus message.  */
 #define XD_OBJECT_TO_DBUS_TYPE(object)					\
-  ((EQ (object, Qt) || EQ (object, Qnil)) ? DBUS_TYPE_BOOLEAN		\
+  ((EQ (object, LSH (Qt)) || EQ (object, LSH (Qnil))) ? DBUS_TYPE_BOOLEAN \
    : (NATNUMP (object)) ? DBUS_TYPE_UINT32				\
    : (INTEGERP (object)) ? DBUS_TYPE_INT32				\
    : (FLOATP (object)) ? DBUS_TYPE_DOUBLE				\
    : (STRINGP (object)) ? DBUS_TYPE_STRING				\
    : (XD_DBUS_TYPE_P (object)) ? xd_symbol_to_dbus_type (object)	\
    : (CONSP (object))							\
-   ? ((XD_DBUS_TYPE_P (CAR_SAFE (object)))				\
-      ? ((XD_BASIC_DBUS_TYPE (xd_symbol_to_dbus_type (CAR_SAFE (object)))) \
+   ? ((XD_DBUS_TYPE_P (LRH (CAR_SAFE (object))))                        \
+      ? ((XD_BASIC_DBUS_TYPE (xd_symbol_to_dbus_type (LRH (CAR_SAFE (object))))) \
 	 ? DBUS_TYPE_ARRAY						\
-	 : xd_symbol_to_dbus_type (CAR_SAFE (object)))			\
+	 : xd_symbol_to_dbus_type (LRH (CAR_SAFE (object))))            \
       : DBUS_TYPE_ARRAY)						\
    : DBUS_TYPE_INVALID)
 
 /* Return a list pointer which does not have a Lisp symbol as car.  */
 #define XD_NEXT_VALUE(object)						\
-  ((XD_DBUS_TYPE_P (CAR_SAFE (object))) ? CDR_SAFE (object) : ELisp_Return_Value(object))
+  ((XD_DBUS_TYPE_P (LRH (CAR_SAFE (object)))) ? CDR_SAFE (object) : ELisp_Return_Value(object))
 
 /* Transform the message type to its string representation for debug
    messages.  */
@@ -256,19 +256,19 @@ XD_OBJECT_TO_STRING (Lisp_Object object)
 	dbus_address_entries_free (entries);				\
 	/* Canonicalize session bus address.  */			\
 	if ((session_bus_address != NULL)				\
-	    && (!NILP (Fstring_equal					\
-		       (bus, build_string (session_bus_address)))))	\
+	    && (!NILP (LRH (Fstring_equal                              \
+                            (bus, LRH (build_string (session_bus_address))))))) \
 	  bus = QCsession;						\
       }									\
 									\
     else								\
       {									\
 	CHECK_SYMBOL (bus);						\
-	if (!(EQ (bus, QCsystem) || EQ (bus, QCsession)))		\
-	  XD_SIGNAL2 (build_string ("Wrong bus name"), bus);		\
+	if (!(EQ (bus, LSH (QCsystem)) || EQ (bus, LSH (QCsession))))   \
+	  XD_SIGNAL2 (LRH (build_string ("Wrong bus name")), bus);      \
 	/* We do not want to have an autolaunch for the session bus.  */ \
-	if (EQ (bus, QCsession) && session_bus_address == NULL)		\
-	  XD_SIGNAL2 (build_string ("No connection to bus"), bus);	\
+	if (EQ (bus, LSH (QCsession)) && session_bus_address == NULL)   \
+	  XD_SIGNAL2 (LRH (build_string ("No connection to bus")), bus); \
       }									\
   } while (0)
 

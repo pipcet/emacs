@@ -100,7 +100,7 @@ bool print_output_debug_flag EXTERNALLY_VISIBLE = 1;
    bool free_print_buffer = 0;						\
    bool multibyte							\
      = !NILP (BVAR (current_buffer, enable_multibyte_characters));	\
-   ELisp_Value original = printcharfun;					\
+   ELisp_Value original; original = printcharfun;                       \
    if (NILP (printcharfun)) printcharfun = Qt;				\
    if (BUFFERP (printcharfun))						\
      {									\
@@ -130,12 +130,12 @@ bool print_output_debug_flag EXTERNALLY_VISIBLE = 1;
    if (NILP (printcharfun))						\
      {									\
        ELisp_Value string;						\
-       if (NILP (BVAR (current_buffer, enable_multibyte_characters))	\
+       if (NILP (LSH (BVAR (current_buffer, enable_multibyte_characters))) \
 	   && ! print_escape_multibyte)					\
-         specbind (Qprint_escape_multibyte, Qt);			\
+         specbind (LSH (Qprint_escape_multibyte), LSH (Qt));            \
        if (! NILP (BVAR (current_buffer, enable_multibyte_characters))	\
 	   && ! print_escape_nonascii)					\
-         specbind (Qprint_escape_nonascii, Qt);				\
+         specbind (LSH (Qprint_escape_nonascii), LSH (Qt));             \
        if (print_buffer != 0)						\
 	 {								\
 	   string = make_string_from_bytes (print_buffer,		\
@@ -153,7 +153,7 @@ bool print_output_debug_flag EXTERNALLY_VISIBLE = 1;
        print_buffer_pos = 0;						\
        print_buffer_pos_byte = 0;					\
      }									\
-   if (EQ (printcharfun, Qt) && ! noninteractive)			\
+   if (EQ (printcharfun, LSH (Qt)) && ! noninteractive)			\
      setup_echo_area_for_printing (multibyte);
 
 #define PRINTFINISH							\
@@ -180,9 +180,9 @@ bool print_output_debug_flag EXTERNALLY_VISIBLE = 1;
        xfree (print_buffer);						\
        print_buffer = 0;						\
      }									\
-   unbind_to (specpdl_count, Qnil);					\
+   unbind_to (specpdl_count, LSH (Qnil));                               \
    if (MARKERP (original))						\
-     set_marker_both (original, Qnil, PT, PT_BYTE);			\
+     set_marker_both (original, LSH (Qnil), PT, PT_BYTE);               \
    if (old_point >= 0)							\
      SET_PT_BOTH (old_point + (old_point >= start_point			\
 			       ? PT - start_point : 0),			\
@@ -823,14 +823,14 @@ debug_print (Lisp_Object arg)
 void
 debug_print (ELisp_Value arg)
 {
-  Fprin1 (arg, Qexternal_debugging_output);
+  Fprin1 (LVH (arg), Qexternal_debugging_output);
   fprintf (stderr, "\r\n");
 }
 
 void
 debug_print (ELisp_Struct_Value arg)
 {
-  Fprin1 (arg, Qexternal_debugging_output);
+  Fprin1 (LSH (arg), Qexternal_debugging_output);
   fprintf (stderr, "\r\n");
 }
 
@@ -839,7 +839,7 @@ debug_print (JS::Value arg)
 {
   ELisp_Value argarg;
   argarg.v.v = arg;
-  Fprin1 (argarg, Qexternal_debugging_output);
+  Fprin1 (argarg, LSH (Qexternal_debugging_output));
   fprintf (stderr, "\r\n");
 }
 

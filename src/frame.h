@@ -79,7 +79,7 @@ enum ns_appearance_type
 
 struct frame
 {
-  union vectorlike_header header;
+  struct vectorlike_header header;
 
   /* All Lisp_Object components must come first.
      That ensures they are all aligned normally.  */
@@ -808,8 +808,8 @@ default_pixels_per_inch_y (void)
 /* True if frame F contains it's own minibuffer window.  Frame always has
    minibuffer window, but it could use minibuffer window of another frame.  */
 #define FRAME_HAS_MINIBUF_P(f)					\
-  (WINDOWP (f->minibuffer_window)				\
-   && XFRAME (XWINDOW (f->minibuffer_window)->frame) == f)
+  (WINDOWP (LSH (f->minibuffer_window))                                 \
+   && XFRAME (LSH (XWINDOW (LSH (f->minibuffer_window))->frame)) == f)
 
 /* Pixel width of frame F.  */
 #define FRAME_PIXEL_WIDTH(f) ((f)->pixel_width)
@@ -915,7 +915,7 @@ default_pixels_per_inch_y (void)
 #define FRAME_MINIBUF_WINDOW(f) f->minibuffer_window
 
 /* The root window of the window tree of frame F.  */
-#define FRAME_ROOT_WINDOW(f) f->root_window
+#define FRAME_ROOT_WINDOW(f) LSH (f->root_window)
 
 /* The currently selected window of the window tree of frame F.  */
 #define FRAME_SELECTED_WINDOW(f) f->selected_window
@@ -953,9 +953,9 @@ default_pixels_per_inch_y (void)
 #define FRAME_OVERRIDE_REDIRECT(f) ((f)->override_redirect)
 #endif
 #define FRAME_PARENT_FRAME(f)			\
-  (NILP ((f)->parent_frame)			\
+  (NILP (LSH ((f)->parent_frame))               \
    ? NULL					\
-   : XFRAME ((f)->parent_frame))
+   : XFRAME (LSH ((f)->parent_frame)))
 #define FRAME_SKIP_TASKBAR(f) ((f)->skip_taskbar)
 #define FRAME_NO_FOCUS_ON_MAP(f) ((f)->no_focus_on_map)
 #define FRAME_NO_ACCEPT_FOCUS(f) ((f)->no_accept_focus)
@@ -1140,10 +1140,10 @@ default_pixels_per_inch_y (void)
 #define FRAME_MESSAGE_BUF_SIZE(f) (((int) FRAME_COLS (f)) * 4)
 
 #define CHECK_FRAME(x) \
-  CHECK_TYPE (FRAMEP (x), Qframep, x)
+  CHECK_TYPE (FRAMEP (x), LSH (Qframep), x)
 
 #define CHECK_LIVE_FRAME(x) \
-  CHECK_TYPE (FRAMEP (x) && FRAME_LIVE_P (XFRAME (x)), Qframe_live_p, x)
+  CHECK_TYPE (FRAMEP (x) && FRAME_LIVE_P (XFRAME (x)), LSH (Qframe_live_p), x)
 
 /* FOR_EACH_FRAME (LIST_VAR, FRAME_VAR) followed by a statement is a
    `for' loop which iterates over the elements of Vframe_list.  The
@@ -1158,10 +1158,10 @@ default_pixels_per_inch_y (void)
    supported.  An alternate definition of the macro would expand to
    something which executes the statement once.  */
 
-#define FOR_EACH_FRAME(list_var, frame_var)	\
-  for ((list_var) = (eassume (CONSP (Vframe_list)), Vframe_list); \
-       (CONSP (list_var)			\
-	&& (frame_var = XCAR (list_var), true)); \
+#define FOR_EACH_FRAME(list_var, frame_var)                       \
+  for ((list_var) = (eassume (CONSP (LSH (Vframe_list))), Vframe_list); \
+       (CONSP (list_var)                                          \
+	&& (frame_var = XCAR (list_var), true));                  \
        list_var = XCDR (list_var))
 
 /* Reflect mouse movement when a complete frame update is performed.  */
@@ -1182,7 +1182,7 @@ default_pixels_per_inch_y (void)
 /* Handy macro to construct an argument to Fmodify_frame_parameters.  */
 
 #define AUTO_FRAME_ARG(name, parameter, value)	\
-  AUTO_LIST1 (name, AUTO_CONS_EXPR (parameter, value))
+  AUTO_LIST1 (name, LRH (AUTO_CONS_EXPR (parameter, value)))
 
 /* False means there are no visible garbaged frames.  */
 extern bool frame_garbaged;
@@ -1262,9 +1262,9 @@ extern Lisp_Object Vframe_list;
    isn't live, abort.  */
 
 #define SELECTED_FRAME()				\
-     ((FRAMEP (selected_frame)				\
-       && FRAME_LIVE_P (XFRAME (selected_frame)))	\
-      ? XFRAME (selected_frame)				\
+  ((FRAMEP (LSH (selected_frame))                       \
+    && FRAME_LIVE_P (XFRAME (LSH (selected_frame))))	\
+   ? XFRAME (LSH (selected_frame))                      \
       : (emacs_abort (), (struct frame *) 0))
 
 

@@ -273,11 +273,11 @@ inline void smemcpy(ELisp_Pointer a, ELisp_Pointer b, size_t n)
 
 /* True if face attribute ATTR is unspecified.  */
 
-#define UNSPECIFIEDP(ATTR) EQ ((ATTR), Qunspecified)
+#define UNSPECIFIEDP(ATTR) EQ ((ATTR), LSH (Qunspecified))
 
 /* True if face attribute ATTR is `ignore-defface'.  */
 
-#define IGNORE_DEFFACE_P(ATTR) EQ ((ATTR), QCignore_defface)
+#define IGNORE_DEFFACE_P(ATTR) EQ ((ATTR), LSH (QCignore_defface))
 
 /* Size of hash table of realized faces in face caches (should be a
    prime number).  */
@@ -828,9 +828,9 @@ parse_rgb_list (Lisp_Object rgb_list, XColor *color)
 {
   MODIFY_ARG(&rgb_list);
 #define PARSE_RGB_LIST_FIELD(field)					\
-  if (CONSP (rgb_list) && INTEGERP (XCAR (rgb_list)))			\
+  if (CONSP (rgb_list) && INTEGERP (LRH (XCAR (rgb_list))))             \
     {									\
-      color->field = XINT (XCAR (rgb_list));				\
+      color->field = XINT (LRH (XCAR (rgb_list)));                      \
       rgb_list = XCDR (rgb_list);					\
     }									\
   else									\
@@ -1589,7 +1589,8 @@ the WIDTH times as wide as FACE on FRAME.  */)
       Ffont_put (font_spec, QCavgwidth, make_number (avgwidth));
     }
   Lisp_Object fonts = Flist_fonts (font_spec, frame, maximum, font_spec);
-  for (Lisp_Object tail = fonts; CONSP (tail); tail = XCDR (tail))
+  Lisp_Object tail = fonts;
+  for (; CONSP (tail); tail = XCDR (tail))
     {
       Lisp_Object font_entity;
 
@@ -1648,7 +1649,7 @@ the WIDTH times as wide as FACE on FRAME.  */)
 #define LFACEP(LFACE)					\
      (VECTORP (LFACE)					\
       && ASIZE (LFACE) == LFACE_VECTOR_SIZE		\
-      && EQ (AREF (LFACE, 0), Qface))
+      && EQ (LRH (AREF (LFACE, 0)), LSH (Qface)))
 
 
 #ifdef GLYPH_DEBUG
@@ -2243,7 +2244,7 @@ merge_face_ref (struct frame *f, Lisp_Object face_ref, Lisp_Object *to,
 	  else
 	    {
 	      if (err_msgs)
-		add_to_log ("Invalid face color %S", color_name);
+		add_to_log ("Invalid face color %S", LVH (color_name));
 	      ok = false;
 	    }
 	}
@@ -2422,7 +2423,7 @@ merge_face_ref (struct frame *f, Lisp_Object face_ref, Lisp_Object *to,
 
 	      if (err)
 		{
-		  add_to_log ("Invalid face attribute %S %S", keyword, value);
+		  add_to_log ("Invalid face attribute %S %S", LVH (keyword), LVH (value));
 		  ok = false;
 		}
 
@@ -2448,7 +2449,7 @@ merge_face_ref (struct frame *f, Lisp_Object face_ref, Lisp_Object *to,
       /* FACE_REF ought to be a face name.  */
       ok = merge_named_face (f, face_ref, to, named_merge_points);
       if (!ok && err_msgs)
-	add_to_log ("Invalid face reference: %s", face_ref);
+	add_to_log ("Invalid face reference: %s", LVH (face_ref));
     }
 
   return ok;

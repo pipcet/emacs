@@ -31,7 +31,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
    We need one more byte for string terminator `\0'.  */
 #define KEY_DESCRIPTION_SIZE ((2 * 6) + 1 + (CHARACTERBITS / 3) + 1 + 1)
 
-#define KEYMAPP(m) (!NILP (get_keymap (*(ELisp_Value *)&(m), false, false)))
+#define KEYMAPP(m) (!NILP (LRH (get_keymap ((m), false, false))))
 extern Lisp_Object current_global_map;
 extern char *push_key_description (EMACS_INT, char *);
 extern Lisp_Object access_keymap (Lisp_Object, Lisp_Object, bool, bool, bool);

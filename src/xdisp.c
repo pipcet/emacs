@@ -2636,7 +2636,7 @@ safe__call1 (bool inhibit_quit, Lisp_Object fn, ...)
   va_list ap;
 
   va_start (ap, fn);
-  retval = safe__call (inhibit_quit, 2, fn, ap);
+  retval = safe__call (inhibit_quit, 2, ELisp_Handle (fn), ap);
   va_end (ap);
   return retval;
 }
@@ -2644,13 +2644,13 @@ safe__call1 (bool inhibit_quit, Lisp_Object fn, ...)
 Lisp_Object
 safe_eval (Lisp_Object sexpr)
 {
-  return safe__call1 (false, Qeval, sexpr);
+  return safe__call1 (false, Qeval, ELisp_Handle (sexpr));
 }
 
 static Lisp_Object
 safe__eval (bool inhibit_quit, Lisp_Object sexpr)
 {
-  return safe__call1 (inhibit_quit, Qeval, sexpr);
+  return safe__call1 (inhibit_quit, Qeval, ELisp_Handle (sexpr));
 }
 
 /* Call function FN with two arguments ARG1 and ARG2.
@@ -2659,7 +2659,7 @@ safe__eval (bool inhibit_quit, Lisp_Object sexpr)
 Lisp_Object
 safe_call2 (Lisp_Object fn, Lisp_Object arg1, Lisp_Object arg2)
 {
-  return safe_call (3, fn, arg1, arg2);
+  return safe_call (3, fn, ELisp_Handle (arg1), ELisp_Handle (arg2));
 }
 
 
@@ -5583,6 +5583,7 @@ handle_composition_prop (struct it *it)
 /* The following structure is used to record overlay strings for
    later sorting in load_overlay_strings.  */
 
+/* XXX stack struct */
 struct overlay_entry
 {
   Lisp_Object overlay;
@@ -5816,7 +5817,7 @@ load_overlay_strings (struct it *it, ptrdiff_t charpos)
 									\
       entries[n].string = (STRING);					\
       entries[n].overlay = (OVERLAY);					\
-      priority = Foverlay_get ((OVERLAY), Qpriority);			\
+      priority = Foverlay_get ((OVERLAY), LSH (Qpriority));             \
       entries[n].priority = INTEGERP (priority) ? XINT (priority) : 0;  \
       entries[n].after_string_p = (AFTER_P);				\
       ++n;								\
@@ -10605,7 +10606,7 @@ message_with_string (const char *m, Lisp_Object string, bool log)
   if (need_message)
     {
       AUTO_STRING (fmt, m);
-      Lisp_Object msg = CALLN (Fformat_message, fmt, string);
+      Lisp_Object msg = CALLN (Fformat_message, ELisp_Return_Value(fmt), ELisp_Return_Value(string));
 
       if (noninteractive)
 	message_to_stderr (msg);
@@ -11288,7 +11289,7 @@ static bool
 current_message_1 (ptrdiff_t a1, Lisp_Object a2)
 {
   intptr_t i1 = a1;
-  Lisp_Object *msg = (Lisp_Object *) i1;
+  Lisp_Object *msg = (Lisp_Object *) (ELisp_Value *)i1;
 
   if (Z > BEG)
     *msg = make_buffer_string (BEG, Z, true);
@@ -14020,9 +14021,9 @@ redisplay_internal (void)
 
 #define AINC(a,i)							\
   {									\
-    ELisp_Value entry = Fgethash (make_number (i), a, make_number (0));	\
+    ELisp_Value entry = Fgethash (LRH (make_number (i)), a, LRH (make_number (0))); \
     if (INTEGERP (entry))						\
-      Fputhash (make_number (i), make_number (1 + XINT (entry)), a);	\
+      Fputhash (LRH (make_number (i)), LRH (make_number (1 + XINT (entry))), a); \
   }
 
   AINC (Vredisplay__all_windows_cause, windows_or_buffers_changed);
@@ -27774,7 +27775,7 @@ append_glyphless_glyph (struct it *it, int face_id, bool for_no_font, int len,
    for the character.  */
 
 static void
-produce_glyphless_glyph (struct it *it, bool for_no_font, Lisp_Object acronym)
+produce_glyphless_glyph_3 (struct it *it, bool for_no_font, Lisp_Object acronym)
 {
   int face_id;
   struct face *face;
@@ -27938,7 +27939,7 @@ x_produce_glyphs (struct it *it)
 	      Lisp_Object acronym = lookup_glyphless_char_display (-1, it);
 
 	      eassert (it->what == IT_GLYPHLESS);
-	  produce_glyphless_glyph (it, true,
+	  produce_glyphless_glyph_3 (it, true,
 				   STRINGP (acronym) ? acronym : Qnil);
 	  goto done;
 	}
@@ -28635,7 +28636,7 @@ x_produce_glyphs (struct it *it)
 	append_composite_glyph (it);
     }
   else if (it->what == IT_GLYPHLESS)
-    produce_glyphless_glyph (it, false, Qnil);
+    produce_glyphless_glyph_3 (it, false, Qnil);
   else if (it->what == IT_IMAGE)
     produce_image_glyph (it);
   else if (it->what == IT_STRETCH)

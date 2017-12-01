@@ -217,8 +217,10 @@ extern void _DebPrint (const char *fmt, ...);
 #ifdef emacs /* Don't do this for lib-src.  */
 /* Tell regex.c to use a type compatible with Emacs.  */
 #define RE_TRANSLATE_TYPE ELisp_Value
-#define RE_TRANSLATE(TBL, C) char_table_translate (TBL, C)
-#define RE_TRANSLATE_P(TBL) (!EQ (TBL, make_number (0)))
+#define RE_TRANSLATE_HANDLE ELisp_Handle
+#define RE_TRANSLATE_STRUCT ELisp_Struct_Value
+#define RE_TRANSLATE(TBL, C) char_table_translate (LVH (TBL), C)
+#define RE_TRANSLATE_P(TBL) (!EQ (LVH (TBL), LRH (make_number (0))))
 #endif
 
 /* Tell time_rz.c to use Emacs's getter and setter for TZ.
@@ -235,7 +237,7 @@ extern int emacs_setenv_TZ (char const *);
 #endif
 
 #if __has_attribute (externally_visible)
-#define EXTERNALLY_VISIBLE __attribute__((externally_visible))
+#define EXTERNALLY_VISIBLE
 #else
 #define EXTERNALLY_VISIBLE
 #endif

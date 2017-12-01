@@ -32,7 +32,9 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
    So no cost can exceed the area of a frame, measured in characters.
    Let's hope this is never more than 1000000 characters.  */
 
+#undef INFINITY
 #define INFINITY 1000000
+#undef C_INFINITY
 #define C_INFINITY 1000000
 
 struct matrix_elt

@@ -2296,11 +2296,11 @@ results, see Info node `(elisp)Swapping Text'.  */)
     other_buffer->field = current_buffer->field;	\
     current_buffer->field = tmp##field;			\
   } while (0)
-#define swapfield_(field, type) \
-  do {							\
-    type tmp##field = BVAR (other_buffer, field);		\
-    bset_##field (other_buffer, BVAR (current_buffer, field));	\
-    bset_##field (current_buffer, tmp##field);			\
+#define swapfield_(field, type)                                         \
+  do {                                                                  \
+    ELisp_Value tmp##field = BVAR (other_buffer, field);		\
+    bset_##field (other_buffer, LSH (BVAR (current_buffer, field)));	\
+    bset_##field (current_buffer, tmp##field);                          \
   } while (0)
 
   swapfield (own_text, struct buffer_text);
@@ -3142,7 +3142,7 @@ overlay_touches_p (ptrdiff_t pos)
 
 struct sortvec
 {
-  Lisp_Object overlay;
+  Lisp_Object *overlay;
   ptrdiff_t beg, end;
   EMACS_INT priority;
   EMACS_INT spriority;		/* Secondary priority.  */
@@ -3167,7 +3167,7 @@ compare_overlays (const void *v1, const void *v2)
     return s2->end < s1->end ? -1 : 1;
   else if (s1->spriority != s2->spriority)
     return (s1->spriority < s2->spriority ? -1 : 1);
-  else if (EQ (s1->overlay, s2->overlay))
+  else if (EQ (s1->overlay.ref(0), s2->overlay.ref(0)))
     return 0;
   else
     /* Avoid the non-determinism of qsort by choosing an arbitrary ordering
@@ -3185,8 +3185,12 @@ sort_overlays (Lisp_Object *overlay_vec, ptrdiff_t noverlays, struct window *w)
 {
   ptrdiff_t i, j;
   USE_SAFE_ALLOCA;
+  Lisp_Object *overlay_vec2;
   struct sortvec *sortvec;
 
+  SAFE_ALLOCA_LISP (overlay_vec2, noverlays);
+  for (i = 0; i < noverlays; i++)
+    overlay_vec2.sref(i, overlay_vec.ref(i));
   SAFE_NALLOCA (sortvec, 1, noverlays);
 
   /* Put the valid and relevant overlays into sortvec.  */
@@ -3213,7 +3217,7 @@ sort_overlays (Lisp_Object *overlay_vec, ptrdiff_t noverlays, struct window *w)
 	    }
 
 	  /* This overlay is good and counts: put it into sortvec.  */
-	  sortvec[j].overlay = overlay;
+	  sortvec[j].overlay = (JSReturnValue*)(overlay_vec2.vec.vec.begin() + i);
 	  sortvec[j].beg = OVERLAY_POSITION (OVERLAY_START (overlay));
 	  sortvec[j].end = OVERLAY_POSITION (OVERLAY_END (overlay));
 	  tem = Foverlay_get (overlay, Qpriority);
@@ -3245,7 +3249,7 @@ sort_overlays (Lisp_Object *overlay_vec, ptrdiff_t noverlays, struct window *w)
     qsort (sortvec, noverlays, sizeof (struct sortvec), compare_overlays);
 
   for (i = 0; i < noverlays; i++)
-    overlay_vec[i] = sortvec[i].overlay;
+    overlay_vec[i] = sortvec[i].overlay.ref(0);
 
   SAFE_FREE ();
   return (noverlays);
@@ -5415,7 +5419,7 @@ init_buffer (int initialized)
 #define DEFVAR_PER_BUFFER(lname, vname, predicate, doc)		\
   do {								\
     static struct Lisp_Buffer_Objfwd bo_fwd;			\
-    defvar_per_buffer (&bo_fwd, lname, vname, predicate);	\
+    defvar_per_buffer (&bo_fwd, lname, vname, LSH (predicate));	\
   } while (0)
 
 static void

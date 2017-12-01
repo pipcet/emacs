@@ -266,9 +266,9 @@ set_fontset_fallback (Lisp_Object fontset, Lisp_Object fallback)
 
 #define RFONT_DEF_FACE(rfont_def) AREF (rfont_def, 0)
 #define RFONT_DEF_SET_FACE(rfont_def, face_id)	\
-  ASET ((rfont_def), 0, make_number (face_id))
+  ASET ((rfont_def), 0, LRH (make_number (face_id)))
 #define RFONT_DEF_FONT_DEF(rfont_def) AREF (rfont_def, 1)
-#define RFONT_DEF_SPEC(rfont_def) FONT_DEF_SPEC (AREF (rfont_def, 1))
+#define RFONT_DEF_SPEC(rfont_def) FONT_DEF_SPEC (LRH (AREF (rfont_def, 1)))
 #define RFONT_DEF_OBJECT(rfont_def) AREF (rfont_def, 2)
 #define RFONT_DEF_SET_OBJECT(rfont_def, object)	\
   ASET ((rfont_def), 2, (object))
@@ -276,12 +276,12 @@ set_fontset_fallback (Lisp_Object fontset, Lisp_Object fallback)
    the order of listing by font backends, the higher bits represents
    the order given by charset priority list.  The smaller value is
    preferable.  */
-#define RFONT_DEF_SCORE(rfont_def) XINT (AREF (rfont_def, 3))
+#define RFONT_DEF_SCORE(rfont_def) XINT (LRH (AREF (rfont_def, 3)))
 #define RFONT_DEF_SET_SCORE(rfont_def, score) \
-  ASET ((rfont_def), 3, make_number (score))
+  ASET ((rfont_def), 3, LRH (make_number (score)))
 #define RFONT_DEF_NEW(rfont_def, font_def)		\
   do {							\
-    (rfont_def) = Fmake_vector (make_number (4), Qnil);	\
+    (rfont_def) = Fmake_vector (LRH (make_number (4)), LSH (Qnil));	\
     ASET ((rfont_def), 1, (font_def));			\
     RFONT_DEF_SET_SCORE ((rfont_def), 0);		\
   } while (0)
@@ -328,10 +328,10 @@ fontset_ref (Lisp_Object fontset, int c)
   (NILP (add)								\
    ? (NILP (range)							\
       ? (set_fontset_fallback						\
-	 (fontset, Fmake_vector (make_number (1), (elt))))		\
+	 (fontset, LRH (Fmake_vector (LRH (make_number (1)), (elt)))))  \
       : ((void)								\
 	 Fset_char_table_range (fontset, range,				\
-				Fmake_vector (make_number (1), elt))))	\
+				LRH (Fmake_vector (LRH (make_number (1)), elt))))) \
    : fontset_add ((fontset), (range), (elt), (add)))
 
 static void
@@ -515,7 +515,7 @@ fontset_get_font_group (Lisp_Object fontset, int c)
       {
 	Lisp_Object rfont_def;
 
-	RFONT_DEF_NEW (rfont_def, AREF (font_group, i));
+	RFONT_DEF_NEW (rfont_def, LRH (AREF (font_group, i)));
 	/* Remember the original order.  */
 	RFONT_DEF_SET_SCORE (rfont_def, i);
 	ASET (font_group, i, rfont_def);
@@ -1093,8 +1093,8 @@ make_fontset_for_ascii_face (struct frame *f, int base_fontset_id, struct face *
    the corresponding regular expression.  */
 static Lisp_Object Vcached_fontset_data;
 
-#define CACHED_FONTSET_NAME SSDATA (XCAR (Vcached_fontset_data))
-#define CACHED_FONTSET_REGEX (XCDR (Vcached_fontset_data))
+#define CACHED_FONTSET_NAME SSDATA (LRH (XCAR (LSH (Vcached_fontset_data))))
+#define CACHED_FONTSET_REGEX (XCDR (LSH (Vcached_fontset_data)))
 
 /* If fontset name PATTERN contains any wild card, return regular
    expression corresponding to PATTERN.  */
@@ -1413,8 +1413,8 @@ set_fontset_font (Lisp_Object arg, Lisp_Object range)
       range = Fcons (make_number (0x80), XCDR (range));
     }
 
-#define SCRIPT_FROM XINT (XCAR (XCAR (script_range_list)))
-#define SCRIPT_TO XINT (XCDR (XCAR (script_range_list)))
+#define SCRIPT_FROM XINT (LRH (XCAR (LRH (XCAR (script_range_list)))))
+#define SCRIPT_TO XINT (LRH (XCDR (LRH (XCAR (script_range_list)))))
 #define POP_SCRIPT_RANGE() script_range_list = XCDR (script_range_list)
 
   for (; CONSP (script_range_list) && SCRIPT_TO < from; POP_SCRIPT_RANGE ())

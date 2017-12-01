@@ -666,6 +666,8 @@ close_emacs_globals (ptrdiff_t num_symbols)
 	   "\n"
 	   "#ifndef DEFINE_SYMBOLS\n"
 	   "extern\n"
+           "#else\n"
+           "__attribute__((init_priority(102)))\n"
 	   "#endif\n"
 	   "struct Lisp_Symbol lispsym[%td];\n"),
 	  num_symbols);
@@ -735,7 +737,7 @@ write_globals (void)
 		  globals[i].name, globals[i].name);
 	}
       else if (globals[i].type == SYMBOL)
-	printf (("#define i%s %td\n"
+	printf (("#define i%s %td\n\n"
 		 "DEFINE_LISP_SYMBOL (%s)\n\n"),
 		globals[i].name, symnum++, globals[i].name);
       else
@@ -796,14 +798,16 @@ write_globals (void)
   puts ("};");
   puts ("#endif");
 
-  puts ("#define Qnil builtin_lisp_symbol (0)");
+#if 1
+  puts ("#define Qnil (builtin_lisp_symbol(0))");
   puts ("#if DEFINE_NON_NIL_Q_SYMBOL_MACROS");
   num_symbols = 0;
   for (ptrdiff_t i = 0; i < num_globals; i++)
     if (globals[i].type == SYMBOL && num_symbols++ != 0)
-      printf ("# define %s builtin_lisp_symbol (%td)\n",
+      printf ("# define %s (builtin_lisp_symbol(%td))\n\n",
 	      globals[i].name, num_symbols - 1);
   puts ("#endif");
+#endif
 }
 
 

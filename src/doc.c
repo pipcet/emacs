@@ -342,8 +342,6 @@ string is passed through `substitute-command-keys'.  */)
     fun = XCDR (fun);
   if (SUBRP (fun))
     doc = make_number (XSUBR (fun)->doc);
-  else if (MODULE_FUNCTIONP (fun))
-    doc = XMODULE_FUNCTION (fun)->documentation;
   else if (COMPILEDP (fun))
     {
       if (PVSIZE (fun) <= COMPILED_DOC_STRING)
@@ -541,19 +539,16 @@ the same file name is found in the `doc-directory'.  */)
   ptrdiff_t dirlen;
   /* Preloaded defcustoms using custom-initialize-delay are added to
      this list, but kept unbound.  See https://debbugs.gnu.org/11565  */
-  ELisp_Value delayed_init =
-    find_symbol_value (intern ("custom-delayed-init-variables"));
+  ELisp_Value delayed_init;
+  delayed_init =
+    find_symbol_value (LRH (intern ("custom-delayed-init-variables")));
 
   if (EQ (delayed_init, Qunbound)) delayed_init = Qnil;
 
   CHECK_STRING (filename);
 
   if
-#ifndef CANNOT_DUMP
-    (!NILP (Vpurify_flag))
-#else /* CANNOT_DUMP */
       (0)
-#endif /* CANNOT_DUMP */
     {
       dirname = sibling_etc;
       dirlen = sizeof sibling_etc - 1;

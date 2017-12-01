@@ -65,7 +65,7 @@ static uniprop_decoder_t uniprop_get_decoder (Lisp_Object);
 
 /* 1 iff TABLE is a uniprop table.  */
 #define UNIPROP_TABLE_P(TABLE)					\
-  (EQ (XCHAR_TABLE (TABLE)->purpose, Qchar_code_property_table)	\
+  (EQ (XCHAR_TABLE (TABLE)->purpose, LSH (Qchar_code_property_table))	\
    && CHAR_TABLE_EXTRA_SLOTS (XCHAR_TABLE (TABLE)) == 5)
 
 /* Return a decoder for values in the uniprop table TABLE.  */
@@ -821,12 +821,12 @@ map_sub_char_table (void (*c_function) (Lisp_Object, Lisp_Object, Lisp_Object),
 		  if (EQ (XCAR (range), XCDR (range)))
 		    {
 		      if (c_function)
-			(*c_function) (arg, XCAR (range), val);
+			(*c_function) (arg, LRH (XCAR (range)), val);
 		      else
 			{
 			  if (decoder)
 			    val = decoder (top, val);
-			  call2 (function, XCAR (range), val);
+			  call2 (function, LRH (XCAR (range)), val);
 			}
 		    }
 		  else
@@ -897,7 +897,7 @@ map_char_table (void (*c_function) (Lisp_Object, Lisp_Object, Lisp_Object),
       if (EQ (XCAR (range), XCDR (range)))
 	{
 	  if (c_function)
-	    (*c_function) (arg, XCAR (range), val);
+	    (*c_function) (arg, LRH (XCAR (range)), val);
 	  else
 	    {
 	      if (decoder)

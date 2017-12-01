@@ -93,9 +93,9 @@ parse_lab_list (Lisp_Object lab_list, cmsCIELab *color)
 {
   MODIFY_ARG(&lab_list);
 #define PARSE_LAB_LIST_FIELD(field)					\
-  if (CONSP (lab_list) && NUMBERP (XCAR (lab_list)))			\
+  if (CONSP (lab_list) && NUMBERP (LRH (XCAR (lab_list))))              \
     {									\
-      color->field = XFLOATINT (XCAR (lab_list));			\
+      color->field = XFLOATINT (LRH (XCAR (lab_list)));			\
       lab_list = XCDR (lab_list);					\
     }									\
   else									\
@@ -185,9 +185,9 @@ parse_xyz_list (Lisp_Object xyz_list, cmsCIEXYZ *color)
 {
   MODIFY_ARG(&xyz_list);
 #define PARSE_XYZ_LIST_FIELD(field)					\
-  if (CONSP (xyz_list) && NUMBERP (XCAR (xyz_list)))			\
+  if (CONSP (xyz_list) && NUMBERP (LRH (XCAR (xyz_list))))              \
     {									\
-      color->field = 100.0 * XFLOATINT (XCAR (xyz_list));		\
+      color->field = 100.0 * XFLOATINT (LRH (XCAR (xyz_list)));		\
       xyz_list = XCDR (xyz_list);					\
     }									\
   else									\
@@ -205,9 +205,9 @@ parse_jch_list (Lisp_Object jch_list, cmsJCh *color)
 {
   MODIFY_ARG(&jch_list);
 #define PARSE_JCH_LIST_FIELD(field)					\
-  if (CONSP (jch_list) && NUMBERP (XCAR (jch_list)))			\
+  if (CONSP (jch_list) && NUMBERP (LRH (XCAR (jch_list))))              \
     {									\
-      color->field = XFLOATINT (XCAR (jch_list));			\
+      color->field = XFLOATINT (LRH (XCAR (jch_list)));			\
       jch_list = XCDR (jch_list);					\
     }									\
   else									\
@@ -227,9 +227,9 @@ parse_jab_list (Lisp_Object jab_list, lcmsJab_t *color)
 {
   MODIFY_ARG(&jab_list);
 #define PARSE_JAB_LIST_FIELD(field)					\
-  if (CONSP (jab_list) && NUMBERP (XCAR (jab_list)))			\
+  if (CONSP (jab_list) && NUMBERP (LRH (XCAR (jab_list))))              \
     {									\
-      color->field = XFLOATINT (XCAR (jab_list));			\
+      color->field = XFLOATINT (LRH (XCAR (jab_list)));			\
       jab_list = XCDR (jab_list);					\
     }									\
   else									\
@@ -248,18 +248,18 @@ parse_viewing_conditions (Lisp_Object view, const cmsCIEXYZ *wp,
 {
   MODIFY_ARG(&view);
 #define PARSE_VIEW_CONDITION_FLOAT(field)				\
-  if (CONSP (view) && NUMBERP (XCAR (view)))				\
+  if (CONSP (view) && NUMBERP (LRH (XCAR (view))))                      \
     {									\
-      vc->field = XFLOATINT (XCAR (view));				\
+      vc->field = XFLOATINT (LRH (XCAR (view)));                        \
       view = XCDR (view);						\
     }									\
   else									\
     return false;
 #define PARSE_VIEW_CONDITION_INT(field)					\
-  if (CONSP (view) && NATNUMP (XCAR (view)))				\
+  if (CONSP (view) && NATNUMP (LRH (XCAR (view))))                      \
     {									\
-      CHECK_RANGED_INTEGER (XCAR (view), 1, 4);				\
-      vc->field = XINT (XCAR (view));					\
+      CHECK_RANGED_INTEGER (LRH (XCAR (view)), 1, 4);                   \
+      vc->field = XINT (LRH (XCAR (view)));                             \
       view = XCDR (view);						\
     }									\
   else									\

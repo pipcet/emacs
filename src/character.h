@@ -129,7 +129,7 @@ enum
 
 /* Check if Lisp object X is a character or not.  */
 #define CHECK_CHARACTER(x) \
-  CHECK_TYPE (CHARACTERP (x), Qcharacterp, x)
+  CHECK_TYPE (CHARACTERP (x), LSH (Qcharacterp), x)
 
 #define CHECK_CHARACTER_CAR(x) \
   do {					\
@@ -149,7 +149,7 @@ enum
 /* Nonzero if character C has a printable glyph.  */
 #define CHAR_PRINTABLE_P(c)	\
   (((c) >= 32 && (c) < 127)	\
-   || ! NILP (CHAR_TABLE_REF (Vprintable_chars, (c))))
+   || ! NILP (LRH (CHAR_TABLE_REF (Vprintable_chars, (c)))))
 
 /* Return byte length of multibyte form for character C.  */
 #define CHAR_BYTES(c)			\
@@ -594,7 +594,7 @@ sanitize_char_width (EMACS_INT width)
 #define CHARACTER_WIDTH(c)	\
   (ASCII_CHAR_P (c)		\
    ? ASCII_CHAR_WIDTH (c)	\
-   : sanitize_char_width (XINT (CHAR_TABLE_REF (Vchar_width_table, c))))
+   : sanitize_char_width (XINT (LRH (CHAR_TABLE_REF (LSH (Vchar_width_table), c)))))
 
 /* If C is a variation selector, return the index of the
    variation selector (1..256).  Otherwise, return 0.  */

@@ -317,12 +317,12 @@ get_composition_id (ptrdiff_t charpos, ptrdiff_t bytepos, ptrdiff_t nchars,
     memory_full (SIZE_MAX);
 
   /* Register the composition in composition_table.  */
-  cmp = xmalloc (sizeof *cmp);
+  cmp = (typeof cmp)xmalloc (sizeof *cmp);
 
   cmp->method = method;
   cmp->hash_index = hash_index;
   cmp->glyph_len = glyph_len;
-  cmp->offsets = xnmalloc (glyph_len, 2 * sizeof *cmp->offsets);
+  cmp->offsets = (typeof cmp->offsets)xnmalloc (glyph_len, 2 * sizeof *cmp->offsets);
   cmp->font = NULL;
 
   if (cmp->method != COMPOSITION_WITH_RULE_ALTCHARS)
@@ -926,8 +926,8 @@ autocmp_chars (Lisp_Object rule, ptrdiff_t charpos, ptrdiff_t bytepos,
       if (NILP (string))
 	record_unwind_protect (restore_point_unwind,
 			       build_marker (current_buffer, pt, pt_byte));
-      lgstring = safe_call (6, Vauto_composition_function, ELisp_Handle(AREF (rule, 2)),
-			    ELisp_Handle(pos), ELisp_Handle(make_number (to)), ELisp_Handle (font_object), ELisp_Handle (string));
+      lgstring = safe_call (6, Vauto_composition_function, LRH(AREF (rule, 2)),
+			    ELisp_Handle(pos), LRH(make_number (to)), ELisp_Handle (font_object), ELisp_Handle (string));
     }
   return unbind_to (count, lgstring);
 }

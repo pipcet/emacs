@@ -2126,7 +2126,7 @@ x_default_scroll_bar_color_parameter (struct frame *f,
       AUTO_STRING (background, "foreground");
       AUTO_STRING (verticalScrollBar, "verticalScrollBar");
       tem = (display_x_get_resource
-	     (dpyinfo, foreground_p ? foreground : background,
+	     (dpyinfo, LVH (foreground_p ? foreground : background),
 	      empty_unibyte_string,
 	      verticalScrollBar,
 	      empty_unibyte_string));

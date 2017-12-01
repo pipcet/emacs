@@ -1936,7 +1936,7 @@ prepare_to_modify_buffer_1 (ptrdiff_t start, ptrdiff_t end,
       if (preserve_ptr)
 	{
 	  Lisp_Object preserve_marker;
-	  preserve_marker = Fcopy_marker (make_number (*preserve_ptr), Qnil);
+	  preserve_marker = Fcopy_marker (LRH (make_number (*preserve_ptr)), Qnil);
 	  verify_interval_modification (current_buffer, start, end);
 	  *preserve_ptr = marker_position (preserve_marker);
 	  unchain_marker (XMARKER (preserve_marker));
@@ -2045,21 +2045,21 @@ invalidate_buffer_caches (struct buffer *buf, ptrdiff_t start, ptrdiff_t end)
    and a local variable named `preserve_marker'.  */
 
 #define PRESERVE_VALUE							\
-  if (preserve_ptr && NILP (preserve_marker))				\
-    preserve_marker = Fcopy_marker (make_number (*preserve_ptr), Qnil)
+  if (preserve_ptr && NILP (LVH (preserve_marker)))                     \
+    preserve_marker = Fcopy_marker (LRH (make_number (*preserve_ptr)), LSH (Qnil))
 
 #define RESTORE_VALUE						\
   if (! NILP (preserve_marker))					\
     {								\
       *preserve_ptr = marker_position (preserve_marker);	\
-      unchain_marker (XMARKER (preserve_marker));		\
+      unchain_marker (XMARKER (LVH (preserve_marker)));		\
     }
 
-#define PRESERVE_START_END			\
-  if (NILP (start_marker))			\
-    start_marker = Fcopy_marker (start, Qnil);	\
-  if (NILP (end_marker))			\
-    end_marker = Fcopy_marker (end, Qnil);
+#define PRESERVE_START_END                                      \
+  if (NILP (LVH (start_marker)))                                \
+    start_marker = Fcopy_marker (LVH (start), LSH (Qnil));      \
+  if (NILP (LVH (end_marker)))                                  \
+    end_marker = Fcopy_marker (LVH (end), LSH (Qnil));
 
 #define FETCH_START				\
   (! NILP (start_marker) ? Fmarker_position (start_marker) : ELisp_Return_Value(start))

@@ -27,7 +27,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 /* Test for membership, allowing for t (actually any non-cons) to mean the
    universal set.  */
 
-#define TMEM(sym, set) (CONSP (set) ? ! NILP (Fmemq (sym, set)) : ! NILP (set))
+#define TMEM(sym, set) (CONSP (set) ? ! NILP (LRH (Fmemq (sym, set))) : ! NILP (set))
 
 
 /* NOTES:  previous- and next- property change will have to skip

@@ -211,12 +211,12 @@ process_socket (int domain, int type, int protocol)
 # define socket(domain, type, protocol) process_socket (domain, type, protocol)
 #endif
 
-#define NETCONN_P(p) (EQ (XPROCESS (p)->type, Qnetwork))
-#define NETCONN1_P(p) (EQ (p->type, Qnetwork))
-#define SERIALCONN_P(p) (EQ (XPROCESS (p)->type, Qserial))
-#define SERIALCONN1_P(p) (EQ (p->type, Qserial))
-#define PIPECONN_P(p) (EQ (XPROCESS (p)->type, Qpipe))
-#define PIPECONN1_P(p) (EQ (p->type, Qpipe))
+#define NETCONN_P(p) (EQ (LSH (XPROCESS (p)->type), LSH (Qnetwork)))
+#define NETCONN1_P(p) (EQ (LSH (p->type), LSH (Qnetwork)))
+#define SERIALCONN_P(p) (EQ (LSH (XPROCESS (p)->type), LSH (Qserial)))
+#define SERIALCONN1_P(p) (EQ (LSH (p->type), LSH (Qserial)))
+#define PIPECONN_P(p) (EQ (LSH (XPROCESS (p)->type), LSH (Qpipe)))
+#define PIPECONN1_P(p) (EQ (LSH (p->type), LSH (Qpipe)))
 
 /* Number of events of change of status of a process.  */
 static EMACS_INT process_tick;
@@ -1879,8 +1879,8 @@ usage: (make-process &rest ARGS)  */)
 	 data to the process.  We don't support using different coding
 	 systems for encoding arguments and for encoding data sent to the
 	 process.  */
-
-      for (Lisp_Object tem2 = program_args; CONSP (tem2); tem2 = XCDR (tem2))
+      Lisp_Object tem2;
+      for (tem2 = program_args; CONSP (tem2); tem2 = XCDR (tem2))
 	{
 	  Lisp_Object arg = XCAR (tem2);
 	  CHECK_STRING (arg);
@@ -2047,8 +2047,8 @@ create_process (Lisp_Object process, char **new_argv, Lisp_Object current_dir)
 
 #ifndef WINDOWSNT
   /* vfork, and prevent local vars from being clobbered by the vfork.  */
-  Lisp_Object volatile current_dir_volatile = current_dir;
-  Lisp_Object volatile lisp_pty_name_volatile = lisp_pty_name;
+  ELisp_Value volatile current_dir_volatile; current_dir_volatile = current_dir;
+  ELisp_Value volatile lisp_pty_name_volatile; lisp_pty_name_volatile = lisp_pty_name;
   char **volatile new_argv_volatile = new_argv;
   int volatile forkin_volatile = forkin;
   int volatile forkout_volatile = forkout;
@@ -3671,6 +3671,12 @@ connect_network_socket (Lisp_Object proc, Lisp_Object addrinfos,
    connection has no PID; you cannot signal it.  All you can do is
    stop/continue it and deactivate/close it via delete-process.  */
 
+struct req {
+  struct gaicb gaicb;
+  struct addrinfo hints;
+  char str[FLEXIBLE_ARRAY_MEMBER];
+};
+
 DEFUN ("make-network-process", Fmake_network_process, Smake_network_process,
        0, MANY, 0,
        doc: /* Create and return a network server or client process.
@@ -4012,11 +4018,7 @@ usage: (make-network-process &rest ARGS)  */)
     {
       ptrdiff_t hostlen = SBYTES (host);
       struct req
-      {
-	struct gaicb gaicb;
-	struct addrinfo hints;
-	char str[FLEXIBLE_ARRAY_MEMBER];
-      } *req = xmalloc (FLEXSIZEOF (struct req, str,
+       *req = xmalloc (FLEXSIZEOF (struct req, str,
 				    hostlen + 1 + portstringlen + 1));
       dns_request = &req->gaicb;
       dns_request->ar_name = req->str;
@@ -8286,7 +8288,7 @@ returns non-`nil'.  */);
    const struct socket_options *sopt;
 
 #define ADD_SUBFEATURE(key, val) \
-  subfeatures = pure_cons (pure_cons (key, pure_cons (val, Qnil)), subfeatures)
+   subfeatures = pure_cons (LRH (pure_cons (LSH (key), LRH (pure_cons (LSH (val), LSH (Qnil))))), subfeatures)
 
    ADD_SUBFEATURE (QCnowait, Qt);
 #ifdef DATAGRAM_SOCKETS

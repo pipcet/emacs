@@ -43,7 +43,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #include "xwidget.h"
 
 #ifdef HAVE_WINDOW_SYSTEM
-#include TERM_HEADER ".hh"
+#include TERM_HEADER
 #endif /* HAVE_WINDOW_SYSTEM */
 
 #include <errno.h>
@@ -4674,7 +4674,9 @@ scrolling (struct frame *frame)
 	{
 	  /* This line cannot be redrawn, so don't let scrolling mess it.  */
 	  new_hash[i] = old_hash[i];
+#undef INFINITY
 #define INFINITY 1000000	/* Taken from scroll.c */
+#undef C_INFINITY
 #define C_INFINITY 1000000	/* Taken from scroll.c */
 	  draw_cost[i] = INFINITY;
 	}

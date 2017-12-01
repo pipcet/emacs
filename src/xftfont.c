@@ -129,8 +129,8 @@ static Lisp_Object
 xftfont_list (struct frame *f, Lisp_Object spec)
 {
   Lisp_Object list = ftfont_list (f, spec);
-
-  for (Lisp_Object tail = list; CONSP (tail); tail = XCDR (tail))
+  Lisp_Object tail;
+  for (tail = list; CONSP (tail); tail = XCDR (tail))
     ASET (XCAR (tail), FONT_TYPE_INDEX, Qxft);
   return list;
 }
@@ -283,10 +283,10 @@ xftfont_open (struct frame *f, Lisp_Object entity, int pixel_size)
   FcPatternAddDouble (pat, FC_PIXEL_SIZE, pixel_size);
   val = AREF (entity, FONT_FAMILY_INDEX);
   if (! NILP (val))
-    FcPatternAddString (pat, FC_FAMILY, (FcChar8 *) SDATA (SYMBOL_NAME (val)));
+    FcPatternAddString (pat, FC_FAMILY, (FcChar8 *) SDATA (LRH (SYMBOL_NAME (val))));
   val = AREF (entity, FONT_FOUNDRY_INDEX);
   if (! NILP (val))
-    FcPatternAddString (pat, FC_FOUNDRY, (FcChar8 *) SDATA (SYMBOL_NAME (val)));
+    FcPatternAddString (pat, FC_FOUNDRY, (FcChar8 *) SDATA (LRH (SYMBOL_NAME (val))));
   val = AREF (entity, FONT_SPACING_INDEX);
   if (! NILP (val))
     FcPatternAddInteger (pat, FC_SPACING, XINT (val));
@@ -497,7 +497,7 @@ xftfont_prepare_face (struct frame *f, struct face *face)
     }
 #endif
 
-  xftface_info = xmalloc (sizeof *xftface_info);
+  xftface_info = (struct xftface_info *)xmalloc (sizeof *xftface_info);
   xftfont_get_colors (f, face, face->gc, NULL,
 		      &xftface_info->xft_fg, &xftface_info->xft_bg);
   face->extra = xftface_info;

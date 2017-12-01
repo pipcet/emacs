@@ -598,9 +598,9 @@ call_process (ptrdiff_t nargs, Lisp_Object *args, int filefd,
 
   /* vfork, and prevent local vars from being clobbered by the vfork.  */
   {
-    Lisp_Object volatile buffer_volatile = (buffer);
-    Lisp_Object volatile coding_systems_volatile = (coding_systems);
-    Lisp_Object volatile current_dir_volatile = (current_dir);
+    ELisp_Value volatile buffer_volatile; buffer_volatile = (buffer);
+    ELisp_Value volatile coding_systems_volatile; coding_systems_volatile = (coding_systems);
+    ELisp_Value volatile current_dir_volatile; current_dir_volatile = (current_dir);
     bool volatile display_p_volatile = display_p;
     bool volatile sa_must_free_volatile = sa_must_free;
     int volatile fd_error_volatile = fd_error;
@@ -1504,6 +1504,7 @@ egetenv_internal (const char *var, ptrdiff_t len)
 void
 init_callproc_1 (void)
 {
+  ;
 #ifdef HAVE_NS
   const char *etc_dir = ns_etc_directory ();
   const char *path_exec = ns_exec_path ();

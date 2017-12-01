@@ -293,8 +293,8 @@ skip_invisible (ptrdiff_t pos, ptrdiff_t *next_boundary_p, ptrdiff_t to, Lisp_Ob
       width = bytes * 4;						\
     else								\
       {									\
-	if (dp != 0 && VECTORP (DISP_CHAR_VECTOR (dp, ch)))		\
-	  width = sanitize_char_width (ASIZE (DISP_CHAR_VECTOR (dp, ch))); \
+	if (dp != 0 && VECTORP (LRH (DISP_CHAR_VECTOR (dp, ch))))       \
+	  width = sanitize_char_width (ASIZE (LRH (DISP_CHAR_VECTOR (dp, ch)))); \
 	else								\
 	  width = CHARACTER_WIDTH (ch);					\
       }									\

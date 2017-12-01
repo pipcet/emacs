@@ -81,8 +81,8 @@ extern void ccl_driver (struct ccl_program *, int *, int *, int, int,
 
 #define CHECK_CCL_PROGRAM(x)			\
   do {						\
-    if (NILP (Fccl_program_p (x)))		\
-      wrong_type_argument (Qcclp, (x));	\
+    if (NILP (LRH (Fccl_program_p (x))))        \
+      wrong_type_argument (LSH (Qcclp), (x));	\
   } while (false);
 
 #endif /* EMACS_CCL_H */

@@ -226,6 +226,7 @@ tzlookup (Lisp_Object zone, bool settz)
 void
 init_editfns (bool dumping)
 {
+  ;
 #if !defined CANNOT_DUMP
   /* A valid but unlikely setting for the TZ environment variable.
      It is OK (though a bit slower) if the user chooses this value.  */
@@ -4187,13 +4188,12 @@ styled_format (ptrdiff_t nargs, Lisp_Object *args, bool message)
   USE_SAFE_ALLOCA;
   sa_avail -= sizeof initial_buffer;
 
+  /* The corresponding arguments, converted to string if conversion
+     was needed.  */
+  Lisp_Object *info_arguments;
   /* Information recorded for each format spec.  */
   struct info
   {
-    /* The corresponding argument, converted to string if conversion
-       was needed.  */
-    Lisp_Object argument;
-
     /* The start and end bytepos in the output string.  */
     ptrdiff_t start, end;
 
@@ -4216,6 +4216,7 @@ styled_format (ptrdiff_t nargs, Lisp_Object *args, bool message)
       || SIZE_MAX < alloca_size)
     memory_full (SIZE_MAX);
   info = SAFE_ALLOCA (alloca_size);
+  SAFE_ALLOCA_LISP (info_arguments, nspec_bound);
   /* discarded[I] is 1 if byte I of the format
      string was not copied into the output.
      It is 2 if byte I was not the first byte of its character.  */
@@ -4358,14 +4359,15 @@ styled_format (ptrdiff_t nargs, Lisp_Object *args, bool message)
 	  if (! (n < nargs))
 	    error ("Not enough arguments for format string");
 
+          ptrdiff_t iinfo = ispec;
 	  struct info *spec = &info[ispec++];
 	  if (nspec < ispec)
 	    {
-	      spec->argument = args[n];
+	      info_arguments[iinfo] = args[n];
 	      spec->intervals = false;
 	      nspec = ispec;
 	    }
-	  Lisp_Object arg = spec->argument;
+	  Lisp_Object arg = info_arguments[iinfo];
 
 	  /* For 'S', prin1 the argument, and then treat like 's'.
 	     For 's', princ any argument that is not a string or
@@ -4378,7 +4380,7 @@ styled_format (ptrdiff_t nargs, Lisp_Object *args, bool message)
 	      if (EQ (arg, args[n]))
 		{
 		  Lisp_Object noescape = conversion == 'S' ? Qnil : Qt;
-		  spec->argument = arg = Fprin1_to_string (arg, noescape);
+		  info_arguments[iinfo] = arg = Fprin1_to_string (arg, noescape);
 		  if (STRING_MULTIBYTE (arg) && ! multibyte)
 		    {
 		      multibyte = true;
@@ -4396,7 +4398,7 @@ styled_format (ptrdiff_t nargs, Lisp_Object *args, bool message)
 		      multibyte = true;
 		      goto retry;
 		    }
-		  spec->argument = arg = Fchar_to_string (arg);
+		  info_arguments[iinfo] = arg = Fchar_to_string (arg);
 		}
 
 	      if (!EQ (arg, args[n]))
@@ -4406,7 +4408,7 @@ styled_format (ptrdiff_t nargs, Lisp_Object *args, bool message)
 
 	  if (SYMBOLP (arg))
 	    {
-	      spec->argument = arg = SYMBOL_NAME (arg);
+	      info_arguments[iinfo] = arg = SYMBOL_NAME (arg);
 	      if (STRING_MULTIBYTE (arg) && ! multibyte)
 		{
 		  multibyte = true;
@@ -4905,7 +4907,8 @@ styled_format (ptrdiff_t nargs, Lisp_Object *args, bool message)
 	     POSITION is the untranslated char position in it,
 	     TRANSLATED is the translated char position in BUF,
 	     and ARGN is the number of the next arg we will come to.  */
-	  for (Lisp_Object list = props; CONSP (list); list = XCDR (list))
+          Lisp_Object list;
+          for (list = props; CONSP (list); list = XCDR (list))
 	    {
 	      Lisp_Object item = XCAR (list);
 
@@ -4960,9 +4963,9 @@ styled_format (ptrdiff_t nargs, Lisp_Object *args, bool message)
 	for (ptrdiff_t i = 0; i < nspec; i++)
 	  if (info[i].intervals)
 	    {
-	      len = make_number (SCHARS (info[i].argument));
+	      len = make_number (SCHARS (info_arguments[i]));
 	      Lisp_Object new_len = make_number (info[i].end - info[i].start);
-	      props = text_property_list (info[i].argument,
+	      props = text_property_list (info_arguments[i],
                                           make_number (0), len, Qnil);
 	      props = extend_property_ranges (props, len, new_len);
 	      /* If successive arguments have properties, be sure that

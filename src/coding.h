@@ -165,34 +165,34 @@ enum coding_attr_index
 
 /* Return the name of a coding system specified by ID.  */
 #define CODING_ID_NAME(id) \
-  (HASH_KEY (XHASH_TABLE (Vcoding_system_hash_table), id))
+  (HASH_KEY (XHASH_TABLE (LSH (Vcoding_system_hash_table)), id))
 
 /* Return the attribute vector of a coding system specified by ID.  */
 
 #define CODING_ID_ATTRS(id)	\
-  (AREF (HASH_VALUE (XHASH_TABLE (Vcoding_system_hash_table), id), 0))
+  (AREF (LRH (HASH_VALUE (XHASH_TABLE (LSH (Vcoding_system_hash_table)), id)), 0))
 
 /* Return the list of aliases of a coding system specified by ID.  */
 
 #define CODING_ID_ALIASES(id)	\
-  (AREF (HASH_VALUE (XHASH_TABLE (Vcoding_system_hash_table), id), 1))
+  (AREF (LRH (HASH_VALUE (XHASH_TABLE (LSH (Vcoding_system_hash_table)), id)), 1))
 
 /* Return the eol-type of a coding system specified by ID.  */
 
 #define CODING_ID_EOL_TYPE(id)	\
-  (AREF (HASH_VALUE (XHASH_TABLE (Vcoding_system_hash_table), id), 2))
+  (AREF (LRH (HASH_VALUE (XHASH_TABLE (LSH (Vcoding_system_hash_table)), id)), 2))
 
 
 /* Return the spec vector of CODING_SYSTEM_SYMBOL.  */
 
 #define CODING_SYSTEM_SPEC(coding_system_symbol)	\
-  (Fgethash (coding_system_symbol, Vcoding_system_hash_table, Qnil))
+  (Fgethash (coding_system_symbol, LSH (Vcoding_system_hash_table), LSH (Qnil)))
 
 
 /* Return the ID of CODING_SYSTEM_SYMBOL.  */
 
 #define CODING_SYSTEM_ID(coding_system_symbol)			\
-  hash_lookup (XHASH_TABLE (Vcoding_system_hash_table),		\
+  hash_lookup (XHASH_TABLE (LSH (Vcoding_system_hash_table)),   \
 	       coding_system_symbol, NULL)
 
 /* Return true if CODING_SYSTEM_SYMBOL is a coding system.  */
@@ -200,15 +200,15 @@ enum coding_attr_index
 #define CODING_SYSTEM_P(coding_system_symbol)		\
   (CODING_SYSTEM_ID (coding_system_symbol) >= 0		\
    || (! NILP (coding_system_symbol)			\
-       && ! NILP (Fcoding_system_p (coding_system_symbol))))
+       && ! NILP (LRH (Fcoding_system_p (coding_system_symbol)))))
 
 /* Check if X is a coding system or not.  */
 
-#define CHECK_CODING_SYSTEM(x)				\
-  do {							\
-    if (CODING_SYSTEM_ID (x) < 0			\
-	&& NILP (Fcheck_coding_system (x)))		\
-      wrong_type_argument (Qcoding_system_p, (x));	\
+#define CHECK_CODING_SYSTEM(x)                                  \
+  do {                                                          \
+    if (CODING_SYSTEM_ID (x) < 0                                \
+	&& NILP (LRH (Fcheck_coding_system (x))))		\
+      wrong_type_argument (LSH (Qcoding_system_p), (x));	\
   } while (false)
 
 
@@ -224,7 +224,7 @@ enum coding_attr_index
 	spec = CODING_SYSTEM_SPEC (x);			\
       }							\
     if (NILP (spec))					\
-      wrong_type_argument (Qcoding_system_p, (x));	\
+      wrong_type_argument (LSH (Qcoding_system_p), (x));	\
   } while (false)
 
 
@@ -241,7 +241,7 @@ enum coding_attr_index
 	  id = CODING_SYSTEM_ID (x);				\
 	}							\
       if (id < 0)						\
-	wrong_type_argument (Qcoding_system_p, (x));	\
+	wrong_type_argument (LSH (Qcoding_system_p), (x));	\
     } while (false)
 
 
@@ -660,7 +660,7 @@ struct coding_system
    : ELisp_Return_Value(str))
 
 /* Note that this encodes utf-8, not utf-8-emacs, so it's not a no-op.  */
-#define ENCODE_UTF_8(str) code_convert_string_norecord (str, Qutf_8, true)
+#define ENCODE_UTF_8(str) code_convert_string_norecord (str, LSH (Qutf_8), true)
 
 /* Extern declarations.  */
 extern Lisp_Object code_conversion_save (bool, bool);
@@ -718,16 +718,16 @@ extern Lisp_Object from_unicode_buffer (const wchar_t *wstr);
 #define encode_coding_string(coding, string, nocopy)			\
   (STRING_MULTIBYTE(string) ?						\
     (encode_coding_object (coding, string, 0, 0, SCHARS (string),	\
-			   SBYTES (string), Qt),			\
-     ELisp_Return_Value((coding)->dst_object)) : ELisp_Return_Value(string))
+			   SBYTES (string), LSH (Qt)),			\
+     LRH(ELisp_Return_Value((coding)->dst_object))) : LRH (ELisp_Return_Value(string)))
 
 
 #define decode_coding_c_string(coding, src, bytes, dst_object)		\
   do {									\
     (coding)->source = (src);						\
     (coding)->src_chars = (coding)->src_bytes = (bytes);		\
-    decode_coding_object ((coding), Qnil, 0, 0, (bytes), (bytes),	\
-			  ELisp_Return_Value(dst_object));              \
+    decode_coding_object ((coding), LSH (Qnil), 0, 0, (bytes), (bytes),	\
+			  LRH(ELisp_Return_Value(dst_object)));         \
   } while (false)
 
 
