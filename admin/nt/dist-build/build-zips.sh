@@ -19,7 +19,7 @@
 
 
 function git_up {
-    echo Making git worktree for Emacs $VERSION
+    echo [build] Making git worktree for Emacs $VERSION
     cd $HOME/emacs-build/git/emacs-$MAJOR_VERSION
     git pull
     git worktree add ../$BRANCH $BRANCH
@@ -34,7 +34,7 @@ function build_zip {
     PKG=$2
     HOST=$3
 
-    echo Building Emacs-$VERSION for $ARCH
+    echo [build] Building Emacs-$VERSION for $ARCH
     if [ $ARCH == "i686" ]
     then
         PATH=/mingw32/bin:$PATH
@@ -47,34 +47,53 @@ function build_zip {
     cd $HOME/emacs-build/build/emacs-$VERSION/$ARCH
 
     export PKG_CONFIG_PATH=$PKG
-    ../../../git/$BRANCH/configure \
-        --without-dbus \
-        --host=$HOST --without-compress-install \
-        $CACHE \
-        CFLAGS="-O2 -static -g3"
+
+    ## Running configure forces a rebuild of the C core which takes
+    ## time that is not always needed
+    if (($CONFIG))
+    then
+        echo [build] Configuring Emacs $ARCH
+        ../../../git/$BRANCH/configure \
+            --without-dbus \
+            --host=$HOST --without-compress-install \
+            $CACHE \
+            CFLAGS="-O2 -static -g3"
+    fi
+
     make -j 16 install \
          prefix=$HOME/emacs-build/install/emacs-$VERSION/$ARCH
     cd $HOME/emacs-build/install/emacs-$VERSION/$ARCH
     cp $HOME/emacs-build/deps/libXpm/$ARCH/libXpm-noX4.dll bin
-    zip -r -9 emacs-$VERSION-$ARCH-no-deps.zip *
-    mv emacs-$VERSION-$ARCH-no-deps.zip $HOME/emacs-upload
+    zip -r -9 emacs-$OF_VERSION-$ARCH-no-deps.zip *
+    mv emacs-$OF_VERSION-$ARCH-no-deps.zip $HOME/emacs-upload
     rm bin/libXpm-noX4.dll
-    unzip $HOME/emacs-build/deps/emacs-26-$ARCH-deps.zip
-    zip -r -9 emacs-$VERSION-$ARCH.zip *
-    mv emacs-$VERSION-$ARCH.zip ~/emacs-upload
+
+    if [ -z $SNAPSHOT ];
+    then
+        DEPS_FILE=$HOME/emacs-build/deps/emacs-$MAJOR_VERSION-$ARCH-deps.zip
+    else
+        ## Pick the most recent snapshot whatever that is
+        DEPS_FILE=`ls $HOME/emacs-build/deps/emacs-$MAJOR_VERSION-*-$ARCH-deps.zip | tail -n 1`
+    fi
+
+    echo [build] Using $DEPS_FILE
+    unzip $DEPS_FILE
+
+    zip -r -9 emacs-$OF_VERSION-$ARCH.zip *
+    mv emacs-$OF_VERSION-$ARCH.zip ~/emacs-upload
 }
 
 function build_installer {
     ARCH=$1
     cd $HOME/emacs-build/install/emacs-$VERSION
-    echo Calling makensis in `pwd`
+    echo [build] Calling makensis in `pwd`
     cp ../../git/$BRANCH/admin/nt/dist-build/emacs.nsi .
 
     makensis -v4 \
              -DARCH=$ARCH -DEMACS_VERSION=$ACTUAL_VERSION \
-             -DOUT_VERSION=$VERSION emacs.nsi
+             -DOUT_VERSION=$OF_VERSION emacs.nsi
     rm emacs.nsi
-    mv Emacs-$ARCH-$VERSION-installer.exe ~/emacs-upload
+    mv emacs-$OF_VERSION-$ARCH-installer.exe ~/emacs-upload
 }
 
 set -o errexit
@@ -86,8 +105,9 @@ BUILD=1
 BUILD_32=1
 BUILD_64=1
 GIT_UP=0
+CONFIG=1
 
-while getopts "36ghsiV:" opt; do
+while getopts "36ghnsiV:" opt; do
   case $opt in
     3)
         BUILD_32=1
@@ -104,6 +124,9 @@ while getopts "36ghsiV:" opt; do
         BUILD_32=0
         BUILD_64=0
         GIT_UP=1
+        ;;
+    n)
+        CONFIG=0
         ;;
     i)
         BUILD=0
@@ -137,11 +160,20 @@ fi
 
 if [ -z $VERSION ];
 then
-    echo Cannot determine Emacs version
+    echo [build] Cannot determine Emacs version
     exit 1
 fi
 
 MAJOR_VERSION="$(echo $VERSION | cut -d'.' -f1)"
+
+## ACTUAL VERSION is the version declared by emacs
+ACTUAL_VERSION=$VERSION
+
+## VERSION includes the word snapshot if necessary
+VERSION=$VERSION$SNAPSHOT
+
+## OF version includes the date if we have a snapshot
+OF_VERSION=$VERSION
 
 if [ -z $SNAPSHOT ];
 then
@@ -149,10 +181,8 @@ then
 else
     BRANCH=master
     CACHE=-C
+    OF_VERSION="$VERSION-`date +%Y-%m-%d`"
 fi
-
-ACTUAL_VERSION=$VERSION
-VERSION=$VERSION$SNAPSHOT
 
 if (($GIT_UP))
 then
