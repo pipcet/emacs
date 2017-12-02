@@ -1,7 +1,7 @@
 // shell g++ -ggdb -g3 -std=c++11 -I ../src/ -I ../js/dist/include/ ./js.cpp -L ../js/dist/bin/ -lz -lpthread -ldl -lmozjs-58a1 -Wl,--whole-archive ../js/mozglue/build/libmozglue.a -Wl,--no-whole-archive -pthread
 #include "config.h.hh"
 
-#define DEBUG
+//#define DEBUG
 #include "js-config.h"
 #include "jsapi.h"
 
@@ -21,18 +21,6 @@
 
 typedef int64_t EMACS_INT;
 typedef uint64_t EMACS_UINT;
-
-class CLisp_Vectorlike {
-};
-
-class CLisp_String {
-};
-
-class CLisp_Symbol {
-};
-
-class CLisp_Misc {
-};
 
 static JSClassOps cons_class_ops =
   {

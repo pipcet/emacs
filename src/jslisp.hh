@@ -21,7 +21,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #ifndef EMACS_LISP_H
 #define EMACS_LISP_H
 
-#define DEBUG
+//#define DEBUG
 #include "js-config.h"
 #include "jsapi.h"
 
@@ -620,7 +620,7 @@ enum Lisp_Fwd_Type
       V.setNull();                                                      \
       return;                                                           \
     }                                                                   \
-    JS::RootedValue val(jsg.cx, *(JS::Value *)x);                       \
+    JS::RootedValue val(jsg.cx, *(JS::Heap<JS::Value> *)x);             \
     if (val.isObject() && JS_GetClass (&val.toObject()) == &clas)       \
       V.set(val);                                                       \
     else {                                                              \
@@ -628,7 +628,7 @@ enum Lisp_Fwd_Type
       JS_SetPrivate(obj, x);                                            \
       V.setObject(*obj); /* XXX check error */                          \
       JS::RootedValue val2(jsg.cx, JS::Value(V));                       \
-      *(JS::Value *)x = val2;                                           \
+      *(JS::Heap<JS::Value> *)x = val2;                                 \
     }                                                                   \
   }                                                                     \
                                                                         \

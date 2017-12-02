@@ -4462,7 +4462,7 @@ case $opsys in
     ;;
 esac
 
-emacs_broken_SIGIO=no
+emacs_broken_SIGIO=yes
 
 case $opsys in
   dnl SIGIO exists, but the feature doesn't work in the way Emacs needs.

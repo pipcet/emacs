@@ -1,6 +1,7 @@
 #!/usr/bin/perl
 # TODO
 # !EQ(a,b) gets parsed as (!EQ)(a,b). FIXED, I think.
+# a = b = c = d gets parsed as (a = b) = (c = d).
 use strict;
 use Marpa::R2;
 use Data::Dumper;
@@ -312,6 +313,22 @@ sub ctree {
     my ($self) = @_;
 
     return $self;
+}
+
+sub debug {
+    my ($self) = @_;
+    my $ret = ""; # . $self->type . ":";
+
+    for my $child (@{$self->{children}}) {
+        if ($child->{type} eq "string") {
+            $ret .= $child->{string};
+        } else {
+            $ret .= $child->debug;
+        }
+    }
+
+    return $ret if ($ret =~ /^<.*>$/);
+    return "<" . $ret . ">";
 }
 
 sub match {
@@ -1424,6 +1441,11 @@ sub step {
             $self->step($pc + 1);
 
             next;
+        } elsif ($str =~ /^ *debug/) {
+            warn $val->debug;
+            $self->step($pc + 1);
+
+            next;
         } elsif ($str =~ /^ *flush/) {
             $self->{cb}->{flush}->();
             $self->step($pc + 1);
@@ -2311,6 +2333,8 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[# AUTO-0308 #]]:
 [[# contains Expr#expr]]
 [[#expr matches Expr#a = Expr#b]]
+[[#a nomatch Expr# = Expr#]]
+[[#b nomatch Expr# = Expr#]]
 [[#a matches Expr#ptr[Expr#index] ]]
 [[#ptr#type matches ELisp_Pointer]]
 [[#expr <- #ptr.sref(#index, #b)]]
@@ -2346,6 +2370,7 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[# contains Expr#expr]]
 [[#expr matches Expr#a = Expr#b]]
 [[#a matches Expr#ptr.vec[Expr#index] ]]
+[[#expr debug]]
 [[#expr <- #ptr.vec.sref(#index, #b)]]
 
 [[# AUTO-0314-REPEAT #]]:
@@ -2356,6 +2381,8 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[# AUTO-0315-REPEAT #]]:
 [[# contains Expr#expr]]
 [[#expr matches Expr#a = Expr#b]]
+[[#a nomatch Expr# = Expr#]]
+[[#b nomatch Expr# = Expr#]]
 [[#a matches Expr#ptr.vec[Expr#index] ]]
 [[#expr <- #ptr.vec.sref(#index, #b)]]
 
@@ -2894,7 +2921,8 @@ my @chunks = Chunker::chunks();
 
 my %timebyrule;
 
-my $defns = $ARGV[1] eq "--header" ? $defns_header : $defns_main;
+my $defns = (grep { $_ eq "--header" } @ARGV) ? $defns_header : $defns_main;
+my $nomd5 = grep { $_ eq "--nomd5" } @ARGV;
 read_globals($cu) if $cu && $defns == $defns_main;
 
 use Digest::MD5 qw(md5_hex);
@@ -2906,7 +2934,7 @@ for my $chunk (@chunks) {
     my $counter = 10;
     my $md5 = md5_hex($chunk);
     push @md5s, $md5;
-    if ($defns == $defns_main && -e "chunkl-cache/$md5") {
+    if (!$nomd5 && $defns == $defns_main && -e "chunkl-cache/$md5") {
         print read_file("chunkl-cache/$md5");
         next;
     }
@@ -2921,7 +2949,7 @@ for my $chunk (@chunks) {
             my $start = time();
             my $flush = 0;
             while (1) {
-                #warn $key;
+                warn $key . $chunk;
                 if ($key =~ /^AUTO.*FLUSH$/ or $flush) {
                     $chunk = perform_replacements($chunk, @repl);
                     @repl = ();
@@ -2967,7 +2995,7 @@ for my $chunk (@chunks) {
 
     print $chunk;
 
-    write_file("chunkl-cache/$md5", $chunk) if $cu;
+    write_file("chunkl-cache/$md5", $chunk) if $cu && !$nomd5;
 }
 
 if ($cu) {
