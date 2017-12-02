@@ -21,6 +21,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #ifndef EMACS_LISP_H
 #define EMACS_LISP_H
 
+#define DEBUG
 #include "js-config.h"
 #include "jsapi.h"
 
@@ -978,13 +979,7 @@ public:
     //printf("[9] %p %p\n", &this->v.v, this->v.v.previous());
   }
   Lisp_Value_Stack(const JSReturnValue v) {
-    JS::Rooted<JS::Value>* prev = this->v.v.previous();
     this->v = v;
-    //printf("[0] %p %p\n", &this->v.v, this->v.v.previous());
-    if (this->v.v.previous() == &this->v.v) {
-      printf("[!]\n");
-      this->v.v.prev = reinterpret_cast<JS::Rooted<void*>*>(prev);
-    }
   }
 
   Lisp_Value_Stack(const Lisp_Value_Heap & v) {

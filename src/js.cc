@@ -1,6 +1,7 @@
 // shell g++ -ggdb -g3 -std=c++11 -I ../src/ -I ../js/dist/include/ ./js.cpp -L ../js/dist/bin/ -lz -lpthread -ldl -lmozjs-58a1 -Wl,--whole-archive ../js/mozglue/build/libmozglue.a -Wl,--no-whole-archive -pthread
 #include "config.h.hh"
 
+#define DEBUG
 #include "js-config.h"
 #include "jsapi.h"
 
@@ -157,7 +158,7 @@ static JSPropertySpec string_props[] = {
 
 static JSClass string_class = {
                                "ELisp_String",
-                               JSCLASS_HAS_PRIVATE | JSCLASS_HAS_RESERVED_SLOTS(3),
+                               JSCLASS_HAS_PRIVATE | JSCLASS_HAS_RESERVED_SLOTS(3) | JSCLASS_FOREGROUND_FINALIZE,
                                &string_class_ops,
 };
 
@@ -202,7 +203,7 @@ static JSClassOps marker_class_ops = {
 
 static JSClass marker_class = {
                                "ELisp_Marker",
-                               JSCLASS_HAS_PRIVATE|JSCLASS_HAS_RESERVED_SLOTS(5),
+                               JSCLASS_HAS_PRIVATE|JSCLASS_HAS_RESERVED_SLOTS(5)|JSCLASS_FOREGROUND_FINALIZE,
                                &marker_class_ops,
 };
 
@@ -221,7 +222,7 @@ static JSClassOps misc_class_ops =
 
 static JSClass misc_class = {
                              "ELisp_Misc",
-                             JSCLASS_HAS_PRIVATE,
+                             JSCLASS_HAS_PRIVATE|JSCLASS_FOREGROUND_FINALIZE,
                              &misc_class_ops,
 };
 
@@ -576,7 +577,7 @@ usage: (js SOURCE)  */)
   return jsval_to_elisp(result);
 }
 
-JSG jsg __attribute__((init_priority(101)));
+JSG jsg __attribute__((init_priority(102)));
 
 JSContext* global_js_context;
 
@@ -610,7 +611,7 @@ static JSClassOps elisp_cons_ops =
 };
 
 JSClass elisp_cons_class = {
-                            "ELisp_Cons", JSCLASS_HAS_PRIVATE,
+                            "ELisp_Cons", JSCLASS_HAS_PRIVATE|JSCLASS_FOREGROUND_FINALIZE,
                             &elisp_cons_ops,
 };
 
@@ -676,7 +677,7 @@ static JSClassOps elisp_symbol_ops =
 };
 
 JSClass elisp_symbol_class = {
-                            "ELisp_Symbol", JSCLASS_HAS_PRIVATE,
+                            "ELisp_Symbol", JSCLASS_HAS_PRIVATE|JSCLASS_FOREGROUND_FINALIZE,
                             &elisp_symbol_ops,
 };
 static void
@@ -694,7 +695,7 @@ static JSClassOps elisp_marker_ops =
 };
 
 JSClass elisp_marker_class = {
-                            "ELisp_Marker", JSCLASS_HAS_PRIVATE,
+                            "ELisp_Marker", JSCLASS_HAS_PRIVATE|JSCLASS_FOREGROUND_FINALIZE,
                             &elisp_marker_ops,
 };
 static void
@@ -711,7 +712,7 @@ static JSClassOps elisp_overlay_ops =
 };
 
 JSClass elisp_overlay_class = {
-                            "ELisp_Overlay", JSCLASS_HAS_PRIVATE,
+                            "ELisp_Overlay", JSCLASS_HAS_PRIVATE|JSCLASS_FOREGROUND_FINALIZE,
                             &elisp_overlay_ops,
 };
 static void
@@ -728,7 +729,7 @@ static JSClassOps elisp_buffer_ops =
 };
 
 JSClass elisp_buffer_class = {
-                            "ELisp_Buffer", JSCLASS_HAS_PRIVATE,
+                            "ELisp_Buffer", JSCLASS_HAS_PRIVATE|JSCLASS_FOREGROUND_FINALIZE,
                             &elisp_buffer_ops,
 };
 static void
@@ -745,7 +746,7 @@ static JSClassOps elisp_module_function_ops =
 };
 
 JSClass elisp_module_function_class = {
-                            "ELisp_Module_Function", JSCLASS_HAS_PRIVATE,
+                            "ELisp_Module_Function", JSCLASS_HAS_PRIVATE|JSCLASS_FOREGROUND_FINALIZE,
                             &elisp_module_function_ops,
 };
 
@@ -795,7 +796,7 @@ static JSClassOps elisp_string_ops =
 };
 
 JSClass elisp_string_class = {
-                            "ELisp_String", JSCLASS_HAS_PRIVATE,
+                            "ELisp_String", JSCLASS_HAS_PRIVATE|JSCLASS_FOREGROUND_FINALIZE,
                             &elisp_string_ops,
 };
 static void
@@ -866,7 +867,7 @@ static JSClassOps elisp_vector_ops =
 };
 
 JSClass elisp_vector_class = {
-                            "ELisp_Vector", JSCLASS_HAS_PRIVATE,
+                            "ELisp_Vector", JSCLASS_HAS_PRIVATE|JSCLASS_FOREGROUND_FINALIZE,
                             &elisp_vector_ops,
 };
 static void
@@ -883,7 +884,7 @@ static JSClassOps elisp_bool_vector_ops =
 };
 
 JSClass elisp_bool_vector_class = {
-                            "ELisp_Bool_Vector", JSCLASS_HAS_PRIVATE,
+                            "ELisp_Bool_Vector", JSCLASS_HAS_PRIVATE|JSCLASS_FOREGROUND_FINALIZE,
                             &elisp_bool_vector_ops,
 };
 static void
@@ -900,7 +901,7 @@ static JSClassOps elisp_char_table_ops =
 };
 
 JSClass elisp_char_table_class = {
-                            "ELisp_Char_Table", JSCLASS_HAS_PRIVATE,
+                            "ELisp_Char_Table", JSCLASS_HAS_PRIVATE|JSCLASS_FOREGROUND_FINALIZE,
                             &elisp_char_table_ops,
 };
 static void
@@ -917,7 +918,7 @@ static JSClassOps elisp_sub_char_table_ops =
 };
 
 JSClass elisp_sub_char_table_class = {
-                            "ELisp_Sub_Char_Table", JSCLASS_HAS_PRIVATE,
+                            "ELisp_Sub_Char_Table", JSCLASS_HAS_PRIVATE|JSCLASS_FOREGROUND_FINALIZE,
                             &elisp_sub_char_table_ops,
 };
 static void
@@ -934,7 +935,7 @@ static JSClassOps elisp_subr_ops =
 };
 
 JSClass elisp_subr_class = {
-                            "ELisp_subr", JSCLASS_HAS_PRIVATE,
+                            "ELisp_subr", JSCLASS_HAS_PRIVATE|JSCLASS_FOREGROUND_FINALIZE,
                             &elisp_subr_ops,
 };
 static void
@@ -951,7 +952,7 @@ static JSClassOps elisp_thread_ops =
 };
 
 JSClass elisp_thread_class = {
-                            "ELisp_Thread", JSCLASS_HAS_PRIVATE,
+                            "ELisp_Thread", JSCLASS_HAS_PRIVATE|JSCLASS_FOREGROUND_FINALIZE,
                             &elisp_thread_ops,
 };
 static void
@@ -968,7 +969,7 @@ static JSClassOps elisp_mutex_ops =
 };
 
 JSClass elisp_mutex_class = {
-                            "ELisp_Mutex", JSCLASS_HAS_PRIVATE,
+                            "ELisp_Mutex", JSCLASS_HAS_PRIVATE|JSCLASS_FOREGROUND_FINALIZE,
                             &elisp_mutex_ops,
 };
 static void
@@ -985,7 +986,7 @@ static JSClassOps elisp_condvar_ops =
 };
 
 JSClass elisp_condvar_class = {
-                            "ELisp_CondVar", JSCLASS_HAS_PRIVATE,
+                            "ELisp_CondVar", JSCLASS_HAS_PRIVATE|JSCLASS_FOREGROUND_FINALIZE,
                             &elisp_condvar_ops,
 };
 static void
@@ -1002,7 +1003,7 @@ static JSClassOps elisp_save_value_ops =
 };
 
 JSClass elisp_save_value_class = {
-                            "ELisp_Save_Value", JSCLASS_HAS_PRIVATE,
+                            "ELisp_Save_Value", JSCLASS_HAS_PRIVATE|JSCLASS_FOREGROUND_FINALIZE,
                             &elisp_save_value_ops,
 };
 static void
@@ -1019,7 +1020,7 @@ static JSClassOps elisp_finalizer_ops =
 };
 
 JSClass elisp_finalizer_class = {
-                            "ELisp_Finalizer", JSCLASS_HAS_PRIVATE,
+                            "ELisp_Finalizer", JSCLASS_HAS_PRIVATE|JSCLASS_FOREGROUND_FINALIZE,
                             &elisp_finalizer_ops,
 };
 static void
@@ -1036,7 +1037,7 @@ static JSClassOps elisp_hash_table_ops =
 };
 
 JSClass elisp_hash_table_class = {
-                            "ELisp_Hash_Table", JSCLASS_HAS_PRIVATE,
+                            "ELisp_Hash_Table", JSCLASS_HAS_PRIVATE|JSCLASS_FOREGROUND_FINALIZE,
                             &elisp_hash_table_ops,
 };
 static void
@@ -1053,7 +1054,7 @@ static JSClassOps elisp_frame_ops =
 };
 
 JSClass elisp_frame_class = {
-                            "ELisp_Frame", JSCLASS_HAS_PRIVATE,
+                            "ELisp_Frame", JSCLASS_HAS_PRIVATE|JSCLASS_FOREGROUND_FINALIZE,
                             &elisp_frame_ops,
 };
 static void
@@ -1070,7 +1071,7 @@ static JSClassOps elisp_font_spec_ops =
 };
 
 JSClass elisp_font_spec_class = {
-                            "ELisp_Font_Spec", JSCLASS_HAS_PRIVATE,
+                            "ELisp_Font_Spec", JSCLASS_HAS_PRIVATE|JSCLASS_FOREGROUND_FINALIZE,
                             &elisp_font_spec_ops,
 };
 static void
@@ -1087,7 +1088,7 @@ static JSClassOps elisp_font_entity_ops =
 };
 
 JSClass elisp_font_entity_class = {
-                            "ELisp_Font_Entity", JSCLASS_HAS_PRIVATE,
+                            "ELisp_Font_Entity", JSCLASS_HAS_PRIVATE|JSCLASS_FOREGROUND_FINALIZE,
                             &elisp_font_entity_ops,
 };
 static void
@@ -1104,7 +1105,7 @@ static JSClassOps elisp_font_ops =
 };
 
 JSClass elisp_font_object_class = {
-                            "ELisp_Font", JSCLASS_HAS_PRIVATE,
+                            "ELisp_Font", JSCLASS_HAS_PRIVATE|JSCLASS_FOREGROUND_FINALIZE,
                             &elisp_font_ops,
 };
 static void
@@ -1121,7 +1122,7 @@ static JSClassOps elisp_terminal_ops =
 };
 
 JSClass elisp_terminal_class = {
-                            "ELisp_Terminal", JSCLASS_HAS_PRIVATE,
+                            "ELisp_Terminal", JSCLASS_HAS_PRIVATE|JSCLASS_FOREGROUND_FINALIZE,
                             &elisp_terminal_ops,
 };
 static void
@@ -1138,7 +1139,7 @@ static JSClassOps elisp_window_ops =
 };
 
 JSClass elisp_window_class = {
-                            "ELisp_Window", JSCLASS_HAS_PRIVATE,
+                            "ELisp_Window", JSCLASS_HAS_PRIVATE|JSCLASS_FOREGROUND_FINALIZE,
                             &elisp_window_ops,
 };
 static void
@@ -1155,7 +1156,7 @@ static JSClassOps elisp_window_configuration_ops =
 };
 
 JSClass elisp_window_configuration_class = {
-                            "ELisp_Window_Configuration", JSCLASS_HAS_PRIVATE,
+                            "ELisp_Window_Configuration", JSCLASS_HAS_PRIVATE|JSCLASS_FOREGROUND_FINALIZE,
                             &elisp_window_configuration_ops,
 };
 static void
@@ -1172,7 +1173,7 @@ static JSClassOps elisp_process_ops =
 };
 
 JSClass elisp_process_class = {
-                            "ELisp_Process", JSCLASS_HAS_PRIVATE,
+                            "ELisp_Process", JSCLASS_HAS_PRIVATE|JSCLASS_FOREGROUND_FINALIZE,
                             &elisp_process_ops,
 };
 static void
@@ -1189,7 +1190,7 @@ static JSClassOps elisp_scroll_bar_ops =
 };
 
 JSClass elisp_scroll_bar_class = {
-                            "ELisp_Scroll_Bar", JSCLASS_HAS_PRIVATE,
+                            "ELisp_Scroll_Bar", JSCLASS_HAS_PRIVATE|JSCLASS_FOREGROUND_FINALIZE,
                             &elisp_scroll_bar_ops,
 };
 static void
@@ -1206,7 +1207,7 @@ static JSClassOps elisp_compiled_ops =
 };
 
 JSClass elisp_compiled_class = {
-                            "ELisp_Compiled", JSCLASS_HAS_PRIVATE,
+                            "ELisp_Compiled", JSCLASS_HAS_PRIVATE|JSCLASS_FOREGROUND_FINALIZE,
                             &elisp_compiled_ops,
 };
 static void
@@ -1285,7 +1286,7 @@ static JSClassOps elisp_misc_ops =
 };
 
 JSClass elisp_misc_class = {
-                            "ELisp_Misc", JSCLASS_HAS_PRIVATE,
+                            "ELisp_Misc", JSCLASS_HAS_PRIVATE|JSCLASS_FOREGROUND_FINALIZE,
                             &elisp_misc_ops,
 };
 static void
@@ -1303,7 +1304,7 @@ static JSClassOps elisp_miscany_ops =
 };
 
 JSClass elisp_misc_any_class = {
-                            "ELisp_MiscAny", JSCLASS_HAS_PRIVATE,
+                            "ELisp_MiscAny", JSCLASS_HAS_PRIVATE|JSCLASS_FOREGROUND_FINALIZE,
                             &elisp_miscany_ops,
 };
 static void
@@ -1320,7 +1321,7 @@ static JSClassOps elisp_vectorlike_ops =
 };
 
 JSClass elisp_vectorlike_class = {
-                            "ELisp_Vectorlike", JSCLASS_HAS_PRIVATE,
+                            "ELisp_Vectorlike", JSCLASS_HAS_PRIVATE|JSCLASS_FOREGROUND_FINALIZE,
                             &elisp_vectorlike_ops,
 };
 

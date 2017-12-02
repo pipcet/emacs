@@ -3429,8 +3429,8 @@ font_open_by_spec (struct frame *f, Lisp_Object spec)
   /* We set up the default font-related attributes of a face to prefer
      a moderate font.  */
   attrs[LFACE_FAMILY_INDEX] = attrs[LFACE_FOUNDRY_INDEX] = Qnil;
-  attrs[LFACE_SWIDTH_INDEX] = attrs[LFACE_WEIGHT_INDEX]
-    = attrs[LFACE_SLANT_INDEX] = Qnormal;
+  attrs[LFACE_SWIDTH_INDEX] = attrs[LFACE_WEIGHT_INDEX] = Qnormal;
+  attrs[LFACE_SLANT_INDEX] = Qnormal;
 #ifndef HAVE_NS
   attrs[LFACE_HEIGHT_INDEX] = make_number (120);
 #else
