@@ -258,6 +258,38 @@ global_enumerate(JSContext* cx, JS::HandleObject obj, JS::AutoIdVector& properti
 static bool
 global_resolve(JSContext* cx, JS::HandleObject obj, JS::HandleId id, bool* resolvedp)
 {
+  *resolvedp = false;
+  if (JSID_IS_STRING (id))
+    {
+      JS::RootedString fs(cx, JS_FORGET_STRING_FLATNESS(JSID_TO_FLAT_STRING (id)));
+      char *bytes = JS_EncodeStringToUTF8 (cx, fs);
+
+      if (!bytes)
+        return false;
+
+      if (bytes[0] >= 'A' && bytes[0] <= 'Z')
+        {
+          JS_free(cx, bytes);
+          return true;
+        }
+
+      ELisp_Value obarray = Vobarray;
+      ELisp_Value tem;
+
+      tem = oblookup (obarray, bytes, strlen (bytes), strlen (bytes));
+
+      //tem = find_symbol_value (tem);
+
+      if (INTEGERP (tem))
+        *resolvedp = false;
+      else
+        {
+          JS_SetProperty (cx, obj, bytes, tem.v.v);
+          *resolvedp = true;
+        }
+
+      JS_free(cx, bytes);
+    }
     return true;
 }
 
@@ -327,8 +359,8 @@ Oblookup(JSContext *cx, unsigned argc, JS::Value* vp)
 
 static const JSFunctionSpec emacs_functions[] =
   {
-   JS_FN("print", Print, 0, 0),
-   JS_FN("oblookup", Oblookup, 0, 0),
+   JS_FN("Print", Print, 0, 0),
+   JS_FN("Oblookup", Oblookup, 0, 0),
    JS_FS_END
   };
                                                          void
@@ -515,10 +547,10 @@ bool js_init()
 
     {
       JS_EnterCompartment (cx, glob);
+      if (!JS_InitStandardClasses(cx, glob))
+        return false;
       if (!JS_DefineFunctions(cx, glob, emacs_functions))
-        {
-          return false;
-        }
+        return false;
       elisp_classes_init(cx, glob);
       elisp_gc_callback_register(cx);
       JS_InitClass(cx, glob, nullptr, &cons_class, cons_construct, 2,
@@ -607,6 +639,65 @@ JSContext* global_js_context;
 
 extern JSContext* global_js_context;
 
+static bool
+elisp_cons_resolve(JSContext *cx, JS::HandleObject obj,
+                     JS::HandleId id, bool *resolvedp)
+{
+  struct Lisp_Cons *s = JS_GetPrivate(obj);
+
+  *resolvedp = false;
+  if (JSID_IS_STRING (id))
+    {
+      if (JS_FlatStringEqualsAscii (JSID_TO_FLAT_STRING (id), "car"))
+        {
+          JS::RootedValue val(cx, s->car);
+          JS_SetProperty (cx, obj, "car", val);
+          *resolvedp = true;
+
+          return true;
+        }
+      else if (JS_FlatStringEqualsAscii (JSID_TO_FLAT_STRING (id), "cdr"))
+        {
+          JS::RootedValue val(cx, s->u.cdr);
+          JS_SetProperty (cx, obj, "cdr", val);
+          *resolvedp = true;
+
+          return true;
+        }
+    }
+  else if (JSID_IS_INT(id))
+    {
+      if (JSID_TO_INT (id) == 0)
+        {
+          JS::RootedValue val(cx, s->car);
+          JS_SetPropertyById (cx, obj, id, val);
+          *resolvedp = true;
+
+          return true;
+        }
+      else
+        {
+          JS::RootedValue cdr(cx, s->u.cdr);
+          if (!cdr.isObject())
+            return true;
+
+          JS::RootedObject obj2(cx, &cdr.toObject());
+          JS::RootedValue val(cx);
+
+          if (!JS_GetElement(cx, obj2, JSID_TO_INT (id) - 1, &val))
+            return false;
+
+          JS_SetElement (cx, obj, JSID_TO_INT (id), val);
+          *resolvedp = true;
+
+          return true;
+        }
+    }
+
+  *resolvedp = false;
+  return true;
+}
+
 static void
 elisp_cons_finalize(JSFreeOp* cx, JSObject *obj)
 {
@@ -618,6 +709,27 @@ elisp_cons_finalize(JSFreeOp* cx, JSObject *obj)
     return;
 
   xfree(s);
+}
+
+static bool elisp_cons_call(JSContext *cx, unsigned argc, JS::Value *vp)
+{
+  JS::CallArgs args = CallArgsFromVp(argc, vp);
+  JS::RootedObject obj(cx, &args.callee());
+  if (JS_GetClass(obj) != &elisp_cons_class)
+    return false;
+
+  ELisp_Value fun;
+  ELisp_Value ret;
+  fun.v.v = args.calleev();
+  ELisp_Dynvector argv;
+  argv.resize (args.length() + 1);
+  argv.sref(0, fun);
+  for (ptrdiff_t i = 0; i < args.length(); i++)
+    argv.sref(i+1, args[i]);
+  ret = Ffuncall (LV (args.length() + 1, argv));
+  args.rval().set(ret.v.v);
+
+  return true;
 }
 
 static void
@@ -637,8 +749,8 @@ elisp_cons_trace(JSTracer *trc, JSObject *obj)
 static JSClassOps elisp_cons_ops =
 {
   NULL, NULL, NULL, NULL,
-  NULL, NULL, elisp_cons_finalize,
-  NULL, NULL, NULL, elisp_cons_trace
+  elisp_cons_resolve, NULL, elisp_cons_finalize,
+  elisp_cons_call, NULL, NULL, elisp_cons_trace
 };
 
 JSClass elisp_cons_class = {
@@ -646,6 +758,75 @@ JSClass elisp_cons_class = {
                             &elisp_cons_ops,
 };
 
+static bool
+elisp_symbol_resolve(JSContext *cx, JS::HandleObject obj,
+                     JS::HandleId id, bool *resolvedp)
+{
+  struct Lisp_Symbol *s = JS_GetPrivate(obj);
+
+  if (JSID_IS_STRING (id))
+    {
+      if (JS_FlatStringEqualsAscii (JSID_TO_FLAT_STRING (id), "name"))
+        {
+          JS::RootedValue val(cx, s->name);
+          JS_SetProperty (cx, obj, "name", val);
+          *resolvedp = true;
+
+          return true;
+        }
+      else if (JS_FlatStringEqualsAscii (JSID_TO_FLAT_STRING (id), "function"))
+        {
+          JS::RootedValue val(cx, s->function);
+          JS_SetProperty (cx, obj, "function", val);
+          *resolvedp = true;
+
+          return true;
+        }
+      else if (JS_FlatStringEqualsAscii (JSID_TO_FLAT_STRING (id), "plist"))
+        {
+          JS::RootedValue val(cx, s->plist);
+          JS_SetProperty (cx, obj, "plist", val);
+          *resolvedp = true;
+
+          return true;
+        }
+      else if (JS_FlatStringEqualsAscii (JSID_TO_FLAT_STRING (id), "value"))
+        {
+          ELisp_Value sym;
+          sym.v.v = JS::ObjectValue(*obj);
+          JS::RootedValue val(cx, find_symbol_value (sym).v);
+
+          JS_SetProperty (cx, obj, "value", val);
+          *resolvedp = true;
+
+          return true;
+        }
+    }
+
+  *resolvedp = false;
+  return false;
+}
+
+static bool elisp_symbol_call(JSContext *cx, unsigned argc, JS::Value *vp)
+{
+  JS::CallArgs args = CallArgsFromVp(argc, vp);
+  JS::RootedObject obj(cx, &args.callee());
+  if (JS_GetClass(obj) != &elisp_symbol_class)
+    return false;
+
+  ELisp_Value fun;
+  ELisp_Value ret;
+  fun.v.v = args.calleev();
+  ELisp_Dynvector argv;
+  argv.resize (args.length() + 1);
+  argv.sref(0, fun);
+  for (ptrdiff_t i = 0; i < args.length(); i++)
+    argv.sref(i+1, args[i]);
+  ret = Ffuncall (LV (args.length() + 1, argv));
+  args.rval().set(ret.v.v);
+
+  return true;
+}
 
 static void
 elisp_symbol_trace(JSTracer *trc, JSObject *obj)
@@ -701,8 +882,8 @@ elisp_symbol_finalize(JSFreeOp* cx, JSObject *obj)
 static JSClassOps elisp_symbol_ops =
 {
   NULL, NULL, NULL, NULL,
-  NULL, NULL, elisp_symbol_finalize,
-  NULL, NULL, NULL, elisp_symbol_trace,
+  elisp_symbol_resolve, NULL, elisp_symbol_finalize,
+  elisp_symbol_call, NULL, NULL, elisp_symbol_trace,
 };
 
 JSClass elisp_symbol_class =
@@ -792,6 +973,27 @@ elisp_string_finalize(JSFreeOp* cx, JSObject *obj)
     }
   if (!PURE_P (str))
     xfree(str);
+}
+
+static bool elisp_string_call(JSContext *cx, unsigned argc, JS::Value *vp)
+{
+  JS::CallArgs args = CallArgsFromVp(argc, vp);
+  JS::RootedObject obj(cx, &args.callee());
+  if (JS_GetClass(obj) != &elisp_string_class)
+    return false;
+
+  ELisp_Value fun;
+  ELisp_Value ret;
+  fun.v.v = args.calleev();
+  ELisp_Dynvector argv;
+  argv.resize (args.length() + 1);
+  argv.sref(0, fun);
+  for (ptrdiff_t i = 0; i < args.length(); i++)
+    argv.sref(i+1, args[i]);
+  ret = Ffuncall (LV (args.length() + 1, argv));
+  args.rval().set(ret.v.v);
+
+  return true;
 }
 
 static void
@@ -890,11 +1092,34 @@ elisp_vector_trace(JSTracer *trc, JSObject *obj)
     }
 }
 
+extern JSClass elisp_vector_class;
+
+static bool elisp_vector_call(JSContext *cx, unsigned argc, JS::Value *vp)
+{
+  JS::CallArgs args = CallArgsFromVp(argc, vp);
+  JS::RootedObject obj(cx, &args.callee());
+  if (JS_GetClass(obj) != &elisp_vector_class)
+    return false;
+
+  ELisp_Value fun;
+  ELisp_Value ret;
+  fun.v.v = args.calleev();
+  ELisp_Dynvector argv;
+  argv.resize (args.length() + 1);
+  argv.sref(0, fun);
+  for (ptrdiff_t i = 0; i < args.length(); i++)
+    argv.sref(i+1, args[i]);
+  ret = Ffuncall (LV (args.length() + 1, argv));
+  args.rval().set(ret.v.v);
+
+  return true;
+}
+
 static JSClassOps elisp_vector_ops =
 {
   NULL, NULL, NULL, NULL,
   NULL, NULL, elisp_vector_finalize,
-  NULL, NULL, NULL, elisp_vector_trace,
+  elisp_vector_call, NULL, NULL, elisp_vector_trace,
 };
 
 JSClass elisp_vector_class = {
@@ -1374,8 +1599,11 @@ allocate_misc(int type)
 static void
 elisp_classes_init(JSContext *cx, JS::HandleObject glob)
 {
-  JS_InitClass(cx, glob, nullptr, &elisp_cons_class, nullptr, 0,
-               nullptr, nullptr, nullptr, nullptr);
+  JS::RootedObject elisp_cons_proto
+    (cx, JS_InitClass(cx, glob, nullptr, &elisp_cons_class, nullptr, 0,
+                      nullptr, nullptr, nullptr, nullptr));
+
+  JS_SetProperty (cx, glob, "ELisp_Cons_Proto", JS::Rooted<JS::Value>(cx, JS::ObjectValue(*elisp_cons_proto)));
   JS::RootedObject elisp_vector_proto
     (cx,
      JS_InitClass(cx, glob, nullptr, &elisp_vector_class, nullptr, 0,
