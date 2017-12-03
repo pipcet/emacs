@@ -1766,6 +1766,8 @@ print_vectorlike (Lisp_Object obj, Lisp_Object printcharfun, bool escapeflag,
   return true;
 }
 
+extern char *jsval_to_string(ELisp_Handle);
+
 static void
 print_object (Lisp_Object obj, Lisp_Object printcharfun, bool escapeflag)
 {
@@ -2265,6 +2267,12 @@ print_object (Lisp_Object obj, Lisp_Object printcharfun, bool escapeflag)
 	default:
 	  goto badtype;
 	}
+      break;
+
+    case Lisp_JSValue:
+      char *bytes = jsval_to_string(obj);
+      print_c_string (bytes, printcharfun);
+      JS_free(jsg.cx, bytes);
       break;
 
     default:

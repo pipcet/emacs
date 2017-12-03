@@ -476,7 +476,8 @@ enum Lisp_Type
     /* Cons.  XCONS (object) points to a struct Lisp_Cons.  */
     Lisp_Cons = USE_LSB_TAG ? 3 : 6,
 
-    Lisp_Float = 7
+   Lisp_Float = 7,
+   Lisp_JSValue = 8,
   };
 
 /* This is the set of data types that share a common structure.
@@ -714,7 +715,8 @@ enum Lisp_Fwd_Type
           return Lisp_Symbol;                                           \
         else if (clasp == &elisp_string_class)                          \
           return Lisp_String;                                           \
-        emacs_abort();                                                       \
+        return Lisp_JSValue;                                            \
+        emacs_abort();                                                  \
       }                                                                 \
     if (V.isInt32 ())                                                   \
       return Lisp_Int0;                                                 \
@@ -1371,7 +1373,7 @@ inline JSReturnValue::JSReturnValue(const Lisp_Value_Handle &v2) : v(v2)
 {
 }
 
- inline Lisp_Value_Heap &Lisp_Value_Heap::operator=(Lisp_Value_Stack &v2)
+inline Lisp_Value_Heap &Lisp_Value_Heap::operator=(Lisp_Value_Stack &v2)
 {
   v = JSReturnValue(v2.v);
   return *this;

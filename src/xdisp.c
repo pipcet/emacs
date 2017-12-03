@@ -2567,7 +2567,7 @@ static Lisp_Object
 safe_eval_handler (Lisp_Object arg, ptrdiff_t nargs, Lisp_Object *args)
 {
   add_to_log ("Error during redisplay: %S signaled %S",
-	      Flist (nargs, args), arg);
+	      LRH (Flist (nargs, args)), LHH (arg));
   return Qnil;
 }
 

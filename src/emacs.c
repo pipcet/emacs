@@ -94,6 +94,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #include "gnutls.h"
 
 extern void syms_of_js(void);
+extern void late_js_init(void);
 
 #if (defined PROFILING \
      && (defined __FreeBSD__ || defined GNU_LINUX || defined __MINGW32__))
@@ -1618,6 +1619,7 @@ Using an Emacs configured with --with-x-toolkit=lucid does not have this problem
       keys_of_keyboard ();
       keys_of_keymap ();
       keys_of_window ();
+      late_js_init ();
     }
   else
     {

@@ -564,6 +564,18 @@ bool js_init()
   return true;
 }
 
+char *jsval_to_string(ELisp_Handle val)
+{
+  JS::RootedString str(jsg.cx, JS::ToString(jsg.cx, val.v.v));
+  if (!str)
+    return NULL;
+  char* bytes = JS_EncodeStringToUTF8(jsg.cx, str);
+  if (!bytes)
+    return NULL;
+
+  return bytes;
+}
+
 static void eval_js(const char *source)
 {
   JSContext* cx = jsg.cx;
@@ -576,10 +588,17 @@ static void eval_js(const char *source)
     .setFileAndLine("typein", 1);
 
   if (!JS::Compile(cx, options, source, sourcelen, &script))
-    return false;
+    return;
 
   if (!JS_ExecuteScript(cx, script))
-    return false;
+    return;
+}
+
+void
+late_js_init(void)
+{
+  eval_js("Object.getPrototypeOf(list(3,4,5))[Symbol.iterator] = function* () { yield this.car; yield* this.cdr; }");
+  eval_js("nil[Symbol.iterator] = function* () {}");
 }
 
 ELisp_Return_Value jsval_to_elisp(ELisp_Handle ARG(arg))
@@ -597,6 +616,11 @@ ELisp_Return_Value jsval_to_elisp(ELisp_Handle ARG(arg))
     }
   else if (arg.v.v.isInt32() || arg.v.v.isDouble() || arg.v.v.isObject())
     return arg;
+  else if (arg.v.v.isString())
+    {
+      char *bytes = jsval_to_string (arg);
+      return build_string (bytes);
+    }
   else
     return Qnil;
 }
@@ -631,6 +655,38 @@ usage: (js SOURCE)  */)
     return Qnil;
 
   return jsval_to_elisp(result);
+}
+
+EXFUN (Fspecbind, 2);
+
+DEFUN ("specbind", Fspecbind, Sspecbind, 2, 2, 0,
+       doc: /* Don't call this. */)
+(ELisp_Handle arg, ELisp_Handle arg2)
+{
+  specbind(arg, arg2);
+
+  return Qnil;
+}
+
+EXFUN (Fsetinternal, 3);
+
+DEFUN ("setinternal", Fsetinternal, Ssetinternal, 3, 3, 0,
+       doc: /* Don't call this. */)
+     (ELisp_Handle arg, ELisp_Handle arg2, ELisp_Handle arg3)
+{
+  set_internal (arg, arg2, arg3, SET_INTERNAL_SET);
+
+  return Qnil;
+}
+
+EXFUN (Funbind_to_rel, 2);
+
+DEFUN ("unbind_to_rel", Funbind_to_rel, Sunbind_to_rel, 2, 2, 0,
+       doc: /* Don't call this. */)
+     (ELisp_Handle arg, ELisp_Handle arg2)
+{
+  unbind_to (SPECPDL_INDEX () - XINT (arg), arg2);
+  return Qnil;
 }
 
 JSG jsg __attribute__((init_priority(102)));
@@ -1707,6 +1763,9 @@ void
 syms_of_js (void)
 {
   defsubr(&Sjs);
+  defsubr(&Sspecbind);
+  defsubr(&Ssetinternal);
+  defsubr(&Sunbind_to_rel);
 }
 
 void js::ReportOutOfMemory(JSContext* cx)
