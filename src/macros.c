@@ -193,7 +193,7 @@ store_kbd_macro_char (Lisp_Object c)
 	  kb->kbd_macro_end = kb->kbd_macro_buffer + end_offset;
 	}
 
-      (kb->kbd_macro_ptr++).set(c);
+      *kb->kbd_macro_ptr++ = c;
     }
 }
 

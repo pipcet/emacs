@@ -598,26 +598,26 @@ call_process (ptrdiff_t nargs, Lisp_Object *args, int filefd,
 
   /* vfork, and prevent local vars from being clobbered by the vfork.  */
   {
-    ELisp_Value volatile buffer_volatile; buffer_volatile = (buffer);
-    ELisp_Value volatile coding_systems_volatile; coding_systems_volatile = (coding_systems);
-    ELisp_Value volatile current_dir_volatile; current_dir_volatile = (current_dir);
-    bool volatile display_p_volatile = display_p;
-    bool volatile sa_must_free_volatile = sa_must_free;
-    int volatile fd_error_volatile = fd_error;
-    int volatile filefd_volatile = filefd;
-    ptrdiff_t volatile count_volatile = count;
-    ptrdiff_t volatile sa_avail_volatile = sa_avail;
-    ptrdiff_t volatile sa_count_volatile = sa_count;
-    char **volatile new_argv_volatile = new_argv;
-    int volatile callproc_fd_volatile[CALLPROC_FDS];
+    ELisp_Value buffer_volatile; buffer_volatile = (buffer);
+    ELisp_Value coding_systems_volatile; coding_systems_volatile = (coding_systems);
+    ELisp_Value current_dir_volatile; current_dir_volatile = (current_dir);
+    bool display_p_volatile = display_p;
+    bool sa_must_free_volatile = sa_must_free;
+    int fd_error_volatile = fd_error;
+    int filefd_volatile = filefd;
+    ptrdiff_t count_volatile = count;
+    ptrdiff_t sa_avail_volatile = sa_avail;
+    ptrdiff_t sa_count_volatile = sa_count;
+    char ** new_argv_volatile = new_argv;
+    int callproc_fd_volatile[CALLPROC_FDS];
     for (i = 0; i < CALLPROC_FDS; i++)
       callproc_fd_volatile[i] = callproc_fd[i];
 
-    pid = vfork ();
+    pid = fork ();
 
-    buffer = *(ELisp_Return_Value *)(void *)(&buffer_volatile);
-    coding_systems = *(ELisp_Return_Value *)(void *)(&coding_systems_volatile);
-    current_dir = *(ELisp_Return_Value *)(void *)(&current_dir_volatile);
+    buffer = buffer_volatile;
+    coding_systems = coding_systems_volatile;
+    current_dir = current_dir_volatile;
     display_p = display_p_volatile;
     sa_must_free = sa_must_free_volatile;
     fd_error = fd_error_volatile;

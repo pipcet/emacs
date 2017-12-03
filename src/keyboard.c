@@ -9055,7 +9055,7 @@ read_key_sequence (Lisp_Object *keybuf, int bufsize, Lisp_Object prompt,
 
   starting_buffer = current_buffer;
   first_unbound = bufsize + 1;
-  Lisp_Object first_event = mock_input > 0 ? keybuf[0] : Qnil;
+  Lisp_Object first_event = mock_input > 0 ? keybuf.ref(0) : LSH (Qnil);
 
   /* Build our list of keymaps.
      If we recognize a function key and replace its escape sequence in

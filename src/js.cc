@@ -198,7 +198,19 @@ static JSClass marker_class = {
 static void
 misc_finalize(JSFreeOp* cx, JSObject *obj)
 {
-  // xfree(JS_GetPrivate(obj));
+  struct Lisp_Misc *misc = (struct Lisp_Misc *)JS_GetPrivate(obj);
+
+  if (!misc)
+    return;
+
+  if (misc->u_any.type == Lisp_Misc_Marker)
+    {
+      struct Lisp_Marker *marker = (struct Lisp_Marker *)misc;
+
+      unchain_marker (marker);
+    }
+
+  xfree(misc);
 }
 
 
@@ -290,9 +302,33 @@ Print(JSContext* cx, unsigned argc, JS::Value* vp)
     return true;
 }
 
-static const JSFunctionSpec shell_functions[] =
+static bool
+Oblookup(JSContext *cx, unsigned argc, JS::Value* vp)
+{
+  JS::CallArgs args = CallArgsFromVp(argc, vp);
+  if (args.length() < 1)
+    return false;
+
+  JS::RootedString str(cx, JS::ToString(cx, args[0]));
+  ELisp_Value obarray = Vobarray;
+  ELisp_Value tem;
+  char* bytes = JS_EncodeStringToUTF8(cx, str);
+  if (!bytes)
+    return false;
+
+  tem = oblookup (obarray, bytes, strlen (bytes), strlen (bytes));
+  if (INTEGERP (tem))
+    args.rval().setUndefined();
+  else
+    args.rval().set(tem.v.v);
+
+  return true;
+}
+
+static const JSFunctionSpec emacs_functions[] =
   {
    JS_FN("print", Print, 0, 0),
+   JS_FN("oblookup", Oblookup, 0, 0),
    JS_FS_END
   };
                                                          void
@@ -454,13 +490,13 @@ bool js_init()
   if (!JS_Init())
     return false;
 
-  JSContext *cx = JS_NewContext(2 * JS::DefaultHeapMaxBytes, JS::DefaultNurseryBytes);
+  JSContext *cx = JS_NewContext(64 * JS::DefaultHeapMaxBytes, JS::DefaultNurseryBytes);
   global_js_context = cx;
   if (!cx)
     return false;
   //JS_SetFutexCanWait(cx);
   JS::SetWarningReporter(cx, WarningReporter);
-  //JS_SetGCParameter(cx, JSGC_MAX_BYTES, 0x7ffffffffL);
+  //JS_SetGCParameter(cx, JSGC_MAX_BYTES, 0x1fffffffL);
 
   JS_SetNativeStackQuota(cx, 8 * 1024 * 1024);
 
@@ -479,7 +515,7 @@ bool js_init()
 
     {
       JS_EnterCompartment (cx, glob);
-      if (!JS_DefineFunctions(cx, glob, shell_functions))
+      if (!JS_DefineFunctions(cx, glob, emacs_functions))
         {
           return false;
         }
@@ -574,7 +610,14 @@ extern JSContext* global_js_context;
 static void
 elisp_cons_finalize(JSFreeOp* cx, JSObject *obj)
 {
-  //xfree(JS_GetPrivate(obj));
+  struct Lisp_Cons *s = (struct Lisp_Cons *)JS_GetPrivate(obj);
+  if (!s)
+    return;
+
+  if (PURE_P (s))
+    return;
+
+  xfree(s);
 }
 
 static void
@@ -610,8 +653,6 @@ elisp_symbol_trace(JSTracer *trc, JSObject *obj)
   struct Lisp_Symbol *s = JS_GetPrivate(obj);
 
   if (!s) return;
-
-  //fprintf(stderr, "tracing symbol at %p: %s\n", s, (XSTRING (s->name))->data);
 
   TraceEdge(trc, &s->jsval, "jsval");
   TraceEdge(trc, &s->name.v.v, "name");
@@ -664,10 +705,12 @@ static JSClassOps elisp_symbol_ops =
   NULL, NULL, NULL, elisp_symbol_trace,
 };
 
-JSClass elisp_symbol_class = {
-                            "ELisp_Symbol", JSCLASS_HAS_PRIVATE|JSCLASS_FOREGROUND_FINALIZE,
-                            &elisp_symbol_ops,
-};
+JSClass elisp_symbol_class =
+  {
+   "ELisp_Symbol", JSCLASS_HAS_PRIVATE|JSCLASS_FOREGROUND_FINALIZE,
+   &elisp_symbol_ops,
+  };
+
 static void
 elisp_marker_finalize(JSFreeOp* cx, JSObject *obj)
 {
@@ -790,7 +833,7 @@ JSClass elisp_string_class = {
 static void
 elisp_vector_finalize(JSFreeOp* cx, JSObject *obj)
 {
-  //xfree(JS_GetPrivate(obj));
+  xfree(JS_GetPrivate(obj));
 }
 
 #define FACE_CACHE_BUCKETS_SIZE 1001

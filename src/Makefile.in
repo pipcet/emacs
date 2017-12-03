@@ -427,7 +427,7 @@ js.cc.o $(base_obj): atimer.h.hh blockinput.h.hh buffer.h.hh buildobj.h.hh categ
 SOME_MACHINE_OBJECTS = dosfns.c.cc.o msdos.c.cc.o \
   xterm.c.cc.o xfns.c.cc.o xmenu.c.cc.o xselect.c.cc.o xrdb.c.cc.o xsmfns.c.cc.o fringe.c.cc.o image.c.cc.o \
   fontset.c.cc.o dbusbind.c.cc.o cygw32.c.cc.o \
-  nsterm.c.cc.o nsfns.c.cc.o nsmenu.c.cc.o nsselect.c.cc.o nsimage.c.cc.o nsfont.c.cc.o macfont.c.cc.o \
+  nsterm.m.cc.o nsfns.m.cc.o nsmenu.m.cc.o nsselect.m.cc.o nsimage.m.cc.o nsfont.m.cc.o macfont.m.cc.o \
   w32.c.cc.o w32console.c.cc.o w32fns.c.cc.o w32heap.c.cc.o w32inevt.c.cc.o w32notify.c.cc.o \
   w32menu.c.cc.o w32proc.c.cc.o w32reg.c.cc.o w32select.c.cc.o w32term.c.cc.o w32xfns.c.cc.o \
   w16select.c.cc.o widget.c.cc.o xfont.c.cc.o ftfont.c.cc.o xftfont.c.cc.o ftxfont.c.cc.o gtkutil.c.cc.o \
@@ -599,7 +599,7 @@ am__v_GLOBALS_0 = @echo "  GEN     " globals.h;
 am__v_GLOBALS_1 =
 
 gl-stamp: $(libsrc)/make-docfile$(EXEEXT) $(GLOBAL_SOURCES)
-	$(AM_V_GLOBALS)$(libsrc)/make-docfile -d $(srcdir) -g $(base_obj:.c.cc.o=.o) > globals.tmp
+	$(AM_V_GLOBALS)$(libsrc)/make-docfile -d $(srcdir) -g $(base_obj) > globals.tmp
 	$(AM_V_at)$(top_srcdir)/build-aux/move-if-change globals.tmp globals.h
 	$(AM_V_at)echo timestamp > $@
 

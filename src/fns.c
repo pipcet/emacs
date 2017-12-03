@@ -3615,7 +3615,10 @@ larger_vecalloc (Lisp_Object vec, ptrdiff_t incr_min, ptrdiff_t nitems_max)
     memory_full (SIZE_MAX);
   new_size = old_size + incr;
   v = allocate_vector (new_size);
-  memcpy (v->contents, XVECTOR (vec)->contents, old_size * sizeof *v->contents);
+  for (ptrdiff_t i = 0; i < old_size; i++)
+    v->contents[i] = XVECTOR (vec)->contents[i];
+  for (ptrdiff_t i = old_size; i < new_size; i++)
+    v->contents[i] = Qnil;
   XSETVECTOR (vec, v);
   return vec;
 }
@@ -3630,6 +3633,8 @@ larger_vector (Lisp_Object vec, ptrdiff_t incr_min, ptrdiff_t nitems_max)
   ptrdiff_t new_size = ASIZE (v);
   memclear (XVECTOR (v)->contents + old_size,
 	    (new_size - old_size) * word_size);
+  for (ptrdiff_t i = old_size; i < new_size; i++)
+    XVECTOR (v)->contents[i] = Qnil;
   return v;
 }
 

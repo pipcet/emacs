@@ -4327,7 +4327,9 @@ init_obarray (void)
   staticpro (&initial_obarray);
 
   for (int i = 0; i < ARRAYELTS (lispsym); i++)
-    define_symbol (builtin_lisp_symbol (i), defsym_name[i]);
+    {
+      define_symbol (make_lisp_symbol (&lispsym[i]), defsym_name[i]);
+    }
 
   DEFSYM (Qunbound, "unbound");
 

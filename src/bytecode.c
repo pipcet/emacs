@@ -784,6 +784,7 @@ exec_byte_code (Lisp_Object bytestr, Lisp_Object vector, Lisp_Object maxdepth,
 	    struct handler *c = push_handler (POP, type);
 	    c->bytecode_dest = FETCH2;
 	    c->bytecode_top = top;
+            c->jmp_stack = &c;
 
 	    if (sys_setjmp (c->jmp))
 	      {
@@ -1177,7 +1178,9 @@ exec_byte_code (Lisp_Object bytestr, Lisp_Object vector, Lisp_Object maxdepth,
 	    int c = XFASTINT (LRH (TOP));
 	    if (NILP (BVAR (current_buffer, enable_multibyte_characters)))
 	      MAKE_CHAR_MULTIBYTE (c);
-	    XSETFASTINT (LRH (TOP), syntax_code_spec[SYNTAX (c)]);
+            Lisp_Object tem;
+	    XSETFASTINT (tem, syntax_code_spec[SYNTAX (c)]);
+            SETTOP (tem);
 	  }
 	  NEXT;
 

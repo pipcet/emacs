@@ -115,7 +115,7 @@ struct kboard
     ELisp_Struct_Value *kbd_macro_buffer;
 
     /* Where to store the next keystroke of the macro.  */
-    Lisp_Object *kbd_macro_ptr;
+    ELisp_Struct_Value *kbd_macro_ptr;
 
     /* The finalized section of the macro starts at kbd_macro_buffer and
        ends before this.  This is not the same as kbd_macro_ptr, because

@@ -1,6 +1,5 @@
 #!/usr/bin/perl
-# TODO
-# !EQ(a,b) gets parsed as (!EQ)(a,b). FIXED, I think.
+# TODO#
 # a = b = c = d gets parsed as (a = b) = (c = d).
 use strict;
 use Marpa::R2;
@@ -2370,7 +2369,6 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[# contains Expr#expr]]
 [[#expr matches Expr#a = Expr#b]]
 [[#a matches Expr#ptr.vec[Expr#index] ]]
-[[#expr debug]]
 [[#expr <- #ptr.vec.sref(#index, #b)]]
 
 [[# AUTO-0314-REPEAT #]]:
@@ -2949,7 +2947,7 @@ for my $chunk (@chunks) {
             my $start = time();
             my $flush = 0;
             while (1) {
-                warn $key . $chunk;
+                # warn $key . $chunk;
                 if ($key =~ /^AUTO.*FLUSH$/ or $flush) {
                     $chunk = perform_replacements($chunk, @repl);
                     @repl = ();

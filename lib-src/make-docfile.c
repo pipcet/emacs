@@ -822,19 +822,16 @@ scan_c_file (char *filename, const char *mode)
   FILE *infile;
   char extension = filename[strlen (filename) - 1];
 
+  if (strlen (filename) > 7 && (strcmp (filename + strlen (filename) - 7, ".c.cc.o") == 0 || strcmp (filename + strlen (filename) - 7, ".m.cc.o") == 0))
+    {
+      extension = 0;
+      filename[strlen (filename) - 5] = 0;
+    }
+
   if (extension == 'o')
-    filename[strlen (filename) - 1] = 'c';
+    filename[strlen (filename) - 2] = 0;
 
   infile = fopen (filename, mode);
-
-  if (infile == NULL && extension == 'o')
-    {
-      /* Try .m.  */
-      filename[strlen (filename) - 1] = 'm';
-      infile = fopen (filename, mode);
-      if (infile == NULL)
-        filename[strlen (filename) - 1] = 'c'; /* Don't confuse people.  */
-    }
 
   if (infile == NULL)
     {
@@ -843,7 +840,8 @@ scan_c_file (char *filename, const char *mode)
     }
 
   /* Reset extension to be able to detect duplicate files.  */
-  filename[strlen (filename) - 1] = extension;
+  if (extension == 0 || extension == 'o')
+    filename[strlen (filename)] = '.';
   scan_c_stream (infile);
 }
 

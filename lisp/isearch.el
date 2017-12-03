@@ -896,8 +896,7 @@ used to set the value of `isearch-regexp-function'."
 	isearch-adjusted nil
 	isearch-yank-flag nil
 	isearch-error nil
-	isearch-slow-terminal-mode (and (<= baud-rate search-slow-speed)
-					(> (window-height)
+	isearch-slow-terminal-mode (and (> (window-height)
 					   (* 4
 					      (abs search-slow-window-lines))))
 	isearch-other-end nil

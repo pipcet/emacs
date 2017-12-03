@@ -744,12 +744,7 @@ enum Lisp_Fwd_Type
                                                                         \
   inline bool eq (const JSReturnValue &v2)                              \
   {                                                                     \
-    bool ret;                                                           \
-    JS::RootedValue val(jsg.cx, V);                                     \
-    JS::RootedValue val2(jsg.cx, v2);                                   \
-                                                                        \
-    JS_StrictlyEqual(jsg.cx, val, val2, &ret);                          \
-    return ret;                                                         \
+    return JS::Value(V) == v2.v;                                        \
   }                                                                     \
 
 class JSReturnValue;
@@ -1676,7 +1671,7 @@ make_lisp_symbol (struct Lisp_Symbol *sym)
 INLINE ELisp_Return_Value
 builtin_lisp_symbol (int index)
 {
-  return make_lisp_symbol (&lispsym[index]);
+  return lispsym[index].jsval;
 }
 
 #include "globals.h.hh"

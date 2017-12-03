@@ -333,7 +333,6 @@ static void mark_buffer (struct buffer *);
 static void refill_memory_reserve (void);
 #endif
 static void compact_small_strings (void);
-static void free_large_strings (void);
 extern Lisp_Object which_symbols (Lisp_Object, EMACS_INT) EXTERNALLY_VISIBLE;
 
 /* When scanning the C stack for live Lisp objects, Emacs keeps track of
@@ -1927,31 +1926,6 @@ allocate_string_data (struct Lisp_String *s,
   consing_since_gc += needed;
 }
 
-/* Free dead large strings.  */
-
-static void
-free_large_strings (void)
-{
-  struct sblock *b, *next;
-  struct sblock *live_blocks = NULL;
-
-  for (b = large_sblocks; b; b = next)
-    {
-      next = b->next;
-
-      if (b->data[0].string == NULL)
-	lisp_free (b);
-      else
-	{
-	  b->next = live_blocks;
-	  live_blocks = b;
-	}
-    }
-
-  large_sblocks = live_blocks;
-}
-
-
 /* Compact data of small strings.  Free sblocks that don't contain
    data of live strings after compaction.  */
 
@@ -3150,9 +3124,6 @@ make_save_funcptr_ptr_obj (void (*a) (void), void *b, Lisp_Object c)
   return val;
 }
 
-/* Return a Lisp_Save_Value object that represents an array A
-   of N Lisp objects.  */
-
 Lisp_Object
 make_save_memory (Lisp_Object *a, ptrdiff_t n)
 {
@@ -4291,37 +4262,7 @@ valid_lisp_object_p (Lisp_Object obj)
 static void *
 pure_alloc (size_t size, int type)
 {
-  void *result;
-
- again:
-  if (type >= 0)
-    {
-      /* Allocate space for a Lisp object from the beginning of the free
-	 space with taking account of alignment.  */
-      result = pointer_align (purebeg + pure_bytes_used_lisp, GCALIGNMENT);
-      pure_bytes_used_lisp = ((char *)result - (char *)purebeg) + size;
-    }
-  else
-    {
-      /* Allocate space for a non-Lisp object from the end of the free
-	 space.  */
-      pure_bytes_used_non_lisp += size;
-      result = purebeg + pure_size - pure_bytes_used_non_lisp;
-    }
-  pure_bytes_used = pure_bytes_used_lisp + pure_bytes_used_non_lisp;
-
-  if (pure_bytes_used <= pure_size)
-    return result;
-
-  /* Don't allocate a large amount here,
-     because it might get mmap'd and then its address
-     might not be usable.  */
-  purebeg = xmalloc (10000);
-  pure_size = 10000;
-  pure_bytes_used_before_overflow += pure_bytes_used - size;
-  pure_bytes_used = 0;
-  pure_bytes_used_lisp = pure_bytes_used_non_lisp = 0;
-  goto again;
+  return xmalloc (size);
 }
 
 
@@ -4420,7 +4361,7 @@ make_pure_string (const char *data,
 {
   Lisp_Object string;
   struct Lisp_String *s = pure_alloc (sizeof *s, Lisp_String);
-  s->data = (unsigned char *) find_string_data_in_pure (data, nbytes);
+  s->data = NULL;
   if (s->data == NULL)
     {
       s->data = pure_alloc (nbytes + 1, -1);
@@ -4530,13 +4471,7 @@ Recursively copies contents of vectors and cons cells.
 Does not copy symbols.  Copies strings without text properties.  */)
   (register Lisp_Object obj)
 {
-  if (NILP (Vpurify_flag))
-    return obj;
-  else if (MARKERP (obj) || OVERLAYP (obj) || SYMBOLP (obj))
-    /* Can't purify those.  */
-    return obj;
-  else
-    return purecopy (obj);
+  return obj;
 }
 
 /* Pinned objects are marked before every GC cycle.  */
@@ -4549,83 +4484,6 @@ static struct pinned_object
 static Lisp_Object
 purecopy (Lisp_Object obj)
 {
-  if (INTEGERP (obj)
-      || SUBRP (obj))
-    return obj;    /* Already pure.  */
-
-  if (STRINGP (obj) && XSTRING (obj)->intervals)
-    message_with_string ("Dropping text-properties while making string `%s' pure",
-			 obj, true);
-
-  if (HASH_TABLE_P (Vpurify_flag)) /* Hash consing.  */
-    {
-      Lisp_Object tmp = Fgethash (obj, Vpurify_flag, Qnil);
-      if (!NILP (tmp))
-	return tmp;
-    }
-
-  if (CONSP (obj))
-    obj = pure_cons (XCAR (obj), XCDR (obj));
-  else if (FLOATP (obj))
-    obj = make_pure_float (XFLOAT_DATA (obj));
-  else if (STRINGP (obj))
-    obj = make_pure_string (SSDATA (obj), SCHARS (obj),
-			    SBYTES (obj),
-			    STRING_MULTIBYTE (obj));
-  else if (HASH_TABLE_P (obj))
-    {
-      struct Lisp_Hash_Table *table = XHASH_TABLE (obj);
-      /* Do not purify hash tables which haven't been defined with
-         :purecopy as non-nil or are weak - they aren't guaranteed to
-         not change.  */
-      if (!NILP (table->weak) || !table->pure)
-        {
-          /* Instead, add the hash table to the list of pinned objects,
-             so that it will be marked during GC.  */
-          struct pinned_object *o = xmalloc (sizeof *o);
-          o->object = obj;
-          o->next = pinned_objects;
-          pinned_objects = o;
-          return obj; /* Don't hash cons it.  */
-        }
-
-      struct Lisp_Hash_Table *h = purecopy_hash_table (table);
-      XSET_HASH_TABLE (obj, h);
-    }
-  else if (COMPILEDP (obj) || VECTORP (obj) || RECORDP (obj))
-    {
-      struct Lisp_Vector *objp = XVECTOR (obj);
-      ptrdiff_t nbytes = vector_nbytes (objp);
-      struct Lisp_Vector *vec = pure_alloc (nbytes, Lisp_Vectorlike);
-      register ptrdiff_t i;
-      ptrdiff_t size = ASIZE (obj);
-      if (size & PSEUDOVECTOR_FLAG)
-	size &= PSEUDOVECTOR_SIZE_MASK;
-      memcpy (vec, objp, nbytes);
-      for (i = 0; i < size; i++)
-	vec->contents[i] = purecopy (vec->contents[i]);
-      XSETVECTOR (obj, vec);
-    }
-  else if (SYMBOLP (obj))
-    {
-      if (!XSYMBOL (obj)->pinned && !c_symbol_p (XSYMBOL (obj)))
-	{ /* We can't purify them, but they appear in many pure objects.
-	     Mark them as `pinned' so we know to mark them at every GC cycle.  */
-	  XSYMBOL (obj)->pinned = true;
-	  symbol_block_pinned = symbol_block;
-	}
-      /* Don't hash-cons it.  */
-      return obj;
-    }
-  else
-    {
-      AUTO_STRING (fmt, "Don't know how to purify: %S");
-      Fsignal (Qerror, list1 (CALLN (Fformat, fmt, obj)));
-    }
-
-  if (HASH_TABLE_P (Vpurify_flag)) /* Hash consing.  */
-    Fputhash (obj, obj, Vpurify_flag);
-
   return obj;
 }
 
