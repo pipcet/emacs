@@ -809,10 +809,11 @@ static JSClassOps elisp_cons_ops =
   elisp_cons_call, NULL, NULL, elisp_cons_trace
 };
 
-JSClass elisp_cons_class = {
-                            "ELisp_Cons", JSCLASS_HAS_PRIVATE|JSCLASS_FOREGROUND_FINALIZE,
-                            &elisp_cons_ops,
-};
+JSClass elisp_cons_class =
+  {
+   "ELisp_Cons", JSCLASS_HAS_PRIVATE|JSCLASS_FOREGROUND_FINALIZE,
+   &elisp_cons_ops,
+  };
 
 static bool
 elisp_symbol_resolve(JSContext *cx, JS::HandleObject obj,
@@ -1150,6 +1151,32 @@ elisp_vector_trace(JSTracer *trc, JSObject *obj)
 
 extern JSClass elisp_vector_class;
 
+static bool elisp_vector_resolve(JSContext *cx, JS::HandleObject obj,
+                                 JS::HandleId id, bool *resolvedp)
+{
+  struct Lisp_Vector *v = JS_GetPrivate(obj);
+  *resolvedp = false;
+  if (JSID_IS_INT(id))
+    {
+      if (v->header.size & PSEUDOVECTOR_FLAG)
+        {
+          if (JSID_TO_INT(id) > (v->header.size & PSEUDOVECTOR_SIZE_MASK))
+            return true;
+        }
+      else
+        {
+          if (JSID_TO_INT(id) > (v->header.size))
+            return true;
+        }
+
+      JS_SetElement (cx, obj, JSID_TO_INT(id), JS::Rooted<JS::Value>(cx, v->contents[JSID_TO_INT(id)].v.v));
+      *resolvedp = true;
+      return true;
+    }
+
+  return true;
+}
+
 static bool elisp_vector_call(JSContext *cx, unsigned argc, JS::Value *vp)
 {
   JS::CallArgs args = CallArgsFromVp(argc, vp);
@@ -1174,7 +1201,7 @@ static bool elisp_vector_call(JSContext *cx, unsigned argc, JS::Value *vp)
 static JSClassOps elisp_vector_ops =
 {
   NULL, NULL, NULL, NULL,
-  NULL, NULL, elisp_vector_finalize,
+  elisp_vector_resolve, NULL, elisp_vector_finalize,
   elisp_vector_call, NULL, NULL, elisp_vector_trace,
 };
 
