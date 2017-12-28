@@ -236,6 +236,7 @@ This includes variable references and calls to functions such as `car'."
 
 (defcustom byte-compile-cond-use-jump-table t
   "Compile `cond' clauses to a jump table implementation (using a hash-table)."
+  :version "26.1"
   :group 'bytecomp
   :type 'boolean)
 
@@ -1252,7 +1253,7 @@ function directly; use `byte-compile-warn' or
 (defun byte-compile-report-error (error-info &optional fill)
   "Report Lisp error in compilation.
 ERROR-INFO is the error data, in the form of either (ERROR-SYMBOL . DATA)
-or STRING.  If FILL is non-nil, set ‘warning-fill-prefix’ to four spaces
+or STRING.  If FILL is non-nil, set `warning-fill-prefix' to four spaces
 when printing the error message."
   (setq byte-compiler-error-flag t)
   (byte-compile-log-warning
@@ -2063,14 +2064,8 @@ With argument ARG, insert value in current buffer after the form."
 		 (not (eobp)))
 	  (setq byte-compile-read-position (point)
 		byte-compile-last-position byte-compile-read-position)
-	  (let* ((lread--old-style-backquotes nil)
-                 (lread--unescaped-character-literals nil)
+	  (let* ((lread--unescaped-character-literals nil)
                  (form (read inbuffer)))
-            ;; Warn about the use of old-style backquotes.
-            (when lread--old-style-backquotes
-              (byte-compile-warn "!! The file uses old-style backquotes !!
-This functionality has been obsolete for more than 10 years already
-and will be removed soon.  See (elisp)Backquote in the manual."))
             (when lread--unescaped-character-literals
               (byte-compile-warn
                "unescaped character literals %s detected!"
@@ -2491,6 +2486,12 @@ list that represents a doc string reference.
   (let (byte-compile-warnings)
     (mapc 'byte-compile-file-form (cdr form))
     nil))
+
+;; Automatically evaluate define-obsolete-function-alias etc at top-level.
+(put 'make-obsolete 'byte-hunk-handler 'byte-compile-file-form-make-obsolete)
+(defun byte-compile-file-form-make-obsolete (form)
+  (prog1 (byte-compile-keep-pending form)
+    (apply 'make-obsolete (mapcar 'eval (cdr form)))))
 
 ;; This handler is not necessary, but it makes the output from dont-compile
 ;; and similar macros cleaner.

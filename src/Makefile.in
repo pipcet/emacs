@@ -316,6 +316,9 @@ LIBSYSTEMD_CFLAGS = @LIBSYSTEMD_CFLAGS@
 
 JS_LIBS = -L ../../js/dist/bin -lz -lpthread -ldl -lmozjs-58a1 -Wl,--whole-archive ../../js/mozglue/build/libmozglue.a -Wl,--no-whole-archive -pthread 
 JS_CFLAGS = -I ../../js/dist/include
+JSON_LIBS = @JSON_LIBS@
+JSON_CFLAGS = @JSON_CFLAGS@
+JSON_OBJ = @JSON_OBJ@
 
 INTERVALS_H = dispextern.h intervals.h composite.h
 
@@ -368,7 +371,7 @@ EMACS_CFLAGS=-Demacs $(MYCPPFLAGS) -I. -I$(srcdir) \
   $(WEBKIT_CFLAGS) \
   $(SETTINGS_CFLAGS) $(FREETYPE_CFLAGS) $(FONTCONFIG_CFLAGS) \
   $(LIBOTF_CFLAGS) $(M17N_FLT_CFLAGS) $(DEPFLAGS) \
-  $(LIBSYSTEMD_CFLAGS) \
+  $(LIBSYSTEMD_CFLAGS) $(JSON_CFLAGS) \
   $(LIBGNUTLS_CFLAGS) $(NOTIFY_CFLAGS) $(CAIRO_CFLAGS) \
   $(WERROR_CFLAGS) $(JS_CFLAGS)
 ALL_CFLAGS = $(EMACS_CFLAGS) $(WARN_CFLAGS) $(CFLAGS)
@@ -415,7 +418,7 @@ base_obj = dispnew.c.cc.o frame.c.cc.o scroll.c.cc.o xdisp.c.cc.o menu.c.cc.o $(
 	thread.c.cc.o systhread.c.cc.o \
 	$(if $(HYBRID_MALLOC),sheap.c.cc.o) \
 	$(MSDOS_OBJ) $(MSDOS_X_OBJ) $(NS_OBJ) $(CYGWIN_OBJ) $(FONT_OBJ) \
-	$(W32_OBJ) $(WINDOW_SYSTEM_OBJ) $(XGSELOBJ)
+	$(W32_OBJ) $(WINDOW_SYSTEM_OBJ) $(XGSELOBJ) $(JSON_OBJ)
 obj = js.cc.o $(base_obj) $(NS_OBJC_OBJ)
 
 js.cc.o $(base_obj): atimer.h.hh blockinput.h.hh buffer.h.hh buildobj.h.hh category.h.hh ccl.h.hh character.h.hh charset.h.hh cm.h.hh coding.h.hh commands.h.hh composite.h.hh config.h.hh conf_post.h.hh cygw32.h.hh dispextern.h.hh disptab.h.hh dosfns.h.hh dynlib.h.hh emacsgtkfixed.h.hh emacs-icon.h.hh emacs-module.h.hh epaths.h.hh font.h.hh fontset.h.hh frame.h.hh ftfont.h.hh getpagesize.h.hh globals.h.hh gnutls.h.hh gtkutil.h.hh indent.h.hh intervals.h.hh keyboard.h.hh keymap.h.hh lisp.h.hh macfont.h.hh macros.h.hh menu.h.hh module-env-25.h.hh module-env-26.h.hh msdos.h.hh nsgui.h.hh nsterm.h.hh process.h.hh puresize.h.hh regex.h.hh region-cache.h.hh sheap.h.hh syntax.h.hh sysselect.h.hh syssignal.h.hh sysstdio.h.hh systhread.h.hh systime.h.hh systty.h.hh syswait.h.hh termchar.h.hh termhooks.h.hh termopts.h.hh thread.h.hh tparam.h.hh unexec.h.hh w32common.h.hh w32font.h.hh w32gui.h.hh w32.h.hh w32heap.h.hh w32inevt.h.hh w32select.h.hh w32term.h.hh widget.h.hh widgetprv.h.hh window.h.hh xgselect.h.hh xsettings.h.hh xterm.h.hh xwidget.h.hh | chunkl.all
@@ -514,7 +517,7 @@ LIBES = $(LIBS) $(W32_LIBS) $(LIBS_GNUSTEP) $(LIBX_BASE) $(LIBIMAGE) \
    $(FREETYPE_LIBS) $(FONTCONFIG_LIBS) $(LIBOTF_LIBS) $(M17N_FLT_LIBS) \
    $(LIBGNUTLS_LIBS) $(LIB_PTHREAD) $(GETADDRINFO_A_LIBS) $(LIBLCMS2) \
    $(NOTIFY_LIBS) $(LIB_MATH) $(LIBZ) $(LIBMODULES) $(LIBSYSTEMD_LIBS) \
-   $(JS_LIBS)
+   $(JS_LIBS) $(JSON_LIBS)
 
 ## FORCE it so that admin/unidata can decide whether these files
 ## are up-to-date.  Although since charprop depends on bootstrap-emacs,

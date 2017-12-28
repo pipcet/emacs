@@ -33,6 +33,10 @@
 ;; remote host, set this environment variable to "/dev/null" or
 ;; whatever is appropriate on your system.
 
+;; For slow remote connections, `tramp-test41-asynchronous-requests'
+;; might be too heavy.  Setting $REMOTE_PARALLEL_PROCESSES to a proper
+;; value less than 10 could help.
+
 ;; A whole test run can be performed calling the command `tramp-test-all'.
 
 ;;; Code:
@@ -1882,9 +1886,9 @@ This checks also `file-name-as-directory', `file-name-directory',
   "Check `copy-file'."
   (skip-unless (tramp--test-enabled))
 
-  ;; TODO: The quoted case does not work.  Copy local file to remote.
-  ;;(dolist (quoted (if tramp--test-expensive-test '(nil t) '(nil)))
-  (let (quoted)
+  ;; `filename-non-special' has been fixed in Emacs 26.1, see Bug#29579.
+  (dolist (quoted (if (and tramp--test-expensive-test (tramp--test-emacs26-p))
+		      '(nil t) '(nil)))
     (let ((tmp-name1 (tramp--test-make-temp-name nil quoted))
 	  (tmp-name2 (tramp--test-make-temp-name nil quoted))
 	  (tmp-name3 (tramp--test-make-temp-name 'local quoted)))
@@ -1984,9 +1988,9 @@ This checks also `file-name-as-directory', `file-name-directory',
   "Check `rename-file'."
   (skip-unless (tramp--test-enabled))
 
-  ;; TODO: The quoted case does not work.
-  ;;(dolist (quoted (if tramp--test-expensive-test '(nil t) '(nil)))
-  (let (quoted)
+  ;; `filename-non-special' has been fixed in Emacs 26.1, see Bug#29579.
+  (dolist (quoted (if (and tramp--test-expensive-test (tramp--test-emacs26-p))
+		      '(nil t) '(nil)))
     (let ((tmp-name1 (tramp--test-make-temp-name nil quoted))
 	  (tmp-name2 (tramp--test-make-temp-name nil quoted))
 	  (tmp-name3 (tramp--test-make-temp-name 'local quoted)))
@@ -2810,7 +2814,11 @@ This tests also `make-symbolic-link', `file-truename' and `add-name-to-file'."
 	    ;; Symbolic links could look like a remote file name.
 	    ;; They must be quoted then.
 	    (delete-file tmp-name2)
-	    (make-symbolic-link "/penguin:motd:" tmp-name2)
+	    (make-symbolic-link
+	     (funcall
+	      (if quoted 'tramp-compat-file-name-unquote 'identity)
+	      "/penguin:motd:")
+	     tmp-name2)
 	    (should (file-symlink-p tmp-name2))
 	    (should
 	     (string-equal
@@ -2825,7 +2833,7 @@ This tests also `make-symbolic-link', `file-truename' and `add-name-to-file'."
 	    ;; We must unquote it.
 	    (should
 	     (string-equal
-	      (file-truename tmp-name1)
+	      (tramp-compat-file-name-unquote (file-truename tmp-name1))
 	      (tramp-compat-file-name-unquote (file-truename tmp-name3)))))
 
 	;; Cleanup.
@@ -2873,9 +2881,15 @@ This tests also `make-symbolic-link', `file-truename' and `add-name-to-file'."
 	  (tramp--test-ignore-make-symbolic-link-error
 	    (make-symbolic-link tmp-name2 tmp-name1)
 	    (should (file-symlink-p tmp-name1))
-	    (make-symbolic-link tmp-name1 tmp-name2)
-	    (should (file-symlink-p tmp-name2))
-	    (should-error (file-truename tmp-name1) :type 'file-error))
+	    (if (tramp-smb-file-name-p tramp-test-temporary-file-directory)
+		;; The symlink command of `smbclient' detects the
+		;; cycle already.
+		(should-error
+		 (make-symbolic-link tmp-name1 tmp-name2)
+		 :type 'file-error)
+	      (make-symbolic-link tmp-name1 tmp-name2)
+	      (should (file-symlink-p tmp-name2))
+	      (should-error (file-truename tmp-name1) :type 'file-error)))
 
 	;; Cleanup.
 	(ignore-errors
@@ -2951,9 +2965,9 @@ This tests also `make-symbolic-link', `file-truename' and `add-name-to-file'."
   (skip-unless (tramp--test-enabled))
   (skip-unless (file-acl tramp-test-temporary-file-directory))
 
-  ;; TODO: The quoted case does not work.  Copy local file to remote.
-  ;;(dolist (quoted (if tramp--test-expensive-test '(nil t) '(nil)))
-  (let (quoted)
+  ;; `filename-non-special' has been fixed in Emacs 26.1, see Bug#29579.
+  (dolist (quoted (if (and tramp--test-expensive-test (tramp--test-emacs26-p))
+		      '(nil t) '(nil)))
     (let ((tmp-name1 (tramp--test-make-temp-name nil quoted))
 	  (tmp-name2 (tramp--test-make-temp-name nil quoted))
 	  (tmp-name3 (tramp--test-make-temp-name 'local quoted)))
@@ -2968,13 +2982,14 @@ This tests also `make-symbolic-link', `file-truename' and `add-name-to-file'."
 	    (should (file-acl tmp-name2))
 	    (should (string-equal (file-acl tmp-name1) (file-acl tmp-name2)))
 	    ;; Different permissions mean different ACLs.
-	    (set-file-modes tmp-name1 #o777)
-	    (set-file-modes tmp-name2 #o444)
-	    (should-not
-	     (string-equal (file-acl tmp-name1) (file-acl tmp-name2)))
-	    ;; Copy ACL.
-	    (should (set-file-acl tmp-name2 (file-acl tmp-name1)))
-	    (should (string-equal (file-acl tmp-name1) (file-acl tmp-name2)))
+	    (when (not (tramp--test-windows-nt-or-smb-p))
+	      (set-file-modes tmp-name1 #o777)
+	      (set-file-modes tmp-name2 #o444)
+	      (should-not
+	       (string-equal (file-acl tmp-name1) (file-acl tmp-name2))))
+	    ;; Copy ACL.  Not all remote handlers support it, so we test.
+	    (when (set-file-acl tmp-name2 (file-acl tmp-name1))
+	      (should (string-equal (file-acl tmp-name1) (file-acl tmp-name2))))
 	    ;; An invalid ACL does not harm.
 	    (should-not (set-file-acl tmp-name2 "foo")))
 
@@ -3028,9 +3043,9 @@ This tests also `make-symbolic-link', `file-truename' and `add-name-to-file'."
    (not (equal (file-selinux-context tramp-test-temporary-file-directory)
 	       '(nil nil nil nil))))
 
-  ;; TODO: The quoted case does not work.  Copy local file to remote.
-  ;;(dolist (quoted (if tramp--test-expensive-test '(nil t) '(nil)))
-  (let (quoted)
+  ;; `filename-non-special' has been fixed in Emacs 26.1, see Bug#29579.
+  (dolist (quoted (if (and tramp--test-expensive-test (tramp--test-emacs26-p))
+		      '(nil t) '(nil)))
     (let ((tmp-name1 (tramp--test-make-temp-name nil quoted))
 	  (tmp-name2 (tramp--test-make-temp-name nil quoted))
 	  (tmp-name3 (tramp--test-make-temp-name 'local quoted)))
@@ -3656,7 +3671,7 @@ This tests also `make-symbolic-link', `file-truename' and `add-name-to-file'."
 		 (format "%s=%d" envvar port)
 		 tramp-remote-process-environment)))
 	  (should
-	   (string-equal
+	   (string-match
 	    (number-to-string port)
 	    (shell-command-to-string (format "echo -n $%s" envvar))))))
 
@@ -3768,11 +3783,9 @@ This tests also `make-symbolic-link', `file-truename' and `add-name-to-file'."
 		  (vc-register
 		   (list (car vc-handled-backends)
 			 (list (file-name-nondirectory tmp-name2))))
-		;; `vc-register' has changed its arguments in Emacs 25.1.
-		(error
-		 (vc-register
-		  nil (list (car vc-handled-backends)
-			    (list (file-name-nondirectory tmp-name2))))))
+		;; `vc-register' has changed its arguments in Emacs
+		;; 25.1.  Let's skip it for older Emacsen.
+		(error (skip-unless (>= emacs-major-version 25))))
 	      ;; vc-git uses an own process sentinel, Tramp's sentinel
 	      ;; for flushing the cache isn't used.
 	      (dired-uncache (concat (file-remote-p default-directory) "/"))
@@ -3823,8 +3836,6 @@ This tests also `make-symbolic-link', `file-truename' and `add-name-to-file'."
 		    (format "#%s#" (file-name-nondirectory tmp-name1))
 		    tramp-test-temporary-file-directory))))))
 
-            ;; TODO: The following two cases don't work yet.
-            (when nil
 	    ;; Use default `tramp-auto-save-directory' mechanism.
 	    (let ((tramp-auto-save-directory tmp-name2))
 	      (with-temp-buffer
@@ -3869,7 +3880,6 @@ This tests also `make-symbolic-link', `file-truename' and `add-name-to-file'."
 		     (tramp-compat-file-name-unquote tmp-name1)))
 		   tmp-name2)))
 		(should (file-directory-p tmp-name2)))))
-            ) ;; TODO
 
 	;; Cleanup.
 	(ignore-errors (delete-file tmp-name1))
@@ -4084,9 +4094,9 @@ This requires restrictions of file name syntax."
 
 (defun tramp--test-check-files (&rest files)
   "Run a simple but comprehensive test over every file in FILES."
-  ;; TODO: The quoted case does not work.
-  ;;(dolist (quoted (if tramp--test-expensive-test '(nil t) '(nil)))
-  (let (quoted)
+  ;; `filename-non-special' has been fixed in Emacs 26.1, see Bug#29579.
+  (dolist (quoted (if (and tramp--test-expensive-test (tramp--test-emacs26-p))
+		      '(nil t) '(nil)))
     ;; We must use `file-truename' for the temporary directory,
     ;; because it could be located on a symlinked directory.  This
     ;; would let the test fail.
@@ -4496,8 +4506,13 @@ process sentinels.  They shall not disturb each other."
            (inhibit-message t)
 	   ;; Do not run delayed timers.
 	   (timer-max-repeats 0)
-	   ;; Number of asynchronous processes for test.
-           (number-proc 10)
+	   ;; Number of asynchronous processes for test.  Tests on
+	   ;; some machines handle less parallel processes.
+           (number-proc
+            (or
+             (ignore-errors
+               (string-to-number (getenv "REMOTE_PARALLEL_PROCESSES")))
+             10))
            ;; On hydra, timings are bad.
            (timer-repeat
             (cond
@@ -4563,14 +4578,20 @@ process sentinels.  They shall not disturb each other."
                 (set-process-filter
                  proc
                  (lambda (proc string)
+                   (tramp--test-message
+                    "Process filter %s %s %s" proc string (current-time-string))
                    (with-current-buffer (process-buffer proc)
                      (insert string))
                    (unless (zerop (length string))
+		     (dired-uncache (process-get proc 'foo))
                      (should (file-attributes (process-get proc 'foo))))))
                 ;; Add process sentinel.
                 (set-process-sentinel
                  proc
                  (lambda (proc _state)
+                   (tramp--test-message
+                    "Process sentinel %s %s" proc (current-time-string))
+		   (dired-uncache (process-get proc 'foo))
                    (should-not (file-attributes (process-get proc 'foo)))))))
 
             ;; Send a string.  Use a random order of the buffers.  Mix
@@ -4586,6 +4607,7 @@ process sentinels.  They shall not disturb each other."
                   (tramp--test-message
                    "Start action %d %s %s" count buf (current-time-string))
                   ;; Regular operation prior process action.
+		  (dired-uncache file)
                   (if (= count 0)
                       (should-not (file-attributes file))
                     (should (file-attributes file)))
@@ -4594,7 +4616,10 @@ process sentinels.  They shall not disturb each other."
                   (accept-process-output proc 0.1 nil 0)
                   ;; Give the watchdog a chance.
                   (read-event nil nil 0.01)
+                  (tramp--test-message
+                   "Continue action %d %s %s" count buf (current-time-string))
                   ;; Regular operation post process action.
+		  (dired-uncache file)
                   (if (= count 2)
                       (should-not (file-attributes file))
                     (should (file-attributes file)))
@@ -4644,6 +4669,10 @@ process sentinels.  They shall not disturb each other."
 
 (ert-deftest tramp-test42-delay-load ()
   "Check that Tramp is loaded lazily, only when needed."
+  ;; The autoloaded Tramp objects are different since Emacs 26.1.  We
+  ;; cannot test older Emacsen, therefore.
+  (skip-unless (tramp--test-emacs26-p))
+
   ;; Tramp is neither loaded at Emacs startup, nor when completing a
   ;; non-Tramp file name like "/foo".  Completing a Tramp-alike file
   ;; name like "/foo:" autoloads Tramp, when `tramp-mode' is t.
@@ -4656,8 +4685,8 @@ process sentinels.  They shall not disturb each other."
 	   (message \"Tramp loaded: %%s\" (featurep 'tramp)) \
 	   (file-name-all-completions \"/foo:\" \"/\") \
 	   (message \"Tramp loaded: %%s\" (featurep 'tramp)))"))
-    ;; Tramp doesn't load when `tramp-mode' is nil since Emacs 26.1.
-    (dolist (tm (if (tramp--test-emacs26-p) '(t nil) '(nil)))
+    ;; Tramp doesn't load when `tramp-mode' is nil.
+    (dolist (tm '(t nil))
       (should
        (string-match
 	(format
@@ -4695,6 +4724,10 @@ process sentinels.  They shall not disturb each other."
 
 (ert-deftest tramp-test42-remote-load-path ()
   "Check that Tramp autoloads its packages with remote `load-path'."
+  ;; The autoloaded Tramp objects are different since Emacs 26.1.  We
+  ;; cannot test older Emacsen, therefore.
+  (skip-unless (tramp--test-emacs26-p))
+
   ;; `tramp-cleanup-all-connections' is autoloaded from tramp-cmds.el.
   ;; It shall still work, when a remote file name is in the
   ;; `load-path'.
@@ -4772,6 +4805,8 @@ Since it unloads Tramp, it shall be the last test to run."
 
 ;; * dired-compress-file
 ;; * dired-uncache
+;; * file-equal-p (partly done in `tramp-test21-file-links')
+;; * file-in-directory-p
 ;; * file-name-case-insensitive-p
 
 ;; * Work on skipped tests.  Make a comment, when it is impossible.

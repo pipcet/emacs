@@ -355,6 +355,7 @@ OPTION_DEFAULT_ON([libsystemd],[don't compile with libsystemd support])
 OPTION_DEFAULT_OFF([cairo],[compile with Cairo drawing (experimental)])
 OPTION_DEFAULT_ON([xml2],[don't compile with XML parsing support])
 OPTION_DEFAULT_ON([imagemagick],[don't compile with ImageMagick image support])
+OPTION_DEFAULT_ON([json], [don't compile with native JSON support])
 
 OPTION_DEFAULT_ON([xft],[don't use XFT for anti aliased fonts])
 OPTION_DEFAULT_ON([libotf],[don't use libotf for OpenType font support])
@@ -897,10 +898,9 @@ AC_ARG_ENABLE([gcc-warnings],
 
 AC_ARG_ENABLE([check-lisp-object-type],
   [AS_HELP_STRING([--enable-check-lisp-object-type],
-     [Enable compile-time checks for the Lisp_Object data type,
-      which can catch some bugs during development.
-      The default is "no" if --enable-gcc-warnings is "no".])])
-if test "${enable_check_lisp_object_type-$gl_gcc_warnings}" != "no"; then
+     [Enable compile time checks for the Lisp_Object data type,
+      which can catch some bugs during development.])])
+if test "$enable_check_lisp_object_type" = yes; then
   AC_DEFINE([CHECK_LISP_OBJECT_TYPE], 1,
     [Define to enable compile-time checks for the Lisp_Object data type.])
 fi
@@ -2867,6 +2867,27 @@ fi
 
 AC_SUBST(LIBSYSTEMD_LIBS)
 AC_SUBST(LIBSYSTEMD_CFLAGS)
+
+HAVE_JSON=no
+JSON_OBJ=
+
+if test "${with_json}" = yes; then
+  EMACS_CHECK_MODULES([JSON], [jansson >= 2.7],
+    [HAVE_JSON=yes], [HAVE_JSON=no])
+  if test "${HAVE_JSON}" = yes; then
+    AC_DEFINE(HAVE_JSON, 1, [Define if using Jansson.])
+    JSON_OBJ=json.o
+  fi
+
+  # Windows loads libjansson dynamically
+  if test "${opsys}" = "mingw32"; then
+    JSON_LIBS=
+  fi
+fi
+
+AC_SUBST(JSON_LIBS)
+AC_SUBST(JSON_CFLAGS)
+AC_SUBST(JSON_OBJ)
 
 NOTIFY_OBJ=
 NOTIFY_SUMMARY=no
@@ -5364,7 +5385,7 @@ emacs_config_features=
 for opt in XAW3D XPM JPEG TIFF GIF PNG RSVG CAIRO IMAGEMAGICK SOUND GPM DBUS \
   GCONF GSETTINGS NOTIFY ACL LIBSELINUX GNUTLS LIBXML2 FREETYPE M17N_FLT \
   LIBOTF XFT ZLIB TOOLKIT_SCROLL_BARS X_TOOLKIT OLDXMENU X11 NS MODULES \
-  XWIDGETS LIBSYSTEMD CANNOT_DUMP LCMS2; do
+  XWIDGETS LIBSYSTEMD JSON CANNOT_DUMP LCMS2; do
 
     case $opt in
       CANNOT_DUMP) eval val=\${$opt} ;;
@@ -5414,6 +5435,7 @@ AS_ECHO(["  Does Emacs use -lXaw3d?                                 ${HAVE_XAW3D
   Does Emacs use -lotf?                                   ${HAVE_LIBOTF}
   Does Emacs use -lxft?                                   ${HAVE_XFT}
   Does Emacs use -lsystemd?                               ${HAVE_LIBSYSTEMD}
+  Does Emacs use -ljansson?                               ${HAVE_JSON}
   Does Emacs directly use zlib?                           ${HAVE_ZLIB}
   Does Emacs have dynamic modules support?                ${HAVE_MODULES}
   Does Emacs use toolkit scroll bars?                     ${USE_TOOLKIT_SCROLL_BARS}

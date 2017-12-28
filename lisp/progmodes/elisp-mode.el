@@ -307,6 +307,8 @@ Blank lines separate paragraphs.  Semicolons start comments.
           (setq sexp (ignore-errors (butlast sexp)))))
     res))
 
+(defvar warning-minimum-log-level)
+
 (defun elisp--local-variables ()
   "Return a list of locally let-bound variables at point."
   (save-excursion
@@ -328,7 +330,7 @@ Blank lines separate paragraphs.  Semicolons start comments.
                                      (error form))))
              (sexp
               (unwind-protect
-                  (progn
+                  (let ((warning-minimum-log-level :emergency))
                     (advice-add 'macroexpand :around macroexpand-advice)
                     (macroexpand-all sexp))
                 (advice-remove 'macroexpand macroexpand-advice)))
@@ -1698,9 +1700,11 @@ current buffer state and calls REPORT-FN when done."
           (when (eq (process-status proc) 'exit)
             (unwind-protect
                 (cond
-                 ((not (eq proc (with-current-buffer source-buffer
-                                  elisp-flymake--byte-compile-process)))
-                  (flymake-log :warning "byte-compile process %s obsolete" proc))
+                 ((not (and (buffer-live-p source-buffer)
+                            (eq proc (with-current-buffer source-buffer
+                                       elisp-flymake--byte-compile-process))))
+                  (flymake-log :warning
+                               "byte-compile process %s obsolete" proc))
                  ((zerop (process-exit-status proc))
                   (elisp-flymake--byte-compile-done report-fn
                                                     source-buffer
