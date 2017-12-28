@@ -1,7 +1,7 @@
 // shell g++ -ggdb -g3 -std=c++11 -I ../src/ -I ../js/dist/include/ ./js.cpp -L ../js/dist/bin/ -lz -lpthread -ldl -lmozjs-58a1 -Wl,--whole-archive ../js/mozglue/build/libmozglue.a -Wl,--no-whole-archive -pthread
 #include "config.h.hh"
 
-//#define DEBUG
+#define DEBUG
 #include "js-config.h"
 #include "jsapi.h"
 
@@ -249,6 +249,165 @@ static void misc_init(JSContext* cx, JS::HandleObject global)
 }
 
 static bool
+Q_resolve(JSContext *cx, JS::HandleObject obj, JS::HandleId id, bool *resolvedp)
+{
+  *resolvedp = false;
+  if (JSID_IS_STRING (id))
+    {
+      JS::RootedString fs(cx, JS_FORGET_STRING_FLATNESS(JSID_TO_FLAT_STRING (id)));
+      char *bytes = JS_EncodeStringToUTF8 (cx, fs);
+
+      if (!bytes)
+        return false;
+
+      for (char *p = bytes; *p; p++)
+        {
+          if (*p == '_')
+            *p = '-';
+          else if (*p == '-')
+            *p = '_';
+        }
+
+      ELisp_Value obarray;
+      obarray.v.v = JS_GetReservedSlot(obj, 0);
+      ELisp_Value tem;
+
+      tem = oblookup (obarray, bytes, strlen (bytes), strlen (bytes));
+
+      //tem = find_symbol_value (tem);
+
+      if (INTEGERP (tem))
+        *resolvedp = false;
+      else
+        {
+          JS_SetProperty (cx, obj, bytes, tem.v.v);
+          *resolvedp = true;
+        }
+
+      JS_free(cx, bytes);
+    }
+    return true;
+}
+
+static const JSClassOps Q_classOps =
+  {
+   nullptr, nullptr, nullptr, nullptr,
+   Q_resolve, nullptr, nullptr, nullptr, nullptr, nullptr,
+  };
+
+static const JSClass Q_class =
+  {
+   "Q", JSCLASS_HAS_RESERVED_SLOTS(1),
+   &Q_classOps,
+  };
+
+static bool
+V_resolve(JSContext *cx, JS::HandleObject obj, JS::HandleId id, bool *resolvedp)
+{
+  *resolvedp = false;
+  if (JSID_IS_STRING (id))
+    {
+      JS::RootedString fs(cx, JS_FORGET_STRING_FLATNESS(JSID_TO_FLAT_STRING (id)));
+      char *bytes = JS_EncodeStringToUTF8 (cx, fs);
+
+      if (!bytes)
+        return false;
+
+      for (char *p = bytes; *p; p++)
+        {
+          if (*p == '_')
+            *p = '-';
+          else if (*p == '-')
+            *p = '_';
+        }
+
+      ELisp_Value obarray;
+      obarray.v.v = JS_GetReservedSlot(obj, 0);
+      ELisp_Value tem;
+
+      tem = oblookup (obarray, bytes, strlen (bytes), strlen (bytes));
+
+      if (INTEGERP (tem))
+        *resolvedp = false;
+      else
+        {
+          tem = find_symbol_value (tem);
+
+          JS_SetProperty (cx, obj, bytes, tem.v.v);
+          *resolvedp = true;
+        }
+
+      JS_free(cx, bytes);
+    }
+    return true;
+}
+
+static const JSClassOps V_classOps =
+  {
+   nullptr, nullptr, nullptr, nullptr,
+   V_resolve, nullptr, nullptr, nullptr, nullptr, nullptr,
+  };
+
+static const JSClass V_class =
+  {
+   "V", JSCLASS_HAS_RESERVED_SLOTS(1),
+   &V_classOps,
+  };
+
+static bool
+F_resolve(JSContext *cx, JS::HandleObject obj, JS::HandleId id, bool *resolvedp)
+{
+  *resolvedp = false;
+  if (JSID_IS_STRING (id))
+    {
+      JS::RootedString fs(cx, JS_FORGET_STRING_FLATNESS(JSID_TO_FLAT_STRING (id)));
+      char *bytes = JS_EncodeStringToUTF8 (cx, fs);
+
+      if (!bytes)
+        return false;
+
+      for (char *p = bytes; *p; p++)
+        {
+          if (*p == '_')
+            *p = '-';
+          else if (*p == '-')
+            *p = '_';
+        }
+
+      ELisp_Value obarray;
+      obarray.v.v = JS_GetReservedSlot(obj, 0);
+      ELisp_Value tem;
+
+      tem = oblookup (obarray, bytes, strlen (bytes), strlen (bytes));
+
+      if (INTEGERP (tem))
+        *resolvedp = false;
+      else
+        {
+          tem = XSYMBOL (tem)->function;
+
+          JS_SetProperty (cx, obj, bytes, tem.v.v);
+          *resolvedp = true;
+        }
+
+      JS_free(cx, bytes);
+    }
+    return true;
+}
+
+static const JSClassOps F_classOps =
+  {
+   nullptr, nullptr, nullptr, nullptr,
+   F_resolve, nullptr, nullptr, nullptr, nullptr, nullptr,
+  };
+
+static const JSClass F_class =
+  {
+   "F", JSCLASS_HAS_RESERVED_SLOTS(1),
+   &F_classOps,
+  };
+
+static bool
 global_enumerate(JSContext* cx, JS::HandleObject obj, JS::AutoIdVector& properties,
                  bool enumerableOnly)
 {
@@ -266,6 +425,40 @@ global_resolve(JSContext* cx, JS::HandleObject obj, JS::HandleId id, bool* resol
 
       if (!bytes)
         return false;
+
+      if (strcmp(bytes, "Q") == 0)
+        {
+          JS::RootedValue q(cx);
+          JS::RootedObject qobj(cx, JS_NewObject(cx, &Q_class));
+          JS_SetReservedSlot(qobj, 0, Vobarray);
+          q = JS::ObjectValue(*qobj);
+          JS_SetProperty(cx, obj, bytes, q);
+          JS_free(cx, bytes);
+          *resolvedp = true;
+          return true;
+        }
+      if (strcmp(bytes, "F") == 0)
+        {
+          JS::RootedValue q(cx);
+          JS::RootedObject qobj(cx, JS_NewObject(cx, &F_class));
+          JS_SetReservedSlot(qobj, 0, Vobarray);
+          q = JS::ObjectValue(*qobj);
+          JS_SetProperty(cx, obj, bytes, q);
+          JS_free(cx, bytes);
+          *resolvedp = true;
+          return true;
+        }
+      if (strcmp(bytes, "V") == 0)
+        {
+          JS::RootedValue q(cx);
+          JS::RootedObject qobj(cx, JS_NewObject(cx, &V_class));
+          JS_SetReservedSlot(qobj, 0, Vobarray);
+          q = JS::ObjectValue(*qobj);
+          JS_SetProperty(cx, obj, bytes, q);
+          JS_free(cx, bytes);
+          *resolvedp = true;
+          return true;
+        }
 
       if (bytes[0] >= 'A' && bytes[0] <= 'Z')
         {

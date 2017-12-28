@@ -4240,6 +4240,32 @@ usage: (unintern NAME OBARRAY)  */)
   return Qt;
 }
 
+ELisp_Value
+obarray_get (ELisp_Handle obarray, const char *ptr, ptrdiff_t size_byte)
+{
+  JS::RootedString atom(jsg.cx, JS_AtomizeStringN(jsg.cx, ptr, size_byte));
+  if (!atom)
+    return Qnil;
+  JS::RootedId id(jsg.cx, INTERNED_STRING_TO_JSID (jsg.cx, atom));
+  JS::RootedObject obj(jsg.cx, &obarray.v.v.toObject());
+  ELisp_Value ret;
+  JS_GetPropertyById(jsg.cx, obj, id, &ret.v.v);
+  return ret;
+}
+
+ELisp_Value
+obarray_set (ELisp_Handle obarray, const char *ptr, ptrdiff_t size_byte,
+             ELisp_Handle val)
+{
+  JS::RootedString atom(jsg.cx, JS_AtomizeStringN(jsg.cx, ptr, size_byte));
+  if (!atom)
+    return Qnil;
+  JS::RootedId id(jsg.cx, INTERNED_STRING_TO_JSID (jsg.cx, atom));
+  JS::RootedObject obj(jsg.cx, &obarray.v.v.toObject());
+  JS_SetPropertyById(jsg.cx, obj, id, val.v.v);
+  return Qt;
+}
+
 /* Return the symbol in OBARRAY whose names matches the string
    of SIZE characters (SIZE_BYTE bytes) at PTR.
    If there is no such symbol, return the integer bucket number of
