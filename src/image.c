@@ -1,6 +1,6 @@
 /* Functions for image support on window system.
 
-Copyright (C) 1989, 1992-2017 Free Software Foundation, Inc.
+Copyright (C) 1989, 1992-2018 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -8285,7 +8285,7 @@ extern WandExport void PixelGetMagickColor (const PixelWand *,
 #endif
 
 /* Log ImageMagick error message.
-   Useful when a ImageMagick function returns the status `MagickFalse'.  */
+   Useful when an ImageMagick function returns the status `MagickFalse'.  */
 
 static void
 imagemagick_error (MagickWand *wand)

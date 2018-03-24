@@ -1,6 +1,6 @@
 /* Evaluator for GNU Emacs Lisp interpreter.
 
-Copyright (C) 1985-1987, 1993-1995, 1999-2017 Free Software Foundation,
+Copyright (C) 1985-1987, 1993-1995, 1999-2018 Free Software Foundation,
 Inc.
 
 This file is part of GNU Emacs.
@@ -1702,7 +1702,10 @@ signal_or_quit (Lisp_Object error_symbol, Lisp_Object data, bool keyboard_quit)
 
   /* This hook is used by edebug.  */
   if (! NILP (Vsignal_hook_function)
-      && ! NILP (error_symbol))
+      && ! NILP (error_symbol)
+      /* Don't try to call a lisp function if we've already overflowed
+         the specpdl stack.  */
+      && specpdl_ptr < specpdl + specpdl_size)
     {
       /* Edebug takes care of restoring these variables when it exits.  */
       if (lisp_eval_depth + 20 > max_lisp_eval_depth)

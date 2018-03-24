@@ -1,6 +1,6 @@
 ;;; compile.el --- run compiler as inferior of Emacs, parse error messages  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1985-1987, 1993-1999, 2001-2017 Free Software
+;; Copyright (C) 1985-1987, 1993-1999, 2001-2018 Free Software
 ;; Foundation, Inc.
 
 ;; Authors: Roland McGrath <roland@gnu.org>,
@@ -98,16 +98,6 @@ while processing the output of the compilation process.")
 The function receives one argument, the name of the major mode of the
 compilation buffer.  It should return a string.
 If nil, compute the name with `(concat \"*\" (downcase major-mode) \"*\")'.")
-
-;;;###autoload
-(defvar compilation-finish-function nil
-  "Function to call when a compilation process finishes.
-It is called with two arguments: the compilation buffer, and a string
-describing how the process finished.")
-
-(make-obsolete-variable 'compilation-finish-function
-  "use `compilation-finish-functions', but it works a little differently."
-  "22.1")
 
 ;;;###autoload
 (defvar compilation-finish-functions nil
@@ -919,7 +909,7 @@ from a different message."
 
 ;; COLUMN and LINE are numbers parsed from an error message.  COLUMN and maybe
 ;; LINE will be nil for a message that doesn't contain them.  Then the
-;; location refers to a indented beginning of line or beginning of file.
+;; location refers to an indented beginning of line or beginning of file.
 ;; Once any location in some file has been jumped to, the list is extended to
 ;; (COLUMN LINE FILE-STRUCTURE MARKER TIMESTAMP . VISITED)
 ;; for all LOCs pertaining to that file.
@@ -2101,7 +2091,6 @@ by replacing the first word, e.g., `compilation-scroll-output' from
 		   compilation-error-regexp-alist
 		   compilation-error-regexp-alist-alist
 		   compilation-error-screen-columns
-		   compilation-finish-function
 		   compilation-finish-functions
 		   compilation-first-column
 		   compilation-mode-font-lock-keywords
@@ -2245,9 +2234,6 @@ commands of Compilation major mode are available.  See
     (force-mode-line-update)
     (if (and opoint (< opoint omax))
 	(goto-char opoint))
-    (with-no-warnings
-      (if compilation-finish-function
-	  (funcall compilation-finish-function cur-buffer msg)))
     (run-hook-with-args 'compilation-finish-functions cur-buffer msg)))
 
 ;; Called when compilation process changes state.

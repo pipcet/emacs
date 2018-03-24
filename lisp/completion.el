@@ -1,6 +1,6 @@
 ;;; completion.el --- dynamic word-completion code
 
-;; Copyright (C) 1990, 1993, 1995, 1997, 2001-2017 Free Software
+;; Copyright (C) 1990, 1993, 1995, 1997, 2001-2018 Free Software
 ;; Foundation, Inc.
 
 ;; Maintainer: emacs-devel@gnu.org
@@ -2225,7 +2225,10 @@ TYPE is the type of the wrapper to be added.  Can be :before or :under."
       (modify-syntax-entry char "_" table))
     table))
 
+(declare-function cl-set-difference "cl-seq" (cl-list1 cl-list2 &rest cl-keys))
+
 (defun completion-lisp-mode-hook ()
+  (require 'cl-lib)
   (setq completion-syntax-table completion-lisp-syntax-table)
   ;; Lisp Mode diffs
   (setq-local completion-separator-chars

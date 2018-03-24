@@ -1,6 +1,6 @@
 ;;; recentf.el --- setup a menu of recently opened files
 
-;; Copyright (C) 1999-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1999-2018 Free Software Foundation, Inc.
 
 ;; Author: David Ponce <david@dponce.com>
 ;; Created: July 19 1999
@@ -227,10 +227,6 @@ elements (see `recentf-make-menu-element' for menu element form)."
 This item will replace the \"More...\" item."
   :group 'recentf
   :type 'boolean)
-
-(define-obsolete-variable-alias 'recentf-menu-append-commands-p
-                                'recentf-menu-append-commands-flag
-                                "22.1")
 
 (defcustom recentf-menu-append-commands-flag t
   "Non-nil means to append command items to the menu."

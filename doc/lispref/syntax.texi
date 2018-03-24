@@ -1,6 +1,6 @@
 @c -*-texinfo-*-
 @c This is part of the GNU Emacs Lisp Reference Manual.
-@c Copyright (C) 1990-1995, 1998-1999, 2001-2017 Free Software
+@c Copyright (C) 1990-1995, 1998-1999, 2001-2018 Free Software
 @c Foundation, Inc.
 @c See the file elisp.texi for copying conditions.
 @node Syntax Tables
@@ -971,6 +971,10 @@ cons cell of the form @code{(@var{syntax-code}
 encodes the syntax class and syntax flags, according to the table
 below.  @var{matching-char}, if non-@code{nil}, specifies a matching
 character (similar to the second character in a syntax descriptor).
+
+@cindex syntax tables (accessing elements of)
+Use @code{aref} (@pxref{Array Functions}) to get the raw syntax
+descriptor of a character, e.g. @w{@code{(aref (syntax-table) ch)}}.
 
   Here are the syntax codes corresponding to the various syntax
 classes:

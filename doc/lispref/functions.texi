@@ -1,6 +1,6 @@
 @c -*- mode: texinfo; coding: utf-8 -*-
 @c This is part of the GNU Emacs Lisp Reference Manual.
-@c Copyright (C) 1990-1995, 1998-1999, 2001-2017 Free Software
+@c Copyright (C) 1990-1995, 1998-1999, 2001-2018 Free Software
 @c Foundation, Inc.
 @c See the file elisp.texi for copying conditions.
 @node Functions
@@ -1246,10 +1246,10 @@ This specializer requires the argument be @code{eql} to the given
 @item (head @var{object})
 The argument must be a cons cell whose @code{car} is @code{eql} to
 @var{object}.
-@item @var{struct-tag}
-The argument must be an instance of a class named @var{struct-tag}
+@item @var{struct-type}
+The argument must be an instance of a class named @var{struct-type}
 defined with @code{cl-defstruct} (@pxref{Structures,,, cl, Common Lisp
-Extensions for GNU Emacs Lisp}), or of one of its parent classes.
+Extensions for GNU Emacs Lisp}), or of one of its child classes.
 @end table
 
 Method definitions can make use of a new argument-list keyword,
@@ -1634,7 +1634,7 @@ anonymous function.
 This specifies how to order the advice, should several pieces of
 advice be present.  By default, the depth is 0.  A depth of 100
 indicates that this piece of advice should be kept as deep as
-possible, whereas a depth of -100 indicates that it should stay as the
+possible, whereas a depth of @minus{}100 indicates that it should stay as the
 outermost piece.  When two pieces of advice specify the same depth,
 the most recently added one will be outermost.
 
@@ -2098,7 +2098,7 @@ to verify that using @code{defun} actually has performance problems.
   After an inline function is defined, its inline expansion can be
 performed later on in the same file, just like macros.
 
-  It's possible to use @code{defsubst} to define a macro to expand
+  It's possible to use @code{defmacro} to define a macro to expand
 into the same code that an inline function would execute
 (@pxref{Macros}).  But the macro would be limited to direct use in
 expressions---a macro cannot be called with @code{apply},

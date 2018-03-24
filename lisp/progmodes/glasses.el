@@ -1,6 +1,6 @@
 ;;; glasses.el --- make cantReadThis readable
 
-;; Copyright (C) 1999-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1999-2018 Free Software Foundation, Inc.
 
 ;; Author: Milan Zamazal <pdm@zamazal.org>
 ;; Maintainer: Milan Zamazal <pdm@zamazal.org>
@@ -326,10 +326,10 @@ add virtual separators (like underscores) at places they belong to."
       (if glasses-mode
 	  (progn
 	    (jit-lock-register 'glasses-change)
-	    (add-hook 'local-write-file-hooks
+	    (add-hook 'write-file-functions
 		      'glasses-convert-to-unreadable nil t))
 	(jit-lock-unregister 'glasses-change)
-	(remove-hook 'local-write-file-hooks
+	(remove-hook 'write-file-functions
 		     'glasses-convert-to-unreadable t)))))
 
 

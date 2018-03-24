@@ -1,6 +1,6 @@
 ;;; cc-fonts.el --- font lock support for CC Mode
 
-;; Copyright (C) 2002-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2002-2018 Free Software Foundation, Inc.
 
 ;; Authors:    2003- Alan Mackenzie
 ;;             2002- Martin Stjernholm
@@ -1234,10 +1234,9 @@ casts and declarations are fontified.  Used on level 2 and higher."
 	   (cons 'decl nil))
 	  ;; We're inside a brace list.
 	  ((and (eq (char-before match-pos) ?{)
-		(save-excursion
-		  (goto-char (1- match-pos))
-		  (consp
-		   (c-looking-at-or-maybe-in-bracelist))))
+		(c-inside-bracelist-p (1- match-pos)
+				      (cdr (c-parse-state))
+				      nil))
 	   (c-put-char-property (1- match-pos) 'c-type
 				'c-not-decl)
 	   (cons 'not-decl nil))

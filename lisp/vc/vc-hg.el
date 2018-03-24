@@ -1,6 +1,6 @@
 ;;; vc-hg.el --- VC backend for the mercurial version control system  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2006-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2006-2018 Free Software Foundation, Inc.
 
 ;; Author: Ivan Kanis
 ;; Maintainer: emacs-devel@gnu.org
@@ -101,11 +101,11 @@
 
 ;;; Code:
 
+(require 'cl-lib)
+
 (eval-when-compile
   (require 'vc)
   (require 'vc-dir))
-
-(require 'cl-lib)
 
 (declare-function vc-compilation-mode "vc-dispatcher" (backend))
 
@@ -175,6 +175,10 @@ highlighting the Log View buffer."
   :version "24.5")
 
 
+;; Clear up the cache to force vc-call to check again and discover
+;; new functions when we reload this file.
+(put 'Hg 'vc-functions nil)
+
 ;;; Properties of the backend
 
 (defvar vc-hg-history nil)
@@ -1012,8 +1016,8 @@ hg binary."
          (not (vc-hg--requirements-understood-p repo))
          ;; Dirstate too small to be valid
          (< (nth 7 dirstate-attr) 40)
-         ;; We want to store 32-bit unsigned values in fixnums
-         (< most-positive-fixnum 4294967295)
+         ;; We want to store 32-bit unsigned values in fixnums.
+         (zerop (lsh -1 32))
          (progn
            (setf repo-relative-filename
                  (file-relative-name truename repo))

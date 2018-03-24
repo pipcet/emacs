@@ -1,6 +1,6 @@
 ;;; ibuf-ext.el --- extensions for ibuffer  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2000-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2000-2018 Free Software Foundation, Inc.
 
 ;; Author: Colin Walters <walters@verbum.org>
 ;; Maintainer: John Paul Wallington <jpw@gnu.org>
@@ -114,7 +114,7 @@ Buffers whose name matches a regexp in this list, are not searched."
   "A list of major modes ignored by `ibuffer-mark-by-content-regexp'.
 Buffers whose major mode is in this list, are not searched."
   :version "26.1"
-  :type '(repeat regexp)
+  :type '(repeat (symbol :tag "Major mode"))
   :require 'ibuf-ext
   :group 'ibuffer)
 

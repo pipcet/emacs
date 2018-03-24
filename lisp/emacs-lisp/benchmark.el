@@ -1,6 +1,6 @@
 ;;; benchmark.el --- support for benchmarking code  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2003-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2003-2018 Free Software Foundation, Inc.
 
 ;; Author: Dave Love  <fx@gnu.org>
 ;; Keywords: lisp, extensions
@@ -96,7 +96,8 @@ result.  The overhead of the `lambda's is accounted for."
 ;;;###autoload
 (defun benchmark (repetitions form)
   "Print the time taken for REPETITIONS executions of FORM.
-Interactively, REPETITIONS is taken from the prefix arg.
+Interactively, REPETITIONS is taken from the prefix arg, and
+the command prompts for the form to benchmark.
 For non-interactive use see also `benchmark-run' and
 `benchmark-run-compiled'."
   (interactive "p\nxForm: ")

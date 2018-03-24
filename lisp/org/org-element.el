@@ -1,6 +1,6 @@
 ;;; org-element.el --- Parser for Org Syntax         -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2012-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2012-2018 Free Software Foundation, Inc.
 
 ;; Author: Nicolas Goaziou <n.goaziou at gmail dot com>
 ;; Keywords: outlines, hypermedia, calendar, wp
@@ -4721,7 +4721,7 @@ indentation removed from its contents."
 ;; Cache is enabled by default, but can be disabled globally with
 ;; `org-element-use-cache'.  `org-element-cache-sync-idle-time',
 ;; org-element-cache-sync-duration' and `org-element-cache-sync-break'
-;; can be tweaked to control caching behaviour.
+;; can be tweaked to control caching behavior.
 ;;
 ;; Internally, parsed elements are stored in an AVL tree,
 ;; `org-element--cache'.  This tree is updated lazily: whenever
@@ -4950,6 +4950,7 @@ A and B are either integers or lists of integers, as returned by
 (defsubst org-element--cache-root ()
   "Return root value in cache.
 This function assumes `org-element--cache' is a valid AVL tree."
+  ;; FIXME: Why use internal functions of avl-tree?
   (avl-tree--node-left (avl-tree--dummyroot org-element--cache)))
 
 
@@ -4978,6 +4979,7 @@ the cache."
 		    (aref (car org-element--cache-sync-requests) 0)))
 	(node (org-element--cache-root))
 	lower upper)
+    ;; FIXME: Why use internal functions of avl-tree?
     (while node
       (let* ((element (avl-tree--node-data node))
 	     (begin (org-element-property :begin element)))

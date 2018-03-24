@@ -1,6 +1,6 @@
 ;;; ses.el -- Simple Emacs Spreadsheet  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2002-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2002-2018 Free Software Foundation, Inc.
 
 ;; Author: Jonathan Yavner <jyavner@member.fsf.org>
 ;; Maintainer: Vincent Belaïche  <vincentb1@users.sourceforge.net>
@@ -2495,7 +2495,7 @@ to are recalculated first."
          prefix-length)
     (when (and prefix (null (string= prefix "")))
       (setq prefix-length (length prefix))
-      (maphash (lambda (key val)
+      (maphash (lambda (key _val)
                  (let ((key-name (symbol-name key)))
                    (when (and (>= (length key-name) prefix-length)
                               (string= prefix (substring key-name 0 prefix-length)))
@@ -2648,7 +2648,7 @@ cells."
          prefix-length)
     (when prefix
       (setq prefix-length (length prefix))
-      (maphash (lambda (key val)
+      (maphash (lambda (key _val)
                  (let ((key-name (symbol-name key)))
                    (when (and (>= (length key-name) prefix-length)
                               (string= prefix (substring key-name 0 prefix-length)))

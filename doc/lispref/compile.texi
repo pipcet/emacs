@@ -1,6 +1,6 @@
 @c -*-texinfo-*-
 @c This is part of the GNU Emacs Lisp Reference Manual.
-@c Copyright (C) 1990-1994, 2001-2017 Free Software Foundation, Inc.
+@c Copyright (C) 1990-1994, 2001-2018 Free Software Foundation, Inc.
 @c See the file elisp.texi for copying conditions.
 @node Byte Compilation
 @chapter Byte Compilation
@@ -500,7 +500,8 @@ You can tell the compiler that a function is defined using
 @item
 Likewise, you can tell the compiler that a variable is defined using
 @code{defvar} with no initial value.  (Note that this marks the
-variable as special, i.e.@: dynamically bound.)  @xref{Defining
+variable as special, i.e.@: dynamically bound, but only within the
+current lexical scope, or file if at top-level.)  @xref{Defining
 Variables}.
 @end itemize
 
@@ -523,6 +524,11 @@ one you intend to suppress.
   Byte compiler warnings can be controlled more precisely by setting
 the variable @code{byte-compile-warnings}.  See its documentation
 string for details.
+
+@vindex byte-compile-error-on-warn
+  Sometimes you may wish the byte-compiler warnings to be reported
+using @code{error}.  If so, set @code{byte-compile-error-on-warn} to a
+non-@code{nil} value.
 
 @node Byte-Code Objects
 @section Byte-Code Function Objects

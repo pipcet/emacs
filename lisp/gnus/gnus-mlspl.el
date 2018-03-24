@@ -1,6 +1,6 @@
 ;;; gnus-mlspl.el --- a group params-based mail splitting mechanism
 
-;; Copyright (C) 1998-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1998-2018 Free Software Foundation, Inc.
 
 ;; Author: Alexandre Oliva <oliva@lsd.ic.unicamp.br>
 ;; Keywords: news, mail
@@ -24,7 +24,6 @@
 
 ;;; Code:
 
-(eval-when-compile (require 'cl))
 (require 'gnus)
 (require 'gnus-sum)
 (require 'gnus-group)

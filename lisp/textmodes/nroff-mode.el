@@ -1,6 +1,6 @@
 ;;; nroff-mode.el --- GNU Emacs major mode for editing nroff source
 
-;; Copyright (C) 1985-1986, 1994-1995, 1997, 2001-2017 Free Software
+;; Copyright (C) 1985-1986, 1994-1995, 1997, 2001-2018 Free Software
 ;; Foundation, Inc.
 
 ;; Maintainer: emacs-devel@gnu.org
@@ -327,13 +327,6 @@ otherwise off."
     (if viewbuf
 	(kill-buffer viewbuf))
     (Man-getpage-in-background file)))
-
-;; Old names that were not namespace clean.
-(define-obsolete-function-alias 'count-text-lines 'nroff-count-text-lines "22.1")
-(define-obsolete-function-alias 'forward-text-line 'nroff-forward-text-line "22.1")
-(define-obsolete-function-alias 'backward-text-line 'nroff-backward-text-line "22.1")
-(define-obsolete-function-alias 'electric-nroff-newline 'nroff-electric-newline "22.1")
-(define-obsolete-function-alias 'electric-nroff-mode 'nroff-electric-mode "22.1")
 
 (provide 'nroff-mode)
 

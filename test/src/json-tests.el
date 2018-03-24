@@ -1,6 +1,6 @@
 ;;; json-tests.el --- unit tests for json.c          -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2017 Free Software Foundation, Inc.
+;; Copyright (C) 2017-2018 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -25,6 +25,13 @@
 
 (require 'cl-lib)
 (require 'map)
+
+(declare-function json-serialize "json.c" (object))
+(declare-function json-insert "json.c" (object))
+(declare-function json-parse-string "json.c" (string &rest args))
+(declare-function json-parse-buffer "json.c" (&rest args))
+
+(define-error 'json-tests--error "JSON test error")
 
 (ert-deftest json-serialize/roundtrip ()
   (skip-unless (fboundp 'json-serialize))
@@ -108,13 +115,11 @@
 
 (ert-deftest json-serialize/invalid-unicode ()
   (skip-unless (fboundp 'json-serialize))
-  ;; FIXME: "out of memory" is the wrong error signal, but we don't
-  ;; currently distinguish between error types when serializing.
-  (should-error (json-serialize ["a\uDBBBb"]) :type 'json-out-of-memory)
-  (should-error (json-serialize ["u\x110000v"]) :type 'json-out-of-memory)
-  (should-error (json-serialize ["u\x3FFFFFv"]) :type 'json-out-of-memory)
-  (should-error (json-serialize ["u\xCCv"]) :type 'json-out-of-memory)
-  (should-error (json-serialize ["u\u00C4\xCCv"]) :type 'json-out-of-memory))
+  (should-error (json-serialize ["a\uDBBBb"]) :type 'wrong-type-argument)
+  (should-error (json-serialize ["u\x110000v"]) :type 'wrong-type-argument)
+  (should-error (json-serialize ["u\x3FFFFFv"]) :type 'wrong-type-argument)
+  (should-error (json-serialize ["u\xCCv"]) :type 'wrong-type-argument)
+  (should-error (json-serialize ["u\u00C4\xCCv"]) :type 'wrong-type-argument))
 
 (ert-deftest json-parse-string/null ()
   (skip-unless (fboundp 'json-parse-string))
@@ -177,6 +182,36 @@ Test with both unibyte and multibyte strings."
     (should (equal (json-parse-buffer) [123]))
     (should-not (bobp))
     (should (looking-at-p (rx " [456]" eos)))))
+
+(ert-deftest json-insert/signal ()
+  (skip-unless (fboundp 'json-insert))
+  (with-temp-buffer
+    (let ((calls 0))
+      (add-hook 'after-change-functions
+                (lambda (_begin _end _length)
+                  (cl-incf calls)
+                  (signal 'json-tests--error
+                          '("Error in `after-change-functions'")))
+                :local)
+      (should-error
+       (json-insert '((a . "b") (c . 123) (d . [1 2 t :false])))
+       :type 'json-tests--error)
+      (should (equal calls 1)))))
+
+(ert-deftest json-insert/throw ()
+  (skip-unless (fboundp 'json-insert))
+  (with-temp-buffer
+    (let ((calls 0))
+      (add-hook 'after-change-functions
+                (lambda (_begin _end _length)
+                  (cl-incf calls)
+                  (throw 'test-tag 'throw-value))
+                :local)
+      (should-error
+       (catch 'test-tag
+         (json-insert '((a . "b") (c . 123) (d . [1 2 t :false]))))
+       :type 'no-catch)
+      (should (equal calls 1)))))
 
 (provide 'json-tests)
 ;;; json-tests.el ends here

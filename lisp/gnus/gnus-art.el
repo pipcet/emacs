@@ -1,6 +1,6 @@
 ;;; gnus-art.el --- article mode commands for Gnus
 
-;; Copyright (C) 1996-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1996-2018 Free Software Foundation, Inc.
 
 ;; Author: Lars Magne Ingebrigtsen <larsi@gnus.org>
 ;; Keywords: news
@@ -24,8 +24,7 @@
 
 ;;; Code:
 
-(eval-when-compile
-  (require 'cl))
+(eval-when-compile (require 'cl-lib))
 (defvar tool-bar-map)
 (defvar w3m-minor-mode-map)
 
@@ -761,9 +760,6 @@ Obsolete; use the face `gnus-signature' for customizations instead."
   "Face used for highlighting a signature in the article buffer."
   :group 'gnus-article-highlight
   :group 'gnus-article-signature)
-;; backward-compatibility alias
-(put 'gnus-signature-face 'face-alias 'gnus-signature)
-(put 'gnus-signature-face 'obsolete-face "22.1")
 
 (defface gnus-header-from
   '((((class color)
@@ -777,9 +773,6 @@ Obsolete; use the face `gnus-signature' for customizations instead."
   "Face used for displaying from headers."
   :group 'gnus-article-headers
   :group 'gnus-article-highlight)
-;; backward-compatibility alias
-(put 'gnus-header-from-face 'face-alias 'gnus-header-from)
-(put 'gnus-header-from-face 'obsolete-face "22.1")
 
 (defface gnus-header-subject
   '((((class color)
@@ -793,9 +786,6 @@ Obsolete; use the face `gnus-signature' for customizations instead."
   "Face used for displaying subject headers."
   :group 'gnus-article-headers
   :group 'gnus-article-highlight)
-;; backward-compatibility alias
-(put 'gnus-header-subject-face 'face-alias 'gnus-header-subject)
-(put 'gnus-header-subject-face 'obsolete-face "22.1")
 
 (defface gnus-header-newsgroups
   '((((class color)
@@ -811,9 +801,6 @@ In the default setup this face is only used for crossposted
 articles."
   :group 'gnus-article-headers
   :group 'gnus-article-highlight)
-;; backward-compatibility alias
-(put 'gnus-header-newsgroups-face 'face-alias 'gnus-header-newsgroups)
-(put 'gnus-header-newsgroups-face 'obsolete-face "22.1")
 
 (defface gnus-header-name
   '((((class color)
@@ -827,9 +814,6 @@ articles."
   "Face used for displaying header names."
   :group 'gnus-article-headers
   :group 'gnus-article-highlight)
-;; backward-compatibility alias
-(put 'gnus-header-name-face 'face-alias 'gnus-header-name)
-(put 'gnus-header-name-face 'obsolete-face "22.1")
 
 (defface gnus-header-content
   '((((class color)
@@ -842,9 +826,6 @@ articles."
      (:italic t)))  "Face used for displaying header content."
   :group 'gnus-article-headers
   :group 'gnus-article-highlight)
-;; backward-compatibility alias
-(put 'gnus-header-content-face 'face-alias 'gnus-header-content)
-(put 'gnus-header-content-face 'obsolete-face "22.1")
 
 (defcustom gnus-header-face-alist
   '(("From" nil gnus-header-from)
@@ -1816,7 +1797,7 @@ Initialized from `text-mode-syntax-table'.")
       (if (looking-at (car list))
 	  (setq list nil)
 	(setq list (cdr list))
-	(incf i)))
+	(cl-incf i)))
       i))
 
 (defun article-hide-headers (&optional _arg _delete)
@@ -2239,7 +2220,7 @@ This only works if the article in question is HTML."
 	  (w3m-toggle-inline-images)
 	(dolist (region (gnus-find-text-property-region (point-min) (point-max)
 							'image-displayer))
-	  (destructuring-bind (start end function) region
+	  (cl-destructuring-bind (start end function) region
 	    (funcall function (get-text-property start 'image-url)
 		     start end)))))))
 
@@ -8229,7 +8210,7 @@ url is put as the `gnus-button-url' overlay property on the button."
 
 (defun gnus-button-handle-news (url)
   "Fetch a news URL."
-  (destructuring-bind (_scheme server port group message-id _articles)
+  (cl-destructuring-bind (_scheme server port group message-id _articles)
       (gnus-parse-news-url url)
     (cond
      (message-id

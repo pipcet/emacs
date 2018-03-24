@@ -1,6 +1,6 @@
 /* Fully extensible Emacs, running on Unix, intended for GNU.
 
-Copyright (C) 1985-1987, 1993-1995, 1997-1999, 2001-2017 Free Software
+Copyright (C) 1985-1987, 1993-1995, 1997-1999, 2001-2018 Free Software
 Foundation, Inc.
 
 This file is part of GNU Emacs.
@@ -1571,6 +1571,10 @@ Using an Emacs configured with --with-x-toolkit=lucid does not have this problem
       syms_of_fontset ();
 #endif /* HAVE_NTGUI */
 
+#if defined HAVE_NTGUI || defined CYGWIN
+      syms_of_w32cygwinx ();
+#endif
+
 #if defined WINDOWSNT || defined HAVE_NTGUI
       syms_of_w32select ();
 #endif
@@ -2026,7 +2030,10 @@ all of which are called before Emacs is actually killed.  */
   /* Fsignal calls emacs_abort () if it sees that waiting_for_input is
      set.  */
   waiting_for_input = 0;
-  run_hook (Qkill_emacs_hook);
+  if (noninteractive)
+    safe_run_hooks (Qkill_emacs_hook);
+  else
+    run_hook (Qkill_emacs_hook);
 
 #ifdef HAVE_X_WINDOWS
   /* Transfer any clipboards we own to the clipboard manager.  */

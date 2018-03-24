@@ -1,6 +1,6 @@
 /* xfaces.c -- "Face" primitives.
 
-Copyright (C) 1993-1994, 1998-2017 Free Software Foundation, Inc.
+Copyright (C) 1993-1994, 1998-2018 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -3406,8 +3406,8 @@ DEFUN ("internal-set-lisp-face-attribute-from-resource",
     value = Qunspecified;
   else if (EQ (attr, QCheight))
     {
-      value = Fstring_to_number (value, make_number (10));
-      if (XINT (value) <= 0)
+      value = Fstring_to_number (value, Qnil);
+      if (!INTEGERP (value) || XINT (value) <= 0)
 	signal_error ("Invalid face height from X resource", value);
     }
   else if (EQ (attr, QCbold) || EQ (attr, QCitalic))
@@ -6542,7 +6542,12 @@ other font of the appropriate family and registry is available.  */);
 	       doc: /* List of ignored fonts.
 Each element is a regular expression that matches names of fonts to
 ignore.  */);
+#ifdef HAVE_OTF_KANNADA_BUG
+  /* https://debbugs.gnu.org/30193  */
+  Vface_ignored_fonts = list1 (build_string ("Noto Serif Kannada"));
+#else
   Vface_ignored_fonts = Qnil;
+#endif
 
   DEFVAR_LISP ("face-remapping-alist", Vface_remapping_alist,
 	       doc: /* Alist of face remappings.

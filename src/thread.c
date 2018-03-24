@@ -1,5 +1,5 @@
 /* Threading code.
-Copyright (C) 2012-2017 Free Software Foundation, Inc.
+Copyright (C) 2012-2018 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -1020,6 +1020,14 @@ bool
 main_thread_p (void *ptr)
 {
   return ptr == &main_thread;
+}
+
+bool
+in_current_thread (void)
+{
+  if (current_thread == NULL)
+    return false;
+  return sys_thread_equal (sys_thread_self (), current_thread->thread_id);
 }
 
 void

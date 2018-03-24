@@ -1,6 +1,6 @@
 /* Lisp parsing and input streams.
 
-Copyright (C) 1985-1989, 1993-1995, 1997-2017 Free Software Foundation,
+Copyright (C) 1985-1989, 1993-1995, 1997-2018 Free Software Foundation,
 Inc.
 
 This file is part of GNU Emacs.
@@ -149,10 +149,10 @@ static ptrdiff_t prev_saved_doc_string_length;
 /* This is the file position that string came from.  */
 static file_offset prev_saved_doc_string_position;
 
-/* True means inside a new-style backquote
-   with no surrounding parentheses.
-   Fread initializes this to false, so we need not specbind it
-   or worry about what happens to it when there is an error.  */
+/* True means inside a new-style backquote with no surrounding
+   parentheses.  Fread initializes this to the value of
+   `force_new_style_backquotes', so we need not specbind it or worry
+   about what happens to it when there is an error.  */
 static bool new_backquote_flag;
 
 /* A list of file names for files being loaded in Fload.  Used to
@@ -166,6 +166,8 @@ static int read_emacs_mule_char (int, int (*) (int, Lisp_Object),
 static void readevalloop (Lisp_Object, struct infile *, Lisp_Object, bool,
                           Lisp_Object, Lisp_Object,
                           Lisp_Object, Lisp_Object);
+
+static void build_load_history (Lisp_Object, bool);
 
 /* Functions that read one byte from the current source READCHARFUN
    or unreads one byte.  If the integer argument C is -1, it returns
@@ -1008,8 +1010,13 @@ load_error_handler (Lisp_Object data)
 static _Noreturn void
 load_error_old_style_backquotes (void)
 {
-  AUTO_STRING (format, "Loading `%s': old-style backquotes detected!");
-  xsignal1 (Qerror, CALLN (Fformat_message, format, Vload_file_name));
+  if (NILP (Vload_file_name))
+    xsignal1 (Qerror, build_string ("Old-style backquotes detected!"));
+  else
+    {
+      AUTO_STRING (format, "Loading `%s': old-style backquotes detected!");
+      xsignal1 (Qerror, CALLN (Fformat_message, format, Vload_file_name));
+    }
 }
 
 static void
@@ -1118,7 +1125,7 @@ Return t if the file exists and loads successfully.  */)
   (Lisp_Object file, Lisp_Object noerror, Lisp_Object nomessage,
    Lisp_Object nosuffix, Lisp_Object must_suffix)
 {
-  FILE *stream;
+  FILE *stream UNINIT;
   int fd;
   int fd_index UNINIT;
   ptrdiff_t count = SPECPDL_INDEX ();
@@ -1243,8 +1250,9 @@ Return t if the file exists and loads successfully.  */)
     }
 
 #ifdef HAVE_MODULES
-  if (suffix_p (found, MODULES_SUFFIX))
-    return unbind_to (count, Fmodule_load (found));
+  bool is_module = suffix_p (found, MODULES_SUFFIX);
+#else
+  bool is_module = false;
 #endif
 
   /* Check if we're stuck in a recursive load cycle.
@@ -1345,7 +1353,7 @@ Return t if the file exists and loads successfully.  */)
             } /* !load_prefer_newer */
 	}
     }
-  else
+  else if (!is_module)
     {
       /* We are loading a source file (*.el).  */
       if (!NILP (Vload_source_file_function))
@@ -1372,7 +1380,7 @@ Return t if the file exists and loads successfully.  */)
       stream = NULL;
       errno = EINVAL;
     }
-  else
+  else if (!is_module)
     {
 #ifdef WINDOWSNT
       emacs_close (fd);
@@ -1383,9 +1391,23 @@ Return t if the file exists and loads successfully.  */)
       stream = fdopen (fd, fmode);
 #endif
     }
-  if (! stream)
-    report_file_error ("Opening stdio stream", file);
-  set_unwind_protect_ptr (fd_index, close_infile_unwind, stream);
+
+  if (is_module)
+    {
+      /* `module-load' uses the file name, so we can close the stream
+         now.  */
+      if (fd >= 0)
+        {
+          emacs_close (fd);
+          clear_unwind_protect (fd_index);
+        }
+    }
+  else
+    {
+      if (! stream)
+        report_file_error ("Opening stdio stream", file);
+      set_unwind_protect_ptr (fd_index, close_infile_unwind, stream);
+    }
 
   if (! NILP (Vpurify_flag))
     Vpreloaded_file_list = Fcons (Fpurecopy (file), Vpreloaded_file_list);
@@ -1395,6 +1417,8 @@ Return t if the file exists and loads successfully.  */)
       if (!safe_p)
 	message_with_string ("Loading %s (compiled; note unsafe, not compiled in Emacs)...",
 		 file, 1);
+      else if (is_module)
+        message_with_string ("Loading %s (module)...", file, 1);
       else if (!compiled)
 	message_with_string ("Loading %s (source)...", file, 1);
       else if (newer)
@@ -1408,24 +1432,39 @@ Return t if the file exists and loads successfully.  */)
   specbind (Qinhibit_file_name_operation, Qnil);
   specbind (Qload_in_progress, Qt);
 
-  struct infile input;
-  input.stream = stream;
-  input.lookahead = 0;
-  infile = &input;
-
-  if (lisp_file_lexically_bound_p (Qget_file_char))
-    Fset (Qlexical_binding, Qt);
-
-  if (! version || version >= 22)
-    readevalloop (Qget_file_char, &input, hist_file_name,
-		  0, Qnil, Qnil, Qnil, Qnil);
+  if (is_module)
+    {
+#ifdef HAVE_MODULES
+      specbind (Qcurrent_load_list, Qnil);
+      LOADHIST_ATTACH (found);
+      Fmodule_load (found);
+      build_load_history (found, true);
+#else
+      /* This cannot happen.  */
+      emacs_abort ();
+#endif
+    }
   else
     {
-      /* We can't handle a file which was compiled with
-	 byte-compile-dynamic by older version of Emacs.  */
-      specbind (Qload_force_doc_strings, Qt);
-      readevalloop (Qget_emacs_mule_file_char, &input, hist_file_name,
-		    0, Qnil, Qnil, Qnil, Qnil);
+      struct infile input;
+      input.stream = stream;
+      input.lookahead = 0;
+      infile = &input;
+
+      if (lisp_file_lexically_bound_p (Qget_file_char))
+        Fset (Qlexical_binding, Qt);
+
+      if (! version || version >= 22)
+        readevalloop (Qget_file_char, &input, hist_file_name,
+                      0, Qnil, Qnil, Qnil, Qnil);
+      else
+        {
+          /* We can't handle a file which was compiled with
+             byte-compile-dynamic by older version of Emacs.  */
+          specbind (Qload_force_doc_strings, Qt);
+          readevalloop (Qget_emacs_mule_file_char, &input, hist_file_name,
+                        0, Qnil, Qnil, Qnil, Qnil);
+        }
     }
   unbind_to (count, Qnil);
 
@@ -1446,6 +1485,8 @@ Return t if the file exists and loads successfully.  */)
       if (!safe_p)
 	message_with_string ("Loading %s (compiled; note unsafe, not compiled in Emacs)...done",
 		 file, 1);
+      else if (is_module)
+        message_with_string ("Loading %s (module)...done", file, 1);
       else if (!compiled)
 	message_with_string ("Loading %s (source)...done", file, 1);
       else if (newer)
@@ -1663,7 +1704,7 @@ openp (Lisp_Object path, Lisp_Object str, Lisp_Object suffixes,
 				      AT_EACCESS)
 			   == 0)
 		    {
-		      if (file_directory_p (pfn))
+		      if (file_directory_p (encoded_fn))
 			last_errno = EISDIR;
 		      else
 			fd = 1;
@@ -2189,7 +2230,7 @@ read_internal_start (Lisp_Object stream, Lisp_Object start, Lisp_Object end)
   Lisp_Object retval;
 
   readchar_count = 0;
-  new_backquote_flag = 0;
+  new_backquote_flag = force_new_style_backquotes;
   /* We can get called from readevalloop which may have set these
      already.  */
   if (! HASH_TABLE_P (read_objects_map)
@@ -2654,7 +2695,7 @@ read_integer (Lisp_Object readcharfun, EMACS_INT radix)
       invalid_syntax (buf);
     }
 
-  return string_to_number (buf, radix, 0);
+  return string_to_number (buf, radix, false);
 }
 
 
@@ -3463,27 +3504,16 @@ read1 (Lisp_Object readcharfun, int *pch, bool first_in_list)
 
 	if (!quoted && !uninterned_symbol)
 	  {
-	    Lisp_Object result = string_to_number (read_buffer, 10, 0);
+	    Lisp_Object result = string_to_number (read_buffer, 10, false);
 	    if (! NILP (result))
 	      return unbind_to (count, result);
 	  }
         if (!quoted && multibyte)
           {
             int ch = STRING_CHAR ((unsigned char *) read_buffer);
-            switch (ch)
-              {
-              case 0x2018: /* LEFT SINGLE QUOTATION MARK */
-              case 0x2019: /* RIGHT SINGLE QUOTATION MARK */
-              case 0x201B: /* SINGLE HIGH-REVERSED-9 QUOTATION MARK */
-              case 0x201C: /* LEFT DOUBLE QUOTATION MARK */
-              case 0x201D: /* RIGHT DOUBLE QUOTATION MARK */
-              case 0x201F: /* DOUBLE HIGH-REVERSED-9 QUOTATION MARK */
-              case 0x301E: /* DOUBLE PRIME QUOTATION MARK */
-              case 0xFF02: /* FULLWIDTH QUOTATION MARK */
-              case 0xFF07: /* FULLWIDTH APOSTROPHE */
-                xsignal2 (Qinvalid_read_syntax, build_string ("strange quote"),
-                          CALLN (Fstring, make_number (ch)));
-              }
+            if (confusable_symbol_character_p (ch))
+              xsignal2 (Qinvalid_read_syntax, build_string ("strange quote"),
+                        CALLN (Fstring, make_number (ch)));
           }
 	{
 	  Lisp_Object result;
@@ -4922,7 +4952,7 @@ directory.  These file names are converted to absolute at startup.  */);
 If the file loaded had extension `.elc', and the corresponding source file
 exists, this variable contains the name of source file, suitable for use
 by functions like `custom-save-all' which edit the init file.
-While Emacs loads and evaluates the init file, value is the real name
+While Emacs loads and evaluates any init file, value is the real name
 of the file, regardless of whether or not it has the `.elc' extension.  */);
   Vuser_init_file = Qnil;
 
@@ -5035,6 +5065,17 @@ newest.
 Note that if you customize this, obviously it will not affect files
 that are loaded before your customizations are read!  */);
   load_prefer_newer = 0;
+
+  DEFVAR_BOOL ("force-new-style-backquotes", force_new_style_backquotes,
+               doc: /* Non-nil means to always use the current syntax for backquotes.
+If nil, `load' and `read' raise errors when encountering some
+old-style variants of backquote and comma.  If non-nil, these
+constructs are always interpreted as described in the Info node
+`(elisp)Backquotes', even if that interpretation is incompatible with
+previous versions of Emacs.  Setting this variable to non-nil makes
+Emacs compatible with the behavior planned for Emacs 28.  In Emacs 28,
+this variable will become obsolete.  */);
+  force_new_style_backquotes = false;
 
   /* Vsource_directory was initialized in init_lread.  */
 

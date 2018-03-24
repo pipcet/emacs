@@ -1,6 +1,6 @@
 ;;; cc-menus.el --- imenu support for CC Mode
 
-;; Copyright (C) 1985, 1987, 1992-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1985, 1987, 1992-2018 Free Software Foundation, Inc.
 
 ;; Authors:    1998- Martin Stjernholm
 ;;             1992-1999 Barry A. Warsaw
@@ -360,7 +360,7 @@ Example:
       (setq char (aref method p)
 	    p (1+ p))
       (cond
-       ;; Is CHAR part of a objc token?
+       ;; Is CHAR part of an objc token?
        ((and (not inargvar)   ; Ignore if CHAR is part of an argument variable.
 	     (eq 0 betweenparen) ; Ignore if CHAR is in parentheses.
 	     (or (and (<= ?a char) (<= char ?z))

@@ -1,6 +1,6 @@
 ;;; ede.el --- Emacs Development Environment gloss
 
-;; Copyright (C) 1998-2005, 2007-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1998-2005, 2007-2018 Free Software Foundation, Inc.
 
 ;; Author: Eric M. Ludlam <zappo@gnu.org>
 ;; Keywords: project, make
@@ -1095,6 +1095,7 @@ Flush the dead projects from the project cache."
     ))
 
 (defvar ede--disable-inode)             ;Defined in ede/files.el.
+(declare-function ede--project-inode "ede/files" (proj))
 
 (defun ede-global-list-sanity-check ()
   "Perform a sanity check to make sure there are no duplicate projects."

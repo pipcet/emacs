@@ -1,5 +1,5 @@
 ;;; epg.el --- the EasyPG Library -*- lexical-binding: t -*-
-;; Copyright (C) 1999-2000, 2002-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1999-2000, 2002-2018 Free Software Foundation, Inc.
 
 ;; Author: Daiki Ueno <ueno@unixuser.org>
 ;; Keywords: PGP, GnuPG
@@ -1676,8 +1676,8 @@ If you are unsure, use synchronous version of this function
   (setf (epg-context-operation context) 'sign)
   (setf (epg-context-result context) nil)
   (unless (memq mode '(t detached nil normal)) ;i.e. cleartext
-    (epg-context-set-armor context nil)
-    (epg-context-set-textmode context nil))
+    (setf (epg-context-armor context) nil)
+    (setf (epg-context-textmode context) nil))
   (epg--start context
 	     (append (list (if (memq mode '(t detached))
 			       "--detach-sign"

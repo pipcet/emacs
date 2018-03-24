@@ -1,5 +1,5 @@
 /* Window definitions for GNU Emacs.
-   Copyright (C) 1985-1986, 1993, 1995, 1997-2017 Free Software
+   Copyright (C) 1985-1986, 1993, 1995, 1997-2018 Free Software
    Foundation, Inc.
 
 This file is part of GNU Emacs.
@@ -178,11 +178,8 @@ struct window
     /* An alist with parameters.  */
     Lisp_Object window_parameters;
 
-    /* Alist of <buffer, window-start, window-point> triples listing
-       buffers previously shown in this window.  */
-    Lisp_Object prev_buffers;
-    /* List of buffers re-shown in this window.  */
-    Lisp_Object next_buffers;
+    /* The help echo text for this window.  Qnil if there's none.  */
+    Lisp_Object mode_line_help_echo;
 
     /* No Lisp data may follow below this point without changing
        mark_object in alloc.c.  The member current_matrix must be the
@@ -439,6 +436,12 @@ INLINE void
 wset_redisplay_end_trigger (struct window *w, Lisp_Object val)
 {
   w->redisplay_end_trigger = val;
+}
+
+INLINE void
+wset_mode_line_help_echo (struct window *w, Lisp_Object val)
+{
+  w->mode_line_help_echo = val;
 }
 
 INLINE void

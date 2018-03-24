@@ -1,6 +1,6 @@
 ;;; flymake.el --- A universal on-the-fly syntax checker  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2003-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2003-2018 Free Software Foundation, Inc.
 
 ;; Author:  Pavel Kobyakov <pk_at_work@yahoo.com>
 ;; Maintainer: Leo Liu <sdl.web@gmail.com>
@@ -48,6 +48,10 @@
 (require 'thingatpt) ; end-of-thing
 (require 'warnings) ; warning-numeric-level, display-warning
 (require 'compile) ; for some faces
+;; We need the next require to avoid compiler warnings and run-time
+;; errors about mouse-wheel-up/down-event in builds --without-x, where
+;; mwheel is not preloaded.
+(require 'mwheel)
 ;; when-let*, if-let*, hash-table-keys, hash-table-values:
 (eval-when-compile (require 'subr-x))
 

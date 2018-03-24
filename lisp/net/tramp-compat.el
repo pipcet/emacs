@@ -1,6 +1,6 @@
 ;;; tramp-compat.el --- Tramp compatibility functions  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2007-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2007-2018 Free Software Foundation, Inc.
 
 ;; Author: Michael Albinus <michael.albinus@gmx.de>
 ;; Keywords: comm, processes
@@ -40,7 +40,6 @@
 (require 'timer)
 (require 'ucs-normalize)
 
-(require 'trampver)
 (require 'tramp-loaddefs)
 
 ;; For not existing functions, obsolete functions, or functions with a

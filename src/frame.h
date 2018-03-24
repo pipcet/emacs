@@ -1,5 +1,5 @@
 /* Define frame-object for GNU Emacs.
-   Copyright (C) 1993-1994, 1999-2017 Free Software Foundation, Inc.
+   Copyright (C) 1993-1994, 1999-2018 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -342,6 +342,9 @@ struct frame
   ENUM_BF (output_method) output_method : 3;
 
 #ifdef HAVE_WINDOW_SYSTEM
+  /* True if this frame is a tooltip frame.  */
+  bool_bf tooltip : 1;
+
   /* See FULLSCREEN_ enum on top.  */
   ENUM_BF (fullscreen_type) want_fullscreen : 4;
 
@@ -351,9 +354,7 @@ struct frame
 
   /* Nonzero if we should actually display horizontal scroll bars on this frame.  */
   bool_bf horizontal_scroll_bars : 1;
-#endif /* HAVE_WINDOW_SYSTEM */
 
-#if defined (HAVE_WINDOW_SYSTEM)
   /* True if this is an undecorated frame.  */
   bool_bf undecorated : 1;
 
@@ -966,6 +967,7 @@ default_pixels_per_inch_y (void)
 #define FRAME_Z_GROUP_ABOVE_SUSPENDED(f)	\
   ((f)->z_group == z_group_above_suspended)
 #define FRAME_Z_GROUP_BELOW(f) ((f)->z_group == z_group_below)
+#define FRAME_TOOLTIP_P(f) ((f)->tooltip)
 #ifdef NS_IMPL_COCOA
 #define FRAME_NS_APPEARANCE(f) ((f)->ns_appearance)
 #define FRAME_NS_TRANSPARENT_TITLEBAR(f) ((f)->ns_transparent_titlebar)
@@ -982,6 +984,7 @@ default_pixels_per_inch_y (void)
 #define FRAME_Z_GROUP_NONE(f) ((void) (f), true)
 #define FRAME_Z_GROUP_ABOVE(f) ((void) (f), false)
 #define FRAME_Z_GROUP_BELOW(f) ((void) (f), false)
+#define FRAME_TOOLTIP_P(f) ((void) f, false)
 #endif /* HAVE_WINDOW_SYSTEM */
 
 /* Whether horizontal scroll bars are currently enabled for frame F.  */

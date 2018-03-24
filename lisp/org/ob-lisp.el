@@ -1,6 +1,6 @@
 ;;; ob-lisp.el --- Babel Functions for Common Lisp   -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2009-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2009-2018 Free Software Foundation, Inc.
 
 ;; Authors: Joel Boehland
 ;;	 Eric Schulte
@@ -54,7 +54,7 @@ Valid values include `slime-eval' and `sly-eval'."
   :group 'org-babel
   :version "26.1"
   :package-version '(Org . "9.0")
-  :type 'function)
+  :type 'symbol)
 
 (defcustom org-babel-lisp-dir-fmt
   "(let ((*default-pathname-defaults* #P%S\n)) %%s\n)"

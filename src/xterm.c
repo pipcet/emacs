@@ -1,6 +1,6 @@
 /* X Communication module for terminals which understand the X protocol.
 
-Copyright (C) 1989, 1993-2017 Free Software Foundation, Inc.
+Copyright (C) 1989, 1993-2018 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -996,12 +996,7 @@ static void
 x_update_begin (struct frame *f)
 {
 #ifdef USE_CAIRO
-  if (! NILP (tip_frame) && XFRAME (tip_frame) == f
-      && ! FRAME_VISIBLE_P (f)
-#ifdef USE_GTK
-      && !NILP (Fframe_parameter (tip_frame, Qtooltip))
-#endif
-      )
+  if (FRAME_TOOLTIP_P (f) && !FRAME_VISIBLE_P (f))
     return;
 
   if (! FRAME_CR_SURFACE (f))
@@ -3712,33 +3707,53 @@ x_draw_glyph_string (struct glyph_string *s)
               else
                 {
 		  struct font *font = font_for_underline_metrics (s);
+		  unsigned long minimum_offset;
+		  bool underline_at_descent_line;
+		  bool use_underline_position_properties;
+		  Lisp_Object val
+		    = buffer_local_value (Qunderline_minimum_offset,
+					  s->w->contents);
+		  if (INTEGERP (val))
+		    minimum_offset = XFASTINT (val);
+		  else
+		    minimum_offset = 1;
+		  val = buffer_local_value (Qx_underline_at_descent_line,
+					    s->w->contents);
+		  underline_at_descent_line
+		    = !(NILP (val) || EQ (val, Qunbound));
+		  val
+		    = buffer_local_value (Qx_use_underline_position_properties,
+					  s->w->contents);
+		  use_underline_position_properties
+		    = !(NILP (val) || EQ (val, Qunbound));
 
                   /* Get the underline thickness.  Default is 1 pixel.  */
                   if (font && font->underline_thickness > 0)
                     thickness = font->underline_thickness;
                   else
                     thickness = 1;
-                  if (x_underline_at_descent_line)
+                  if (underline_at_descent_line)
                     position = (s->height - thickness) - (s->ybase - s->y);
                   else
                     {
-                      /* Get the underline position.  This is the recommended
-                         vertical offset in pixels from the baseline to the top of
-                         the underline.  This is a signed value according to the
+                      /* Get the underline position.  This is the
+                         recommended vertical offset in pixels from
+                         the baseline to the top of the underline.
+                         This is a signed value according to the
                          specs, and its default is
 
                          ROUND ((maximum descent) / 2), with
                          ROUND(x) = floor (x + 0.5)  */
 
-                      if (x_use_underline_position_properties
+                      if (use_underline_position_properties
                           && font && font->underline_position >= 0)
                         position = font->underline_position;
                       else if (font)
                         position = (font->descent + 1) / 2;
                       else
-                        position = underline_minimum_offset;
+                        position = minimum_offset;
                     }
-                  position = max (position, underline_minimum_offset);
+                  position = max (position, minimum_offset);
                 }
               /* Check the sanity of thickness and position.  We should
                  avoid drawing underline out of the current line area.  */
@@ -8106,7 +8121,7 @@ handle_one_xevent (struct x_display_info *dpyinfo,
       /* Redo the mouse-highlight after the tooltip has gone.  */
       if (event->xunmap.window == tip_window)
         {
-          tip_window = 0;
+          tip_window = None;
           x_redo_mouse_highlight (dpyinfo);
         }
 
@@ -8764,7 +8779,7 @@ handle_one_xevent (struct x_display_info *dpyinfo,
 
 #ifdef USE_X_TOOLKIT
           /* Tip frames are pure X window, set size for them.  */
-          if (! NILP (tip_frame) && XFRAME (tip_frame) == f)
+          if (FRAME_TOOLTIP_P (f))
             {
               if (FRAME_PIXEL_HEIGHT (f) != configureEvent.xconfigure.height
                   || FRAME_PIXEL_WIDTH (f) != configureEvent.xconfigure.width)
@@ -10005,11 +10020,7 @@ x_new_font (struct frame *f, Lisp_Object font_object, int fontset)
       /* Don't change the size of a tip frame; there's no point in
 	 doing it because it's done in Fx_show_tip, and it leads to
 	 problems because the tip frame has no widget.  */
-      if (NILP (tip_frame) || XFRAME (tip_frame) != f
-#ifdef USE_GTK
-	  || NILP (Fframe_parameter (tip_frame, Qtooltip))
-#endif
-	  )
+      if (!FRAME_TOOLTIP_P (f))
 	{
 	  adjust_frame_size (f, FRAME_COLS (f) * FRAME_COLUMN_WIDTH (f),
 			     FRAME_LINES (f) * FRAME_LINE_HEIGHT (f), 3,
@@ -10344,6 +10355,9 @@ void
 x_set_offset (struct frame *f, register int xoff, register int yoff, int change_gravity)
 {
   int modified_top, modified_left;
+#ifdef USE_GTK
+  int scale = xg_get_scale (f);
+#endif
 
   if (change_gravity > 0)
     {
@@ -10366,11 +10380,12 @@ x_set_offset (struct frame *f, register int xoff, register int yoff, int change_
   if (x_gtk_use_window_move)
     {
       /* When a position change was requested and the outer GTK widget
-	 has been realized already, leave it to gtk_window_move to DTRT
-	 and return.  Used for Bug#25851 and Bug#25943.  */
+	 has been realized already, leave it to gtk_window_move to
+	 DTRT and return.  Used for Bug#25851 and Bug#25943.  Convert
+	 from X pixels to GTK scaled pixels.  */
       if (change_gravity != 0 && FRAME_GTK_OUTER_WIDGET (f))
 	gtk_window_move (GTK_WINDOW (FRAME_GTK_OUTER_WIDGET (f)),
-			 f->left_pos, f->top_pos);
+			 f->left_pos / scale, f->top_pos / scale);
       unblock_input ();
       return;
     }
@@ -10389,8 +10404,9 @@ x_set_offset (struct frame *f, register int xoff, register int yoff, int change_
     }
 
 #ifdef USE_GTK
+  /* Make sure we adjust for possible scaling.  */
   gtk_window_move (GTK_WINDOW (FRAME_GTK_OUTER_WIDGET (f)),
-		   modified_left, modified_top);
+		   modified_left / scale, modified_top / scale);
 #else
   XMoveWindow (FRAME_X_DISPLAY (f), FRAME_OUTER_WINDOW (f),
 	       modified_left, modified_top);
@@ -11238,7 +11254,7 @@ x_set_window_size (struct frame *f, bool change_gravity,
   /* The following breaks our calculations.  If it's really needed,
      think of something else.  */
 #if false
-  if (NILP (tip_frame) || XFRAME (tip_frame) != f)
+  if (!FRAME_TOOLTIP_P (f))
     {
       int text_width, text_height;
 
@@ -12179,6 +12195,8 @@ same_x_server (const char *name1, const char *name2)
 {
   bool seen_colon = false;
   Lisp_Object sysname = Fsystem_name ();
+  if (! STRINGP (sysname))
+    sysname = empty_unibyte_string;
   const char *system_name = SSDATA (sysname);
   ptrdiff_t system_name_length = SBYTES (sysname);
   ptrdiff_t length_until_period = 0;
@@ -12438,11 +12456,15 @@ x_term_init (Lisp_Object display_name, char *xrm_option, char *resource_name)
         unrequest_sigio (); /* See comment in x_display_ok.  */
         gtk_init (&argc, &argv2);
         request_sigio ();
-        fixup_locale ();
 
         g_log_remove_handler ("GLib", id);
 
         xg_initialize ();
+
+	/* Do this after the call to xg_initialize, because when
+	   Fontconfig is used, xg_initialize calls its initialization
+	   function which in some versions of Fontconfig calls setlocale.  */
+	fixup_locale ();
 
         dpy = DEFAULT_GDK_DISPLAY ();
 
@@ -12601,15 +12623,19 @@ x_term_init (Lisp_Object display_name, char *xrm_option, char *resource_name)
 #endif
 
   Lisp_Object system_name = Fsystem_name ();
-  ptrdiff_t nbytes;
-  if (INT_ADD_WRAPV (SBYTES (Vinvocation_name), SBYTES (system_name) + 2,
-		     &nbytes))
+
+  ptrdiff_t nbytes = SBYTES (Vinvocation_name) + 1;
+  if (STRINGP (system_name)
+      && INT_ADD_WRAPV (nbytes, SBYTES (system_name) + 1, &nbytes))
     memory_full (SIZE_MAX);
   dpyinfo->x_id = ++x_display_id;
   dpyinfo->x_id_name = xmalloc (nbytes);
   char *nametail = lispstpcpy (dpyinfo->x_id_name, Vinvocation_name);
-  *nametail++ = '@';
-  lispstpcpy (nametail, system_name);
+  if (STRINGP (system_name))
+    {
+      *nametail++ = '@';
+      lispstpcpy (nametail, system_name);
+    }
 
   /* Figure out which modifier bits mean what.  */
   x_find_modifier_meanings (dpyinfo);
@@ -13274,19 +13300,23 @@ syms_of_xterm (void)
 	       x_use_underline_position_properties,
      doc: /* Non-nil means make use of UNDERLINE_POSITION font properties.
 A value of nil means ignore them.  If you encounter fonts with bogus
-UNDERLINE_POSITION font properties, for example 7x13 on XFree prior
-to 4.1, set this to nil.  You can also use `underline-minimum-offset'
-to override the font's UNDERLINE_POSITION for small font display
-sizes.  */);
+UNDERLINE_POSITION font properties, set this to nil.  You can also use
+`underline-minimum-offset' to override the font's UNDERLINE_POSITION for
+small font display sizes.  */);
   x_use_underline_position_properties = true;
+  DEFSYM (Qx_use_underline_position_properties,
+	  "x-use-underline-position-properties");
 
   DEFVAR_BOOL ("x-underline-at-descent-line",
 	       x_underline_at_descent_line,
      doc: /* Non-nil means to draw the underline at the same place as the descent line.
+(If `line-spacing' is in effect, that moves the underline lower by
+that many pixels.)
 A value of nil means to draw the underline according to the value of the
 variable `x-use-underline-position-properties', which is usually at the
 baseline level.  The default value is nil.  */);
   x_underline_at_descent_line = false;
+  DEFSYM (Qx_underline_at_descent_line, "x-underline-at-descent-line");
 
   DEFVAR_BOOL ("x-mouse-click-focus-ignore-position",
 	       x_mouse_click_focus_ignore_position,

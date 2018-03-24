@@ -1,6 +1,6 @@
 ;;; nnmail.el --- mail support functions for the Gnus mail backends
 
-;; Copyright (C) 1995-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1995-2018 Free Software Foundation, Inc.
 
 ;; Author: Lars Magne Ingebrigtsen <larsi@gnus.org>
 ;; Keywords: news, mail
@@ -24,7 +24,7 @@
 
 ;;; Code:
 
-(eval-when-compile (require 'cl))
+(eval-when-compile (require 'cl-lib))
 
 (require 'gnus)				; for macro gnus-kill-buffer, at least
 (require 'nnheader)
@@ -781,7 +781,7 @@ If SOURCE is a directory spec, try to return the group name component."
 	  (narrow-to-region start (point))
 	  (goto-char (point-min))
 	  (nnmail-check-duplication message-id func artnum-func)
-	  (incf count)
+	  (cl-incf count)
 	  (setq end (point-max))))
       (goto-char end))
     count))
@@ -927,7 +927,7 @@ If SOURCE is a directory spec, try to return the group name component."
 	  (save-restriction
 	    (narrow-to-region start (point))
 	    (goto-char (point-min))
-	    (incf count)
+	    (cl-incf count)
 	    (nnmail-check-duplication message-id func artnum-func)
 	    (setq end (point-max))))
 	(goto-char end)))
@@ -980,7 +980,7 @@ If SOURCE is a directory spec, try to return the group name component."
 	  (save-restriction
 	    (narrow-to-region start (point))
 	    (goto-char (point-min))
-	    (incf count)
+	    (cl-incf count)
 	    (nnmail-check-duplication message-id func artnum-func junk-func)
 	    (setq end (point-max))))
 	(goto-char end)
@@ -1836,8 +1836,8 @@ be called once per group or once for all groups."
 		      ((error quit)
 		       (message "Mail source %s failed: %s" source cond)
 		       0)))
-	  (incf total new)
-	  (incf i)))
+	  (cl-incf total new)
+	  (cl-incf i)))
       ;; If we did indeed read any incoming spools, we save all info.
       (if (zerop total)
 	  (when mail-source-plugged

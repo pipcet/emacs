@@ -1969,7 +1969,8 @@ result.  The overhead of the `lambda's is accounted for.
 
 (autoload 'benchmark "benchmark" "\
 Print the time taken for REPETITIONS executions of FORM.
-Interactively, REPETITIONS is taken from the prefix arg.
+Interactively, REPETITIONS is taken from the prefix arg, and
+the command prompts for the form to benchmark.
 For non-interactive use see also `benchmark-run' and
 `benchmark-run-compiled'.
 
@@ -2927,6 +2928,7 @@ Like `bug-reference-mode', but only buttonize in comments and strings.
 (put 'byte-compile-dynamic 'safe-local-variable 'booleanp)
 (put 'byte-compile-disable-print-circle 'safe-local-variable 'booleanp)
 (put 'byte-compile-dynamic-docstrings 'safe-local-variable 'booleanp)
+(put 'byte-compile-error-on-warn 'safe-local-variable 'booleanp)
 
 (put 'byte-compile-warnings 'safe-local-variable (lambda (v) (or (symbolp v) (null (delq nil (mapcar (lambda (x) (not (symbolp x))) v))))))
 
@@ -5763,7 +5765,7 @@ It is possible to show this help automatically after some idle time.
 This is regulated by variable `cperl-lazy-help-time'.  Default with
 `cperl-hairy' (if the value of `cperl-lazy-help-time' is nil) is 5
 secs idle time .  It is also possible to switch this on/off from the
-menu, or via \\[cperl-toggle-autohelp].  Requires `run-with-idle-timer'.
+menu, or via \\[cperl-toggle-autohelp].
 
 Use \\[cperl-lineup] to vertically lineup some construction - put the
 beginning of the region at the start of construction, and make region
@@ -6192,7 +6194,7 @@ For example, the MH-E package updates this alist as follows:
 
 The value of PACKAGE needs to be unique and it needs to match the
 PACKAGE value appearing in the :package-version keyword.  Since
-the user might see the value in a error message, a good choice is
+the user might see the value in an error message, a good choice is
 the official name of the package, such as MH-E or Gnus.")
 
 (defalias 'customize-changed 'customize-changed-options)
@@ -6860,8 +6862,7 @@ a non-positive integer, and enable the mode otherwise
 
 When Delete Selection mode is enabled, typed text replaces the selection
 if the selection is active.  Otherwise, typed text is just inserted at
-point regardless of any selection.  Also, commands that normally delete
-just one character will delete the entire selection instead.
+point regardless of any selection.
 
 See `delete-selection-helper' and `delete-selection-pre-hook' for
 information on adapting behavior of commands in Delete Selection mode.
@@ -8772,7 +8773,7 @@ With prefix arg NOCONFIRM, execute current line as-is without editing.
 ;;; Generated autoloads from ecomplete.el
 
 (autoload 'ecomplete-setup "ecomplete" "\
-
+Read the .ecompleterc file.
 
 \(fn)" nil nil)
 
@@ -9585,9 +9586,10 @@ To change the default, set the variable `ediff-use-toolbar-p', which see.
 (autoload 'edit-kbd-macro "edmacro" "\
 Edit a keyboard macro.
 At the prompt, type any key sequence which is bound to a keyboard macro.
-Or, type `C-x e' or RET to edit the last keyboard macro, `C-h l' to edit
-the last 300 keystrokes as a keyboard macro, or `\\[execute-extended-command]' to edit a macro by
-its command name.
+Or, type `\\[kmacro-end-and-call-macro]' or RET to edit the last
+keyboard macro, `\\[view-lossage]' to edit the last 300
+keystrokes as a keyboard macro, or `\\[execute-extended-command]'
+to edit a macro by its command name.
 With a prefix argument, format the macro in a more concise way.
 
 \(fn KEYS &optional PREFIX FINISH-HOOK STORE-HOOK)" t nil)
@@ -9813,8 +9815,11 @@ the mode if ARG is omitted or nil.
 
 Electric Pair mode is a global minor mode.  When enabled, typing
 an open parenthesis automatically inserts the corresponding
-closing parenthesis.  (Likewise for brackets, etc.). To toggle
-the mode in a single buffer, use `electric-pair-local-mode'.
+closing parenthesis, and vice versa.  (Likewise for brackets, etc.).
+If the region is active, the parentheses (brackets, etc.) are
+inserted around the region instead.
+
+To toggle the mode in a single buffer, use `electric-pair-local-mode'.
 
 \(fn &optional ARG)" t nil)
 
@@ -9893,7 +9898,8 @@ FUNSYM must be a symbol of a defined function.
 (autoload 'elp-instrument-list "elp" "\
 Instrument, for profiling, all functions in `elp-function-list'.
 Use optional LIST if provided instead.
-If called interactively, read LIST using the minibuffer.
+If called interactively, prompt for LIST in the minibuffer;
+type \"nil\" to use `elp-function-list'.
 
 \(fn &optional LIST)" t nil)
 
@@ -12173,7 +12179,7 @@ Remove faceup markup from buffer.
 \(fn)" t nil)
 
 (autoload 'faceup-defexplainer "faceup" "\
-Defines an Ert explainer function for FUNCTION.
+Define an Ert explainer function for FUNCTION.
 
 FUNCTION must return an explanation when the test fails and
 `faceup-test-explain' is set.
@@ -12470,7 +12476,7 @@ whose elements are of the form (VAR . VALUE).
 
 When a connection to a remote server is opened, the server's
 connection profiles are found.  A server may be assigned a
-connection profile using `connection-local-set-profile'.  Then
+connection profile using `connection-local-set-profiles'.  Then
 variables are set in the server's process buffer according to the
 VARIABLES list of the connection profile.  The list is processed
 in order.
@@ -13265,7 +13271,7 @@ play around with the following keys:
 
 \(fn &optional ARG)" t nil)
 
-(if (fboundp 'register-definition-prefixes) (register-definition-prefixes "footnote" '("footnote-" "Footnote-")))
+(if (fboundp 'register-definition-prefixes) (register-definition-prefixes "footnote" '("footnote-")))
 
 ;;;***
 
@@ -13457,7 +13463,7 @@ and choose the directory as the fortune-file.
 Minimum set of parameters to filter for live (on-session) framesets.
 DO NOT MODIFY.  See `frameset-filter-alist' for a full description.")
 
-(defvar frameset-persistent-filter-alist (nconc '((background-color . frameset-filter-sanitize-color) (buffer-list . :never) (buffer-predicate . :never) (buried-buffer-list . :never) (client . :never) (delete-before . :never) (font . frameset-filter-font-param) (foreground-color . frameset-filter-sanitize-color) (fullscreen . frameset-filter-shelve-param) (GUI:font . frameset-filter-unshelve-param) (GUI:fullscreen . frameset-filter-unshelve-param) (GUI:height . frameset-filter-unshelve-param) (GUI:width . frameset-filter-unshelve-param) (height . frameset-filter-shelve-param) (outer-window-id . :never) (parent-frame . :never) (parent-id . :never) (mouse-wheel-frame . :never) (tty . frameset-filter-tty-to-GUI) (tty-type . frameset-filter-tty-to-GUI) (width . frameset-filter-shelve-param) (window-id . :never) (window-system . :never)) frameset-session-filter-alist) "\
+(defvar frameset-persistent-filter-alist (nconc '((background-color . frameset-filter-sanitize-color) (buffer-list . :never) (buffer-predicate . :never) (buried-buffer-list . :never) (client . :never) (delete-before . :never) (font . frameset-filter-font-param) (foreground-color . frameset-filter-sanitize-color) (frameset--text-pixel-height . :save) (frameset--text-pixel-width . :save) (fullscreen . frameset-filter-shelve-param) (GUI:font . frameset-filter-unshelve-param) (GUI:fullscreen . frameset-filter-unshelve-param) (GUI:height . frameset-filter-unshelve-param) (GUI:width . frameset-filter-unshelve-param) (height . frameset-filter-shelve-param) (outer-window-id . :never) (parent-frame . :never) (parent-id . :never) (mouse-wheel-frame . :never) (tty . frameset-filter-tty-to-GUI) (tty-type . frameset-filter-tty-to-GUI) (width . frameset-filter-shelve-param) (window-id . :never) (window-system . :never)) frameset-session-filter-alist) "\
 Parameters to filter for persistent framesets.
 DO NOT MODIFY.  See `frameset-filter-alist' for a full description.")
 
@@ -15143,7 +15149,7 @@ file name to `*.gz', and sets `grep-highlight-matches' to `always'.
 
 (defalias 'rzgrep 'zrgrep)
 
-(if (fboundp 'register-definition-prefixes) (register-definition-prefixes "grep" '("rgrep-" "grep-" "kill-grep")))
+(if (fboundp 'register-definition-prefixes) (register-definition-prefixes "grep" '("grep-" "rgrep-" "kill-grep")))
 
 ;;;***
 
@@ -16525,7 +16531,7 @@ See the documentation for `calendar-holidays' for details.")
 (autoload 'holidays "holidays" "\
 Display the holidays for last month, this month, and next month.
 If called with an optional prefix argument ARG, prompts for month and year.
-This function is suitable for execution in a init file.
+This function is suitable for execution in an init file.
 
 \(fn &optional ARG)" t nil)
 
@@ -16796,7 +16802,7 @@ Extract iCalendar events from current buffer.
 
 This function searches the current buffer for the first iCalendar
 object, reads it and adds all VEVENT elements to the diary
-DIARY-FILE.
+DIARY-FILENAME.
 
 It will ask for each appointment whether to add it to the diary
 unless DO-NOT-ASK is non-nil.  When called interactively,
@@ -16809,7 +16815,7 @@ Return code t means that importing worked well, return code nil
 means that an error has occurred.  Error messages will be in the
 buffer `*icalendar-errors*'.
 
-\(fn &optional DIARY-FILE DO-NOT-ASK NON-MARKING)" t nil)
+\(fn &optional DIARY-FILENAME DO-NOT-ASK NON-MARKING)" t nil)
 
 (if (fboundp 'register-definition-prefixes) (register-definition-prefixes "icalendar" '("icalendar-")))
 
@@ -17335,6 +17341,8 @@ Return the name of a buffer selected.
 PROMPT is the prompt to give to the user.  DEFAULT if given is the default
 buffer to be selected, which will go to the front of the list.
 If REQUIRE-MATCH is non-nil, an existing buffer must be selected.
+Optional arg PREDICATE if non-nil is a function limiting the
+buffers that can be considered.
 
 \(fn PROMPT &optional DEFAULT REQUIRE-MATCH PREDICATE)" nil nil)
 
@@ -17913,8 +17921,8 @@ If non-nil this pattern is passed to `imenu--generic-function' to
 create a buffer index.
 
 For example, see the value of `fortran-imenu-generic-expression'
-used by `fortran-mode' with `imenu-syntax-alist' set locally to
-give the characters which normally have \"symbol\" syntax
+used by `fortran-mode' with `imenu-syntax-alist' set locally so that
+characters which normally have \"symbol\" syntax are considered to have
 \"word\" syntax during matching.")
 (put 'imenu-generic-expression 'risky-local-variable t)
 
@@ -18074,7 +18082,7 @@ the environment variable INFOPATH is set.
 
 Although this is a customizable variable, that is mainly for technical
 reasons.  Normally, you should either set INFOPATH or customize
-`Info-additional-directory-list', rather than changing this variable." :initialize (quote custom-initialize-delay) :type (quote (repeat directory)) :group (quote info))
+`Info-additional-directory-list', rather than changing this variable." :initialize 'custom-initialize-delay :type '(repeat directory) :group 'info)
 
 (autoload 'info-other-window "info" "\
 Like `info' but show the Info buffer in another window.
@@ -18453,7 +18461,10 @@ For example, invoke \"emacs -batch -f batch-info-validate $info/ ~/*.info\"
 ;;; Generated autoloads from emacs-lisp/inline.el
 
 (autoload 'define-inline "inline" "\
+Define an inline function NAME with arguments ARGS and body in BODY.
 
+This is like `defmacro', but has several advantages.
+See Info node `(elisp)Defining Functions' for more details.
 
 \(fn NAME ARGS &rest BODY)" nil t)
 
@@ -22009,7 +22020,7 @@ QUALITY can be:
 ;;;### (autoloads nil "mwheel" "mwheel.el" (0 0 0 0))
 ;;; Generated autoloads from mwheel.el
 
-(if (fboundp 'register-definition-prefixes) (register-definition-prefixes "mwheel" '("mwheel-" "mouse-wheel-")))
+(if (fboundp 'register-definition-prefixes) (register-definition-prefixes "mwheel" '("mouse-wheel-" "mwheel-")))
 
 ;;;***
 
@@ -23243,6 +23254,7 @@ Coloring:
 
 ;;;### (autoloads nil "org" "org/org.el" (0 0 0 0))
 ;;; Generated autoloads from org/org.el
+(push (purecopy '(org 9 1 6)) package--builtin-versions)
 
 (autoload 'org-babel-do-load-languages "org" "\
 Load the languages defined in `org-babel-load-languages'.
@@ -24231,7 +24243,7 @@ Inserted by installing Org mode or when a release is made.
 \(fn)" nil nil)
 
 (autoload 'org-git-version "org-version" "\
-The Git version of org-mode.
+The Git version of Org mode.
 Inserted by installing Org or when a release is made.
 
 \(fn)" nil nil)
@@ -24405,8 +24417,6 @@ activate the package system at any time.")
 Load Emacs Lisp packages, and activate them.
 The variable `package-load-list' controls which packages to load.
 If optional arg NO-ACTIVATE is non-nil, don't activate packages.
-If `user-init-file' does not mention `(package-initialize)', add
-it to the file.
 If called as part of loading `user-init-file', set
 `package-enable-at-startup' to nil, to prevent accidentally
 loading packages twice.
@@ -25062,7 +25072,7 @@ Anything else means to do it only if the prefix arg is equal to this value.")
 
 (defun cvs-dired-noselect (dir) "\
 Run `cvs-examine' if DIR is a CVS administrative directory.
-The exact behavior is determined also by `cvs-dired-use-hook'." (when (stringp dir) (setq dir (directory-file-name dir)) (when (and (string= "CVS" (file-name-nondirectory dir)) (file-readable-p (expand-file-name "Entries" dir)) cvs-dired-use-hook (if (eq cvs-dired-use-hook (quote always)) (not current-prefix-arg) (equal current-prefix-arg cvs-dired-use-hook))) (save-excursion (funcall cvs-dired-action (file-name-directory dir) t t)))))
+The exact behavior is determined also by `cvs-dired-use-hook'." (when (stringp dir) (setq dir (directory-file-name dir)) (when (and (string= "CVS" (file-name-nondirectory dir)) (file-readable-p (expand-file-name "Entries" dir)) cvs-dired-use-hook (if (eq cvs-dired-use-hook 'always) (not current-prefix-arg) (equal current-prefix-arg cvs-dired-use-hook))) (save-excursion (funcall cvs-dired-action (file-name-directory dir) t t)))))
 
 (if (fboundp 'register-definition-prefixes) (register-definition-prefixes "pcvs" '("cvs-" "defun-cvs-mode")))
 
@@ -26418,7 +26428,7 @@ Optional argument FACE specifies the face to do the highlighting.
 
 ;;;### (autoloads nil "python" "progmodes/python.el" (0 0 0 0))
 ;;; Generated autoloads from progmodes/python.el
-(push (purecopy '(python 0 25 2)) package--builtin-versions)
+(push (purecopy '(python 0 26 1)) package--builtin-versions)
 
 (add-to-list 'auto-mode-alist (cons (purecopy "\\.py[iw]?\\'") 'python-mode))
 
@@ -28429,7 +28439,11 @@ CHAR
      matches 0 through 9, a through f and A through F.
 
 `blank'
-     matches space and tab only.
+     matches horizontal whitespace, as defined by Annex C of the
+     Unicode Technical Standard #18.  In particular, it matches
+     spaces, tabs, and other characters whose Unicode
+     `general-category' property indicates they are spacing
+     separators.
 
 `graphic', `graph'
      matches graphic characters--everything except whitespace, ASCII
@@ -29835,13 +29849,6 @@ Like `mail' command, but display mail buffer in another frame.
 (put 'server-port 'risky-local-variable t)
 
 (put 'server-auth-dir 'risky-local-variable t)
-
-(defvar server-name "server" "\
-The name of the Emacs server, if this Emacs process creates one.
-The command `server-start' makes use of this.  It should not be
-changed while a server is running.")
-
-(custom-autoload 'server-name "server" t)
 
 (autoload 'server-start "server" "\
 Allow this Emacs process to be a server for client processes.
@@ -31718,7 +31725,7 @@ Args are NAME BUFFER HOST PORT.
 NAME is name for process.  It is modified if necessary to make it unique.
 BUFFER is the buffer (or `buffer-name') to associate with the process.
  Process output goes at end of that buffer, unless you specify
- an output stream or filter function to handle the output.
+ a filter function to handle the output.
  BUFFER may be also nil, meaning that this process is not associated
  with any buffer
 Third arg is name of the host to connect to, or its IP address.
@@ -32823,6 +32830,8 @@ commands to use in that buffer.
 
 (autoload 'ansi-term "term" "\
 Start a terminal-emulator in a new buffer.
+This is almost the same as `term' apart from always creating a new buffer,
+and `C-x' being marked as a `term-escape-char'. 
 
 \(fn PROGRAM &optional NEW-BUFFER-NAME)" t nil)
 
@@ -34054,7 +34063,7 @@ Todo mode revisit this file or, with option
 file was last visited.
 
 If you call this command before you have created any todo file in
-the current format, and you have an todo file in old format, it
+the current format, and you have a todo file in old format, it
 will ask you whether to convert that file and show it.
 Otherwise, calling this command before any todo file exists
 prompts for a file name and an initial category (defaulting to
@@ -34272,14 +34281,14 @@ match file names at root of the underlying local file system,
 like \"/sys\" or \"/C:\".")
 
 (defun tramp-autoload-file-name-handler (operation &rest args) "\
-Load Tramp file name handler, and perform OPERATION." (if tramp-mode (let ((default-directory temporary-file-directory)) (load "tramp" (quote noerror) (quote nomessage))) (tramp-unload-file-name-handlers)) (apply operation args))
+Load Tramp file name handler, and perform OPERATION." (if tramp-mode (let ((default-directory temporary-file-directory)) (load "tramp" 'noerror 'nomessage)) (tramp-unload-file-name-handlers)) (apply operation args))
 
 (defun tramp-register-autoload-file-name-handlers nil "\
-Add Tramp file name handlers to `file-name-handler-alist' during autoload." (add-to-list (quote file-name-handler-alist) (cons tramp-autoload-file-name-regexp (quote tramp-autoload-file-name-handler))) (put (quote tramp-autoload-file-name-handler) (quote safe-magic) t))
+Add Tramp file name handlers to `file-name-handler-alist' during autoload." (add-to-list 'file-name-handler-alist (cons tramp-autoload-file-name-regexp 'tramp-autoload-file-name-handler)) (put 'tramp-autoload-file-name-handler 'safe-magic t))
  (tramp-register-autoload-file-name-handlers)
 
 (defun tramp-unload-file-name-handlers nil "\
-Unload Tramp file name handlers from `file-name-handler-alist'." (dolist (fnh (quote (tramp-file-name-handler tramp-completion-file-name-handler tramp-autoload-file-name-handler))) (let ((a1 (rassq fnh file-name-handler-alist))) (setq file-name-handler-alist (delq a1 file-name-handler-alist)))))
+Unload Tramp file name handlers from `file-name-handler-alist'." (dolist (fnh '(tramp-file-name-handler tramp-completion-file-name-handler tramp-archive-file-name-handler tramp-autoload-file-name-handler)) (let ((a1 (rassq fnh file-name-handler-alist))) (setq file-name-handler-alist (delq a1 file-name-handler-alist)))))
 
 (defvar tramp-completion-mode nil "\
 If non-nil, external packages signal that they are in file name completion.")
@@ -34297,6 +34306,35 @@ Discard Tramp from loading remote files.
 ;;; Generated autoloads from net/tramp-adb.el
 
 (if (fboundp 'register-definition-prefixes) (register-definition-prefixes "tramp-adb" '("tramp-")))
+
+;;;***
+
+;;;### (autoloads nil "tramp-archive" "net/tramp-archive.el" (0 0
+;;;;;;  0 0))
+;;; Generated autoloads from net/tramp-archive.el
+
+(defvar tramp-archive-enabled (featurep 'dbusbind) "\
+Non-nil when file archive support is available.")
+
+(defconst tramp-archive-suffixes '("7z" "apk" "ar" "cab" "CAB" "cpio" "deb" "depot" "exe" "iso" "jar" "lzh" "LZH" "msu" "MSU" "mtree" "pax" "rar" "rpm" "shar" "tar" "tbz" "tgz" "tlz" "txz" "warc" "xar" "xpi" "xps" "zip" "ZIP") "\
+List of suffixes which indicate a file archive.
+It must be supported by libarchive(3).")
+
+(defconst tramp-archive-compression-suffixes '("bz2" "gz" "lrz" "lz" "lz4" "lzma" "lzo" "uu" "xz" "Z") "\
+List of suffixes which indicate a compressed file.
+It must be supported by libarchive(3).")
+
+(defmacro tramp-archive-autoload-file-name-regexp nil "\
+Regular expression matching archive file names." `(concat "\\`" "\\(" ".+" "\\." (regexp-opt tramp-archive-suffixes) "\\(?:" "\\." (regexp-opt tramp-archive-compression-suffixes) "\\)*" "\\)" "\\(" "/" ".*" "\\)" "\\'"))
+
+(defun tramp-register-archive-file-name-handler nil "\
+Add archive file name handler to `file-name-handler-alist'." (when tramp-archive-enabled (add-to-list 'file-name-handler-alist (cons (tramp-archive-autoload-file-name-regexp) 'tramp-autoload-file-name-handler)) (put 'tramp-archive-file-name-handler 'safe-magic t)))
+
+(add-hook 'after-init-hook 'tramp-register-archive-file-name-handler)
+
+(add-hook 'tramp-archive-unload-hook (lambda nil (remove-hook 'after-init-hook 'tramp-register-archive-file-name-handler)))
+
+(if (fboundp 'register-definition-prefixes) (register-definition-prefixes "tramp-archive" '("tramp-" "with-parsed-tramp-archive-file-name")))
 
 ;;;***
 
@@ -34337,7 +34375,7 @@ Reenable Ange-FTP, when Tramp is unloaded.
 ;;;### (autoloads nil "tramp-gvfs" "net/tramp-gvfs.el" (0 0 0 0))
 ;;; Generated autoloads from net/tramp-gvfs.el
 
-(if (fboundp 'register-definition-prefixes) (register-definition-prefixes "tramp-gvfs" '("tramp-" "with-tramp-dbus-call-method")))
+(if (fboundp 'register-definition-prefixes) (register-definition-prefixes "tramp-gvfs" '("tramp-" "with-tramp-dbus-")))
 
 ;;;***
 
@@ -34364,7 +34402,7 @@ Reenable Ange-FTP, when Tramp is unloaded.
 
 ;;;### (autoloads nil "trampver" "net/trampver.el" (0 0 0 0))
 ;;; Generated autoloads from net/trampver.el
-(push (purecopy '(tramp 2 3 3 -1)) package--builtin-versions)
+(push (purecopy '(tramp 2 4 0 -1)) package--builtin-versions)
 
 (if (fboundp 'register-definition-prefixes) (register-definition-prefixes "trampver" '("tramp-")))
 
@@ -35850,7 +35888,10 @@ When called interactively with a prefix argument, prompt for REMOTE-LOCATION.
 \(fn &optional REMOTE-LOCATION)" t nil)
 
 (autoload 'vc-region-history "vc" "\
-Show the history of the region FROM..TO.
+Show the history of the region between FROM and TO.
+
+If called interactively, show the history between point and
+mark.
 
 \(fn FROM TO)" t nil)
 
@@ -36166,7 +36207,7 @@ For a description of possible values, see `vc-check-master-templates'.")
 (defun vc-sccs-search-project-dir (_dirname basename) "\
 Return the name of a master file in the SCCS project directory.
 Does not check whether the file exists but returns nil if it does not
-find any project directory." (let ((project-dir (getenv "PROJECTDIR")) dirs dir) (when project-dir (if (file-name-absolute-p project-dir) (setq dirs (quote ("SCCS" ""))) (setq dirs (quote ("src/SCCS" "src" "source/SCCS" "source"))) (setq project-dir (expand-file-name (concat "~" project-dir)))) (while (and (not dir) dirs) (setq dir (expand-file-name (car dirs) project-dir)) (unless (file-directory-p dir) (setq dir nil) (setq dirs (cdr dirs)))) (and dir (expand-file-name (concat "s." basename) dir)))))
+find any project directory." (let ((project-dir (getenv "PROJECTDIR")) dirs dir) (when project-dir (if (file-name-absolute-p project-dir) (setq dirs '("SCCS" "")) (setq dirs '("src/SCCS" "src" "source/SCCS" "source")) (setq project-dir (expand-file-name (concat "~" project-dir)))) (while (and (not dir) dirs) (setq dir (expand-file-name (car dirs) project-dir)) (unless (file-directory-p dir) (setq dir nil) (setq dirs (cdr dirs)))) (and dir (expand-file-name (concat "s." basename) dir)))))
 
 (if (fboundp 'register-definition-prefixes) (register-definition-prefixes "vc-sccs" '("vc-sccs-")))
 
@@ -38035,10 +38076,11 @@ If no window is at the desired location, an error is signaled.
 
 (autoload 'windmove-default-keybindings "windmove" "\
 Set up keybindings for `windmove'.
-Keybindings are of the form MODIFIER-{left,right,up,down}.
-Default MODIFIER is `shift'.
+Keybindings are of the form MODIFIERS-{left,right,up,down},
+where MODIFIERS is either a list of modifiers or a single modifier.
+Default value of MODIFIERS is `shift'.
 
-\(fn &optional MODIFIER)" t nil)
+\(fn &optional MODIFIERS)" t nil)
 
 (if (fboundp 'register-definition-prefixes) (register-definition-prefixes "windmove" '("windmove-")))
 
@@ -38061,7 +38103,7 @@ or call the function `winner-mode'.")
 Toggle Winner mode on or off.
 With a prefix argument ARG, enable Winner mode if ARG is
 positive, and disable it otherwise.  If called from Lisp, enable
-the mode if ARG is omitted or nil, and toggle it if ARG is ‘toggle’.
+the mode if ARG is omitted or nil, and toggle it if ARG is `toggle'.
 
 Winner mode is a global minor mode that records the changes in
 the window configuration (i.e. how the frames are partitioned

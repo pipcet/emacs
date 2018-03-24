@@ -1,6 +1,6 @@
 ;;; nnfolder.el --- mail folder access for Gnus
 
-;; Copyright (C) 1995-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1995-2018 Free Software Foundation, Inc.
 
 ;; Author: Simon Josefsson <simon@josefsson.org>
 ;;      ShengHuo Zhu <zsh@cs.rochester.edu> (adding NOV)
@@ -32,7 +32,6 @@
 (require 'message)
 (require 'nnmail)
 (require 'nnoo)
-(eval-when-compile (require 'cl))
 (require 'gnus)
 (require 'gnus-util)
 (require 'gnus-range)

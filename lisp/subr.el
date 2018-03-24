@@ -1,6 +1,6 @@
 ;;; subr.el --- basic lisp subroutines for Emacs  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1985-1986, 1992, 1994-1995, 1999-2017 Free Software
+;; Copyright (C) 1985-1986, 1992, 1994-1995, 1999-2018 Free Software
 ;; Foundation, Inc.
 
 ;; Maintainer: emacs-devel@gnu.org
@@ -680,20 +680,6 @@ If TEST is omitted or nil, `equal' is used."
       (setq tail (cdr tail)))
     value))
 
-(defun assoc-ignore-case (key alist)
-  "Like `assoc', but ignores differences in case and text representation.
-KEY must be a string.  Upper-case and lower-case letters are treated as equal.
-Unibyte strings are converted to multibyte for comparison."
-  (declare (obsolete assoc-string "22.1"))
-  (assoc-string key alist t))
-
-(defun assoc-ignore-representation (key alist)
-  "Like `assoc', but ignores differences in text representation.
-KEY must be a string.
-Unibyte strings are converted to multibyte for comparison."
-  (declare (obsolete assoc-string "22.1"))
-  (assoc-string key alist nil))
-
 (defun member-ignore-case (elt list)
   "Like `member', but ignore differences in case and text representation.
 ELT must be a string.  Upper-case and lower-case letters are treated as equal.
@@ -705,20 +691,28 @@ Non-strings in LIST are ignored."
     (setq list (cdr list)))
   list)
 
-(defun assq-delete-all (key alist)
-  "Delete from ALIST all elements whose car is `eq' to KEY.
+(defun assoc-delete-all (key alist &optional test)
+  "Delete from ALIST all elements whose car is KEY.
+Compare keys with TEST.  Defaults to `equal'.
 Return the modified alist.
 Elements of ALIST that are not conses are ignored."
+  (unless test (setq test #'equal))
   (while (and (consp (car alist))
-	      (eq (car (car alist)) key))
+	      (funcall test (caar alist) key))
     (setq alist (cdr alist)))
   (let ((tail alist) tail-cdr)
     (while (setq tail-cdr (cdr tail))
       (if (and (consp (car tail-cdr))
-	       (eq (car (car tail-cdr)) key))
+	       (funcall test (caar tail-cdr) key))
 	  (setcdr tail (cdr tail-cdr))
 	(setq tail tail-cdr))))
   alist)
+
+(defun assq-delete-all (key alist)
+  "Delete from ALIST all elements whose car is `eq' to KEY.
+Return the modified alist.
+Elements of ALIST that are not conses are ignored."
+  (assoc-delete-all key alist #'eq))
 
 (defun rassq-delete-all (value alist)
   "Delete from ALIST all elements whose cdr is `eq' to VALUE.
@@ -1455,12 +1449,6 @@ be a list of the form returned by `event-start' and `event-end'."
   (declare (obsolete log "24.4"))
   (log x 10))
 
-;; These are used by VM and some old programs
-(defalias 'focus-frame 'ignore "")
-(make-obsolete 'focus-frame "it does nothing." "22.1")
-(defalias 'unfocus-frame 'ignore "")
-(make-obsolete 'unfocus-frame "it does nothing." "22.1")
-
 (set-advertised-calling-convention
  'all-completions '(string collection &optional predicate) "23.1")
 (set-advertised-calling-convention 'unintern '(name obarray) "23.3")
@@ -1482,11 +1470,6 @@ be a list of the form returned by `event-start' and `event-end'."
 
 (make-obsolete-variable 'command-debug-status
                         "expect it to be removed in a future version." "25.2")
-
-(define-obsolete-variable-alias 'x-lost-selection-hooks
-  'x-lost-selection-functions "22.1")
-(define-obsolete-variable-alias 'x-sent-selection-hooks
-  'x-sent-selection-functions "22.1")
 
 ;; This was introduced in 21.4 for pre-unicode unification.  That
 ;; usage was rendered obsolete in 23.1 which uses Unicode internally.
@@ -2115,10 +2098,10 @@ and the file name is displayed in the echo area."
 NAME is name for process.  It is modified if necessary to make it unique.
 BUFFER is the buffer (or buffer name) to associate with the process.
 
-Process output (both standard output and standard error streams) goes
-at end of BUFFER, unless you specify an output stream or filter
-function to handle the output.  BUFFER may also be nil, meaning that
-this process is not associated with any buffer.
+Process output (both standard output and standard error streams)
+goes at end of BUFFER, unless you specify a filter function to
+handle the output.  BUFFER may also be nil, meaning that this
+process is not associated with any buffer.
 
 PROGRAM is the program file name.  It is searched for in `exec-path'
 \(which see).  If nil, just associate a pty with the buffer.  Remaining
@@ -2164,19 +2147,6 @@ process."
   (and (processp process)
        (memq (process-status process)
 	     '(run open listen connect stop))))
-
-;; compatibility
-
-(defun process-kill-without-query (process &optional _flag)
-  "Say no query needed if PROCESS is running when Emacs is exited.
-Optional second argument if non-nil says to require a query.
-Value is t if a query was formerly required."
-  (declare (obsolete
-            "use `process-query-on-exit-flag' or `set-process-query-on-exit-flag'."
-            "22.1"))
-  (let ((old (process-query-on-exit-flag process)))
-    (set-process-query-on-exit-flag process nil)
-    old))
 
 (defun process-kill-buffer-query-function ()
   "Ask before killing a buffer that has a running process."
@@ -2578,7 +2548,7 @@ is nil and `use-dialog-box' is non-nil."
 ;;; Atomic change groups.
 
 (defmacro atomic-change-group (&rest body)
-  "Perform BODY as an atomic change group.
+  "Like `progn' but perform BODY as an atomic change group.
 This means that if BODY exits abnormally,
 all of its changes to the current buffer are undone.
 This works regardless of whether undo is enabled in the buffer.
@@ -2601,8 +2571,8 @@ user can undo the change normally."
 	     ;; it enables undo if that was disabled; we need
 	     ;; to make sure that it gets disabled again.
 	     (activate-change-group ,handle)
-	     ,@body
-	     (setq ,success t))
+	     (prog1 ,(macroexp-progn body)
+	       (setq ,success t)))
 	 ;; Either of these functions will disable undo
 	 ;; if it was disabled before.
 	 (if ,success
@@ -3024,10 +2994,9 @@ remove properties specified by `yank-excluded-properties'."
                           run-start prop nil end)))
             (funcall fun value run-start run-end)
             (setq run-start run-end)))))
-    (with-silent-modifications
-      (if (eq yank-excluded-properties t)
-          (set-text-properties start end nil)
-        (remove-list-of-text-properties start end yank-excluded-properties)))))
+    (if (eq yank-excluded-properties t)
+        (set-text-properties start end nil)
+      (remove-list-of-text-properties start end yank-excluded-properties))))
 
 (defvar yank-undo-function)
 

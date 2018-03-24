@@ -1,6 +1,6 @@
 ;;; edebug.el --- a source-level debugger for Emacs Lisp  -*- lexical-binding: t -*-
 
-;; Copyright (C) 1988-1995, 1997, 1999-2017 Free Software Foundation,
+;; Copyright (C) 1988-1995, 1997, 1999-2018 Free Software Foundation,
 ;; Inc.
 
 ;; Author: Daniel LaLiberte <liberte@holonexus.org>
@@ -641,7 +641,7 @@ list of a symbol.")
 
 (defun edebug-form-data-symbol ()
   "Return the edebug data symbol of the form where point is in.
-If point is not inside a edebuggable form, cause error."
+If point is not inside an edebuggable form, signal an error."
   (or (edebug--form-data-name (edebug-get-form-data-entry (point)))
       (error "Not inside instrumented form")))
 

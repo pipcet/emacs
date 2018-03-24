@@ -1,6 +1,6 @@
 ;;; gnus-srvr.el --- virtual server support for Gnus
 
-;; Copyright (C) 1995-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1995-2018 Free Software Foundation, Inc.
 
 ;; Author: Lars Magne Ingebrigtsen <larsi@gnus.org>
 ;; Keywords: news
@@ -24,7 +24,7 @@
 
 ;;; Code:
 
-(eval-when-compile (require 'cl))
+(eval-when-compile (require 'cl-lib))
 
 (require 'gnus)
 (require 'gnus-start)
@@ -200,9 +200,6 @@ If nil, a faster, but more primitive, buffer is used instead."
     (t (:bold t)))
   "Face used for displaying AGENTIZED servers"
   :group 'gnus-server-visual)
-;; backward-compatibility alias
-(put 'gnus-server-agent-face 'face-alias 'gnus-server-agent)
-(put 'gnus-server-agent-face 'obsolete-face "22.1")
 
 (defface gnus-server-cloud
   '((((class color) (background light)) (:foreground "ForestGreen" :bold t))
@@ -224,9 +221,6 @@ If nil, a faster, but more primitive, buffer is used instead."
     (t (:bold t)))
   "Face used for displaying OPENED servers"
   :group 'gnus-server-visual)
-;; backward-compatibility alias
-(put 'gnus-server-opened-face 'face-alias 'gnus-server-opened)
-(put 'gnus-server-opened-face 'obsolete-face "22.1")
 
 (defface gnus-server-closed
   '((((class color) (background light)) (:foreground "Steel Blue" :italic t))
@@ -235,9 +229,6 @@ If nil, a faster, but more primitive, buffer is used instead."
     (t (:italic t)))
   "Face used for displaying CLOSED servers"
   :group 'gnus-server-visual)
-;; backward-compatibility alias
-(put 'gnus-server-closed-face 'face-alias 'gnus-server-closed)
-(put 'gnus-server-closed-face 'obsolete-face "22.1")
 
 (defface gnus-server-denied
   '((((class color) (background light)) (:foreground "Red" :bold t))
@@ -245,9 +236,6 @@ If nil, a faster, but more primitive, buffer is used instead."
     (t (:inverse-video t :bold t)))
   "Face used for displaying DENIED servers"
   :group 'gnus-server-visual)
-;; backward-compatibility alias
-(put 'gnus-server-denied-face 'face-alias 'gnus-server-denied)
-(put 'gnus-server-denied-face 'obsolete-face "22.1")
 
 (defface gnus-server-offline
   '((((class color) (background light)) (:foreground "Orange" :bold t))
@@ -255,9 +243,6 @@ If nil, a faster, but more primitive, buffer is used instead."
     (t (:inverse-video t :bold t)))
   "Face used for displaying OFFLINE servers"
   :group 'gnus-server-visual)
-;; backward-compatibility alias
-(put 'gnus-server-offline-face 'face-alias 'gnus-server-offline)
-(put 'gnus-server-offline-face 'obsolete-face "22.1")
 
 (defvar gnus-server-font-lock-keywords
   '(("(\\(agent\\))" 1 'gnus-server-agent)
@@ -984,7 +969,7 @@ how new groups will be entered into the group buffer."
 		(not (eobp))
 		(gnus-browse-unsubscribe-group)
 		(zerop (gnus-browse-next-group ward)))
-      (decf arg))
+      (cl-decf arg))
     (gnus-group-position-point)
     (when (/= 0 arg)
       (gnus-message 7 "No more newsgroups"))

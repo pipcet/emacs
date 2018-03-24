@@ -1,6 +1,6 @@
 ;;; ede/dired.el --- EDE extensions to dired.
 
-;; Copyright (C) 1998-2000, 2003, 2009-2017 Free Software Foundation,
+;; Copyright (C) 1998-2000, 2003, 2009-2018 Free Software Foundation,
 ;; Inc.
 
 ;; Author: Eric M. Ludlam <zappo@gnu.org>
@@ -27,12 +27,13 @@
 ;; This provides a dired interface to EDE, allowing users to modify
 ;; their project file by adding files (or whatever) directly from a
 ;; dired buffer.
-(eval-when-compile (require 'cl))
+
+;;; Code:
+
 (require 'easymenu)
 (require 'dired)
 (require 'ede)
 
-;;; Code:
 (defvar ede-dired-keymap
   (let ((map (make-sparse-keymap)))
     (define-key map ".a" 'ede-dired-add-to-target)

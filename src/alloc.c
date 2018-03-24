@@ -1,6 +1,6 @@
 /* Storage allocation and gc for GNU Emacs Lisp interpreter.
 
-Copyright (C) 1985-1986, 1988, 1993-1995, 1997-2017 Free Software
+Copyright (C) 1985-1986, 1988, 1993-1995, 1997-2018 Free Software
 Foundation, Inc.
 
 This file is part of GNU Emacs.
@@ -4102,7 +4102,7 @@ typedef union
 #endif
 
 /* Set *P to the address of the top of the stack.  This must be a
-   macro, not a function, so that it is executed in the caller’s
+   macro, not a function, so that it is executed in the caller's
    environment.  It is not inside a do-while so that its storage
    survives the macro.  Callers should be declared NO_INLINE.  */
 #ifdef HAVE___BUILTIN_UNWIND_INIT
@@ -4892,12 +4892,8 @@ mark_localized_symbol (struct Lisp_Symbol *ptr)
 {
   struct Lisp_Buffer_Local_Value *blv = SYMBOL_BLV (ptr);
   Lisp_Object where = blv->where;
-  /* If the value is set up for a killed buffer or deleted
-     frame, restore its global binding.  If the value is
-     forwarded to a C variable, either it's not a Lisp_Object
-     var, or it's staticpro'd already.  */
-  if ((BUFFERP (where) && !BUFFER_LIVE_P (XBUFFER (where)))
-      || (FRAMEP (where) && !FRAME_LIVE_P (XFRAME (where))))
+  /* If the value is set up for a killed buffer restore its global binding.  */
+  if ((BUFFERP (where) && !BUFFER_LIVE_P (XBUFFER (where))))
     swap_in_global_binding (ptr);
   mark_object (blv->where);
   mark_object (blv->valcell);

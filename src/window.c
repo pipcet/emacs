@@ -1,6 +1,6 @@
 /* Window creation, deletion and examination for GNU Emacs.
    Does not include redisplay.
-   Copyright (C) 1985-1987, 1993-1998, 2000-2017 Free Software
+   Copyright (C) 1985-1987, 1993-1998, 2000-2018 Free Software
    Foundation, Inc.
 
 This file is part of GNU Emacs.
@@ -5400,12 +5400,13 @@ window_scroll_pixel_based (Lisp_Object window, int n, bool whole, bool noerror)
       if (it.what == IT_EOB)
 	partial_p =
 	  it.current_y + it.ascent + it.descent
-	  > it.last_visible_y - WINDOW_HEADER_LINE_HEIGHT (w);
+	  > it.last_visible_y - this_scroll_margin - WINDOW_HEADER_LINE_HEIGHT (w);
       else
 	{
 	  move_it_by_lines (&it, 1);
 	  partial_p =
-	    it.current_y > it.last_visible_y - WINDOW_HEADER_LINE_HEIGHT (w);
+	    it.current_y
+	    > it.last_visible_y - this_scroll_margin - WINDOW_HEADER_LINE_HEIGHT (w);
 	}
 
       if (charpos == PT && !partial_p
@@ -5925,6 +5926,9 @@ and redisplay normally--don't erase and redraw the frame.  */)
   EMACS_INT iarg UNINIT;
   int this_scroll_margin;
 
+  /* For reasons why we signal an error here, see
+     http://lists.gnu.org/archive/html/emacs-devel/2014-06/msg00053.html,
+     http://lists.gnu.org/archive/html/emacs-devel/2014-06/msg00094.html.  */
   if (buf != current_buffer)
     error ("`recenter'ing a window that does not display current-buffer.");
 

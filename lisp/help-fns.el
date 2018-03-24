@@ -1,6 +1,6 @@
 ;;; help-fns.el --- Complex help functions -*- lexical-binding: t -*-
 
-;; Copyright (C) 1985-1986, 1993-1994, 1998-2017 Free Software
+;; Copyright (C) 1985-1986, 1993-1994, 1998-2018 Free Software
 ;; Foundation, Inc.
 
 ;; Maintainer: emacs-devel@gnu.org
@@ -642,6 +642,8 @@ Returns a list of the form (REAL-FUNCTION DEF ALIASED REAL-DEF)."
 		  (concat beg "Lisp macro"))
 		 ((byte-code-function-p def)
 		  (concat beg "compiled Lisp function"))
+                 ((module-function-p def)
+                  (concat beg "module function"))
 		 ((eq (car-safe def) 'lambda)
 		  (concat beg "Lisp function"))
 		 ((eq (car-safe def) 'closure)

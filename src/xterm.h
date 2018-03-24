@@ -1,5 +1,5 @@
 /* Definitions and headers for communication with X protocol.
-   Copyright (C) 1989, 1993-1994, 1998-2017 Free Software Foundation,
+   Copyright (C) 1989, 1993-1994, 1998-2018 Free Software Foundation,
    Inc.
 
 This file is part of GNU Emacs.
@@ -504,6 +504,8 @@ extern struct x_display_info *x_term_init (Lisp_Object, char *, char *);
 extern bool x_display_ok (const char *);
 
 extern void select_visual (struct x_display_info *);
+
+extern Window tip_window;
 
 /* Each X frame object points to its own struct x_output object
    in the output_data.x field.  The x_output structure contains

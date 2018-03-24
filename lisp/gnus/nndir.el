@@ -1,6 +1,6 @@
 ;;; nndir.el --- single directory newsgroup access for Gnus
 
-;; Copyright (C) 1995-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1995-2018 Free Software Foundation, Inc.
 
 ;; Author: Lars Magne Ingebrigtsen <larsi@gnus.org>
 ;; Keywords: news
@@ -28,7 +28,6 @@
 (require 'nnmh)
 (require 'nnml)
 (require 'nnoo)
-(eval-when-compile (require 'cl))
 
 (nnoo-declare nndir
   nnml nnmh)

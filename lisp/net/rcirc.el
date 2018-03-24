@@ -1,6 +1,6 @@
 ;;; rcirc.el --- default, simple IRC client          -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2005-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2005-2018 Free Software Foundation, Inc.
 
 ;; Author: Ryan Yeske <rcyeske@gmail.com>
 ;; Maintainers: Ryan Yeske <rcyeske@gmail.com>,
@@ -181,6 +181,8 @@ underneath each nick."
   "Responses which will be hidden when `rcirc-omit-mode' is enabled."
   :type '(repeat string)
   :group 'rcirc)
+
+(defvar rcirc-prompt-start-marker nil)
 
 (define-minor-mode rcirc-omit-mode
   "Toggle the hiding of \"uninteresting\" lines.
@@ -401,7 +403,6 @@ will be killed."
 
 (defvar rcirc-nick nil)
 
-(defvar rcirc-prompt-start-marker nil)
 (defvar rcirc-prompt-end-marker nil)
 
 (defvar rcirc-nick-table nil)

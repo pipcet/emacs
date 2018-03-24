@@ -1,6 +1,6 @@
 ;;; viper-cmd.el --- Vi command support for Viper  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1997-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1997-2018 Free Software Foundation, Inc.
 
 ;; Author: Michael Kifer <kifer@cs.stonybrook.edu>
 ;; Package: viper
@@ -45,8 +45,6 @@
 (defvar undo-beg-posn)
 (defvar undo-end-posn)
 
-(eval-and-compile
-  (unless (fboundp 'declare-function) (defmacro declare-function (&rest _))))
 ;; end pacifier
 
 
@@ -130,9 +128,6 @@
   "The list of all commands in Vi-state.")
 ;; define viper-vi-command-p
 (viper-test-com-defun viper-vi-command)
-
-;; Where viper saves mark. This mark is resurrected by m^
-(defvar viper-saved-mark nil)
 
 ;; Contains user settings for vars affected by viper-set-expert-level function.
 ;; Not a user option.

@@ -1,6 +1,6 @@
 ;;; nnml.el --- mail spool access for Gnus
 
-;; Copyright (C) 1995-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1995-2018 Free Software Foundation, Inc.
 
 ;; Authors: Didier Verna <didier@xemacs.org> (adding compaction)
 ;;	Simon Josefsson <simon@josefsson.org>
@@ -35,7 +35,6 @@
 (require 'nnheader)
 (require 'nnmail)
 (require 'nnoo)
-(eval-when-compile (require 'cl))
 
 ;; FIXME first is unused in this file.
 (autoload 'gnus-article-unpropagatable-p "gnus-sum")

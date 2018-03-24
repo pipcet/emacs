@@ -1,6 +1,6 @@
 ;;; tramp-cmds.el --- Interactive commands for Tramp  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2007-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2007-2018 Free Software Foundation, Inc.
 
 ;; Author: Michael Albinus <michael.albinus@gmx.de>
 ;; Keywords: comm, processes
@@ -144,7 +144,8 @@ This includes password cache, file cache, connection cache, buffers."
   (clrhash tramp-cache-data)
 
   ;; Cleanup local copies of archives.
-  (tramp-archive-cleanup-hash)
+  (when (bound-and-true-p tramp-archive-enabled)
+    (tramp-archive-cleanup-hash))
 
   ;; Remove buffers.
   (dolist (name (tramp-list-tramp-buffers))

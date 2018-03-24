@@ -1,6 +1,6 @@
 ;;; cc-langs.el --- language specific settings for CC Mode -*- coding: utf-8 -*-
 
-;; Copyright (C) 1985, 1987, 1992-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1985, 1987, 1992-2018 Free Software Foundation, Inc.
 
 ;; Authors:    2002- Alan Mackenzie
 ;;             1998- Martin Stjernholm
@@ -208,9 +208,9 @@ the evaluated constant value at compile time."
 
 ;; Suppress "might not be defined at runtime" warning.
 ;; This file is only used when compiling other cc files.
-;; These are defined in cl as aliases to the cl- versions.
-;(declare-function delete-duplicates "cl-seq" (cl-seq &rest cl-keys) t)
-;(declare-function mapcan "cl-extra" (cl-func cl-seq &rest cl-rest) t)
+(declare-function cl-delete-duplicates "cl-seq" (cl-seq &rest cl-keys))
+(declare-function cl-intersection "cl-seq" (cl-list1 cl-list2 &rest cl-keys))
+(declare-function cl-set-difference "cl-seq" (cl-list1 cl-list2 &rest cl-keys))
 
 (eval-and-compile
   ;; Some helper functions used when building the language constants.
@@ -616,6 +616,12 @@ EOL terminated statements."
   t nil
   c++ t)
 (c-lang-defvar c-has-quoted-numbers (c-lang-const c-has-quoted-numbers))
+
+(c-lang-defconst c-has-compound-literals
+  "Whether literal initializers {...} are used other than in initializations."
+  t nil
+  (c c++) t)
+(c-lang-defvar c-has-compound-literals (c-lang-const c-has-compound-literals))
 
 (c-lang-defconst c-modified-constant
   "Regexp that matches a “modified” constant literal such as \"L\\='a\\='\",
@@ -2100,6 +2106,18 @@ will be handled."
    (c-lang-const c-other-block-decl-kwds))
   "Alist associating keywords in c-other-decl-block-decl-kwds with
 their matching \"in\" syntactic symbols.")
+
+(c-lang-defconst c-defun-type-name-decl-kwds
+  "Keywords introducing a named block, where the name is a \"defun\"
+    name."
+  t (append (c-lang-const c-class-decl-kwds)
+	    (c-lang-const c-brace-list-decl-kwds)))
+
+(c-lang-defconst c-defun-type-name-decl-key
+  ;; Regexp matching a keyword in `c-defun-name-decl-kwds'.
+  t (c-make-keywords-re t (c-lang-const c-defun-type-name-decl-kwds)))
+(c-lang-defvar c-defun-type-name-decl-key
+  (c-lang-const c-defun-type-name-decl-key))
 
 (c-lang-defconst c-typedef-decl-kwds
   "Keywords introducing declarations where the identifier(s) being

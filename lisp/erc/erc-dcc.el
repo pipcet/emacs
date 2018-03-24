@@ -1,6 +1,6 @@
 ;;; erc-dcc.el --- CTCP DCC module for ERC
 
-;; Copyright (C) 1993-1995, 1998, 2002-2004, 2006-2017 Free Software
+;; Copyright (C) 1993-1995, 1998, 2002-2004, 2006-2018 Free Software
 ;; Foundation, Inc.
 
 ;; Author: Ben A. Mesander <ben@gnu.ai.mit.edu>
@@ -54,7 +54,9 @@
 ;;; Code:
 
 (require 'erc)
-(eval-when-compile (require 'pcomplete))
+;; Strictly speaking, should only be needed at compile time.
+;; Require at run-time too to silence compiler.
+(require 'pcomplete)
 
 ;;;###autoload(autoload 'erc-dcc-mode "erc-dcc")
 (define-erc-module dcc nil

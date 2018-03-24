@@ -1,6 +1,6 @@
 ;;; ispell.el --- interface to spell checkers  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1994-1995, 1997-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1994-1995, 1997-2018 Free Software Foundation, Inc.
 
 ;; Author:           Ken Stevens <k.stevens@ieee.org>
 
@@ -1200,8 +1200,9 @@ Internal use.")
   (with-output-to-string
     (with-current-buffer
         standard-output
-        (apply 'ispell-call-process
-               (concat ispell-program-name "-lsmod") nil t nil args))))
+      (apply 'ispell-call-process
+             (replace-regexp-in-string "enchant\\(-[0-9]\\)?$" "enchant-lsmod\\1"
+                                       ispell-program-name) nil t nil args))))
 
 (defun ispell--get-extra-word-characters (&optional lang)
   "Get the extra word characters for LANG as a character class.
@@ -1818,11 +1819,9 @@ Only works for Aspell and Enchant."
 	(setq default-directory defdir)
 	(insert string)
 	(if (not (memq cmd cmds-to-defer))
-	    (let (coding-system-for-read coding-system-for-write status)
-	      (if (and (boundp 'enable-multibyte-characters)
-		       enable-multibyte-characters)
-		  (setq coding-system-for-read (ispell-get-coding-system)
-			coding-system-for-write (ispell-get-coding-system)))
+	    (let* ((coding-system-for-read (ispell-get-coding-system))
+                   (coding-system-for-write coding-system-for-read)
+                   status)
 	      (set-buffer output-buf)
 	      (erase-buffer)
 	      (set-buffer session-buf)

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-## Copyright (C) 2017 Free Software Foundation, Inc.
+## Copyright (C) 2017-2018 Free Software Foundation, Inc.
 
 ## This file is part of GNU Emacs.
 
@@ -49,8 +49,9 @@ function build_zip {
     export PKG_CONFIG_PATH=$PKG
 
     ## Running configure forces a rebuild of the C core which takes
-    ## time that is not always needed
-    if (($CONFIG))
+    ## time that is not always needed, so do not do it unless we have
+    ## to.
+    if [ ! -f Makefile ] || (($CONFIG))
     then
         echo [build] Configuring Emacs $ARCH
         ../../../git/$BRANCH/configure \
@@ -60,7 +61,7 @@ function build_zip {
             CFLAGS="-O2 -static -g3"
     fi
 
-    make -j 16 install \
+    make -j 8 install \
          prefix=$HOME/emacs-build/install/emacs-$VERSION/$ARCH
     cd $HOME/emacs-build/install/emacs-$VERSION/$ARCH
     cp $HOME/emacs-build/deps/libXpm/$ARCH/libXpm-noX4.dll bin

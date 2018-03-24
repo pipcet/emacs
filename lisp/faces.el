@@ -1,6 +1,6 @@
 ;;; faces.el --- Lisp faces -*- lexical-binding: t -*-
 
-;; Copyright (C) 1992-1996, 1998-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1992-1996, 1998-2018 Free Software Foundation, Inc.
 
 ;; Maintainer: emacs-devel@gnu.org
 ;; Keywords: internal
@@ -698,7 +698,7 @@ Otherwise, VALUE must be a property list of the form:
 
 `(:color COLOR :style STYLE)'.
 
-COLOR can be a either a color name string or `foreground-color'.
+COLOR can be either a color name string or `foreground-color'.
 STYLE can be either `line' or `wave'.
 If a keyword/value pair is missing from the property list, a
 default value will be used for the value.

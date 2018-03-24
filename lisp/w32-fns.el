@@ -1,6 +1,6 @@
 ;;; w32-fns.el --- Lisp routines for 32-bit Windows
 
-;; Copyright (C) 1994, 2001-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1994, 2001-2018 Free Software Foundation, Inc.
 
 ;; Author: Geoff Voelker <voelker@cs.washington.edu>
 ;; Keywords: internal
@@ -126,22 +126,16 @@ You should set this to t when using a non-system shell.\n\n"))))
   ;; (and some programs ported from Unix require it) but most will
   ;; produce DOS line endings on output.
   (setq default-process-coding-system
-	(if (default-value 'enable-multibyte-characters)
-	    '(undecided-dos . undecided-unix)
-	  '(raw-text-dos . raw-text-unix)))
+	'(undecided-dos . undecided-unix))
   ;; Make cmdproxy default to using DOS line endings for input,
   ;; because some Windows programs (including command.com) require it.
   (add-to-list 'process-coding-system-alist
-	       `("[cC][mM][dD][pP][rR][oO][xX][yY]"
-		 . ,(if (default-value 'enable-multibyte-characters)
-			'(undecided-dos . undecided-dos)
-		      '(raw-text-dos . raw-text-dos))))
+	       '("[cC][mM][dD][pP][rR][oO][xX][yY]"
+		 . (undecided-dos . undecided-dos)))
   ;; plink needs DOS input when entering the password.
   (add-to-list 'process-coding-system-alist
-	       `("[pP][lL][iI][nN][kK]"
-		 . ,(if (default-value 'enable-multibyte-characters)
-			'(undecided-dos . undecided-dos)
-		      '(raw-text-dos . raw-text-dos)))))
+	       '("[pP][lL][iI][nN][kK]"
+		 . (undecided-dos . undecided-dos))))
 (define-obsolete-function-alias 'set-default-process-coding-system
   #'w32-set-default-process-coding-system "26.1")
 (add-hook 'before-init-hook #'w32-set-default-process-coding-system)
@@ -262,7 +256,7 @@ bit output with no translation."
 
 (when (boundp 'w32-charset-info-alist)
   ;; The last charset we add becomes the "preferred" charset for the return
-  ;; value from w32-select-font etc, so list the most important charsets last.
+  ;; value from x-select-font etc, so list the most important charsets last.
   (w32-add-charset-info "iso8859-14" 'w32-charset-ansi  28604)
   (w32-add-charset-info "iso8859-15" 'w32-charset-ansi  28605)
   ;; The following two are included for pattern matching.

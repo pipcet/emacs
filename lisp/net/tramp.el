@@ -1,6 +1,6 @@
 ;;; tramp.el --- Transparent Remote Access, Multiple Protocol  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1998-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1998-2018 Free Software Foundation, Inc.
 
 ;; Author: Kai Großjohann <kai.grossjohann@gmx.net>
 ;;         Michael Albinus <michael.albinus@gmx.de>
@@ -56,6 +56,7 @@
 ;;; Code:
 
 (require 'tramp-compat)
+(require 'trampver)
 
 ;; Pacify byte-compiler.
 (require 'cl-lib)
@@ -349,7 +350,7 @@ This variable is regarded as obsolete, and will be removed soon."
   "Default user to use for specific method/host pairs.
 This is an alist of items (METHOD HOST USER).  The first matching item
 specifies the user to use for a file name which does not specify a
-user.  METHOD and USER are regular expressions or nil, which is
+user.  METHOD and HOST are regular expressions or nil, which is
 interpreted as a regular expression which always matches.  If no entry
 matches, the variable `tramp-default-user' takes effect.
 
@@ -373,7 +374,7 @@ Useful for su and sudo methods mostly."
   "Default host to use for specific method/user pairs.
 This is an alist of items (METHOD USER HOST).  The first matching item
 specifies the host to use for a file name which does not specify a
-host.  METHOD and HOST are regular expressions or nil, which is
+host.  METHOD and USER are regular expressions or nil, which is
 interpreted as a regular expression which always matches.  If no entry
 matches, the variable `tramp-default-host' takes effect.
 
@@ -1338,11 +1339,13 @@ This is HOST, if non-nil. Otherwise, it is `tramp-default-host'."
       tramp-default-host))
 
 (defun tramp-dissect-file-name (name &optional nodefault)
-  "Return a `tramp-file-name' structure.
-The structure consists of remote method, remote user, remote host,
-localname (file name on remote host) and hop.  If NODEFAULT is
-non-nil, the file name parts are not expanded to their default
-values."
+  "Return a `tramp-file-name' structure of NAME, a remote file name.
+The structure consists of method, user, domain, host, port,
+localname (file name on remote host), and hop.
+
+Unless NODEFAULT is non-nil, method, user and host are expanded
+to their default values. For the other file name parts, no
+default values are used."
   (save-match-data
     (unless (tramp-tramp-file-p name)
       (tramp-compat-user-error nil "Not a Tramp file name: \"%s\"" name))
@@ -1423,9 +1426,10 @@ the form (METHOD USER DOMAIN HOST PORT LOCALNAME &optional HOP)."
 	      localname (nth 5 args)
 	      hop (nth 6 args))))
 
+    (when (zerop (length method))
+      (signal 'wrong-type-argument (list 'stringp method)))
     (concat tramp-prefix-format hop
-	    (unless (or (zerop (length method))
-			(zerop (length tramp-postfix-method-format)))
+	    (unless (zerop (length tramp-postfix-method-format))
 	      (concat method tramp-postfix-method-format))
 	    user
 	    (unless (zerop (length domain))
@@ -1557,7 +1561,9 @@ The outline level is equal to the verbosity of the Tramp message."
 	    (outline-regexp tramp-debug-outline-regexp))
 	(outline-mode))
       (set (make-local-variable 'outline-regexp) tramp-debug-outline-regexp)
-      (set (make-local-variable 'outline-level) 'tramp-debug-outline-level))
+      (set (make-local-variable 'outline-level) 'tramp-debug-outline-level)
+      ;; Do not edit the debug buffer.
+      (set-keymap-parent (current-local-map) special-mode-map))
     (current-buffer)))
 
 (defsubst tramp-debug-message (vec fmt-string &rest arguments)
@@ -1626,10 +1632,11 @@ ARGUMENTS to actually emit the message (if applicable)."
     ;; The message.
     (insert (apply #'format-message fmt-string arguments))))
 
-(defvar tramp-message-show-message t
+(defvar tramp-message-show-message (null noninteractive)
   "Show Tramp message in the minibuffer.
-This variable is used to disable messages from `tramp-error'.
-The messages are visible anyway, because an error is raised.")
+This variable is used to suppress progress reporter output, and
+to disable messages from `tramp-error'.  Those messages are
+visible anyway, because an error is raised.")
 
 (defsubst tramp-message (vec-or-proc level fmt-string &rest arguments)
   "Emit a message depending on verbosity level.
@@ -1661,17 +1668,18 @@ applicable)."
 		 arguments))
 	;; Log only when there is a minimum level.
 	(when (>= tramp-verbose 4)
-	  ;; Translate proc to vec.
-	  (when (processp vec-or-proc)
-	    (let ((tramp-verbose 0))
-	      (setq vec-or-proc
-		    (tramp-get-connection-property vec-or-proc "vector" nil))))
-	  ;; Append connection buffer for error messages.
-	  (when (= level 1)
-	    (let ((tramp-verbose 0))
-	      (with-current-buffer (tramp-get-connection-buffer vec-or-proc)
+	  (let ((tramp-verbose 0))
+	    ;; Append connection buffer for error messages.
+	    (when (= level 1)
+	      (with-current-buffer
+		  (if (processp vec-or-proc)
+		      (process-buffer vec-or-proc)
+		    (tramp-get-connection-buffer vec-or-proc))
 		(setq fmt-string (concat fmt-string "\n%s")
-		      arguments (append arguments (list (buffer-string)))))))
+		      arguments (append arguments (list (buffer-string))))))
+	    ;; Translate proc to vec.
+	    (when (processp vec-or-proc)
+	      (setq vec-or-proc (process-get vec-or-proc 'vector))))
 	  ;; Do it.
 	  (when (tramp-file-name-p vec-or-proc)
 	    (apply 'tramp-debug-message
@@ -2230,6 +2238,8 @@ Falls back to normal file name handler if no Tramp file name handler exists."
 			(let ((default-directory
 				(tramp-compat-temporary-file-directory)))
 			  (load (cadr sf) 'noerror 'nomessage)))
+;;		      (tramp-message
+;;		       v 4 "Running `%s'..." (cons operation args))
 		      ;; If `non-essential' is non-nil, Tramp shall
 		      ;; not open a new connection.
 		      ;; If Tramp detects that it shouldn't continue
@@ -2253,6 +2263,8 @@ Falls back to normal file name handler if no Tramp file name handler exists."
 				      (let ((tramp-locker t))
 					(apply foreign operation args))
 				    (setq tramp-locked tl))))))
+;;		      (tramp-message
+;;		       v 4 "Running `%s'...`%s'" (cons operation args) result)
 		      (cond
 		       ((eq result 'non-essential)
 			(tramp-message
@@ -2391,10 +2403,11 @@ remote file names."
   (put 'tramp-completion-file-name-handler 'operations
        (mapcar 'car tramp-completion-file-name-handler-alist))
 
-  (add-to-list 'file-name-handler-alist
-	       (cons tramp-archive-file-name-regexp
-		     'tramp-archive-file-name-handler))
-  (put 'tramp-archive-file-name-handler 'safe-magic t)
+  (when (bound-and-true-p tramp-archive-enabled)
+    (add-to-list 'file-name-handler-alist
+	         (cons tramp-archive-file-name-regexp
+		       'tramp-archive-file-name-handler))
+    (put 'tramp-archive-file-name-handler 'safe-magic t))
 
   ;; If jka-compr or epa-file are already loaded, move them to the
   ;; front of `file-name-handler-alist'.
@@ -3543,17 +3556,20 @@ support symbolic links."
     ;; First, we must replace environment variables.
     (setq filename (tramp-replace-environment-variables filename))
     (with-parsed-tramp-file-name filename nil
-      ;; Ignore in LOCALNAME everything before "//" or "/~".
-      (when (and (stringp localname) (string-match ".+?/\\(/\\|~\\)" localname))
-	(setq filename
-	      (concat (file-remote-p filename)
-		      (replace-match "\\1" nil nil localname)))
-	;; "/m:h:~" does not work for completion.  We use "/m:h:~/".
-	(when (string-match "~$" filename)
-	  (setq filename (concat filename "/"))))
       ;; We do not want to replace environment variables, again.
       (let (process-environment)
-	(tramp-run-real-handler 'substitute-in-file-name (list filename))))))
+	;; Ignore in LOCALNAME everything before "//" or "/~".
+	(when (stringp localname)
+	  (if (string-match "//\\(/\\|~\\)" localname)
+	      (setq filename (substitute-in-file-name localname))
+	    (setq filename
+		  (concat (file-remote-p filename)
+			  (tramp-run-real-handler
+			   'substitute-in-file-name (list localname)))))))
+      ;; "/m:h:~" does not work for completion.  We use "/m:h:~/".
+      (if (and (stringp localname) (string-equal "~" localname))
+	  (concat filename "/")
+	filename))))
 
 (defun tramp-handle-set-visited-file-modtime (&optional time-list)
   "Like `set-visited-file-modtime' for Tramp files."
@@ -3610,10 +3626,16 @@ of."
 	   ;; only if that agrees with the buffer's record.
 	   (t (equal mt '(-1 65535)))))))))
 
+;; This is used in tramp-gvfs.el and tramp-sh.el.
+(defconst tramp-gio-events
+  '("attribute-changed" "changed" "changes-done-hint"
+    "created" "deleted" "moved" "pre-unmount" "unmounted")
+  "List of events \"gio monitor\" could send.")
+
+;; This is the default handler.  tramp-gvfs.el and tramp-sh.el have
+;; their own one.
 (defun tramp-handle-file-notify-add-watch (filename _flags _callback)
   "Like `file-notify-add-watch' for Tramp files."
-  ;; This is the default handler.  tramp-gvfs.el and tramp-sh.el have
-  ;; their own one.
   (setq filename (expand-file-name filename))
   (with-parsed-tramp-file-name filename nil
     (tramp-error
@@ -3781,8 +3803,7 @@ connection buffer."
   ;; use the "password-vector" property in case we have several hops.
   (tramp-set-connection-property
    (tramp-get-connection-property
-    proc "password-vector"
-    (tramp-get-connection-property proc "vector" nil))
+    proc "password-vector" (process-get proc 'vector))
    "first-password-request" tramp-cache-read-persistent-data)
   (save-restriction
     (with-tramp-progress-reporter
@@ -4399,9 +4420,7 @@ Invokes `password-read' if available, `read-passwd' else."
 	       ;; In tramp-sh.el, we must use "password-vector" due to
 	       ;; multi-hop.
 	       (tramp-get-connection-property
-		proc "password-vector"
-		;; All other backends simply use "vector".
-		(tramp-get-connection-property proc "vector" nil))
+		proc "password-vector" (process-get proc 'vector))
 	       'noloc 'nohop))
 	 (pw-prompt
 	  (or prompt
@@ -4443,6 +4462,7 @@ Invokes `password-read' if available, `read-passwd' else."
 					  auth-passwd))))
 	       ;; Try the password cache.
 	       (let ((password (password-read pw-prompt key)))
+		 ;; FIXME test password works before caching it.
 		 (password-cache-add key password)
 		 password)
 	       ;; Else, get the password interactively.
@@ -4547,7 +4567,7 @@ Only works for Bourne-like shells."
 	;; This is for tramp-sh.el.  Other backends do not support this (yet).
 	(tramp-compat-funcall
 	 'tramp-send-command
-	 (tramp-get-connection-property proc "vector" nil)
+	 (process-get proc 'vector)
 	 (format "kill -2 %d" pid))
 	;; Wait, until the process has disappeared.  If it doesn't,
 	;; fall back to the default implementation.

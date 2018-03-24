@@ -1,6 +1,6 @@
 ;;; subr-x-tests.el --- Testing the extended lisp routines
 
-;; Copyright (C) 2014-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2014-2018 Free Software Foundation, Inc.
 
 ;; Author: Fabián E. Gallina <fgallina@gnu.org>
 ;; Keywords:
@@ -148,34 +148,34 @@
   "Test `if-let' with falsie bindings."
   (should (equal
            (if-let* ((a nil))
-               (list a b c)
+               "yes"
              "no")
            "no"))
   (should (equal
            (if-let* ((a nil) (b 2) (c 3))
-               (list a b c)
+               "yes"
              "no")
            "no"))
   (should (equal
            (if-let* ((a 1) (b nil) (c 3))
-               (list a b c)
+               "yes"
              "no")
            "no"))
   (should (equal
            (if-let* ((a 1) (b 2) (c nil))
-               (list a b c)
+               "yes"
              "no")
            "no"))
   (should (equal
            (let (z)
              (if-let* (z (a 1) (b 2) (c 3))
-                 (list a b c)
+                 "yes"
                "no"))
            "no"))
   (should (equal
            (let (d)
              (if-let* ((a 1) (b 2) (c 3) d)
-                 (list a b c)
+                 "yes"
                "no"))
            "no")))
 
@@ -312,34 +312,28 @@
   "Test `when-let' with falsie bindings."
   (should (equal
            (when-let* ((a nil))
-             (list a b c)
              "no")
            nil))
   (should (equal
            (when-let* ((a nil) (b 2) (c 3))
-             (list a b c)
              "no")
            nil))
   (should (equal
            (when-let* ((a 1) (b nil) (c 3))
-             (list a b c)
              "no")
            nil))
   (should (equal
            (when-let* ((a 1) (b 2) (c nil))
-             (list a b c)
              "no")
            nil))
   (should (equal
            (let (z)
              (when-let* (z (a 1) (b 2) (c 3))
-               (list a b c)
                "no"))
            nil))
   (should (equal
            (let (d)
              (when-let* ((a 1) (b 2) (c 3) d)
-               (list a b c)
                "no"))
            nil)))
 

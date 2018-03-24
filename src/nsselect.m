@@ -1,5 +1,5 @@
 /* NeXT/Open/GNUstep / macOS Cocoa selection processing for emacs.
-   Copyright (C) 1993-1994, 2005-2006, 2008-2017 Free Software
+   Copyright (C) 1993-1994, 2005-2006, 2008-2018 Free Software
    Foundation, Inc.
 
 This file is part of GNU Emacs.
@@ -36,7 +36,7 @@ GNUstep port and post-20 update by Adrian Robert (arobert@cogsci.ucsd.edu)
 
 static Lisp_Object Vselection_alist;
 
-/* NSPasteboardNameGeneral is pretty much analogous to X11 CLIPBOARD */
+/* NSPasteboardNameGeneral is pretty much analogous to X11 CLIPBOARD.  */
 static NSString *NXPrimaryPboard;
 static NSString *NXSecondaryPboard;
 

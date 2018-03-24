@@ -1,6 +1,6 @@
 ;;; mm-view.el --- functions for viewing MIME objects
 
-;; Copyright (C) 1998-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1998-2018 Free Software Foundation, Inc.
 
 ;; Author: Lars Magne Ingebrigtsen <larsi@gnus.org>
 ;; This file is part of GNU Emacs.
@@ -22,7 +22,7 @@
 
 ;;; Code:
 
-(eval-when-compile (require 'cl))
+(eval-when-compile (require 'cl-lib))
 (require 'mail-parse)
 (require 'mailcap)
 (require 'mm-bodies)
@@ -561,7 +561,7 @@ If MODE is not set, try to find mode automatically."
 	   (error "Could not identify PKCS#7 type")))))
 
 (defun mm-view-pkcs7 (handle &optional from)
-  (case (mm-view-pkcs7-get-type handle)
+  (cl-case (mm-view-pkcs7-get-type handle)
     (enveloped (mm-view-pkcs7-decrypt handle from))
     (signed (mm-view-pkcs7-verify handle))
     (otherwise (error "Unknown or unimplemented PKCS#7 type"))))

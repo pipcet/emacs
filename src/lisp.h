@@ -1,7 +1,7 @@
 #if 0
 /* Fundamental definitions for GNU Emacs Lisp interpreter. -*- coding: utf-8 -*-
 
-Copyright (C) 1985-1987, 1993-1995, 1997-2017 Free Software Foundation,
+Copyright (C) 1985-1987, 1993-1995, 1997-2018 Free Software Foundation,
 Inc.
 
 This file is part of GNU Emacs.
@@ -584,7 +584,10 @@ enum Lisp_Fwd_Type
    resources allocated for it that are not Lisp objects.  You can even
    make a pointer to the function that frees the resources a slot in
    your object -- this way, the same object could be used to represent
-   several disparate C structures.  */
+   several disparate C structures.
+
+   You also need to add the new type to the constant
+   `cl--typeof-types' in lisp/emacs-lisp/cl-preloaded.el.  */
 
 
 /* A Lisp_Object is a tagged pointer or integer.  Ordinarily it is a
@@ -2677,19 +2680,15 @@ struct Lisp_Buffer_Objfwd
    in the buffer structure itself.  They are handled differently,
    using struct Lisp_Buffer_Objfwd.)
 
-   The `realvalue' slot holds the variable's current value, or a
-   forwarding pointer to where that value is kept.  This value is the
-   one that corresponds to the loaded binding.  To read or set the
-   variable, you must first make sure the right binding is loaded;
-   then you can access the value in (or through) `realvalue'.
+   The `valcell' slot holds the variable's current value (unless `fwd'
+   is set).  This value is the one that corresponds to the loaded binding.
+   To read or set the variable, you must first make sure the right binding
+   is loaded; then you can access the value in (or through) `valcell'.
 
-   `buffer' and `frame' are the buffer and frame for which the loaded
-   binding was found.  If those have changed, to make sure the right
-   binding is loaded it is necessary to find which binding goes with
-   the current buffer and selected frame, then load it.  To load it,
-   first unload the previous binding, then copy the value of the new
-   binding into `realvalue' (or through it).  Also update
-   LOADED-BINDING to point to the newly loaded binding.
+   `where' is the buffer for which the loaded binding was found.
+   If it has changed, to make sure the right binding is loaded it is
+   necessary to find which binding goes with the current buffer, then
+   load it.  To load it, first unload the previous binding.
 
    `local_if_set' indicates that merely setting the variable creates a
    local binding for the current buffer.  Otherwise the latter, setting
@@ -2705,14 +2704,14 @@ struct Lisp_Buffer_Local_Value
     bool_bf found : 1;
     /* If non-NULL, a forwarding to the C var where it should also be set.  */
     union Lisp_Fwd *fwd;	/* Should never be (Buffer|Kboard)_Objfwd.  */
-    /* The buffer or frame for which the loaded binding was found.  */
+    /* The buffer for which the loaded binding was found.  */
     Lisp_Object where;
     /* A cons cell that holds the default value.  It has the form
        (SYMBOL . DEFAULT-VALUE).  */
     Lisp_Object defcell;
     /* The cons cell from `where's parameter alist.
        It always has the form (SYMBOL . VALUE)
-       Note that if `forward' is non-nil, VALUE may be out of date.
+       Note that if `fwd' is non-NULL, VALUE may be out of date.
        Also if the currently loaded binding is the default binding, then
        this is `eq'ual to defcell.  */
     Lisp_Object valcell;
@@ -4128,7 +4127,7 @@ extern _Noreturn void report_file_error (const char *, Lisp_Object);
 extern _Noreturn void report_file_notify_error (const char *, Lisp_Object);
 extern bool internal_delete_file (Lisp_Object);
 extern Lisp_Object emacs_readlinkat (int, const char *);
-extern bool file_directory_p (const char *);
+extern bool file_directory_p (Lisp_Object);
 extern bool file_accessible_directory_p (Lisp_Object);
 extern void init_fileio (void);
 extern void syms_of_fileio (void);
@@ -4481,6 +4480,11 @@ extern void syms_of_gfilenotify (void);
 #ifdef HAVE_W32NOTIFY
 /* Defined on w32notify.c.  */
 extern void syms_of_w32notify (void);
+#endif
+
+#if defined HAVE_NTGUI || defined CYGWIN
+/* Defined in w32cygwinx.c.  */
+extern void syms_of_w32cygwinx (void);
 #endif
 
 /* Defined in xfaces.c.  */

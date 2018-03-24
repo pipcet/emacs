@@ -1,6 +1,6 @@
 ;;; bytecomp-tests.el
 
-;; Copyright (C) 2008-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2008-2018 Free Software Foundation, Inc.
 
 ;; Author: Shigeru Fukaya <shigeru.fukaya@gmail.com>
 ;; Author: Stefan Monnier <monnier@iro.umontreal.ca>
@@ -38,8 +38,7 @@
     (let ((a 3) (b 2) (c 1.0))                     (/ a b c))
     (let ((a (+ 1 (expt 2 -64))) (b (expt 2 -65))) (+ a -1 b))
     (let ((a (+ 1 (expt 2 -64))) (b (expt 2 -65))) (- a 1 (- b)))
-    ;; This fails.  Should it be a bug?
-    ;; (let ((a (expt 2 -1074)) (b 0.125))		   (* a 8 b))
+    (let ((a (expt 2 -1074)) (b 0.125))		   (* a 8 b))
     (let ((a 1.0))				   (* a 0))
     (let ((a 1.0))				   (* a 2.0 0))
     (let ((a 1.0))				   (/ 0 a))
@@ -244,6 +243,9 @@
     (let ((a 3) (b 2) (c 1.0)) (/ a b c 0))
     (let ((a 3) (b 2) (c 1.0)) (/ a b c 1))
     (let ((a 3) (b 2) (c 1.0)) (/ a b c -1))
+
+    (let ((a t)) (logand 0 a))
+
     ;; Test switch bytecode
     (let ((a 3)) (cond ((eq a 1) 'one) ((eq a 2) 'two) ((eq a 3) 'three) (t t)))
     (let ((a 'three)) (cond ((eq a 'one) 1) ((eq a 2) 'two) ((eq a 'three) 3)
@@ -540,8 +542,7 @@ literals (Bug#20852)."
       (let* ((byte-compile-dest-file-function (lambda (_) destination))
              (byte-compile-debug t)
              (err (should-error (byte-compile-file source))))
-        (should (equal (cdr err)
-                       '("Loading `nil': old-style backquotes detected!")))))))
+        (should (equal (cdr err) '("Old-style backquotes detected!")))))))
 
 
 (ert-deftest bytecomp-tests-function-put ()

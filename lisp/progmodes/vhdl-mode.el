@@ -1,6 +1,6 @@
 ;;; vhdl-mode.el --- major mode for editing VHDL code
 
-;; Copyright (C) 1992-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1992-2018 Free Software Foundation, Inc.
 
 ;; Authors:     Reto Zimmermann <reto@gnu.org>
 ;;              Rodney J. Whitby <software.vhdl-mode@rwhitby.net>
@@ -4890,7 +4890,7 @@ Key bindings:
   (set (make-local-variable 'indent-tabs-mode) vhdl-indent-tabs-mode)
   (set (make-local-variable 'hippie-expand-verbose) nil)
 
-  ;; setup the comment indent variable in a Emacs version portable way
+  ;; setup the comment indent variable in an Emacs version portable way
   ;; ignore any byte compiler warnings you might get here
   (when (boundp 'comment-indent-function)
     (set (make-local-variable 'comment-indent-function) 'vhdl-comment-indent))
@@ -4953,8 +4953,8 @@ Key bindings:
 (defun vhdl-write-file-hooks-init ()
   "Add/remove hooks when buffer is saved."
   (if vhdl-modify-date-on-saving
-      (add-hook 'local-write-file-hooks 'vhdl-template-modify-noerror nil t)
-    (remove-hook 'local-write-file-hooks 'vhdl-template-modify-noerror t))
+      (add-hook 'write-file-functions 'vhdl-template-modify-noerror nil t)
+    (remove-hook 'write-file-functions 'vhdl-template-modify-noerror t))
   (if (featurep 'xemacs) (make-local-hook 'after-save-hook))
   (add-hook 'after-save-hook 'vhdl-add-modified-file nil t))
 

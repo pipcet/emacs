@@ -1,6 +1,6 @@
 ;;; eudc-bob.el --- Binary Objects Support for EUDC
 
-;; Copyright (C) 1999-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1999-2018 Free Software Foundation, Inc.
 
 ;; Author: Oscar Figueiredo <oscar@cpe.fr>
 ;;         Pavel Janík <Pavel@Janik.cz>
@@ -312,7 +312,7 @@ display a button."
 	(define-key map [return] 'goto-address-at-point)
 	(define-key map (if (featurep 'xemacs)
 			    [button2]
-			  [down-mouse-2]) 'goto-address-at-mouse)
+			  [down-mouse-2]) 'goto-address-at-point)
 	map))
 
 (set-keymap-parent eudc-bob-image-keymap eudc-bob-generic-keymap)

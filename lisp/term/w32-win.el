@@ -1,6 +1,6 @@
 ;;; w32-win.el --- parse switches controlling interface with W32 window system -*- lexical-binding: t -*-
 
-;; Copyright (C) 1993-1994, 2001-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1993-1994, 2001-2018 Free Software Foundation, Inc.
 
 ;; Author: Kevin Gallo
 ;; Keywords: terminals
@@ -392,8 +392,12 @@ See the documentation of `create-fontset-from-fontset-spec' for the format.")
 
 (declare-function w32-set-clipboard-data "w32select.c"
 		  (string &optional ignored))
-(declare-function w32-get-clipboard-data "w32select.c")
-(declare-function w32-selection-exists-p "w32select.c")
+(declare-function w32-get-clipboard-data "w32select.c"
+                  (&optional ignored))
+(declare-function w32-selection-exists-p "w32select.c"
+                  (&optional selection terminal))
+(declare-function w32-selection-targets "w32select.c"
+                  (&optional selection terminal))
 
 ;;; Fix interface to (X-specific) mouse.el
 (defun w32--set-selection (type value)

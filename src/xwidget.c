@@ -1,6 +1,6 @@
 /* Support for embedding graphical components in a buffer.
 
-Copyright (C) 2011-2017 Free Software Foundation, Inc.
+Copyright (C) 2011-2018 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -389,7 +389,7 @@ webkit_javascript_finished_cb (GObject      *webview,
     /* Register an xwidget event here, which then runs the callback.
        This ensures that the callback runs in sync with the Emacs
        event loop.  */
-    /* FIXME: This might lead to disaster if LISP_CALLBACK’s object
+    /* FIXME: This might lead to disaster if LISP_CALLBACK's object
        was garbage collected before now.  See the FIXME in
        Fxwidget_webkit_execute_script.  */
     store_xwidget_js_callback_event (xw, XPL (lisp_callback), lisp_value);

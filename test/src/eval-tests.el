@@ -1,6 +1,6 @@
 ;;; eval-tests.el --- unit tests for src/eval.c      -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2016-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2016-2018 Free Software Foundation, Inc.
 
 ;; Author: Philipp Stephani <phst@google.com>
 
@@ -78,5 +78,25 @@ Bug#24912 and Bug#24913."
   "Check that Emacs doesn't crash on a cond clause that mutates during eval."
   (let ((clauses (list '((progn (setcdr clauses "ouch") nil)))))
     (should-error (eval (cons 'cond clauses)))))
+
+(defun eval-tests--exceed-specbind-limit ()
+  (defvar eval-tests--var1)
+  (defvar eval-tests--var2)
+  ;; Bind two variables, to make extra sure we hit the
+  ;; `max-specpdl-size' limit before the `max-lisp-eval-depth' limit.
+  (let ((eval-tests--var1 1)
+        (eval-tests--var2 2))
+    ;; Recurse until we hit the limit.
+    (eval-tests--exceed-specbind-limit)))
+
+(ert-deftest eval-exceed-specbind-with-signal-hook ()
+  "Test for Bug#30481.
+Check that Emacs doesn't crash when exceeding specbind limit with
+`signal-hook-function' bound.  NOTE: Without the fix for
+Bug#30481, this test can appear to pass, but cause a
+crash/abort/malloc assert failure on the next test."
+  (let ((max-specpdl-size (/ max-lisp-eval-depth 2))
+        (signal-hook-function #'ignore))
+    (should-error (eval-tests--exceed-specbind-limit))))
 
 ;;; eval-tests.el ends here

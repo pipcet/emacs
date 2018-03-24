@@ -1,6 +1,6 @@
 ;; autoload.el --- maintain autoloads in loaddefs.el  -*- lexical-binding: t -*-
 
-;; Copyright (C) 1991-1997, 2001-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1991-1997, 2001-2018 Free Software Foundation, Inc.
 
 ;; Author: Roland McGrath <roland@gnu.org>
 ;; Keywords: maint
@@ -324,6 +324,7 @@ put the output in."
 	    (setcdr p nil)
 	    (princ "\n(" outbuf)
 	    (let ((print-escape-newlines t)
+		  (print-escape-control-characters t)
                   (print-quoted t)
 		  (print-escape-nonascii t))
 	      (dolist (elt form)
@@ -348,6 +349,7 @@ put the output in."
 		       outbuf))
 	      (terpri outbuf)))
 	(let ((print-escape-newlines t)
+	      (print-escape-control-characters t)
               (print-quoted t)
 	      (print-escape-nonascii t))
 	  (print form outbuf)))))))
@@ -1142,9 +1144,6 @@ write its autoloads into the specified file instead."
       ;; In case autoload entries were added to other files because of
       ;; file-local autoload-generated-file settings.
       (autoload-save-buffers))))
-
-(define-obsolete-function-alias 'update-autoloads-from-directories
-    'update-directory-autoloads "22.1")
 
 ;;;###autoload
 (defun batch-update-autoloads ()

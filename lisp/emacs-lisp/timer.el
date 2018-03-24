@@ -1,6 +1,6 @@
 ;;; timer.el --- run a function with args at some time in future -*- lexical-binding: t -*-
 
-;; Copyright (C) 1996, 2001-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1996, 2001-2018 Free Software Foundation, Inc.
 
 ;; Maintainer: emacs-devel@gnu.org
 ;; Package: emacs
@@ -140,20 +140,6 @@ and PSECS picoseconds.  SECS may be a fraction.  If USECS or PSECS are
 omitted, they are treated as zero."
   (setf (timer--time timer)
         (timer-relative-time (timer--time timer) secs usecs psecs)))
-
-(defun timer-set-time-with-usecs (timer time usecs &optional delta)
-  "Set the trigger time of TIMER to TIME plus USECS.
-TIME must be in the internal format returned by, e.g., `current-time'.
-The microsecond count from TIME is ignored, and USECS is used instead.
-If optional fourth argument DELTA is a positive number, make the timer
-fire repeatedly that many seconds apart."
-  (declare (obsolete "use `timer-set-time' and `timer-inc-time' instead."
-		     "22.1"))
-  (setf (timer--time timer) time)
-  (setf (timer--usecs timer) usecs)
-  (setf (timer--psecs timer) 0)
-  (setf (timer--repeat-delay timer) (and (numberp delta) (> delta 0) delta))
-  timer)
 
 (defun timer-set-function (timer function &optional args)
   "Make TIMER call FUNCTION with optional ARGS when triggering."

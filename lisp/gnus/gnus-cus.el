@@ -1,6 +1,6 @@
 ;;; gnus-cus.el --- customization commands for Gnus
 
-;; Copyright (C) 1996, 1999-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1996, 1999-2018 Free Software Foundation, Inc.
 
 ;; Author: Per Abrahamsen <abraham@dina.kvl.dk>
 ;; Keywords: news
@@ -365,7 +365,7 @@ category."))
     (unless (or group topic)
       (error "No group on current line"))
     (when (and group topic)
-      (error "Both a group an topic on current line"))
+      (error "Both a group and topic on current line"))
     (unless (or topic (setq info (gnus-get-info group)))
       (error "Killed group; can't be edited"))
     ;; Ready.

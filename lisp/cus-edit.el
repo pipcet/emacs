@@ -1,6 +1,6 @@
 ;;; cus-edit.el --- tools for customizing Emacs and Lisp packages -*- lexical-binding:t -*-
 ;;
-;; Copyright (C) 1996-1997, 1999-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1996-1997, 1999-2018 Free Software Foundation, Inc.
 ;;
 ;; Author: Per Abrahamsen <abraham@dina.kvl.dk>
 ;; Maintainer: emacs-devel@gnu.org
@@ -1192,7 +1192,7 @@ For example, the MH-E package updates this alist as follows:
 
 The value of PACKAGE needs to be unique and it needs to match the
 PACKAGE value appearing in the :package-version keyword.  Since
-the user might see the value in a error message, a good choice is
+the user might see the value in an error message, a good choice is
 the official name of the package, such as MH-E or Gnus.")
 
 ;;;###autoload
@@ -3789,10 +3789,6 @@ Optional EVENT is the location for the menu."
   (custom-face-mark-to-save widget)
   (custom-save-all)
   (custom-face-state-set-and-redraw widget))
-
-;; For backward compatibility.
-(define-obsolete-function-alias 'custom-face-save-command 'custom-face-save
-  "22.1")
 
 (defun custom-face-reset-saved (widget)
   "Restore WIDGET to the face's default attributes.

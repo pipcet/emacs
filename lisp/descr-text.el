@@ -1,6 +1,6 @@
 ;;; descr-text.el --- describe text mode  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1994-1996, 2001-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1994-1996, 2001-2018 Free Software Foundation, Inc.
 
 ;; Author: Boris Goldowsky <boris@gnu.org>
 ;; Maintainer: emacs-devel@gnu.org
@@ -834,8 +834,6 @@ relevant to POS."
 
           (if text-props-desc (insert text-props-desc))
           (setq buffer-read-only t))))))
-
-(define-obsolete-function-alias 'describe-char-after 'describe-char "22.1")
 
 ;;; Describe-Char-ElDoc
 

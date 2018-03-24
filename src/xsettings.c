@@ -1,6 +1,6 @@
 /* Functions for handling font and other changes dynamically.
 
-Copyright (C) 2009-2017 Free Software Foundation, Inc.
+Copyright (C) 2009-2018 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -53,7 +53,7 @@ static char *current_font;
 static struct x_display_info *first_dpyinfo;
 static Lisp_Object current_tool_bar_style;
 
-/* Store an config changed event in to the event queue.  */
+/* Store a config changed event in to the event queue.  */
 
 static void
 store_config_changed_event (Lisp_Object arg, Lisp_Object display_name)

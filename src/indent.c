@@ -1,5 +1,5 @@
 /* Indentation functions.
-   Copyright (C) 1985-1988, 1993-1995, 1998, 2000-2017 Free Software
+   Copyright (C) 1985-1988, 1993-1995, 1998, 2000-2018 Free Software
    Foundation, Inc.
 
 This file is part of GNU Emacs.
@@ -813,7 +813,7 @@ DEFUN ("indent-to", Findent_to, Sindent_to, 1, 2, "NIndent to column: ",
 Optional second argument MINIMUM says always do at least MINIMUM spaces
 even if that goes past COLUMN; by default, MINIMUM is zero.
 
-The return value is COLUMN.  */)
+The return value is the column where the insertion ends.  */)
   (Lisp_Object column, Lisp_Object minimum)
 {
   EMACS_INT mincol;

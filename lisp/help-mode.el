@@ -1,6 +1,6 @@
 ;;; help-mode.el --- `help-mode' used by *Help* buffers
 
-;; Copyright (C) 1985-1986, 1993-1994, 1998-2017 Free Software
+;; Copyright (C) 1985-1986, 1993-1994, 1998-2018 Free Software
 ;; Foundation, Inc.
 
 ;; Maintainer: emacs-devel@gnu.org
@@ -421,7 +421,15 @@ it does not already exist."
         (or (and (boundp symbol) (not (keywordp symbol)))
             (get symbol 'variable-documentation)))
      ,#'describe-variable)
-    ("face" ,#'facep ,(lambda (s _b _f) (describe-face s)))))
+    ("face" ,#'facep ,(lambda (s _b _f) (describe-face s))))
+  "List of providers of information about symbols.
+Each element has the form (NAME TESTFUN DESCFUN) where:
+  NAME is a string naming a category of object, such as \"type\" or \"face\".
+  TESTFUN is a predicate which takes a symbol and returns non-nil if the
+    symbol is such an object.
+  DESCFUN is a function which takes three arguments (a symbol, a buffer,
+    and a frame), inserts the description of that symbol in the current buffer
+    and returns that text as well.")
 
 ;;;###autoload
 (defun help-make-xrefs (&optional buffer)

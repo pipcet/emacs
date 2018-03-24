@@ -1,6 +1,6 @@
 ;;; sh-script.el --- shell-script editing commands for Emacs  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1993-1997, 1999, 2001-2017 Free Software Foundation,
+;; Copyright (C) 1993-1997, 1999, 2001-2018 Free Software Foundation,
 ;; Inc.
 
 ;; Author: Daniel Pfeiffer <occitan@esperanto.org>
@@ -3019,7 +3019,7 @@ If INFO is supplied it is used, else it is calculated."
 ;; line -- it is the PREVIOUS line which is continued, not the one
 ;; we are going to!
 ;; Also, we want to treat a whole "here document" as one big line,
-;; because we may want to a align to the beginning of it.
+;; because we may want to align to the beginning of it.
 ;;
 ;; What we do:
 ;; - go back to previous non-empty line

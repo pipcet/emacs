@@ -1,6 +1,6 @@
 ;;; nneething.el --- arbitrary file access for Gnus
 
-;; Copyright (C) 1995-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1995-2018 Free Software Foundation, Inc.
 
 ;; Author: Lars Magne Ingebrigtsen <larsi@gnus.org>
 ;;	Masanobu UMEDA <umerin@flab.flab.fujitsu.junet>
@@ -25,7 +25,7 @@
 
 ;;; Code:
 
-(eval-when-compile (require 'cl))
+(eval-when-compile (require 'cl-lib))
 
 (require 'mailcap)
 (require 'nnheader)
@@ -101,7 +101,7 @@ included.")
 	    (nneething-insert-head file)
 	    (insert ".\n"))
 
-	  (incf count)
+	  (cl-incf count)
 
 	  (and large
 	       (zerop (% count 20))

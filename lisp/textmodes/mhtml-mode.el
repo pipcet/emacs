@@ -1,6 +1,6 @@
 ;;; mhtml-mode.el --- HTML editing mode that handles CSS and JS -*- lexical-binding:t -*-
 
-;; Copyright (C) 2017 Free Software Foundation, Inc.
+;; Copyright (C) 2017-2018 Free Software Foundation, Inc.
 
 ;; Keywords: wp, hypermedia, comm, languages
 
@@ -22,6 +22,7 @@
 ;;; Code:
 
 (eval-and-compile
+  (require 'cl-lib)
   (require 'flyspell)
   (require 'sgml-mode))
 (require 'js)

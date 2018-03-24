@@ -1,7 +1,7 @@
 #!/bin/sh
 ### autogen.sh - tool to help build Emacs from a repository checkout
 
-## Copyright (C) 2011-2017 Free Software Foundation, Inc.
+## Copyright (C) 2011-2018 Free Software Foundation, Inc.
 
 ## Author: Glenn Morris <rgm@gnu.org>
 ## Maintainer: emacs-devel@gnu.org
@@ -82,7 +82,16 @@ check_version ()
         printf '%s' "(using $uprog0=$uprog) "
     fi
 
-    command -v $uprog > /dev/null || return 1
+    ## /bin/sh should always define the "command" builtin, but
+    ## sometimes it does not on hydra.nixos.org.
+    ## /bin/sh = "BusyBox v1.27.2", "built-in shell (ash)".
+    ## It seems to be an optional compile-time feature in that shell:
+    ## see ASH_CMDCMD in <https://git.busybox.net/busybox/tree/shell/ash.c>.
+    if command -v command > /dev/null 2>&1; then
+        command -v $uprog > /dev/null || return 1
+    else
+        $uprog --version > /dev/null 2>&1 || return 1
+    fi
     have_version=`get_version $uprog` || return 4
 
     have_maj=`major_version $have_version`

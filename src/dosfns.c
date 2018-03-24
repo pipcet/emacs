@@ -1,6 +1,6 @@
 /* MS-DOS specific Lisp utilities.  Coded by Manabu Higashida, 1991.
    Major changes May-July 1993 Morten Welinder (only 10% original code left)
-   Copyright (C) 1991, 1993, 1996-1998, 2001-2017 Free Software
+   Copyright (C) 1991, 1993, 1996-1998, 2001-2018 Free Software
    Foundation, Inc.
 
 This file is part of GNU Emacs.
@@ -480,11 +480,7 @@ x_set_title (struct frame *f, Lisp_Object name)
 #endif /* !HAVE_X_WINDOWS */
 
 DEFUN ("file-system-info", Ffile_system_info, Sfile_system_info, 1, 1, 0,
-       doc: /* Return storage information about the file system FILENAME is on.
-Value is a list of floats (TOTAL FREE AVAIL), where TOTAL is the total
-storage of the file system, FREE is the free storage, and AVAIL is the
-storage available to a non-superuser.  All 3 numbers are in bytes.
-If the underlying system call fails, value is nil.  */)
+       doc: /* SKIP: real doc in fileio.c.  */)
   (Lisp_Object filename)
 {
   struct statfs stfs;

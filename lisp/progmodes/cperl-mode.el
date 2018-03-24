@@ -1,6 +1,6 @@
 ;;; cperl-mode.el --- Perl code editing commands for Emacs  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1985-1987, 1991-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1985-1987, 1991-2018 Free Software Foundation, Inc.
 
 ;; Author: Ilya Zakharevich
 ;;	Bob Olson
@@ -267,7 +267,7 @@ Versions 5.2 ... 5.20 behaved as if this were nil."
   :group 'cperl-indentation-details)
 
 (defcustom cperl-indent-subs-specially t
-  "*Non-nil means indent subs that are inside other blocks (hash values, for example) relative to the beginning of the \"sub\" keyword, rather than relative to the statement that contains the declaration."
+  "Non-nil means indent subs that are inside other blocks (hash values, for example) relative to the beginning of the \"sub\" keyword, rather than relative to the statement that contains the declaration."
   :type 'boolean
   :group 'cperl-indentation-details)
 
@@ -389,13 +389,6 @@ Affects: `cperl-font-lock', `cperl-electric-lbrace-space',
   "Special version of `vc-rcs-header' that is used in CPerl mode buffers."
   :type '(repeat string)
      :group 'cperl)
-
-;; This became obsolete...
-(defvar cperl-vc-header-alist nil)
-(make-obsolete-variable
- 'cperl-vc-header-alist
- "use cperl-vc-rcs-header or cperl-vc-sccs-header instead."
- "22.1")
 
 ;; (defcustom cperl-clobber-mode-lists
 ;;   (not
@@ -1727,9 +1720,8 @@ or as help on variables `cperl-tips', `cperl-problems',
   (when (featurep 'xemacs)
     ;; This one is obsolete...
     (set (make-local-variable 'vc-header-alist)
-         (or cperl-vc-header-alist      ; Avoid warning
-	     `((SCCS ,(car cperl-vc-sccs-header))
-	       (RCS ,(car cperl-vc-rcs-header))))))
+	 `((SCCS ,(car cperl-vc-sccs-header))
+	   (RCS ,(car cperl-vc-rcs-header)))))
   (cond ((boundp 'compilation-error-regexp-alist-alist);; xemacs 20.x
 	 (set (make-local-variable 'compilation-error-regexp-alist-alist)
 	      (cons (cons 'cperl (car cperl-compilation-error-regexp-alist))

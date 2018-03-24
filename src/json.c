@@ -1,6 +1,6 @@
 /* JSON parsing and serialization.
 
-Copyright (C) 2017 Free Software Foundation, Inc.
+Copyright (C) 2017-2018 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -316,6 +316,15 @@ json_check (json_t *object)
   return object;
 }
 
+/* If STRING is not a valid UTF-8 string, signal an error of type
+   `wrong-type-argument'.  STRING must be a unibyte string.  */
+
+static void
+json_check_utf8 (Lisp_Object string)
+{
+  CHECK_TYPE (utf8_string_p (string), Qutf_8_string_p, string);
+}
+
 static json_t *lisp_to_json (Lisp_Object);
 
 /* Convert a Lisp object to a toplevel JSON object (array or object).
@@ -363,9 +372,12 @@ lisp_to_json_toplevel_1 (Lisp_Object lisp, json_t **json)
             int status = json_object_set_new (*json, key_str,
                                               lisp_to_json (HASH_VALUE (h, i)));
             if (status == -1)
-              /* FIXME: A failure here might also indicate that the
-                 key is not a valid Unicode string.  */
-              json_out_of_memory ();
+              {
+                /* A failure can be caused either by an invalid key or
+                   by low memory.  */
+                json_check_utf8 (key);
+                json_out_of_memory ();
+              }
           }
       clear_unwind_protect (count);
       return unbind_to (count, Qnil);
@@ -447,9 +459,15 @@ lisp_to_json (Lisp_Object lisp)
   else if (STRINGP (lisp))
     {
       Lisp_Object encoded = json_encode (lisp);
-      /* FIXME: We might throw an out-of-memory error here if the
-         string is not valid Unicode.  */
-      return json_check (json_stringn (SSDATA (encoded), SBYTES (encoded)));
+      json_t *json = json_stringn (SSDATA (encoded), SBYTES (encoded));
+      if (json == NULL)
+        {
+          /* A failure can be caused either by an invalid string or by
+             low memory.  */
+          json_check_utf8 (encoded);
+          json_out_of_memory ();
+        }
+      return json;
     }
 
   /* LISP now must be a vector, hashtable, or alist.  */
@@ -722,7 +740,7 @@ object, all but the last one are ignored.  If STRING doesn't contain a
 valid JSON object, an error of type `json-parse-error' is signaled.
 The keyword argument `:object-type' specifies which Lisp type is used
 to represent objects; it can be `hash-table' or `alist'.
-usage: (string &key (OBJECT-TYPE \\='hash-table)) */)
+usage: (json-parse-string STRING &key (OBJECT-TYPE \\='hash-table))  */)
   (ptrdiff_t nargs, Lisp_Object *args)
 {
   ptrdiff_t count = SPECPDL_INDEX ();
@@ -795,7 +813,7 @@ DEFUN ("json-parse-buffer", Fjson_parse_buffer, Sjson_parse_buffer,
 This is similar to `json-parse-string', which see.  Move point after
 the end of the object if parsing was successful.  On error, point is
 not moved.
-usage: (&key (OBJECT-TYPE \\='hash-table))  */)
+usage: (json-parse-buffer &key (OBJECT-TYPE \\='hash-table))  */)
   (ptrdiff_t nargs, Lisp_Object *args)
 {
   ptrdiff_t count = SPECPDL_INDEX ();
@@ -863,8 +881,7 @@ syms_of_json (void)
 
   DEFSYM (Qstring_without_embedded_nulls_p, "string-without-embedded-nulls-p");
   DEFSYM (Qjson_value_p, "json-value-p");
-
-  DEFSYM (Qutf_8_unix, "utf-8-unix");
+  DEFSYM (Qutf_8_string_p, "utf-8-string-p");
 
   DEFSYM (Qjson_error, "json-error");
   DEFSYM (Qjson_out_of_memory, "json-out-of-memory");

@@ -4,7 +4,7 @@ dnl	autoconf
 dnl in the directory containing this script.
 dnl If you changed any AC_DEFINES, also run autoheader.
 dnl
-dnl Copyright (C) 1994-1996, 1999-2017 Free Software Foundation, Inc.
+dnl Copyright (C) 1994-1996, 1999-2018 Free Software Foundation, Inc.
 dnl
 dnl  This file is part of GNU Emacs.
 dnl
@@ -372,7 +372,12 @@ OPTION_DEFAULT_OFF([w32], [use native MS Windows GUI in a Cygwin build])
 OPTION_DEFAULT_ON([gpm],[don't use -lgpm for mouse support on a GNU/Linux console])
 OPTION_DEFAULT_ON([dbus],[don't compile with D-Bus support])
 AC_ARG_WITH([gconf],[AS_HELP_STRING([--with-gconf],
-[compile with Gconf support (Gsettings replaces this)])],[],[with_gconf=maybe])
+[compile with Gconf support (Gsettings replaces this)])],[],
+[if test $with_features = yes; then
+with_gconf=maybe
+else
+with_gconf=no
+fi])
 OPTION_DEFAULT_ON([gsettings],[don't compile with GSettings support])
 OPTION_DEFAULT_ON([selinux],[don't compile with SELinux support])
 OPTION_DEFAULT_ON([gnutls],[don't use -lgnutls for SSL/TLS support])
@@ -1265,6 +1270,14 @@ esac
 AC_SUBST([PAXCTL_dumped])
 AC_SUBST([PAXCTL_notdumped])
 
+# Makeinfo on macOS is ancient, check whether there is a more recent
+# version installed by Homebrew.
+AC_CHECK_PROGS(BREW, [brew])
+if test -n "$BREW"; then
+  AC_PATH_PROG([MAKEINFO], [makeinfo], [],
+    [`$BREW --prefix texinfo 2>/dev/null`/bin$PATH_SEPARATOR$PATH])
+fi
+
 ## Require makeinfo >= 4.13 (last of the 4.x series) to build the manuals.
 if test "${MAKEINFO:=makeinfo}" != "no"; then
   case `($MAKEINFO --version) 2>/dev/null` in
@@ -2109,6 +2122,12 @@ if test "${HAVE_W32}" = "yes"; then
     XARGS_LIMIT="-s 10000"
   fi
 fi
+
+if test "${HAVE_W32}" = "no" && test "${opsys}" = "cygwin"; then
+  W32_LIBS="-lkernel32"
+  W32_OBJ="w32cygwinx.o"
+fi
+
 AC_SUBST(W32_OBJ)
 AC_SUBST(W32_LIBS)
 AC_SUBST(EMACSRES)
@@ -2519,6 +2538,12 @@ fi
 HAVE_IMAGEMAGICK=no
 if test "${HAVE_X11}" = "yes" || test "${HAVE_NS}" = "yes" || test "${HAVE_W32}" = "yes"; then
   if test "${with_imagemagick}" != "no"; then
+    if test -n "$BREW"; then
+      # Homebrew doesn't link ImageMagick 6 by default, so make sure
+      # pkgconfig can find it.
+      export PKG_CONFIG_PATH="$PKG_CONFIG_PATH$PATH_SEPARATOR`$BREW --prefix imagemagick@6 2>/dev/null`/lib/pkgconfig"
+    fi
+
     ## 6.3.5 is the earliest version known to work; see Bug#17339.
     ## 6.8.2 makes Emacs crash; see Bug#13867.
     ## 7 and later have not been ported to; See Bug#25967.
@@ -3287,6 +3312,10 @@ if test "${HAVE_X11}" = "yes"; then
 	    AC_DEFINE(HAVE_OTF_GET_VARIATION_GLYPHS, 1,
 		      [Define to 1 if libotf has OTF_get_variation_glyphs.])
 	  fi
+          if ! $PKG_CONFIG --atleast-version=0.9.16 libotf; then
+	    AC_DEFINE(HAVE_OTF_KANNADA_BUG, 1,
+[Define to 1 if libotf is affected by https://debbugs.gnu.org/28110.])
+	  fi
 	fi
       fi
     dnl FIXME should there be an error if HAVE_FREETYPE != yes?
@@ -3488,23 +3517,20 @@ fi
 AC_SUBST(LIBJPEG)
 
 HAVE_LCMS2=no
-LIBLCMS2=
+LCMS2_CFLAGS=
+LCMS2_LIBS=
 if test "${with_lcms2}" != "no"; then
-  OLIBS=$LIBS
-  AC_SEARCH_LIBS([cmsCreateTransform], [lcms2], [HAVE_LCMS2=yes])
-  LIBS=$OLIBS
-  case $ac_cv_search_cmsCreateTransform in
-    -*) LIBLCMS2=$ac_cv_search_cmsCreateTransform ;;
-  esac
+  EMACS_CHECK_MODULES([LCMS2], [lcms2])
 fi
 if test "${HAVE_LCMS2}" = "yes"; then
   AC_DEFINE([HAVE_LCMS2], 1, [Define to 1 if you have the lcms2 library (-llcms2).])
   ### mingw32 doesn't use -llcms2, since it loads the library dynamically.
   if test "${opsys}" = "mingw32"; then
-     LIBLCMS2=
+     LCMS2_LIBS=
   fi
 fi
-AC_SUBST(LIBLCMS2)
+AC_SUBST(LCMS2_CFLAGS)
+AC_SUBST(LCMS2_LIBS)
 
 HAVE_ZLIB=no
 LIBZ=
@@ -3586,39 +3612,48 @@ elif test "${with_png}" != no; then
   if test "$opsys" = mingw32; then
     AC_CHECK_HEADER([png.h], [HAVE_PNG=yes])
   elif test "${HAVE_X11}" = "yes" || test "${HAVE_W32}" = "yes"; then
-    AC_MSG_CHECKING([for png])
-    png_cflags=`(libpng-config --cflags) 2>&AS_MESSAGE_LOG_FD` &&
-    png_ldflags=`(libpng-config --ldflags) 2>&AS_MESSAGE_LOG_FD` || {
-      # libpng-config does not work; configure by hand.
-      # Debian unstable as of July 2003 has multiple libpngs, and puts png.h
-      # in /usr/include/libpng.
-      if test -r /usr/include/libpng/png.h &&
-	 test ! -r /usr/include/png.h; then
-	png_cflags=-I/usr/include/libpng
-      else
-	png_cflags=
-      fi
-      png_ldflags='-lpng'
-    }
-    SAVE_CFLAGS=$CFLAGS
-    SAVE_LIBS=$LIBS
-    CFLAGS="$CFLAGS $png_cflags"
-    LIBS="$png_ldflags -lz -lm $LIBS"
-    AC_LINK_IFELSE(
-      [AC_LANG_PROGRAM([[#include <png.h>]],
-	 [[return !png_get_channels (0, 0);]])],
-      [HAVE_PNG=yes
-       PNG_CFLAGS=`AS_ECHO(["$png_cflags"]) | sed -e "$edit_cflags"`
-       LIBPNG=$png_ldflags
-       # $LIBPNG requires explicit -lz in some cases.
-       # We don't know what those cases are, exactly, so play it safe and
-       # append -lz to any nonempty $LIBPNG, unless we're already using LIBZ.
-       if test -n "$LIBPNG" && test -z "$LIBZ"; then
-	 LIBPNG="$LIBPNG -lz"
-       fi])
-    CFLAGS=$SAVE_CFLAGS
-    LIBS=$SAVE_LIBS
-    AC_MSG_RESULT([$HAVE_PNG])
+    EMACS_CHECK_MODULES([PNG], [libpng >= 1.0.0])
+    if test $HAVE_PNG = yes; then
+      LIBPNG=$PNG_LIBS
+    else
+      # Test old way in case pkg-config doesn't have it (older machines).
+      AC_MSG_CHECKING([for libpng not configured by pkg-config])
+
+      png_cflags=`(libpng-config --cflags) 2>&AS_MESSAGE_LOG_FD` &&
+      png_ldflags=`(libpng-config --ldflags) 2>&AS_MESSAGE_LOG_FD` || {
+	# libpng-config does not work; configure by hand.
+	# Debian unstable as of July 2003 has multiple libpngs, and puts png.h
+	# in /usr/include/libpng.
+	if test -r /usr/include/libpng/png.h &&
+	   test ! -r /usr/include/png.h; then
+	  png_cflags=-I/usr/include/libpng
+	else
+	  png_cflags=
+	fi
+	png_ldflags='-lpng'
+      }
+      SAVE_CFLAGS=$CFLAGS
+      SAVE_LIBS=$LIBS
+      CFLAGS="$CFLAGS $png_cflags"
+      LIBS="$png_ldflags -lz -lm $LIBS"
+      AC_LINK_IFELSE(
+	[AC_LANG_PROGRAM([[#include <png.h>]],
+	   [[return !png_get_channels (0, 0);]])],
+	[HAVE_PNG=yes
+	 PNG_CFLAGS=`AS_ECHO(["$png_cflags"]) | sed -e "$edit_cflags"`
+	 LIBPNG=$png_ldflags])
+      CFLAGS=$SAVE_CFLAGS
+      LIBS=$SAVE_LIBS
+      AC_MSG_RESULT([$HAVE_PNG])
+    fi
+
+    # $LIBPNG requires explicit -lz in some cases.
+    # We don't know what those cases are, exactly, so play it safe and
+    # append -lz to any nonempty $LIBPNG, unless we're already using LIBZ.
+    case " $LIBPNG ",$LIBZ in
+      *' -lz '*, | *' ',?*) ;;
+      *) LIBPNG="$LIBPNG -lz" ;;
+    esac
   fi
 fi
 if test $HAVE_PNG = yes; then
@@ -3879,13 +3914,13 @@ if test "${with_xml2}" != "no"; then
 	xcsdkdir="" ;;
       esac
     fi
-    CPPFLAGS="$CPPFLAGS -I$xcsdkdir/usr/include/libxml2"
+    CPPFLAGS="$CPPFLAGS -isystem${xcsdkdir}/usr/include/libxml2"
     AC_CHECK_HEADER(libxml/HTMLparser.h,
       [AC_CHECK_DECL(HTML_PARSE_RECOVER, HAVE_LIBXML2=yes, ,
 		     [#include <libxml/HTMLparser.h>])])
     CPPFLAGS="$SAVE_CPPFLAGS"
     if test "${HAVE_LIBXML2}" = "yes"; then
-      LIBXML2_CFLAGS="-I'$xcsdkdir/usr/include/libxml2'"
+      LIBXML2_CFLAGS="-isystem${xcsdkdir}/usr/include/libxml2"
       LIBXML2_LIBS="-lxml2"
     fi
   fi
@@ -4982,7 +5017,7 @@ fi
 
 version=$PACKAGE_VERSION
 
-copyright="Copyright (C) 2017 Free Software Foundation, Inc."
+copyright="Copyright (C) 2018 Free Software Foundation, Inc."
 AC_DEFINE_UNQUOTED(COPYRIGHT, ["$copyright"],
   [Short copyright string for this version of Emacs.])
 AC_SUBST(copyright)
@@ -5234,7 +5269,7 @@ case "$opsys" in
    if test "$HAVE_NS" = "yes"; then
      libs_nsgui="-framework AppKit"
      if test "$NS_IMPL_COCOA" = "yes"; then
-        libs_nsgui="$libs_nsgui -framework IOKit"
+        libs_nsgui="$libs_nsgui -framework IOKit -framework Carbon"
      fi
    else
      libs_nsgui=
@@ -5315,7 +5350,7 @@ AC_SUBST(WINDOW_SYSTEM_OBJ)
 
 AH_TOP([/* GNU Emacs site configuration template file.
 
-Copyright (C) 1988, 1993-1994, 1999-2002, 2004-2017
+Copyright (C) 1988, 1993-1994, 1999-2002, 2004-2018
   Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
@@ -5385,12 +5420,13 @@ emacs_config_features=
 for opt in XAW3D XPM JPEG TIFF GIF PNG RSVG CAIRO IMAGEMAGICK SOUND GPM DBUS \
   GCONF GSETTINGS NOTIFY ACL LIBSELINUX GNUTLS LIBXML2 FREETYPE M17N_FLT \
   LIBOTF XFT ZLIB TOOLKIT_SCROLL_BARS X_TOOLKIT OLDXMENU X11 NS MODULES \
-  XWIDGETS LIBSYSTEMD JSON CANNOT_DUMP LCMS2; do
+  THREADS XWIDGETS LIBSYSTEMD JSON CANNOT_DUMP LCMS2; do
 
     case $opt in
       CANNOT_DUMP) eval val=\${$opt} ;;
       NOTIFY|ACL) eval val=\${${opt}_SUMMARY} ;;
       TOOLKIT_SCROLL_BARS|X_TOOLKIT) eval val=\${USE_$opt} ;;
+      THREADS) val=${threads_enabled} ;;
       *) eval val=\${HAVE_$opt} ;;
     esac
     case x$val in

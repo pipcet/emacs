@@ -1,6 +1,6 @@
 ;;; autoinsert.el --- automatic mode-dependent insertion of text into new files
 
-;; Copyright (C) 1985-1987, 1994-1995, 1998, 2000-2017 Free Software
+;; Copyright (C) 1985-1987, 1994-1995, 1998, 2000-2018 Free Software
 ;; Foundation, Inc.
 
 ;; Author: Charlie Martin <crm@cs.duke.edu>
@@ -386,7 +386,7 @@ Matches the visited file name against the elements of `auto-insert-alist'."
 	      (not (eq this-command 'auto-insert))
 	      (set-buffer-modified-p (eq auto-insert t)))))
   ;; Return nil so that it could be used in
-  ;; `find-file-not-found-hooks', though that's probably inadvisable.
+  ;; `find-file-not-found-functions', though that's probably inadvisable.
   nil)
 
 

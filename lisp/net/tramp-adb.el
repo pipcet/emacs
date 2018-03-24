@@ -1,6 +1,6 @@
 ;;; tramp-adb.el --- Functions for calling Android Debug Bridge from Tramp  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2011-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2011-2018 Free Software Foundation, Inc.
 
 ;; Author: Jürgen Hötzel <juergen@archlinux.org>
 ;; Keywords: comm, processes
@@ -71,7 +71,7 @@ It is used for TCP/IP devices."
 
 (defconst tramp-adb-ls-toolbox-regexp
   (concat
-   "^[[:space:]]*\\([-[:alpha:]]+\\)" 	; \1 permissions
+   "^[[:space:]]*\\([-.[:alpha:]]+\\)"	; \1 permissions
    "\\(?:[[:space:]]+[[:digit:]]+\\)?"	; links (Android 7/toybox)
    "[[:space:]]*\\([^[:space:]]+\\)"	; \2 username
    "[[:space:]]+\\([^[:space:]]+\\)"	; \3 group
@@ -458,13 +458,19 @@ pass to the OPERATION."
 			   result)))))))))
 
 (defun tramp-adb-get-ls-command (vec)
-  "Determine `ls' command at its arguments."
+  "Determine `ls' command and its arguments."
   (with-tramp-connection-property vec "ls"
     (tramp-message vec 5 "Finding a suitable `ls' command")
     (cond
+     ;; Support Android derived systems where "ls" command is provided
+     ;; by GNU Coreutils. Force "ls" to print one column and set
+     ;; time-style to imitate other "ls" flavors.
+     ((tramp-adb-send-command-and-check
+       vec "ls --time-style=long-iso /dev/null")
+      "ls -1 --time-style=long-iso")
      ;; Can't disable coloring explicitly for toybox ls command.  We
-     ;; must force "ls" to print just one column.
-     ((tramp-adb-send-command-and-check vec "toybox") "env COLUMNS=1 ls")
+     ;; also must force "ls" to print just one column.
+     ((tramp-adb-send-command-and-check vec "toybox") "ls -1")
      ;; On CyanogenMod based system BusyBox is used and "ls" output
      ;; coloring is enabled by default.  So we try to disable it when
      ;; possible.
@@ -681,13 +687,22 @@ But handle the case, if the \"test\" command is not available."
 	      (tramp-error v 'file-error "Cannot write: `%s'" filename))
 	  (delete-file tmpfile)))
 
-      (when (or (eq visit t) (stringp visit))
-	(set-visited-file-modtime))
-
       (unless (equal curbuf (current-buffer))
 	(tramp-error
 	 v 'file-error
-	 "Buffer has changed from `%s' to `%s'" curbuf (current-buffer))))))
+	 "Buffer has changed from `%s' to `%s'" curbuf (current-buffer)))
+
+      ;; Set file modification time.
+      (when (or (eq visit t) (stringp visit))
+	(set-visited-file-modtime
+	 (tramp-compat-file-attribute-modification-time
+	  (file-attributes filename))))
+
+      ;; The end.
+      (when (and (null noninteractive)
+		 (or (eq visit t) (null visit) (stringp visit)))
+	(tramp-message v 0 "Wrote %s" filename))
+      (run-hooks 'tramp-handle-write-region-hook))))
 
 (defun tramp-adb-handle-set-file-modes (filename mode)
   "Like `set-file-modes' for Tramp files."
@@ -1274,7 +1289,7 @@ connection if a previous connection has died for some reason."
 	    (tramp-adb-wait-for-output p 30)
 	    (unless (process-live-p p)
 	      (tramp-error  vec 'file-error "Terminated!"))
-	    (tramp-set-connection-property p "vector" vec)
+	    (process-put p 'vector vec)
 	    (process-put p 'adjust-window-size-function 'ignore)
 	    (set-process-query-on-exit-flag p nil)
 

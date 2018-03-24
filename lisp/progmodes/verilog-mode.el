@@ -1,6 +1,6 @@
 ;;; verilog-mode.el --- major mode for editing verilog source in Emacs
 
-;; Copyright (C) 1996-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1996-2018 Free Software Foundation, Inc.
 
 ;; Author: Michael McNamara <mac@verilog.com>
 ;;    Wilson Snyder <wsnyder@wsnyder.org>
@@ -3966,7 +3966,9 @@ Key bindings specific to `verilog-mode-map' are:
             #'verilog-completion-at-point nil 'local)
 
   ;; Stuff for autos
-  (add-hook 'write-contents-hooks 'verilog-auto-save-check nil 'local)
+  (add-hook (if (boundp 'write-contents-hooks) 'write-contents-hooks
+	      'write-contents-functions) ; Emacs >= 22.1
+	    'verilog-auto-save-check nil 'local)
   ;; verilog-mode-hook call added by define-derived-mode
   )
 

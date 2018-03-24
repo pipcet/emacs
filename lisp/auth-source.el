@@ -1,6 +1,6 @@
 ;;; auth-source.el --- authentication sources for Gnus and Emacs -*- lexical-binding: t -*-
 
-;; Copyright (C) 2008-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2008-2018 Free Software Foundation, Inc.
 
 ;; Author: Ted Zlatanov <tzz@lifelogs.com>
 ;; Keywords: news
@@ -1315,9 +1315,7 @@ See `auth-source-search' for details on SPEC."
                                                    (string-match (car item) file))
                                            (setq ret (cdr item))
                                            (setq check nil)))
-                                       ;; FIXME: `ret' unused.
-                                       ;; Should we return it here?
-                                       ))
+                                       ret))
                                     (t 'never)))
                                   (plain (or (eval default) (read-passwd prompt))))
                              ;; ask if we don't know what to do (in which case

@@ -1,6 +1,6 @@
 ;;; nnmh.el --- mhspool access for Gnus
 
-;; Copyright (C) 1995-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1995-2018 Free Software Foundation, Inc.
 
 ;; Author: Lars Magne Ingebrigtsen <larsi@gnus.org>
 ;;	Masanobu UMEDA <umerin@flab.flab.fujitsu.junet>
@@ -33,7 +33,6 @@
 (require 'nnmail)
 (require 'gnus-start)
 (require 'nnoo)
-(eval-when-compile (require 'cl))
 
 (nnoo-declare nnmh)
 

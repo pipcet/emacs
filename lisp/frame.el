@@ -1,6 +1,6 @@
 ;;; frame.el --- multi-frame management independent of window systems  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1993-1994, 1996-1997, 2000-2017 Free Software
+;; Copyright (C) 1993-1994, 1996-1997, 2000-2018 Free Software
 ;; Foundation, Inc.
 
 ;; Maintainer: emacs-devel@gnu.org
@@ -614,9 +614,6 @@ frame.")
 (defvar after-setting-font-hook nil
   "Functions to run after a frame's font has been changed.")
 
-;; Alias, kept temporarily.
-(define-obsolete-function-alias 'new-frame 'make-frame "22.1")
-
 (defvar frame-inherited-parameters '()
   "Parameters `make-frame' copies from the selected to the new frame.")
 
@@ -1146,8 +1143,6 @@ FRAME defaults to the selected frame."
 
 (declare-function x-list-fonts "xfaces.c"
                   (pattern &optional face frame maximum width))
-
-(define-obsolete-function-alias 'set-default-font 'set-frame-font "23.1")
 
 (defun set-frame-font (font &optional keep-size frames)
   "Set the default font to FONT.
@@ -2113,10 +2108,6 @@ a live frame and defaults to the selected one."
         (delete-frame this))
       (setq this next))))
 
-;; miscellaneous obsolescence declarations
-(define-obsolete-variable-alias 'delete-frame-hook
-    'delete-frame-functions "22.1")
-
 
 ;;; Window dividers.
 (defgroup window-divider nil
@@ -2322,7 +2313,6 @@ command starts, by installing a pre-command hook."
     (blink-cursor-suspend)
     (add-hook 'post-command-hook 'blink-cursor-check)))
 
-
 (defun blink-cursor-end ()
   "Stop cursor blinking.
 This is installed as a pre-command hook by `blink-cursor-start'.
@@ -2353,8 +2343,6 @@ This is done when a frame gets focus.  Blink timers may be stopped by
     (remove-hook 'post-command-hook 'blink-cursor-check)
     (blink-cursor--start-idle-timer)))
 
-(define-obsolete-variable-alias 'blink-cursor 'blink-cursor-mode "22.1")
-
 (define-minor-mode blink-cursor-mode
   "Toggle cursor blinking (Blink Cursor mode).
 With a prefix argument ARG, enable Blink Cursor mode if ARG is
@@ -2384,12 +2372,11 @@ terminals, cursor blinking is controlled by the terminal."
     (add-hook 'focus-out-hook #'blink-cursor-suspend)
     (blink-cursor--start-idle-timer)))
 
-
 
 ;; Frame maximization/fullscreen
 
-(defun toggle-frame-maximized ()
-  "Toggle maximization state of selected frame.
+(defun toggle-frame-maximized (&optional frame)
+  "Toggle maximization state of FRAME.
 Maximize selected frame or un-maximize if it is already maximized.
 
 If the frame is in fullscreen state, don't change its state, but
@@ -2404,19 +2391,19 @@ transitions from one fullscreen state to another.
 
 See also `toggle-frame-fullscreen'."
   (interactive)
-  (let ((fullscreen (frame-parameter nil 'fullscreen)))
+  (let ((fullscreen (frame-parameter frame 'fullscreen)))
     (cond
      ((memq fullscreen '(fullscreen fullboth))
-      (set-frame-parameter nil 'fullscreen-restore 'maximized))
+      (set-frame-parameter frame 'fullscreen-restore 'maximized))
      ((eq fullscreen 'maximized)
-      (set-frame-parameter nil 'fullscreen nil))
+      (set-frame-parameter frame 'fullscreen nil))
      (t
-      (set-frame-parameter nil 'fullscreen 'maximized)))))
+      (set-frame-parameter frame 'fullscreen 'maximized)))))
 
-(defun toggle-frame-fullscreen ()
-  "Toggle fullscreen state of selected frame.
-Make selected frame fullscreen or restore its previous size if it
-is already fullscreen.
+(defun toggle-frame-fullscreen (&optional frame)
+  "Toggle fullscreen state of FRAME.
+Make selected frame fullscreen or restore its previous size
+if it is already fullscreen.
 
 Before making the frame fullscreen remember the current value of
 the frame's `fullscreen' parameter in the `fullscreen-restore'
@@ -2431,18 +2418,19 @@ transitions from one fullscreen state to another.
 
 See also `toggle-frame-maximized'."
   (interactive)
-  (let ((fullscreen (frame-parameter nil 'fullscreen)))
+  (let ((fullscreen (frame-parameter frame 'fullscreen)))
     (if (memq fullscreen '(fullscreen fullboth))
-	(let ((fullscreen-restore (frame-parameter nil 'fullscreen-restore)))
+	(let ((fullscreen-restore (frame-parameter frame 'fullscreen-restore)))
 	  (if (memq fullscreen-restore '(maximized fullheight fullwidth))
-	      (set-frame-parameter nil 'fullscreen fullscreen-restore)
-	    (set-frame-parameter nil 'fullscreen nil)))
+	      (set-frame-parameter frame 'fullscreen fullscreen-restore)
+	    (set-frame-parameter frame 'fullscreen nil)))
       (modify-frame-parameters
-       nil `((fullscreen . fullboth) (fullscreen-restore . ,fullscreen))))
+       frame `((fullscreen . fullboth) (fullscreen-restore . ,fullscreen))))
     ;; Manipulating a frame without waiting for the fullscreen
     ;; animation to complete can cause a crash, or other unexpected
-    ;; behaviour, on macOS (bug#28496).
+    ;; behavior, on macOS (bug#28496).
     (when (featurep 'cocoa) (sleep-for 0.5))))
+
 
 ;;;; Key bindings
 

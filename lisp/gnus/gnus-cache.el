@@ -1,6 +1,6 @@
 ;;; gnus-cache.el --- cache interface for Gnus
 
-;; Copyright (C) 1995-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1995-2018 Free Software Foundation, Inc.
 
 ;; Author: Lars Magne Ingebrigtsen <larsi@gnus.org>
 ;; Keywords: news
@@ -24,7 +24,7 @@
 
 ;;; Code:
 
-(eval-when-compile (require 'cl))
+(eval-when-compile (require 'cl-lib))
 
 (require 'gnus)
 (require 'gnus-sum)
@@ -443,7 +443,7 @@ A group name is decoded according to
 decoded again according to `nnmail-pathname-coding-system',
 `file-name-coding-system', or `default-file-name-coding-system'.
 
-It is used when asking for a original group name from a cache
+It is used when asking for an original group name from a cache
 directory name, in which non-ASCII characters might have been unified
 into the ones of a certain charset particularly if the `utf-8' coding
 system for example was used.")
@@ -863,11 +863,11 @@ supported."
 	   (while (setq file (pop files))
 	     (setq attrs (file-attributes file))
 	     (unless (nth 0 attrs)
-	       (incf size (float (nth 7 attrs)))))))
+	       (cl-incf size (float (nth 7 attrs)))))))
 
        (setq gnus-cache-need-update-total-fetched-for t)
 
-       (incf (nth 1 entry) (if subtract (- size) size))))))
+       (cl-incf (nth 1 entry) (if subtract (- size) size))))))
 
 (defun gnus-cache-update-overview-total-fetched-for (group file)
   (when gnus-cache-total-fetched-hashtb

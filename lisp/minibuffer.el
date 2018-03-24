@@ -1,6 +1,6 @@
 ;;; minibuffer.el --- Minibuffer completion functions -*- lexical-binding: t -*-
 
-;; Copyright (C) 2008-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2008-2018 Free Software Foundation, Inc.
 
 ;; Author: Stefan Monnier <monnier@iro.umontreal.ca>
 ;; Package: emacs
@@ -729,7 +729,8 @@ If ARGS are provided, then pass MESSAGE through `format-message'."
 
 (defun minibuffer-completion-contents ()
   "Return the user input in a minibuffer before point as a string.
-In Emacs-22, that was what completion commands operated on."
+In Emacs 22, that was what completion commands operated on.
+If the current buffer is not a minibuffer, return everything before point."
   (declare (obsolete nil "24.4"))
   (buffer-substring (minibuffer-prompt-end) (point)))
 
@@ -986,7 +987,8 @@ Moves point to the end of the new text."
 (defcustom completion-cycle-threshold nil
   "Number of completion candidates below which cycling is used.
 Depending on this setting `completion-in-region' may use cycling,
-like `minibuffer-force-complete'.
+whereby invoking a completion command several times in a row
+completes to each of the candidates in turn, in a cyclic manner.
 If nil, cycling is never used.
 If t, cycling is always used.
 If an integer, cycling is used so long as there are not more
@@ -1823,12 +1825,7 @@ variables.")
              ;; window, mark it as softly-dedicated, so bury-buffer in
              ;; minibuffer-hide-completions will know whether to
              ;; delete the window or not.
-             (display-buffer-mark-dedicated 'soft)
-             ;; Disable `pop-up-windows' temporarily to allow
-             ;; `display-buffer--maybe-pop-up-frame-or-window'
-             ;; in the display actions below to pop up a frame
-             ;; if `pop-up-frames' is non-nil, but not to pop up a window.
-             (pop-up-windows nil))
+             (display-buffer-mark-dedicated 'soft))
         (with-displayed-buffer-window
           "*Completions*"
           ;; This is a copy of `display-buffer-fallback-action'
@@ -1836,7 +1833,7 @@ variables.")
           ;; with `display-buffer-at-bottom'.
           `((display-buffer--maybe-same-window
              display-buffer-reuse-window
-             display-buffer--maybe-pop-up-frame-or-window
+             display-buffer--maybe-pop-up-frame
              ;; Use `display-buffer-below-selected' for inline completions,
              ;; but not in the minibuffer (e.g. in `eval-expression')
              ;; for which `display-buffer-at-bottom' is used.
@@ -2955,6 +2952,8 @@ or a symbol, see `completion-pcm--merge-completions'."
         (`(,(and s1 (pred stringp)) ,(and s2 (pred stringp)) . ,rest)
          (setq p (cons (concat s1 s2) rest)))
         (`(,(and p1 (pred symbolp)) ,(and p2 (guard (eq p1 p2))) . ,_)
+         ;; Unused lexical variable warning due to body not using p1, p2.
+         ;; https://debbugs.gnu.org/16771
          (setq p (cdr p)))
         (`(star ,(pred symbolp) . ,rest) (setq p `(star . ,rest)))
         (`(,(pred symbolp) star . ,rest) (setq p `(star . ,rest)))

@@ -1,6 +1,6 @@
 ;;; ruby-mode-tests.el --- Test suite for ruby-mode
 
-;; Copyright (C) 2012-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2012-2018 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -705,13 +705,15 @@ VALUES-PLIST is a list with alternating index and value elements."
 
 (ert-deftest ruby-forward-sexp-skips-method-calls-with-keyword-names ()
   (ruby-with-temp-buffer ruby-sexp-test-example
-    (goto-line 2)
+    (goto-char (point-min))
+    (forward-line 1)
     (ruby-forward-sexp)
     (should (= 8 (line-number-at-pos)))))
 
 (ert-deftest ruby-backward-sexp-skips-method-calls-with-keyword-names ()
   (ruby-with-temp-buffer ruby-sexp-test-example
-    (goto-line 8)
+    (goto-char (point-min))
+    (forward-line 7)
     (end-of-line)
     (ruby-backward-sexp)
     (should (= 2 (line-number-at-pos)))))

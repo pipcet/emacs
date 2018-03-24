@@ -1,6 +1,6 @@
 ;;; ruby-mode.el --- Major mode for editing Ruby files -*- lexical-binding: t -*-
 
-;; Copyright (C) 1994-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1994-2018 Free Software Foundation, Inc.
 
 ;; Authors: Yukihiro Matsumoto
 ;;	Nobuyoshi Nakada
@@ -38,6 +38,8 @@
 ;; Still needs more docstrings; search below for TODO.
 
 ;;; Code:
+
+(eval-when-compile (require 'cl-lib))
 
 (defgroup ruby nil
   "Major mode for editing Ruby code."

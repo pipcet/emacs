@@ -1,7 +1,7 @@
 ;;; eieio.el --- Enhanced Implementation of Emacs Interpreted Objects  -*- lexical-binding:t -*-
 ;;;              or maybe Eric's Implementation of Emacs Interpreted Objects
 
-;; Copyright (C) 1995-1996, 1998-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1995-1996, 1998-2018 Free Software Foundation, Inc.
 
 ;; Author: Eric M. Ludlam <zappo@gnu.org>
 ;; Version: 1.4
@@ -403,7 +403,7 @@ If EXTRA, include that in the string returned to represent the symbol."
 
 (cl-defgeneric eieio-object-set-name-string (obj name)
   "Set the string which is OBJ's NAME."
-  (declare (obsolete "inherit from `eieio-named' and use (setf (slot-value OBJ 'object-name) NAME) instead" "25.1"))
+  (declare (obsolete "inherit from `eieio-named' and use (setf (slot-value OBJ \\='object-name) NAME) instead" "25.1"))
   (cl-check-type name string)
   (setf (gethash obj eieio--object-names) name))
 (define-obsolete-function-alias

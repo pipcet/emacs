@@ -1,6 +1,6 @@
 ;;; gitmerge.el --- help merge one Emacs branch into another
 
-;; Copyright (C) 2010-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2010-2018 Free Software Foundation, Inc.
 
 ;; Authors: David Engster <deng@randomsample.de>
 ;;          Stefan Monnier <monnier@iro.umontreal.ca>
@@ -52,7 +52,7 @@
   ;; caused false positives.  --Stef
   (let ((skip "back[- ]?port\\|cherry picked from commit\\|\
 \\(do\\( no\\|n['’]\\)t\\|no need to\\) merge\\|\
-bump version\\|Auto-commit"))
+bump \\(Emacs \\)?version\\|Auto-commit"))
     (if noninteractive skip
       ;; "Regenerate" is quite prone to false positives.
       ;; We only want to skip merging things like AUTHORS and ldefs-boot.
@@ -448,8 +448,13 @@ Throw an user-error if we cannot resolve automatically."
 	    (erase-buffer)
 	    (insert "For the following files, conflicts could\n"
 		    "not be resolved automatically:\n\n")
-	    (call-process "git" nil t nil
-			  "diff" "--name-only" "--diff-filter=U")
+	    (let ((conflicts
+		   (with-temp-buffer
+		     (call-process "git" nil t nil
+				   "diff" "--name-only" "--diff-filter=U")
+		     (buffer-string))))
+	      (insert conflicts)
+	      (if noninteractive (message "Conflicts in:\n%s" conflicts)))
 	    (insert "\nResolve the conflicts manually, then run gitmerge again."
 		    "\nNote:\n  - You don't have to add resolved files or "
 		    "commit the merge yourself (but you can)."

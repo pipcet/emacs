@@ -1,6 +1,6 @@
 ;;; files.el --- file input and output commands for Emacs  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1985-1987, 1992-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1985-1987, 1992-2018 Free Software Foundation, Inc.
 
 ;; Maintainer: emacs-devel@gnu.org
 ;; Package: emacs
@@ -473,7 +473,7 @@ location of point in the current buffer."
   :group 'find-file)
 
 ;;;It is not useful to make this a local variable.
-;;;(put 'find-file-not-found-hooks 'permanent-local t)
+;;;(put 'find-file-not-found-functions 'permanent-local t)
 (define-obsolete-variable-alias 'find-file-not-found-hooks
     'find-file-not-found-functions "22.1")
 (defvar find-file-not-found-functions nil
@@ -483,7 +483,8 @@ Variable `buffer-file-name' is already set up.
 The functions are called in the order given until one of them returns non-nil.")
 
 ;;;It is not useful to make this a local variable.
-;;;(put 'find-file-hooks 'permanent-local t)
+;;;(put 'find-file-hook 'permanent-local t)
+;; I found some external files still using the obsolete form in 2018.
 (define-obsolete-variable-alias 'find-file-hooks 'find-file-hook "22.1")
 (defcustom find-file-hook nil
   "List of functions to be called after a buffer is loaded from a file.
@@ -494,6 +495,7 @@ functions are called."
   :options '(auto-insert)
   :version "22.1")
 
+;; I found some external files still using the obsolete form in 2018.
 (define-obsolete-variable-alias 'write-file-hooks 'write-file-functions "22.1")
 (defvar write-file-functions nil
   "List of functions to be called before saving a buffer to a file.
@@ -513,11 +515,13 @@ node `(elisp)Saving Buffers'.)  To perform various checks or
 updates before the buffer is saved, use `before-save-hook'.")
 (put 'write-file-functions 'permanent-local t)
 
+;; I found some files still using the obsolete form in 2018.
 (defvar local-write-file-hooks nil)
 (make-variable-buffer-local 'local-write-file-hooks)
 (put 'local-write-file-hooks 'permanent-local t)
 (make-obsolete-variable 'local-write-file-hooks 'write-file-functions "22.1")
 
+;; I found some files still using the obsolete form in 2018.
 (define-obsolete-variable-alias 'write-contents-hooks
     'write-contents-functions "22.1")
 (defvar write-contents-functions nil
@@ -963,7 +967,8 @@ the function needs to examine, starting with FILE."
                     (null file)
                     (string-match locate-dominating-stop-dir-regexp file)))
       (setq try (if (stringp name)
-                    (file-exists-p (expand-file-name name file))
+                    (and (file-directory-p file)
+                         (file-exists-p (expand-file-name name file)))
                   (funcall name file)))
       (cond (try (setq root file))
             ((equal file (setq file (file-name-directory
@@ -2232,8 +2237,7 @@ Do you want to revisit the file normally now? ")
       (kill-local-variable 'cursor-type)
       (let ((inhibit-read-only t))
 	(erase-buffer))
-      (and (default-value 'enable-multibyte-characters)
-	   (not rawfile)
+      (and (not rawfile)
 	   (set-buffer-multibyte t))
       (if rawfile
 	  (condition-case ()
@@ -3315,7 +3319,7 @@ n  -- to ignore the local variables list.")
 
       ;; Display the buffer and read a choice.
       (save-window-excursion
-	(pop-to-buffer buf)
+	(pop-to-buffer buf '(display-buffer--maybe-at-bottom))
 	(let* ((exit-chars '(?y ?n ?\s ?\C-g ?\C-v))
 	       (prompt (format "Please type %s%s: "
 			       (if offer-save "y, n, or !" "y or n")
@@ -4008,13 +4012,15 @@ This function returns either:
       ;; No cache entry.
       locals-dir)))
 
+(declare-function map-merge-with "map" (type function &rest maps))
+(declare-function map-merge "map" (type &rest maps))
+
 (defun dir-locals-read-from-dir (dir)
   "Load all variables files in DIR and register a new class and instance.
 DIR is the absolute name of a directory which must contain at
 least one dir-local file (which is a file holding variables to
 apply).
 Return the new class name, which is a symbol named DIR."
-  (require 'map)
   (let* ((class-name (intern dir))
          (files (dir-locals--all-files dir))
          (read-circle nil)
@@ -4029,12 +4035,19 @@ Return the new class name, which is a symbol named DIR."
 	    (setq latest file-time)))
         (with-temp-buffer
           (insert-file-contents file)
-          (condition-case-unless-debug nil
-              (setq variables
+          (let ((newvars
+                 (condition-case-unless-debug nil
+                     (read (current-buffer))
+                   (end-of-file nil))))
+            (setq variables
+                  ;; Try and avoid loading `map' since that also loads cl-lib
+                  ;; which then might hamper bytecomp warnings (bug#30635).
+                  (if (not (and newvars variables))
+                      (or newvars variables)
+                    (require 'map)
                     (map-merge-with 'list (lambda (a b) (map-merge 'list a b))
                                     variables
-                                    (read (current-buffer))))
-            (end-of-file nil))))
+                                    newvars))))))
       (setq success latest))
     (dir-locals-set-class-variables class-name variables)
     (dir-locals-set-directory-class dir class-name success)
@@ -5206,14 +5219,20 @@ about certain files that you'd usually rather not save."
 
 (defun save-some-buffers (&optional arg pred)
   "Save some modified file-visiting buffers.  Asks user about each one.
-You can answer `y' to save, `n' not to save, `C-r' to look at the
-buffer in question with `view-buffer' before deciding or `d' to
-view the differences using `diff-buffer-with-file'.
+You can answer `y' or SPC to save, `n' or DEL not to save, `C-r'
+to look at the buffer in question with `view-buffer' before
+deciding, `d' to view the differences using
+`diff-buffer-with-file', `!' to save the buffer and all remaining
+buffers without any further querying, `.' to save only the
+current buffer and skip the remaining ones and `q' or RET to exit
+the function without saving any more buffers.  `C-h' displays a
+help message describing these options.
 
 This command first saves any buffers where `buffer-save-without-query' is
 non-nil, without asking.
 
-Optional argument (the prefix) non-nil means save all with no questions.
+Optional argument ARG (interactively, prefix argument) non-nil means save
+all with no questions.
 Optional second argument PRED determines which buffers are considered:
 If PRED is nil, all the file-visiting buffers are considered.
 If PRED is t, then certain non-file buffers will also be considered.
@@ -6465,9 +6484,10 @@ The return value is a string describing the amount of free
 space (normally, the number of free 1KB blocks).
 
 If DIR's free space cannot be obtained, this function returns nil."
-  (let ((avail (nth 2 (file-system-info dir))))
-    (if avail
-	(format "%.0f" (/ avail 1024)))))
+  (save-match-data
+    (let ((avail (nth 2 (file-system-info dir))))
+      (if avail
+	  (format "%.0f" (/ avail 1024))))))
 
 ;; The following expression replaces `dired-move-to-filename-regexp'.
 (defvar directory-listing-before-filename-regexp
@@ -6917,8 +6937,9 @@ if any returns nil.  If `confirm-kill-emacs' is non-nil, calls it."
                   (setq active t))
              (setq processes (cdr processes)))
            (or (not active)
-               (with-current-buffer-window
-                (get-buffer-create "*Process List*") nil
+               (with-displayed-buffer-window
+                (get-buffer-create "*Process List*")
+                '(display-buffer--maybe-at-bottom)
                 #'(lambda (window _value)
                     (with-selected-window window
                       (unwind-protect
@@ -6980,7 +7001,7 @@ only these files will be asked to be saved."
            ;; Bug#25949.
 	   (if (memq operation
                      '(insert-directory process-file start-file-process
-                                        shell-command))
+                                        shell-command temporary-file-directory))
 	       (directory-file-name
 	        (expand-file-name
 		 (unhandled-file-name-directory default-directory)))
@@ -7004,15 +7025,23 @@ only these files will be asked to be saved."
 			    ;; temporarily to unquoted filename.
 			    (verify-visited-file-modtime unquote-then-quote)
 			    ;; List the arguments which are filenames.
-			    (file-name-completion 1)
-			    (file-name-all-completions 1)
+			    (file-name-completion 0 1)
+			    (file-name-all-completions 0 1)
+                            (file-equal-p 0 1)
+                            (file-newer-than-file-p 0 1)
 			    (write-region 2 5)
 			    (rename-file 0 1)
 			    (copy-file 0 1)
 			    (copy-directory 0 1)
 			    (file-in-directory-p 0 1)
 			    (make-symbolic-link 0 1)
-			    (add-name-to-file 0 1))))
+			    (add-name-to-file 0 1)
+                            (make-auto-save-file-name buffer-file-name)
+                            (set-visited-file-modtime buffer-file-name)
+                            ;; These file-notify-* operations take a
+                            ;; descriptor.
+                            (file-notify-rm-watch . nil)
+                            (file-notify-valid-p . nil))))
 		   ;; For all other operations, treat the first argument only
 		   ;; as the file name.
 		   '(nil 0))))
@@ -7035,6 +7064,12 @@ only these files will be asked to be saved."
     (pcase method
       (`identity (car arguments))
       (`add (file-name-quote (apply operation arguments)))
+      (`buffer-file-name
+       (let ((buffer-file-name
+              (if (string-match "\\`/:" buffer-file-name)
+                  (substring buffer-file-name (match-end 0))
+                buffer-file-name)))
+         (apply operation arguments)))
       (`insert-file-contents
        (let ((visit (nth 1 arguments)))
          (unwind-protect

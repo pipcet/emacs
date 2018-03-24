@@ -1,6 +1,6 @@
 ;;; nndiary.el --- A diary back end for Gnus
 
-;; Copyright (C) 1999-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1999-2018 Free Software Foundation, Inc.
 
 ;; Author:        Didier Verna <didier@xemacs.org>
 ;; Maintainer:    Didier Verna <didier@xemacs.org>
@@ -83,7 +83,6 @@
 (require 'nnoo)
 (require 'nnheader)
 (require 'nnmail)
-(eval-when-compile (require 'cl))
 
 (require 'gnus-start)
 (require 'gnus-sum)

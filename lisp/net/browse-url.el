@@ -1,6 +1,6 @@
 ;;; browse-url.el --- pass a URL to a WWW browser
 
-;; Copyright (C) 1995-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1995-2018 Free Software Foundation, Inc.
 
 ;; Author: Denis Howe <dbh@doc.ic.ac.uk>
 ;; Maintainer: emacs-devel@gnu.org
@@ -713,8 +713,7 @@ Use variable `browse-url-filename-alist' to map filenames to URLs."
   (let ((coding (if (equal system-type 'windows-nt)
 		    ;; W32 pretends that file names are UTF-8 encoded.
 		    'utf-8
-		  (and (default-value 'enable-multibyte-characters)
-		       (or file-name-coding-system
+		  (and (or file-name-coding-system
 			   default-file-name-coding-system)))))
     (if coding (setq file (encode-coding-string file coding))))
   (setq file (browse-url-url-encode-chars file "[*\"()',=;?% ]"))
@@ -1243,18 +1242,16 @@ used instead of `browse-url-new-window-flag'."
 (defvar url-handler-regexp)
 
 ;;;###autoload
-(defun browse-url-emacs (url &optional _new-window)
-  "Ask Emacs to load URL into a buffer and show it in another window."
+(defun browse-url-emacs (url &optional same-window)
+  "Ask Emacs to load URL into a buffer and show it in another window.
+Optional argument SAME-WINDOW non-nil means show the URL in the
+currently selected window instead."
   (interactive (browse-url-interactive-arg "URL: "))
   (require 'url-handlers)
   (let ((file-name-handler-alist
          (cons (cons url-handler-regexp 'url-file-handler)
                file-name-handler-alist)))
-    ;; Ignore `new-window': with all other browsers the URL is always shown
-    ;; in another window than the current Emacs one since it's shown in
-    ;; another application's window.
-    ;; (if new-window (find-file-other-window url) (find-file url))
-    (find-file-other-window url)))
+    (if same-window (find-file url) (find-file-other-window url))))
 
 ;;;###autoload
 (defun browse-url-gnome-moz (url &optional new-window)

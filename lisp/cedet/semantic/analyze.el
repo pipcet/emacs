@@ -1,6 +1,6 @@
 ;;; semantic/analyze.el --- Analyze semantic tags against local context
 
-;; Copyright (C) 2000-2005, 2007-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2000-2005, 2007-2018 Free Software Foundation, Inc.
 
 ;; Author: Eric M. Ludlam <zappo@gnu.org>
 
@@ -63,7 +63,6 @@
 ;;       constant.  These need to be returned as there would be no
 ;;       other possible completions.
 
-(eval-when-compile (require 'cl))
 (require 'semantic)
 (require 'semantic/format)
 (require 'semantic/ctxt)
@@ -121,7 +120,7 @@ See `semantic-analyze-scoped-tags' for details.")
 	   :type buffer
 	   :documentation "The buffer this context is derived from.")
    (errors :initarg :errors
-	   :documentation "Any errors thrown an caught during analysis.")
+	   :documentation "Any errors thrown and caught during analysis.")
    )
   "Base analysis data for any context.")
 
@@ -642,7 +641,6 @@ Returns an object based on symbol `semantic-analyze-context'."
       ;; for the argument.
       (setq context-return
 	    (semantic-analyze-context-functionarg
-	     "functionargument"
 	     :buffer (current-buffer)
 	     :function fntag
 	     :index arg
@@ -665,7 +663,6 @@ Returns an object based on symbol `semantic-analyze-context'."
 
       (setq context-return
 	    (semantic-analyze-context-assignment
-	     "assignment"
 	     :buffer (current-buffer)
 	     :assignee asstag
 	     :scope scope
@@ -683,7 +680,6 @@ Returns an object based on symbol `semantic-analyze-context'."
       ;; Nothing in particular
       (setq context-return
 	    (semantic-analyze-context
-	     "context"
 	     :buffer (current-buffer)
 	     :scope scope
 	     :bounds bounds

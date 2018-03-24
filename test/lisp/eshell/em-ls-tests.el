@@ -1,6 +1,6 @@
 ;;; tests/em-ls-tests.el --- em-ls test suite
 
-;; Copyright (C) 2017 Free Software Foundation, Inc.
+;; Copyright (C) 2017-2018 Free Software Foundation, Inc.
 
 ;; Author: Tino Calancha <tino.calancha@gmail.com>
 
@@ -26,6 +26,7 @@
 
 (require 'ert)
 (require 'em-ls)
+(require 'dired)
 
 (ert-deftest em-ls-test-bug27631 ()
   "Test for https://debbugs.gnu.org/27631 ."

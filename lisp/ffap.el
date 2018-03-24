@@ -1,6 +1,6 @@
 ;;; ffap.el --- find file (or url) at point
 
-;; Copyright (C) 1995-1997, 2000-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1995-1997, 2000-2018 Free Software Foundation, Inc.
 
 ;; Author: Michelangelo Grigni <mic@mathcs.emory.edu>
 ;; Maintainer: emacs-devel@gnu.org
@@ -104,6 +104,7 @@
 
 ;;; Code:
 
+(eval-when-compile (require 'cl-lib))
 (require 'url-parse)
 (require 'thingatpt)
 
@@ -248,7 +249,7 @@ it passes it on to `dired'."
 
 (defcustom ffap-newfile-prompt nil
   ;; Suggestion from RHOGEE, 11 Jul 1994.  Disabled, I think this is
-  ;; better handled by `find-file-not-found-hooks'.
+  ;; better handled by `find-file-not-found-functions'.
   "Whether `find-file-at-point' prompts about a nonexistent file."
   :type 'boolean
   :group 'ffap)
@@ -1081,7 +1082,7 @@ If a given RFC isn't in these then `ffap-rfc-path' is offered."
     ;; * strip trailing "@" and ":"
     ;; * no commas (good for latex)
     (file "--:\\\\${}+<>@-Z_[:alpha:]~*?" "<@" "@>;.,!:")
-    ;; An url, or maybe a email/news message-id:
+    ;; An url, or maybe an email/news message-id:
     (url "--:=&?$+@-Z_[:alpha:]~#,%;*()!'" "^[0-9a-zA-Z]" ":;.,!?")
     ;; Find a string that does *not* contain a colon:
     (nocolon "--9$+<>@-Z_[:alpha:]~" "<@" "@>;.,!?")

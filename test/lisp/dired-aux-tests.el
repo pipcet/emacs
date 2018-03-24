@@ -1,6 +1,6 @@
 ;;; dired-aux-tests.el --- Test suite for dired-aux. -*- lexical-binding: t -*-
 
-;; Copyright (C) 2017 Free Software Foundation, Inc.
+;; Copyright (C) 2017-2018 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -59,7 +59,7 @@
        (unwind-protect
            (if ,yes-or-no
                (cl-letf (((symbol-function 'yes-or-no-p)
-                          (lambda (prompt) (eq ,yes-or-no 'yes))))
+                          (lambda (_prompt) (eq ,yes-or-no 'yes))))
                  ,@body)
              ,@body)
          ;; clean up

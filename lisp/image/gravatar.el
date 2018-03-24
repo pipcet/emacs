@@ -1,6 +1,6 @@
 ;;; gravatar.el --- Get Gravatars
 
-;; Copyright (C) 2010-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2010-2018 Free Software Foundation, Inc.
 
 ;; Author: Julien Danjou <julien@danjou.info>
 ;; Keywords: news
@@ -60,11 +60,11 @@
   "Base URL for getting gravatars.")
 
 (defun gravatar-hash (mail-address)
-  "Create an hash from MAIL-ADDRESS."
+  "Create a hash from MAIL-ADDRESS."
   (md5 (downcase mail-address)))
 
 (defun gravatar-build-url (mail-address)
-  "Return an URL to retrieve MAIL-ADDRESS gravatar."
+  "Return a URL to retrieve MAIL-ADDRESS gravatar."
   (format "%s/%s?d=404&r=%s&s=%d"
           gravatar-base-url
           (gravatar-hash mail-address)

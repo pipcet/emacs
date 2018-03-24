@@ -1,6 +1,6 @@
 ;;; ox-texinfo.el --- Texinfo Back-End for Org Export Engine -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2012-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2012-2018 Free Software Foundation, Inc.
 ;; Author: Jonathan Leech-Pepin <jonathan.leechpepin at gmail dot com>
 ;; Keywords: outlines, hypermedia, calendar, wp
 
@@ -958,7 +958,7 @@ holding contextual information."
 
 (defun org-texinfo-format-inlinetask-default-function
   (todo _todo-type priority title tags contents)
-  "Default format function for a inlinetasks.
+  "Default format function for inlinetasks.
 See `org-texinfo-format-inlinetask-function' for details."
   (let ((full-title
 	 (concat (when todo (format "@strong{%s} " todo))

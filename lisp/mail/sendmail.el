@@ -1,6 +1,6 @@
 ;;; sendmail.el --- mail sending commands for Emacs
 
-;; Copyright (C) 1985-1986, 1992-1996, 1998, 2000-2017 Free Software
+;; Copyright (C) 1985-1986, 1992-1996, 1998, 2000-2018 Free Software
 ;; Foundation, Inc.
 
 ;; Maintainer: emacs-devel@gnu.org
@@ -607,7 +607,7 @@ This also saves the value of `send-mail-function' via Customize."
   (kill-local-variable 'buffer-file-coding-system)
   ;; This doesn't work for enable-multibyte-characters.
   ;; (kill-local-variable 'enable-multibyte-characters)
-  (set-buffer-multibyte (default-value 'enable-multibyte-characters))
+  (set-buffer-multibyte t)
   (if current-input-method
       (deactivate-input-method))
 

@@ -1,6 +1,6 @@
 ### @configure_input@
 
-# Copyright (C) 2000-2017 Free Software Foundation, Inc.
+# Copyright (C) 2000-2018 Free Software Foundation, Inc.
 
 # This file is part of GNU Emacs.
 
@@ -100,6 +100,10 @@ COMPILE_FIRST = \
 	$(lisp)/emacs-lisp/byte-opt.elc \
 	$(lisp)/emacs-lisp/bytecomp.elc \
 	$(lisp)/emacs-lisp/autoload.elc
+
+# Files to compile early in compile-main.  Works around bug#25556.
+MAIN_FIRST = ./emacs-lisp/eieio.el ./emacs-lisp/eieio-base.el \
+  ./cedet/semantic/db.el
 
 # Prevent any settings in the user environment causing problems.
 unexport EMACSDATA EMACSDOC EMACSPATH
@@ -319,7 +323,7 @@ compile-targets: $(TARGETS)
 compile-main: gen-lisp compile-clean
 	@(cd $(lisp) && \
 	els=`echo "${SUBDIRS_REL} " | sed -e 's|/\./|/|g' -e 's|/\. | |g' -e 's| |/*.el |g'`; \
-	for el in $$els; do \
+	for el in ${MAIN_FIRST} $$els; do \
 	  test -f $$el || continue; \
 	  test ! -f $${el}c && GREP_OPTIONS= grep '^;.*no-byte-compile: t' $$el > /dev/null && continue; \
 	  echo "$${el}c"; \

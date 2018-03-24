@@ -1,6 +1,6 @@
 /* Random utility Lisp functions.
 
-Copyright (C) 1985-1987, 1993-1995, 1997-2017 Free Software Foundation,
+Copyright (C) 1985-1987, 1993-1995, 1997-2018 Free Software Foundation,
 Inc.
 
 This file is part of GNU Emacs.
@@ -3336,6 +3336,7 @@ If the region can't be decoded, signal an error and don't modify the buffer.  */
      and delete the old.  (Insert first in order to preserve markers.)  */
   TEMP_SET_PT_BOTH (XFASTINT (beg), ibeg);
   insert_1_both (decoded, inserted_chars, decoded_length, 0, 1, 0);
+  signal_after_change (XFASTINT (beg), 0, inserted_chars);
   SAFE_FREE ();
 
   /* Delete the original text.  */
@@ -4860,8 +4861,6 @@ extract_data_from_object (Lisp_Object spec,
 
       record_unwind_current_buffer ();
 
-      CHECK_BUFFER (object);
-
       struct buffer *bp = XBUFFER (object);
       set_buffer_internal (bp);
 
@@ -4983,6 +4982,9 @@ extract_data_from_object (Lisp_Object spec,
 #endif
     }
 
+  if (!STRINGP (object))
+    signal_error ("Invalid object argument",
+		  NILP (object) ? build_string ("nil") : object);
   return SSDATA (object);
 }
 

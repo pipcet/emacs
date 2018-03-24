@@ -1,7 +1,7 @@
 ;;; trampver.el --- Transparent Remote Access, Multiple Protocol  -*- lexical-binding:t -*-
 ;;; lisp/trampver.el.  Generated from trampver.el.in by configure.
 
-;; Copyright (C) 2003-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2003-2018 Free Software Foundation, Inc.
 
 ;; Author: Kai Großjohann <kai.grossjohann@gmx.net>
 ;; Maintainer: Michael Albinus <michael.albinus@gmx.de>
@@ -56,9 +56,8 @@
 (let ((x (if (>= emacs-major-version 24)
     "ok"
   (format "Tramp 2.4.0-pre is not fit for %s"
-	  (when (string-match "^.*$" (emacs-version))
-	    (match-string 0 (emacs-version)))))))
-  (unless (string-match "\\`ok\\'" x) (error "%s" x)))
+	  (replace-regexp-in-string "\n" "" (emacs-version))))))
+  (unless (string-equal "ok" x) (error "%s" x)))
 
 ;; Tramp versions integrated into Emacs.
 (add-to-list

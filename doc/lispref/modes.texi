@@ -1,6 +1,6 @@
 @c -*-texinfo-*-
 @c This is part of the GNU Emacs Lisp Reference Manual.
-@c Copyright (C) 1990-1995, 1998-1999, 2001-2017 Free Software
+@c Copyright (C) 1990-1995, 1998-1999, 2001-2018 Free Software
 @c Foundation, Inc.
 @c See the file elisp.texi for copying conditions.
 @node Modes
@@ -3545,10 +3545,11 @@ provided grammar is precise enough, @code{transpose-sexps} can correctly
 transpose the two arguments of a @code{+} operator, taking into account
 the precedence rules of the language.
 
-Calling @code{smie-setup} is also sufficient to make TAB indentation work in
-the expected way, extends @code{blink-matching-paren} to apply to
-elements like @code{begin...end}, and provides some commands that you
-can bind in the major mode keymap.
+Calling @code{smie-setup} is also sufficient to make @key{TAB}
+indentation work in the expected way, extends
+@code{blink-matching-paren} to apply to elements like
+@code{begin...end}, and provides some commands that you can bind in
+the major mode keymap.
 
 @deffn Command smie-close-block
 This command closes the most recently opened (and not yet closed) block.

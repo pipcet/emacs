@@ -1,6 +1,6 @@
 ;;; eww.el --- Emacs Web Wowser  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2013-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2013-2018 Free Software Foundation, Inc.
 
 ;; Author: Lars Magne Ingebrigtsen <larsi@gnus.org>
 ;; Keywords: html
@@ -1532,7 +1532,8 @@ Differences in #targets are ignored."
                   eww-download-directory)))
       (goto-char (point-min))
       (re-search-forward "\r?\n\r?\n")
-      (write-region (point) (point-max) file)
+      (let ((coding-system-for-write 'no-conversion))
+        (write-region (point) (point-max) file))
       (message "Saved %s" file))))
 
 (defun eww-decode-url-file-name (string)

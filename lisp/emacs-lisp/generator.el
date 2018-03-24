@@ -1,6 +1,6 @@
 ;;; generator.el --- generators  -*- lexical-binding: t -*-
 
-;;; Copyright (C) 2015-2017 Free Software Foundation, Inc.
+;;; Copyright (C) 2015-2018 Free Software Foundation, Inc.
 
 ;; Author: Daniel Colascione <dancol@dancol.org>
 ;; Keywords: extensions, elisp
@@ -681,7 +681,8 @@ When called as a function, NAME returns an iterator value that
 encapsulates the state of a computation that produces a sequence
 of values.  Callers can retrieve each value using `iter-next'."
   (declare (indent defun)
-           (debug (&define name lambda-list lambda-doc def-body)))
+           (debug (&define name lambda-list lambda-doc def-body))
+           (doc-string 3))
   (cl-assert lexical-binding)
   (let* ((parsed-body (macroexp-parse-body body))
          (declarations (car parsed-body))

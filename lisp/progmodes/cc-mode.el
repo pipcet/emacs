@@ -1,6 +1,6 @@
 ;;; cc-mode.el --- major mode for editing C and similar languages
 
-;; Copyright (C) 1985, 1987, 1992-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1985, 1987, 1992-2018 Free Software Foundation, Inc.
 
 ;; Authors:    2003- Alan Mackenzie
 ;;             1998- Martin Stjernholm
@@ -622,7 +622,7 @@ that requires a literal mode spec at compile time."
   ;; buffer local value has its own alist structure.
   (setq c-offsets-alist (copy-alist c-offsets-alist))
 
-  ;; setup the comment indent variable in a Emacs version portable way
+  ;; setup the comment indent variable in an Emacs version portable way
   (set (make-local-variable 'comment-indent-function) 'c-comment-indent)
   ;; What sort of comments are default for M-;?
   (setq c-block-comment-flag c-block-comment-is-default)

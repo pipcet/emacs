@@ -1,6 +1,6 @@
 ;;; ediff.el --- a comprehensive visual interface to diff & patch
 
-;; Copyright (C) 1994-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1994-2018 Free Software Foundation, Inc.
 
 ;; Author: Michael Kifer <kifer@cs.stonybrook.edu>
 ;; Created: February 2, 1994
@@ -112,10 +112,6 @@
 
 (provide 'ediff)
 
-;; Compiler pacifier
-(eval-and-compile
-  (unless (fboundp 'declare-function) (defmacro declare-function (&rest  _r))))
-
 (require 'ediff-util)
 ;; end pacifier
 
@@ -153,7 +149,7 @@
 (declare-function dired-get-filename "dired"
                   (&optional localp no-error-if-not-filep))
 (declare-function dired-get-marked-files "dired"
-                  (&optional localp arg filter distinguish-one-marked))
+                  (&optional localp arg filter distinguish-one-marked error))
 
 ;; Return a plausible default for ediff's first file:
 ;; In dired, return the file number FILENO (or 0) in the list

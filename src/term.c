@@ -1,5 +1,5 @@
 /* Terminal control module for terminals described by TERMCAP
-   Copyright (C) 1985-1987, 1993-1995, 1998, 2000-2017 Free Software
+   Copyright (C) 1985-1987, 1993-1995, 1998, 2000-2018 Free Software
    Foundation, Inc.
 
 This file is part of GNU Emacs.
@@ -1591,13 +1591,13 @@ produce_glyphs (struct it *it)
 			+ it->continuation_lines_width);
       int x0 = absolute_x;
       /* Adjust for line numbers.  */
-      if (!NILP (Vdisplay_line_numbers))
+      if (!NILP (Vdisplay_line_numbers) && it->line_number_produced_p)
 	absolute_x -= it->lnum_pixel_width;
       int next_tab_x
 	= (((1 + absolute_x + it->tab_width - 1)
 	    / it->tab_width)
 	   * it->tab_width);
-      if (!NILP (Vdisplay_line_numbers))
+      if (!NILP (Vdisplay_line_numbers) && it->line_number_produced_p)
 	next_tab_x += it->lnum_pixel_width;
       int nspaces;
 
@@ -4147,16 +4147,24 @@ use the Bourne shell command 'TERM=...; export TERM' (C-shell:\n\
       tty->TN_max_colors = tgetnum ("Co");
 
 #ifdef TERMINFO
-      /* Non-standard support for 24-bit colors. */
       {
 	const char *fg = tigetstr ("setf24");
 	const char *bg = tigetstr ("setb24");
+	/* Non-standard support for 24-bit colors. */
 	if (fg && bg
 	    && fg != (char *) (intptr_t) -1
 	    && bg != (char *) (intptr_t) -1)
 	  {
 	    tty->TS_set_foreground = fg;
 	    tty->TS_set_background = bg;
+	    tty->TN_max_colors = 16777216;
+	  }
+	/* Standard support for 24-bit colors.  */
+	else if (tigetflag ("RGB") > 0)
+	  {
+	    /* If the used Terminfo library supports only 16-bit
+	       signed values, tgetnum("Co") and tigetnum("colors")
+	       could return 32767.  */
 	    tty->TN_max_colors = 16777216;
 	  }
       }

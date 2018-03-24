@@ -1,6 +1,6 @@
 ;;; goto-addr.el --- click to browse URL or to send to e-mail address
 
-;; Copyright (C) 1995, 2000-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1995, 2000-2018 Free Software Foundation, Inc.
 
 ;; Author: Eric Ding <ericding@alum.mit.edu>
 ;; Maintainer: emacs-devel@gnu.org
@@ -219,10 +219,6 @@ and `goto-address-fontify-p'."
 
 ;; code to find and goto addresses; much of this has been blatantly
 ;; snarfed from browse-url.el
-
-;;;###autoload
-(define-obsolete-function-alias
-  'goto-address-at-mouse 'goto-address-at-point "22.1")
 
 ;;;###autoload
 (defun goto-address-at-point (&optional event)

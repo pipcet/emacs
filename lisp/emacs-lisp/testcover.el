@@ -1,6 +1,6 @@
 ;;;; testcover.el -- Visual code-coverage tool  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2002-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2002-2018 Free Software Foundation, Inc.
 
 ;; Author: Jonathan Yavner <jyavner@member.fsf.org>
 ;; Maintainer: Jonathan Yavner <jyavner@member.fsf.org>
@@ -63,6 +63,7 @@
 ;;   error if these "potentially" 1-valued forms actually return differing
 ;;   values.
 
+(eval-when-compile (require 'cl-lib))
 (require 'edebug)
 (provide 'testcover)
 

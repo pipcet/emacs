@@ -1,6 +1,6 @@
 ;;; json.el --- JavaScript Object Notation parser / generator -*- lexical-binding: t -*-
 
-;; Copyright (C) 2006-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2006-2018 Free Software Foundation, Inc.
 
 ;; Author: Theresa O'Connor <ted@oconnor.cx>
 ;; Version: 1.4
@@ -685,7 +685,7 @@ become JSON objects."
       (push (list c 'json-read-number) table))
     (pcase-dolist (`(,c . ,rest) table)
       (push `((eq ,char ,c) (,@rest)) res))
-    `(cond ,@res (t (signal 'json-readtable-error ,char)))))
+    `(cond ,@res (t (signal 'json-readtable-error (list ,char))))))
 
 (defun json-read ()
   "Parse and return the JSON object following point.

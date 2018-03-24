@@ -1,6 +1,6 @@
 ;;; gnus-group.el --- group mode commands for Gnus
 
-;; Copyright (C) 1996-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1996-2018 Free Software Foundation, Inc.
 
 ;; Author: Lars Magne Ingebrigtsen <larsi@gnus.org>
 ;; Keywords: news
@@ -24,10 +24,7 @@
 
 ;;; Code:
 
-(eval-when-compile
-  (require 'cl))
-(defvar tool-bar-mode)
-
+(require 'cl-lib)
 (require 'gnus)
 (require 'gnus-start)
 (require 'nnmail)
@@ -45,6 +42,8 @@
     (require 'gnus-sum))
   (unless (boundp 'gnus-cache-active-hashtb)
     (defvar gnus-cache-active-hashtb nil)))
+
+(defvar tool-bar-mode)
 
 (autoload 'gnus-agent-total-fetched-for "gnus-agent")
 (autoload 'gnus-cache-total-fetched-for "gnus-cache")
@@ -1086,6 +1085,8 @@ See `gmm-tool-bar-from-list' for the format of the list."
 
 (defvar image-load-path)
 (defvar tool-bar-map)
+(declare-function image-load-path-for-library "image"
+		  (library image &optional path no-error))
 
 (defun gnus-group-make-tool-bar (&optional force)
   "Make a group mode tool bar from `gnus-group-tool-bar'.
@@ -1900,7 +1901,7 @@ If FIRST-TOO, the current line is also eligible as a target."
 	   (insert-char gnus-process-mark 1 t)))
       (unless no-advance
 	(gnus-group-next-group 1))
-      (decf n))
+      (cl-decf n))
     (gnus-group-position-point)
     n))
 
@@ -3923,7 +3924,7 @@ yanked) a list of yanked groups is returned."
   (interactive "p")
   (setq arg (or arg 1))
   (let (info group prev out)
-    (while (>= (decf arg) 0)
+    (while (>= (cl-decf arg) 0)
       (when (not (setq info (pop gnus-list-of-killed-groups)))
 	(error "No more newsgroups to yank"))
       (push (setq group (nth 1 info)) out)
