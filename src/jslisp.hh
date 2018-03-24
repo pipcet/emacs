@@ -21,7 +21,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #ifndef EMACS_LISP_H
 #define EMACS_LISP_H
 
-#define DEBUG
+//#define DEBUG
 #include "js-config.h"
 #include "jsapi.h"
 
@@ -1660,7 +1660,7 @@ lispsym_initially (struct Lisp_Symbol *s)
 # define DEFINE_NON_NIL_Q_SYMBOL_MACROS true
 #endif
 
-extern struct Lisp_Symbol lispsym[1214];
+extern struct Lisp_Symbol lispsym[1215];
 
 INLINE ELisp_Return_Value
 make_lisp_symbol (struct Lisp_Symbol *sym)
