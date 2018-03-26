@@ -2298,6 +2298,8 @@ read_decoded_event_from_main_queue (struct timespec *end_time,
     }
 }
 
+void *getcjmp_stack;
+
 /* Read a character from the keyboard; call the redisplay if needed.  */
 /* commandflag 0 means do not autosave, but do redisplay.
    -1 means do not redisplay, but do autosave.
@@ -2324,6 +2326,13 @@ read_decoded_event_from_main_queue (struct timespec *end_time,
    that time, stop waiting and return nil.
 
    Value is t if we showed a menu and the user rejected it.  */
+
+void *stack_pointer()
+{
+  volatile void * volatile x;
+  x = &x;
+  return x;
+}
 
 Lisp_Object
 read_char (int commandflag, Lisp_Object map,
@@ -2566,6 +2575,7 @@ read_char (int commandflag, Lisp_Object map,
      it *must not* be in effect when we call redisplay.  */
 
   jmpcount = SPECPDL_INDEX ();
+  getcjmp_stack = stack_pointer();
   if (sys_setjmp (local_getcjmp))
     {
       /* Handle quits while reading the keyboard.  */
@@ -10537,6 +10547,9 @@ handle_interrupt (bool in_signal_handler)
 
 /* Handle a C-g by making read_char return C-g.  */
 
+extern void
+unwind_js (void *new_stack);
+
 static void
 quit_throw_to_read_char (bool from_signal)
 {
@@ -10556,6 +10569,7 @@ quit_throw_to_read_char (bool from_signal)
     do_switch_frame (make_lispy_switch_frame (internal_last_event_frame),
 		     0, 0, Qnil);
 
+  unwind_js(getcjmp_stack);
   sys_longjmp (getcjmp, 1);
 }
 

@@ -2282,9 +2282,11 @@ print_object (Lisp_Object obj, Lisp_Object printcharfun, bool escapeflag)
       break;
 
     case Lisp_JSValue:
-      char *bytes = jsval_to_string(obj);
-      print_c_string (bytes, printcharfun);
-      JS_free(jsg.cx, bytes);
+      {
+        char *bytes = jsval_to_string(obj);
+        print_c_string (bytes, printcharfun);
+        JS_free(jsg.cx, bytes);
+      }
       break;
 
     default:

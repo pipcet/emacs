@@ -1160,7 +1160,7 @@ internal_catch (Lisp_Object tag,
     }
 }
 
-static void
+extern void
 unwind_js (void *new_stack)
 {
   {

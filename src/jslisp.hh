@@ -56,6 +56,9 @@ class JSG {
 };
 
 extern JSG jsg;
+extern JS::Heap<JSObject*> elisp_cons_class_proto;
+extern JS::Heap<JSObject*> elisp_string_class_proto;
+extern JS::Heap<JSObject*> elisp_symbol_class_proto;
 extern JSClass elisp_cons_class;
 extern JSClass elisp_string_class;
 extern JSClass elisp_symbol_class;
@@ -63,6 +66,7 @@ extern JSClass elisp_symbol_class;
 //extern JSClass elisp_overlay_class;
 //extern JSClass elisp_buffer_class;
 //extern JSClass elisp_module_function_class;
+extern JS::Heap<JSObject*> elisp_vector_class_proto;
 extern JSClass elisp_vector_class;
 //extern JSClass elisp_bool_vector_class;
 //extern JSClass elisp_char_table_class;
@@ -84,6 +88,7 @@ extern JSClass elisp_vector_class;
 //extern JSClass elisp_process_class;
 //extern JSClass elisp_scroll_bar_class;
 //extern JSClass elisp_compiled_class;
+extern JS::Heap<JSObject*> elisp_misc_class_proto;
 extern JSClass elisp_misc_class;
 //extern JSClass elisp_misc_any_class;
 //extern JSClass elisp_vectorlike_class;
@@ -625,7 +630,8 @@ enum Lisp_Fwd_Type
     if (val.isObject() && JS_GetClass (&val.toObject()) == &clas)       \
       V.set(val);                                                       \
     else {                                                              \
-      JSObject *obj = JS_NewObject(jsg.cx, &clas);                      \
+      JS::RootedObject proto(jsg.cx, clas ## _proto);                   \
+      JSObject *obj = JS_NewObjectWithGivenProto(jsg.cx, &clas, proto); \
       JS_SetPrivate(obj, x);                                            \
       V.setObject(*obj); /* XXX check error */                          \
       JS::RootedValue val2(jsg.cx, JS::Value(V));                       \
@@ -716,16 +722,15 @@ enum Lisp_Fwd_Type
         else if (clasp == &elisp_string_class)                          \
           return Lisp_String;                                           \
         return Lisp_JSValue;                                            \
-        emacs_abort();                                                  \
       }                                                                 \
     if (V.isInt32 ())                                                   \
       return Lisp_Int0;                                                 \
     if (V.isString ())                                                  \
-      return Lisp_String;                                               \
+      return Lisp_JSValue;                                              \
     if (V.isDouble ())                                                  \
       return Lisp_Float;                                                \
                                                                         \
-    return Lisp_Cons;                                                   \
+    return Lisp_JSValue;                                                \
   }                                                                     \
                                                                         \
   inline bool                                                           \

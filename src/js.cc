@@ -550,10 +550,29 @@ Oblookup(JSContext *cx, unsigned argc, JS::Value* vp)
   return true;
 }
 
+extern ELisp_Return_Value jsval_to_elisp(ELisp_Handle arg);
+
+static bool
+E(JSContext *cx, unsigned argc, JS::Value *vp)
+{
+  JS::CallArgs args = CallArgsFromVp(argc, vp);
+  if (args.length() < 1)
+    return false;
+
+  ELisp_Value arg;
+  arg.v.v = args[0];
+  arg = jsval_to_elisp(arg);
+
+  args.rval().set(arg.v.v);
+
+  return true;
+}
+
 static const JSFunctionSpec emacs_functions[] =
   {
    JS_FN("Print", Print, 0, 0),
    JS_FN("Oblookup", Oblookup, 0, 0),
+   JS_FN("E", E, 0, 0),
    JS_FS_END
   };
                                                          void
@@ -580,6 +599,12 @@ static void
 js_gc_trace(JSTracer* tracer, void* data)
 {
   fprintf(stderr, "that one's mine! And that one! And...\n");
+
+  TraceEdge(tracer, &elisp_cons_class_proto, "cons class proto");
+  TraceEdge(tracer, &elisp_string_class_proto, "string class proto");
+  TraceEdge(tracer, &elisp_symbol_class_proto, "symbol class proto");
+  TraceEdge(tracer, &elisp_vector_class_proto, "vector class proto");
+  TraceEdge(tracer, &elisp_misc_class_proto, "misc class proto");
 
   for (size_t i = 0; i < GLOBAL_OBJECTS; i++) {
     TraceEdge(tracer, &(((ELisp_Struct_Value *)&globals)+i)->v.v, "global");
@@ -790,7 +815,7 @@ static void eval_js(const char *source)
 void
 late_js_init(void)
 {
-  eval_js("Object.getPrototypeOf(list(3,4,5))[Symbol.iterator] = function* () { yield this.car; yield* this.cdr; }");
+  eval_js("Object.getPrototypeOf(F.list(3,4,5))[Symbol.iterator] = function* () { yield this.car; yield* this.cdr; }");
   eval_js("nil[Symbol.iterator] = function* () {}");
 }
 
@@ -842,6 +867,84 @@ usage: (js SOURCE)  */)
     .setFileAndLine("typein", 1);
 
   if (!JS::Compile(cx, options, source, sourcelen, &script))
+    return Qnil;
+
+  if (!JS_ExecuteScript(cx, script, &result.v.v))
+    return Qnil;
+
+  return jsval_to_elisp(result);
+}
+
+/* This is from js.cpp in the Mozilla distribution. */
+const char *
+read_file_as_string(JSContext* cx, const char* pathname)
+{
+  FILE* file;
+
+  file = fopen(pathname, "rb");
+  if (!file)
+    return nullptr;
+
+  if (fseek(file, 0, SEEK_END) != 0) {
+    JS_ReportErrorUTF8(cx, "can't seek end of %s", pathname);
+    goto error;
+  }
+
+  size_t len = ftell(file);
+  if (fseek(file, 0, SEEK_SET) != 0) {
+    JS_ReportErrorUTF8(cx, "can't seek start of %s", pathname);
+    goto error;
+  }
+
+  char *buf = static_cast<char*>(js_malloc(len + 1));
+  if (!buf)
+    goto error;
+
+  buf[len] = 0;
+  size_t cc = fread(buf, 1, len, file);
+  if (cc != len) {
+    if (ptrdiff_t(cc) < 0) {
+    } else {
+      JS_ReportErrorUTF8(cx, "can't read %s: short read", pathname);
+    }
+    goto error;
+  }
+
+  return buf;
+
+ error:
+  fclose(file);
+  return nullptr;
+}
+
+EXFUN (Fjsread, 1);
+
+DEFUN ("jsread", Fjsread, Sjsread, 1, 1, 0,
+       doc: /* Evaluate JavaScript.
+usage: (jsread SOURCE)  */)
+  (ELisp_Handle ARG(arg))
+{
+  ELisp_Value arg = ARG(arg);
+  ELisp_Value result;
+  CHECK_STRING (arg);
+
+  const unsigned char *source = SDATA(arg);
+  ptrdiff_t len = SCHARS(arg);
+
+  JSContext* cx = jsg.cx;
+  const char *str = read_file_as_string(cx, source);
+  if (!str)
+    return Qnil;
+
+  JS::RootedScript script(cx);
+  size_t sourcelen = strlen(source);
+  JS::CompileOptions options(cx);
+  options.setIntroductionType("jsread run")
+    .setUTF8(true)
+    .setIsRunOnce(true)
+    .setFileAndLine(source, 1);
+
+  if (!JS_CompileScript(cx, str, strlen(str), options, &script))
     return Qnil;
 
   if (!JS_ExecuteScript(cx, script, &result.v.v))
@@ -1121,13 +1224,11 @@ elisp_symbol_trace(JSTracer *trc, JSObject *obj)
   }
 }
 
-
 static void
 elisp_symbol_finalize(JSFreeOp* cx, JSObject *obj)
 {
   xfree(JS_GetPrivate(obj));
 }
-
 
 static JSClassOps elisp_symbol_ops =
 {
@@ -1149,7 +1250,6 @@ elisp_marker_finalize(JSFreeOp* cx, JSObject *obj)
   // xfree(JS_GetPrivate(obj));
 }
 
-
 static JSClassOps elisp_marker_ops =
 {
   NULL, NULL, NULL, NULL,
@@ -1165,7 +1265,6 @@ elisp_overlay_finalize(JSFreeOp* cx, JSObject *obj)
 {
   //xfree(JS_GetPrivate(obj));
 }
-
 
 static JSClassOps elisp_overlay_ops =
 {
@@ -1199,7 +1298,6 @@ elisp_module_function_finalize(JSFreeOp* cx, JSObject *obj)
 {
   //xfree(JS_GetPrivate(obj));
 }
-
 
 static JSClassOps elisp_module_function_ops =
 {
@@ -1408,7 +1506,6 @@ elisp_bool_vector_finalize(JSFreeOp* cx, JSObject *obj)
   //xfree(JS_GetPrivate(obj));
 }
 
-
 static JSClassOps elisp_bool_vector_ops =
 {
   NULL, NULL, NULL, NULL,
@@ -1442,7 +1539,6 @@ elisp_sub_char_table_finalize(JSFreeOp* cx, JSObject *obj)
   //xfree(JS_GetPrivate(obj));
 }
 
-
 static JSClassOps elisp_sub_char_table_ops =
 {
   NULL, NULL, NULL, NULL,
@@ -1458,7 +1554,6 @@ elisp_subr_finalize(JSFreeOp* cx, JSObject *obj)
 {
   //xfree(JS_GetPrivate(obj));
 }
-
 
 static JSClassOps elisp_subr_ops =
 {
@@ -1493,7 +1588,6 @@ elisp_mutex_finalize(JSFreeOp* cx, JSObject *obj)
   //xfree(JS_GetPrivate(obj));
 }
 
-
 static JSClassOps elisp_mutex_ops =
 {
   NULL, NULL, NULL, NULL,
@@ -1509,7 +1603,6 @@ elisp_condvar_finalize(JSFreeOp* cx, JSObject *obj)
 {
   //xfree(JS_GetPrivate(obj));
 }
-
 
 static JSClassOps elisp_condvar_ops =
 {
@@ -1527,7 +1620,6 @@ elisp_save_value_finalize(JSFreeOp* cx, JSObject *obj)
   //xfree(JS_GetPrivate(obj));
 }
 
-
 static JSClassOps elisp_save_value_ops =
 {
   NULL, NULL, NULL, NULL,
@@ -1543,7 +1635,6 @@ elisp_finalizer_finalize(JSFreeOp* cx, JSObject *obj)
 {
   //xfree(JS_GetPrivate(obj));
 }
-
 
 static JSClassOps elisp_finalizer_ops =
 {
@@ -1561,7 +1652,6 @@ elisp_hash_table_finalize(JSFreeOp* cx, JSObject *obj)
   //xfree(JS_GetPrivate(obj));
 }
 
-
 static JSClassOps elisp_hash_table_ops =
 {
   NULL, NULL, NULL, NULL,
@@ -1577,7 +1667,6 @@ elisp_frame_finalize(JSFreeOp* cx, JSObject *obj)
 {
   //xfree(JS_GetPrivate(obj));
 }
-
 
 static JSClassOps elisp_frame_ops =
 {
@@ -1595,7 +1684,6 @@ elisp_font_spec_finalize(JSFreeOp* cx, JSObject *obj)
   //xfree(JS_GetPrivate(obj));
 }
 
-
 static JSClassOps elisp_font_spec_ops =
 {
   NULL, NULL, NULL, NULL,
@@ -1611,7 +1699,6 @@ elisp_font_entity_finalize(JSFreeOp* cx, JSObject *obj)
 {
   //xfree(JS_GetPrivate(obj));
 }
-
 
 static JSClassOps elisp_font_entity_ops =
 {
@@ -1629,7 +1716,6 @@ elisp_font_finalize(JSFreeOp* cx, JSObject *obj)
   //xfree(JS_GetPrivate(obj));
 }
 
-
 static JSClassOps elisp_font_ops =
 {
   NULL, NULL, NULL, NULL,
@@ -1645,7 +1731,6 @@ elisp_terminal_finalize(JSFreeOp* cx, JSObject *obj)
 {
   //xfree(JS_GetPrivate(obj));
 }
-
 
 static JSClassOps elisp_terminal_ops =
 {
@@ -1827,8 +1912,6 @@ elisp_miscany_finalize(JSFreeOp* cx, JSObject *obj)
   //xfree(JS_GetPrivate(obj));
 }
 
-
-
 static JSClassOps elisp_miscany_ops =
 {
   NULL, NULL, NULL, NULL,
@@ -1871,6 +1954,37 @@ allocate_misc(int type)
   return ret;
 }
 
+static bool
+elisp_string_toString(JSContext* cx, unsigned argc, JS::Value *vp)
+{
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  if (!args.thisv().isObject())
+    return false;
+
+  ELisp_Value s;
+  s.v.v = args.thisv();
+
+  char *bytes = SDATA(s);
+  size_t len = SBYTES(s);
+  JS::RootedString res(cx, JS_NewStringCopyN(cx, bytes, len));
+  if (!res)
+    return false;
+
+  args.rval().setString(res);
+
+  return true;
+}
+
+static JSFunctionSpec elisp_string_fns[] = {
+                                      JS_FN("toString", elisp_string_toString, 0, 0),
+                                      JS_FS_END
+};
+
+JS::Heap<JSObject*> elisp_cons_class_proto __attribute__((init_priority(101)));
+JS::Heap<JSObject*> elisp_string_class_proto __attribute__((init_priority(101)));
+JS::Heap<JSObject*> elisp_symbol_class_proto __attribute__((init_priority(101)));
+JS::Heap<JSObject*> elisp_vector_class_proto __attribute__((init_priority(101)));
+JS::Heap<JSObject*> elisp_misc_class_proto __attribute__((init_priority(101)));
 
 static void
 elisp_classes_init(JSContext *cx, JS::HandleObject glob)
@@ -1879,12 +1993,12 @@ elisp_classes_init(JSContext *cx, JS::HandleObject glob)
     (cx, JS_InitClass(cx, glob, nullptr, &elisp_cons_class, nullptr, 0,
                       nullptr, nullptr, nullptr, nullptr));
 
-  JS_SetProperty (cx, glob, "ELisp_Cons_Proto", JS::Rooted<JS::Value>(cx, JS::ObjectValue(*elisp_cons_proto)));
-  JS::RootedObject elisp_vector_proto
-    (cx,
-     JS_InitClass(cx, glob, nullptr, &elisp_vector_class, nullptr, 0,
-                  nullptr, nullptr, nullptr, nullptr));
-  JS_InitClass(cx, glob, nullptr, &elisp_symbol_class, nullptr, 0,
+  elisp_cons_class_proto = elisp_cons_proto;
+
+  JS_SetProperty (cx, glob, "ELisp_Cons_Proto", JS::Rooted<JS::Value>(cx, JS::ObjectValue(*elisp_cons_class_proto)));
+  elisp_vector_class_proto = JS_InitClass(cx, glob, nullptr, &elisp_vector_class, nullptr, 0,
+                                    nullptr, nullptr, nullptr, nullptr);
+  elisp_symbol_class_proto = JS_InitClass(cx, glob, nullptr, &elisp_symbol_class, nullptr, 0,
                nullptr, nullptr, nullptr, nullptr);
   JS_InitClass(cx, glob, nullptr, &elisp_marker_class, nullptr, 0,
                nullptr, nullptr, nullptr, nullptr);
@@ -1894,12 +2008,13 @@ elisp_classes_init(JSContext *cx, JS::HandleObject glob)
                nullptr, nullptr, nullptr, nullptr);
   JS_InitClass(cx, glob, nullptr, &elisp_module_function_class, nullptr, 0,
                nullptr, nullptr, nullptr, nullptr);
-  JS_InitClass(cx, glob, nullptr, &elisp_string_class, nullptr, 0,
-               nullptr, nullptr, nullptr, nullptr);
+  elisp_string_class_proto = JS_InitClass(cx, glob, nullptr, &elisp_string_class, nullptr, 0,
+               nullptr, elisp_string_fns, nullptr, nullptr);
   JS_InitClass(cx, glob, nullptr, &elisp_overlay_class, nullptr, 0,
                nullptr, nullptr, nullptr, nullptr);
   JS_InitClass(cx, glob, nullptr, &elisp_bool_vector_class, nullptr, 0,
                nullptr, nullptr, nullptr, nullptr);
+  JS::RootedObject elisp_vector_proto(cx, elisp_vector_class_proto);
   JS_InitClass(cx, glob, elisp_vector_proto, &elisp_char_table_class, nullptr, 0,
                nullptr, nullptr, nullptr, nullptr);
   JS_InitClass(cx, glob, elisp_vector_proto, &elisp_sub_char_table_class, nullptr, 0,
@@ -1938,7 +2053,7 @@ elisp_classes_init(JSContext *cx, JS::HandleObject glob)
                nullptr, nullptr, nullptr, nullptr);
   JS_InitClass(cx, glob, nullptr, &elisp_compiled_class, nullptr, 0,
                nullptr, nullptr, nullptr, nullptr);
-  JS_InitClass(cx, glob, nullptr, &elisp_misc_class, nullptr, 0,
+  elisp_misc_class_proto = JS_InitClass(cx, glob, nullptr, &elisp_misc_class, nullptr, 0,
                nullptr, nullptr, nullptr, nullptr);
   JS_InitClass(cx, glob, nullptr, &elisp_misc_any_class, nullptr, 0,
                nullptr, nullptr, nullptr, nullptr);
@@ -1946,43 +2061,21 @@ elisp_classes_init(JSContext *cx, JS::HandleObject glob)
                nullptr, nullptr, nullptr, nullptr);
 }
 
-#if 0
-void jsprint(Lisp_Object *xp)
+void jsprint(JS::Value v);
+void jsprint(JS::HandleValue v);
+
+void jsprint(JS::Value v)
 {
-  Lisp_Object x = *xp;
-  JSContext* cx = jsg.cx;
-  if (x.v.isObject()) {
-    JSObject *obj = &x.v.toObject();
-    printf("%p %s %p\n", obj, JS_GetClass(obj)->name,
-           JS_GetPrivate(obj));
-    if (strcmp(JS_GetClass(obj)->name, "ELisp_Cons") == 0) {
-      printf("car ");
-      jsprint(&XCONS(x)->car);
-      printf("cdr ");
-      jsprint(&XCONS(x)->u.cdr);
-    } else if (strcmp(JS_GetClass(obj)->name, "ELisp_String") == 0) {
-      printf("= %s\n", SDATA(x));
-    } else if (strcmp(JS_GetClass(obj)->name, "ELisp_Symbol") == 0) {
-      printf("= '\n");
-      jsprint(&XSYMBOL(x)->name);
-    }
-  } else {
-    JS::RootedString str(cx, JS::ToString(cx, JS::Handle<JS::Value>::fromMarkedLocation(&x.v)));
-    if (!str)
-      return;
-    char* bytes = JS_EncodeStringToUTF8(cx, str);
-    if (!bytes)
-      return;
-    fprintf(stdout, "%s\n", bytes);
-    JS_free(cx, bytes);
-  }
+  ELisp_Value x;
+  x.v.v = v;
+  debug_print(x);
 }
-#endif
 
 void
 syms_of_js (void)
 {
   defsubr(&Sjs);
+  defsubr(&Sjsread);
   defsubr(&Sspecbind);
   defsubr(&Ssetinternal);
   defsubr(&Sunbind_to_rel);
@@ -1992,3 +2085,4 @@ void js::ReportOutOfMemory(JSContext* cx)
 {
   while (1);
 }
+
