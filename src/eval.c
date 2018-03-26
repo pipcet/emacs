@@ -1142,7 +1142,6 @@ internal_catch (Lisp_Object tag,
 {
   /* This structure is made part of the chain `catchlist'.  */
   struct handler *c = push_handler (tag, CATCHER);
-  c->jmp_stack = &c;
 
   /* Call FUNC.  */
   if (! sys_setjmp (c->jmp))
@@ -1363,7 +1362,6 @@ internal_lisp_condition_case (Lisp_Object var, Lisp_Object bodyform,
       if (!CONSP (condition))
 	condition = list1 (condition);
       struct handler *c = push_handler (condition, CONDITION_CASE);
-      c->jmp_stack = (void *)&c;
       if (sys_setjmp (c->jmp))
 	{
 	  Lisp_Object val = handlerlist->val;
@@ -1414,7 +1412,6 @@ internal_condition_case (Lisp_Object (*bfun) (void), Lisp_Object handlers,
 			 Lisp_Object (*hfun) (Lisp_Object))
 {
   struct handler *c = push_handler (handlers, CONDITION_CASE);
-  c->jmp_stack = &c;
   if (sys_setjmp (c->jmp))
     {
       Lisp_Object val = handlerlist->val;
@@ -1439,7 +1436,6 @@ internal_condition_case_1 (Lisp_Object (*bfun) (Lisp_Object), Lisp_Object arg,
 			   Lisp_Object (*hfun) (Lisp_Object))
 {
   struct handler *c = push_handler (handlers, CONDITION_CASE);
-  c->jmp_stack = &c;
   if (sys_setjmp (c->jmp))
     {
       Lisp_Object val = handlerlist->val;
@@ -1467,7 +1463,6 @@ internal_condition_case_2 (Lisp_Object (*bfun) (Lisp_Object, Lisp_Object),
 			   Lisp_Object (*hfun) (Lisp_Object))
 {
   struct handler *c = push_handler (handlers, CONDITION_CASE);
-  c->jmp_stack = &c;
   if (sys_setjmp (c->jmp))
     {
       Lisp_Object val = handlerlist->val;
@@ -1497,7 +1492,6 @@ internal_condition_case_n (Lisp_Object (*bfun) (ptrdiff_t nargs, Lisp_Object *ar
 						Lisp_Object *args))
 {
   struct handler *c = push_handler (handlers, CONDITION_CASE);
-  c->jmp_stack = &c;
   if (sys_setjmp (c->jmp))
     {
       Lisp_Object val = handlerlist->val;
@@ -1571,6 +1565,7 @@ push_handler (Lisp_Object tag_ch_val, enum handlertype handlertype)
   struct handler *c = push_handler_nosignal (tag_ch_val, handlertype);
   if (!c)
     memory_full (sizeof *c);
+  c->jmp_stack = &c;
   return c;
 }
 

@@ -1660,7 +1660,7 @@ lispsym_initially (struct Lisp_Symbol *s)
 # define DEFINE_NON_NIL_Q_SYMBOL_MACROS true
 #endif
 
-extern struct Lisp_Symbol lispsym[1215];
+extern struct Lisp_Symbol lispsym[1219];
 
 INLINE ELisp_Return_Value
 make_lisp_symbol (struct Lisp_Symbol *sym)
@@ -4869,7 +4869,7 @@ extern _Noreturn void report_file_error (const char *, ELisp_Handle);
 extern _Noreturn void report_file_notify_error (const char *, ELisp_Handle);
 extern bool internal_delete_file (ELisp_Handle);
 extern ELisp_Return_Value emacs_readlinkat (int, const char *);
-extern bool file_directory_p (const char *);
+extern bool file_directory_p (ELisp_Handle);
 extern bool file_accessible_directory_p (ELisp_Handle);
 extern void init_fileio (void);
 extern void syms_of_fileio (void);

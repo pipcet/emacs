@@ -181,6 +181,8 @@ struct window
     /* The help echo text for this window.  Qnil if there's none.  */
     Lisp_Object mode_line_help_echo;
 
+    Lisp_Object prev_buffers, next_buffers;
+
     /* No Lisp data may follow below this point without changing
        mark_object in alloc.c.  The member current_matrix must be the
        first non-Lisp member.  */

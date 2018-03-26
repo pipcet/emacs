@@ -379,6 +379,7 @@ exec_byte_code (Lisp_Object bytestr, Lisp_Object vector, Lisp_Object maxdepth,
   unsigned char const *bytestr_data = (unsigned char const *)void_stack_lim;
   unsigned char const *pc = bytestr_data;
   ptrdiff_t count = SPECPDL_INDEX ();
+  Lisp_Object tem;
 
   if (!NILP (args_template))
     {
@@ -781,10 +782,10 @@ exec_byte_code (Lisp_Object bytestr, Lisp_Object vector, Lisp_Object maxdepth,
 	  type = CONDITION_CASE;
 	pushhandler:
 	  {
-	    struct handler *c = push_handler (POP, type);
+            tem = POP;
+	    struct handler *c = push_handler (tem, type);
 	    c->bytecode_dest = FETCH2;
 	    c->bytecode_top = top;
-            c->jmp_stack = &c;
 
 	    if (sys_setjmp (c->jmp))
 	      {

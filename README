@@ -1,3 +1,5 @@
+pip@amygdala:~/build/20180325-sm-emacs-debug$ ar rvf ./mozglue/build/libmozglue.a memory/build/Unified_cpp_memory_build0.o memory/mozalloc/mozalloc_abort.o memory/mozalloc/Unified_cpp_memory_mozalloc0.o mozglue/misc/*.o mfbt/*.o
+
 Build instructions:
 
 # sh autogen.sh

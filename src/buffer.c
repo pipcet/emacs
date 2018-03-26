@@ -1000,11 +1000,11 @@ reset_buffer_local_variables (struct buffer *b, bool permanent_too)
           Lisp_Object sym = local_var;
 
           /* Watchers are run *before* modifying the var.  */
-          if (XSYMBOL (local_var)->u.s.trapped_write == SYMBOL_TRAPPED_WRITE)
+          if (XSYMBOL (local_var)->trapped_write == SYMBOL_TRAPPED_WRITE)
             notify_variable_watchers (local_var, Qnil,
                                       Qmakunbound, Fcurrent_buffer ());
 
-          eassert (XSYMBOL (sym)->u.s.redirect == SYMBOL_LOCALIZED);
+          eassert (XSYMBOL (sym)->redirect == SYMBOL_LOCALIZED);
           /* Need not do anything if some other buffer's binding is
 	     now cached.  */
           if (EQ (SYMBOL_BLV (XSYMBOL (sym))->where, buffer))

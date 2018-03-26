@@ -3738,7 +3738,7 @@ kbd_buffer_events_waiting (void)
 /* Clear input event EVENT.  */
 
 static void
-clear_event (struct buffered_input_event *event)
+clear_event (struct input_event *event)
 {
   event->kind = NO_EVENT;
 }

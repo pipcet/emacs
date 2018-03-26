@@ -275,12 +275,8 @@ invoke it.  If KEYS is omitted or nil, the return value of
      `visargs' will contain the same list but in a nicer form, so that if we
      pass it to Fformat_message it will be understandable to a human.  */
   Lisp_Object *args, *visargs;
-  Lisp_Object specs;
   Lisp_Object filter_specs;
   Lisp_Object teml;
-  Lisp_Object up_event;
-  Lisp_Object enable;
-  USE_SAFE_ALLOCA;
   ptrdiff_t speccount = SPECPDL_INDEX ();
 
   bool arg_from_tty = false;
@@ -449,12 +445,14 @@ invoke it.  If KEYS is omitted or nil, the return value of
      pass it to Fformat_message it will be understandable to a human.
      Allocate them all at one go.  This wastes a bit of memory, but
      it's OK to trade space for speed.  */
-  SAFE_ALLOCA_LISP (args, 3 * nargs);
+  SAFE_ALLOCA_LISP (args, 2 * nargs);
   visargs = ELisp_Pointer(args) + nargs;
-  varies = (signed char *) (visargs + nargs).u.heap;
+  signed char *varies = (signed char *) alloca(nargs);
 
-  for (size_t i = 0; i < nargs * 3; i++)
+  for (size_t i = 0; i < nargs * 2; i++)
     args.sref(i, Qnil);
+  for (size_t i = 0; i < nargs; i++)
+    varies[i] = 0;
 
   if (!NILP (enable))
     specbind (Qenable_recursive_minibuffers, Qt);
@@ -471,8 +469,11 @@ invoke it.  If KEYS is omitted or nil, the return value of
 	  visargs[i] = Fcompleting_read (callint_message,
 					 Vobarray, Qfboundp, Qt,
 					 Qnil, Qnil, Qnil, Qnil);
-	  args[i] = Fintern (visargs[i], Qnil);
-	  break;
+          {
+            Lisp_Object tem9 = Fintern (visargs[i], Qnil);
+	  args[i] = tem9;
+	  }
+          break;
 
 	case 'b':   		/* Name of existing buffer.  */
 	  args[i] = Fcurrent_buffer ();
@@ -504,14 +505,17 @@ invoke it.  If KEYS is omitted or nil, the return value of
 	  /* See bug#8479.  */
 	  if (! CHARACTERP (args[i]))
 	    error ("Non-character input-event");
-	  visargs[i] = Fchar_to_string (args[i]);
-	  break;
+          {
+          Lisp_Object tem2 = Fchar_to_string (args[i]);
+	  visargs[i] = tem2;
+	  }
+          break;
 
 	case 'C':	      /* Command: symbol with interactive function.  */
 	  visargs[i] = Fcompleting_read (callint_message,
 					 Vobarray, Qcommandp,
 					 Qt, Qnil, Qnil, Qnil, Qnil);
-	  args[i] = Fintern (visargs[i], Qnil);
+	  args[i] = Fintern (visargs.ref(i), Qnil);
 	  break;
 
 	case 'd':		/* Value of point.  Does not do I/O.  */
@@ -554,7 +558,8 @@ invoke it.  If KEYS is omitted or nil, the return value of
 	    args[i] = Fread_key_sequence (callint_message,
 					  Qnil, Qnil, Qnil, Qnil);
 	    unbind_to (speccount1, Qnil);
-	    visargs[i] = Fkey_description (args[i], Qnil);
+            Lisp_Object tem3 = Fkey_description (args[i], Qnil);
+	    visargs[i] = tem3;
 
 	    /* If the key sequence ends with a down-event,
 	       discard the following up-event.  */
@@ -583,7 +588,8 @@ invoke it.  If KEYS is omitted or nil, the return value of
 				Qface, Qminibuffer_prompt, callint_message);
 	    args[i] = Fread_key_sequence_vector (callint_message,
 						 Qnil, Qt, Qnil, Qnil);
-	    visargs[i] = Fkey_description (args[i], Qnil);
+            Lisp_Object tem6 = Fkey_description (args[i], Qnil);
+	    visargs[i] = tem6;
 	    unbind_to (speccount1, Qnil);
 
 	    /* If the key sequence ends with a down-event,
@@ -608,7 +614,8 @@ invoke it.  If KEYS is omitted or nil, the return value of
 	    {
 	      args[i] = Fmake_vector (make_number (1), up_event);
 	      up_event = Qnil;
-	      visargs[i] = Fkey_description (args[i], Qnil);
+              Lisp_Object tem5 = Fkey_description (args[i], Qnil);
+	      visargs[i] = tem5;
 	    }
 	  break;
 
@@ -648,7 +655,10 @@ invoke it.  If KEYS is omitted or nil, the return value of
 	  FALLTHROUGH;
 	case 'n':		/* Read number from minibuffer.  */
 	  args[i] = call1 (Qread_number, callint_message);
-	  visargs[i] = Fnumber_to_string (args[i]);
+          {
+          Lisp_Object tem4 = Fnumber_to_string (args[i]);
+	  visargs[i] = tem4;
+          }
 	  break;
 
 	case 'P':		/* Prefix arg in raw form.  Does no I/O.  */
@@ -686,7 +696,7 @@ invoke it.  If KEYS is omitted or nil, the return value of
 	case 'S':		/* Any symbol.  */
 	  visargs[i] = Fread_string (callint_message,
 				     Qnil, Qnil, Qnil, Qnil);
-	  args[i] = Fintern (visargs[i], Qnil);
+	  args[i] = Fintern (visargs.ref(i), Qnil);
 	  break;
 
 	case 'v':		/* Variable name: symbol that is
@@ -771,7 +781,7 @@ invoke it.  If KEYS is omitted or nil, the return value of
       /* We don't need `visargs' any more, so let's recycle it since we need
 	 an array of just the same size.  */
       visargs[1] = function;
-      for (i = 2; i < nargs; i++)
+      for (ptrdiff_t i = 2; i < nargs; i++)
 	{
 	  if (varies[i] > 0)
 	    visargs[i] = list1 (intern (callint_argfuns[varies[i]]));
@@ -812,7 +822,7 @@ invoke it.  If KEYS is omitted or nil, the return value of
 
   specbind (Qcommand_debug_status, Qnil);
 
-  val = Ffuncall (LV (nargs, args));
+  Lisp_Object val = Ffuncall (LV (nargs, args));
   val = unbind_to (speccount, val);
   SAFE_FREE ();
   return val;

@@ -316,7 +316,7 @@ LIBGNUTLS_CFLAGS = @LIBGNUTLS_CFLAGS@
 LIBSYSTEMD_LIBS = @LIBSYSTEMD_LIBS@
 LIBSYSTEMD_CFLAGS = @LIBSYSTEMD_CFLAGS@
 
-JS_LIBS = -L ../../js/dist/bin -lz -lpthread -ldl -lmozjs-58a1 -Wl,--whole-archive ../../js/mozglue/build/libmozglue.a -Wl,--no-whole-archive -pthread 
+JS_LIBS = -L ../../js/dist/bin -lz -lpthread -ldl -lmozjs-61a1 -Wl,--whole-archive ../../js/mozglue/build/libmozglue.a -Wl,--no-whole-archive -pthread 
 JS_CFLAGS = -I ../../js/dist/include
 JSON_LIBS = @JSON_LIBS@
 JSON_CFLAGS = @JSON_CFLAGS@
