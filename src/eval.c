@@ -1161,10 +1161,27 @@ internal_catch (Lisp_Object tag,
 }
 
 extern void
-unwind_js (void *new_stack)
+unwind_js (struct sys_jmp_buf_struct *jmpbuf)
 {
+  void *new_stack = jmpbuf->stack;
+  fprintf(stderr, "%lx %lx %lx %lx\n",
+          new_stack,
+          jmpbuf->jmpbuf[0].__jmpbuf[6],
+          jmpbuf->jmpbuf[0].__jmpbuf[1],
+          jmpbuf->jmpbuf[0].__jmpbuf[2]);
+  new_stack = jmpbuf->jmpbuf[0].__jmpbuf[6];
+  asm volatile("ror $0x11,%%rax" : "=a" (new_stack) : "a" (new_stack));
+  asm volatile("xor %%fs:0x30,%%rax" : "=a" (new_stack) : "a" (new_stack));
+  fprintf(stderr, "%lx %lx %lx %lx\n",
+          new_stack,
+          jmpbuf->jmpbuf[0].__jmpbuf[6],
+          jmpbuf->jmpbuf[0].__jmpbuf[1],
+          jmpbuf->jmpbuf[0].__jmpbuf[2]);
+
   {
     JSContext* cx = jsg.cx;
+
+    new_stack += 0xc0;
 
     JS::AutoGCRooter *gcr = *((JS::AutoGCRooter **)((void *)cx + 0x70));
     while (gcr && gcr < new_stack) {
@@ -1181,6 +1198,7 @@ unwind_js (void *new_stack)
       rooter->JS::Rooted<void*>::~Rooted();
       rooter = prev;
     }
+    fprintf(stderr, "%p %p\n", static_cast<void *>(rooter), new_stack);
 
   }
   {
@@ -1241,8 +1259,6 @@ unwind_to_catch (struct handler *catch, Lisp_Object value)
   eassert (handlerlist == catch);
 
   lisp_eval_depth = catch->f_lisp_eval_depth;
-
-  unwind_js (c_catch->jmp_stack);
 
   sys_longjmp (catch->jmp, 1);
 }
@@ -1565,7 +1581,6 @@ push_handler (Lisp_Object tag_ch_val, enum handlertype handlertype)
   struct handler *c = push_handler_nosignal (tag_ch_val, handlertype);
   if (!c)
     memory_full (sizeof *c);
-  c->jmp_stack = &c;
   return c;
 }
 

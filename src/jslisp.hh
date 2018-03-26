@@ -2708,13 +2708,24 @@ verify (offsetof (struct Lisp_Sub_Char_Table, contents)
    without affecting the signal mask.  */
 
 #ifdef HAVE__SETJMP
-typedef jmp_buf sys_jmp_buf;
-# define sys_setjmp(j) _setjmp (j)
-# define sys_longjmp(j, v) _longjmp (j, v)
+typedef struct sys_jmp_buf_struct {
+  jmp_buf jmpbuf;
+  void *stack;
+} sys_jmp_buf[1];
+
+extern void
+unwind_js (struct sys_jmp_buf_struct *jmpbuf);
+
+# define sys_setjmp(j) ({ volatile int sz = 16; j[0].stack = alloca(sz); _setjmp (j[0].jmpbuf); })
+# define sys_longjmp(j, v) ({ unwind_js(j); _longjmp (j[0].jmpbuf, v); })
 #elif defined HAVE_SIGSETJMP
-typedef sigjmp_buf sys_jmp_buf;
-# define sys_setjmp(j) sigsetjmp (j, 0)
-# define sys_longjmp(j, v) siglongjmp (j, v)
+typedef struct {
+  sigjmp_buf jmpbuf;
+  void *stack;
+} sys_jmp_buf[1];
+
+# define sys_setjmp(j) ({ asm volatile("mov %%rsp,%0" : "=a" (j.stack)); sigsetjmp (j.jmpbuf, 0); })
+# define sys_longjmp(j, v) ({ unwind_js(j.stack); siglongjmp (j, v); })
 #else
 /* A platform that uses neither _longjmp nor siglongjmp; assume
    longjmp does not affect the sigmask.  */

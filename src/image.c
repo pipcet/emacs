@@ -6492,7 +6492,6 @@ struct my_jpeg_error_mgr
   enum failure_code failure_code;
 };
 
-
 static _Noreturn void
 my_error_exit (j_common_ptr cinfo)
 {
