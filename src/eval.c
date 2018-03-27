@@ -3038,9 +3038,8 @@ funcall_subr (struct Lisp_Subr *subr, ptrdiff_t numargs, Lisp_Object *args)
 
   else if (subr->max_args == UNEVALLED)
     {
-      Lisp_Object fun;
-      XSETSUBR (fun, subr);
-      xsignal1 (Qinvalid_function, fun);
+      /* This used to signal 'invalid-function, but right now it's the only way to call setq from Ankol... */
+      return (subr->function.aUNEVALLED) (LRH (Flist (numargs, args)));
     }
 
   else if (subr->max_args == MANY)

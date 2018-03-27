@@ -260,6 +260,8 @@ Q_resolve(JSContext *cx, JS::HandleObject obj, JS::HandleId id, bool *resolvedp)
       if (!bytes)
         return false;
 
+      fprintf(stderr, "resolving Q.%s\n", bytes);
+
 #if 0
       for (char *p = bytes; *p; p++)
         {
@@ -279,7 +281,12 @@ Q_resolve(JSContext *cx, JS::HandleObject obj, JS::HandleId id, bool *resolvedp)
       //tem = find_symbol_value (tem);
 
       if (INTEGERP (tem))
-        *resolvedp = false;
+        {
+          //*resolvedp = false;
+          tem = intern_1 (bytes, strlen(bytes));
+          JS_SetProperty (cx, obj, bytes, tem.v.v);
+          *resolvedp = true;
+        }
       else
         {
           JS_SetProperty (cx, obj, bytes, tem.v.v);
@@ -1121,7 +1128,9 @@ static bool elisp_cons_call(JSContext *cx, unsigned argc, JS::Value *vp)
   argv.sref(0, fun);
   for (ptrdiff_t i = 0; i < args.length(); i++)
     argv.sref(i+1, args[i]);
+  fprintf(stderr, "calling\n");
   ret = Ffuncall (LV (args.length() + 1, argv));
+  fprintf(stderr, "called\n");
   args.rval().set(ret.v.v);
 
   return true;
@@ -1218,7 +1227,9 @@ static bool elisp_symbol_call(JSContext *cx, unsigned argc, JS::Value *vp)
   argv.sref(0, fun);
   for (ptrdiff_t i = 0; i < args.length(); i++)
     argv.sref(i+1, args[i]);
+  fprintf(stderr, "calling 2\n");
   ret = Ffuncall (LV (args.length() + 1, argv));
+  fprintf(stderr, "called\n");
   args.rval().set(ret.v.v);
 
   return true;
@@ -1277,7 +1288,7 @@ static JSClassOps elisp_symbol_ops =
 {
   NULL, NULL, NULL, NULL,
   elisp_symbol_resolve, NULL, elisp_symbol_finalize,
-  elisp_symbol_call, NULL, NULL, elisp_symbol_trace,
+  NULL, NULL, NULL, elisp_symbol_trace,
 };
 
 JSClass elisp_symbol_class =
@@ -1381,7 +1392,9 @@ static bool elisp_string_call(JSContext *cx, unsigned argc, JS::Value *vp)
   argv.sref(0, fun);
   for (ptrdiff_t i = 0; i < args.length(); i++)
     argv.sref(i+1, args[i]);
+  fprintf(stderr, "calling 3\n");
   ret = Ffuncall (LV (args.length() + 1, argv));
+  fprintf(stderr, "called\n");
   args.rval().set(ret.v.v);
 
   return true;
@@ -1526,7 +1539,9 @@ static bool elisp_vector_call(JSContext *cx, unsigned argc, JS::Value *vp)
   argv.sref(0, fun);
   for (ptrdiff_t i = 0; i < args.length(); i++)
     argv.sref(i+1, args[i]);
+  fprintf(stderr, "calling 4\n");
   ret = Ffuncall (LV (args.length() + 1, argv));
+  fprintf(stderr, "called\n");
   args.rval().set(ret.v.v);
 
   return true;
