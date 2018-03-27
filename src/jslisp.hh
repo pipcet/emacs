@@ -579,25 +579,28 @@ enum Lisp_Fwd_Type
   int whole;
 #endif
 
-#define FORWARDED_COMMON                        \
-  operator JS::Value() const                    \
-  {                                             \
-    return v;                                   \
-  }                                             \
-                                                \
-  bool isNull() { return v.isNull(); }          \
-  bool isObject() { return v.isObject(); }      \
-  bool isInt32() { return v.isInt32(); }        \
-  bool isSymbol() { return v.isSymbol(); }      \
-  bool isNumber() { return v.isNumber(); }      \
-  bool isDouble() { return v.isDouble(); }      \
-  bool isString() { return v.isString(); }      \
-                                                \
-  JSObject& toObject() { return v.toObject(); } \
-  int32_t toInt32() { return v.toInt32(); }     \
-  auto toSymbol() { return v.toSymbol(); }      \
-  double toNumber() { return v.toNumber(); }    \
-  double toDouble() { return v.toDouble(); }    \
+#define FORWARDED_COMMON                                \
+  operator JS::Value() const                            \
+  {                                                     \
+    return v;                                           \
+  }                                                     \
+                                                        \
+  bool isNull() { return v.isNull(); }                  \
+  bool isObject() { return v.isObject(); }              \
+  bool isInt32() { return v.isInt32(); }                \
+  bool isSymbol() { return v.isSymbol(); }              \
+  bool isNumber() { return v.isNumber(); }              \
+  bool isDouble() { return v.isDouble(); }              \
+  bool isString() { return v.isString(); }              \
+  bool isCallable() {                                   \
+    return isObject() && JS::IsCallable(&toObject());   \
+  }                                                     \
+                                                        \
+  JSObject& toObject() { return v.toObject(); }         \
+  int32_t toInt32() { return v.toInt32(); }             \
+  auto toSymbol() { return v.toSymbol(); }              \
+  double toNumber() { return v.toNumber(); }            \
+  double toDouble() { return v.toDouble(); }            \
   auto toString() { return v.toString(); }
 
 #define FORWARDED                                       \

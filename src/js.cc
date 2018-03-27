@@ -260,6 +260,7 @@ Q_resolve(JSContext *cx, JS::HandleObject obj, JS::HandleId id, bool *resolvedp)
       if (!bytes)
         return false;
 
+#if 0
       for (char *p = bytes; *p; p++)
         {
           if (*p == '_')
@@ -267,6 +268,7 @@ Q_resolve(JSContext *cx, JS::HandleObject obj, JS::HandleId id, bool *resolvedp)
           else if (*p == '-')
             *p = '_';
         }
+#endif
 
       ELisp_Value obarray;
       obarray.v.v = JS_GetReservedSlot(obj, 0);
@@ -313,6 +315,7 @@ V_resolve(JSContext *cx, JS::HandleObject obj, JS::HandleId id, bool *resolvedp)
       if (!bytes)
         return false;
 
+#if 0
       for (char *p = bytes; *p; p++)
         {
           if (*p == '_')
@@ -320,6 +323,7 @@ V_resolve(JSContext *cx, JS::HandleObject obj, JS::HandleId id, bool *resolvedp)
           else if (*p == '-')
             *p = '_';
         }
+#endif
 
       ELisp_Value obarray;
       obarray.v.v = JS_GetReservedSlot(obj, 0);
@@ -366,6 +370,7 @@ F_resolve(JSContext *cx, JS::HandleObject obj, JS::HandleId id, bool *resolvedp)
       if (!bytes)
         return false;
 
+#if 0
       for (char *p = bytes; *p; p++)
         {
           if (*p == '_')
@@ -373,6 +378,7 @@ F_resolve(JSContext *cx, JS::HandleObject obj, JS::HandleId id, bool *resolvedp)
           else if (*p == '-')
             *p = '_';
         }
+#endif
 
       ELisp_Value obarray;
       obarray.v.v = JS_GetReservedSlot(obj, 0);
@@ -426,6 +432,8 @@ global_resolve(JSContext* cx, JS::HandleObject obj, JS::HandleId id, bool* resol
       if (!bytes)
         return false;
 
+      fprintf(stderr, "resolving %s\n", bytes);
+
       if (strcmp(bytes, "Q") == 0)
         {
           JS::RootedValue q(cx);
@@ -460,28 +468,11 @@ global_resolve(JSContext* cx, JS::HandleObject obj, JS::HandleId id, bool* resol
           return true;
         }
 
-      if (bytes[0] >= 'A' && bytes[0] <= 'Z')
         {
           JS_free(cx, bytes);
+          *resolvedp = false;
           return true;
         }
-
-      ELisp_Value obarray = Vobarray;
-      ELisp_Value tem;
-
-      tem = oblookup (obarray, bytes, strlen (bytes), strlen (bytes));
-
-      //tem = find_symbol_value (tem);
-
-      if (INTEGERP (tem))
-        *resolvedp = false;
-      else
-        {
-          JS_SetProperty (cx, obj, bytes, tem.v.v);
-          *resolvedp = true;
-        }
-
-      JS_free(cx, bytes);
     }
     return true;
 }
@@ -507,6 +498,28 @@ static const JSClass global_class = {
 
 static bool
 Print(JSContext* cx, unsigned argc, JS::Value* vp)
+{
+  JS::CallArgs args = CallArgsFromVp(argc, vp);
+    for (unsigned i = 0; i < args.length(); i++) {
+      JS::RootedString str(cx, JS::ToString(cx, args[i]));
+        if (!str)
+            return false;
+        char* bytes = JS_EncodeStringToUTF8(cx, str);
+        if (!bytes)
+            return false;
+        fprintf(stdout, "%s%s", i ? " " : "", bytes);
+        JS_free(cx, bytes);
+    }
+
+    fputc('\n', stdout);
+    fflush(stdout);
+
+    args.rval().setUndefined();
+    return true;
+}
+
+static bool
+console_log(JSContext* cx, unsigned argc, JS::Value* vp)
 {
   JS::CallArgs args = CallArgsFromVp(argc, vp);
     for (unsigned i = 0; i < args.length(); i++) {
@@ -573,6 +586,7 @@ static const JSFunctionSpec emacs_functions[] =
    JS_FN("Print", Print, 0, 0),
    JS_FN("Oblookup", Oblookup, 0, 0),
    JS_FN("E", E, 0, 0),
+   JS_FN("console_log", console_log, 0, 0),
    JS_FS_END
   };
                                                          void
@@ -816,7 +830,7 @@ void
 late_js_init(void)
 {
   eval_js("Object.getPrototypeOf(F.list(3,4,5))[Symbol.iterator] = function* () { yield this.car; yield* this.cdr; }");
-  eval_js("nil[Symbol.iterator] = function* () {}");
+  eval_js("Q.nil[Symbol.iterator] = function* () {}");
 }
 
 ELisp_Return_Value jsval_to_elisp(ELisp_Handle ARG(arg))
@@ -917,16 +931,37 @@ read_file_as_string(JSContext* cx, const char* pathname)
   return nullptr;
 }
 
-EXFUN (Fjsread, 1);
+ELisp_Return_Value
+js_call_function(ELisp_Handle fun, ELisp_Dynvector& vals)
+{
+  ELisp_Value thisv;
+  ELisp_Value rval;
+  thisv.v.v = JS::NullValue();
+  if (!JS::Call(jsg.cx, thisv.v.v, fun.v.v, vals.vec.vec, &rval.v.v))
+    return LRH(Qnil);
 
-DEFUN ("jsread", Fjsread, Sjsread, 1, 1, 0,
+  return rval;
+}
+
+EXFUN (Fjsread, 2);
+
+DEFUN ("jsread", Fjsread, Sjsread, 1, 2, 0,
        doc: /* Evaluate JavaScript.
 usage: (jsread SOURCE)  */)
-  (ELisp_Handle ARG(arg))
+     (ELisp_Handle ARG(arg), ELisp_Handle ARG(dir))
 {
   ELisp_Value arg = ARG(arg);
+  ELisp_Value dir = ARG(dir);
   ELisp_Value result;
   CHECK_STRING (arg);
+
+  ptrdiff_t count = SPECPDL_INDEX ();
+  if (!NILP (dir))
+    {
+      CHECK_STRING (dir);
+      specbind (LRH (Qdefault_directory), dir);
+    }
+  arg = Fexpand_file_name(arg, dir);
 
   const unsigned char *source = SDATA(arg);
   ptrdiff_t len = SCHARS(arg);
@@ -934,23 +969,31 @@ usage: (jsread SOURCE)  */)
   JSContext* cx = jsg.cx;
   const char *str = read_file_as_string(cx, source);
   if (!str)
-    return Qnil;
+    goto error;
 
-  JS::RootedScript script(cx);
-  size_t sourcelen = strlen(source);
-  JS::CompileOptions options(cx);
-  options.setIntroductionType("jsread run")
-    .setUTF8(true)
-    .setIsRunOnce(true)
-    .setFileAndLine(source, 1);
+  {
+    JS::RootedScript script(cx);
+    JS::CompileOptions options(cx);
+    options.setIntroductionType("jsread run")
+      .setUTF8(true)
+      .setIsRunOnce(true)
+      .setFileAndLine(source, 1);
 
-  if (!JS_CompileScript(cx, str, strlen(str), options, &script))
-    return Qnil;
+    if (!JS_CompileScript(cx, str, strlen(str), options, &script))
+      goto error;
 
-  if (!JS_ExecuteScript(cx, script, &result.v.v))
-    return Qnil;
+    if (!JS_ExecuteScript(cx, script, &result.v.v))
+      goto error;
+
+    result = unbind_to (count, result);
+  }
 
   return jsval_to_elisp(result);
+
+ error:
+  result = unbind_to (count, LRH(Qnil));
+
+  return result;
 }
 
 EXFUN (Fspecbind, 2);
@@ -2068,7 +2111,13 @@ void jsprint(JS::Value v)
 {
   ELisp_Value x;
   x.v.v = v;
+  printf("%lx\n", *(long *)&v);
   debug_print(x);
+}
+
+void jsprintl(unsigned long l)
+{
+  jsprint(*(JS::Value *)&l);
 }
 
 void
@@ -2085,4 +2134,3 @@ void js::ReportOutOfMemory(JSContext* cx)
 {
   while (1);
 }
-

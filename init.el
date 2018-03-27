@@ -1,0 +1,8 @@
+(jsread "emacs.js" "/home/pip/git/ankol")
+(js "ankol(\" say js.F.message(js.E(\\\"hi\\\"))\")")
+(js "ankol(\" setq(js.jsfun: jssync({x:add(x,1)}))\")")
+(setq jsfun (js "jsfun"))
+(message "3+1 is %S" (funcall jsfun 3))
+(setq jsf nil)
+(fset 'jsf jsfun)
+(message "3+1 is also %S" (jsf 3))

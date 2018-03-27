@@ -39,6 +39,8 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 # define CACHEABLE /* empty */
 #endif
 
+extern ELisp_Return_Value js_call_function(ELisp_Handle, ELisp_Dynvector&);
+
 /* Chain of condition and catch handlers currently in effect.  */
 
 /* struct handler *handlerlist; */
@@ -1164,19 +1166,9 @@ extern void
 unwind_js (struct sys_jmp_buf_struct *jmpbuf)
 {
   void *new_stack = jmpbuf->stack;
-  fprintf(stderr, "%lx %lx %lx %lx\n",
-          new_stack,
-          jmpbuf->jmpbuf[0].__jmpbuf[6],
-          jmpbuf->jmpbuf[0].__jmpbuf[1],
-          jmpbuf->jmpbuf[0].__jmpbuf[2]);
   new_stack = jmpbuf->jmpbuf[0].__jmpbuf[6];
   asm volatile("ror $0x11,%%rax" : "=a" (new_stack) : "a" (new_stack));
   asm volatile("xor %%fs:0x30,%%rax" : "=a" (new_stack) : "a" (new_stack));
-  fprintf(stderr, "%lx %lx %lx %lx\n",
-          new_stack,
-          jmpbuf->jmpbuf[0].__jmpbuf[6],
-          jmpbuf->jmpbuf[0].__jmpbuf[1],
-          jmpbuf->jmpbuf[0].__jmpbuf[2]);
 
   {
     JSContext* cx = jsg.cx;
@@ -1198,8 +1190,6 @@ unwind_js (struct sys_jmp_buf_struct *jmpbuf)
       rooter->JS::Rooted<void*>::~Rooted();
       rooter = prev;
     }
-    fprintf(stderr, "%p %p\n", static_cast<void *>(rooter), new_stack);
-
   }
   {
     JSContext* cx = jsg.cx;
@@ -2444,7 +2434,44 @@ eval_sub (Lisp_Object form)
       if (NILP (fun))
 	xsignal1 (Qvoid_function, original_fun);
       if (!CONSP (fun))
-	xsignal1 (Qinvalid_function, original_fun);
+        if (fun.isCallable())
+          {
+            Lisp_Object args_left = original_args;
+            Lisp_Object numargs = Flength (args_left);
+
+            check_cons_list ();
+
+            /* Pass a vector of evaluated arguments.  */
+            Lisp_Object *vals;
+            ptrdiff_t argnum = 0;
+            USE_SAFE_ALLOCA;
+
+            SAFE_ALLOCA_LISP (vals, XINT (numargs));
+
+            while (CONSP (args_left) && argnum < XINT (numargs))
+              {
+                Lisp_Object arg = XCAR (args_left);
+                args_left = XCDR (args_left);
+                vals[argnum++] = eval_sub (arg);
+              }
+            while (argnum < XINT (numargs))
+              vals.sref(argnum++, Qnil);
+
+            set_backtrace_args (specpdl + count, vals, argnum);
+
+            val = js_call_function(fun, vals);
+
+            check_cons_list ();
+            lisp_eval_depth--;
+            /* Do the debug-on-exit now, while VALS still exists.  */
+            if (backtrace_debug_on_exit (specpdl + count))
+              val = call_debugger (list2 (Qexit, val));
+            SAFE_FREE ();
+            specpdl_ptr--;
+            return val;
+          }
+        else
+          xsignal1 (Qinvalid_function, original_fun);
       funcar = XCAR (fun);
       if (!SYMBOLP (funcar))
 	xsignal1 (Qinvalid_function, original_fun);
@@ -2937,7 +2964,40 @@ usage: (funcall FUNCTION &rest ARGUMENTS)  */)
       if (NILP (fun))
 	xsignal1 (Qvoid_function, original_fun);
       if (!CONSP (fun))
-	xsignal1 (Qinvalid_function, original_fun);
+        if (fun.isCallable())
+          {
+            check_cons_list ();
+
+            /* Pass a vector of evaluated arguments.  */
+            Lisp_Object *vals;
+            ptrdiff_t argnum = 0;
+            USE_SAFE_ALLOCA;
+
+            SAFE_ALLOCA_LISP (vals, numargs);
+
+            while (argnum < numargs)
+              {
+                Lisp_Object arg = args[argnum+1];
+                vals[argnum++] = eval_sub (arg);
+              }
+            while (argnum < numargs)
+              vals.sref(argnum++, Qnil);
+
+            set_backtrace_args (specpdl + count, vals, argnum);
+
+            val = js_call_function(fun, vals);
+
+            check_cons_list ();
+            lisp_eval_depth--;
+            /* Do the debug-on-exit now, while VALS still exists.  */
+            if (backtrace_debug_on_exit (specpdl + count))
+              val = call_debugger (list2 (Qexit, val));
+            SAFE_FREE ();
+            specpdl_ptr--;
+            return val;
+          }
+        else
+          xsignal1 (Qinvalid_function, original_fun);
       funcar = XCAR (fun);
       if (!SYMBOLP (funcar))
 	xsignal1 (Qinvalid_function, original_fun);
@@ -3267,7 +3327,7 @@ function with `&rest' args, or `unevalled' for a special form.  */)
       if (NILP (function))
 	xsignal1 (Qvoid_function, original);
       if (!CONSP (function))
-	xsignal1 (Qinvalid_function, original);
+        xsignal1 (Qinvalid_function, original);
       funcar = XCAR (function);
       if (!SYMBOLP (funcar))
 	xsignal1 (Qinvalid_function, original);
