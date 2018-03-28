@@ -613,6 +613,7 @@ static const JSFunctionSpec emacs_functions[] =
   {
    JS_FN("Print", Print, 0, 0),
    JS_FN("Oblookup", Oblookup, 0, 0),
+   JS_FN("D", D, 0, 0),
    JS_FN("E", E, 0, 0),
    JS_FN("console_log", console_log, 0, 0),
    JS_FS_END
@@ -775,6 +776,18 @@ elisp_gc_callback_register(JSContext *cx)
 static void
 elisp_classes_init(JSContext *cx, JS::HandleObject glob);
 
+static JS::GCVector<JS::Value, 0, js::SystemAllocPolicy> *js_promise_jobs;
+
+bool js_job_callback(JSContext *cx, JS::HandleObject job,
+                     JS::HandleObject allocationSite, JS::HandleObject incumbentGlobal,
+                     void *data)
+{
+  JS::RootedValue val(cx, JS::ObjectValue(*job));
+  JS::GCVector<JS::Value, 0, js::SystemAllocPolicy> *vecp = static_cast<JS::GCVector<JS::Value, 0, js::SystemAllocPolicy> *>(data);
+
+  return vecp->append(val);
+}
+
 bool js_init()
 {
   //js::DisableExtraThreads()
@@ -796,6 +809,9 @@ bool js_init()
     return false;
 
   JS_SetGCParameter(cx, JSGC_MODE, JSGC_MODE_INCREMENTAL);
+  JS::GCVector<JS::Value, 0, js::SystemAllocPolicy> *vecp = new JS::GCVector<JS::Value, 0, js::SystemAllocPolicy>();
+  js_promise_jobs = vecp;
+  JS::SetEnqueuePromiseJobCallback(cx, js_job_callback, static_cast<void *>(vecp));
 
   {
     JS_BeginRequest(cx);
@@ -932,6 +948,29 @@ usage: (js SOURCE)  */)
     return Qnil;
 
   return jsval_to_elisp(result);
+}
+
+EXFUN (Fjsdrain, 0);
+
+DEFUN ("jsdrain", Fjsdrain, Sjsdrain, 0, 0, 0,
+       doc: /* Drain the job queue.
+usage: (jsdrain SOURCE)  */)
+  ()
+{
+  JSContext* cx = jsg.cx;
+  size_t i = 0;
+  while (i < js_promise_jobs->length())
+    {
+      JS::RootedValue jobv(cx, (*js_promise_jobs)[i]);
+      i++;
+      JS::RootedObject job(cx, &jobv.toObject());
+
+      JS::Call(cx, jobv, job, JS::HandleValueArray::empty(), &jobv);
+    }
+
+  js_promise_jobs->clear();
+
+  return Qnil;
 }
 
 /* This is from js.cpp in the Mozilla distribution. */
@@ -1161,28 +1200,7 @@ elisp_cons_finalize(JSFreeOp* cx, JSObject *obj)
   xfree(s);
 }
 
-static bool elisp_cons_call(JSContext *cx, unsigned argc, JS::Value *vp)
-{
-  JS::CallArgs args = CallArgsFromVp(argc, vp);
-  JS::RootedObject obj(cx, &args.callee());
-  if (JS_GetClass(obj) != &elisp_cons_class)
-    return false;
-
-  ELisp_Value fun;
-  ELisp_Value ret;
-  fun.v.v = args.calleev();
-  ELisp_Dynvector argv;
-  argv.resize (args.length() + 1);
-  argv.sref(0, fun);
-  for (ptrdiff_t i = 0; i < args.length(); i++)
-    argv.sref(i+1, args[i]);
-  fprintf(stderr, "calling\n");
-  ret = Ffuncall (LV (args.length() + 1, argv));
-  fprintf(stderr, "called\n");
-  args.rval().set(ret.v.v);
-
-  return true;
-}
+static bool elisp_vector_call(JSContext *cx, unsigned argc, JS::Value *vp);
 
 static void
 elisp_cons_trace(JSTracer *trc, JSObject *obj)
@@ -1202,7 +1220,7 @@ static JSClassOps elisp_cons_ops =
 {
   NULL, NULL, NULL, NULL,
   elisp_cons_resolve, NULL, elisp_cons_finalize,
-  elisp_cons_call, NULL, NULL, elisp_cons_trace
+  elisp_vector_call, NULL, NULL, elisp_cons_trace
 };
 
 JSClass elisp_cons_class =
@@ -1596,7 +1614,8 @@ static bool elisp_vector_call(JSContext *cx, unsigned argc, JS::Value *vp)
 {
   JS::CallArgs args = CallArgsFromVp(argc, vp);
   JS::RootedObject obj(cx, &args.callee());
-  if (JS_GetClass(obj) != &elisp_vector_class)
+  if (JS_GetClass(obj) != &elisp_vector_class &&
+      JS_GetClass(obj) != &elisp_cons_class)
     return false;
 
   ELisp_Value fun;
@@ -2210,6 +2229,7 @@ syms_of_js (void)
 {
   defsubr(&Sjs);
   defsubr(&Sjsread);
+  defsubr(&Sjsdrain);
   defsubr(&Sspecbind);
   defsubr(&Ssetinternal);
   defsubr(&Sunbind_to_rel);
