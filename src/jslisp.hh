@@ -2711,16 +2711,43 @@ verify (offsetof (struct Lisp_Sub_Char_Table, contents)
    without affecting the signal mask.  */
 
 #ifdef HAVE__SETJMP
-typedef struct sys_jmp_buf_struct {
+struct sys_jmp_buf_struct;
+
+struct sys_jmp_buf_struct {
   jmp_buf jmpbuf;
   void *stack;
-} sys_jmp_buf[1];
+};
+
+typedef struct sys_jmp_buf_struct sys_jmp_buf[1];
 
 extern void
 unwind_js (struct sys_jmp_buf_struct *jmpbuf);
 
-# define sys_setjmp(j) ({ volatile int sz = 16; j[0].stack = alloca(sz); _setjmp (j[0].jmpbuf); })
-# define sys_longjmp(j, v) ({ unwind_js(j); _longjmp (j[0].jmpbuf, v); })
+extern sys_jmp_buf *catchall_jmpbuf;
+extern sys_jmp_buf *catchall_real_jmpbuf;
+extern int catchall_real_value;
+
+# define sys_setjmp(j) ({                                               \
+      volatile int sz = 16;                                             \
+      j[0].stack = alloca(sz);                                          \
+      _setjmp (j[0].jmpbuf);                                            \
+    })
+
+# define sys_longjmp(j, v) ({                                           \
+      if (catchall_jmpbuf && (*catchall_jmpbuf)[0].stack < j[0].stack)  \
+        {                                                               \
+          catchall_real_jmpbuf = &j;                                    \
+          catchall_real_value = v;                                      \
+          unwind_js(*catchall_jmpbuf);                                  \
+          _longjmp ((*catchall_jmpbuf)[0].jmpbuf, v);                   \
+        }                                                               \
+      else                                                              \
+        {                                                               \
+          unwind_js(j);                                                 \
+          _longjmp (j[0].jmpbuf, v);                                    \
+        }                                                               \
+    })
+
 #elif defined HAVE_SIGSETJMP
 typedef struct {
   sigjmp_buf jmpbuf;

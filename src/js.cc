@@ -19,6 +19,10 @@
 #include "buffer.h.hh"
 #include "puresize.h.hh"
 
+sys_jmp_buf *catchall_jmpbuf;
+sys_jmp_buf *catchall_real_jmpbuf;
+int catchall_real_value;
+
 typedef int64_t EMACS_INT;
 typedef uint64_t EMACS_UINT;
 
@@ -571,6 +575,23 @@ Oblookup(JSContext *cx, unsigned argc, JS::Value* vp)
 }
 
 extern ELisp_Return_Value jsval_to_elisp(ELisp_Handle arg);
+extern ELisp_Return_Value elisp_to_jsval(ELisp_Handle arg);
+
+static bool
+D(JSContext *cx, unsigned argc, JS::Value *vp)
+{
+  JS::CallArgs args = CallArgsFromVp(argc, vp);
+  if (args.length() < 1)
+    return false;
+
+  ELisp_Value arg;
+  arg.v.v = args[0];
+  arg = elisp_to_jsval(arg);
+
+  args.rval().set(arg.v.v);
+
+  return true;
+}
 
 static bool
 E(JSContext *cx, unsigned argc, JS::Value *vp)
@@ -853,6 +874,11 @@ ELisp_Return_Value jsval_to_elisp(ELisp_Handle ARG(arg))
       else
         return Qnil;
     }
+  else if (arg.v.v.isDouble() && (double)(int32_t)arg.v.v.toDouble() == arg.v.v.toDouble())
+    {
+      arg.v.v.setInt32((int32_t)arg.v.v.toDouble());
+      return arg;
+    }
   else if (arg.v.v.isInt32() || arg.v.v.isDouble() || arg.v.v.isObject())
     return arg;
   else if (arg.v.v.isString())
@@ -862,6 +888,18 @@ ELisp_Return_Value jsval_to_elisp(ELisp_Handle ARG(arg))
     }
   else
     return Qnil;
+}
+
+ELisp_Return_Value elisp_to_jsval(ELisp_Handle ARG(arg))
+{
+  ELisp_Value arg = ARG(arg);
+
+  if (NILP (arg))
+    arg.v.v.setBoolean(false);
+  else if (EQ (arg, LRH(Qt)))
+    arg.v.v.setBoolean(true);
+  else
+    return arg;
 }
 
 EXFUN (Fjs, 1);
@@ -944,8 +982,18 @@ js_call_function(ELisp_Handle fun, ELisp_Dynvector& vals)
   ELisp_Value thisv;
   ELisp_Value rval;
   thisv.v.v = JS::NullValue();
+  catchall_real_jmpbuf = NULL;
   if (!JS::Call(jsg.cx, thisv.v.v, fun.v.v, vals.vec.vec, &rval.v.v))
-    return LRH(Qnil);
+    {
+      if (catchall_real_jmpbuf)
+        {
+          sys_jmp_buf *jmpbuf = catchall_real_jmpbuf;
+          catchall_real_jmpbuf = NULL;
+          sys_longjmp((*jmpbuf), catchall_real_value);
+        }
+
+      return LRH(Qnil);
+    }
 
   return rval;
 }
@@ -1524,6 +1572,26 @@ static bool elisp_vector_resolve(JSContext *cx, JS::HandleObject obj,
   return true;
 }
 
+static ELisp_Return_Value elisp_vector_call_inner(ELisp_Vector) __attribute__((noinline));
+
+static ELisp_Return_Value elisp_vector_call_inner(ELisp_Vector *lv, bool *successp)
+{
+  sys_jmp_buf jmpbuf;
+  sys_jmp_buf *volatile old_jmpbuf = catchall_jmpbuf;
+  catchall_jmpbuf = &jmpbuf;
+  if (sys_setjmp(jmpbuf))
+    {
+      catchall_jmpbuf = old_jmpbuf;
+      *successp = false;
+      return Qnil;
+    }
+
+  auto ret = Ffuncall (*lv);
+  catchall_jmpbuf = old_jmpbuf;
+  *successp = true;
+  return ret;
+}
+
 static bool elisp_vector_call(JSContext *cx, unsigned argc, JS::Value *vp)
 {
   JS::CallArgs args = CallArgsFromVp(argc, vp);
@@ -1532,19 +1600,21 @@ static bool elisp_vector_call(JSContext *cx, unsigned argc, JS::Value *vp)
     return false;
 
   ELisp_Value fun;
-  ELisp_Value ret;
   fun.v.v = args.calleev();
   ELisp_Dynvector argv;
   argv.resize (args.length() + 1);
   argv.sref(0, fun);
   for (ptrdiff_t i = 0; i < args.length(); i++)
     argv.sref(i+1, args[i]);
-  fprintf(stderr, "calling 4\n");
-  ret = Ffuncall (LV (args.length() + 1, argv));
-  fprintf(stderr, "called\n");
-  args.rval().set(ret.v.v);
+  auto lv = LV (args.length() + 1, argv);
+  bool success;
+  auto ret = elisp_vector_call_inner(&lv, &success);
+  if (success)
+    {
+      args.rval().set(ret.v);
+    }
 
-  return true;
+  return success;
 }
 
 static JSClassOps elisp_vector_ops =

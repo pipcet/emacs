@@ -1144,18 +1144,19 @@ internal_catch (Lisp_Object tag,
 {
   /* This structure is made part of the chain `catchlist'.  */
   struct handler *c = push_handler (tag, CATCHER);
+  Lisp_Object val;
 
   /* Call FUNC.  */
   if (! sys_setjmp (c->jmp))
     {
-      Lisp_Object val = func (arg);
+      val = func (arg);
       eassert (handlerlist == c);
       handlerlist = c->next;
       return val;
     }
   else
     { /* Throw works by a longjmp that comes right here.  */
-      Lisp_Object val = handlerlist->val;
+      val = handlerlist->val;
       clobbered_eassert (handlerlist == c);
       handlerlist = handlerlist->next;
       return val;
@@ -1173,7 +1174,7 @@ unwind_js (struct sys_jmp_buf_struct *jmpbuf)
   {
     JSContext* cx = jsg.cx;
 
-    new_stack += 0xc0;
+    //new_stack += 0xc0;
 
     JS::AutoGCRooter *gcr = *((JS::AutoGCRooter **)((void *)cx + 0x70));
     while (gcr && gcr < new_stack) {
@@ -1186,10 +1187,18 @@ unwind_js (struct sys_jmp_buf_struct *jmpbuf)
     JS::RootedListHeads *sr = ((JS::RootedListHeads *)cx);
     JS::Rooted<void*> *rooter = (*sr)[rk];
     while (rooter && rooter < new_stack) {
+      //fprintf(stderr, "rooter %p yes\n", rooter);
       JS::Rooted<void*> *prev = rooter->prev;
       rooter->JS::Rooted<void*>::~Rooted();
       rooter = prev;
     }
+#if 0
+    while (rooter) {
+      fprintf(stderr, "rooter %p %p no\n", rooter, new_stack);
+      JS::Rooted<void*> *prev = rooter->prev;
+      rooter = prev;
+    }
+#endif
   }
   {
     JSContext* cx = jsg.cx;
@@ -1198,10 +1207,18 @@ unwind_js (struct sys_jmp_buf_struct *jmpbuf)
     JS::RootedListHeads *sr = ((JS::RootedListHeads *)cx);
     JS::Rooted<void*> *rooter = (*sr)[rk];
     while (rooter && rooter < new_stack) {
+      //fprintf(stderr, "rooter %p yes\n", rooter);
       JS::Rooted<void*> *prev = rooter->prev;
       rooter->JS::Rooted<void*>::~Rooted();
       rooter = prev;
     }
+#if 0
+    while (rooter) {
+      fprintf(stderr, "rooter %p %p no\n", rooter, new_stack);
+      JS::Rooted<void*> *prev = rooter->prev;
+      rooter = prev;
+    }
+#endif
   }
 }
 
@@ -1418,16 +1435,18 @@ internal_condition_case (Lisp_Object (*bfun) (void), Lisp_Object handlers,
 			 Lisp_Object (*hfun) (Lisp_Object))
 {
   struct handler *c = push_handler (handlers, CONDITION_CASE);
+  Lisp_Object val;
   if (sys_setjmp (c->jmp))
     {
-      Lisp_Object val = handlerlist->val;
+      val = handlerlist->val;
       clobbered_eassert (handlerlist == c);
       handlerlist = handlerlist->next;
-      return hfun (val);
+      val = hfun (val);
+      return val;
     }
   else
     {
-      Lisp_Object val = bfun ();
+      val = bfun ();
       eassert (handlerlist == c);
       handlerlist = c->next;
       return val;

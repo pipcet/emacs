@@ -1052,6 +1052,18 @@ Default value of `command-error-function'.  */)
 static Lisp_Object command_loop_2 (Lisp_Object);
 static Lisp_Object top_level_1 (Lisp_Object);
 
+extern Lisp_Object
+internal_catch_wrapper (Lisp_Object, Lisp_Object (*)(Lisp_Object), Lisp_Object) __attribute__ ((noinline));
+
+Lisp_Object
+internal_catch_wrapper (Lisp_Object a, Lisp_Object (*b)(Lisp_Object), Lisp_Object c)
+{
+  volatile int x[4096];
+
+  return internal_catch(a, b, c);
+}
+
+
 /* Entry to editor-command-loop.
    This level has the catches for exiting/returning to editor command loop.
    It returns nil to exit recursive edit, t to abort it.  */
@@ -1076,8 +1088,12 @@ command_loop (void)
 #endif /* HAVE_STACK_OVERFLOW_HANDLING */
   if (command_loop_level > 0 || minibuf_level > 0)
     {
+      volatile int x[4096];
+
       Lisp_Object val;
-      val = internal_catch (Qexit, command_loop_2, Qnil);
+      volatile int y[4096];
+
+      val = internal_catch_wrapper (Qexit, command_loop_2, Qnil);
       executing_kbd_macro = Qnil;
       return val;
     }
@@ -2210,6 +2226,12 @@ read_decoded_event_from_main_queue (struct timespec *end_time,
                                     sys_jmp_buf local_getcjmp,
                                     Lisp_Object prev_event,
                                     bool *used_mouse_menu)
+  __attribute__((noinline));
+static Lisp_Object
+read_decoded_event_from_main_queue (struct timespec *end_time,
+                                    sys_jmp_buf local_getcjmp,
+                                    Lisp_Object prev_event,
+                                    bool *used_mouse_menu)
 {
 #ifndef WINDOWSNT
 #define MAX_ENCODED_BYTES 16
@@ -2344,6 +2366,14 @@ read_char (int commandflag, Lisp_Object map,
   Lisp_Object tem, save;
   Lisp_Object previous_echo_area_message;
   Lisp_Object also_record;
+  Lisp_Object tem0;
+  Lisp_Object last;
+  Lisp_Object d;
+  Lisp_Object posn;
+  Lisp_Object keys;
+  Lisp_Object saved_echo_string;
+  Lisp_Object saved_echo_prompt;
+  Lisp_Object help, object, position, window, htem;
   volatile bool reread, recorded;
   bool volatile polling_stopped_here = false;
   struct kboard *orig_kboard = current_kboard;
@@ -2593,7 +2623,7 @@ read_char (int commandflag, Lisp_Object map,
 	KBOARD *kb = FRAME_KBOARD (XFRAME (selected_frame));
 	if (kb != current_kboard)
 	  {
-	    Lisp_Object last = KVAR (kb, kbd_queue);
+	    last = KVAR (kb, kbd_queue);
 	    /* We shouldn't get here if we were in single-kboard mode!  */
 	    if (single_kboard)
 	      emacs_abort ();
@@ -2650,7 +2680,7 @@ read_char (int commandflag, Lisp_Object map,
 	echo_now ();
       else
 	{
-	  Lisp_Object tem0;
+	  tem0;
 
 	  save_getcjmp (save_jump);
 	  restore_getcjmp (local_getcjmp);
@@ -2721,7 +2751,7 @@ read_char (int commandflag, Lisp_Object map,
 	  && INTEGERP (Vauto_save_timeout)
 	  && XINT (Vauto_save_timeout) > 0)
 	{
-	  Lisp_Object tem0;
+	  tem0;
 	  EMACS_INT timeout = XFASTINT (Vauto_save_timeout);
 
 	  timeout = min (timeout, MOST_POSITIVE_FIXNUM / delay_level * 4);
@@ -2908,7 +2938,7 @@ read_char (int commandflag, Lisp_Object map,
 	  || (CHAR_TABLE_P (KVAR (current_kboard, Vkeyboard_translate_table))
 	      && CHARACTERP (c)))
 	{
-	  Lisp_Object d;
+	  d;
 	  d = Faref (KVAR (current_kboard, Vkeyboard_translate_table), c);
 	  /* nil in keyboard-translate-table means no translation.  */
 	  if (!NILP (d))
@@ -2924,7 +2954,7 @@ read_char (int commandflag, Lisp_Object map,
       && CONSP (EVENT_START (c))
       && CONSP (XCDR (EVENT_START (c))))
     {
-      Lisp_Object posn;
+      posn;
 
       posn = POSN_POSN (EVENT_START (c));
       /* Handle menu-bar events:
@@ -2984,7 +3014,7 @@ read_char (int commandflag, Lisp_Object map,
       && NILP (prev_event)
       && ' ' <= XINT (c) && XINT (c) < 256 && XINT (c) != 127)
     {
-      Lisp_Object keys;
+      keys;
       ptrdiff_t key_count;
       ptrdiff_t command_key_start;
       ptrdiff_t count = SPECPDL_INDEX ();
@@ -2992,8 +3022,8 @@ read_char (int commandflag, Lisp_Object map,
       /* Save the echo status.  */
       bool saved_immediate_echo = current_kboard->immediate_echo;
       struct kboard *saved_ok_to_echo = ok_to_echo_at_next_pause;
-      Lisp_Object saved_echo_string = KVAR (current_kboard, echo_string);
-      Lisp_Object saved_echo_prompt = KVAR (current_kboard, echo_prompt);
+      saved_echo_string = KVAR (current_kboard, echo_string);
+      saved_echo_prompt = KVAR (current_kboard, echo_prompt);
 
       /* Save the this_command_keys status.  */
       key_count = this_command_key_count;
@@ -3068,7 +3098,7 @@ read_char (int commandflag, Lisp_Object map,
   if (CONSP (c) && EQ (XCAR (c), Qhelp_echo))
     {
       /* (help-echo FRAME HELP WINDOW OBJECT POS).  */
-      Lisp_Object help, object, position, window, htem;
+      help, object, position, window, htem;
 
       htem = Fcdr (XCDR (c));
       help = Fcar (htem);

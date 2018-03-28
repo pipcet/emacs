@@ -1,0 +1,5 @@
+  do
+    js.F.fset
+        js.Q.x
+        jssync({:})
+            while not js.D(js.F.bobp()): js.F.forward-line(js.E(-1))
