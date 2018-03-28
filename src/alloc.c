@@ -2759,7 +2759,7 @@ struct buffer *
 allocate_buffer (void)
 {
   struct buffer *b = lisp_malloc (sizeof *b, MEM_TYPE_BUFFER);
-
+  memset(b, 0, sizeof *b);
   BUFFER_PVEC_INIT (b);
   for (ptrdiff_t i = 0; i < BUFFER_LISP_SIZE; i++)
     ((struct Lisp_Vector *)b)->contents[i] = Qnil;
