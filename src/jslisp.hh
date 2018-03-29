@@ -4710,7 +4710,8 @@ LOADHIST_ATTACH (ELisp_Handle x)
 }
 extern int openp (ELisp_Handle, ELisp_Handle, ELisp_Handle,
                   ELisp_Pointer, ELisp_Handle, bool);
-extern ELisp_Return_Value string_to_number (char const *, int, bool);
+enum { S2N_IGNORE_TRAILING = 1, S2N_OVERFLOW_TO_FLOAT = 2 };
+extern ELisp_Return_Value string_to_number (char const *, int, int);
 extern void map_obarray (ELisp_Handle, void (*) (ELisp_Handle, ELisp_Handle),
                          ELisp_Handle);
 extern void dir_warning (const char *, ELisp_Handle);
