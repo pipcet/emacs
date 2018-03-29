@@ -148,6 +148,10 @@
 (defconst tramp-goa-methods '("gdrive" "owncloud")
   "List of methods which require registration at GNOME Online Accounts.")
 
+;;;###tramp-autoload
+(defconst tramp-goa-service "org.gnome.OnlineAccounts"
+  "The well known name of the GNOME Online Accounts service.")
+
 ;; Remove GNOME Online Accounts methods if not supported.
 (unless (and tramp-gvfs-enabled
 	     (member tramp-goa-service (dbus-list-known-names :session)))
@@ -310,10 +314,6 @@ It has been changed in GVFS 1.14.")
 
 ;; For the time being, we just need org.goa.Account and org.goa.Files
 ;; interfaces.  We document the other ones, just in case.
-
-;;;###tramp-autoload
-(defconst tramp-goa-service "org.gnome.OnlineAccounts"
-  "The well known name of the GNOME Online Accounts service.")
 
 (defconst tramp-goa-path "/org/gnome/OnlineAccounts"
   "The object path of the GNOME Online Accounts.")
