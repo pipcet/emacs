@@ -4774,6 +4774,7 @@ extern ELisp_Return_Value call6 (ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp
 extern ELisp_Return_Value call7 (ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle);
 extern ELisp_Return_Value call8 (ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle);
 extern ELisp_Return_Value internal_catch (ELisp_Handle, ELisp_Return_Value (*) (ELisp_Handle), ELisp_Handle);
+extern ELisp_Return_Value internal_catch_all (ELisp_Return_Value (*) (void *), void *, ELisp_Return_Value (*) (ELisp_Handle));
 extern ELisp_Return_Value internal_lisp_condition_case (ELisp_Handle, ELisp_Handle, ELisp_Handle);
 extern ELisp_Return_Value internal_condition_case (ELisp_Return_Value (*) (void), ELisp_Handle, ELisp_Return_Value (*) (ELisp_Handle));
 extern ELisp_Return_Value internal_condition_case_1 (ELisp_Return_Value (*) (ELisp_Handle), ELisp_Handle, ELisp_Handle, ELisp_Return_Value (*) (ELisp_Handle));
