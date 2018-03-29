@@ -649,10 +649,17 @@ extern struct buffered_input_event kbd_buffer[KBD_BUFFER_SIZE];
 static void
 elisp_vector_trace(JSTracer *trc, JSObject *obj);
 
+extern struct Lisp_Subr Sframe_windows_min_size;
+
 static void
 js_gc_trace(JSTracer* tracer, void* data)
 {
   fprintf(stderr, "that one's mine! And that one! And...\n");
+
+  // XXX: all subrs can be collected after they're redefined.  This
+  // one actually is.  The same applies to builtin symbols, which
+  // might be made unbound.
+  TraceEdge(tracer, &Sframe_windows_min_size.header.jsval, "Sframe_windows_min_size");
 
   TraceEdge(tracer, &elisp_cons_class_proto, "cons class proto");
   TraceEdge(tracer, &elisp_string_class_proto, "string class proto");
@@ -1517,6 +1524,16 @@ JSClass elisp_string_class = {
 static void
 elisp_vector_finalize(JSFreeOp* cx, JSObject *obj)
 {
+  struct Lisp_Vector *s = JS_GetPrivate(obj);
+  if (PSEUDOVECTOR_TYPEP((struct vectorlike_header *)s, PVEC_BUFFER))
+    {
+      for (struct buffer *b = all_buffers; b; b = b->next)
+        if (b->next == (struct buffer *)s)
+          b->next = ((struct buffer *)s)->next;
+    }
+  else if (PSEUDOVECTOR_TYPEP((struct vectorlike_header *)s, PVEC_SUBR))
+    return;
+
   xfree(JS_GetPrivate(obj));
 }
 

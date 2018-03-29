@@ -3805,7 +3805,7 @@ CHECK_NUMBER_CDR (ELisp_Handle x)
 #ifdef _MSC_VER
 #define DEFUN(lname, fnname, sname, minargs, maxargs, intspec, doc)	\
    ELisp_Return_Value fnname DEFUN_ARGS_ ## maxargs ;				\
-   static struct Lisp_Subr alignas (GCALIGNMENT) sname =		\
+   struct Lisp_Subr alignas (GCALIGNMENT) sname =		\
    { { (PVEC_SUBR << PSEUDOVECTOR_AREA_BITS)				\
        | (sizeof (struct Lisp_Subr) / sizeof (EMACS_INT)) },		\
       { (ELisp_Return_Value (__cdecl *)(void))fnname },                        \
@@ -3813,7 +3813,7 @@ CHECK_NUMBER_CDR (ELisp_Handle x)
    ELisp_Return_Value fnname
 #else  /* not _MSC_VER */
 #define DEFUN(lname, fnname, sname, minargs, maxargs, intspec, doc)	\
-   static struct Lisp_Subr alignas (GCALIGNMENT) sname =		\
+   struct Lisp_Subr alignas (GCALIGNMENT) sname =		\
      { { {}, PVEC_SUBR << PSEUDOVECTOR_AREA_BITS },                    \
        { .a ## maxargs = fnname },					\
        minargs, maxargs, lname, intspec, 0};				\

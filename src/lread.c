@@ -4392,9 +4392,11 @@ init_obarray (void)
 }
 
 void
-defsubr (struct Lisp_Subr *sname)
+defsubr (/* const */struct Lisp_Subr *sname_const)
 {
   Lisp_Object sym, tem;
+  struct Lisp_Subr *sname = xmalloc(sizeof *sname);
+  memcpy(sname, sname_const, sizeof *sname);
   sym = intern_c_string (sname->symbol_name);
   XSETPVECTYPE (sname, PVEC_SUBR);
   XSETSUBR (tem, sname);
