@@ -440,7 +440,7 @@ DEFINE_GDB_SYMBOL_END (VALMASK)
 
 /* Lisp integers use 2 tags, to give them one extra bit, thus
    extending their range from, e.g., -2^28..2^28-1 to -2^29..2^29-1.  */
-#define INTMASK (EMACS_INT_MAX >> (INTTYPEBITS - 1))
+#define INTMASK 0xffffffff
 #define case_Lisp_Int case Lisp_Int0: case Lisp_Int1
 
 /* Idea stolen from GDB.  Pedantic GCC complains about enum bitfields,
