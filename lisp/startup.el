@@ -2232,13 +2232,6 @@ A fancy display is used on graphic displays, normal otherwise."
 (defun command-line-1 (args-left)
   "A subroutine of `command-line'."
   (display-startup-echo-area-message)
-  (when (and pure-space-overflow
-	     (not noninteractive))
-    (display-warning
-     'initialization
-     "Building Emacs overflowed pure space.\
-  (See the node Pure Storage in the Lisp manual for details.)"
-     :warning))
 
   ;; `displayable-buffers' is a list of buffers that may be displayed,
   ;; which includes files parsed from the command line arguments and
