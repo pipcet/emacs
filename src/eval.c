@@ -1378,27 +1378,28 @@ internal_lisp_condition_case (Lisp_Object var, Lisp_Object bodyform,
   clauses += clausenb;
   for (tail = handlers; CONSP (tail); tail = XCDR (tail))
     (--clauses).set(XCAR (tail));
+  Lisp_Object clause, condition, val, *chosen_clause, handler_body, handler_var, result;
   for (ptrdiff_t i = 0; i < clausenb; i++)
     {
-      Lisp_Object clause = clauses[i];
-      Lisp_Object condition = CONSP (clause) ? XCAR (clause) : Qnil;
+      clause = clauses[i];
+      condition = CONSP (clause) ? XCAR (clause) : Qnil;
       if (!CONSP (condition))
 	condition = list1 (condition);
       struct handler *c = push_handler (condition, CONDITION_CASE);
       if (sys_setjmp (c->jmp))
 	{
-	  Lisp_Object val = handlerlist->val;
-	  Lisp_Object *chosen_clause = clauses;
+	  val = handlerlist->val;
+	  chosen_clause = clauses;
 	  for (struct handler *h = handlerlist->next; h != oldhandlerlist;
 	       h = h->next)
 	    chosen_clause++;
-	  Lisp_Object handler_body = XCDR (((Lisp_Object *)chosen_clause).ref(0));
+	  handler_body = XCDR (((Lisp_Object *)chosen_clause).ref(0));
 	  handlerlist = oldhandlerlist;
 
 	  if (NILP (var))
 	    return Fprogn (handler_body);
 
-	  Lisp_Object handler_var = var;
+	  handler_var = var;
 	  if (!NILP (Vinternal_interpreter_environment))
 	    {
 	      val = Fcons (Fcons (var, val),
@@ -1415,7 +1416,7 @@ internal_lisp_condition_case (Lisp_Object var, Lisp_Object bodyform,
 	}
     }
 
-  Lisp_Object result = eval_sub (bodyform);
+  result = eval_sub (bodyform);
   handlerlist = oldhandlerlist;
   return result;
 }
@@ -1461,16 +1462,17 @@ internal_condition_case_1 (Lisp_Object (*bfun) (Lisp_Object), Lisp_Object arg,
 			   Lisp_Object (*hfun) (Lisp_Object))
 {
   struct handler *c = push_handler (handlers, CONDITION_CASE);
+  Lisp_Object val;
   if (sys_setjmp (c->jmp))
     {
-      Lisp_Object val = handlerlist->val;
+      val = handlerlist->val;
       clobbered_eassert (handlerlist == c);
       handlerlist = handlerlist->next;
       return hfun (val);
     }
   else
     {
-      Lisp_Object val = bfun (arg);
+      val = bfun (arg);
       eassert (handlerlist == c);
       handlerlist = c->next;
       return val;
@@ -1488,16 +1490,17 @@ internal_condition_case_2 (Lisp_Object (*bfun) (Lisp_Object, Lisp_Object),
 			   Lisp_Object (*hfun) (Lisp_Object))
 {
   struct handler *c = push_handler (handlers, CONDITION_CASE);
+  Lisp_Object val;
   if (sys_setjmp (c->jmp))
     {
-      Lisp_Object val = handlerlist->val;
+      val = handlerlist->val;
       clobbered_eassert (handlerlist == c);
       handlerlist = handlerlist->next;
       return hfun (val);
     }
   else
     {
-      Lisp_Object val = bfun (arg1, arg2);
+      val = bfun (arg1, arg2);
       eassert (handlerlist == c);
       handlerlist = c->next;
       return val;
@@ -1517,16 +1520,17 @@ internal_condition_case_n (Lisp_Object (*bfun) (ptrdiff_t nargs, Lisp_Object *ar
 						Lisp_Object *args))
 {
   struct handler *c = push_handler (handlers, CONDITION_CASE);
+  Lisp_Object val;
   if (sys_setjmp (c->jmp))
     {
-      Lisp_Object val = handlerlist->val;
+      val = handlerlist->val;
       clobbered_eassert (handlerlist == c);
       handlerlist = handlerlist->next;
       return hfun (val, nargs, args);
     }
   else
     {
-      Lisp_Object val = bfun (nargs, args);
+      val = bfun (nargs, args);
       eassert (handlerlist == c);
       handlerlist = c->next;
       return val;
@@ -1540,9 +1544,10 @@ internal_catch_all_1 (Lisp_Object (*function) (void *), void *argument)
   if (c == NULL)
     return Qcatch_all_memory_full;
 
+  Lisp_Object val;
   if (sys_setjmp (c->jmp) == 0)
     {
-      Lisp_Object val = function (argument);
+      val = function (argument);
       eassert (handlerlist == c);
       handlerlist = c->next;
       return val;
@@ -1550,7 +1555,7 @@ internal_catch_all_1 (Lisp_Object (*function) (void *), void *argument)
   else
     {
       eassert (handlerlist == c);
-      Lisp_Object val = c->val;
+      val = c->val;
       handlerlist = c->next;
       Fsignal (Qno_catch, val);
     }
@@ -1568,9 +1573,10 @@ internal_catch_all (Lisp_Object (*function) (void *), void *argument,
   if (c == NULL)
     return Qcatch_all_memory_full;
 
+  Lisp_Object val;
   if (sys_setjmp (c->jmp) == 0)
     {
-      Lisp_Object val = internal_catch_all_1 (function, argument);
+      val = internal_catch_all_1 (function, argument);
       eassert (handlerlist == c);
       handlerlist = c->next;
       return val;
@@ -1578,7 +1584,7 @@ internal_catch_all (Lisp_Object (*function) (void *), void *argument,
   else
     {
       eassert (handlerlist == c);
-      Lisp_Object val = c->val;
+      val = c->val;
       handlerlist = c->next;
       return handler (val);
     }
