@@ -681,7 +681,7 @@ js_gc_trace(JSTracer* tracer, void* data)
       TraceEdge(tracer, &h->val.v.v, "val");
     }
 
-  for (struct specbinding *pdl = specpdl_ptr - 1; pdl >= specpdl; pdl--) {
+  for (struct specbinding *pdl = specpdl_invalid_ptr - 1; pdl >= specpdl; pdl--) {
     TraceEdge(tracer, &pdl->unwind.arg.v.v, "unwind");
     TraceEdge(tracer, &pdl->let.where.v.v, "where");
     TraceEdge(tracer, &pdl->let.symbol.v.v, "symbol");
@@ -691,7 +691,8 @@ js_gc_trace(JSTracer* tracer, void* data)
     TraceEdge(tracer, &pdl->bt.function.v.v, "backtrace function");
   }
 
-  for (struct specbinding *pdl = specpdl_ptr; pdl < specpdl + specpdl_size; pdl++) {
+  for (struct specbinding *pdl = specpdl_invalid_ptr; pdl < specpdl + specpdl_size; pdl++) {
+    memset(pdl, 0, sizeof *pdl);
     pdl->unwind.arg.v.v = JS::UndefinedValue();
     pdl->let.where.v.v = JS::UndefinedValue();
     pdl->let.symbol.v.v = JS::UndefinedValue();

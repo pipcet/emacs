@@ -96,137 +96,137 @@ Lisp_Object Vsignaling_function;
 Lisp_Object inhibit_lisp_code;
 
 /* These would ordinarily be static, but they need to be visible to GDB.  */
-bool backtrace_p (union specbinding *) EXTERNALLY_VISIBLE;
-ELisp_Pointer backtrace_args (union specbinding *) EXTERNALLY_VISIBLE;
-Lisp_Object backtrace_function (union specbinding *) EXTERNALLY_VISIBLE;
-union specbinding *backtrace_next (union specbinding *) EXTERNALLY_VISIBLE;
-union specbinding *backtrace_top (void) EXTERNALLY_VISIBLE;
+bool backtrace_p (struct specbinding *) EXTERNALLY_VISIBLE;
+ELisp_Pointer backtrace_args (struct specbinding *) EXTERNALLY_VISIBLE;
+Lisp_Object backtrace_function (struct specbinding *) EXTERNALLY_VISIBLE;
+struct specbinding *backtrace_next (struct specbinding *) EXTERNALLY_VISIBLE;
+struct specbinding *backtrace_top (void) EXTERNALLY_VISIBLE;
 
 static Lisp_Object funcall_lambda (Lisp_Object, ptrdiff_t, Lisp_Object *);
 static Lisp_Object apply_lambda (Lisp_Object, Lisp_Object, ptrdiff_t);
 static Lisp_Object lambda_arity (Lisp_Object);
 
 static Lisp_Object
-specpdl_symbol (union specbinding *pdl)
+specpdl_symbol (struct specbinding *pdl)
 {
   eassert (pdl->kind >= SPECPDL_LET);
   return pdl->let.symbol;
 }
 
 static enum specbind_tag
-specpdl_kind (union specbinding *pdl)
+specpdl_kind (struct specbinding *pdl)
 {
   eassert (pdl->kind >= SPECPDL_LET);
   return pdl->kind;
 }
 
 static Lisp_Object
-specpdl_old_value (union specbinding *pdl)
+specpdl_old_value (struct specbinding *pdl)
 {
   eassert (pdl->kind >= SPECPDL_LET);
   return pdl->let.old_value;
 }
 
 static void
-set_specpdl_old_value (union specbinding *pdl, Lisp_Object val)
+set_specpdl_old_value (struct specbinding *pdl, Lisp_Object val)
 {
   eassert (pdl->kind >= SPECPDL_LET);
   pdl->let.old_value = val;
 }
 
 static Lisp_Object
-specpdl_where (union specbinding *pdl)
+specpdl_where (struct specbinding *pdl)
 {
   eassert (pdl->kind > SPECPDL_LET);
   return pdl->let.where;
 }
 
 static Lisp_Object
-specpdl_saved_value (union specbinding *pdl)
+specpdl_saved_value (struct specbinding *pdl)
 {
   eassert (pdl->kind >= SPECPDL_LET);
   return pdl->let.saved_value;
 }
 
 static Lisp_Object
-specpdl_arg (union specbinding *pdl)
+specpdl_arg (struct specbinding *pdl)
 {
   eassert (pdl->kind == SPECPDL_UNWIND);
   return pdl->unwind.arg;
 }
 
 static Lisp_Object
-specpdl_stack_symbol (union specbinding_stack *pdl)
+specpdl_stack_symbol (struct specbinding_stack *pdl)
 {
   eassert (pdl->kind >= SPECPDL_LET);
   return pdl->let.symbol;
 }
 
 static enum specbind_tag
-specpdl_stack_kind (union specbinding_stack *pdl)
+specpdl_stack_kind (struct specbinding_stack *pdl)
 {
   eassert (pdl->kind >= SPECPDL_LET);
   return pdl->kind;
 }
 
 static Lisp_Object
-specpdl_stack_old_value (union specbinding_stack *pdl)
+specpdl_stack_old_value (struct specbinding_stack *pdl)
 {
   eassert (pdl->kind >= SPECPDL_LET);
   return pdl->let.old_value;
 }
 
 static void
-set_specpdl_stack_old_value (union specbinding_stack *pdl, Lisp_Object val)
+set_specpdl_stack_old_value (struct specbinding_stack *pdl, Lisp_Object val)
 {
   eassert (pdl->kind >= SPECPDL_LET);
   pdl->let.old_value = val;
 }
 
 static Lisp_Object
-specpdl_stack_where (union specbinding_stack *pdl)
+specpdl_stack_where (struct specbinding_stack *pdl)
 {
   eassert (pdl->kind > SPECPDL_LET);
   return pdl->let.where;
 }
 
 static Lisp_Object
-specpdl_stack_saved_value (union specbinding_stack *pdl)
+specpdl_stack_saved_value (struct specbinding_stack *pdl)
 {
   eassert (pdl->kind >= SPECPDL_LET);
   return pdl->let.saved_value;
 }
 
 static Lisp_Object
-specpdl_stack_arg (union specbinding_stack *pdl)
+specpdl_stack_arg (struct specbinding_stack *pdl)
 {
   eassert (pdl->kind == SPECPDL_UNWIND);
   return pdl->unwind.arg;
 }
 
 Lisp_Object
-backtrace_function (union specbinding *pdl)
+backtrace_function (struct specbinding *pdl)
 {
   eassert (pdl->kind == SPECPDL_BACKTRACE);
   return pdl->bt.function;
 }
 
 static ptrdiff_t
-backtrace_nargs (union specbinding *pdl)
+backtrace_nargs (struct specbinding *pdl)
 {
   eassert (pdl->kind == SPECPDL_BACKTRACE);
   return pdl->bt.nargs;
 }
 
 ELisp_Pointer
-backtrace_args (union specbinding *pdl)
+backtrace_args (struct specbinding *pdl)
 {
   eassert (pdl->kind == SPECPDL_BACKTRACE);
   return pdl->bt.args;
 }
 
 static bool
-backtrace_debug_on_exit (union specbinding *pdl)
+backtrace_debug_on_exit (struct specbinding *pdl)
 {
   eassert (pdl->kind == SPECPDL_BACKTRACE);
   return pdl->bt.debug_on_exit;
@@ -235,7 +235,7 @@ backtrace_debug_on_exit (union specbinding *pdl)
 /* Functions to modify slots of backtrace records.  */
 
 static void
-set_backtrace_args (union specbinding *pdl, Lisp_Object *args, ptrdiff_t nargs)
+set_backtrace_args (struct specbinding *pdl, Lisp_Object *args, ptrdiff_t nargs)
 {
   eassert (pdl->kind == SPECPDL_BACKTRACE);
   pdl->bt.args = args;
@@ -344,6 +344,7 @@ call_debugger (Lisp_Object arg)
   if (old_max == count)
     {
       /* We can enter the debugger due to specpdl overflow (Bug#16603).  */
+      /* XXX no prepare_grow_specpdl here */
       specpdl_ptr--;
       grow_specpdl ();
     }
@@ -698,11 +699,11 @@ The return value is BASE-VARIABLE.  */)
   return base_variable;
 }
 
-static union specbinding *
+static struct specbinding *
 default_toplevel_binding (Lisp_Object symbol)
 {
-  union specbinding *binding = NULL;
-  union specbinding *pdl = specpdl_ptr;
+  struct specbinding *binding = NULL;
+  struct specbinding *pdl = specpdl_ptr;
   while (pdl > specpdl)
     {
       switch ((--pdl)->kind)
@@ -733,7 +734,7 @@ DEFUN ("default-toplevel-value", Fdefault_toplevel_value, Sdefault_toplevel_valu
 "Toplevel" means outside of any let binding.  */)
   (Lisp_Object symbol)
 {
-  union specbinding *binding = default_toplevel_binding (symbol);
+  struct specbinding *binding = default_toplevel_binding (symbol);
   Lisp_Object value
     = binding ? specpdl_old_value (binding) : Fdefault_value (symbol);
   if (!EQ (value, Qunbound))
@@ -2240,6 +2241,13 @@ alist mapping symbols to their value.  */)
    address is taken.  */
 
 static void
+prepare_grow_specpdl (void)
+{
+  memset(specpdl_ptr, 0, sizeof *specpdl_ptr);
+  specpdl_invalid_ptr = specpdl_ptr + 1;
+}
+
+static void
 grow_specpdl (void)
 {
   specpdl_ptr++;
@@ -2248,7 +2256,7 @@ grow_specpdl (void)
     {
       ptrdiff_t count = SPECPDL_INDEX ();
       ptrdiff_t max_size = min (max_specpdl_size, PTRDIFF_MAX - 1000);
-      union specbinding *pdlvec = specpdl - 1;
+      struct specbinding *pdlvec = specpdl - 1;
       ptrdiff_t pdlvecsize = specpdl_size + 1;
       if (max_size <= specpdl_size)
 	{
@@ -2263,6 +2271,8 @@ grow_specpdl (void)
       specpdl_size = pdlvecsize - 1;
       specpdl_ptr = specpdl + count;
     }
+
+  specpdl_invalid_ptr = specpdl_ptr;
 }
 
 ptrdiff_t
@@ -2271,6 +2281,7 @@ record_in_backtrace (Lisp_Object function, Lisp_Object *args, ptrdiff_t nargs)
   ptrdiff_t count = SPECPDL_INDEX ();
 
   eassert (nargs >= UNEVALLED);
+  prepare_grow_specpdl ();
   specpdl_ptr->kind = SPECPDL_BACKTRACE;
   specpdl_ptr->bt.debug_on_exit = false;
   specpdl_ptr->bt.function = function;
@@ -2387,7 +2398,7 @@ eval_sub (Lisp_Object form)
 	  if (backtrace_debug_on_exit (specpdl + count))
 	    val = call_debugger (list2 (Qexit, val));
 	  SAFE_FREE ();
-	  specpdl_ptr--;
+          specpdl_invalid_ptr = --specpdl_ptr;
 	  return val;
 	}
       else
@@ -2492,7 +2503,7 @@ eval_sub (Lisp_Object form)
             if (backtrace_debug_on_exit (specpdl + count))
               val = call_debugger (list2 (Qexit, val));
             SAFE_FREE ();
-            specpdl_ptr--;
+            specpdl_invalid_ptr = --specpdl_ptr;
             return val;
           }
         else
@@ -2529,7 +2540,7 @@ eval_sub (Lisp_Object form)
   lisp_eval_depth--;
   if (backtrace_debug_on_exit (specpdl + count))
     val = call_debugger (list2 (Qexit, val));
-  specpdl_ptr--;
+  specpdl_invalid_ptr = --specpdl_ptr;
 
   return val;
 }
@@ -3018,7 +3029,7 @@ usage: (funcall FUNCTION &rest ARGUMENTS)  */)
             if (backtrace_debug_on_exit (specpdl + count))
               val = call_debugger (list2 (Qexit, val));
             SAFE_FREE ();
-            specpdl_ptr--;
+            specpdl_invalid_ptr = --specpdl_ptr;
             return val;
           }
         else
@@ -3042,7 +3053,7 @@ usage: (funcall FUNCTION &rest ARGUMENTS)  */)
   lisp_eval_depth--;
   if (backtrace_debug_on_exit (specpdl + count))
     val = call_debugger (list2 (Qexit, val));
-  specpdl_ptr--;
+  specpdl_invalid_ptr = --specpdl_ptr;
   return val;
 }
 
@@ -3159,7 +3170,7 @@ apply_lambda (Lisp_Object fun, Lisp_Object args, ptrdiff_t count)
   if (backtrace_debug_on_exit (specpdl + count))
     tem = call_debugger (list2 (Qexit, tem));
   SAFE_FREE ();
-  specpdl_ptr--;
+  specpdl_invalid_ptr = --specpdl_ptr;
   return tem;
 }
 
@@ -3462,7 +3473,7 @@ DEFUN ("fetch-bytecode", Ffetch_bytecode, Sfetch_bytecode,
 bool
 let_shadows_buffer_binding_p (struct Lisp_Symbol *symbol)
 {
-  union specbinding *p;
+  struct specbinding *p;
   Lisp_Object buf = Fcurrent_buffer ();
 
   for (p = specpdl_ptr; p > specpdl; )
@@ -3536,10 +3547,11 @@ specbind (Lisp_Object symbol, Lisp_Object value)
     case SYMBOL_PLAINVAL:
       /* The most common case is that of a non-constant symbol with a
 	 trivial value.  Make that as fast as we can.  */
-      specpdl_ptr->kind = SPECPDL_LET;
-      specpdl_ptr->let.symbol = symbol;
-      specpdl_ptr->let.old_value = SYMBOL_VAL (sym);
-      specpdl_ptr->let.saved_value = Qnil;
+      prepare_grow_specpdl ();
+      (specpdl_ptr)->kind = SPECPDL_LET;
+      (specpdl_ptr)->let.symbol = symbol;
+      (specpdl_ptr)->let.old_value = SYMBOL_VAL (sym);
+      (specpdl_ptr)->let.saved_value = Qnil;
       grow_specpdl ();
       do_specbind (sym, specpdl_ptr - 1, value, SET_INTERNAL_BIND);
       break;
@@ -3547,6 +3559,7 @@ specbind (Lisp_Object symbol, Lisp_Object value)
     case SYMBOL_FORWARDED:
       {
 	Lisp_Object ovalue = find_symbol_value (symbol);
+        prepare_grow_specpdl ();
 	specpdl_ptr->kind = SPECPDL_LET_LOCAL;
 	specpdl_ptr->let.symbol = symbol;
 	specpdl_ptr->let.old_value = ovalue;
@@ -3592,6 +3605,7 @@ specbind (Lisp_Object symbol, Lisp_Object value)
 void
 record_unwind_protect (void (*function) (Lisp_Object), Lisp_Object arg)
 {
+  prepare_grow_specpdl ();
   specpdl_ptr->kind = SPECPDL_UNWIND;
   specpdl_ptr->unwind.func = function;
   specpdl_ptr->unwind.arg = arg;
@@ -3601,6 +3615,7 @@ record_unwind_protect (void (*function) (Lisp_Object), Lisp_Object arg)
 void
 record_unwind_protect_ptr (void (*function) (void *), void *arg)
 {
+  prepare_grow_specpdl ();
   specpdl_ptr->kind = SPECPDL_UNWIND_PTR;
   specpdl_ptr->unwind_ptr.func = function;
   specpdl_ptr->unwind_ptr.arg = arg;
@@ -3610,6 +3625,7 @@ record_unwind_protect_ptr (void (*function) (void *), void *arg)
 void
 record_unwind_protect_int (void (*function) (int), int arg)
 {
+  prepare_grow_specpdl ();
   specpdl_ptr->kind = SPECPDL_UNWIND_INT;
   specpdl_ptr->unwind_int.func = function;
   specpdl_ptr->unwind_int.arg = arg;
@@ -3619,6 +3635,7 @@ record_unwind_protect_int (void (*function) (int), int arg)
 void
 record_unwind_protect_void (void (*function) (void))
 {
+  prepare_grow_specpdl ();
   specpdl_ptr->kind = SPECPDL_UNWIND_VOID;
   specpdl_ptr->unwind_void.func = function;
   grow_specpdl ();
@@ -3821,10 +3838,10 @@ context where binding is lexical by default.  */)
 }
 
 
-static union specbinding *
+static struct specbinding *
 get_backtrace_starting_at (Lisp_Object base)
 {
-  union specbinding *pdl = backtrace_top ();
+  struct specbinding *pdl = backtrace_top ();
 
   if (!NILP (base))
     { /* Skip up to `base'.  */
@@ -3837,13 +3854,13 @@ get_backtrace_starting_at (Lisp_Object base)
   return pdl;
 }
 
-static union specbinding *
+static struct specbinding *
 get_backtrace_frame (Lisp_Object nframes, Lisp_Object base)
 {
   register EMACS_INT i;
 
   CHECK_NATNUM (nframes);
-  union specbinding *pdl = get_backtrace_starting_at (base);
+  struct specbinding *pdl = get_backtrace_starting_at (base);
 
   /* Find the frame requested.  */
   for (i = XFASTINT (nframes); i > 0 && backtrace_p (pdl); i--)
@@ -3853,7 +3870,7 @@ get_backtrace_frame (Lisp_Object nframes, Lisp_Object base)
 }
 
 static Lisp_Object
-backtrace_frame_apply (Lisp_Object function, union specbinding *pdl)
+backtrace_frame_apply (Lisp_Object function, struct specbinding *pdl)
 {
   if (!backtrace_p (pdl))
     return Qnil;
@@ -4121,7 +4138,7 @@ mark_specpdl (struct specbinding *first, struct specbinding *ptr)
 void
 get_backtrace (Lisp_Object array)
 {
-  union specbinding *pdl = backtrace_next (backtrace_top ());
+  struct specbinding *pdl = backtrace_next (backtrace_top ());
   ptrdiff_t i = 0, asize = ASIZE (array);
 
   /* Copy the backtrace contents into working memory.  */
@@ -4139,7 +4156,7 @@ get_backtrace (Lisp_Object array)
 
 Lisp_Object backtrace_top_function (void)
 {
-  union specbinding *pdl = backtrace_top ();
+  struct specbinding *pdl = backtrace_top ();
   return (backtrace_p (pdl) ? backtrace_function (pdl) : Qnil);
 }
 

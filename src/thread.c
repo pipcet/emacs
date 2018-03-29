@@ -727,6 +727,7 @@ run_thread (void *state)
   xfree (self->m_specpdl - 1);
   self->m_specpdl = NULL;
   self->m_specpdl_ptr = NULL;
+  self->m_specpdl_invalid_ptr = NULL;
   self->m_specpdl_size = 0;
 
   {
@@ -799,6 +800,7 @@ If NAME is given, it must be a string; it names the new thread.  */)
   /* Skip the dummy entry.  */
   ++new_thread->m_specpdl;
   new_thread->m_specpdl_ptr = new_thread->m_specpdl;
+  new_thread->m_specpdl_invalid_ptr = new_thread->m_specpdl;
 
   sys_cond_init (&new_thread->thread_condvar);
 

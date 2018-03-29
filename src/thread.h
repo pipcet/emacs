@@ -101,6 +101,10 @@ struct thread_state
   struct specbinding *m_specpdl_ptr;
 #define specpdl_ptr (current_thread->m_specpdl_ptr)
 
+  /* Pointer to first invalid element in specpdl.  */
+  struct specbinding *m_specpdl_invalid_ptr;
+#define specpdl_invalid_ptr (current_thread->m_specpdl_invalid_ptr)
+
   /* Depth in Lisp evaluations and function calls.  */
   EMACS_INT m_lisp_eval_depth;
 #define lisp_eval_depth (current_thread->m_lisp_eval_depth)
