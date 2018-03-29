@@ -1613,7 +1613,8 @@ static ELisp_Return_Value elisp_vector_call_voidp(void *lvp)
 
 static ELisp_Return_Value elisp_vector_call_handler(ELisp_Handle arg)
 {
-  assert (!JS_IsExceptionPending(jsg.cx));
+  if (JS_IsExceptionPending(jsg.cx))
+    while (1);
 
   JS_SetPendingException(jsg.cx, arg.v.v);
 }
