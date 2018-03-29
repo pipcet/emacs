@@ -1615,7 +1615,7 @@ static ELisp_Return_Value elisp_vector_call_handler(ELisp_Handle arg)
 {
   assert (!JS_IsExceptionPending(jsg.cx));
 
-  JS_SetPendingException(cx, arg.v.v);
+  JS_SetPendingException(jsg.cx, arg.v.v);
 }
 
 static ELisp_Return_Value elisp_vector_call_inner(ELisp_Vector *lv, bool *successp)
