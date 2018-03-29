@@ -1722,6 +1722,28 @@ handled properly.  BODY shall not contain a timeout."
   ;; Default values in tramp-smb.el.
   (should (string-equal (file-remote-p "/smb::" 'user) nil)))
 
+;; The following test is inspired by Bug#30946.
+(ert-deftest tramp-test03-file-name-host-rules ()
+  "Check host name rules for host-less methods."
+  (skip-unless (tramp--test-enabled))
+  (skip-unless (tramp--test-sh-p))
+
+  ;; Host names must match rules in case the command template of a
+  ;; method doesn't use them.
+  (dolist (m '("su" "sg" "sudo" "doas" "ksu"))
+    ;; Single hop.  The host name must match `tramp-local-host-regexp'.
+    (should-error
+     (find-file (format "/%s:foo:" m))
+     :type 'user-error)
+    ;; Multi hop.  The host name must match the previous hop.
+    (should-error
+     (find-file
+      (format
+       "%s|%s:foo:"
+       (substring (file-remote-p tramp-test-temporary-file-directory) nil -1)
+       m))
+     :type 'user-error)))
+
 (ert-deftest tramp-test04-substitute-in-file-name ()
   "Check `substitute-in-file-name'."
   (should (string-equal (substitute-in-file-name "/method:host:///foo") "/foo"))
@@ -1836,6 +1858,7 @@ handled properly.  BODY shall not contain a timeout."
   ;; Mark as failed until bug has been fixed.
   :expected-result :failed
   (skip-unless (tramp--test-enabled))
+
   ;; These are the methods the test doesn't fail.
   (when (or (tramp--test-adb-p) (tramp--test-gvfs-p)
 	    (tramp-smb-file-name-p tramp-test-temporary-file-directory))
@@ -3117,13 +3140,15 @@ This tests also `make-symbolic-link', `file-truename' and `add-name-to-file'."
 	  (delete-file tmp-name1)
 	  (delete-file tmp-name2)))
 
-      ;; `file-truename' shall preserve trailing link of directories.
-      (unless (file-symlink-p tramp-test-temporary-file-directory)
-	(let* ((dir1 (directory-file-name tramp-test-temporary-file-directory))
-	       (dir2 (file-name-as-directory dir1)))
-	  (should (string-equal (file-truename dir1) (expand-file-name dir1)))
-	  (should
-	   (string-equal (file-truename dir2) (expand-file-name dir2))))))))
+      ;; `file-truename' shall preserve trailing slash of directories.
+      (let* ((dir1
+	      (directory-file-name
+	       (funcall
+		(if quoted 'tramp-compat-file-name-quote 'identity)
+		tramp-test-temporary-file-directory)))
+	     (dir2 (file-name-as-directory dir1)))
+	(should (string-equal (file-truename dir1) (expand-file-name dir1)))
+	(should (string-equal (file-truename dir2) (expand-file-name dir2)))))))
 
 (ert-deftest tramp-test22-file-times ()
   "Check `set-file-times' and `file-newer-than-file-p'."
@@ -4482,6 +4507,7 @@ This requires restrictions of file name syntax."
 	    (when (and (tramp--test-expensive-test) (tramp--test-sh-p))
 	      (dolist (elt files)
 		(let ((envvar (concat "VAR_" (upcase (md5 elt))))
+		      (elt (encode-coding-string elt coding-system-for-read))
 		      (default-directory tramp-test-temporary-file-directory)
 		      (process-environment process-environment))
 		  (setenv envvar elt)
@@ -4641,7 +4667,8 @@ Use the `ls' command."
 	     (setq x (eval (cdr (assoc 'sample-text x))))
 	     (unless (or (null x)
 			 (unencodable-char-position
-			  nil nil file-name-coding-system nil x))
+			  nil nil file-name-coding-system nil x)
+			 (string-match "TaiViet" x))
 	       (replace-regexp-in-string "[\n/]" "" x)))
 	   language-info-alist))
 
@@ -4654,7 +4681,6 @@ Use the `ls' command."
 
 (ert-deftest tramp-test39-utf8 ()
   "Check UTF8 encoding in file names and file contents."
-  :tags '(:unstable)
   (skip-unless (tramp--test-enabled))
   (skip-unless (not (tramp--test-docker-p)))
   (skip-unless (not (tramp--test-rsync-p)))
@@ -4667,7 +4693,7 @@ Use the `ls' command."
 (ert-deftest tramp-test39-utf8-with-stat ()
   "Check UTF8 encoding in file names and file contents.
 Use the `stat' command."
-  :tags '(:expensive-test :unstable)
+  :tags '(:expensive-test)
   (skip-unless (tramp--test-enabled))
   (skip-unless (tramp--test-sh-p))
   (skip-unless (not (tramp--test-docker-p)))
@@ -4687,7 +4713,7 @@ Use the `stat' command."
 (ert-deftest tramp-test39-utf8-with-perl ()
   "Check UTF8 encoding in file names and file contents.
 Use the `perl' command."
-  :tags '(:expensive-test :unstable)
+  :tags '(:expensive-test)
   (skip-unless (tramp--test-enabled))
   (skip-unless (tramp--test-sh-p))
   (skip-unless (not (tramp--test-docker-p)))
@@ -4710,7 +4736,7 @@ Use the `perl' command."
 (ert-deftest tramp-test39-utf8-with-ls ()
   "Check UTF8 encoding in file names and file contents.
 Use the `ls' command."
-  :tags '(:expensive-test :unstable)
+  :tags '(:expensive-test)
   (skip-unless (tramp--test-enabled))
   (skip-unless (tramp--test-sh-p))
   (skip-unless (not (tramp--test-docker-p)))

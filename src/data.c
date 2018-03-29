@@ -2718,9 +2718,7 @@ present, base 10 is used.  BASE must be between 2 and 16 (inclusive).
 If the base used is not 10, STRING is always parsed as an integer.  */)
   (register Lisp_Object string, Lisp_Object base)
 {
-  register char *p;
-  register int b;
-  Lisp_Object val;
+  int b;
 
   CHECK_STRING (string);
 
@@ -2734,11 +2732,12 @@ If the base used is not 10, STRING is always parsed as an integer.  */)
       b = XINT (base);
     }
 
-  p = SSDATA (string);
+  char *p = SSDATA (string);
   while (*p == ' ' || *p == '\t')
     p++;
 
-  val = string_to_number (p, b, true);
+  int flags = S2N_IGNORE_TRAILING | S2N_OVERFLOW_TO_FLOAT;
+  Lisp_Object val = string_to_number (p, b, flags);
   return NILP (val) ? make_number (0) : val;
 }
 
