@@ -266,6 +266,12 @@ Q_resolve(JSContext *cx, JS::HandleObject obj, JS::HandleId id, bool *resolvedp)
 
       fprintf(stderr, "resolving Q.%s\n", bytes);
 
+      if (!strcmp(bytes, "valueOf"))
+        return true;
+
+      if (!strcmp(bytes, "toString"))
+        return true;
+
 #if 0
       for (char *p = bytes; *p; p++)
         {
@@ -310,7 +316,7 @@ static const JSClassOps Q_classOps =
 
 static const JSClass Q_class =
   {
-   "Q", JSCLASS_HAS_RESERVED_SLOTS(1),
+   "EmacsSymbols", JSCLASS_HAS_RESERVED_SLOTS(1),
    &Q_classOps,
   };
 
@@ -325,6 +331,8 @@ V_resolve(JSContext *cx, JS::HandleObject obj, JS::HandleId id, bool *resolvedp)
 
       if (!bytes)
         return false;
+
+      fprintf(stderr, "resolving V.%s\n", bytes);
 
 #if 0
       for (char *p = bytes; *p; p++)
@@ -365,7 +373,7 @@ static const JSClassOps V_classOps =
 
 static const JSClass V_class =
   {
-   "V", JSCLASS_HAS_RESERVED_SLOTS(1),
+   "EmacsVariables", JSCLASS_HAS_RESERVED_SLOTS(1),
    &V_classOps,
   };
 
@@ -380,6 +388,8 @@ F_resolve(JSContext *cx, JS::HandleObject obj, JS::HandleId id, bool *resolvedp)
 
       if (!bytes)
         return false;
+
+      fprintf(stderr, "resolving F.%s\n", bytes);
 
 #if 0
       for (char *p = bytes; *p; p++)
@@ -420,7 +430,7 @@ static const JSClassOps F_classOps =
 
 static const JSClass F_class =
   {
-   "F", JSCLASS_HAS_RESERVED_SLOTS(1),
+   "EmacsFunctions", JSCLASS_HAS_RESERVED_SLOTS(1),
    &F_classOps,
   };
 
@@ -533,22 +543,22 @@ static bool
 console_log(JSContext* cx, unsigned argc, JS::Value* vp)
 {
   JS::CallArgs args = CallArgsFromVp(argc, vp);
-    for (unsigned i = 0; i < args.length(); i++) {
-      JS::RootedString str(cx, JS::ToString(cx, args[i]));
-        if (!str)
-            return false;
-        char* bytes = JS_EncodeStringToUTF8(cx, str);
-        if (!bytes)
-            return false;
-        fprintf(stdout, "%s%s", i ? " " : "", bytes);
-        JS_free(cx, bytes);
-    }
+  for (unsigned i = 0; i < args.length(); i++) {
+    JS::RootedString str(cx, JS::ToString(cx, args[i]));
+    if (!str)
+      return false;
+    char* bytes = JS_EncodeStringToUTF8(cx, str);
+    if (!bytes)
+      return false;
+    fprintf(stdout, "%s%s", i ? " " : "", bytes);
+    JS_free(cx, bytes);
+  }
 
-    fputc('\n', stdout);
-    fflush(stdout);
+  fputc('\n', stdout);
+  fflush(stdout);
 
-    args.rval().setUndefined();
-    return true;
+  args.rval().setUndefined();
+  return true;
 }
 
 static bool
@@ -618,7 +628,8 @@ static const JSFunctionSpec emacs_functions[] =
    JS_FN("console_log", console_log, 0, 0),
    JS_FS_END
   };
-                                                         void
+
+void
 WarningReporter(JSContext* cx, JSErrorReport* report)
 {
   fprintf(stderr, "Warning!\n");
@@ -808,6 +819,7 @@ bool js_init()
   if (!JS::InitSelfHostedCode(cx))
     return false;
 
+  JS::ContextOptionsRef(cx).setBaseline(false).setIon(false);
   JS_SetGCParameter(cx, JSGC_MODE, JSGC_MODE_INCREMENTAL);
   JS::GCVector<JS::Value, 0, js::SystemAllocPolicy> *vecp = new JS::GCVector<JS::Value, 0, js::SystemAllocPolicy>();
   js_promise_jobs = vecp;
@@ -1275,7 +1287,7 @@ elisp_symbol_resolve(JSContext *cx, JS::HandleObject obj,
     }
 
   *resolvedp = false;
-  return false;
+  return true;
 }
 
 static bool elisp_symbol_call(JSContext *cx, unsigned argc, JS::Value *vp)
@@ -1592,6 +1604,20 @@ static bool elisp_vector_resolve(JSContext *cx, JS::HandleObject obj,
 
 static ELisp_Return_Value elisp_vector_call_inner(ELisp_Vector) __attribute__((noinline));
 
+static ELisp_Return_Value elisp_vector_call_voidp(void *lvp)
+{
+  ELisp_Vector *lv = lvp;
+
+  return Ffuncall (*lv);
+}
+
+static ELisp_Return_Value elisp_vector_call_handler(ELisp_Handle arg)
+{
+  assert (!JS_IsExceptionPending(jsg.cx));
+
+  JS_SetPendingException(cx, arg.v.v);
+}
+
 static ELisp_Return_Value elisp_vector_call_inner(ELisp_Vector *lv, bool *successp)
 {
   sys_jmp_buf jmpbuf;
@@ -1604,7 +1630,7 @@ static ELisp_Return_Value elisp_vector_call_inner(ELisp_Vector *lv, bool *succes
       return Qnil;
     }
 
-  auto ret = Ffuncall (*lv);
+  auto ret = internal_catch_all (elisp_vector_call_voidp, static_cast<void *>(lv), elisp_vector_call_handler);
   catchall_jmpbuf = old_jmpbuf;
   *successp = true;
   return ret;
@@ -1627,6 +1653,7 @@ static bool elisp_vector_call(JSContext *cx, unsigned argc, JS::Value *vp)
     argv.sref(i+1, args[i]);
   auto lv = LV (args.length() + 1, argv);
   bool success;
+  maybe_quit ();
   auto ret = elisp_vector_call_inner(&lv, &success);
   if (success)
     {
@@ -2136,6 +2163,8 @@ JS::Heap<JSObject*> elisp_misc_class_proto __attribute__((init_priority(101)));
 static void
 elisp_classes_init(JSContext *cx, JS::HandleObject glob)
 {
+  JS_InitClass(cx, glob, nullptr, &F_class, nullptr, 0,
+               nullptr, nullptr, nullptr, nullptr);
   JS::RootedObject elisp_cons_proto
     (cx, JS_InitClass(cx, glob, nullptr, &elisp_cons_class, nullptr, 0,
                       nullptr, nullptr, nullptr, nullptr));
