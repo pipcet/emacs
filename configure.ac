@@ -1003,14 +1003,8 @@ AS_IF([test $gl_gcc_warnings = no],
     nw="$nw -Wsuggest-attribute=format"
   fi
 
-  gl_MANYWARN_ALL_GCC([ws])
-  gl_MANYWARN_COMPLEMENT([ws], [$ws], [$nw])
-  for w in $ws; do
-    gl_WARN_ADD([$w])
-  done
   gl_WARN_ADD([-Wredundant-decls])     # Prefer this, as we don't use Bison.
   gl_WARN_ADD([-Wno-missing-field-initializers]) # We need this one
-  gl_WARN_ADD([-Wno-override-init])    # More trouble than it is worth
   gl_WARN_ADD([-Wno-sign-compare])     # Too many warnings for now
   gl_WARN_ADD([-Wno-type-limits])      # Too many warnings for now
   gl_WARN_ADD([-Wno-unused-parameter]) # Too many warnings for now
@@ -1049,7 +1043,7 @@ fi
 # Use a slightly smaller set of warning options for lib/.
 nw=
 nw="$nw -Wunused-macros"
-gl_MANYWARN_COMPLEMENT([GNULIB_WARN_CFLAGS], [$WARN_CFLAGS], [$nw])
+GNULIB_WARN_CFLAGS="$nw"
 
 AC_SUBST([WERROR_CFLAGS])
 AC_SUBST([GNULIB_WARN_CFLAGS])
