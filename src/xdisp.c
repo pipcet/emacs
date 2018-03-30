@@ -14124,9 +14124,10 @@ redisplay_internal (void)
   consider_all_windows_p = (update_mode_lines
 			    || windows_or_buffers_changed);
 
-#define AINC(a,i)							\
+#define AINC(a0,i)							\
   {									\
-    ELisp_Value entry = Fgethash (LRH (make_number (i)), a, LRH (make_number (0))); \
+    ELisp_Value a; a = a0;                                                \
+    ELisp_Value entry; entry = Fgethash (LRH (make_number (i)), a, LRH (make_number (0))); \
     if (INTEGERP (entry))						\
       Fputhash (LRH (make_number (i)), LRH (make_number (1 + XINT (entry))), a); \
   }
