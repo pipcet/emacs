@@ -2469,7 +2469,7 @@ priorities.  */);
   Vprint_charset_text_property = Qdefault;
 
   /* prin1_to_string_buffer initialized in init_buffer_once in buffer.c */
-  staticpro (&Vprin1_to_string_buffer, Qnil);
+  staticpro_1 (&Vprin1_to_string_buffer);
 
   defsubr (&Sprin1);
   defsubr (&Sprin1_to_string);

@@ -2349,11 +2349,8 @@ syms_of_charset (void)
   DEFSYM (Qiso_8859_1, "iso-8859-1");
 
   staticpro (&Vcharset_ordered_list, Qnil);
-
   staticpro (&Viso_2022_charset_list, Qnil);
-
   staticpro (&Vemacs_mule_charset_list, Qnil);
-
   staticpro (&Vcharset_hash_table, CALLN (Fmake_hash_table, QCtest, Qeq));
 
   charset_table = charset_table_init;

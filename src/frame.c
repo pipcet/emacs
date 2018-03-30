@@ -6095,7 +6095,7 @@ making the child frame unresponsive to user actions, the default is to
 iconify the top level frame instead.  */);
   iconify_child_frame = Qiconify_top_level;
 
-  staticpro (&Vframe_list, Qnil);
+  staticpro_1 (&Vframe_list);
 
   defsubr (&Sframep);
   defsubr (&Sframe_live_p);

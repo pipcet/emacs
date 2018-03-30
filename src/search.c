@@ -3373,9 +3373,9 @@ syms_of_search (void)
       searchbufs[i].buf.allocated = 100;
       searchbufs[i].buf.buffer = xmalloc (100);
       searchbufs[i].buf.fastmap = searchbufs[i].fastmap;
-      staticpro (&searchbufs[i].regexp, Qnil);
-      staticpro (&searchbufs[i].f_whitespace_regexp, Qnil);
-      staticpro (&searchbufs[i].syntax_table, Qnil);
+      staticpro (&(searchbufs[i].regexp), Qnil);
+      staticpro (&(searchbufs[i].f_whitespace_regexp), Qnil);
+      staticpro (&(searchbufs[i].syntax_table), Qnil);
       searchbufs[i].next = (i == REGEXP_CACHE_SIZE-1 ? 0 : &searchbufs[i+1]);
     }
   searchbuf_head = &searchbufs[0];

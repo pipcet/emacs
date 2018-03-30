@@ -5459,7 +5459,7 @@ syms_of_buffer (void)
              Fmake_vector (make_number (10), Qnil));
 
   staticpro (&QSFundamental, Qnil);
-  staticpro (&Vbuffer_alist, Qnil);
+  staticpro_1 (&Vbuffer_alist);
 
   DEFSYM (Qchoice, "choice");
   DEFSYM (Qleft, "left");

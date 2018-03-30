@@ -4474,7 +4474,7 @@ defvar_lisp (struct Lisp_Objfwd *o_fwd,
 	     const char *namestring, Lisp_Object *address)
 {
   defvar_lisp_nopro (o_fwd, namestring, address);
-  staticpro (address, Qnil);
+  staticpro_1 (address);
 }
 
 /* Similar but define a variable whose value is the Lisp Object stored
