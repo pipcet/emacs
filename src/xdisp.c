@@ -32418,11 +32418,9 @@ x_intersect_rectangles (XRectangle *r1, XRectangle *r2, XRectangle *result)
 void
 syms_of_xdisp (void)
 {
-  Vwith_echo_area_save_vector = Qnil;
-  staticpro (&Vwith_echo_area_save_vector);
+  staticpro (&Vwith_echo_area_save_vector, Qnil);
 
-  Vmessage_stack = Qnil;
-  staticpro (&Vmessage_stack);
+  staticpro (&Vmessage_stack, Qnil);
 
   /* Non-nil means don't actually do any redisplay.  */
   DEFSYM (Qinhibit_redisplay, "inhibit-redisplay");
@@ -32434,12 +32432,9 @@ syms_of_xdisp (void)
 They are still logged to the *Messages* buffer.  */);
   inhibit_message = 0;
 
-  message_dolog_marker1 = Fmake_marker ();
-  staticpro (&message_dolog_marker1);
-  message_dolog_marker2 = Fmake_marker ();
-  staticpro (&message_dolog_marker2);
-  message_dolog_marker3 = Fmake_marker ();
-  staticpro (&message_dolog_marker3);
+  staticpro (&message_dolog_marker1, Fmake_marker ());
+  staticpro (&message_dolog_marker2, Fmake_marker ());
+  staticpro (&message_dolog_marker3, Fmake_marker ());
 
   defsubr (&Sset_buffer_redisplay);
 #ifdef GLYPH_DEBUG
@@ -32553,8 +32548,7 @@ They are still logged to the *Messages* buffer.  */);
 
   DEFSYM (Qinhibit_free_realized_faces, "inhibit-free-realized-faces");
 
-  list_of_error = list1 (list2 (Qerror, Qvoid_variable));
-  staticpro (&list_of_error);
+  staticpro (&list_of_error, list1 (list2 (Qerror, Qvoid_variable)));
 
   /* Values of those variables at last redisplay are stored as
      properties on 'overlay-arrow-position' symbol.  However, if
@@ -32568,38 +32562,26 @@ They are still logged to the *Messages* buffer.  */);
   DEFSYM (Qoverlay_arrow_string, "overlay-arrow-string");
   DEFSYM (Qoverlay_arrow_bitmap, "overlay-arrow-bitmap");
 
-  echo_buffer[0] = echo_buffer[1] = Qnil;
-  staticpro (&echo_buffer[0]);
-  staticpro (&echo_buffer[1]);
+  staticpro (&echo_buffer[0], Qnil);
+  staticpro (&echo_buffer[1], Qnil);
 
-  echo_area_buffer[0] = echo_area_buffer[1] = Qnil;
-  staticpro (&echo_area_buffer[0]);
-  staticpro (&echo_area_buffer[1]);
+  staticpro (&echo_area_buffer[0], Qnil);
+  staticpro (&echo_area_buffer[1], Qnil);
 
-  Vmessages_buffer_name = build_pure_c_string ("*Messages*");
-  staticpro (&Vmessages_buffer_name);
+  staticpro (&Vmessages_buffer_name, build_pure_c_string ("*Messages*"));
 
-  mode_line_proptrans_alist = Qnil;
-  staticpro (&mode_line_proptrans_alist);
-  mode_line_string_list = Qnil;
-  staticpro (&mode_line_string_list);
-  mode_line_string_face = Qnil;
-  staticpro (&mode_line_string_face);
-  mode_line_string_face_prop = Qnil;
-  staticpro (&mode_line_string_face_prop);
-  Vmode_line_unwind_vector = Qnil;
-  staticpro (&Vmode_line_unwind_vector);
+  staticpro (&mode_line_proptrans_alist, Qnil);
+  staticpro (&mode_line_string_list, Qnil);
+  staticpro (&mode_line_string_face, Qnil);
+  staticpro (&mode_line_string_face_prop, Qnil);
+  staticpro (&Vmode_line_unwind_vector, Qnil);
 
   DEFSYM (Qmode_line_default_help_echo, "mode-line-default-help-echo");
 
-  help_echo_string = Qnil;
-  staticpro (&help_echo_string);
-  help_echo_object = Qnil;
-  staticpro (&help_echo_object);
-  help_echo_window = Qnil;
-  staticpro (&help_echo_window);
-  previous_help_echo_string = Qnil;
-  staticpro (&previous_help_echo_string);
+  staticpro (&help_echo_string, Qnil);
+  staticpro (&help_echo_object, Qnil);
+  staticpro (&help_echo_window, Qnil);
+  staticpro (&previous_help_echo_string, Qnil);
   help_echo_pos = -1;
 
   DEFSYM (Qright_to_left, "right-to-left");

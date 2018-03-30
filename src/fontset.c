@@ -2116,14 +2116,11 @@ syms_of_fontset (void)
   DEFSYM (Qappend, "append");
   DEFSYM (Qlatin, "latin");
 
-  Vcached_fontset_data = Qnil;
-  staticpro (&Vcached_fontset_data);
+  staticpro (&Vcached_fontset_data, Qnil);
 
-  Vfontset_table = Fmake_vector (make_number (32), Qnil);
-  staticpro (&Vfontset_table);
+  staticpro (&Vfontset_table, Fmake_vector (make_number (32), Qnil));
 
-  Vdefault_fontset = Fmake_char_table (Qfontset, Qnil);
-  staticpro (&Vdefault_fontset);
+  staticpro (&Vdefault_fontset, Fmake_char_table (Qfontset, Qnil));
   set_fontset_id (Vdefault_fontset, make_number (0));
   set_fontset_name
     (Vdefault_fontset,
@@ -2131,8 +2128,7 @@ syms_of_fontset (void)
   ASET (Vfontset_table, 0, Vdefault_fontset);
   next_fontset_id = 1;
 
-  auto_fontset_alist = Qnil;
-  staticpro (&auto_fontset_alist);
+  staticpro (&auto_fontset_alist, Qnil);
 
   DEFVAR_LISP ("font-encoding-charset-alist", Vfont_encoding_charset_alist,
 	       doc: /*

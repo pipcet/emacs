@@ -1908,19 +1908,16 @@ If no minibuffer is active, return nil.  */)
 void
 init_minibuf_once (void)
 {
-  Vminibuffer_list = Qnil;
-  staticpro (&Vminibuffer_list);
+  staticpro (&Vminibuffer_list, Qnil);
 }
 
 void
 syms_of_minibuf (void)
 {
   minibuf_level = 0;
-  minibuf_prompt = Qnil;
-  staticpro (&minibuf_prompt);
+  staticpro (&minibuf_prompt, Qnil);
 
-  minibuf_save_list = Qnil;
-  staticpro (&minibuf_save_list);
+  staticpro (&minibuf_save_list, Qnil);
 
   DEFSYM (Qcompletion_ignore_case, "completion-ignore-case");
   DEFSYM (Qminibuffer_default, "minibuffer-default");
@@ -1928,8 +1925,7 @@ syms_of_minibuf (void)
 
   DEFSYM (Qminibuffer_completion_table, "minibuffer-completion-table");
 
-  staticpro (&last_minibuf_string);
-  last_minibuf_string = Qnil;
+  staticpro (&last_minibuf_string, Qnil);
 
   DEFSYM (Qminibuffer_history, "minibuffer-history");
   DEFSYM (Qbuffer_name_history, "buffer-name-history");

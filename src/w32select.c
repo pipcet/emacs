@@ -1181,13 +1181,13 @@ syms_of_w32select (void)
 
   DEFSYM (QCLIPBOARD, "CLIPBOARD");
 
-  cfg_coding_system = Qnil;     staticpro (&cfg_coding_system);
-  current_text = Qnil;		staticpro (&current_text);
-  current_coding_system = Qnil; staticpro (&current_coding_system);
+  staticpro (&cfg_coding_system, Qnil);
+  staticpro (&current_text, Qnil);
+  staticpro (&current_coding_system, Qnil);
 
   DEFSYM (Qutf_16le_dos, "utf-16le-dos");
-  QANSICP = Qnil; staticpro (&QANSICP);
-  QOEMCP = Qnil;  staticpro (&QOEMCP);
+  staticpro (&QANSICP, Qnil);
+  staticpro (&QOEMCP, Qnil);
 }
 
 /* One-time init.  Called in the dumped Emacs, but not in the

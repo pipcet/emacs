@@ -331,7 +331,7 @@ syms_of_gfilenotify (void)
   DEFSYM (Qunmounted, "unmounted");	/* G_FILE_MONITOR_EVENT_UNMOUNTED  */
   DEFSYM (Qmoved, "moved");	/* G_FILE_MONITOR_EVENT_MOVED  */
 
-  staticpro (&watch_list);
+  staticpro (&watch_list, Qnil);
 
   Fprovide (intern_c_string ("gfilenotify"), Qnil);
 

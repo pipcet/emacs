@@ -8149,8 +8149,8 @@ syms_of_process (void)
 
   DEFSYM (Qlast_nonmenu_event, "last-nonmenu-event");
 
-  staticpro (&Vprocess_alist);
-  staticpro (&deleted_pid_list);
+  staticpro (&Vprocess_alist, Qnil);
+  staticpro (&deleted_pid_list, Qnil);
 
 #endif	/* subprocesses */
 

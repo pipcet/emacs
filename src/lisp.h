@@ -3281,7 +3281,23 @@ extern Lisp_Object Vascii_canon_table;
 
 /* Call staticpro (&var) to protect static variable `var'.  */
 
-void staticpro (Lisp_Object *);
+void staticpro_1 (Lisp_Object *);
+
+INLINE void
+staticpro (Lisp_Object *ptr, Lisp_Object initial_value)
+{
+  eassume (*ptr == Qnil);
+#if 4 < __GNUC__
+  if (__builtin_constant_p(initial_value == Qnil) &&
+      initial_value == Qnil)
+    ;
+  else
+#endif
+    *ptr = initial_value;
+
+  staticpro_1 (ptr);
+}
+
 
 /* Forward declarations for prototypes.  */
 struct window;

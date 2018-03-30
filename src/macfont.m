@@ -4050,6 +4050,5 @@ syms_of_macfont (void)
   /* The boolean-valued font property key specifying the use of leading.  */
   DEFSYM (QCminspace, ":minspace");
 
-  macfont_family_cache = Qnil;
-  staticpro (&macfont_family_cache);
+  staticpro (&macfont_family_cache, Qnil);
 }

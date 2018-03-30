@@ -6451,12 +6451,9 @@ syms_of_xfaces (void)
   /* The name of the function used to compute colors on TTYs.  */
   DEFSYM (Qtty_color_alist, "tty-color-alist");
 
-  Vparam_value_alist = list1 (Fcons (Qnil, Qnil));
-  staticpro (&Vparam_value_alist);
-  Vface_alternative_font_family_alist = Qnil;
-  staticpro (&Vface_alternative_font_family_alist);
-  Vface_alternative_font_registry_alist = Qnil;
-  staticpro (&Vface_alternative_font_registry_alist);
+  staticpro (&Vparam_value_alist, list1 (Fcons (Qnil, Qnil)));
+  staticpro (&Vface_alternative_font_family_alist, Qnil);
+  staticpro (&Vface_alternative_font_registry_alist, Qnil);
 
   defsubr (&Sinternal_make_lisp_face);
   defsubr (&Sinternal_lisp_face_p);

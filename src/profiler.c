@@ -595,16 +595,14 @@ to make room for new entries.  */);
 
 #ifdef PROFILER_CPU_SUPPORT
   profiler_cpu_running = NOT_RUNNING;
-  cpu_log = Qnil;
-  staticpro (&cpu_log);
+  staticpro (&cpu_log, Qnil);
   defsubr (&Sprofiler_cpu_start);
   defsubr (&Sprofiler_cpu_stop);
   defsubr (&Sprofiler_cpu_running_p);
   defsubr (&Sprofiler_cpu_log);
 #endif
   profiler_memory_running = false;
-  memory_log = Qnil;
-  staticpro (&memory_log);
+  staticpro (&memory_log, Qnil);
   defsubr (&Sprofiler_memory_start);
   defsubr (&Sprofiler_memory_stop);
   defsubr (&Sprofiler_memory_running_p);

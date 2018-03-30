@@ -4107,13 +4107,10 @@ alist of active lexical bindings.  */);
      (Just imagine if someone makes it buffer-local).  */
   Funintern (Qinternal_interpreter_environment, Qnil);
 
-  Vrun_hooks = intern_c_string ("run-hooks");
-  staticpro (&Vrun_hooks);
+  staticpro (&Vrun_hooks, intern_c_string ("run-hooks"));
 
-  staticpro (&Vautoload_queue);
-  Vautoload_queue = Qnil;
-  staticpro (&Vsignaling_function);
-  Vsignaling_function = Qnil;
+  staticpro (&Vautoload_queue, Qnil);
+  staticpro (&Vsignaling_function, Qnil);
 
   inhibit_lisp_code = Qnil;
 

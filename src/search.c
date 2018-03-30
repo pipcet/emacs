@@ -3367,12 +3367,9 @@ syms_of_search (void)
       searchbufs[i].buf.allocated = 100;
       searchbufs[i].buf.buffer = xmalloc (100);
       searchbufs[i].buf.fastmap = searchbufs[i].fastmap;
-      searchbufs[i].regexp = Qnil;
-      searchbufs[i].f_whitespace_regexp = Qnil;
-      searchbufs[i].syntax_table = Qnil;
-      staticpro (&searchbufs[i].regexp);
-      staticpro (&searchbufs[i].f_whitespace_regexp);
-      staticpro (&searchbufs[i].syntax_table);
+      staticpro (&searchbufs[i].regexp, Qnil);
+      staticpro (&searchbufs[i].f_whitespace_regexp, Qnil);
+      staticpro (&searchbufs[i].syntax_table, Qnil);
       searchbufs[i].next = (i == REGEXP_CACHE_SIZE-1 ? 0 : &searchbufs[i+1]);
     }
   searchbuf_head = &searchbufs[0];
@@ -3403,11 +3400,9 @@ syms_of_search (void)
   Fput (Qinvalid_regexp, Qerror_message,
 	build_pure_c_string ("Invalid regexp"));
 
-  last_thing_searched = Qnil;
-  staticpro (&last_thing_searched);
+  staticpro (&last_thing_searched, Qnil);
 
-  saved_last_thing_searched = Qnil;
-  staticpro (&saved_last_thing_searched);
+  staticpro (&saved_last_thing_searched, Qnil);
 
   DEFVAR_LISP ("search-spaces-regexp", Vsearch_spaces_regexp,
       doc: /* Regexp to substitute for bunches of spaces in regexp search.

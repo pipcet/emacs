@@ -10818,20 +10818,15 @@ init_coding_once (void)
 void
 syms_of_coding (void)
 {
-  staticpro (&Vcoding_system_hash_table);
-  Vcoding_system_hash_table = CALLN (Fmake_hash_table, QCtest, Qeq);
+  staticpro (&Vcoding_system_hash_table, CALLN (Fmake_hash_table, QCtest, Qeq));
 
-  staticpro (&Vsjis_coding_system);
-  Vsjis_coding_system = Qnil;
+  staticpro (&Vsjis_coding_system, Qnil);
 
-  staticpro (&Vbig5_coding_system);
-  Vbig5_coding_system = Qnil;
+  staticpro (&Vbig5_coding_system, Qnil);
 
-  staticpro (&Vcode_conversion_reused_workbuf);
-  Vcode_conversion_reused_workbuf = Qnil;
+  staticpro (&Vcode_conversion_reused_workbuf, Qnil);
 
-  staticpro (&Vcode_conversion_workbuf_name);
-  Vcode_conversion_workbuf_name = build_pure_c_string (" *code-conversion-work*");
+  staticpro (&Vcode_conversion_workbuf_name, build_pure_c_string (" *code-conversion-work*"));
 
   reused_workbuf_in_use = 0;
 
@@ -10914,9 +10909,7 @@ syms_of_coding (void)
   DEFSYM (QCpre_write_conversion, ":pre-write-conversion");
   DEFSYM (QCascii_compatible_p, ":ascii-compatible-p");
 
-  Vcoding_category_table
-    = Fmake_vector (make_number (coding_category_max), Qnil);
-  staticpro (&Vcoding_category_table);
+  staticpro (&Vcoding_category_table, Fmake_vector (make_number (coding_category_max), Qnil));
   /* Followings are target of code detection.  */
   ASET (Vcoding_category_table, coding_category_iso_7,
 	intern_c_string ("coding-category-iso-7"));
@@ -11352,10 +11345,9 @@ internal character representation.  */);
     Fset (AREF (Vcoding_category_table, i), Qno_conversion);
 
 #if defined (DOS_NT)
-  system_eol_type = Qdos;
+  staticpro (&system_eol_type, Qdos);
 #else
-  system_eol_type = Qunix;
+  staticpro (&system_eol_type, Qunix);
 #endif
-  staticpro (&system_eol_type);
 }
 #endif /* emacs */

@@ -2680,7 +2680,6 @@ libraries; only those already known by Emacs will be loaded.  */);
   Fput (intern_c_string ("dynamic-library-alist"), Qrisky_local_variable, Qt);
 
 #ifdef WINDOWSNT
-  Vlibrary_cache = Qnil;
-  staticpro (&Vlibrary_cache);
+  staticpro (&Vlibrary_cache, Qnil);
 #endif
 }

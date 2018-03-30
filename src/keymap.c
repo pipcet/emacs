@@ -3599,10 +3599,8 @@ void
 syms_of_keymap (void)
 {
   DEFSYM (Qkeymap, "keymap");
-  staticpro (&apropos_predicate);
-  staticpro (&apropos_accumulate);
-  apropos_predicate = Qnil;
-  apropos_accumulate = Qnil;
+  staticpro (&apropos_predicate, Qnil);
+  staticpro (&apropos_accumulate, Qnil);
 
   DEFSYM (Qkeymap_canonicalize, "keymap-canonicalize");
 
@@ -3614,12 +3612,9 @@ syms_of_keymap (void)
      Each one is the value of a Lisp variable, and is also
      pointed to by a C variable */
 
-  global_map = Fmake_keymap (Qnil);
+  staticpro (&global_map, Fmake_keymap (Qnil));
+  staticpro (&current_global_map, global_map);
   Fset (intern_c_string ("global-map"), global_map);
-
-  current_global_map = global_map;
-  staticpro (&global_map);
-  staticpro (&current_global_map);
 
   meta_map = Fmake_keymap (Qnil);
   Fset (intern_c_string ("esc-map"), meta_map);
@@ -3629,13 +3624,13 @@ syms_of_keymap (void)
   Fset (intern_c_string ("ctl-x-map"), control_x_map);
   Ffset (intern_c_string ("Control-X-prefix"), control_x_map);
 
-  exclude_keys = listn (CONSTYPE_PURE, 5,
-			pure_cons (build_pure_c_string ("DEL"), build_pure_c_string ("\\d")),
-			pure_cons (build_pure_c_string ("TAB"), build_pure_c_string ("\\t")),
-			pure_cons (build_pure_c_string ("RET"), build_pure_c_string ("\\r")),
-			pure_cons (build_pure_c_string ("ESC"), build_pure_c_string ("\\e")),
-			pure_cons (build_pure_c_string ("SPC"), build_pure_c_string (" ")));
-  staticpro (&exclude_keys);
+  staticpro (&exclude_keys,
+             listn (CONSTYPE_PURE, 5,
+                    pure_cons (build_pure_c_string ("DEL"), build_pure_c_string ("\\d")),
+                    pure_cons (build_pure_c_string ("TAB"), build_pure_c_string ("\\t")),
+                    pure_cons (build_pure_c_string ("RET"), build_pure_c_string ("\\r")),
+                    pure_cons (build_pure_c_string ("ESC"), build_pure_c_string ("\\e")),
+                    pure_cons (build_pure_c_string ("SPC"), build_pure_c_string (" "))));
 
   DEFVAR_LISP ("define-key-rebound-commands", Vdefine_key_rebound_commands,
 	       doc: /* List of commands given new key bindings recently.
@@ -3689,17 +3684,16 @@ be preferred.  */);
   DEFSYM (Qmenu_bar, "menu-bar");
   DEFSYM (Qmode_line, "mode-line");
 
-  staticpro (&Vmouse_events);
-  Vmouse_events = listn (CONSTYPE_PURE, 9,
-			 Qmenu_bar,
-			 Qtool_bar,
-			 Qheader_line,
-			 Qmode_line,
-			 intern_c_string ("mouse-1"),
-			 intern_c_string ("mouse-2"),
-			 intern_c_string ("mouse-3"),
-			 intern_c_string ("mouse-4"),
-			 intern_c_string ("mouse-5"));
+  staticpro (&Vmouse_events, listn (CONSTYPE_PURE, 9,
+                                    Qmenu_bar,
+                                    Qtool_bar,
+                                    Qheader_line,
+                                    Qmode_line,
+                                    intern_c_string ("mouse-1"),
+                                    intern_c_string ("mouse-2"),
+                                    intern_c_string ("mouse-3"),
+                                    intern_c_string ("mouse-4"),
+                                    intern_c_string ("mouse-5")));
 
   /* Keymap used for minibuffers when doing completion.  */
   /* Keymap used for minibuffers when doing completion and require a match.  */
@@ -3709,13 +3703,11 @@ be preferred.  */);
   DEFSYM (Qremap, "remap");
   DEFSYM (QCadvertised_binding, ":advertised-binding");
 
-  command_remapping_vector = Fmake_vector (make_number (2), Qremap);
-  staticpro (&command_remapping_vector);
+  staticpro (&command_remapping_vector,
+             Fmake_vector (make_number (2), Qremap));
 
-  where_is_cache_keymaps = Qt;
-  where_is_cache = Qnil;
-  staticpro (&where_is_cache);
-  staticpro (&where_is_cache_keymaps);
+  staticpro (&where_is_cache, Qnil);
+  staticpro (&where_is_cache_keymaps, Qt);
 
   defsubr (&Skeymapp);
   defsubr (&Skeymap_parent);

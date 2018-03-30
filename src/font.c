@@ -5307,8 +5307,7 @@ syms_of_font (void)
   sort_shift_bits[FONT_WIDTH_INDEX] = 23;
   /* Note that the other elements in sort_shift_bits are not used.  */
 
-  staticpro (&font_charset_alist);
-  font_charset_alist = Qnil;
+  staticpro (&font_charset_alist, Qnil);
 
   DEFSYM (Qopentype, "opentype");
 
@@ -5346,13 +5345,10 @@ syms_of_font (void)
 
   DEFSYM (QCuser_spec, ":user-spec");
 
-  staticpro (&scratch_font_spec);
-  scratch_font_spec = Ffont_spec (0, NULL);
-  staticpro (&scratch_font_prefer);
-  scratch_font_prefer = Ffont_spec (0, NULL);
+  staticpro (&scratch_font_spec, Ffont_spec (0, NULL));
+  staticpro (&scratch_font_prefer, Ffont_spec (0, NULL));
 
-  staticpro (&Vfont_log_deferred);
-  Vfont_log_deferred = Fmake_vector (make_number (3), Qnil);
+  staticpro (&Vfont_log_deferred, Fmake_vector (make_number (3), Qnil));
 
 #if 0
 #ifdef HAVE_LIBOTF
@@ -5447,8 +5443,7 @@ This variable cannot be set; trying to do so will signal an error.  */);
   Vfont_width_table = BUILD_STYLE_TABLE (width_table);
   make_symbol_constant (intern_c_string ("font-width-table"));
 
-  staticpro (&font_style_table);
-  font_style_table = make_uninit_vector (3);
+  staticpro (&font_style_table, make_uninit_vector (3));
   ASET (font_style_table, 0, Vfont_weight_table);
   ASET (font_style_table, 1, Vfont_slant_table);
   ASET (font_style_table, 2, Vfont_width_table);

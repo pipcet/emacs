@@ -6091,8 +6091,7 @@ annotation functions in `write-region-annotate-functions' changed the
 current buffer, the function stored in this variable is called for
 each of those additional buffers as well, in addition to the original
 buffer.  The relevant buffer is current during each function call.  */);
-  Vwrite_region_post_annotation_function = Qnil;
-  staticpro (&Vwrite_region_annotation_buffers);
+  staticpro (&Vwrite_region_annotation_buffers, Qnil);
 
   DEFVAR_LISP ("write-region-annotations-so-far",
 	       Vwrite_region_annotations_so_far,

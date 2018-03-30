@@ -10164,8 +10164,7 @@ syms_of_w32fns (void)
   Fput (Qundefined_color, Qerror_message,
 	build_pure_c_string ("Undefined color"));
 
-  staticpro (&w32_grabbed_keys);
-  w32_grabbed_keys = Qnil;
+  staticpro (&w32_grabbed_keys, Qnil);
 
   DEFVAR_LISP ("w32-color-map", Vw32_color_map,
 	       doc: /* An array of color name mappings for Windows.  */);
@@ -10515,16 +10514,11 @@ tip frame.  */);
   defsubr (&Sset_message_beep);
   defsubr (&Sx_show_tip);
   defsubr (&Sx_hide_tip);
-  tip_timer = Qnil;
-  staticpro (&tip_timer);
-  tip_frame = Qnil;
-  staticpro (&tip_frame);
-  tip_last_frame = Qnil;
-  staticpro (&tip_last_frame);
-  tip_last_string = Qnil;
-  staticpro (&tip_last_string);
-  tip_last_parms = Qnil;
-  staticpro (&tip_last_parms);
+  staticpro (&tip_timer, Qnil);
+  staticpro (&tip_frame, Qnil);
+  staticpro (&tip_last_frame, Qnil);
+  staticpro (&tip_last_string, Qnil);
+  staticpro (&tip_last_parms, Qnil);
 
   defsubr (&Sx_file_dialog);
 #ifdef WINDOWSNT

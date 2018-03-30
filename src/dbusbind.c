@@ -1824,8 +1824,7 @@ be called when the D-Bus reply message arrives.  */);
 #endif
 
   /* Initialize internal objects.  */
-  xd_registered_buses = Qnil;
-  staticpro (&xd_registered_buses);
+  staticpro (&xd_registered_buses, Qnil);
 
   Fprovide (intern_c_string ("dbusbind"), Qnil);
 

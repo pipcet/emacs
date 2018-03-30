@@ -430,8 +430,7 @@ syms_of_undo (void)
   /* Marker for function call undo list elements.  */
   DEFSYM (Qapply, "apply");
 
-  pending_boundary = Qnil;
-  staticpro (&pending_boundary);
+  staticpro (&pending_boundary, Qnil);
 
   defsubr (&Sundo_boundary);
 

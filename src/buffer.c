@@ -5441,12 +5441,11 @@ defvar_per_buffer (struct Lisp_Buffer_Objfwd *bo_fwd, const char *namestring,
 void
 syms_of_buffer (void)
 {
-  staticpro (&last_overlay_modification_hooks);
-  last_overlay_modification_hooks
-    = Fmake_vector (make_number (10), Qnil);
+  staticpro (&last_overlay_modification_hooks,
+             Fmake_vector (make_number (10), Qnil));
 
-  staticpro (&QSFundamental);
-  staticpro (&Vbuffer_alist);
+  staticpro (&QSFundamental, Qnil);
+  staticpro (&Vbuffer_alist, Qnil);
 
   DEFSYM (Qchoice, "choice");
   DEFSYM (Qleft, "left");

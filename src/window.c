@@ -7566,10 +7566,8 @@ syms_of_window (void)
   DEFSYM (Qmode_line_format, "mode-line-format");
   DEFSYM (Qheader_line_format, "header-line-format");
 
-  staticpro (&Vwindow_list);
-
-  minibuf_selected_window = Qnil;
-  staticpro (&minibuf_selected_window);
+  staticpro (&Vwindow_list, Qnil);
+  staticpro (&minibuf_selected_window, Qnil);
 
   window_scroll_pixel_based_preserve_x = -1;
   window_scroll_pixel_based_preserve_y = -1;

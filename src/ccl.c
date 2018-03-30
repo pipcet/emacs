@@ -2274,8 +2274,7 @@ Return index number of the registered map.  */)
 void
 syms_of_ccl (void)
 {
-  staticpro (&Vccl_program_table);
-  Vccl_program_table = Fmake_vector (make_number (32), Qnil);
+  staticpro (&Vccl_program_table, Fmake_vector (make_number (32), Qnil));
 
   DEFSYM (Qccl, "ccl");
   DEFSYM (Qcclp, "cclp");

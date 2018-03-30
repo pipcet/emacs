@@ -3826,7 +3826,7 @@ in the strings.  So do NOT use this option when comparing file names
 for equality, only when you need to sort them.  */);
   Vw32_collate_ignore_punctuation = Qnil;
 
-  staticpro (&Vw32_valid_locale_ids);
-  staticpro (&Vw32_valid_codepages);
+  staticpro (&Vw32_valid_locale_ids, Qnil);
+  staticpro (&Vw32_valid_codepages, Qnil);
 }
 /* end of w32proc.c */

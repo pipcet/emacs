@@ -6227,8 +6227,7 @@ syms_of_display (void)
   defsubr (&Sdump_redisplay_history);
 #endif
 
-  frame_and_buffer_state = Fmake_vector (make_number (20), Qlambda);
-  staticpro (&frame_and_buffer_state);
+  staticpro (&frame_and_buffer_state, Fmake_vector (make_number (20), Qlambda));
 
   /* This is the "purpose" slot of a display table.  */
   DEFSYM (Qdisplay_table, "display-table");

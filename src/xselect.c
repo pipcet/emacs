@@ -2633,15 +2633,13 @@ syms_of_xselect (void)
   defsubr (&Sx_send_client_message);
   defsubr (&Sx_register_dnd_atom);
 
-  reading_selection_reply = Fcons (Qnil, Qnil);
-  staticpro (&reading_selection_reply);
+  staticpro (&reading_selection_reply, Fcons (Qnil, Qnil));
   reading_selection_window = 0;
   reading_which_selection = 0;
 
   property_change_wait_list = 0;
   prop_location_identifier = 0;
-  property_change_reply = Fcons (Qnil, Qnil);
-  staticpro (&property_change_reply);
+  staticpro (&property_change_reply, Fcons (Qnil, Qnil));
 
   converted_selections = NULL;
   conversion_fail_tag = None;

@@ -2735,16 +2735,13 @@ syms_of_ftfont (void)
   DEFSYM (Qsans, "sans");
   DEFSYM (Qsans__serif, "sans serif");
 
-  staticpro (&freetype_font_cache);
-  freetype_font_cache = list1 (Qt);
+  staticpro (&freetype_font_cache, list1 (Qt));
 
-  staticpro (&ftfont_generic_family_list);
-  ftfont_generic_family_list = list3 (Fcons (Qmonospace, Qt),
-				      Fcons (Qsans_serif, Qt),
-				      Fcons (Qsans, Qt));
+  staticpro (&ftfont_generic_family_list, list3 (Fcons (Qmonospace, Qt),
+                                                 Fcons (Qsans_serif, Qt),
+                                                 Fcons (Qsans, Qt)));
 
-  staticpro (&ft_face_cache);
-  ft_face_cache = Qnil;
+  staticpro (&ft_face_cache, Qnil);
 
   register_font_driver (&ftfont_driver, NULL);
 }

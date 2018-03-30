@@ -1074,8 +1074,7 @@ syms_of_threads (void)
       defsubr (&Scondition_name);
       defsubr (&Sthread_last_error);
 
-      staticpro (&last_thread_error);
-      last_thread_error = Qnil;
+      staticpro (&last_thread_error, Qnil);
     }
 
   DEFSYM (Qthreadp, "threadp");

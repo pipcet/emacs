@@ -11051,11 +11051,9 @@ static const struct event_head head_table[] = {
 void
 syms_of_keyboard (void)
 {
-  pending_funcalls = Qnil;
-  staticpro (&pending_funcalls);
+  staticpro (&pending_funcalls, Qnil);
 
-  Vlispy_mouse_stem = build_pure_c_string ("mouse");
-  staticpro (&Vlispy_mouse_stem);
+  staticpro (&Vlispy_mouse_stem, build_pure_c_string ("mouse"));
 
   regular_top_level_message = build_pure_c_string ("Back to top level");
 #ifdef HAVE_STACK_OVERFLOW_HANDLING
@@ -11071,13 +11069,10 @@ syms_of_keyboard (void)
   DEFSYM (Qhelp_echo, "help-echo");
   DEFSYM (QCrtl, ":rtl");
 
-  staticpro (&item_properties);
-  item_properties = Qnil;
+  staticpro (&item_properties, Qnil);
 
-  staticpro (&tool_bar_item_properties);
-  tool_bar_item_properties = Qnil;
-  staticpro (&tool_bar_items_vector);
-  tool_bar_items_vector = Qnil;
+  staticpro (&tool_bar_item_properties, Qnil);
+  staticpro (&tool_bar_items_vector, Qnil);
 
   DEFSYM (Qtimer_event_handler, "timer-event-handler");
 
@@ -11242,65 +11237,48 @@ syms_of_keyboard (void)
       }
   }
 
-  button_down_location = Fmake_vector (make_number (5), Qnil);
-  staticpro (&button_down_location);
-  mouse_syms = Fmake_vector (make_number (5), Qnil);
-  staticpro (&mouse_syms);
-  wheel_syms = Fmake_vector (make_number (ARRAYELTS (lispy_wheel_names)),
-			     Qnil);
-  staticpro (&wheel_syms);
+  staticpro (&button_down_location, Fmake_vector (make_number (5), Qnil));
+  staticpro (&mouse_syms, Fmake_vector (make_number (5), Qnil));
+  staticpro (&wheel_syms, Fmake_vector (make_number (ARRAYELTS (lispy_wheel_names)),
+                                        Qnil));
 
   {
     int i;
     int len = ARRAYELTS (modifier_names);
 
-    modifier_symbols = Fmake_vector (make_number (len), Qnil);
+    staticpro (&modifier_symbols, Fmake_vector (make_number (len), Qnil));
     for (i = 0; i < len; i++)
       if (modifier_names[i])
 	ASET (modifier_symbols, i, intern_c_string (modifier_names[i]));
-    staticpro (&modifier_symbols);
   }
 
-  recent_keys = Fmake_vector (make_number (NUM_RECENT_KEYS), Qnil);
-  staticpro (&recent_keys);
+  staticpro (&recent_keys, Fmake_vector (make_number (NUM_RECENT_KEYS), Qnil));
 
-  this_command_keys = Fmake_vector (make_number (40), Qnil);
-  staticpro (&this_command_keys);
+  staticpro (&this_command_keys, Fmake_vector (make_number (40), Qnil));
 
-  raw_keybuf = Fmake_vector (make_number (30), Qnil);
-  staticpro (&raw_keybuf);
+  staticpro (&raw_keybuf, Fmake_vector (make_number (30), Qnil));
 
   DEFSYM (Qcommand_execute, "command-execute");
   DEFSYM (Qinternal_echo_keystrokes_prefix, "internal-echo-keystrokes-prefix");
 
-  accent_key_syms = Qnil;
-  staticpro (&accent_key_syms);
+  staticpro (&accent_key_syms, Qnil);
 
-  func_key_syms = Qnil;
-  staticpro (&func_key_syms);
+  staticpro (&func_key_syms, Qnil);
 
-  drag_n_drop_syms = Qnil;
-  staticpro (&drag_n_drop_syms);
+  staticpro (&drag_n_drop_syms, Qnil);
 
-  unread_switch_frame = Qnil;
-  staticpro (&unread_switch_frame);
+  staticpro (&unread_switch_frame, Qnil);
 
-  internal_last_event_frame = Qnil;
-  staticpro (&internal_last_event_frame);
+  staticpro (&internal_last_event_frame, Qnil);
 
-  read_key_sequence_cmd = Qnil;
-  staticpro (&read_key_sequence_cmd);
-  read_key_sequence_remapped = Qnil;
-  staticpro (&read_key_sequence_remapped);
+  staticpro (&read_key_sequence_cmd, Qnil);
+  staticpro (&read_key_sequence_remapped, Qnil);
 
-  menu_bar_one_keymap_changed_items = Qnil;
-  staticpro (&menu_bar_one_keymap_changed_items);
+  staticpro (&menu_bar_one_keymap_changed_items, Qnil);
 
-  menu_bar_items_vector = Qnil;
-  staticpro (&menu_bar_items_vector);
+  staticpro (&menu_bar_items_vector, Qnil);
 
-  help_form_saved_window_configs = Qnil;
-  staticpro (&help_form_saved_window_configs);
+  staticpro (&help_form_saved_window_configs, Qnil);
 
   defsubr (&Scurrent_idle_time);
   defsubr (&Sevent_symbol_parse_modifiers);
