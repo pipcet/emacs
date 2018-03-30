@@ -7927,16 +7927,11 @@ When using Gtk+ tooltips, the tooltip face is not used.  */);
   defsubr (&Sx_show_tip);
   defsubr (&Sx_hide_tip);
   defsubr (&Sx_double_buffered_p);
-  tip_timer = Qnil;
-  staticpro (&tip_timer);
-  tip_frame = Qnil;
-  staticpro (&tip_frame);
-  tip_last_frame = Qnil;
-  staticpro (&tip_last_frame);
-  tip_last_string = Qnil;
-  staticpro (&tip_last_string);
-  tip_last_parms = Qnil;
-  staticpro (&tip_last_parms);
+  staticpro (&tip_timer, Qnil);
+  staticpro (&tip_frame, Qnil);
+  staticpro (&tip_last_frame, Qnil);
+  staticpro (&tip_last_string, Qnil);
+  staticpro (&tip_last_parms, Qnil);
 
   defsubr (&Sx_uses_old_gtk_dialog);
 #if defined (USE_MOTIF) || defined (USE_GTK)

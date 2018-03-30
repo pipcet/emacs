@@ -1097,9 +1097,8 @@ syms_of_xfont (void)
   xfont_driver.draw = xfont_draw;
   xfont_driver.check = xfont_check;
 
-  staticpro (&xfont_scripts_cache);
-  xfont_scripts_cache = CALLN (Fmake_hash_table, QCtest, Qequal);
-  staticpro (&xfont_scratch_props);
-  xfont_scratch_props = Fmake_vector (make_number (8), Qnil);
+  staticpro (&xfont_scripts_cache, CALLN (Fmake_hash_table, QCtest, Qequal));
+  staticpro (&xfont_scratch_props, Fmake_vector (make_number (8), Qnil));
+
   register_font_driver (&xfont_driver, NULL);
 }

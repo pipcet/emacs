@@ -2469,7 +2469,7 @@ priorities.  */);
   Vprint_charset_text_property = Qdefault;
 
   /* prin1_to_string_buffer initialized in init_buffer_once in buffer.c */
-  staticpro (&Vprin1_to_string_buffer);
+  staticpro (&Vprin1_to_string_buffer, Qnil);
 
   defsubr (&Sprin1);
   defsubr (&Sprin1_to_string);
@@ -2486,6 +2486,5 @@ priorities.  */);
   DEFSYM (Qprint_escape_nonascii, "print-escape-nonascii");
   DEFSYM (Qprint_escape_control_characters, "print-escape-control-characters");
 
-  print_prune_charset_plist = Qnil;
-  staticpro (&print_prune_charset_plist);
+  staticpro (&print_prune_charset_plist, Qnil);
 }

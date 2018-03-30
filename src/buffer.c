@@ -5455,12 +5455,11 @@ syms_of_buffer (void)
   ELisp_Value tem;
   XSETBUFFER (tem, &buffer_defaults);
   XSETBUFFER (tem, &buffer_local_symbols);
-  staticpro (&last_overlay_modification_hooks);
-  last_overlay_modification_hooks
-    = Fmake_vector (make_number (10), Qnil);
+  staticpro (&last_overlay_modification_hooks,
+             Fmake_vector (make_number (10), Qnil));
 
-  staticpro (&QSFundamental);
-  staticpro (&Vbuffer_alist);
+  staticpro (&QSFundamental, Qnil);
+  staticpro (&Vbuffer_alist, Qnil);
 
   DEFSYM (Qchoice, "choice");
   DEFSYM (Qleft, "left");

@@ -854,11 +854,9 @@ Its numeric meaning is what you would get from `(interactive "p")'.  */)
 void
 syms_of_callint (void)
 {
-  point_marker = Fmake_marker ();
-  staticpro (&point_marker);
+  staticpro (&point_marker, Fmake_marker ());
 
-  callint_message = Qnil;
-  staticpro (&callint_message);
+  staticpro (&callint_message, Qnil);
 
   preserved_fns = listn (CONSTYPE_PURE, 4,
 			 intern_c_string ("region-beginning"),

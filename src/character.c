@@ -1117,8 +1117,7 @@ syms_of_character (void)
   DEFSYM (Qcharacterp, "characterp");
   DEFSYM (Qauto_fill_chars, "auto-fill-chars");
 
-  staticpro (&Vchar_unify_table);
-  Vchar_unify_table = Qnil;
+  staticpro (&Vchar_unify_table, Qnil);
 
   defsubr (&Smax_char);
   defsubr (&Scharacterp);

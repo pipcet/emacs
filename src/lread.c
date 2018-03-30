@@ -4372,8 +4372,7 @@ void
 init_obarray (void)
 {
   Vobarray = Fmake_vector (make_number (OBARRAY_SIZE), make_number (0));
-  initial_obarray = Vobarray;
-  staticpro (&initial_obarray);
+  staticpro (&initial_obarray, Vobarray);
 
   for (int i = 0; i < ARRAYELTS (lispsym); i++)
     {
@@ -4475,7 +4474,7 @@ defvar_lisp (struct Lisp_Objfwd *o_fwd,
 	     const char *namestring, Lisp_Object *address)
 {
   defvar_lisp_nopro (o_fwd, namestring, address);
-  staticpro (address);
+  staticpro (address, Qnil);
 }
 
 /* Similar but define a variable whose value is the Lisp Object stored
@@ -5121,13 +5120,10 @@ this variable will become obsolete.  */);
   DEFSYM (Qdir_ok, "dir-ok");
   DEFSYM (Qdo_after_load_evaluation, "do-after-load-evaluation");
 
-  staticpro (&read_objects_map);
-  read_objects_map = Qnil;
-  staticpro (&read_objects_completed);
-  read_objects_completed = Qnil;
+  staticpro (&read_objects_map, Qnil);
+  staticpro (&read_objects_completed, Qnil);
 
-  Vloads_in_progress = Qnil;
-  staticpro (&Vloads_in_progress);
+  staticpro (&Vloads_in_progress, Qnil);
 
   DEFSYM (Qhash_table, "hash-table");
   DEFSYM (Qdata, "data");

@@ -5210,11 +5210,9 @@ compilation.  */);
   Voverriding_plist_environment = Qnil;
   DEFSYM (Qoverriding_plist_environment, "overriding-plist-environment");
 
-  staticpro (&string_char_byte_cache_string);
-  string_char_byte_cache_string = Qnil;
+  staticpro (&string_char_byte_cache_string, Qnil);
 
-  require_nesting_list = Qnil;
-  staticpro (&require_nesting_list);
+  staticpro (&require_nesting_list, Qnil);
 
   Fset (Qyes_or_no_p_history, Qnil);
 

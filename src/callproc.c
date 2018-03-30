@@ -1653,15 +1653,13 @@ void
 syms_of_callproc (void)
 {
 #ifndef DOS_NT
-  Vtemp_file_name_pattern = build_string ("emacsXXXXXX");
+  staticpro (&Vtemp_file_name_pattern, build_string ("emacsXXXXXX"));
 #else  /* DOS_NT */
-  Vtemp_file_name_pattern = build_string ("emXXXXXX");
+  staticpro (&Vtemp_file_name_pattern, build_string ("emXXXXXX"));
 #endif
-  staticpro (&Vtemp_file_name_pattern);
 
 #ifdef MSDOS
-  synch_process_tempfile = make_number (0);
-  staticpro (&synch_process_tempfile);
+  staticpro (&synch_process_tempfile, make_number (0));
 #endif
 
   DEFVAR_LISP ("shell-file-name", Vshell_file_name,

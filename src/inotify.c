@@ -549,7 +549,7 @@ syms_of_inotify (void)
   defsubr (&Sinotify_watch_list);
   defsubr (&Sinotify_allocated_p);
 #endif
-  staticpro (&watch_list);
+  staticpro (&watch_list, Qnil);
 
   Fprovide (intern_c_string ("inotify"), Qnil);
 }

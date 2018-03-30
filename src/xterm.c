@@ -11585,7 +11585,8 @@ x_make_frame_visible (struct frame *f)
     poll_for_input_1 ();
     poll_suppress_count = old_poll_suppress_count;
 #endif
-    x_wait_for_event (f, MapNotify);
+    if (! FRAME_VISIBLE_P (f))
+      x_wait_for_event (f, MapNotify);
   }
 }
 
@@ -13290,8 +13291,7 @@ syms_of_xterm (void)
   DEFSYM (Qlatin_1, "latin-1");
 
 #ifdef USE_GTK
-  xg_default_icon_file = build_pure_c_string ("icons/hicolor/scalable/apps/emacs.svg");
-  staticpro (&xg_default_icon_file);
+  staticpro (&xg_default_icon_file, build_pure_c_string ("icons/hicolor/scalable/apps/emacs.svg"));
 
   DEFSYM (Qx_gtk_map_stock, "x-gtk-map-stock");
 #endif

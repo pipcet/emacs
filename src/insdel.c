@@ -2328,10 +2328,8 @@ DEFUN ("combine-after-change-execute", Fcombine_after_change_execute,
 void
 syms_of_insdel (void)
 {
-  staticpro (&combine_after_change_list);
-  staticpro (&combine_after_change_buffer);
-  combine_after_change_list = Qnil;
-  combine_after_change_buffer = Qnil;
+  staticpro (&combine_after_change_list, Qnil);
+  staticpro (&combine_after_change_buffer, Qnil);
 
   DEFSYM (Qundo_auto__undoable_change, "undo-auto--undoable-change");
 

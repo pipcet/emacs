@@ -1908,19 +1908,15 @@ syms_of_composite (void)
      and thus it's not worth to save memory in such a way.  So, we
      make the table not weak.  */
   Lisp_Object args[] = {QCtest, Qequal, QCsize, make_number (311)};
-  composition_hash_table = CALLMANY (Fmake_hash_table, args);
-  staticpro (&composition_hash_table);
+  staticpro (&composition_hash_table, CALLMANY (Fmake_hash_table, args));
 
   /* Make a hash table for glyph-string.  */
-  gstring_hash_table = CALLMANY (Fmake_hash_table, args);
-  staticpro (&gstring_hash_table);
+  staticpro (&gstring_hash_table, CALLMANY (Fmake_hash_table, args));
 
-  staticpro (&gstring_work_headers);
-  gstring_work_headers = make_uninit_vector (8);
+  staticpro (&gstring_work_headers, make_uninit_vector (8));
   for (i = 0; i < 8; i++)
     ASET (gstring_work_headers, i, Fmake_vector (make_number (i + 2), Qnil));
-  staticpro (&gstring_work);
-  gstring_work = Fmake_vector (make_number (10), Qnil);
+  staticpro (&gstring_work, Fmake_vector (make_number (10), Qnil));
 
   /* Text property `composition' should be nonsticky by default.  */
   Vtext_property_default_nonsticky

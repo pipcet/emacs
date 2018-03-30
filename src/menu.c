@@ -1580,8 +1580,7 @@ for instance using the window manager, then this produces a quit and
 void
 syms_of_menu (void)
 {
-  staticpro (&menu_items);
-  menu_items = Qnil;
+  staticpro (&menu_items, Qnil);
   menu_items_inuse = Qnil;
 
   defsubr (&Sx_popup_menu);

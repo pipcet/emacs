@@ -527,7 +527,7 @@ syms_of_kqueue (void)
   DEFSYM (Qlink, "link");	/* NOTE_LINK  */
   DEFSYM (Qrename, "rename");	/* NOTE_RENAME  */
 
-  staticpro (&watch_list);
+  staticpro (&watch_list, Qnil);
 
   Fprovide (intern_c_string ("kqueue"), Qnil);
 }

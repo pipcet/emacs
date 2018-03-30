@@ -3722,15 +3722,15 @@ syms_of_syntax (void)
 	       doc: /* Non-nil means `forward-comment' can use `syntax-ppss' internally.  */);
   Vcomment_use_syntax_ppss = Qt;
 
-  staticpro (&Vsyntax_code_object);
+  staticpro (&Vsyntax_code_object, Qnil);
 
-  staticpro (&gl_state.object);
-  staticpro (&gl_state.global_code);
-  staticpro (&gl_state.current_syntax_table);
-  staticpro (&gl_state.old_prop);
+  staticpro (&gl_state.object, Qnil);
+  staticpro (&gl_state.global_code, Qnil);
+  staticpro (&gl_state.current_syntax_table, Qnil);
+  staticpro (&gl_state.old_prop, Qnil);
 
   /* Defined in regex.c.  */
-  staticpro (&re_match_object);
+  staticpro (&re_match_object, Qnil);
 
   DEFSYM (Qscan_error, "scan-error");
   Fput (Qscan_error, Qerror_conditions,

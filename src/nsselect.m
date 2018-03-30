@@ -492,8 +492,7 @@ syms_of_nsselect (void)
   defsubr (&Sns_selection_exists_p);
   defsubr (&Sns_selection_owner_p);
 
-  Vselection_alist = Qnil;
-  staticpro (&Vselection_alist);
+  staticpro (&Vselection_alist, Qnil);
 
   DEFVAR_LISP ("ns-sent-selection-hooks", Vns_sent_selection_hooks,
                "A list of functions to be called when Emacs answers a selection request.\n\

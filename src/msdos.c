@@ -4196,8 +4196,7 @@ msdos_fatal_signal (int sig)
 void
 syms_of_msdos (void)
 {
-  recent_doskeys = Fmake_vector (make_number (NUM_RECENT_DOSKEYS), Qnil);
-  staticpro (&recent_doskeys);
+  staticpro (&recent_doskeys, Fmake_vector (make_number (NUM_RECENT_DOSKEYS), Qnil));
 
 #ifndef HAVE_X_WINDOWS
 
