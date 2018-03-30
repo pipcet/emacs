@@ -4081,7 +4081,15 @@ extern ELisp_Heap_Value Vascii_canon_table;
 
 /* Call staticpro (&var) to protect static variable `var'.  */
 
-void staticpro (ELisp_Pointer);
+void staticpro_1 (ELisp_Pointer);
+
+INLINE void
+staticpro (ELisp_Pointer ptr, ELisp_Handle initial_value)
+{
+  ptr.set(initial_value);
+
+  staticpro_1 (ptr);
+}
 
 /* Forward declarations for prototypes.  */
 struct window;

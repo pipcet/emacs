@@ -2,6 +2,7 @@ pip@amygdala:~/build/20180325-sm-emacs-debug$ ar rvf ./mozglue/build/libmozglue.
 
 Build instructions:
 
+# ln -sf /path/to/js/build ../js
 # sh autogen.sh
 # ./configure CANNOT_DUMP=yes CC=g++ CFLAGS="-O3 -ggdb -g3 -fpermissive"
 edit lib/string.h, removing this section:
@@ -38,12 +39,13 @@ edit lib/string.h, removing this section:
 # mkdir lwlib/chunkl-cache
 # mkdir lib/chunkl-cache
 # touch -d 1970-01-01 src/js.c
+# touch lwlib/chunkl.all lib/chunkl.all
 # make -C lwlib lwlib-widget.h.hh
 # make -C lib minmax.h.hh diffseq.h.hh md5.h.hh sha1.h.hh sha256.h.hh sha512.h.hh u64.h.hh
 # make
 
   this will take much, much longer than usual, and produce many
-  warning messages.  It will ultimately fail, but will have built
+  warning messages.  It might ultimately fail, but will have built
   temacs by that point, hopefully.
 
 # export LD_LIBRARY_PATH=.../js/dist/bin/:$LD_LIBRARY_PATH

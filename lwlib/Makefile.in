@@ -98,9 +98,9 @@ ALL_CFLAGS= $(C_SWITCH_SYSTEM) $(C_SWITCH_X_SITE) \
 
 .SUFFIXES:
 %.c.cc: %.c
-	perl $(top_srcdir)/chunkl.pl $*.c < $< > $@
+	perl $(abs_top_srcdir)/chunkl.pl $*.c < $< > $@
 %.h.hh: %.h
-	perl $(top_srcdir)/chunkl.pl $*.h < $< > $@
+	perl $(abs_top_srcdir)/chunkl.pl $*.h < $< > $@
 %.o: %.c.cc
 	$(AM_V_CC)$(CC) -c $(CPPFLAGS) $(ALL_CFLAGS) $(PROFILING_CFLAGS) $< -o $@
 
