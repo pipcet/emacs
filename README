@@ -3,6 +3,7 @@ pip@amygdala:~/build/20180325-sm-emacs-debug$ ar rvf ./mozglue/build/libmozglue.
 Build instructions:
 
 # ln -sf /path/to/js/build ../js
+# (cd ../js; ar rvf ./mozglue/build/libmozglue.a memory/build/Unified_cpp_memory_build0.o memory/mozalloc/mozalloc_abort.o memory/mozalloc/Unified_cpp_memory_mozalloc0.o mozglue/misc/*.o mfbt/*.o)
 # sh autogen.sh
 # ./configure CANNOT_DUMP=yes CC=g++ CFLAGS="-O3 -ggdb -g3 -fpermissive"
 edit lib/string.h, removing this section:
