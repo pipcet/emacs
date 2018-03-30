@@ -1438,7 +1438,7 @@ the face font sort order.  */)
   Lisp_Object result;
   USE_SAFE_ALLOCA;
 
-  font_spec = Ffont_spec (LV (0, NULL));
+  font_spec = Ffont_spec (LV0);
   if (!NILP (family))
     {
       CHECK_STRING (family);
@@ -5508,7 +5508,7 @@ realize_x_face (struct face_cache *cache, Lisp_Object attrs[LFACE_VECTOR_SIZE])
 	}
       if (! FONT_OBJECT_P (attrs[LFACE_FONT_INDEX]))
 	attrs[LFACE_FONT_INDEX]
-	  = font_load_for_lface (f, attrs, Ffont_spec (LV (0, NULL)));
+	  = font_load_for_lface (f, attrs, Ffont_spec (LV0));
       if (FONT_OBJECT_P (attrs[LFACE_FONT_INDEX]))
 	{
 	  face->font = XFONT_OBJECT (attrs[LFACE_FONT_INDEX]);

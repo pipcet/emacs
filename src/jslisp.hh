@@ -3831,6 +3831,7 @@ enum maxargs
   };
 
 #define LV(n,v) ((struct ELisp_Vector){ (n), (v) })
+#define LV0 LV(0, (JSReturnValue *)0)
 
 /* Call a function F that accepts many args, passing it ARRAY's elements.  */
 #define CALLMANY(f, array) (f) (LV (ARRAYELTS (array), array))

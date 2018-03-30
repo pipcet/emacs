@@ -33155,11 +33155,11 @@ display table takes effect; in this case, Emacs does not consult
 
   DEFVAR_LISP ("redisplay--all-windows-cause", Vredisplay__all_windows_cause,
 	       doc: /*  */);
-  Vredisplay__all_windows_cause = Fmake_hash_table (LV (0, NULL));
+  Vredisplay__all_windows_cause = Fmake_hash_table (LV0);
 
   DEFVAR_LISP ("redisplay--mode-lines-cause", Vredisplay__mode_lines_cause,
 	       doc: /*  */);
-  Vredisplay__mode_lines_cause = Fmake_hash_table (LV (0, NULL));
+  Vredisplay__mode_lines_cause = Fmake_hash_table (LV0);
 
   DEFVAR_BOOL ("redisplay--inhibit-bidi", redisplay__inhibit_bidi,
      doc: /* Non-nil means it is not safe to attempt bidi reordering for display.  */);
