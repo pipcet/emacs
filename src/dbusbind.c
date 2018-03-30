@@ -935,8 +935,7 @@ xd_get_connection_references (DBusConnection *connection)
   /* We cannot access the DBusConnection structure, it is not public.
      But we know, that the reference counter is the first field in
      that structure.  */
-  refcount = (void *) &connection;
-  refcount =  (void *) *refcount;
+  refcount = (ptrdiff_t *) connection;
   return *refcount;
 }
 
