@@ -108,7 +108,7 @@ case_character_impl (struct casing_str_buf *buf,
 
   /* Update inword state */
   bool was_inword = ctx->inword;
-  ctx->inword = /* SYNTAX (ch) == Sword && */
+  ctx->inword = SYNTAX (ch) == Sword &&
     (!ctx->inbuffer || was_inword || !syntax_prefix_flag_p (ch));
 
   /* Normalize flag so its one of CASE_UP, CASE_DOWN or CASE_CAPITALIZE.  */
