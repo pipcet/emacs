@@ -651,10 +651,17 @@ elisp_vector_trace(JSTracer *trc, JSObject *obj);
 
 extern struct Lisp_Subr Sframe_windows_min_size;
 
+#define PRINT_CIRCLE 200
+extern ptrdiff_t print_depth;
+extern ELisp_Struct_Value being_printed[PRINT_CIRCLE];
+
 static void
 js_gc_trace(JSTracer* tracer, void* data)
 {
   fprintf(stderr, "that one's mine! And that one! And...\n");
+
+  for (ptrdiff_t i = 0; i < PRINT_CIRCLE; i++)
+    TraceEdge(tracer, &being_printed[i].v.v, "being_printed");
 
   // XXX: all subrs can be collected after they're redefined.  This
   // one actually is.  The same applies to builtin symbols, which
@@ -686,7 +693,7 @@ js_gc_trace(JSTracer* tracer, void* data)
     TraceEdge(tracer, &pdl->let.where.v.v, "where");
     TraceEdge(tracer, &pdl->let.symbol.v.v, "symbol");
     TraceEdge(tracer, &pdl->let.old_value.v.v, "old value");
-    TraceEdge(tracer, &pdl->let.saved_value.v.v, "where");
+    TraceEdge(tracer, &pdl->let.saved_value.v.v, "saved_value");
     ptrdiff_t nargs = pdl->bt.nargs;
     TraceEdge(tracer, &pdl->bt.function.v.v, "backtrace function");
   }
@@ -1528,6 +1535,9 @@ elisp_vector_finalize(JSFreeOp* cx, JSObject *obj)
   struct Lisp_Vector *s = JS_GetPrivate(obj);
   if (PSEUDOVECTOR_TYPEP((struct vectorlike_header *)s, PVEC_BUFFER))
     {
+      fprintf(stderr, "deleting buffer %p\n", s);
+      while (all_buffers == (struct buffer *)s)
+        all_buffers = ((struct buffer *)s)->next;
       for (struct buffer *b = all_buffers; b; b = b->next)
         if (b->next == (struct buffer *)s)
           b->next = ((struct buffer *)s)->next;

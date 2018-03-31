@@ -46,14 +46,14 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 struct terminal;
 
 /* Avoid actual stack overflow in print.  */
-static ptrdiff_t print_depth;
+ptrdiff_t print_depth;
 
 /* Level of nesting inside outputting backquote in new style.  */
 static ptrdiff_t new_backquote_output;
 
 /* Detect most circularities to print finite output.  */
 #define PRINT_CIRCLE 200
-static Lisp_Object being_printed[PRINT_CIRCLE];
+Lisp_Object being_printed[PRINT_CIRCLE];
 
 /* Last char printed to stdout by printchar.  */
 static unsigned int printchar_stdout_last;

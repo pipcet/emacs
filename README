@@ -36,10 +36,7 @@ edit lib/string.h, removing this section:
   # endif
   #endif
 
-# mkdir src/chunkl-cache
-# mkdir lwlib/chunkl-cache
-# mkdir lib/chunkl-cache
-# touch -d 1970-01-01 src/js.c
+# mkdir src/chunkl-cache lwlib/chunkl-cache lib/chunkl-cache
 # touch lwlib/chunkl.all lib/chunkl.all
 # make -C lwlib lwlib-widget.h.hh
 # make -C lib minmax.h.hh diffseq.h.hh md5.h.hh sha1.h.hh sha256.h.hh sha512.h.hh u64.h.hh

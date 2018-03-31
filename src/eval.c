@@ -3544,10 +3544,10 @@ specbind (Lisp_Object symbol, Lisp_Object value)
       /* The most common case is that of a non-constant symbol with a
 	 trivial value.  Make that as fast as we can.  */
       prepare_grow_specpdl ();
-      (specpdl_ptr)->kind = SPECPDL_LET;
-      (specpdl_ptr)->let.symbol = symbol;
-      (specpdl_ptr)->let.old_value = SYMBOL_VAL (sym);
-      (specpdl_ptr)->let.saved_value = Qnil;
+      specpdl_ptr->kind = SPECPDL_LET;
+      specpdl_ptr->let.symbol = symbol;
+      specpdl_ptr->let.old_value = SYMBOL_VAL (sym);
+      specpdl_ptr->let.saved_value = Qnil;
       grow_specpdl ();
       do_specbind (sym, specpdl_ptr - 1, value, SET_INTERNAL_BIND);
       break;
