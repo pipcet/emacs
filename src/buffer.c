@@ -5458,7 +5458,7 @@ syms_of_buffer (void)
   staticpro (&last_overlay_modification_hooks,
              Fmake_vector (make_number (10), Qnil));
 
-  staticpro (&QSFundamental, Qnil);
+  staticpro_1 (&QSFundamental);
   staticpro_1 (&Vbuffer_alist);
 
   DEFSYM (Qchoice, "choice");

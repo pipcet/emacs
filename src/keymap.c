@@ -3713,7 +3713,7 @@ be preferred.  */);
              Fmake_vector (make_number (2), Qremap));
 
   staticpro (&where_is_cache, Qnil);
-  staticpro (&where_is_cache_keymaps, Qt);
+  staticpro_1 (&where_is_cache_keymaps);
 
   defsubr (&Skeymapp);
   defsubr (&Skeymap_parent);

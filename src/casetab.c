@@ -247,10 +247,10 @@ init_casetab_once (void)
   DEFSYM (Qcase_table, "case-table");
   Fput (Qcase_table, Qchar_table_extra_slots, make_number (3));
 
-  staticpro (&Vascii_canon_table, Qnil);
-  staticpro (&Vascii_downcase_table, Qnil);
-  staticpro (&Vascii_eqv_table, Qnil);
-  staticpro (&Vascii_upcase_table, Qnil);
+  staticpro_1 (&Vascii_canon_table);
+  staticpro_1 (&Vascii_downcase_table);
+  staticpro_1 (&Vascii_eqv_table);
+  staticpro_1 (&Vascii_upcase_table);
 
   down = Fmake_char_table (Qcase_table, Qnil);
   Vascii_downcase_table = down;

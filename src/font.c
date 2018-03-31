@@ -5354,8 +5354,8 @@ syms_of_font (void)
 
   DEFSYM (QCuser_spec, ":user-spec");
 
-  staticpro (&scratch_font_spec, Ffont_spec (LV (0, NULL)));
-  staticpro (&scratch_font_prefer, Ffont_spec (LV (0, NULL)));
+  staticpro (&scratch_font_spec, Ffont_spec (LV0));
+  staticpro (&scratch_font_prefer, Ffont_spec (LV0));
   staticpro (&Vfont_log_deferred, Fmake_vector (make_number (3), Qnil));
 
 #if 0
