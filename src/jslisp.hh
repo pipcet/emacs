@@ -4087,6 +4087,9 @@ void staticpro_1 (ELisp_Pointer);
 INLINE void
 staticpro (ELisp_Pointer ptr, ELisp_Handle initial_value)
 {
+  ELisp_Value v; v = ptr.ref(0);
+  if (! v.v.v.isUndefined() && ! NILP (v))
+    while (1);
   ptr.set(initial_value);
 
   staticpro_1 (ptr);
