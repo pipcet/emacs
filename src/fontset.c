@@ -1491,7 +1491,7 @@ appended.  By default, FONT-SPEC overrides the previous settings.  */)
   fontname = Qnil;
   if (CONSP (font_spec))
     {
-      Lisp_Object spec = Ffont_spec (LV (0, NULL));
+      Lisp_Object spec = Ffont_spec (LV0);
 
       font_parse_family_registry (XCAR (font_spec), XCDR (font_spec), spec);
       font_spec = spec;
@@ -1692,7 +1692,7 @@ FONT-SPEC is a vector, a cons, or a string.  See the documentation of
   id = fs_query_fontset (name, 0);
   if (id < 0)
     {
-      Lisp_Object font_spec = Ffont_spec (LV (0, NULL));
+      Lisp_Object font_spec = Ffont_spec (LV0);
       Lisp_Object short_name;
       char xlfd[256];
       int len;
@@ -1784,7 +1784,7 @@ fontset_from_font (Lisp_Object font_object)
   alias = Fdowncase (AREF (font_object, FONT_NAME_INDEX));
   Vfontset_alias_alist = Fcons (Fcons (name, alias), Vfontset_alias_alist);
   auto_fontset_alist = Fcons (Fcons (font_spec, fontset), auto_fontset_alist);
-  font_spec = Ffont_spec (LV (0, NULL));
+  font_spec = Ffont_spec (LV0);
   ASET (font_spec, FONT_REGISTRY_INDEX, registry);
   {
     Lisp_Object target = find_font_encoding (SYMBOL_NAME (registry));

@@ -3030,7 +3030,7 @@ font_get_name (Lisp_Object font_object)
 Lisp_Object
 font_spec_from_name (Lisp_Object font_name)
 {
-  Lisp_Object spec = Ffont_spec (LV (0, NULL));
+  Lisp_Object spec = Ffont_spec (LV0);
 
   CHECK_STRING (font_name);
   if (font_parse_name (SSDATA (font_name), SBYTES (font_name), spec) == -1)
