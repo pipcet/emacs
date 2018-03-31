@@ -2712,7 +2712,10 @@ cleanup_vector (struct Lisp_Vector *vector)
 static struct Lisp_Vector *
 allocate_vectorlike (ptrdiff_t len)
 {
-  return (struct Lisp_Vector *)xzalloc(header_size + len * word_size);
+  if (len == 0)
+    return XVECTOR (zero_vector);
+  else
+    return (struct Lisp_Vector *)xzalloc(header_size + len * word_size);
 }
 
 
