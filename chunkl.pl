@@ -5,9 +5,821 @@ use strict;
 use Marpa::R2;
 use Data::Dumper;
 use Time::HiRes qw(time);
-# use Carp::Always;
+#use Carp::Always;
 
 package EmacsCGrammar;
+
+@EmacsCGrammar::types = qw(
+    void
+    bool
+    char
+    short
+    int
+    long
+
+    signed
+    unsigned
+
+    float
+    double
+
+    intptr_t
+    intmax_t
+    uintmax_t
+
+    unichar
+
+    CFRange
+    Lisp_Word
+    CGContextRef
+
+    Cursor
+
+    funcptr
+
+    widget_value
+
+    GLYPH
+
+    OFFSET
+    md5_ctx
+    u64
+    FILE
+
+    EMACS_INT
+    EMACS_UINT
+    INTERVAL
+    KBOARD
+
+    printmax_t
+    uprintmax_t
+
+    NativeRectangle
+
+    bidi_bracket_type_t
+    bidi_category_t
+    bidi_dir_t
+    bidi_type_t
+
+    map_keymap_function_t
+
+    jmp_buf
+
+    emacs_env
+    emacs_value
+    dynlib_function_ptr_nonce
+    dynlib_function_ptr
+    dynlib_handle_ptr
+    get_user_finalizer
+
+    gnutls_session_t
+    gnutls_rnd_t
+    xg_list_node
+
+    map_keymap_fuction_t
+    WidgetList
+
+    NSColor
+    NSSize
+    NSRect
+    NSPoint
+    NSUInteger
+    CGFloat
+    EmacsCGFloat
+
+    GCallback
+
+    xcb_query_tree_cookie_t
+    xcb_query_tree_reply_t
+    dbus_int64_t
+    dbus_uint64_t
+    xcb_translate_coordinates_cookie_t
+    TIFFErrorHandler
+    GError
+
+    XWMHints
+
+    gint
+    gboolean
+    boolean
+    StorageType
+    FcCharSet
+
+    CFIndex
+
+    cairo_t
+    cairo_status_t
+
+    xcb_get_geometry_cookie_t
+    xcb_get_property_cookie_t
+
+    XtTranslations
+
+    SmPropValue
+
+    Colormap
+
+    PropMotifWmHints
+
+    XdbeSwapInfo
+
+    Gpm_Event
+    Gpm_Conect
+
+    tty_menu
+
+    GdkGCValues
+    GdkGC
+    XFontSet
+    XIMStyle
+    XIM
+    XVaNestedList
+    XIC
+    XClassHint
+    XButtonEvent
+    XMotionEvent
+    XtActionHookId
+    XtPointer
+    GtkRange
+    GdkEventButton
+    Dimension
+    gpointer
+    LWLIB_ID
+    HPALETTE
+    Position
+    String
+    XrmName
+    mi_result
+    Cardinal
+    XrmValuePtr
+    SmProp
+    SmcCallbacks
+    uint32
+    dbus_uint32_t
+    dbus_int32_t
+    dbus_int16_t
+    dbus_uint16_t
+    ELisp_Dynvector
+    size_t
+    guchar
+    RsvgHandle
+    MagickRealType
+    DisposeType
+    ExceptionType
+    gif_memory_source
+    GifFileType
+    tiff_memory_source
+    TIFFReadWriteProc
+    j_common_ptr
+    JOCTET
+    png_uint_32
+    png_struct
+    GtkDialog
+    gnutls_datum_t
+    KEY_EVENT_RECORD
+    GdkCursor
+    cairo_matrix_t
+    GtkFileChooserAction
+    PangoStyle
+    XWindowAttributes
+    XtConvertArgRec
+    sigjmp_buf
+    GtkStockItem
+    Status
+    gnutls_alert_description_t
+    gnutls_aead_cipher_hd_t
+    gnutls_cipher_hd_t
+    gnutls_hmac_hd_t
+    gnutls_hash_hd_t
+    cmsCIExyY
+    thandle_t
+    tdata_t
+    toff_t
+    JSAMPARRAY
+    TIFF
+    j_decompress_ptr
+    compile_stack_type
+    fail_stack_type
+    XMappingEvent
+    GSList
+    WINDOWPLACEMENT
+    GtkOrientation
+    GDestroyNotify
+    XrmOptionDescRec
+    GLogLevelFlags
+    xpm_XImage
+    PixelWand
+    MagickBooleanType
+    MagickPixelPacket
+    RsvgDimensionData
+    GdkPixbuf
+    Pixmap
+    Widget
+    Mouse_HLInfo
+    GC
+    XGCValues
+    XEDataObject
+    XExtData
+    XColor
+    XSetWindowAttributes
+    Time
+    AppendMenuW_Proc
+    Display
+    KeySym
+    XPropertyEvent
+    Visual
+    Atom
+    XErrorEvent
+    XClientMessageEvent
+    XChar2b
+    Screen
+    gnutls_x509_crt_t
+    gnutls_mac_algorithm_t
+    gnutls_digest_algorithm_t
+    gnutls_initstage_t
+    NSMenu
+    CGFontRef
+    u_int32_t
+    timer_t
+    u_int16_t
+    uint64_t
+    snd_pcm_sw_params_t
+    snd_pcm_uframes_t
+    snd_lib_error_handler_t
+    MCIERROR
+    Pixel
+    xmlNode
+    cmsCIELab
+    cmsFloat64Number
+    cmsCIEXYZ
+    cmsViewingConditions
+    lcmsJab_t
+    XrmValue
+    cmsJCh
+    clocid_t
+    log_t
+    z_streamp
+    z_stream
+    lisp_mutex_t
+    sys_thread_t
+    XPoint
+    XFontStruct
+    FT_Size
+    FT_Matrix
+    FcPattern
+    FcChar32
+    XGlyphInfo
+    XftColor
+    FT_UInt
+    FcResult
+    FT_Face
+    OTF_GSUB_GPOS
+    MFLTGlyphString
+    MFLTFont
+    MFLTOtfSpec
+    OTF
+    GPollFD
+    cairo_surface_t
+    cairo_surface_type_t
+    cairo_format_t
+    RGB_PIXEL_COLOR
+    HGDIOBJ
+    HBITMAP
+    XpmAttributes
+    png_byte
+    png_bytep
+    png_structp
+    png_size_t
+    MagickWand
+    GLogeLevelFlags
+    Font
+    gulong
+    XtAppContext
+    Drawable
+    lock_info_type
+    XrmDatabase
+    GtkMenuPositionFunc
+    Arg
+    voidfuncptr
+    funcptr
+    GtkMenu
+    Window
+    EmacsView
+    XCharStruct
+    XEvent
+    XImage
+    XImagePtr
+    HDC
+    XImagePtr_or_DC
+    TEXTMETRICW
+    BITMAPINFO
+    PROCESS_INFORMATION
+    LOGFONT
+    LPCSTR
+    BOOL
+    HMENU
+    RECT
+    W32Msg
+    LRESULT
+    CRITICAL_SECTION
+    GdkGeometry
+    XMenu
+    XtPointer
+    GtkWidget
+    GtkFixed
+    GtkFixedClass
+    XRectangle
+    regex_t
+    reg_syntax_t
+    regoff_t
+    bpa_stack_entry
+    cairo_pattern_t
+    Gpm_Connect
+    XIMStyles
+    SmcConn
+    SmPointer
+    max_align_t
+    int_fast64_t
+
+    bool_bf
+
+    bits_word
+    keyremap
+
+    atimer_callback
+    OTF_Tag
+    OTF_DeviceTable
+    OTF_ValueRecord
+    OTF_Anchor
+    socklen_t
+    file_offset
+    gnutls_session_t
+    gnutls_initstage_t
+    gnutls_certificate_client_credentials
+    gnutls_anon_client_credentials_t
+    gnutls_x509_crt_t
+    gnutls_rnd_level_t
+    gnutls_transport_ptr_t
+    HCURSOR
+
+    U8 U16 U32 U64
+    S8 S16 S32 S64
+    I32 F32 F64
+    U32TYPE
+
+    ELisp_Pointer
+    ELisp_Return_Value
+    ELisp_Value
+    ELisp_Struct_Value
+    ELisp_Handle
+    ELisp_Handle_RW
+    Lisp_Object
+
+    SV CV AV HV GV
+    MAGIC
+    HE HEK
+
+    size_t ssize_t ptrdiff_t
+    FILE
+    Malloc_t
+    SSize_t STRLEN Time64_T
+    siginfo_t
+    pTHX pTHXx
+    PADNAME OP IV UV NV Shmat_t IO  svtype AMT
+    XPVHV XPVGV XPVCV XPVMG XPVIO XPVAV
+
+    PTRV
+    COP
+    COPHH
+    Size_t
+    Groups_t
+    Signal_t
+    Sighandler_t
+    Sock_size_t
+    Mode_t
+
+    fd_callback
+    Display_Info
+
+    RE_TRANSLATE_STRUCT
+
+    COLORREF
+
+    frame_parm_handler
+
+    reg_errcode_t
+
+    wctype_t
+    re_wctype_t
+
+    signal_handler_t
+
+    pthread_cond_t
+    sys_cond_t
+    w32thread_critsect
+    w32thread_cond_t
+    thread_creation_function
+    sys_mutex_t
+
+    sys_jmp_buf
+    stack_t
+    random_seed
+
+    speed_t
+
+    XmString
+
+    XkbDescPtr
+    filedesc
+    select_func
+
+    HANDLE
+
+    LPBYTE
+    LPDWORD
+
+    IMAGE_NT_HEADERS
+
+    HMODULE
+
+    WINAPI
+    UINT
+    CPINFO
+    HINSTANCE
+    PALETTEENTRY
+    HWND
+    CONSOLE_SCREEN_BUFFER_INFO
+
+    IceConn
+    IcePointer
+    XSelectionEvent
+    XWindowChanges
+    XrmRepresentation
+    List
+    GtkTextDirection
+    FcBool
+    GSettings
+    GtkImage
+    XrmClass
+    CARD16
+    CARD32
+    gsize
+    GdkRGBA
+    GtkRequisition
+    gchar
+    guint
+    XMotionEvent
+    GdkEvent
+    GdkColor
+    GObject
+    GdkFilterReturn
+    GdkXEvent
+    XComposeStatus
+    GType
+    EmacsFixed
+    GtkAllocation
+    EmacsFixedClass
+    XSizeHints
+    XTextProperty
+    guint
+    GdkRectangle
+    xg_menu_cb_data
+    GList
+    DBusError
+    DBusMessageIter
+    DBusConnection
+    DBusWatch
+    gdouble
+    XVisualInfo
+    GtkPrintOperation
+    GtkPrintOperationResult
+    xcb_get_property_cookie_t
+    GdkEventCrossing
+    GtkToolItem
+    GtkTextDirection
+
+    Bool
+    Boolean
+    CorePart
+    CoreClassPart
+    EmacsFramePart
+    EmacsFrameClassPart
+
+    uniprop_decoder_t
+    uniprop_encoder_t
+
+    tr_stack
+
+    CHILD_SETUP_TYPE
+    sigjmp_buf
+    emacs_subr
+
+
+    MSG
+
+    WidgetClass
+
+    fixpt_t
+    dev_t
+    locale_t
+    wint_t
+    mode_t
+
+    security_context_t
+
+    MEM_SIZE
+    perl_mstats_t
+    PerlIO
+    MGS
+    MGVTBL
+    PADOFFSET
+    va_list
+    sigset_t
+    uid_t
+    gid_t
+    pid_t
+    REGEXP
+    CLONE_PARAMS
+    LISTOP
+    UNOP
+    OPCODE
+    BHK
+    UNOP_AUX
+    PMOP
+    SVOP
+    BINOP
+    regex_charset
+    LOOP
+    XSUBADDR_t
+    Perl_call_checker
+    Optype
+    PADLIST
+    OPSLAB
+    OPSLOT
+    PADNAMELIST
+    PAD
+    PerlInterpreter
+    XSINIT_t
+    Stat_t
+    Uid_t
+    Gid_t
+    line_t
+    off_t
+    PerlIOl
+    PerlIO_list_t
+    PerlIO_funcs
+    STDCHAR
+    Off_t
+    uint32_t
+    key_t
+    Time_t
+    LOGOP
+    regexp_engine
+    WCHAR
+    wchar_t
+    Pid_t
+    u_short
+    gptr
+    regnode_ssc
+    time_t
+    Year
+    scan_data_t
+    PERL_SI
+    u_int
+    YYSTYPE
+    yy_stack_frame
+    yy_parser
+    SVCOMPARE_t
+    XXXitem
+    GP
+    SVFUNC_t
+    Netdb_net_t
+    tempsym_t
+    regmatch_info
+    regmatch_info_aux
+    regmatch_info_aux_eval
+    regmatch_state
+    scan_frame
+    RExC_state_t
+    SB_enum
+    WB_enum
+    regnode
+    Free_t
+    scan_data_t
+    tempsym_t
+    caddr_t
+    I8
+    I16
+    METHOP
+    PERL_BITFIELD8
+    PERL_BITFIELD16
+    PERL_BITFIELD32
+    DESTRUCTORFUNC_t
+    DESTRUCTORFUNC_NOCONTEXT_t
+    u_char
+    ANY
+    PERL_CONTEXT
+    Select_fd_set_t
+    XINVLIST
+    padtidy_type
+    SETSOCKOPT_OPTION_VALUE_T
+    Direntry_t
+    DIR
+    fd_set
+    UNOP_AUX_item
+    YYSTYPE
+    Fpos_t
+    XPV
+    PTR_TBL_t
+    DWORD
+    WORD
+
+    JSP_SV_Handle
+    JSP_AV_Handle
+    JSP_HV_Handle
+    JSP_CV_Handle
+    JSP_GV_Handle
+
+    JSP_SV_Return
+    JSP_AV_Return
+    JSP_HV_Return
+    JSP_CV_Return
+    JSP_GV_Return
+
+    JSP_SVP_Return
+    JSP_AVP_Return
+    JSP_HVP_Return
+    JSP_CVP_Return
+    JSP_GVP_Return
+
+    JSP_SV
+    JSP_AV
+    JSP_HV
+    JSP_CV
+    JSP_GV
+
+    GCB_enum
+    LB_enum
+
+    re_scream_pos_data
+    re_char
+
+    mode_t
+    acl_type_t
+    acl_t
+
+    timezone_t
+    sdata_union
+    uintptr_t
+
+
+    I8TYPE
+    U8TYPE
+    I16TYPE
+    U16TYPE
+    I32TYPE
+    U32TYPE
+    I64TYPE
+    U64TYPE
+    IVTYPE
+    UVTYPE
+    NVTYPE
+
+    LPLIOAccess
+    LPLIOChmod
+    LPLIOChown
+    LPAccept
+    LPChdir
+    LPRmdir
+    LPMakedir
+    LPMemMalloc
+    LPMemRealloc
+    LPProcAbort
+    LPProcCrypt
+    LPProcExit
+    LPProc_Exit
+    LPHtonl
+    LPNtohl
+    LPHtons
+    LPNtohs
+    LPStdin
+    LPStderr
+    LPDirClose
+    LPDirRead
+    LPEnvGetChildIO
+    LPEnvGetenv
+    LPLIOChsize
+    LPMemFree
+    LPProcExecl
+    SOCKET
+    LPBind
+    u_long
+    INFNAN_NV_U8_DECL
+    INFNAN_U8_NV_DECL
+    EXT_MGVTBL
+    SUBLEXINFO
+    Perl_c_backtrace_header
+    Perl_c_backtrace_frame
+    perl_mutex
+    cthread_t
+    mutex_t
+    condition_t
+    PPADDR_t
+    ATEXIT_t
+    runops_proc_t
+    filter_t
+    perl_drand48_t
+    perl_ppaddr_t
+    Perl_ppaddr_t
+    Sigjmp_buf
+    Sigsave_t
+    Perl_check_t
+
+    XOP
+    XOPRETANY
+    INT_64_T
+    Int64
+
+    JSP_Struct
+    JSP_Return
+    JMPENV
+    CHECKPOINT
+
+    pthread_t
+    pthread_mutex_t
+
+    PerlExitListEntry
+    regmatch_slab
+    REENTR
+    tTHX
+
+    xop_flags_enum
+    re_intuit_string_t
+
+    GtkTooltip
+    GtkWidgetClass
+    GParamSpec
+
+    dbus_bool_t
+    DBusBusType
+    mbstate_t
+    xg_get_file_func
+    PangoWeight
+    xg_menu_item_cb_data
+    GtkCallback
+    rlim_t
+    GtkMenuItem
+    GtkLabel
+    next_element_function
+    RROutput
+    GtkPrintContext
+    GdkEventExpose
+    KeyCode
+    xt_or_gtk_widget
+    GtkIconTheme
+    GtkScrollType
+    XKeyEvent
+    XmTextPosition
+    x_special_error_handler
+    XIMCallback
+    XPointer
+    XRegisterIMInstantiateCallback_arg6
+    JSReturnValue
+    re_opcode_t
+    pattern_offset_t
+    re_wchar_t
+    RE_TRANSLATE_TYPE
+    RE_TRANSLATE_HANDLE
+    ELisp_Vector_Handle
+    context_t
+    gnutls_alert_get
+    gnutls_certificate_credentials_t
+    gnutls_cipher_algorithm_t
+    MMRESULT
+    cmsContext
+    cmsHANDLE
+    clockid_t
+    cmsCIExyYs
+    FT_Library
+    LPCRITICAL_SECTION
+    BDF_PropertyRec
+    FcChar8
+    XftDraw
+    FcValue
+    FT_ULong
+    Bitmap_Record
+    FT_Int32
+    MFLTGlyph
+    MFLTGlyphFT
+    OTF_GlyphString
+    MFLTGlyphString
+    png_color_16
+    InputFunc
+    );
+%EmacsCGrammar::types;
+for my $type (@EmacsCGrammar::types) {
+    $EmacsCGrammar::types{$type} = 1;
+}
 
 my @symbols = qw(TLS Directive Expr0 TypeStmt Stmts Stmt Label CaseLabel PExpr CExpr Expr String BinOp ModOp UnOp ModUnOp ModPostOp FunctionDefinition Junk JunkItem VarDefinition Typedef RetType Attrs Attr PArgExprs ArgExprs ArgExpr PArgs Args BBody Arg AttrType PointerType StructUnionType EnumType TypedSymbol FunType Typed BStructBody StructBody BEnumBody EnumBody PSymbol Symbol Number RewriteInit InitRests2 InitRests InitRest InitSuffixes InitRestPrefixes InitPrefix TypeNoStar StructUnion AttrTypeNoStar Type StringSpec);
 
@@ -19,12 +831,14 @@ TLS ::= Directive | Stmt
 Directive ::= 'INLINE_HEADER_BEGIN' | 'INLINE_HEADER_END' | 'DEF_DLL_FN' '(' Type ',' Symbol ',' PArgs ')' ';'
 Expr0 ::= Empty | CExpr
 TypeStmt ::= Type ';'
-Stmt ::= 'dMARK' | 'dSP' | 'dTARGET' | 'dTOPss' | DEFINE_LISP_SYMBOL '(' Symbol ')' | 'FOR_EACH_PROCESS' '(' Expr ',' Expr ')' Stmt | 'FOR_EACH_TAIL' '(' Expr ')' Stmt | 'FOR_EACH_TAIL_SAFE' '(' Expr ')' Stmt | 'FOR_EACH_PER_BUFFER_OBJECT_AT' '(' Expr ')' Stmt | 'FOR_EACH_BUFFER' '(' Expr ')' Stmt | 'FOR_EACH_FRAME' '(' Expr ',' Expr ')' | 'FOR_EACH_LIVE_BUFFER' '(' Expr ',' Expr ')' | '...' | 'IF_LINT' '(' Typed '=' Expr ')' | 'IF_LINT' '(' Stmt ')' ';' | ';' rank => -3 | break ';' | continue ';' | goto Label ';' | Expr ';' rank => -1 | 'for' '(' Stmt Stmt Expr0 ')' Stmt | 'if' PExpr Stmt else Stmt | 'if' PExpr Stmt | 'while' PExpr Stmt | 'do' Stmt 'while' PExpr ';' | return ';' | return Expr ';' | Typed '=' Expr ';' rank => -2 | Typed 'IF_LINT' '(' '=' Expr ')' ';' | FunctionDefinition rank => 3 | VarDefinition rank => -2 | TypeStmt | Typedef | '{' Stmts '}' | Label Stmt | CaseLabel Stmt | 'switch' PExpr Stmt | 'swapfield' '(' Expr ',' Type ')' | 'FOR_EACH_FRAME' '(' CExpr ')' | 'DEBUG_STATEMENT' '(' Stmts ')' | 'DEBUG_STATEMENT' '(' Stmts Expr ')' | CExpr ';' rank => -2 | 'DECLARE_POINTER_ALIAS' '(' Expr ',' Type ',' Expr ')' ';'
+StmtShouldHaveSemicolon ::= 'WEAK_ALIAS' '(' Symbol ',' Symbol ')'
+Stmt ::= StmtShouldHaveSemicolon | 'G_BEGIN_DECLS' | 'G_END_DECLS' | 'dMARK' | 'dSP' | 'dTARGET' | 'dTOPss' | DEFINE_LISP_SYMBOL '(' Symbol ')' | 'FOR_EACH_PROCESS' '(' Expr ',' Expr ')' Stmt | 'FOR_EACH_TAIL' '(' Expr ')' Stmt | 'FOR_EACH_TAIL_SAFE' '(' Expr ')' Stmt | 'FOR_EACH_PER_BUFFER_OBJECT_AT' '(' Expr ')' Stmt | 'FOR_EACH_BUFFER' '(' Expr ')' Stmt | 'FOR_EACH_FRAME' '(' Expr ',' Expr ')' | 'FOR_EACH_LIVE_BUFFER' '(' Expr ',' Expr ')' | '...' | 'IF_LINT' '(' Typed '=' Expr ')' | 'IF_LINT' '(' Stmt ')' ';' | ';' rank => -3 | break ';' | continue ';' | goto Label ';' | goto Symbol ';' | Expr ';' rank => -1 | 'for' '(' Stmt Stmt Expr0 ')' Stmt | 'if' PExpr Stmt else Stmt | 'if' PExpr Stmt | 'while' PExpr Stmt | 'do' Stmt 'while' PExpr ';' | return ';' | return Expr ';' | Typed '=' Expr ';' rank => -2 | Typed 'IF_LINT' '(' '=' Expr ')' ';' | FunctionDefinition rank => 3 | VarDefinition rank => -2 | TypeStmt | Typedef | '{' Stmts '}' | Label Stmt | CaseLabel Stmt | 'switch' PExpr Stmt | 'swapfield' '(' Expr ',' Type ')' | 'FOR_EACH_FRAME' '(' CExpr ')' | 'DEBUG_STATEMENT' '(' Stmts ')' | 'DEBUG_STATEMENT' '(' Stmts Expr ')' | CExpr ';' rank => -2 | 'DECLARE_POINTER_ALIAS' '(' Expr ',' Type ',' Expr ')' ';'
 Label ::= Symbol ':'
 CaseLabel ::= 'case' Expr ':' | 'CASE' '(' Expr ')' ':' | 'CASE_DEFAULT' | 'CASE_ABORT' ':' | 'FIRST'
 PExpr ::= '(' CExpr ')'
 CExpr ::= Expr ',' CExpr | Expr
-Expr ::=  Expr BinOp Expr rank => 3 | '...' | 'VECSIZE' '(' Type ')' | 'FLEXSIZEOF' '(' Type ',' Expr ',' Expr ')' | 'PSEUDOVECSIZE' '(' Type ',' Expr ')' | 'ALLOCATE_PSEUDOVECTOR' '(' Type ',' Expr ',' Expr ')' | 'ALLOCATE_ZEROED_PSEUDOVECTOR' '(' Type ',' Expr ',' Expr ')' | 'REGEX_TALLOC' '(' Expr ',' Type ')' | 'UNSIGNED_CMP' '(' Expr ',' BinOp ',' Expr ')' | Symbol rank => 1 | Number | Expr PArgExprs rank => 1 | 'sizeof' Type | 'sizeof' '(' Type ')' | 'sizeof' Expr | 'alignof' '(' Type ')' | 'offsetof' '(' Type ',' Symbol ')' | 'offsetof' '(' Type ',' Expr ')' | PExpr | Expr '?' Expr ':' Expr rank => 5 | UnOp Expr rank => 2 | '(' Type ')' Expr | Expr '[' Expr ']' | String | '{' '}' | '{' CExpr '}' | '{' CExpr ',' '}' | Attr Expr | 'va_arg' '(' Expr ',' Type ')' | '[' Expr '...' Expr ']' '=' Expr | '[' Expr ']' '=' Expr | '.' Expr '=' Expr | '&&' Symbol | 'ELisp_Array_Imm' '(' Expr ',' CExpr ')' | '(' Expr ')' | Expr ModOp Expr rank => 6 | ModUnOp Expr | Expr ModPostOp
+ExprWithType ::= 'INT_STRLEN_BOUND' '(' Type ')' | 'TYPE_MINIMUM' '(' Type ')' | 'TYPE_SIGNED' '(' Type ')' | 'INT_BUFSIZE_BOUND' '(' Type ')' | 'TYPE_RANGED_INTEGERP' '(' Type ',' Expr ')' | 'CHECK_TYPE_RANGED_INTEGER' '(' Type ',' Expr ')' | 'swapfield_' '(' Symbol ',' Type ')'
+Expr ::=  ExprWithType | Expr BinOp Expr rank => 3 | '...' | 'VECSIZE' '(' Type ')' | 'FLEXSIZEOF' '(' Type ',' Expr ',' Expr ')' | 'PSEUDOVECSIZE' '(' Type ',' Expr ')' | 'ALLOCATE_PSEUDOVECTOR' '(' Type ',' Expr ',' Expr ')' | 'ALLOCATE_ZEROED_PSEUDOVECTOR' '(' Type ',' Expr ',' Expr ')' | 'REGEX_TALLOC' '(' Expr ',' Type ')' | 'UNSIGNED_CMP' '(' Expr ',' BinOp ',' Expr ')' | 'TYPE_MAXIMUM' '(' Type ')' | 'CONS_TO_INTEGER' '(' Expr ',' Type ',' Expr ')' | Symbol rank => 1 | Number | Expr PArgExprs rank => 1 | 'sizeof' Type | 'sizeof' '(' Type ')' | 'sizeof' Expr | 'alignof' '(' Type ')' | 'offsetof' '(' Type ',' Symbol ')' | 'offsetof' '(' Type ',' Expr ')' | PExpr | Expr '?' Expr ':' Expr rank => 5 | UnOp Expr rank => 2 | '(' Type ')' Expr | Expr '[' Expr ']' | String | '{' '}' | '{' CExpr '}' | '{' CExpr ',' '}' | Attr Expr | 'va_arg' '(' Expr ',' Type ')' | '[' Expr '...' Expr ']' '=' Expr | '[' Expr ']' '=' Expr | '.' Expr '=' Expr | '&&' Symbol | 'ELisp_Array_Imm' '(' Expr ',' CExpr ')' | '(' Expr ')' | Expr ModOp Expr rank => 6 | ModUnOp Expr | Expr ModPostOp
 String ::= string | String String | 'FOPEN_TEXT' | 'FOPEN_BINARY' | 'PACKAGE_BUGREPORT' | 'SCNuMAX' | 'WTMP_FILE' | 'L' String | StringSpec
 StringSpec ::= 'pI' | 'pD' | 'pMu' | 'pMd' | 'PRIu64' | 'PRIxPTR'
 BinOp ::= '!=' | '==' | '>' | '>=' | '<' | '<=' | '||' | '&&' | '|' | '&' | '.' | '->' | '^' | '<<' | '>>' | '%' | '+' | '-' | '*' rank => -1 | '/'
@@ -32,17 +846,17 @@ ModOp ::= '=' | '+=' | '-=' | '>>=' | '<<=' | '*=' | '/=' | '&=' | '|=' | '^=' |
 UnOp ::= '+' | '-' | '&' | '*' | '~' | '!'
 ModUnOp ::= '++' | '--'
 ModPostOp ::= '++' | '--'
-FunctionDefinition ::= Attrs RetType PSymbol PArgs BBody | Attrs RetType PSymbol PArgs Attrs ';' | 'DEFUN' '(' Expr ',' Symbol ',' CExpr ',' Junk ')' PArgs BBody | 'DEAFUN' '(' CExpr ',' Junk ')' PArgs BBody
+FunctionDefinition ::= Attrs RetType PSymbol PArgs Attrs BBody | Attrs RetType PSymbol PArgs Attrs ';' | 'DEFUN' '(' Expr ',' Symbol ',' CExpr ',' Junk ')' PArgs BBody | 'DEAFUN' '(' CExpr ',' Junk ')' PArgs BBody
 Junk ::= Empty | JunkItem Junk
 JunkItem ::= 'doc:' | 'attributes' ':' 'const' | 'attributes' ':' 'noreturn' | 'attributes' ':' 'noinline'
 VarDefinition ::= RewriteInit | Attrs Typed ';' | Typed Attrs ';' | Attrs Typed Attrs '=' Expr ';' | 'DEFVAR_LISP' '(' CExpr ',' Junk ')'  | 'DEFVAR_LISP_NOPRO' '(' CExpr ',' Junk ')' | 'DEFVAR_BOOL' '(' CExpr ',' Junk ')' | 'DEFVAR_INT' '(' CExpr ',' Junk ')' | 'DEFVAR_KBOARD' '(' CExpr ',' Junk ')' | 'DEFVAR_BUFFER_DEFAULTS' '(' CExpr ',' Junk ')' | 'DEFVAR_PER_BUFFER' '(' CExpr ',' Junk ')'
-Typedef ::= typedef Typed ';'
+Typedef ::= typedef Typed ';' | typedef Type Symbol ';' | typedef Type Type ';' | typedef Type '(' '*' Symbol ')' PArgs ';'
 
 RetType ::= Type
 
 Attrs ::= Empty | Attr Attrs
 
-Attr ::= restrict | '_Restrict_' | '__restrict' | extern | 'inline' | 'INLINE' | 'NO_INLINE' | '_Noreturn' | static | 'ATTRIBUTE_UNUSED' | 'const' | 'auto' | register | 'ATTRIBUTE_CONST' | 'ATTRIBUTE_UNUSED' | 'EXTERNALLY_VISIBLE' | alignas Expr | const | signed | unsigned | short | long | volatile | auto | 'asm' PExpr | '__cdecl' | '_cdecl' | 'UNINIT' | 'ATTRIBUTE_NO_SANITIZE_ADDRESS' | '__MALLOC_HOOK_VOLATILE' | 'weak_function' | 'CACHEABLE' | 'ALIGN_STACK' | 'CALLBACK' | 'WINAPI' | 'ATTRIBUTE_MALLOC' | 'GCALIGNED' | 'WINDOW_SYSTEM_RETURN' | macro PArgExprs rank => -3 | 'ATTRIBUTE_MAY_ALIAS' | '__attribute__' '(' '(' ArgExprs ')' ')'
+Attr ::= restrict | '__THROW' | '_Restrict_' | '__restrict' | extern | 'inline' | 'INLINE' | 'NO_INLINE' | '_Noreturn' | static | 'ATTRIBUTE_UNUSED' | 'const' | 'auto' | register | 'ATTRIBUTE_CONST' | 'ATTRIBUTE_UNUSED' | 'EXTERNALLY_VISIBLE' | alignas Expr | const | signed | unsigned | short | long | volatile | auto | 'asm' PExpr | '__cdecl' | '_cdecl' | 'UNINIT' | 'ATTRIBUTE_NO_SANITIZE_ADDRESS' | '__MALLOC_HOOK_VOLATILE' | 'weak_function' | 'CACHEABLE' | 'ALIGN_STACK' | 'CALLBACK' | 'WINAPI' | 'ATTRIBUTE_MALLOC' | 'GCALIGNED' | 'WINDOW_SYSTEM_RETURN' | macro PArgExprs rank => -3 | 'ATTRIBUTE_MAY_ALIAS' | '__attribute__' '(' '(' ArgExprs ')' ')' | 'EMACS_NOEXCEPT'
 
 PArgExprs ::= '(' ArgExprs ')'
 ArgExprs ::= Empty | ArgExpr | ArgExpr ',' ArgExprs
@@ -62,14 +876,15 @@ Arg ::= Type | Typed
 
 AttrType ::= Attr Type
 PointerType ::= Type '*'
-StructUnionType ::= StructUnion Attrs Symbol BStructBody
+StructUnionType ::= StructUnion Attrs Symbol BStructBody | StructUnion Attrs Type BStructBody
 EnumType ::= 'enum' Symbol BEnumBody
-Type ::= 'void' | AttrType | StructUnion Attrs Symbol | StructUnion Attrs BStructBody | StructUnionType | 'enum' Symbol | EnumType | 'enum' BEnumBody | Symbol | PointerType rank => 1 | Type const | 'ENUM_BF' '(' Type ')' | Type '[' ']' | Type '[' Expr ']' | RetType '(' Attrs '*' ')' PArgs | Type Attr | Attrs RetType '(' '*' ')' PArgs | 'typeof' Expr
+Type ::= '(' '__type__' ')' Symbol | '(' '__type__' ')' Symbol Type | AttrType | StructUnion Attrs Symbol | StructUnion Attrs BStructBody | StructUnionType | 'enum' Symbol | EnumType | 'enum' BEnumBody | PointerType rank => 1 | Type const | 'ENUM_BF' '(' Type ')' | 'ENUM_BF' '(' Symbol ')' | Type '[' ']' | Type '[' Expr ']' | RetType '(' Attrs '*' ')' PArgs | Type Attr | Attrs RetType '(' '*' ')' PArgs | 'typeof' Expr
 
 TypedSymbol ::= Type Symbol Attrs
+TypedType ::= Type Type Attrs
 
-FunType ::= RetType '(' Typed ')' PArgs | RetType '(' '*' Symbol ')' PArgs | RetType '(' '*' '*' Symbol ')' PArgs
-Typed ::= Typed Attr | '*' Typed | TypedSymbol | FunType | Typed ':' Expr | Typed '[' Expr ']' | Typed '[' ']'
+FunType ::= RetType '(' '*' Type ')' PArgs | RetType '(' Type ')' PArgs | RetType '(' Typed ')' PArgs | RetType '(' '*' Symbol ')' PArgs | RetType '(' '*' '*' Symbol ')' PArgs
+Typed ::= Typed Attr | '*' Typed | TypedSymbol | TypedType | FunType | Typed ':' Expr | Typed '[' Expr ']' | Typed '[' ']'
 
 BStructBody ::= '{' StructBody '}'
 StructBody ::= Empty | Stmt StructBody
@@ -93,9 +908,9 @@ InitRestPrefix ::= '*'
 
 InitPrefix ::= TypeNoStar
 
-TypeNoStar ::= 'void' | AttrTypeNoStar | StructUnion Attrs Symbol | StructUnion Attrs BStructBody | StructUnion Attrs Symbol BStructBody| 'enum' Symbol | 'enum' Symbol BEnumBody | 'enum' BEnumBody | Symbol | TypeNoStar 'const' | 'ENUM_BF' '(' TypeNoStar ')' | TypeNoStar '[' ']' | TypeNoStar '[' Expr ']' | RetType '(' '*' ')' PArgs
+TypeNoStar ::= '(' '__type__' ')' Symbol | '(' '__type__' ')' Symbol TypeNoStar | AttrTypeNoStar | StructUnion Attrs Symbol | StructUnion Attrs BStructBody | StructUnion Attrs Symbol BStructBody| 'enum' Symbol | 'enum' Symbol BEnumBody | 'enum' BEnumBody | TypeNoStar 'const' | 'ENUM_BF' '(' TypeNoStar ')' | TypeNoStar '[' ']' | TypeNoStar '[' Expr ']' | RetType '(' '*' ')' PArgs
 
-StructUnion ::= struct | union
+StructUnion ::= struct | union | StructUnion '(' '__type__' ')'
 
 AttrTypeNoStar ::= Attr TypeNoStar
 
@@ -330,6 +1145,21 @@ sub debug {
     return "<" . $ret . ">";
 }
 
+sub debug2 {
+    my ($self) = @_;
+    my $ret = ""; # . $self->type . ":";
+
+    for my $child (@{$self->{children}}) {
+        if ($child->{type} eq "string") {
+            $ret .= $child->{string};
+        } else {
+            $ret .= $child->debug2;
+        }
+    }
+
+    return "<" . $self->type . ":" . $ret . ">";
+}
+
 sub match {
     my ($self, $other, $processor) = @_;
 
@@ -363,7 +1193,7 @@ sub match {
     return 1;
 }
 
-my $rtree = EmacsCParser::parse_verbatim_ctree("Chunk", "72;");
+my $rtree = EmacsCParser::parse_verbatim_ctree("Chunk", \(my $x = "72;"));
 $EmacsCTree::globals = {};
 
 sub get_global_hash {
@@ -442,6 +1272,7 @@ sub new_from_rawtree {
 package EmacsCParser;
 
 use Data::Dumper;
+use Digest::MD5 qw(md5_hex);
 
 my %value_keep;
 my %value_strings;
@@ -454,8 +1285,24 @@ my $grammar = Marpa::R2::Scanless::G->new({
 my %grammars_by_token;
 my %memo;
 
+sub memoize_ctree {
+    my ($memostr, $value) = @_;
+
+    $memo{$memostr} = $value;
+
+    my $md5 = md5_hex($memostr);
+    my $fh;
+
+    open $fh, ">chunkl-cache/ctree-$md5" or return;
+
+    print $fh Dumper([$memostr, $value]);
+
+    close $fh;
+}
+
 sub parse_verbatim_ctree {
-    my ($type, $format) = @_;
+    my ($type, $rformat) = @_;
+    my $format = $$rformat;
     my @comments;
     my $orig = $format;
 
@@ -532,7 +1379,9 @@ sub parse_verbatim_ctree {
         }
     }
 
-    my $value = ${$recce->value};
+    my $vref = $recce->value;
+    die $memostr unless $vref;
+    my $value = $$vref;
 
     $value = EmacsCTree->new_from_rawtree($value, $orig);
 
@@ -738,6 +1587,46 @@ sub new {
 package Processor;
 
 use Data::Dumper;
+use Digest::MD5 qw(md5_hex);
+use File::Slurp qw(read_file write_file);
+use Carp qw(croak);
+
+my %memo;
+
+mkdir("chunkl-cache/ctree/");
+
+sub memoize_ctree {
+    my ($memostr, $value) = @_;
+
+    $memo{$memostr} = $value;
+
+    my $md5 = md5_hex($memostr);
+    my $fh;
+
+    open $fh, ">chunkl-cache/ctree/$md5" or return;
+
+    $Data::Dumper::Sortkeys = 1;
+    $Data::Dumper::Indent = 0;
+    print $fh Dumper([$memostr, $value]);
+
+    close $fh;
+}
+
+sub get_memoized_ctree {
+    my ($memostr) = @_;
+
+    return if $memo{$memostr};
+
+    my $md5 = md5_hex($memostr);
+
+    -e "chunkl-cache/ctree/$md5" or return;
+
+    {
+        my $VAR1;
+        eval read_file("chunkl-cache/ctree/$md5");
+        $memo{$VAR1->[0]} = $VAR1->[1];
+    }
+}
 
 sub new {
     my ($class, $ctree, $defns, $replcb, $cb, $vars, $counterref) = @_;
@@ -756,7 +1645,7 @@ sub new {
         my @comps = split("#", $key);
         my $type = shift @comps;
         my $nkey = "#" . join("#", @comps);
-        $ret->set($nkey, EmacsCParser::parse_verbatim_ctree($type, $vars->{$key}));
+        $ret->set($nkey, EmacsCParser::parse_verbatim_ctree($type, \($vars->{$key})));
     }
 
     $ret->{counter} = $counterref;
@@ -866,9 +1755,30 @@ sub parse_format {
     return @result;
 }
 
-my %memo;
 my %memo_hash;
 my %grammars_by_token;
+
+my %memo_substt;
+
+sub subst_types {
+    my ($arg0) = @_;
+
+    return $memo_substt{$arg0} if exists $memo_substt{$arg0};
+
+    my $arg = $arg0;
+
+    for my $type (@EmacsCGrammar::types) {
+        $arg =~ s/\b$type\b/(__type__)$type/g;
+        $arg =~ s/\(__type__\)($type\([^*])/$1/g;
+        $arg =~ s/\(__type__\)($type \([^*])/$1/g;
+        $arg =~ s/\(__type__\)\(__type__\)/(__type__)/g;
+        $arg =~ s/\(__type__\)\(__type__\)/(__type__)/g;
+    }
+
+    $memo_substt{$arg0} = $arg;
+
+    return $arg;
+}
 
 sub parse_and_bind {
     my ($self, $type, $str) = @_;
@@ -882,6 +1792,8 @@ sub parse_and_bind {
         my ($type, $arg, $arg2) = @$entry;
 
         if ($type eq "verbatim") {
+            $entry->[1] = $arg = subst_types($arg);
+
             $length += length($arg);
             $input .= $arg;
         } else {
@@ -890,9 +1802,14 @@ sub parse_and_bind {
         }
     }
 
+    $Data::Dumper::Sortkeys = 1;
+    $Data::Dumper::Indent = 0;
     my $memostr = $type . "\0" . $str . "\0". Dumper(\@format);
 
+    get_memoized_ctree($memostr);
     return $memo{$memostr} if ($memo{$memostr});
+
+    #warn "no memo for $memostr";
 
     my $grammar;
 
@@ -960,6 +1877,8 @@ sub parse_and_bind {
             my $var = $arg;
             $var =~ s/^[^#]*//;
             my $type = shift(@comps);
+    $Data::Dumper::Sortkeys = 1;
+    $Data::Dumper::Indent = 0;
             die "rejected: $memostr " . $type . " " . Dumper(\@format) unless $recce->lexeme_read("t_" . $type, $pos, 1, Wildcard->new($type, sub { $self->set("#" . join("#", @comps), $_[0]) if @comps }, \@comps));
             $pos += 1;
         } else {
@@ -968,6 +1887,8 @@ sub parse_and_bind {
             my $val = $self->lookup($arg);
             return unless $val;
             my $type = $val->type;
+    $Data::Dumper::Sortkeys = 1;
+    $Data::Dumper::Indent = 0;
             die "rejected: $memostr " . $type . " " . Dumper(\@format) unless $recce->lexeme_read("t_" . $type, $pos, 1, Lookup->new($type, $var));
             $pos += 1;
         }
@@ -980,7 +1901,12 @@ sub parse_and_bind {
 
     $value = EmacsCTree->new_from_rawtree($value);
 
-    $memo{$memostr} = $value;
+    memoize_ctree($memostr, $value);
+
+    use Data::Dumper;
+    $Data::Dumper::Sortkeys = 1;
+    $Data::Dumper::Indent = 0;
+    # warn "$memostr => " . Dumper($value);
 
     die $memostr unless $value;
 
@@ -1026,9 +1952,12 @@ sub step {
         my $outvar = $self->{defn}->{outvar};
         $outvar =~ s/^#//;
         eval {
-        $self->{outvar}->copy_from($self->{vars}->{$outvar}->{""},
-                                   $self->{vars}->{$outvar}, $self->{vars})
-            if ($outvar ne "");
+            # warn "copying $outvar to " . $self->{outvar};
+            # warn $self->{vars}->{$outvar}->{""}->debug;
+            $self->{outvar}->copy_from($self->{vars}->{$outvar}->{""},
+                                       $self->{vars}->{$outvar}, $self->{vars})
+                if ($outvar ne "");
+            # warn $self->{outvar}->{""}->debug;
         };
 
         if ($@) {
@@ -1061,7 +1990,9 @@ sub step {
                 my $parsed = $fork->parse_and_bind($type, $pattern);
 
                 next unless $parsed;
+                # warn "matches " . $val->debug . " $pattern";
                 next unless $parsed->match($val->ctree, $fork);
+                # warn "matches " . $val->debug . " $pattern: yes";
             };
             if ($@) {
                 warn $@;
@@ -1078,7 +2009,9 @@ sub step {
                 my $parsed = $fork->parse_and_bind($type, $pattern);
 
                 next unless $parsed;
+                # warn "nomatch " . $val->debug . " $pattern";
                 next if $parsed->match($val->ctree, $fork);
+                # warn "nomatch " . $val->debug2 . " $pattern: yes";
             };
             if ($@) {
                 warn $@;
@@ -1182,7 +2115,7 @@ sub step {
                 if ($node->type eq $ctype and
                     $parsed->match($node->ctree, $self)) {
                     if (defined($itree)) {
-                        unless ($itree->match(EmacsCParser::parse_verbatim_ctree("Expr", "$i"), $self)) {
+                        unless ($itree->match(EmacsCParser::parse_verbatim_ctree("Expr", \("$i")), $self)) {
                             warn "itree did not match $i";
                             next;
                         }
@@ -1221,7 +2154,7 @@ sub step {
             for ($i = 0; $nodes; $i++, $nodes = $cdr->($nodes)) {
             }
 
-            unless ($itree->match(EmacsCParser::parse_verbatim_ctree("Expr", "$i"), $self)) {
+            unless ($itree->match(EmacsCParser::parse_verbatim_ctree("Expr", \(my $x = "$i")), $self)) {
                 warn "itree did not match $i";
                 next;
             }
@@ -1436,7 +2369,9 @@ sub step {
                 $self->step($pc + 1);
             }
         } elsif ($str =~ /^ *dump/) {
-            warn Dumper($val);
+            $Data::Dumper::Sortkeys = 1;
+            $Data::Dumper::Indent = 2;
+            warn Dumper($val) if $val->debug =~ /LHH.*x/;
             $self->step($pc + 1);
 
             next;
@@ -1493,10 +2428,16 @@ sub step {
             $str =~ s/\}\)/} )/g;
             $str =~ s/ ?; ?/;/g;
 
+            # warn "checking $str";
             if (eval($str)) {
+                # warn "yes";
                 $self->step($pc + 1);
+            } else {
+                # warn "no";
             }
         } elsif ($str =~ /^ *exit/) {
+            $Data::Dumper::Sortkeys = 1;
+            $Data::Dumper::Indent = 0;
             warn Dumper($val);
             return;
         } elsif ($str =~ /^call: (.*?) ([a-zA-Z]*(#[a-zA-Z]*)+)$/ &&
@@ -1643,7 +2584,12 @@ my $defns_header = Parser::parse_defns(<<'EOF', 0);
 [[#funtyped FunTyped #chunk]]:
 [[#chunk contains Typed#funtyped]]
 [[#funtyped matches RetType#ret (* Symbol#) (Args#args)]] ||
-[[#funtyped matches RetType#ret (** Symbol#) (Args#args)]]
+[[#funtyped matches RetType#ret (* * Symbol#) (Args#args)]] ||
+[[#funtyped matches RetType#ret (* Type#typeb) (Args#args)]]
+
+[[#funtyped FunTypedef #chunk]]:
+[[#chunk contains Typedef#typedef]]
+[[#typedef matches typedef RetType#ret (* Type#typeb) (Args#args);]]
 
 [[#funtype FunType #chunk]]:
 [[#chunk contains Type#funtype]]
@@ -1651,56 +2597,59 @@ my $defns_header = Parser::parse_defns(<<'EOF', 0);
 
 [[#funtypedb FunTypeD #chunkb]]:
 [[#chunkb FunTyped #funtypedb]] ||
-[[#chunkb FunType #funtypedb]]
+[[#chunkb FunType #funtypedb]] ||
+[[#chunkb FunTypedef #funtypedb]]
 
 [[#fundef FunctionDefinition #chunk]]:
 [[#chunk contains FunctionDefinition#fundef]]
 [[#fundef matches DEFUN(Expr#, Symbol#symbol, CExpr#, Junk#)(Args#args) BBody#body]] ||
 [[#fundef matches Attrs# RetType#ret Symbol#symbol (Args#args) BBody#body]] ||
-[[#fundef matches Attrs# RetType#ret Symbol#symbol (Args#args) Attrs# ;]]
+[[#fundef matches Attrs# RetType#ret Symbol#symbol (Args#args) Attrs# ;]] ||
+[[#fundef matches Attrs# RetType#ret (Symbol#symbol) (Args#args) BBody#body]] ||
+[[#fundef matches Attrs# RetType#ret (Symbol#symbol) (Args#args) Attrs# ;]]
 
 [[#vector LV arg #args]]:
-[[#args includes #run: ptrdiff_t Symbol#count,Lisp_Object*Symbol#vector]]
+[[#args includes #run: (__type__)ptrdiff_t Symbol#count,(__type__)Lisp_Object*Symbol#vector]]
 
 [[# AUTO-0010 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#args LV arg #vector]]
-[[#vector#run <- ELisp_Vector_Handle #vector]]
+[[#vector#run <- (__type__)ELisp_Vector_Handle #vector]]
 
 [[# AUTO-0015 #]]:
 [[# FunctionDefinition #fundef]]
-[[#fundef#args includes #run: ptrdiff_t, Lisp_Object *]]
-[[#run <- ELisp_Vector_Handle]]
+[[#fundef#args includes #run: (__type__)ptrdiff_t, (__type__)Lisp_Object *]]
+[[#run <- (__type__)ELisp_Vector_Handle]]
 
 [[# AUTO-0020 #]]:
 [[# FunTypeD #funtyped]]
 [[#funtyped#args LV arg #vector]]
-[[#vector#run <- ELisp_Vector_Handle #vector]]
+[[#vector#run <- (__type__)ELisp_Vector_Handle #vector]]
 
 [[# AUTO-0100-FLUSH #]]:
 
 [[# AUTO-0300 #]]:
 [[# contains Stmt#stmt]]
-[[#stmt matches ELisp_Value Symbol#symbol;]]
-[[# set Type#symbol#G#type: ELisp_Value]]
+[[#stmt matches (__type__)ELisp_Value Symbol#symbol;]]
+[[# set Type#symbol#G#type: (__type__)ELisp_Value]]
 
 [[# AUTO-030001 #]]:
 [[# contains Stmt#stmt]]
-[[#stmt matches ELisp_Value Symbol#symbol = Expr#rhs;]]
-[[# set Type#symbol#G#type: ELisp_Value]]
+[[#stmt matches (__type__)ELisp_Value Symbol#symbol = Expr#rhs;]]
+[[# set Type#symbol#G#type: (__type__)ELisp_Value]]
 
 [[# AUTO-07400 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#args element Expr#n: Arg#arg]]
-[[#arg matches Lisp_Object]] ||
-[[#arg matches Lisp_Object Symbol#]] ||
-[[#arg matches register Lisp_Object Symbol#]]
+[[#arg matches (__type__)Lisp_Object]] ||
+[[#arg matches (__type__)Lisp_Object Symbol#]] ||
+[[#arg matches register (__type__)Lisp_Object Symbol#]]
 [[# print $accepts_lo{#fundef#symbol}[#n] = 1; #CU;]]
 
 [[# AUTO-07500 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#symbol matches Symbol#symbol]]
-[[#fundef#ret matches Lisp_Object]]
+[[#fundef#ret matches (__type__)Lisp_Object]]
 [[# print $returns_lo{#symbol} = 1; #CU;]]
 
 [[# AUTO-0900 #]]:
@@ -1719,7 +2668,7 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#funtyped FunTyped #chunk]]:
 [[#chunk contains Typed#funtyped]]
 [[#funtyped matches RetType#ret (* Symbol#) (Args#args)]] ||
-[[#funtyped matches RetType#ret (** Symbol#) (Args#args)]]
+[[#funtyped matches RetType#ret (* Type#typeb) (Args#args)]]
 
 [[#funtype FunType #chunk]]:
 [[#chunk contains Type#funtype]]
@@ -1736,10 +2685,10 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#fundef matches Attrs# RetType#ret PSymbol#psymbol (Args#args) Attrs# ;]]
 
 [[#vector LV arg #args]]:
-[[#args includes #run: ptrdiff_t Symbol#count,Lisp_Object*Symbol#vector]]
+[[#args includes #run: (__type__)ptrdiff_t Symbol#count,(__type__)Lisp_Object*Symbol#vector]]
 
 [[#vector LV array arg #args]]:
-[[#args includes #run: Lisp_Object Symbol#vector[Expr#count]]]
+[[#args includes #run: (__type__)Lisp_Object Symbol#vector[Expr#count]]]
 
 [[#chunk LV chunk arg #vector]]:
 [[#chunk FunctionDefinition #fundef]]
@@ -1753,14 +2702,14 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#chunk FunctionDefinition #fundef]]
 [[#fundef#args LV arg #vector]]
 [[#fundef#body contains Stmt#decl]]
-[[#decl matches Lisp_Object Symbol#symbol[Expr#count];]]
+[[#decl matches (__type__)Lisp_Object Symbol#symbol[Expr#count];]]
 [[#decl <- ELisp_Array(#symbol, #count);]]
 [[# set Expr#newcount: #count]]
 
 [[#chunk LV initialized array var #vector]]:
 [[#chunk contains Stmt#declinit]]
-[[#declinit matches Lisp_Object Symbol#symbol[] = { CExpr#cexpr };]] ||
-[[#declinit matches Lisp_Object Symbol#symbol[] = { CExpr#cexpr, };]]
+[[#declinit matches (__type__)Lisp_Object Symbol#symbol[] = { CExpr#cexpr };]] ||
+[[#declinit matches (__type__)Lisp_Object Symbol#symbol[] = { CExpr#cexpr, };]]
 [[#declinit <- ELisp_Array_Imm(#symbol, #cexpr);]]
 [[# set Expr#newcount: #symbol.n]]
 
@@ -1928,17 +2877,17 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[# AUTO-0010 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#args LV arg #vector]]
-[[#vector#run <- ELisp_Vector_Handle #vector]]
+[[#vector#run <- (__type__)ELisp_Vector_Handle #vector]]
 
 [[# AUTO-0015 #]]:
 [[# FunctionDefinition #fundef]]
-[[#fundef#args includes #run: ptrdiff_t, Lisp_Object *]]
-[[#run <- ELisp_Vector_Handle]]
+[[#fundef#args includes #run: (__type__)ptrdiff_t, (__type__)Lisp_Object *]]
+[[#run <- (__type__)ELisp_Vector_Handle]]
 
 [[# AUTO-0020 #]]:
 [[# FunTypeD #funtyped]]
 [[#funtyped#args LV arg #vector]]
-[[#vector#run <- ELisp_Vector_Handle #vector]]
+[[#vector#run <- (__type__)ELisp_Vector_Handle #vector]]
 
 [[# AUTO-0030 #]]:
 [[# FunctionDefinition #fundef]]
@@ -1974,7 +2923,7 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#fundef#body contains Expr#expr]]
 [[#expr matches sizeof(#vector)]] ||
 [[#expr matches sizeof #vector]]
-[[#expr <- #vector.n * sizeof(ELisp_Value)]]
+[[#expr <- #vector.n * sizeof((__type__)ELisp_Value)]]
 
 [[# AUTO-0060 #]]:
 [[# FunctionDefinition #fundef]]
@@ -1992,89 +2941,89 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 
 [[# AUTO-0080 #]]:
 [[# contains Stmt#decl]]
-[[#decl matches Lisp_Object *Symbol#symbol;]]
-[[#decl <- ELisp_Pointer #symbol;]]
+[[#decl matches (__type__)Lisp_Object *Symbol#symbol;]]
+[[#decl <- (__type__)ELisp_Pointer #symbol;]]
 
 [[# AUTO-0083 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#body contains Stmt#decl]]
-[[#decl matches Lisp_Object const*Symbol#symbol;]]
-[[#decl <- ELisp_Pointer #symbol;]]
+[[#decl matches (__type__)Lisp_Object const*Symbol#symbol;]]
+[[#decl <- (__type__)ELisp_Pointer #symbol;]]
 
 [[# AUTO-0085 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#body contains Stmt#decl]]
-[[#decl matches Lisp_Object *Symbol#symbol = (Lisp_Object *)Expr#rhs;]]
-[[#decl <- ELisp_Pointer #symbol = (ELisp_Pointer)#rhs;]]
+[[#decl matches (__type__)Lisp_Object *Symbol#symbol = ((__type__)Lisp_Object *)Expr#rhs;]]
+[[#decl <- (__type__)ELisp_Pointer #symbol = ((__type__)ELisp_Pointer)#rhs;]]
 
 [[# AUTO-0086 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#body contains Stmt#decl]]
-[[#decl matches Lisp_Object const *Symbol#symbol = (Lisp_Object *)Expr#rhs;]]
-[[#decl <- ELisp_Pointer #symbol = (ELisp_Pointer)#rhs;]]
+[[#decl matches (__type__)Lisp_Object const *Symbol#symbol = ((__type__)Lisp_Object *)Expr#rhs;]]
+[[#decl <- (__type__)ELisp_Pointer #symbol = ((__type__)ELisp_Pointer)#rhs;]]
 
 [[# AUTO-0090 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#body contains Expr#cast]]
-[[#cast matches (Lisp_Object *)Expr#expr]]
-[[#cast <- (ELisp_Pointer)#expr]]
+[[#cast matches ((__type__)Lisp_Object *)Expr#expr]]
+[[#cast <- ((__type__)ELisp_Pointer)#expr]]
 
 [[# AUTO-0093 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#body contains Stmt#arg]]
-[[#arg matches Lisp_Object *Symbol#symbol;]]
-[[#arg <- ELisp_Pointer #symbol;]]
+[[#arg matches (__type__)Lisp_Object *Symbol#symbol;]]
+[[#arg <- (__type__)ELisp_Pointer #symbol;]]
 
 [[# AUTO-0095 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#args contains Arg#arg]]
-[[#arg matches Lisp_Object *Symbol#symbol]]
-[[#arg <- ELisp_Pointer #symbol]]
+[[#arg matches (__type__)Lisp_Object *Symbol#symbol]]
+[[#arg <- (__type__)ELisp_Pointer #symbol]]
 
 [[# AUTO-0096 #]]:
 [[# FunTypeD #funtype]]
 [[#funtype#args contains Arg#arg]]
-[[#arg matches Lisp_Object *Symbol#symbol]]
-[[#arg <- ELisp_Pointer #symbol]]
+[[#arg matches (__type__)Lisp_Object *Symbol#symbol]]
+[[#arg <- (__type__)ELisp_Pointer #symbol]]
 
 [[# AUTO-0097 #]]:
 [[# FunTypeD #funtype]]
 [[#funtype#args contains Arg#arg]]
 [[#arg matches Type#type *]]
-[[#type matches Lisp_Object]]
-[[#arg <- ELisp_Pointer]]
+[[#type matches (__type__)Lisp_Object]]
+[[#arg <- (__type__)ELisp_Pointer]]
 
 [[# AUTO-0099 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#args contains Arg#arg]]
 [[#arg matches Type#type *]]
-[[#type matches Lisp_Object]]
-[[#arg <- ELisp_Pointer]]
+[[#type matches (__type__)Lisp_Object]]
+[[#arg <- (__type__)ELisp_Pointer]]
 
 [[# AUTO-00995 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#args contains Arg#arg]]
 [[#arg matches Type#type **]]
-[[#type matches Lisp_Object]]
-[[#arg <- ELisp_Pointer *]]
+[[#type matches (__type__)Lisp_Object]]
+[[#arg <- (__type__)ELisp_Pointer *]]
 
 [[# AUTO-0100 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#body contains Stmt#decl]]
-[[#decl matches Lisp_Object *Symbol#symbol = Expr#rhs;]]
-[[#decl <- ELisp_Pointer #symbol = #rhs;]]
+[[#decl matches (__type__)Lisp_Object *Symbol#symbol = Expr#rhs;]]
+[[#decl <- (__type__)ELisp_Pointer #symbol = #rhs;]]
 
 [[# AUTO-0101 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#body contains Stmt#decl]]
-[[#decl matches Lisp_Object *Symbol#symbol;]]
-[[#decl <- ELisp_Pointer #symbol;]]
+[[#decl matches (__type__)Lisp_Object *Symbol#symbol;]]
+[[#decl <- (__type__)ELisp_Pointer #symbol;]]
 
 [[# AUTO-0065 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#body contains Stmt#declinit]]
-[[#declinit matches Lisp_Object Symbol#symbol[] = { CExpr#cexpr };]] ||
-[[#declinit matches Lisp_Object Symbol#symbol[] = { CExpr#cexpr, };]]
+[[#declinit matches (__type__)Lisp_Object Symbol#symbol[] = { CExpr#cexpr };]] ||
+[[#declinit matches (__type__)Lisp_Object Symbol#symbol[] = { CExpr#cexpr, };]]
 [[#declinit <- ELisp_Array_Imm(#symbol, #cexpr);]]
 
 [[# AUTO-0110 #]]:
@@ -2090,7 +3039,7 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#fundef#body contains Expr#expr]]
 [[#expr matches sizeof(#vector)]] ||
 [[#expr matches sizeof #vector]]
-[[#expr <- #vector.n * sizeof(ELisp_Value)]]
+[[#expr <- #vector.n * sizeof((__type__)ELisp_Value)]]
 
 [[# AUTO-0140 #]]:
 [[# FunctionDefinition #fundef]]
@@ -2102,13 +3051,13 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[# AUTO-0105 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#args LV array arg #vector]]
-[[#vector#run <- ELisp_Vector_Handle #vector]]
+[[#vector#run <- (__type__)ELisp_Vector_Handle #vector]]
 
 [[# AUTO-0180 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#body contains Stmt#declinit]]
-[[#declinit matches Lisp_Object Symbol#symbol[] = { CExpr#cexpr };]] ||
-[[#declinit matches Lisp_Object Symbol#symbol[] = { CExpr#cexpr, };]]
+[[#declinit matches (__type__)Lisp_Object Symbol#symbol[] = { CExpr#cexpr };]] ||
+[[#declinit matches (__type__)Lisp_Object Symbol#symbol[] = { CExpr#cexpr, };]]
 [[#fundef#body contains Expr#expr]]
 [[#expr matches CALLMANY(Symbol#f, #symbol)]]
 [[#expr <- #f(#symbol)]]
@@ -2116,8 +3065,8 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[# AUTO-0192 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#body contains Stmt#declinit]]
-[[#declinit matches Lisp_Object Symbol#symbol[] = { CExpr#cexpr };]] ||
-[[#declinit matches Lisp_Object Symbol#symbol[] = { CExpr#cexpr, };]]
+[[#declinit matches (__type__)Lisp_Object Symbol#symbol[] = { CExpr#cexpr };]] ||
+[[#declinit matches (__type__)Lisp_Object Symbol#symbol[] = { CExpr#cexpr, };]]
 [[#fundef#body contains Expr#expr]]
 [[#expr matches ARRAYELTS(#symbol)]]
 [[#expr <- #symbol.n]]
@@ -2125,8 +3074,8 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[# AUTO-0195 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#body contains Stmt#declinit]]
-[[#declinit matches Lisp_Object Symbol#symbol[] = { CExpr#cexpr };]] ||
-[[#declinit matches Lisp_Object Symbol#symbol[] = { CExpr#cexpr, };]]
+[[#declinit matches (__type__)Lisp_Object Symbol#symbol[] = { CExpr#cexpr };]] ||
+[[#declinit matches (__type__)Lisp_Object Symbol#symbol[] = { CExpr#cexpr, };]]
 [[#fundef#body contains Symbol#symbolb]]
 [[#symbolb matches #symbol]]
 [[#symbolb <- #symbol.vec]]
@@ -2134,8 +3083,8 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[# AUTO-0197 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#body contains Stmt#declinit]]
-[[#declinit matches Lisp_Object Symbol#vector[] = { CExpr#cexpr };]] ||
-[[#declinit matches Lisp_Object Symbol#vector[] = { CExpr#cexpr, };]]
+[[#declinit matches (__type__)Lisp_Object Symbol#vector[] = { CExpr#cexpr };]] ||
+[[#declinit matches (__type__)Lisp_Object Symbol#vector[] = { CExpr#cexpr, };]]
 [[#fundef#body contains ArgExprs#argexprs]]
 [[#argexprs includes #run: ARRAYELTS(#vector), #vector]]
 [[#run <- #vector]]
@@ -2143,22 +3092,22 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[# AUTO-0200 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#body contains Stmt#decl]]
-[[#decl matches Lisp_Object Symbol#symbol[Expr#count];]]
+[[#decl matches (__type__)Lisp_Object Symbol#symbol[Expr#count];]]
 [[#decl <- ELisp_Array(#symbol, #count);]]
 
 [[# AUTO-0203 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#body contains Stmt#decl]]
-[[#decl matches Lisp_Object Symbol#symbol[Expr#count];]]
+[[#decl matches (__type__)Lisp_Object Symbol#symbol[Expr#count];]]
 [[#fundef#body contains Expr#expr]]
 [[#expr matches sizeof(#symbol)]] ||
 [[#expr matches sizeof #symbol]]
-[[#expr <- #symbol.n * sizeof(ELisp_Value)]]
+[[#expr <- #symbol.n * sizeof((__type__)ELisp_Value)]]
 
 [[# AUTO-0205 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#body contains Stmt#declinit]]
-[[#declinit matches Lisp_Object Symbol#symbol[Expr#count];]]
+[[#declinit matches (__type__)Lisp_Object Symbol#symbol[Expr#count];]]
 [[#fundef#body contains CExpr#expr]]
 [[#expr matches CALLMANY(Symbol#f, #symbol)]]
 [[#expr <- #f(#symbol)]]
@@ -2166,7 +3115,7 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[# AUTO-0206 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#body contains Stmt#declinit]]
-[[#declinit matches Lisp_Object Symbol#symbol[Expr#count];]]
+[[#declinit matches (__type__)Lisp_Object Symbol#symbol[Expr#count];]]
 [[#fundef#body contains Expr#expr]]
 [[#expr matches CALLMANY(Symbol#f, #symbol)]]
 [[#expr <- #f(#symbol)]]
@@ -2174,7 +3123,7 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[# AUTO-0210 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#body contains Stmt#decl]]
-[[#decl matches Lisp_Object Symbol#symbol[Expr#count];]]
+[[#decl matches (__type__)Lisp_Object Symbol#symbol[Expr#count];]]
 [[#fundef#body contains Expr#expr]]
 [[#expr matches ARRAYELTS(#symbol)]]
 [[#expr <- #symbol.n]]
@@ -2182,7 +3131,7 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[# AUTO-0215 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#body contains Stmt#decl]]
-[[#decl matches Lisp_Object Symbol#symbol[Expr#count];]]
+[[#decl matches (__type__)Lisp_Object Symbol#symbol[Expr#count];]]
 [[#fundef#body contains CExpr#expr]]
 [[#expr matches ARRAYELTS(#symbol)]]
 [[#expr <- #symbol.n]]
@@ -2190,7 +3139,7 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[# AUTO-0220 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#body contains Stmt#decl]]
-[[#decl matches Lisp_Object Symbol#symbol[Expr#count];]]
+[[#decl matches (__type__)Lisp_Object Symbol#symbol[Expr#count];]]
 [[#fundef#body contains Expr#expr]]
 [[#expr matches #symbol]]
 [[#expr <- #symbol.vec]]
@@ -2198,7 +3147,7 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[# AUTO-0225 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#body contains Stmt#decl]]
-[[#decl matches Lisp_Object Symbol#symbol[Expr#count];]]
+[[#decl matches (__type__)Lisp_Object Symbol#symbol[Expr#count];]]
 [[#fundef#body contains CExpr#expr]]
 [[#expr matches #symbol]]
 [[#expr <- #symbol.vec]]
@@ -2206,82 +3155,82 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[# AUTO-0230 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#body contains Stmt#decl]]
-[[#decl matches Lisp_Object Symbol#symbol;]]
-[[#decl <- ELisp_Value #symbol;]]
+[[#decl matches (__type__)Lisp_Object Symbol#symbol;]]
+[[#decl <- (__type__)ELisp_Value #symbol;]]
 
 [[# AUTO-0240 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#body contains Stmt#decl]]
 [[#decl matches Typed#typed = Expr#rhs;]]
-[[#typed matches Lisp_Object Symbol#symbol]]
-[[#typed <- ELisp_Value #symbol]]
+[[#typed matches (__type__)Lisp_Object Symbol#symbol]]
+[[#typed <- (__type__)ELisp_Value #symbol]]
 
 [[# AUTO-0241 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#body contains Stmt#decl]]
 [[#decl matches Typed#typed = Expr#rhs;]]
-[[#typed matches Lisp_Object volatile Symbol#symbol]]
-[[#typed <- ELisp_Value volatile #symbol]]
+[[#typed matches (__type__)Lisp_Object volatile Symbol#symbol]]
+[[#typed <- (__type__)ELisp_Value volatile #symbol]]
 
 [[# AUTO-0299-FLUSH #]]:
 
 [[# AUTO-0300 #]]:
 [[# contains Stmt#stmt]]
-[[#stmt matches ELisp_Value Symbol#symbol;]]
+[[#stmt matches (__type__)ELisp_Value Symbol#symbol;]]
 [[# contains Symbol#symbolb]]
 [[#symbolb matches #symbol]]
-[[# set Type#symbolb#type: ELisp_Value]]
+[[# set Type#symbolb#type: (__type__)ELisp_Value]]
 
 [[# AUTO-030001 #]]:
 [[# contains Stmt#stmt]]
-[[#stmt matches ELisp_Value Symbol#symbol = Expr#rhs;]]
+[[#stmt matches (__type__)ELisp_Value Symbol#symbol = Expr#rhs;]]
 [[# contains Symbol#symbolb]]
 [[#symbolb matches #symbol]]
-[[# set Type#symbolb#type: ELisp_Value]]
+[[# set Type#symbolb#type: (__type__)ELisp_Value]]
 
 [[# AUTO-03001 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#args contains Arg#arg]]
-[[#arg matches ELisp_Handle Symbol#symbol]]
+[[#arg matches (__type__)ELisp_Handle Symbol#symbol]]
 [[#fundef contains Symbol#symbolb]]
 [[#symbolb matches #symbol]]
-[[# set Type#symbolb#type: ELisp_Value]]
+[[# set Type#symbolb#type: (__type__)ELisp_Value]]
 
 [[# AUTO-03002 #]]:
 [[# contains Stmt#stmt]]
-[[#stmt matches ELisp_Pointer Symbol#symbol;]]
+[[#stmt matches (__type__)ELisp_Pointer Symbol#symbol;]]
 [[# contains Symbol#symbolb]]
 [[#symbolb matches #symbol]]
-[[# set Type#symbolb#type: ELisp_Pointer]]
+[[# set Type#symbolb#type: (__type__)ELisp_Pointer]]
 
 [[# AUTO-030021 #]]:
 [[# contains Stmt#stmt]]
-[[#stmt matches ELisp_Pointer Symbol#symbol = Expr#rhs;]]
+[[#stmt matches (__type__)ELisp_Pointer Symbol#symbol = Expr#rhs;]]
 [[# contains Symbol#symbolb]]
 [[#symbolb matches #symbol]]
-[[# set Type#symbolb#type: ELisp_Pointer]]
+[[# set Type#symbolb#type: (__type__)ELisp_Pointer]]
 
 [[# AUTO-03003 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#args contains Arg#arg]]
-[[#arg matches ELisp_Pointer Symbol#symbol]]
+[[#arg matches (__type__)ELisp_Pointer Symbol#symbol]]
 [[#fundef contains Symbol#symbolb]]
 [[#symbolb matches #symbol]]
-[[# set Type#symbolb#type: ELisp_Pointer]]
+[[# set Type#symbolb#type: (__type__)ELisp_Pointer]]
 
 [[# AUTO-03004 #]]:
 [[# contains Stmt#stmt]]
 [[#stmt matches ELisp_Array(Symbol#symbol, Expr#);]]
 [[# contains Symbol #symbolb]]
 [[#symbolb matches #symbol]]
-[[# set Type#symbolb#type: ELisp_Array]]
+[[# set Type#symbolb#type: (__type__)ELisp_Array]]
 
 [[# AUTO-03005 #]]:
 [[# contains Stmt#stmt]]
 [[#stmt matches ELisp_Array_Imm(Symbol#symbol, CExpr#);]]
 [[# contains Symbol #symbolb]]
 [[#symbolb matches #symbol]]
-[[# set Type#symbolb#type: ELisp_Array]]
+[[# set Type#symbolb#type: (__type__)ELisp_Array]]
 
 [[# AUTO-0301 #]]:
 [[# contains Expr#expr]]
@@ -2296,19 +3245,25 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#a matches XCAR(Expr#)]] ||
 [[#a matches XCDR(Expr#)]] ||
 [[#a matches make_number(Expr#)]]
-[[# set Type#a#type: ELisp_Value]]
+[[# set Type#a#type: (__type__)ELisp_Value]]
 
 [[# AUTO-030402 #]]:
 [[# contains Expr#expr]]
 [[#expr matches Expr#lhs = Expr#a ? Expr#b : Expr#c]]
-[[#lhs#type matches ELisp_Value]]
+[[#lhs#type matches (__type__)ELisp_Value]]
 [[#expr <- #lhs = #a ? ELisp_Return_Value(#b) : ELisp_Return_Value(#c)]]
+
+[[# AUTO-0304025 #]]:
+[[# contains Stmt#stmt]]
+[[#stmt matches Type#type Symbol#lhs = Expr#a ? Expr#b : Expr#c;]]
+[[#type matches (__type__)ELisp_Value]]
+[[#stmt <- #type #lhs = #a ? ELisp_Return_Value(#b) : ELisp_Return_Value(#c);]]
 
 [[# AUTO-0305 #]]:
 [[# contains Expr#expr]]
 [[#expr matches Expr#a ? Expr#b : Expr#c]]
-[[#b#type matches ELisp_Value]] ||
-[[#c#type matches ELisp_Value]]
+[[#b#type matches (__type__)ELisp_Value]] ||
+[[#c#type matches (__type__)ELisp_Value]]
 [[#b <- ELisp_Return_Value(#b)]]
 [[#c <- ELisp_Return_Value(#c)]]
 
@@ -2316,7 +3271,7 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[# contains Expr#expr]]
 [[#expr matches Expr#a = Expr#b]]
 [[#a matches *Expr#ptr]]
-[[#ptr#type matches ELisp_Pointer]]
+[[#ptr#type matches (__type__)ELisp_Pointer]]
 [[#expr <- #ptr.set(#b)]]
 
 [[# AUTO-0307 #]]:
@@ -2335,25 +3290,25 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#a nomatch Expr# = Expr#]]
 [[#b nomatch Expr# = Expr#]]
 [[#a matches Expr#ptr[Expr#index] ]]
-[[#ptr#type matches ELisp_Pointer]]
+[[#ptr#type matches (__type__)ELisp_Pointer]]
 [[#expr <- #ptr.sref(#index, #b)]]
 
 [[# AUTO-0309 #]]:
 [[# contains Expr#expr]]
 [[#expr matches Expr#ptr[Expr#index] ]]
-[[#ptr#type matches ELisp_Pointer]]
+[[#ptr#type matches (__type__)ELisp_Pointer]]
 [[#expr <- #ptr.ref(#index)]]
 
 [[# AUTO-0310 #]]:
 [[# contains Expr#expr]]
 [[#expr matches Expr#ptr.vec[Expr#index] ]]
-[[#ptr#type matches ELisp_Pointer]]
+[[#ptr#type matches (__type__)ELisp_Pointer]]
 [[#expr <- #ptr.ref(#index)]]
 
 [[# AUTO-03108 #]]:
 [[# contains Expr#expr]]
 [[#expr matches *Expr#ptr ]]
-[[#ptr#type matches ELisp_Pointer]]
+[[#ptr#type matches (__type__)ELisp_Pointer]]
 [[#expr <- #ptr.ref(0)]]
 
 [[# AUTO-0311 #]]:
@@ -2362,8 +3317,8 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#expr matches sizeof(*#ptr)]] ||
 [[#expr matches sizeof #ptr[0])]] ||
 [[#expr matches sizeof(*#ptr[0])]]
-[[#ptr#type matches ELisp_Pointer]]
-[[#expr <- sizeof(ELisp_Struct_Value)]]
+[[#ptr#type matches (__type__)ELisp_Pointer]]
+[[#expr <- sizeof((__type__)ELisp_Struct_Value)]]
 
 [[# AUTO-0312-REPEAT #]]:
 [[# contains Expr#expr]]
@@ -2392,115 +3347,119 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[# XXXAUTO-0248 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#args contains Arg#arg]]
-[[#arg matches Lisp_Object Symbol#symbol]]
-[[#fundef#body contains RWExpr#rwexpr]]
+[[#arg matches (__type__)Lisp_Object Symbol#symbol]]
+[[#fundef#body contains Expr#rwexpr]]
 [[#rwexpr modifies #arg]]
-[[#arg <- ELisp_Handle_RW #symbol]]
+[[#arg <- (__type__)ELisp_Handle_RW #symbol]]
 
 [[# XXXAUTO-0249 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#args contains Arg#arg]]
-[[#arg matches Lisp_Object Symbol#symbol]]
+[[#arg matches (__type__)Lisp_Object Symbol#symbol]]
 [[#fundef#body contains Expr#expr]]
 [[#expr matches &#arg]]
-[[#arg <- ELisp_Handle_RW #symbol]]
+[[#arg <- (__type__)ELisp_Handle_RW #symbol]]
 
 [[# AUTO-0250 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#args contains Arg#arg]]
-[[#arg matches Lisp_Object Symbol#symbol]]
-[[#arg <- ELisp_Handle #symbol]]
+[[#arg matches (__type__)Lisp_Object Symbol#symbol]]
+[[#arg <- (__type__)ELisp_Handle #symbol]]
 
 [[# AUTO-0255 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#args contains Arg#arg]]
-[[#arg matches Lisp_Object]]
-[[#arg <- ELisp_Handle]]
+[[#arg matches (__type__)Lisp_Object]]
+[[#arg <- (__type__)ELisp_Handle]]
 
 [[# AUTO-02552 #]]:
 [[# FunTypeD #fundef]]
 [[#fundef#args contains Arg#arg]]
-[[#arg matches Symbol#type Symbol#symbol]]
-[[#type matches Lisp_Object]]
-[[#type <- ELisp_Handle]]
+[[#arg matches Type#type Symbol#symbol]]
+[[#type matches (__type__)Lisp_Object]]
+[[#type <- (__type__)ELisp_Handle]]
 
 [[# AUTO-0256 #]]:
 [[# FunTypeD #fundef]]
 [[#fundef#args contains Arg#arg]]
-[[#arg matches Symbol#type]]
-[[#type matches Lisp_Object]]
-[[#arg <- ELisp_Handle]]
+[[#arg matches Type#type]]
+[[#type matches (__type__)Lisp_Object]]
+[[#arg <- (__type__)ELisp_Handle]]
 
 [[# AUTO-0260 #]]:
 [[# FunctionDefinition #fundef]]
-[[#fundef#ret matches Lisp_Object]]
-[[#fundef#ret <- ELisp_Return_Value]]
+[[#fundef#ret matches (__type__)Lisp_Object]]
+[[#fundef#ret <- (__type__)ELisp_Return_Value]]
 
 [[# AUTO-0265 #]]:
 [[# FunTypeD #funtyped]]
-[[#funtyped#ret matches Lisp_Object]]
-[[#funtyped#ret <- ELisp_Return_Value]]
+[[#funtyped#ret matches (__type__)Lisp_Object]]
+[[#funtyped#ret <- (__type__)ELisp_Return_Value]]
 
 [[# AUTO-0270 #]]:
 [[# contains StructBody#structbody]]
 [[#structbody contains Stmt#decl]]
-[[#decl matches Lisp_Object Symbol#symbol;]]
-[[#decl <- ELisp_Struct_Value #symbol;]]
+[[#decl matches (__type__)Lisp_Object Symbol#symbol;]]
+[[#decl <- (__type__)ELisp_Struct_Value #symbol;]]
 
 [[# AUTO-0272 #]]:
 [[# contains StructBody#structbody]]
 [[#structbody contains Stmt#decl]]
-[[#decl matches extern Lisp_Object Symbol#symbol;]]
-[[#decl <- extern ELisp_Struct_Value #symbol;]]
+[[#decl matches extern (__type__)Lisp_Object Symbol#symbol;]]
+[[#decl <- extern (__type__)ELisp_Struct_Value #symbol;]]
 
 [[# AUTO-0275 #]]:
 [[# contains StructBody#structbody]]
 [[#structbody contains Stmt#decl]]
-[[#decl matches Lisp_Object Symbol#symbol[Expr#expr];]]
-[[#decl <- ELisp_Struct_Value #symbol[#expr];]]
+[[#decl matches (__type__)Lisp_Object Symbol#symbol[Expr#expr];]]
+[[#decl <- (__type__)ELisp_Struct_Value #symbol[#expr];]]
 
 [[# AUTO-0277 #]]:
 [[# contains StructBody#structbody]]
 [[#structbody contains Stmt#decl]]
-[[#decl matches extern Lisp_Object Symbol#symbol[Expr#expr];]]
-[[#decl <- extern ELisp_Struct_Value #symbol[#expr];]]
+[[#decl matches extern (__type__)Lisp_Object Symbol#symbol[Expr#expr];]]
+[[#decl <- extern (__type__)ELisp_Struct_Value #symbol[#expr];]]
 
 [[# AUTO-0280 #]]:
 [[# contains Stmt#decl]]
-[[#decl matches static Lisp_Object Symbol#symbol;]]
-[[#decl <- static ELisp_Heap_Value #symbol = builtin_lisp_symbol(0);]]
+[[#decl matches static (__type__)Lisp_Object Symbol#symbol;]]
+[[#decl <- static (__type__)ELisp_Heap_Value #symbol = builtin_lisp_symbol(0);]]
 
 [[# AUTO-0285 #]]:
 [[# contains Stmt#decl]]
-[[#decl matches static Lisp_Object Symbol#symbol[Expr#expr];]]
-[[#decl <- static ELisp_Heap_Value #symbol[#expr];]]
+[[#decl matches static (__type__)Lisp_Object Symbol#symbol[Expr#expr];]]
+[[#decl <- static (__type__)ELisp_Heap_Value #symbol[#expr];]]
 
 [[# AUTO-0290 #]]:
 [[# contains Stmt#decl]]
-[[#decl matches Lisp_Object Symbol#symbol;]]
-[[#decl <- ELisp_Heap_Value #symbol = builtin_lisp_symbol(0);]]
+[[#decl matches (__type__)Lisp_Object Symbol#symbol;]]
+[[#decl <- (__type__)ELisp_Heap_Value #symbol = builtin_lisp_symbol(0);]]
 
 [[# AUTO-0292 #]]:
 [[# contains Stmt#decl]]
-[[#decl matches Lisp_Object Symbol#symbol[Expr#expr];]]
-[[#decl <- ELisp_Heap_Value #symbol[#expr];]]
+[[#decl matches (__type__)Lisp_Object Symbol#symbol[Expr#expr];]]
+[[#decl <- (__type__)ELisp_Heap_Value #symbol[#expr];]]
 
 [[# AUTO-0293 #]]:
 [[# contains Stmt#decl]]
-[[#decl matches Lisp_Object Symbol#symbol[Expr#expr] Attrs#attrs;]]
-[[#decl <- ELisp_Heap_Value #symbol[#expr] #attrs;]]
+[[#decl matches (__type__)Lisp_Object Symbol#symbol[Expr#expr] Attrs#attrs;]]
+[[#decl <- (__type__)ELisp_Heap_Value #symbol[#expr] #attrs;]]
 
 [[# AUTO-0295 #]]:
 [[# contains Stmt#decl]]
-[[#decl matches extern Lisp_Object Symbol#symbol;]]
-[[#decl <- extern ELisp_Heap_Value #symbol;]]
+[[#decl matches extern (__type__)Lisp_Object Symbol#symbol;]]
+[[#decl <- extern (__type__)ELisp_Heap_Value #symbol;]]
 
 [[# AUTO-0297-FLUSH #]]:
 [[# contains Stmt#stmt]]
 
 [[# AUTO-0400 #]]:
 [[# contains Stmt#decl]]
-[[#decl matches typedef struct Symbol#struct BStructBody#body Symbol#symbol;]]
+[[#decl matches typedef struct Symbol#struct BStructBody#body Symbol#symbol;]] ||
+[[#decl matches typedef struct (__type__)Symbol#struct BStructBody#body Symbol#symbol;]] ||
+[[#decl matches typedef struct Symbol#struct BStructBody#body (__type__)Symbol#symbol;]] ||
+[[#decl matches typedef struct Type#struct BStructBody#body Type#symbol;]] ||
+[[#decl matches typedef struct (__type__)Symbol#struct BStructBody#body (__type__)Symbol#symbol;]]
 [[#decl <- typedef struct #struct #symbol;]]
 [[# pre-chunk struct #struct #body;]]
 
@@ -2517,6 +3476,13 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#sd matches struct Symbol#struct BStructBody#body Symbol#symbol;]]
 [[#sd <- struct #struct #symbol;]]
 [[# pre-chunk struct #struct #body;]]
+
+[[# AUTO-0425 #]]:
+[[# contains StructBody#outerstruct]]
+[[#outerstruct contains Stmt#sd]]
+[[#sd matches struct (__type__)Symbol#struct BStructBody#body Symbol#symbol;]]
+[[#sd <- struct #struct #symbol;]]
+[[# pre-chunk struct (__type__)#struct #body;]]
 
 [[# AUTO-0430 #]]:
 [[# contains StructBody#outerstruct]]
@@ -2540,22 +3506,22 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[# AUTO-0600 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#args contains Arg#arg]]
-[[#arg matches ELisp_Handle Symbol#symbol]]
+[[#arg matches (__type__)ELisp_Handle Symbol#symbol]]
 [[#fundef#body matches { Stmts#stmts }]]
 [[#fundef#body contains Expr#expr]]
 [[#expr modifies #rwexpr]]
 [[#rwexpr matches #symbol]]
-[[#stmts <<- ELisp_Value #symbol = ARG(#symbol);]]
-[[#arg <- ELisp_Handle ARG(#symbol)]]
+[[#stmts <<- (__type__)ELisp_Value #symbol = ARG(#symbol);]]
+[[#arg <- (__type__)ELisp_Handle ARG(#symbol)]]
 
 [[#expr xsets #rwexpr]]:
-[[#rwexpr matches Symbol#symbol(Expr#expr, Expr#)]]
+[[#rwexpr matches Symbol#symbol(Expr#expr, Expr#exprb)]]
 [[#symbol check "#symbol" =~ /^XSET/]]
 [[#symbol check "#symbol" !~ /^XSETC[AD]R/]]
 
 [[#expr coerces #rwexpr]]:
-[[#rwexpr matches Symbol#symbol(Expr#expr)]]
-[[#symbol check "#symbol" =~ /^(CHECK_NUMBER_COERCE_MARKER|CHECK_NUMBER_OR_FLOAT_COERCE_MARKER)$/]]
+[[#rwexpr matches Symbol#symbolb(Expr#expr)]]
+[[#symbol check "#symbolb" =~ /^(CHECK_NUMBER_COERCE_MARKER|CHECK_NUMBER_OR_FLOAT_COERCE_MARKER)$/]]
 
 [[#expr modifies #rwexpr]]:
 [[#rwexpr matches Expr#expr ModOp# Expr#]] ||
@@ -2569,16 +3535,16 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[# AUTO-0700 #]]:
 [[# contains Expr#expr]]
 [[#expr matches swapfield_(Expr#exprb, Symbol#symbol)]]
-[[#symbol matches Lisp_Object]]
-[[#symbol <- ELisp_Struct_Value]]
+[[#symbol matches (__type__)Lisp_Object]]
+[[#symbol <- (__type__)ELisp_Struct_Value]]
 
 [[# AUTO-0750 #]]:
 [[# contains Stmt#decl]]
 [[#decl matches Type#type Symbol#symbol;]]
-[[#type matches ELisp_Pointer]]
+[[#type matches (__type__)ELisp_Pointer]]
 [[# contains Expr#expr]]
 [[#expr matches SAFE_ALLOCA_LISP(#symbol, Expr#size)]]
-[[#type <- ELisp_Dynvector]]
+[[#type <- (__type__)ELisp_Dynvector]]
 [[#expr <- #symbol.resize(#size)]]
 
 [[# AUTO-0799-FLUSH #]]:
@@ -2588,30 +3554,30 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#expr matches Qt]] ||
 [[#expr matches Qnil]] ||
 [[#expr matches BVAR(Expr#, Expr#)]]
-[[# set Type#expr#type: ELisp_Struct_Value]]
-[[#expr set Type#expr#type: ELisp_Struct_Value]]
+[[# set Type#expr#type: (__type__)ELisp_Struct_Value]]
+[[#expr set Type#expr#type: (__type__)ELisp_Struct_Value]]
 
 [[# AUTO-07999 #]]:
 [[# contains Expr#a]]
 [[#a matches XCAR(Expr#)]] ||
 [[#a matches XCDR(Expr#)]] ||
 [[#a matches make_number(Expr#)]]
-[[# set Type#a#type: ELisp_Return_Value]]
-[[#a set Type#a#type: ELisp_Return_Value]]
+[[# set Type#a#type: (__type__)ELisp_Return_Value]]
+[[#a set Type#a#type: (__type__)ELisp_Return_Value]]
 
 [[# XAUTO-0800 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#args element Expr#n: Arg#arg]]
-[[#arg matches ELisp_Handle Symbol#symbol]]
+[[#arg matches (__type__)ELisp_Handle Symbol#symbol]]
 [[#fundef#body contains Expr#expr]]
 [[#expr matches #symbol]]
-[[# set Type#expr#type: ELisp_Handle]]
+[[# set Type#expr#type: (__type__)ELisp_Handle]]
 
 [[# XAUTO-0801 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#body contains Stmt#decl]]
-[[#decl matches ELisp_Value Symbol#symbol;]] ||
-[[#decl matches ELisp_Value Symbol#symbol = Expr#rhs;]] ||
+[[#decl matches (__type__)ELisp_Value Symbol#symbol;]] ||
+[[#decl matches (__type__)ELisp_Value Symbol#symbol = Expr#rhs;]] ||
 [[#decl matches AUTO_CONS(Symbol#symbol, ArgExprs#);]] ||
 [[#decl matches AUTO_LIST1(Symbol#symbol, ArgExprs#);]] ||
 [[#decl matches AUTO_LIST2(Symbol#symbol, ArgExprs#);]] ||
@@ -2619,10 +3585,10 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#decl matches AUTO_LIST4(Symbol#symbol, ArgExprs#);]] ||
 [[#decl matches AUTO_LIST5(Symbol#symbol, ArgExprs#);]] ||
 [[#decl matches AUTO_STRING(Symbol#symbol, Expr#);]] ||
-[[#decl matches AUTO_STRING_WITH_LEN(Symbol#symbol, Expr#, Expr#);]]
-[[#fundef#body contains Expr#expr]]
-[[#expr matches #symbol]]
-[[# set Type#expr#type: ELisp_Value]]
+[[#decl matches AUTO_STRING_WITH_LEN(Symbol#symbol, Expr#str, Expr#len);]]
+[[#fundef#body contains Expr#exprb]]
+[[#exprb matches #symbol]]
+[[# set Type#exprb#type: (__type__)ELisp_Value]]
 
 [[# XAUTO-08015 #]]:
 [[# FunctionDefinition #fundef]]
@@ -2633,16 +3599,16 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#expr matches AUTO_LIST2 (Symbol#symbol, Expr#, Expr#)]] ||
 [[#expr matches AUTO_LIST3 (Symbol#symbol, Expr#, Expr#, Expr#)]] ||
 [[#expr matches AUTO_LIST4 (Symbol#symbol, Expr#, Expr#, Expr#, Expr#)]]
-[[#fundef#body contains Expr#expr]]
-[[#expr matches #symbol]]
-[[# set Type#expr#type: ELisp_Value]]
+[[#fundef#body contains Expr#exprb]]
+[[#exprb matches #symbol]]
+[[# set Type#exprb#type: (__type__)ELisp_Value]]
 
 [[# XAUTO-0802 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#body contains Expr#expr]]
 [[#expr matches Symbol#symbol(ArgExprs#)]]
 [[#symbol check $main::returns_lo->{#symbol}]]
-[[# set Type#expr#type: ELisp_Return_Value]]
+[[# set Type#expr#type: (__type__)ELisp_Return_Value]]
 
 [[# XAUTO-0805 #]]:
 [[# contains Expr#expr]]
@@ -2653,11 +3619,11 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#symbol check "#symbol" !~ /XSET/]] ||
 [[#symbol check "#symbol" =~ /XSETC[AD]R/]] ||
 [[#n check #n > 0]]
-[[#argexpr nomatch Symbol#symbolb(ArgExprs#)]] ||
+[[#argexpr nomatch Symbol#symbolb(ArgExprs#argexprsb)]] ||
 [[#symbolb check "#symbolb" !~ /^(L(SH|HH|VH|RH)|LISPSYM_INITIALLY)$/]]
 [[#symbol check $main::accepts_lo->{#symbol}[#n] ]]
-[[#argexpr matches Expr#expr]]
-[[#expr#type matches ELisp_Value]]
+[[#argexpr matches Expr#exprb]]
+[[#exprb#type matches (__type__)ELisp_Value]]
 [[#argexpr <- LVH(#argexpr)]]
 
 [[# XAUTO-0806 #]]:
@@ -2669,11 +3635,11 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#symbol check "#symbol" !~ /XSET/]] ||
 [[#symbol check "#symbol" =~ /XSETC[AD]R/]] ||
 [[#n check #n > 0]]
-[[#argexpr nomatch Symbol#symbolb(ArgExprs#)]] ||
+[[#argexpr nomatch Symbol#symbolb(ArgExprs#argexprsb)]] ||
 [[#symbolb check "#symbolb" !~ /^(L(SH|HH|VH|RH)|LISPSYM_INITIALLY)$/]]
 [[#symbol check $main::accepts_lo->{#symbol}[#n] ]]
-[[#argexpr matches Expr#expr]]
-[[#expr#type matches ELisp_Handle]]
+[[#argexpr matches Expr#exprb]]
+[[#exprb#type matches (__type__)ELisp_Handle]]
 [[#argexpr <- LHH(#argexpr)]]
 
 [[# XAUTO-0806125 #]]:
@@ -2704,15 +3670,15 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#symbol check "#symbol" !~ /^L(SH|HH|VH|RH)$/]]
 [[#symbol nomatch LISPSYM_INITIALLY]]
 [[#argexprs element Expr#n: ArgExpr#argexpr]]
-[[#argexpr matches Expr#expr]]
-[[#expr#type matches ELisp_Return_Value]]
+[[#argexpr matches Expr#exprb]]
+[[#exprb#type matches (__type__)ELisp_Return_Value]]
 [[#argexpr free]]
 [[#symbol check "#symbol" !~ /XSET/]] ||
 [[#symbol check "#symbol" =~ /XSETC[AD]R/]] ||
 [[#n check #n > 0]]
 [[#argexpr nomatch Symbol#symbolc = Expr#]] ||
 [[#symbolc check "#symbol" !~ /^__u_/]]
-[[#argexpr nomatch Symbol#symbolb(ArgExprs#)]] ||
+[[#argexpr nomatch Symbol#symbolb(ArgExprs#argexprsb)]] ||
 [[#symbolb check "#symbolb" !~ /^(ELisp_Handle|L(SH|HH|VH|RH)|LISPSYM_INITIALLY)$/]]
 [[#symbol check $main::accepts_lo->{#symbol}[#n] ]]
 [[#argexpr free]]
@@ -2724,8 +3690,8 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#symbol check "#symbol" !~ /^ELisp_Handle|L(SH|HH|VH|RH)$/]]
 [[#symbol nomatch LISPSYM_INITIALLY]]
 [[#argexprs element Expr#n: ArgExpr#argexpr]]
-[[#argexpr matches Expr#expr]]
-[[#expr#type matches ELisp_Return_Value]]
+[[#argexpr matches Expr#exprb]]
+[[#exprb#type matches (__type__)ELisp_Return_Value]]
 [[#argexpr free]]
 [[#symbol check "#symbol" !~ /XSET/]] ||
 [[#symbol check "#symbol" =~ /XSETC[AD]R/]] ||
@@ -2745,25 +3711,25 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#symbol check "#symbol" !~ /XSET/]] ||
 [[#symbol check "#symbol" =~ /XSETC[AD]R/]] ||
 [[#n check #n > 0]]
-[[#argexpr nomatch Symbol#symbolc = Expr#]]
-[[#argexpr nomatch Symbol#symbolb(ArgExprs#)]] ||
+[[#argexpr nomatch Symbol#symbolc = Expr#exprc]]
+[[#argexpr nomatch Symbol#symbolb(ArgExprs#argexprsb)]] ||
 [[#symbolb check "#symbolb" !~ /^(ELisp_Handle|L(SH|HH|VH|RH)|LISPSYM_INITIALLY)$/]]
 [[#symbol check $main::accepts_lo->{#symbol}[#n] ]]
-[[#argexpr matches Expr#expr]]
+[[#argexpr matches Expr#exprb]]
 [[#argexpr free]]
 [[#argexpr <- LRH(#argexpr)]]
 
 [[# XAUTO-080825 #]]:
 [[# contains Stmt#stmt]]
-[[#stmt matches for (ELisp_Value Symbol#symbol = Expr#rhs; Expr#expra; Expr#exprb) Stmt#inner]]
+[[#stmt matches for ((__type__)ELisp_Value Symbol#symbol = Expr#rhs; Expr#expra; Expr#exprb) Stmt#inner]]
 [[#stmt free]]
-[[#expra#ics <<- ELisp_Value #symbol;]]
+[[#expra#ics <<- (__type__)ELisp_Value #symbol;]]
 [[#stmt <- for (#symbol = #rhs; #expra; #exprb) #inner]]
 
 [[# XAUTO-08085 #]]:
 [[# contains Stmt#stmt]]
-[[#stmt matches ELisp_Value Symbol#symbol = Expr#rhs;]]
-[[#stmt <- ELisp_Value #symbol; #symbol = #rhs;]]
+[[#stmt matches (__type__)ELisp_Value Symbol#symbol = Expr#rhs;]]
+[[#stmt <- (__type__)ELisp_Value #symbol; #symbol = #rhs;]]
 
 [[# XAUTO-0809-FLUSH #]]:
 
@@ -2790,26 +3756,26 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[# XXXAUTO-0000 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#args contains Arg#arg]]
-[[#arg matches Lisp_Object *Symbol#symbol]]
-[[#fundef#body contains RWExpr#rwexpr]]
+[[#arg matches (__type__)Lisp_Object *Symbol#symbol]]
+[[#fundef#body contains Expr#rwexpr]]
 [[#rwexpr modifies #expr]]
 [[#expr matches *#symbol]] ||
 [[#expr matches #symbol[Expr#]]]
-[[#arg <- ELisp_Pointer_RW #symbol]]
+[[#arg <- (__type__)ELisp_Pointer_RW #symbol]]
 
 [[# XXXAUTO-0001 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#args contains Arg#arg]]
-[[#arg matches Lisp_Object *Symbol#symbol]]
+[[#arg matches (__type__)Lisp_Object *Symbol#symbol]]
 [[#fundef#body contains Expr#expr]]
 [[#expr matches &#symbol]]
-[[#arg <- ELisp_Pointer_RW #symbol]]
+[[#arg <- (__type__)ELisp_Pointer_RW #symbol]]
 
 [[# XXXAUTO-0002 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#args contains Arg#arg]]
-[[#arg matches Lisp_Object *Symbol#symbol]]
-[[#arg <- ELisp_Pointer_RO #symbol]]
+[[#arg matches (__type__)Lisp_Object *Symbol#symbol]]
+[[#arg <- (__type__)ELisp_Pointer_RO #symbol]]
 
 [[# find structs #]]:
 EOF
@@ -2928,6 +3894,7 @@ use File::Slurp qw(read_file write_file);
 
 my @md5s;
 
+my $gstarttime = time;
 for my $chunk (@chunks) {
     my $counter = 10;
     my $md5 = md5_hex($chunk);
@@ -2938,20 +3905,30 @@ for my $chunk (@chunks) {
     }
     $chunk =~ s/^(\#[ \t]*include[ \t]+)TERM_HEADER.*$/$1\"gtkutil.h.hh\"/mg;
     $chunk =~ s/^(\#[ \t]*include[ \t]+)\"(.*\.h)\"/$1\"$2.hh\"/mg;
+
+    for my $type (@EmacsCGrammar::types) {
+        $chunk =~ s/\b$type\b/(__type__)$type/g;
+        $chunk =~ s/\(__type__\)($type\([^*])/$1/g;
+        $chunk =~ s/\(__type__\)($type \([^*])/$1/g;
+        $chunk =~ s/\(__type__\)\(__type__\)/(__type__)/g;
+    }
+
     my @prechunks;
     eval {
         my @repl;
-        my $ctree = EmacsCParser::parse_verbatim_ctree("Chunk", $chunk);
+        my $ctree = EmacsCParser::parse_verbatim_ctree("Chunk", \$chunk);
         for my $key (sort keys %$defns) {
             next unless $key =~ /^AUTO/;
             my $start = time();
             my $flush = 0;
             while (1) {
+                # warn $key;
                 # warn $key . $chunk;
                 if ($key =~ /^AUTO.*FLUSH$/ or $flush) {
                     $chunk = perform_replacements($chunk, @repl);
                     @repl = ();
-                    $ctree = EmacsCParser::parse_verbatim_ctree("Chunk", $chunk);
+                    $ctree = EmacsCParser::parse_verbatim_ctree("Chunk", \$chunk);
+                    #warn $ctree->debug2;
                     $flush = 0;
                 }
                 my $processor = Processor->new($ctree, $defns, sub { push @repl, @_; }, { prechunk => sub { push @prechunks, $_[0] }, flush => sub { $flush = 1 }, free => sub { test_replacement($_[0], @repl); } }, { "Expr#CU" => "\"$cu\"" }, \$counter);
@@ -2961,12 +3938,12 @@ for my $chunk (@chunks) {
                 if ($key =~ /^AUTO.*FLUSH$/ or $flush) {
                     $chunk = perform_replacements($chunk, @repl);
                     @repl = ();
-                    $ctree = EmacsCParser::parse_verbatim_ctree("Chunk", $chunk);
+                    $ctree = EmacsCParser::parse_verbatim_ctree("Chunk", \$chunk);
                     $flush = 0;
                 }
                 if ($key =~ /^AUTO.*REPEAT$/) {
                     $chunk = perform_replacements($chunk, @repl);
-                    $ctree = EmacsCParser::parse_verbatim_ctree("Chunk", $chunk);
+                    $ctree = EmacsCParser::parse_verbatim_ctree("Chunk", \$chunk);
                     last if @repl == 0;
                     @repl = ();
                 } else {
@@ -2990,6 +3967,8 @@ for my $chunk (@chunks) {
             $chunk = $prechunk . "\n\n" . $chunk;
         }
     }
+
+    $chunk =~ s/\(__type__\)//g;
 
     print $chunk;
 

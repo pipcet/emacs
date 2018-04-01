@@ -6230,7 +6230,7 @@ png_load_body (struct frame *f, struct image *img, struct png_load_context *c)
     /* Set IMG's background color from the PNG image, unless the user
        overrode it.  */
     {
-      png_color_16 *bg;
+      png_color_16 *bg; 
       if (png_get_bKGD (png_ptr, info_ptr, &bg))
 	{
 	  img->background = lookup_rgb_color (f, bg->red, bg->green, bg->blue);
@@ -7489,7 +7489,7 @@ gif_clear_image (struct frame *f, struct image *img)
 /* Return true if OBJECT is a valid GIF image specification.  */
 
 static bool
-gif_image_p (Lisp_Object object)
+gif_image_p (ELisp_Handle object)
 {
   struct image_keyword fmt[GIF_LAST];
   memcpy (fmt, gif_format, sizeof fmt);
