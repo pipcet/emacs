@@ -89,6 +89,14 @@ package EmacsCGrammar;
 
     GCallback
 
+    xcb_query_tree_cookie_t
+    xcb_query_tree_reply_t
+    dbus_int64_t
+    dbus_uint64_t
+    xcb_translate_coordinates_cookie_t
+    TIFFErrorHandler
+    GError
+
     XWMHints
 
     gint
@@ -99,8 +107,14 @@ package EmacsCGrammar;
     CFIndex
 
     cairo_t
+    cairo_status_t
 
+    xcb_get_geometry_cookie_t
     xcb_get_property_cookie_t
+
+    XtTranslations
+
+    SmPropValue
 
     Colormap
 
@@ -139,8 +153,55 @@ package EmacsCGrammar;
     XrmValuePtr
     SmProp
     SmcCallbacks
+    uint32
     dbus_uint32_t
+    dbus_int32_t
+    dbus_int16_t
+    dbus_uint16_t
+    ELisp_Dynvector
+    size_t
+    guchar
+    RsvgHandle
+    MagickRealType
+    DisposeType
+    ExceptionType
+    gif_memory_source
+    GifFileType
+    tiff_memory_source
+    TIFFReadWriteProc
+    j_common_ptr
+    JOCTET
+    png_uint_32
+    png_struct
+    GtkDialog
+    gnutls_datum_t
+    KEY_EVENT_RECORD
+    GdkCursor
+    cairo_matrix_t
+    GtkFileChooserAction
+    PangoStyle
+    XWindowAttributes
+    XtConvertArgRec
+    sigjmp_buf
+    GtkStockItem
+    Status
+    gnutls_alert_description_t
+    gnutls_aead_cipher_hd_t
+    gnutls_cipher_hd_t
+    gnutls_hmac_hd_t
+    gnutls_hash_hd_t
+    cmsCIExyY
+    thandle_t
+    tdata_t
+    toff_t
+    JSAMPARRAY
+    TIFF
+    j_decompress_ptr
+    compile_stack_type
+    fail_stack_type
+    XMappingEvent
     GSList
+    WINDOWPLACEMENT
     GtkOrientation
     GDestroyNotify
     XrmOptionDescRec
@@ -397,6 +458,9 @@ package EmacsCGrammar;
     GtkTextDirection
     FcBool
     GSettings
+    GtkImage
+    XrmClass
+    CARD16
     CARD32
     gsize
     GdkRGBA
@@ -567,6 +631,7 @@ package EmacsCGrammar;
     XPV
     PTR_TBL_t
     DWORD
+    WORD
 
     JSP_SV_Handle
     JSP_AV_Handle
@@ -770,7 +835,7 @@ Label ::= Symbol ':'
 CaseLabel ::= 'case' Expr ':' | 'CASE' '(' Expr ')' ':' | 'CASE_DEFAULT' | 'CASE_ABORT' ':' | 'FIRST'
 PExpr ::= '(' CExpr ')'
 CExpr ::= Expr ',' CExpr | Expr
-ExprWithType ::= 'INT_STRLEN_BOUND' '(' Type ')' | 'TYPE_MINIMUM' '(' Type ')' | 'TYPE_SIGNED' '(' Type ')' | 'INT_BUFSIZE_BOUND' '(' Type ')' | 'TYPE_RANGED_INTEGERP' '(' Type ',' Expr ')' | 'CHECK_TYPE_RANGED_INTEGER' '(' Type ',' Expr ')'
+ExprWithType ::= 'INT_STRLEN_BOUND' '(' Type ')' | 'TYPE_MINIMUM' '(' Type ')' | 'TYPE_SIGNED' '(' Type ')' | 'INT_BUFSIZE_BOUND' '(' Type ')' | 'TYPE_RANGED_INTEGERP' '(' Type ',' Expr ')' | 'CHECK_TYPE_RANGED_INTEGER' '(' Type ',' Expr ')' | 'swapfield_' '(' Symbol ',' Type ')'
 Expr ::=  ExprWithType | Expr BinOp Expr rank => 3 | '...' | 'VECSIZE' '(' Type ')' | 'FLEXSIZEOF' '(' Type ',' Expr ',' Expr ')' | 'PSEUDOVECSIZE' '(' Type ',' Expr ')' | 'ALLOCATE_PSEUDOVECTOR' '(' Type ',' Expr ',' Expr ')' | 'ALLOCATE_ZEROED_PSEUDOVECTOR' '(' Type ',' Expr ',' Expr ')' | 'REGEX_TALLOC' '(' Expr ',' Type ')' | 'UNSIGNED_CMP' '(' Expr ',' BinOp ',' Expr ')' | 'TYPE_MAXIMUM' '(' Type ')' | 'CONS_TO_INTEGER' '(' Expr ',' Type ',' Expr ')' | Symbol rank => 1 | Number | Expr PArgExprs rank => 1 | 'sizeof' Type | 'sizeof' '(' Type ')' | 'sizeof' Expr | 'alignof' '(' Type ')' | 'offsetof' '(' Type ',' Symbol ')' | 'offsetof' '(' Type ',' Expr ')' | PExpr | Expr '?' Expr ':' Expr rank => 5 | UnOp Expr rank => 2 | '(' Type ')' Expr | Expr '[' Expr ']' | String | '{' '}' | '{' CExpr '}' | '{' CExpr ',' '}' | Attr Expr | 'va_arg' '(' Expr ',' Type ')' | '[' Expr '...' Expr ']' '=' Expr | '[' Expr ']' '=' Expr | '.' Expr '=' Expr | '&&' Symbol | 'ELisp_Array_Imm' '(' Expr ',' CExpr ')' | '(' Expr ')' | Expr ModOp Expr rank => 6 | ModUnOp Expr | Expr ModPostOp
 String ::= string | String String | 'FOPEN_TEXT' | 'FOPEN_BINARY' | 'PACKAGE_BUGREPORT' | 'SCNuMAX' | 'WTMP_FILE' | 'L' String | StringSpec
 StringSpec ::= 'pI' | 'pD' | 'pMu' | 'pMd' | 'PRIu64' | 'PRIxPTR'
@@ -783,7 +848,7 @@ FunctionDefinition ::= Attrs RetType PSymbol PArgs Attrs BBody | Attrs RetType P
 Junk ::= Empty | JunkItem Junk
 JunkItem ::= 'doc:' | 'attributes' ':' 'const' | 'attributes' ':' 'noreturn' | 'attributes' ':' 'noinline'
 VarDefinition ::= RewriteInit | Attrs Typed ';' | Typed Attrs ';' | Attrs Typed Attrs '=' Expr ';' | 'DEFVAR_LISP' '(' CExpr ',' Junk ')'  | 'DEFVAR_LISP_NOPRO' '(' CExpr ',' Junk ')' | 'DEFVAR_BOOL' '(' CExpr ',' Junk ')' | 'DEFVAR_INT' '(' CExpr ',' Junk ')' | 'DEFVAR_KBOARD' '(' CExpr ',' Junk ')' | 'DEFVAR_BUFFER_DEFAULTS' '(' CExpr ',' Junk ')' | 'DEFVAR_PER_BUFFER' '(' CExpr ',' Junk ')'
-Typedef ::= typedef Typed ';' | typedef Type Symbol ';' | typedef Type '(' '*' Symbol ')' PArgs ';' | typedef Type '(' '*' Type ')' PArgs ';'
+Typedef ::= typedef Typed ';' | typedef Type Symbol ';' | typedef Type Type ';' | typedef Type '(' '*' Symbol ')' PArgs ';'
 
 RetType ::= Type
 
@@ -809,7 +874,7 @@ Arg ::= Type | Typed
 
 AttrType ::= Attr Type
 PointerType ::= Type '*'
-StructUnionType ::= StructUnion Attrs Symbol BStructBody
+StructUnionType ::= StructUnion Attrs Symbol BStructBody | StructUnion Attrs Type BStructBody
 EnumType ::= 'enum' Symbol BEnumBody
 Type ::= '(' '__type__' ')' Symbol | '(' '__type__' ')' Symbol Type | AttrType | StructUnion Attrs Symbol | StructUnion Attrs BStructBody | StructUnionType | 'enum' Symbol | EnumType | 'enum' BEnumBody | PointerType rank => 1 | Type const | 'ENUM_BF' '(' Type ')' | 'ENUM_BF' '(' Symbol ')' | Type '[' ']' | Type '[' Expr ']' | RetType '(' Attrs '*' ')' PArgs | Type Attr | Attrs RetType '(' '*' ')' PArgs | 'typeof' Expr
 
@@ -1702,6 +1767,8 @@ sub subst_types {
 
     for my $type (@EmacsCGrammar::types) {
         $arg =~ s/\b$type\b/(__type__)$type/g;
+        $arg =~ s/\(__type__\)($type\([^*])/$1/g;
+        $arg =~ s/\(__type__\)($type \([^*])/$1/g;
         $arg =~ s/\(__type__\)\(__type__\)/(__type__)/g;
         $arg =~ s/\(__type__\)\(__type__\)/(__type__)/g;
     }
@@ -1918,7 +1985,9 @@ sub step {
                 my $parsed = $fork->parse_and_bind($type, $pattern);
 
                 next unless $parsed;
+                # warn "matches " . $val->debug . " $pattern";
                 next unless $parsed->match($val->ctree, $fork);
+                # warn "matches " . $val->debug . " $pattern: yes";
             };
             if ($@) {
                 warn $@;
@@ -1935,7 +2004,9 @@ sub step {
                 my $parsed = $fork->parse_and_bind($type, $pattern);
 
                 next unless $parsed;
+                # warn "nomatch " . $val->debug . " $pattern";
                 next if $parsed->match($val->ctree, $fork);
+                # warn "nomatch " . $val->debug2 . " $pattern: yes";
             };
             if ($@) {
                 warn $@;
@@ -2164,7 +2235,6 @@ sub step {
 
             my $repl = [$val->ctree->{start}, $val->ctree->{length}, $str];
 
-            croak($str) if $str =~ /ELisp_Value\(LVH/;
             $self->{replcb}->($repl);
             $self->step($pc + 1);
 
@@ -2353,12 +2423,12 @@ sub step {
             $str =~ s/\}\)/} )/g;
             $str =~ s/ ?; ?/;/g;
 
-            #warn "checking $str";
+            # warn "checking $str";
             if (eval($str)) {
-                #warn "yes";
+                # warn "yes";
                 $self->step($pc + 1);
             } else {
-                #warn "no";
+                # warn "no";
             }
         } elsif ($str =~ /^ *exit/) {
             $Data::Dumper::Sortkeys = 1;
@@ -2509,11 +2579,12 @@ my $defns_header = Parser::parse_defns(<<'EOF', 0);
 [[#funtyped FunTyped #chunk]]:
 [[#chunk contains Typed#funtyped]]
 [[#funtyped matches RetType#ret (* Symbol#) (Args#args)]] ||
-[[#funtyped matches RetType#ret (** Symbol#) (Args#args)]]
+[[#funtyped matches RetType#ret (* * Symbol#) (Args#args)]] ||
+[[#funtyped matches RetType#ret (* Type#typeb) (Args#args)]]
 
 [[#funtyped FunTypedef #chunk]]:
 [[#chunk contains Typedef#typedef]]
-[[#typedef matches typedef RetType#ret (* Type#) (Args#args);]]
+[[#typedef matches typedef RetType#ret (* Type#typeb) (Args#args);]]
 
 [[#funtype FunType #chunk]]:
 [[#chunk contains Type#funtype]]
@@ -2592,7 +2663,7 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#funtyped FunTyped #chunk]]:
 [[#chunk contains Typed#funtyped]]
 [[#funtyped matches RetType#ret (* Symbol#) (Args#args)]] ||
-[[#funtyped matches RetType#ret (** Symbol#) (Args#args)]]
+[[#funtyped matches RetType#ret (* Type#typeb) (Args#args)]]
 
 [[#funtype FunType #chunk]]:
 [[#chunk contains Type#funtype]]
@@ -3177,6 +3248,12 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#lhs#type matches (__type__)ELisp_Value]]
 [[#expr <- #lhs = #a ? ELisp_Return_Value(#b) : ELisp_Return_Value(#c)]]
 
+[[# AUTO-0304025 #]]:
+[[# contains Stmt#stmt]]
+[[#stmt matches Type#type Symbol#lhs = Expr#a ? Expr#b : Expr#c;]]
+[[#type matches (__type__)ELisp_Value]]
+[[#stmt <- #type #lhs = #a ? ELisp_Return_Value(#b) : ELisp_Return_Value(#c);]]
+
 [[# AUTO-0305 #]]:
 [[# contains Expr#expr]]
 [[#expr matches Expr#a ? Expr#b : Expr#c]]
@@ -3374,7 +3451,11 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[# AUTO-0400 #]]:
 [[# contains Stmt#decl]]
 [[#decl matches typedef struct Symbol#struct BStructBody#body Symbol#symbol;]] ||
-[[#decl matches typedef struct Symbol#struct BStructBody#body Type#symbol;]]
+[[#decl matches typedef struct (__type__)Symbol#struct BStructBody#body Symbol#symbol;]] ||
+[[#decl matches typedef struct Symbol#struct BStructBody#body (__type__)Symbol#symbol;]] ||
+[[#decl matches typedef struct Type#struct BStructBody#body Type#symbol;]] ||
+[[#decl matches typedef struct (__type__)Symbol#struct BStructBody#body (__type__)Symbol#symbol;]]
+[[#decl debug]]
 [[#decl <- typedef struct #struct #symbol;]]
 [[# pre-chunk struct #struct #body;]]
 
@@ -3391,6 +3472,13 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#sd matches struct Symbol#struct BStructBody#body Symbol#symbol;]]
 [[#sd <- struct #struct #symbol;]]
 [[# pre-chunk struct #struct #body;]]
+
+[[# AUTO-0425 #]]:
+[[# contains StructBody#outerstruct]]
+[[#outerstruct contains Stmt#sd]]
+[[#sd matches struct (__type__)Symbol#struct BStructBody#body Symbol#symbol;]]
+[[#sd <- struct #struct #symbol;]]
+[[# pre-chunk struct (__type__)#struct #body;]]
 
 [[# AUTO-0430 #]]:
 [[# contains StructBody#outerstruct]]
@@ -3423,7 +3511,7 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#arg <- (__type__)ELisp_Handle ARG(#symbol)]]
 
 [[#expr xsets #rwexpr]]:
-[[#rwexpr matches Symbol#symbol(Expr#expr, Expr#)]]
+[[#rwexpr matches Symbol#symbol(Expr#expr, Expr#exprb)]]
 [[#symbol check "#symbol" =~ /^XSET/]]
 [[#symbol check "#symbol" !~ /^XSETC[AD]R/]]
 
@@ -3493,10 +3581,10 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#decl matches AUTO_LIST4(Symbol#symbol, ArgExprs#);]] ||
 [[#decl matches AUTO_LIST5(Symbol#symbol, ArgExprs#);]] ||
 [[#decl matches AUTO_STRING(Symbol#symbol, Expr#);]] ||
-[[#decl matches AUTO_STRING_WITH_LEN(Symbol#symbol, Expr#, Expr#);]]
-[[#fundef#body contains Expr#expr]]
-[[#expr matches #symbol]]
-[[# set Type#expr#type: (__type__)ELisp_Value]]
+[[#decl matches AUTO_STRING_WITH_LEN(Symbol#symbol, Expr#str, Expr#len);]]
+[[#fundef#body contains Expr#exprb]]
+[[#exprb matches #symbol]]
+[[# set Type#exprb#type: (__type__)ELisp_Value]]
 
 [[# XAUTO-08015 #]]:
 [[# FunctionDefinition #fundef]]
@@ -3507,9 +3595,9 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#expr matches AUTO_LIST2 (Symbol#symbol, Expr#, Expr#)]] ||
 [[#expr matches AUTO_LIST3 (Symbol#symbol, Expr#, Expr#, Expr#)]] ||
 [[#expr matches AUTO_LIST4 (Symbol#symbol, Expr#, Expr#, Expr#, Expr#)]]
-[[#fundef#body contains Expr#expr]]
-[[#expr matches #symbol]]
-[[# set Type#expr#type: (__type__)ELisp_Value]]
+[[#fundef#body contains Expr#exprb]]
+[[#exprb matches #symbol]]
+[[# set Type#exprb#type: (__type__)ELisp_Value]]
 
 [[# XAUTO-0802 #]]:
 [[# FunctionDefinition #fundef]]
@@ -3527,11 +3615,11 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#symbol check "#symbol" !~ /XSET/]] ||
 [[#symbol check "#symbol" =~ /XSETC[AD]R/]] ||
 [[#n check #n > 0]]
-[[#argexpr nomatch Symbol#symbolb(ArgExprs#)]] ||
+[[#argexpr nomatch Symbol#symbolb(ArgExprs#argexprsb)]] ||
 [[#symbolb check "#symbolb" !~ /^(L(SH|HH|VH|RH)|LISPSYM_INITIALLY)$/]]
 [[#symbol check $main::accepts_lo->{#symbol}[#n] ]]
-[[#argexpr matches Expr#expr]]
-[[#expr#type matches (__type__)ELisp_Value]]
+[[#argexpr matches Expr#exprb]]
+[[#exprb#type matches (__type__)ELisp_Value]]
 [[#argexpr <- LVH(#argexpr)]]
 
 [[# XAUTO-0806 #]]:
@@ -3543,11 +3631,11 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#symbol check "#symbol" !~ /XSET/]] ||
 [[#symbol check "#symbol" =~ /XSETC[AD]R/]] ||
 [[#n check #n > 0]]
-[[#argexpr nomatch Symbol#symbolb(ArgExprs#)]] ||
+[[#argexpr nomatch Symbol#symbolb(ArgExprs#argexprsb)]] ||
 [[#symbolb check "#symbolb" !~ /^(L(SH|HH|VH|RH)|LISPSYM_INITIALLY)$/]]
 [[#symbol check $main::accepts_lo->{#symbol}[#n] ]]
-[[#argexpr matches Expr#expr]]
-[[#expr#type matches (__type__)ELisp_Handle]]
+[[#argexpr matches Expr#exprb]]
+[[#exprb#type matches (__type__)ELisp_Handle]]
 [[#argexpr <- LHH(#argexpr)]]
 
 [[# XAUTO-0806125 #]]:
@@ -3578,15 +3666,15 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#symbol check "#symbol" !~ /^L(SH|HH|VH|RH)$/]]
 [[#symbol nomatch LISPSYM_INITIALLY]]
 [[#argexprs element Expr#n: ArgExpr#argexpr]]
-[[#argexpr matches Expr#expr]]
-[[#expr#type matches (__type__)ELisp_Return_Value]]
+[[#argexpr matches Expr#exprb]]
+[[#exprb#type matches (__type__)ELisp_Return_Value]]
 [[#argexpr free]]
 [[#symbol check "#symbol" !~ /XSET/]] ||
 [[#symbol check "#symbol" =~ /XSETC[AD]R/]] ||
 [[#n check #n > 0]]
 [[#argexpr nomatch Symbol#symbolc = Expr#]] ||
 [[#symbolc check "#symbol" !~ /^__u_/]]
-[[#argexpr nomatch Symbol#symbolb(ArgExprs#)]] ||
+[[#argexpr nomatch Symbol#symbolb(ArgExprs#argexprsb)]] ||
 [[#symbolb check "#symbolb" !~ /^(ELisp_Handle|L(SH|HH|VH|RH)|LISPSYM_INITIALLY)$/]]
 [[#symbol check $main::accepts_lo->{#symbol}[#n] ]]
 [[#argexpr free]]
@@ -3598,8 +3686,8 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#symbol check "#symbol" !~ /^ELisp_Handle|L(SH|HH|VH|RH)$/]]
 [[#symbol nomatch LISPSYM_INITIALLY]]
 [[#argexprs element Expr#n: ArgExpr#argexpr]]
-[[#argexpr matches Expr#expr]]
-[[#expr#type matches (__type__)ELisp_Return_Value]]
+[[#argexpr matches Expr#exprb]]
+[[#exprb#type matches (__type__)ELisp_Return_Value]]
 [[#argexpr free]]
 [[#symbol check "#symbol" !~ /XSET/]] ||
 [[#symbol check "#symbol" =~ /XSETC[AD]R/]] ||
@@ -3619,11 +3707,11 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#symbol check "#symbol" !~ /XSET/]] ||
 [[#symbol check "#symbol" =~ /XSETC[AD]R/]] ||
 [[#n check #n > 0]]
-[[#argexpr nomatch Symbol#symbolc = Expr#]]
-[[#argexpr nomatch Symbol#symbolb(ArgExprs#)]] ||
+[[#argexpr nomatch Symbol#symbolc = Expr#exprc]]
+[[#argexpr nomatch Symbol#symbolb(ArgExprs#argexprsb)]] ||
 [[#symbolb check "#symbolb" !~ /^(ELisp_Handle|L(SH|HH|VH|RH)|LISPSYM_INITIALLY)$/]]
 [[#symbol check $main::accepts_lo->{#symbol}[#n] ]]
-[[#argexpr matches Expr#expr]]
+[[#argexpr matches Expr#exprb]]
 [[#argexpr free]]
 [[#argexpr <- LRH(#argexpr)]]
 
@@ -3816,6 +3904,8 @@ for my $chunk (@chunks) {
 
     for my $type (@EmacsCGrammar::types) {
         $chunk =~ s/\b$type\b/(__type__)$type/g;
+        $chunk =~ s/\(__type__\)($type\([^*])/$1/g;
+        $chunk =~ s/\(__type__\)($type \([^*])/$1/g;
         $chunk =~ s/\(__type__\)\(__type__\)/(__type__)/g;
     }
 
