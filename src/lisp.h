@@ -2856,9 +2856,9 @@ RANGED_INTEGERP (intmax_t lo, Lisp_Object x, intmax_t hi)
 }
 
 #define TYPE_RANGED_INTEGERP(type, x) \
-  (INTEGERP (x)			      \
-   && (TYPE_SIGNED (type) ? TYPE_MINIMUM (type) <= XINT (x) : 0 <= XINT (x)) \
-   && XINT (x) <= TYPE_MAXIMUM (type))
+  (INTEGERP (LRH (x))                                                   \
+   && (TYPE_SIGNED (type) ? TYPE_MINIMUM (type) <= XINT (LRH (x)) : 0 <= XINT (LRH (x))) \
+   && XINT (LRH (x)) <= TYPE_MAXIMUM (type))
 
 INLINE bool
 AUTOLOADP (Lisp_Object x)

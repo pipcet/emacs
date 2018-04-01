@@ -102,6 +102,7 @@ package EmacsCGrammar;
     gint
     gboolean
     boolean
+    StorageType
     FcCharSet
 
     CFIndex
@@ -812,7 +813,8 @@ package EmacsCGrammar;
     MFLTGlyphFT
     OTF_GlyphString
     MFLTGlyphString
-    
+    png_color_16
+    InputFunc
     );
 %EmacsCGrammar::types;
 for my $type (@EmacsCGrammar::types) {
@@ -1950,9 +1952,12 @@ sub step {
         my $outvar = $self->{defn}->{outvar};
         $outvar =~ s/^#//;
         eval {
-        $self->{outvar}->copy_from($self->{vars}->{$outvar}->{""},
-                                   $self->{vars}->{$outvar}, $self->{vars})
-            if ($outvar ne "");
+            # warn "copying $outvar to " . $self->{outvar};
+            # warn $self->{vars}->{$outvar}->{""}->debug;
+            $self->{outvar}->copy_from($self->{vars}->{$outvar}->{""},
+                                       $self->{vars}->{$outvar}, $self->{vars})
+                if ($outvar ne "");
+            # warn $self->{outvar}->{""}->debug;
         };
 
         if ($@) {
@@ -3343,7 +3348,7 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[# FunctionDefinition #fundef]]
 [[#fundef#args contains Arg#arg]]
 [[#arg matches (__type__)Lisp_Object Symbol#symbol]]
-[[#fundef#body contains RWExpr#rwexpr]]
+[[#fundef#body contains Expr#rwexpr]]
 [[#rwexpr modifies #arg]]
 [[#arg <- (__type__)ELisp_Handle_RW #symbol]]
 
@@ -3455,7 +3460,6 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#decl matches typedef struct Symbol#struct BStructBody#body (__type__)Symbol#symbol;]] ||
 [[#decl matches typedef struct Type#struct BStructBody#body Type#symbol;]] ||
 [[#decl matches typedef struct (__type__)Symbol#struct BStructBody#body (__type__)Symbol#symbol;]]
-[[#decl debug]]
 [[#decl <- typedef struct #struct #symbol;]]
 [[# pre-chunk struct #struct #body;]]
 
@@ -3516,8 +3520,8 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#symbol check "#symbol" !~ /^XSETC[AD]R/]]
 
 [[#expr coerces #rwexpr]]:
-[[#rwexpr matches Symbol#symbol(Expr#expr)]]
-[[#symbol check "#symbol" =~ /^(CHECK_NUMBER_COERCE_MARKER|CHECK_NUMBER_OR_FLOAT_COERCE_MARKER)$/]]
+[[#rwexpr matches Symbol#symbolb(Expr#expr)]]
+[[#symbol check "#symbolb" =~ /^(CHECK_NUMBER_COERCE_MARKER|CHECK_NUMBER_OR_FLOAT_COERCE_MARKER)$/]]
 
 [[#expr modifies #rwexpr]]:
 [[#rwexpr matches Expr#expr ModOp# Expr#]] ||
@@ -3753,7 +3757,7 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[# FunctionDefinition #fundef]]
 [[#fundef#args contains Arg#arg]]
 [[#arg matches (__type__)Lisp_Object *Symbol#symbol]]
-[[#fundef#body contains RWExpr#rwexpr]]
+[[#fundef#body contains Expr#rwexpr]]
 [[#rwexpr modifies #expr]]
 [[#expr matches *#symbol]] ||
 [[#expr matches #symbol[Expr#]]]

@@ -3563,7 +3563,7 @@ specbind (Lisp_Object symbol, Lisp_Object value)
 	specpdl_ptr->let.saved_value = Qnil;
 
 	eassert (sym->redirect != SYMBOL_LOCALIZED
-		 || (EQ (SYMBOL_BLV (sym)->where, Fcurrent_buffer ())));
+		 || (EQ (SYMBOL_BLV (sym)->where, LRH (Fcurrent_buffer ()))));
 
 	if (sym->redirect == SYMBOL_LOCALIZED)
 	  {
@@ -3577,7 +3577,7 @@ specbind (Lisp_Object symbol, Lisp_Object value)
 	       value by changing the value of SYMBOL in all buffers not
 	       having their own value.  This is consistent with what
 	       happens with other buffer-local variables.  */
-	    if (NILP (Flocal_variable_p (symbol, Qnil)))
+	    if (NILP (Flocal_variable_p (symbol, LRH (Qnil))))
 	      {
 		specpdl_ptr->kind = SPECPDL_LET_DEFAULT;
 		grow_specpdl ();

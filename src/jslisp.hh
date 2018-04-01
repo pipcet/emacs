@@ -3609,9 +3609,9 @@ RANGED_INTEGERP (intmax_t lo, ELisp_Handle x, intmax_t hi)
 }
 
 #define TYPE_RANGED_INTEGERP(type, x) \
-  (INTEGERP (x)			      \
-   && (TYPE_SIGNED (type) ? TYPE_MINIMUM (type) <= XINT (x) : 0 <= XINT (x)) \
-   && XINT (x) <= TYPE_MAXIMUM (type))
+  (INTEGERP (LRH (ELisp_Return_Value (x)))                              \
+   && (TYPE_SIGNED (type) ? TYPE_MINIMUM (type) <= XINT (LRH (ELisp_Return_Value (x))) : 0 <= XINT (LRH (ELisp_Return_Value (x)))) \
+   && XINT (LRH (ELisp_Return_Value (x))) <= TYPE_MAXIMUM (type))
 
 INLINE bool
 AUTOLOADP (ELisp_Handle x)
@@ -4251,8 +4251,8 @@ extern ELisp_Return_Value uintbig_to_lisp (uintmax_t);
    is not a valid representation or is out of range for TYPE.  */
 #define CONS_TO_INTEGER(cons, type, var)				\
  (TYPE_SIGNED (type)							\
-  ? ((var) = cons_to_signed (cons, TYPE_MINIMUM (type), TYPE_MAXIMUM (type))) \
-  : ((var) = cons_to_unsigned (cons, TYPE_MAXIMUM (type))))
+  ? ((var) = cons_to_signed (LRH (ELisp_Return_Value(cons)), TYPE_MINIMUM (type), TYPE_MAXIMUM (type))) \
+  : ((var) = cons_to_unsigned (LRH (ELisp_Return_Value (cons)), TYPE_MAXIMUM (type))))
 extern intmax_t cons_to_signed (ELisp_Handle, intmax_t, intmax_t);
 extern uintmax_t cons_to_unsigned (ELisp_Handle, uintmax_t);
 

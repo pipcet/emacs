@@ -4055,8 +4055,6 @@ analyze_first (re_char *p, re_char *pend, char *fastmap,
 
 
 	case jump_n:
-	  /* This code simply does not properly handle forward jump_n.  */
-	  DEBUG_STATEMENT (EXTRACT_NUMBER (j, p); assert (j < 0));
 	  p += 4;
 	  /* jump_n can either jump or fall through.  The (backward) jump
 	     case has already been handled, so we only need to look at the
@@ -4064,8 +4062,6 @@ analyze_first (re_char *p, re_char *pend, char *fastmap,
 	  continue;
 
 	case succeed_n:
-	  /* If N == 0, it should be an on_failure_jump_loop instead.  */
-	  DEBUG_STATEMENT (EXTRACT_NUMBER (j, p + 2); assert (j > 0));
 	  p += 4;
 	  /* We only care about one iteration of the loop, so we don't
 	     need to consider the case where this behaves like an
@@ -5878,14 +5874,14 @@ re_match_2_internal (struct re_pattern_buffer *bufp, re_char *string1,
 	case wordbound:
 	case notwordbound:
 	  {
-	    boolean not = (re_opcode_t) *(p - 1) == notwordbound;
-	    DEBUG_PRINT ("EXECUTING %swordbound.\n", not ? "not" : "");
+	    boolean c_not = (re_opcode_t) *(p - 1) == notwordbound;
+	    DEBUG_PRINT ("EXECUTING %swordbound.\n", c_not ? "not" : "");
 
 	    /* We SUCCEED (or FAIL) in one of the following cases: */
 
 	    /* Case 1: D is at the beginning or the end of string.  */
 	    if (AT_STRINGS_BEG (d) || AT_STRINGS_END (d))
-	      not = !not;
+	      c_not = !c_not;
 	    else
 	      {
 		/* C1 is the character before D, S1 is the syntax of C1, C2
@@ -5912,9 +5908,9 @@ re_match_2_internal (struct re_pattern_buffer *bufp, re_char *string1,
 		    /* Case 3: Both of S1 and S2 are Sword, and macro
 		       WORD_BOUNDARY_P (C1, C2) returns nonzero.  */
 		    || ((s1 == Sword) && WORD_BOUNDARY_P (c1, c2)))
-		  not = !not;
+		  c_not = !c_not;
 	      }
-	    if (not)
+	    if (c_not)
 	      break;
 	    else
 	      goto fail;
@@ -6099,9 +6095,9 @@ re_match_2_internal (struct re_pattern_buffer *bufp, re_char *string1,
 	case syntaxspec:
 	case notsyntaxspec:
 	  {
-	    boolean not = (re_opcode_t) *(p - 1) == notsyntaxspec;
+	    boolean c_not = (re_opcode_t) *(p - 1) == notsyntaxspec;
 	    mcnt = *p++;
-	    DEBUG_PRINT ("EXECUTING %ssyntaxspec %d.\n", not ? "not" : "",
+	    DEBUG_PRINT ("EXECUTING %ssyntaxspec %d.\n", c_not ? "not" : "",
 			 mcnt);
 	    PREFETCH ();
 #ifdef emacs
@@ -6116,7 +6112,7 @@ re_match_2_internal (struct re_pattern_buffer *bufp, re_char *string1,
 	      re_wchar_t c;
 
 	      GET_CHAR_AFTER (c, d, len);
-	      if ((SYNTAX (c) != (enum syntaxcode) mcnt) ^ not)
+	      if ((SYNTAX (c) != (enum syntaxcode) mcnt) ^ c_not)
 		goto fail;
 	      d += len;
 	    }
@@ -6133,17 +6129,17 @@ re_match_2_internal (struct re_pattern_buffer *bufp, re_char *string1,
 	case categoryspec:
 	case notcategoryspec:
 	  {
-	    boolean not = (re_opcode_t) *(p - 1) == notcategoryspec;
+	    boolean c_not = (re_opcode_t) *(p - 1) == notcategoryspec;
 	    mcnt = *p++;
 	    DEBUG_PRINT ("EXECUTING %scategoryspec %d.\n",
-			 not ? "not" : "", mcnt);
+			 c_not ? "not" : "", mcnt);
 	    PREFETCH ();
 
 	    {
 	      int len;
 	      re_wchar_t c;
 	      GET_CHAR_AFTER (c, d, len);
-	      if ((!CHAR_HAS_CATEGORY (c, mcnt)) ^ not)
+	      if ((!CHAR_HAS_CATEGORY (c, mcnt)) ^ c_not)
 		goto fail;
 	      d += len;
 	    }
