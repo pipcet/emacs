@@ -2716,7 +2716,7 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#symbolb check "#symbolb" !~ /^(ELisp_Handle|L(SH|HH|VH|RH)|LISPSYM_INITIALLY)$/]]
 [[#symbol check $main::accepts_lo->{#symbol}[#n] ]]
 [[#argexpr free]]
-[[#argexpr <- ELisp_Handle(ELisp_Value(#argexpr))]]
+[[#argexpr <- LRH(#argexpr)]]
 
 [[# XAUTO-08075 #]]:
 [[# contains Expr#expr]]
@@ -2733,7 +2733,7 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#argexpr matches Symbol#symbolb.vec.ref(ArgExprs#)]]
 [[#symbol check $main::accepts_lo->{#symbol}[#n] ]]
 [[#argexpr free]]
-[[#argexpr <- ELisp_Handle(ELisp_Value(#argexpr))]]
+[[#argexpr <- LRH(#argexpr)]]
 
 [[# XAUTO-0808 #]]:
 [[# contains Expr#expr]]
@@ -2751,7 +2751,7 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#symbol check $main::accepts_lo->{#symbol}[#n] ]]
 [[#argexpr matches Expr#expr]]
 [[#argexpr free]]
-[[#argexpr <- ELisp_Handle(ELisp_Value(#argexpr))]]
+[[#argexpr <- LRH(#argexpr)]]
 
 [[# XAUTO-080825 #]]:
 [[# contains Stmt#stmt]]
