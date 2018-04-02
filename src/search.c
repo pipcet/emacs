@@ -2451,25 +2451,25 @@ since only regular expressions have distinguished subexpressions.  */)
 	      /* Cannot be all caps if any original char is lower case */
 
 	      some_lowercase = 1;
-	      //if (SYNTAX (prevc) != Sword)
-              //some_nonuppercase_initial = 1;
-	      //else
+	      if (SYNTAX (prevc) != Sword)
+		some_nonuppercase_initial = 1;
+	      else
 		some_multiletter_word = 1;
 	    }
 	  else if (uppercasep (c))
 	    {
 	      some_uppercase = 1;
-	      //if (SYNTAX (prevc) != Sword)
-              //;
-	      //else
+	      if (SYNTAX (prevc) != Sword)
+		;
+	      else
 		some_multiletter_word = 1;
 	    }
 	  else
 	    {
 	      /* If the initial is a caseless word constituent,
 		 treat that like a lowercase initial.  */
-              // if (SYNTAX (prevc) != Sword)
-              //some_nonuppercase_initial = 1;
+	      if (SYNTAX (prevc) != Sword)
+		some_nonuppercase_initial = 1;
 	    }
 
 	  prevc = c;

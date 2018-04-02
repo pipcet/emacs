@@ -170,23 +170,6 @@ See Info node `(elisp)Defining Functions' for more details."
                  (inline-error . inline--warning)
                  ,@macroexpand-all-environment))))))))
 
-(message "testing")
-(message "%S" '
-(defun inline--do-quote (exp)
-  (pcase exp
-    (`(,'\, ,e) e)                      ;Eval `e' now *and* later.
-    (`'(,'\, ,e) `(list 'quote ,e))     ;Only eval `e' now, not later.
-    (`#'(,'\, ,e) `(list 'function ,e)) ;Only eval `e' now, not later.
-    ((pred consp)
-     (let ((args ()))
-       (while (and (consp exp) (not (eq '\, (car exp))))
-         (push (inline--do-quote (pop exp)) args))
-       (setq args (nreverse args))
-       (if exp
-           `(backquote-list* ,@args ,(inline--do-quote exp))
-         `(list ,@args))))
-    (_ (macroexp-quote exp)))))
-
 (defun inline--do-quote (exp)
   (pcase exp
     (`(,'\, ,e) e)                      ;Eval `e' now *and* later.
