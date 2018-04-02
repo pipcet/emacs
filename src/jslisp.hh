@@ -4907,6 +4907,7 @@ extern ptrdiff_t marker_byte_position (ELisp_Handle);
 extern void clear_charpos_cache (struct buffer *);
 extern ptrdiff_t buf_charpos_to_bytepos (struct buffer *, ptrdiff_t);
 extern ptrdiff_t buf_bytepos_to_charpos (struct buffer *, ptrdiff_t);
+extern void detach_marker (ELisp_Handle);
 extern void unchain_marker (struct Lisp_Marker *marker);
 extern ELisp_Return_Value set_marker_restricted (ELisp_Handle, ELisp_Handle, ELisp_Handle);
 extern ELisp_Return_Value set_marker_both (ELisp_Handle, ELisp_Handle, ptrdiff_t, ptrdiff_t);

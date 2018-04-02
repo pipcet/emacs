@@ -1535,7 +1535,6 @@ elisp_vector_finalize(JSFreeOp* cx, JSObject *obj)
   struct Lisp_Vector *s = JS_GetPrivate(obj);
   if (PSEUDOVECTOR_TYPEP((struct vectorlike_header *)s, PVEC_BUFFER))
     {
-      fprintf(stderr, "deleting buffer %p\n", s);
       while (all_buffers == (struct buffer *)s)
         all_buffers = ((struct buffer *)s)->next;
       for (struct buffer *b = all_buffers; b; b = b->next)
