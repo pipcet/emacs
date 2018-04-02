@@ -76,7 +76,7 @@ static ptrdiff_t print_buffer_pos_byte;
      -N   the object will be printed several times and will take number N.
      N    the object has been printed so we can refer to it as #N#.
    print_number_index holds the largest N already used.
-   N has to be striclty larger than 0 since we need to distinguish -N.  */
+   N has to be strictly larger than 0 since we need to distinguish -N.  */
 static ptrdiff_t print_number_index;
 static void print_interval (INTERVAL interval, Lisp_Object printcharfun);
 
@@ -1279,13 +1279,6 @@ print_preprocess (Lisp_Object obj)
 	  for (i = (SUB_CHAR_TABLE_P (obj)
 		    ? SUB_CHAR_TABLE_OFFSET : 0); i < size; i++)
 	    print_preprocess (AREF (obj, i));
-	  if (HASH_TABLE_P (obj))
-	    { /* For hash tables, the key_and_value slot is past
-		 `size' because it needs to be marked specially in case
-		 the table is weak.  */
-	      struct Lisp_Hash_Table *h = XHASH_TABLE (obj);
-	      print_preprocess (h->key_and_value);
-	    }
 	  break;
 
 	default:

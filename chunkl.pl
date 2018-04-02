@@ -197,6 +197,7 @@ package EmacsCGrammar;
     toff_t
     JSAMPARRAY
     TIFF
+    TIFFSeekProc
     j_decompress_ptr
     compile_stack_type
     fail_stack_type
