@@ -1759,11 +1759,7 @@ init_fringe (void)
 #if defined (HAVE_NTGUI) || defined (USE_CAIRO)
 
 void
-#ifdef HAVE_NTGUI
-w32_init_fringe (struct redisplay_interface *rif)
-#else
 x_cr_init_fringe (struct redisplay_interface *rif)
-#endif
 {
   int bt;
 
