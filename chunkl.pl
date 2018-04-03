@@ -1646,7 +1646,7 @@ sub get_memoized_ctree {
 }
 
 sub new {
-    my ($class, $ctree, $defns, $replcb, $cb, $vars, $counterref) = @_;
+    my ($class, $ctree, $defns, $replcb, $cb, $vars, $counterref, $outputref) = @_;
 
     my $ret = bless {
         parent => undef,
@@ -1666,6 +1666,7 @@ sub new {
     }
 
     $ret->{counter} = $counterref;
+    $ret->{output} = $outputref;
 
     return $ret;
 }
@@ -1684,6 +1685,7 @@ sub fork {
         cb => $self->{cb},
         outvar => PointedHash->new,
         counter => $self->{counter},
+        output => $self->{output};
     }, ref $self;
 }
 
@@ -1958,6 +1960,10 @@ sub rec_print {
     } else {
         return $pattern;
     }
+}
+
+sub print {
+    ${$self->{output}} .= $_[0];
 }
 
 sub step {
@@ -2425,7 +2431,7 @@ sub step {
             $str =~ s/\}\)/} )/g;
             $str =~ s/ ?; ?/;/g;
 
-            print $str . "\n";
+            $self->print($str . "\n");
 
             $self->step($pc + 1);
             next;
@@ -3979,6 +3985,7 @@ for my $chunk (@chunks) {
     }
 
     my @prechunks;
+    my $output = "";
     eval {
         my @repl;
         my $ctree = EmacsCParser::parse_verbatim_ctree("Chunk", \$chunk);
@@ -3996,7 +4003,7 @@ for my $chunk (@chunks) {
                     #warn $ctree->debug2;
                     $flush = 0;
                 }
-                my $processor = Processor->new($ctree, $defns, sub { push @repl, @_; }, { prechunk => sub { push @prechunks, $_[0] }, flush => sub { $flush = 1 }, free => sub { test_replacement($_[0], @repl); } }, { "Expr#CU" => "\"$cu\"" }, \$counter);
+                my $processor = Processor->new($ctree, $defns, sub { push @repl, @_; }, { prechunk => sub { push @prechunks, $_[0] }, flush => sub { $flush = 1 }, free => sub { test_replacement($_[0], @repl); } }, { "Expr#CU" => "\"$cu\"" }, \$counter, \$output);
                 my $outvar = PointedHash->new();
                 $processor->run($defns->{$key}, "", "#dummy")->step(0);
                 # update_globals($cu, $processor) if $defns == $defns_header && $cu;
@@ -4026,7 +4033,8 @@ for my $chunk (@chunks) {
 
     if ($defns == $defns_header) {
         mkdir("chunkl-cache/header");
-        write_file("chunkl-cache/header/$md5", "XXX\n");
+        write_file("chunkl-cache/header/$md5", "$output\n");
+        print "$output\n";
         next;
     }
 
