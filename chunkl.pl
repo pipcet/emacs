@@ -2994,14 +2994,14 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#type matches (__type__)Lisp_Object]]
 [[#arg <- (__type__)ELisp_Pointer]]
 
-[[# AUTO-0099 #]]:
+[[# AUTO-0098 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#args contains Arg#arg]]
 [[#arg matches Type#type *]]
 [[#type matches (__type__)Lisp_Object]]
 [[#arg <- (__type__)ELisp_Pointer]]
 
-[[# AUTO-00995 #]]:
+[[# AUTO-0099 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#args contains Arg#arg]]
 [[#arg matches Type#type **]]
