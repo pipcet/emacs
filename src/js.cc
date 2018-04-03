@@ -1643,7 +1643,7 @@ static ELisp_Return_Value elisp_vector_call_handler(ELisp_Handle arg)
   if (JS_IsExceptionPending(jsg.cx))
     while (1);
 
-  JS_SetPendingException(jsg.cx, arg.v.v);
+  //JS_SetPendingException(jsg.cx, arg.v.v);
 
   return Qnil;
 }
@@ -1660,7 +1660,8 @@ static ELisp_Return_Value elisp_vector_call_inner(ELisp_Vector *lv, bool *succes
       return Qnil;
     }
 
-  auto ret = internal_catch_all (elisp_vector_call_voidp, static_cast<void *>(lv), elisp_vector_call_handler);
+  //auto ret = internal_catch_all (elisp_vector_call_voidp, static_cast<void *>(lv), elisp_vector_call_handler);
+  auto ret = elisp_vector_call_voidp(static_cast<void *>(lv));
   catchall_jmpbuf = old_jmpbuf;
   *successp = true;
   return ret;

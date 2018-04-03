@@ -4900,33 +4900,6 @@ mark_save_value (struct Lisp_Save_Value *ptr)
 {
 }
 
-/* Remove killed buffers or items whose car is a killed buffer from
-   LIST, and mark other items.  Return changed LIST, which is marked.  */
-
-static Lisp_Object
-mark_discard_killed_buffers (Lisp_Object list)
-{
-  Lisp_Object tail, *prev = &list;
-
-  for (tail = list; CONSP (tail) && !CONS_MARKED_P (XCONS (tail));
-       tail = XCDR (tail))
-    {
-      Lisp_Object tem = XCAR (tail);
-      if (CONSP (tem))
-	tem = XCAR (tem);
-      if (BUFFERP (tem) && !BUFFER_LIVE_P (XBUFFER (tem)))
-	*prev = XCDR (tail);
-      else
-	{
-	  CONS_MARK (XCONS (tail));
-	  mark_object (XCAR (tail));
-	  prev = & XCDR (tail);
-	}
-    }
-  mark_object (tail);
-  return list;
-}
-
 /* Determine type of generic Lisp_Object and mark it accordingly.
 
    This function implements a straightforward depth-first marking
@@ -5508,7 +5481,6 @@ to users.  */);
 This means that certain objects should be allocated in shared (pure) space.
 It can also be set to a hash-table, in which case this table is used to
 do hash-consing of the objects allocated to pure space.  */);
-  Vpurify_flag = Qnil;
 
   DEFVAR_BOOL ("garbage-collection-messages", garbage_collection_messages,
 	       doc: /* Non-nil means display messages at start and end of garbage collection.  */);
