@@ -601,7 +601,8 @@ enum Lisp_Fwd_Type
   auto toSymbol() { return v.toSymbol(); }              \
   double toNumber() { return v.toNumber(); }            \
   double toDouble() { return v.toDouble(); }            \
-  auto toString() { return v.toString(); }
+  auto toString() { return v.toString(); }              \
+  auto asRawBits() { return v.asRawBits(); }
 
 #define FORWARDED                                       \
   FORWARDED_COMMON                                      \
@@ -754,11 +755,7 @@ enum Lisp_Fwd_Type
                                                                         \
   inline bool eq (const JSReturnValue &v2)                              \
   {                                                                     \
-    JS::RootedValue a(jsg.cx); a = JS::Value(V);                        \
-    JS::RootedValue b(jsg.cx); b = JS::Value(v2.v);                     \
-    bool ret;                                                           \
-    JS_SameValue (jsg.cx, a, b, &ret);                                  \
-    return ret;                                                         \
+    return V.asRawBits() == v2.v.asRawBits();                           \
   }                                                                     \
 
 class JSReturnValue;
