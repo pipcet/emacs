@@ -2646,23 +2646,34 @@ my $defns_header = Parser::parse_defns(<<'EOF', 0);
 [[#arg matches (__type__)Lisp_Object Symbol#]] ||
 [[#arg matches register (__type__)Lisp_Object Symbol#]]
 [[# print $accepts_lo{#fundef#symbol}[#n] = 1; #CU;]]
+[[# print $accepts{#fundef#symbol}[#n] = "Lisp_Object"; #CU;]]
 
 [[# AUTO-07500 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#symbol matches Symbol#symbol]]
 [[#fundef#ret matches (__type__)Lisp_Object]]
 [[# print $returns_lo{#symbol} = 1; #CU;]]
+[[# print $returns{#symbol} = "Lisp_Object"; #CU;]]
+
+[[# AUTO-08000 #]]:
+[[# FunctionDefinition #fundef]]
+[[#fundef#symbol matches Symbol#symbol]]
+[[#fundef#ret matches (__type__)void *]]
+[[# print $returns_vp{#symbol} = 1; #CU;]]
+[[# print $returns{#symbol} = "void *"; #CU;]]
 
 [[# AUTO-0900 #]]:
 [[# contains FunctionDefinition#fundef]]
 [[#fundef matches DEFUN(Expr#, Symbol#symbol, CExpr#, Junk#)(Args#args) BBody#body]]
 [[#symbol print $returns_lo{#symbol} = 1; #CU;]]
+[[#symbol print $returns{#symbol} = "Lisp_Object"; #CU;]]
 
 [[# AUTO-0950 #]]:
 [[# contains Stmt#stmt]]
 [[#stmt matches EXFUN(Symbol#symbol, Expr#n);]]
 [[#n check "#n" ~ /^[0-9]+$/]]
 [[#symbol print for my $i (0 .. (#n-1)) { $accepts_lo{#symbol}[$i] = 1; } $returns_lo{#symbol} = 1; #CU; ]]
+[[#symbol print for my $i (0 .. (#n-1)) { $accepts{#symbol}[$i] = "Lisp_Object"; } $returns{#symbol} = "Lisp_Object"; #CU; ]]
 EOF
 
 my $defns_main = Parser::parse_defns(<<'EOF', 0);
@@ -3792,6 +3803,8 @@ sub read_globals {
 
     my %returns_lo;
     my %accepts_lo;
+    my %returns;
+    my %accepts;
     eval $global_text;
     $main::returns_lo = \%returns_lo;
     $main::accepts_lo = \%accepts_lo;
