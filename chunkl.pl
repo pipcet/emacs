@@ -29,6 +29,10 @@ package EmacsCGrammar;
 
     unichar
 
+    id_t
+    CGGlyph
+    pthread_mutex_t
+    HWND
     CFRange
     Lisp_Word
     CGContextRef
@@ -167,6 +171,11 @@ package EmacsCGrammar;
     DisposeType
     ExceptionType
     gif_memory_source
+    GifByteType
+    TiffCloseProc
+    TiffSizeProc
+    JDIMENSION
+    TiffMapFileProc
     GifFileType
     tiff_memory_source
     TIFFReadWriteProc
@@ -2408,6 +2417,9 @@ sub step {
             $str =~ s/ ?; ?/;/g;
 
             print $str . "\n";
+
+            $self->step($pc + 1);
+            next;
         } elsif ($str =~ /^ *check (.*?)$/) {
             my @format = $self->parse_format($1);
             next if !@format;
@@ -2570,7 +2582,6 @@ sub set {
     $self->{value} = $value;
 }
 
-
 package main;
 
 use Data::Dumper;
@@ -2645,14 +2656,20 @@ my $defns_header = Parser::parse_defns(<<'EOF', 0);
 [[#arg matches (__type__)Lisp_Object]] ||
 [[#arg matches (__type__)Lisp_Object Symbol#]] ||
 [[#arg matches register (__type__)Lisp_Object Symbol#]]
-[[# print $accepts_lo{#fundef#symbol}[#n] = 1; #CU;]]
 [[# print $accepts{#fundef#symbol}[#n] = "Lisp_Object"; #CU;]]
+
+[[# AUTO-07400 #]]:
+[[# FunctionDefinition #fundef]]
+[[#fundef#args element Expr#n: Arg#arg]]
+[[#arg matches (__type__)void *]] ||
+[[#arg matches (__type__)void * Symbol#]] ||
+[[#arg matches register (__type__)void * Symbol#]]
+[[# print $accepts{#fundef#symbol}[#n] = "void *"; #CU;]]
 
 [[# AUTO-07500 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#symbol matches Symbol#symbol]]
 [[#fundef#ret matches (__type__)Lisp_Object]]
-[[# print $returns_lo{#symbol} = 1; #CU;]]
 [[# print $returns{#symbol} = "Lisp_Object"; #CU;]]
 
 [[# AUTO-08000 #]]:
@@ -2665,14 +2682,12 @@ my $defns_header = Parser::parse_defns(<<'EOF', 0);
 [[# AUTO-0900 #]]:
 [[# contains FunctionDefinition#fundef]]
 [[#fundef matches DEFUN(Expr#, Symbol#symbol, CExpr#, Junk#)(Args#args) BBody#body]]
-[[#symbol print $returns_lo{#symbol} = 1; #CU;]]
 [[#symbol print $returns{#symbol} = "Lisp_Object"; #CU;]]
 
 [[# AUTO-0950 #]]:
 [[# contains Stmt#stmt]]
 [[#stmt matches EXFUN(Symbol#symbol, Expr#n);]]
 [[#n check "#n" ~ /^[0-9]+$/]]
-[[#symbol print for my $i (0 .. (#n-1)) { $accepts_lo{#symbol}[$i] = 1; } $returns_lo{#symbol} = 1; #CU; ]]
 [[#symbol print for my $i (0 .. (#n-1)) { $accepts{#symbol}[$i] = "Lisp_Object"; } $returns{#symbol} = "Lisp_Object"; #CU; ]]
 EOF
 
@@ -3244,6 +3259,12 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#symbolb matches #symbol]]
 [[# set Type#symbolb#type: (__type__)ELisp_Array]]
 
+[[# AUTO-03006 #]]:
+[[# contains Stmt#stmt]]
+[[#stmt matches (__type__)void *Symbol#symbol;]] ||
+[[#stmt matches (__type__)void *Symbol#symbol = Expr#rhs;]]
+[[# set Type#symbol#type: (__type__)void *]]
+
 [[# AUTO-0301 #]]:
 [[# contains Expr#expr]]
 [[#expr matches Symbol#symbol]]
@@ -3619,8 +3640,22 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[# FunctionDefinition #fundef]]
 [[#fundef#body contains Expr#expr]]
 [[#expr matches Symbol#symbol(ArgExprs#)]]
-[[#symbol check $main::returns_lo->{#symbol}]]
+[[#symbol check $main::returns->{#symbol} eq "Lisp_Object"]]
 [[# set Type#expr#type: (__type__)ELisp_Return_Value]]
+
+[[# XAUTO-0803 #]]
+[[# FunctionDefinition #fundef]]
+[[#fundef#body contains Expr#expr]]
+[[#expr matches Symbol#symbol(ArgExprs#)]]
+[[#symbol check $main::returns->{#symbol} eq "void *"]]
+[[# set Type#expr#type: (__type__)void *]]
+
+[[# XAUTO-0804 #]]
+[[# FunctionDefinition #fundef]]
+[[#fundef#body contains Expr#expr]]
+[[#expr matches Expr#lhs = Expr#rhs]]
+[[#rhs#type matches (__type__)void *]]
+[[#rhs <- (typeof (#lhs))#rhs]]
 
 [[# XAUTO-0805 #]]:
 [[# contains Expr#expr]]
@@ -3633,7 +3668,7 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#n check #n > 0]]
 [[#argexpr nomatch Symbol#symbolb(ArgExprs#argexprsb)]] ||
 [[#symbolb check "#symbolb" !~ /^(L(SH|HH|VH|RH)|LISPSYM_INITIALLY)$/]]
-[[#symbol check $main::accepts_lo->{#symbol}[#n] ]]
+[[#symbol check $main::accepts->{#symbol}[#n] eq "Lisp_Object" ]]
 [[#argexpr matches Expr#exprb]]
 [[#exprb#type matches (__type__)ELisp_Value]]
 [[#argexpr <- LVH(#argexpr)]]
@@ -3649,7 +3684,7 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#n check #n > 0]]
 [[#argexpr nomatch Symbol#symbolb(ArgExprs#argexprsb)]] ||
 [[#symbolb check "#symbolb" !~ /^(L(SH|HH|VH|RH)|LISPSYM_INITIALLY)$/]]
-[[#symbol check $main::accepts_lo->{#symbol}[#n] ]]
+[[#symbol check $main::accepts->{#symbol}[#n] eq "Lisp_Object"]]
 [[#argexpr matches Expr#exprb]]
 [[#exprb#type matches (__type__)ELisp_Handle]]
 [[#argexpr <- LHH(#argexpr)]]
@@ -3692,7 +3727,7 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#symbolc check "#symbol" !~ /^__u_/]]
 [[#argexpr nomatch Symbol#symbolb(ArgExprs#argexprsb)]] ||
 [[#symbolb check "#symbolb" !~ /^(ELisp_Handle|L(SH|HH|VH|RH)|LISPSYM_INITIALLY)$/]]
-[[#symbol check $main::accepts_lo->{#symbol}[#n] ]]
+[[#symbol check $main::accepts->{#symbol}[#n] eq "Lisp_Object"]]
 [[#argexpr free]]
 [[#argexpr <- LRH(#argexpr)]]
 
@@ -3709,7 +3744,7 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#symbol check "#symbol" =~ /XSETC[AD]R/]] ||
 [[#n check #n > 0]]
 [[#argexpr matches Symbol#symbolb.vec.ref(ArgExprs#)]]
-[[#symbol check $main::accepts_lo->{#symbol}[#n] ]]
+[[#symbol check $main::accepts->{#symbol}[#n] eq "Lisp_Object"]]
 [[#argexpr free]]
 [[#argexpr <- LRH(#argexpr)]]
 
@@ -3726,7 +3761,7 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#argexpr nomatch Symbol#symbolc = Expr#exprc]]
 [[#argexpr nomatch Symbol#symbolb(ArgExprs#argexprsb)]] ||
 [[#symbolb check "#symbolb" !~ /^(ELisp_Handle|L(SH|HH|VH|RH)|LISPSYM_INITIALLY)$/]]
-[[#symbol check $main::accepts_lo->{#symbol}[#n] ]]
+[[#symbol check $main::accepts->{#symbol}[#n] eq "Lisp_Object"]]
 [[#argexpr matches Expr#exprb]]
 [[#argexpr free]]
 [[#argexpr <- LRH(#argexpr)]]
@@ -3750,6 +3785,8 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#chunk call: XAUTO-0801 #dummy]]
 [[#chunk call: XAUTO-08015 #dummy]]
 [[#chunk call: XAUTO-0802 #dummy]]
+[[#chunk call: XAUTO-0803 #dummy]]
+[[#chunk call: XAUTO-0804 #dummy]]
 [[#chunk call: XAUTO-0805 #dummy]]
 [[#chunk call: XAUTO-0806 #dummy]]
 [[#chunk call: XAUTO-0806125 #dummy]]
@@ -3801,13 +3838,11 @@ sub read_globals {
         $global_text .= read_file($path);
     }
 
-    my %returns_lo;
-    my %accepts_lo;
     my %returns;
     my %accepts;
     eval $global_text;
-    $main::returns_lo = \%returns_lo;
-    $main::accepts_lo = \%accepts_lo;
+    $main::returns = \%returns;
+    $main::accepts = \%accepts;
 }
 
 my %globals;
