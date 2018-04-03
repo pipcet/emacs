@@ -343,11 +343,11 @@ static struct timespec timer_last_idleness_start_time;
 /* Function for init_keyboard to call with no args (if nonzero).  */
 static void (*keyboard_init_hook) (void);
 
-static bool get_input_pending (int);
-static bool readable_events (int);
+static bool get_input_pending (int) __attribute__((noinline));
+static bool readable_events (int) __attribute__((noinline));
 static Lisp_Object read_char_x_menu_prompt (Lisp_Object,
-                                            Lisp_Object, bool *);
-static Lisp_Object read_char_minibuf_menu_prompt (int, Lisp_Object);
+                                            Lisp_Object, bool *) __attribute__((noinline));
+static Lisp_Object read_char_minibuf_menu_prompt (int, Lisp_Object) __attribute__((noinline));
 static Lisp_Object make_lispy_event (struct input_event *);
 static Lisp_Object make_lispy_movement (struct frame *, Lisp_Object,
                                         enum scroll_bar_part,
@@ -361,19 +361,19 @@ static Lisp_Object make_lispy_focus_in (Lisp_Object);
 #ifdef HAVE_WINDOW_SYSTEM
 static Lisp_Object make_lispy_focus_out (Lisp_Object);
 #endif /* HAVE_WINDOW_SYSTEM */
-static bool help_char_p (Lisp_Object);
-static void save_getcjmp (sys_jmp_buf);
-static void restore_getcjmp (sys_jmp_buf);
-static Lisp_Object apply_modifiers (int, Lisp_Object);
-static void restore_kboard_configuration (int);
-static void handle_interrupt (bool);
-static _Noreturn void quit_throw_to_read_char (bool);
-static void timer_start_idle (void);
-static void timer_stop_idle (void);
-static void timer_resume_idle (void);
-static void deliver_user_signal (int);
-static char *find_user_signal_name (int);
-static void store_user_signal_events (void);
+static bool help_char_p (Lisp_Object) __attribute__((noinline));
+static void save_getcjmp (sys_jmp_buf) __attribute__((noinline));
+static void restore_getcjmp (sys_jmp_buf) __attribute__((noinline));
+static Lisp_Object apply_modifiers (int, Lisp_Object) __attribute__((noinline));
+static void restore_kboard_configuration (int) __attribute__((noinline));
+static void handle_interrupt (bool) __attribute__((noinline));
+static _Noreturn void quit_throw_to_read_char (bool) __attribute__((noinline));
+static void timer_start_idle (void) __attribute__((noinline));
+static void timer_stop_idle (void) __attribute__((noinline));
+static void timer_resume_idle (void) __attribute__((noinline));
+static void deliver_user_signal (int) __attribute__((noinline));
+static char *find_user_signal_name (int) __attribute__((noinline));
+static void store_user_signal_events (void) __attribute__((noinline));
 
 /* These setters are used only in this file, so they can be private.  */
 static void
@@ -429,6 +429,8 @@ kset_system_key_syms (struct kboard *kb, Lisp_Object val)
 
 
 static bool
+echo_keystrokes_p (void) __attribute__((noinline));
+static bool
 echo_keystrokes_p (void)
 {
   return (FLOATP (Vecho_keystrokes) ? XFLOAT_DATA (Vecho_keystrokes) > 0.0
@@ -440,6 +442,8 @@ echo_keystrokes_p (void)
    a character, which is pretty-printed, or a symbol, whose name is
    printed.  */
 
+static void
+echo_add_key (Lisp_Object c) __attribute__((noinline));
 static void
 echo_add_key (Lisp_Object c)
 {
@@ -505,6 +509,8 @@ echo_add_key (Lisp_Object c)
    character.  */
 
 static void
+echo_dash (void) __attribute__((noinline));
+static void
 echo_dash (void)
 {
   /* Do nothing if not echoing at all.  */
@@ -544,6 +550,8 @@ echo_dash (void)
   echo_now ();
 }
 
+static void
+echo_update (void) __attribute__((noinline));
 static void
 echo_update (void)
 {
@@ -2060,6 +2068,10 @@ make_ctrl_char (int c)
   return c;
 }
 
+extern void
+show_help_echo (Lisp_Object help, Lisp_Object window, Lisp_Object object,
+		Lisp_Object pos) __attribute__((noinline));
+
 /* Display the help-echo property of the character after the mouse pointer.
    Either show it in the echo area, or call show-help-function to display
    it by other means (maybe in a tooltip).
@@ -2347,13 +2359,6 @@ read_decoded_event_from_main_queue (struct timespec *end_time,
 
    Value is t if we showed a menu and the user rejected it.  */
 
-void *stack_pointer()
-{
-  volatile void * volatile x;
-  x = &x;
-  return x;
-}
-
 Lisp_Object
 read_char (int commandflag, Lisp_Object map,
 	   Lisp_Object prev_event,
@@ -2366,7 +2371,7 @@ read_char (int commandflag, Lisp_Object map,
   Lisp_Object tem, save;
   Lisp_Object previous_echo_area_message;
   Lisp_Object also_record;
-  Lisp_Object tem0;
+  Lisp_Object tem0; Lisp_Object tem1;
   Lisp_Object last;
   Lisp_Object d;
   Lisp_Object posn;
@@ -2684,7 +2689,8 @@ read_char (int commandflag, Lisp_Object map,
 
 	  save_getcjmp (save_jump);
 	  restore_getcjmp (local_getcjmp);
-	  tem0 = sit_for (Vecho_keystrokes, 1, 1);
+          tem1 = Vecho_keystrokes;
+	  tem0 = sit_for (tem1, 1, 1);
 	  restore_getcjmp (save_jump);
 	  if (EQ (tem0, Qt)
 	      && ! CONSP (Vunread_command_events))
@@ -2758,7 +2764,8 @@ read_char (int commandflag, Lisp_Object map,
 	  timeout = delay_level * timeout / 4;
 	  save_getcjmp (save_jump);
 	  restore_getcjmp (local_getcjmp);
-	  tem0 = sit_for (make_number (timeout), 1, 1);
+          tem1 = make_number (timeout);
+	  tem0 = sit_for (tem1, 1, 1);
 	  restore_getcjmp (save_jump);
 
 	  if (EQ (tem0, Qt)
