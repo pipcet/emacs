@@ -754,7 +754,11 @@ enum Lisp_Fwd_Type
                                                                         \
   inline bool eq (const JSReturnValue &v2)                              \
   {                                                                     \
-    return JS::Value(V) == v2.v;                                        \
+    JS::RootedValue a(jsg.cx); a = JS::Value(V);                        \
+    JS::RootedValue b(jsg.cx); b = JS::Value(v2.v);                     \
+    bool ret;                                                           \
+    JS_SameValue (jsg.cx, a, b, &ret);                                  \
+    return ret;                                                         \
   }                                                                     \
 
 class JSReturnValue;
