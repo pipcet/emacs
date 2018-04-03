@@ -29,6 +29,8 @@ package EmacsCGrammar;
 
     unichar
 
+    GConfClient
+    regnum_t
     id_t
     CGGlyph
     pthread_mutex_t
@@ -99,6 +101,8 @@ package EmacsCGrammar;
     dbus_uint64_t
     xcb_translate_coordinates_cookie_t
     TIFFErrorHandler
+    TIFFCloseProc
+
     GError
 
     XWMHints
@@ -207,6 +211,9 @@ package EmacsCGrammar;
     JSAMPARRAY
     TIFF
     TIFFSeekProc
+    TIFFSizeProc
+    TIFFMapFileProc
+    GifByteType
     j_decompress_ptr
     compile_stack_type
     fail_stack_type
@@ -1303,7 +1310,7 @@ sub memoize_ctree {
     my $md5 = md5_hex($memostr);
     my $fh;
 
-    open $fh, ">chunkl-cache/ctree-$md5" or return;
+    open $fh, ">chunkl-cache/ctree/$md5" or return;
 
     print $fh Dumper([$memostr, $value]);
 
@@ -1779,8 +1786,8 @@ sub subst_types {
 
     for my $type (@EmacsCGrammar::types) {
         $arg =~ s/\b$type\b/(__type__)$type/g;
-        $arg =~ s/\(__type__\)($type\([^*])/$1/g;
-        $arg =~ s/\(__type__\)($type \([^*])/$1/g;
+        $arg =~ s/\(__type__\)($type\([^_*])/$1/g;
+        $arg =~ s/\(__type__\)($type \([^_*])/$1/g;
         $arg =~ s/\(__type__\)\(__type__\)/(__type__)/g;
         $arg =~ s/\(__type__\)\(__type__\)/(__type__)/g;
     }
@@ -1904,7 +1911,9 @@ sub parse_and_bind {
         }
     }
 
-        $value = ${$recce->value};
+    $value = $recce->value;
+    die $memostr unless $value;
+    $value = $$value;
     };
 
     die $@ if $@;
@@ -2658,7 +2667,7 @@ my $defns_header = Parser::parse_defns(<<'EOF', 0);
 [[#arg matches register (__type__)Lisp_Object Symbol#]]
 [[# print $accepts{#fundef#symbol}[#n] = "Lisp_Object"; #CU;]]
 
-[[# AUTO-07400 #]]:
+[[# AUTO-07450 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#args element Expr#n: Arg#arg]]
 [[#arg matches (__type__)void *]] ||
@@ -2676,7 +2685,6 @@ my $defns_header = Parser::parse_defns(<<'EOF', 0);
 [[# FunctionDefinition #fundef]]
 [[#fundef#symbol matches Symbol#symbol]]
 [[#fundef#ret matches (__type__)void *]]
-[[# print $returns_vp{#symbol} = 1; #CU;]]
 [[# print $returns{#symbol} = "void *"; #CU;]]
 
 [[# AUTO-0900 #]]:
@@ -3643,17 +3651,24 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#symbol check $main::returns->{#symbol} eq "Lisp_Object"]]
 [[# set Type#expr#type: (__type__)ELisp_Return_Value]]
 
-[[# XAUTO-0803 #]]
+[[# XAUTO-0803 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#body contains Expr#expr]]
 [[#expr matches Symbol#symbol(ArgExprs#)]]
 [[#symbol check $main::returns->{#symbol} eq "void *"]]
 [[# set Type#expr#type: (__type__)void *]]
 
-[[# XAUTO-0804 #]]
+[[# XAUTO-0804 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#body contains Expr#expr]]
 [[#expr matches Expr#lhs = Expr#rhs]]
+[[#rhs#type matches (__type__)void *]]
+[[#rhs <- (typeof (#lhs))#rhs]]
+
+[[# XAUTO-08045 #]]:
+[[# FunctionDefinition #fundef]]
+[[#fundef#body contains Stmt#declinit]]
+[[#declinit matches Type#type Symbol#lhs = Expr#rhs;]]
 [[#rhs#type matches (__type__)void *]]
 [[#rhs <- (typeof (#lhs))#rhs]]
 
@@ -3723,7 +3738,7 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#symbol check "#symbol" !~ /XSET/]] ||
 [[#symbol check "#symbol" =~ /XSETC[AD]R/]] ||
 [[#n check #n > 0]]
-[[#argexpr nomatch Symbol#symbolc = Expr#]] ||
+[[#argexpr nomatch Symbol#symbolc = Expr#exprd]] ||
 [[#symbolc check "#symbol" !~ /^__u_/]]
 [[#argexpr nomatch Symbol#symbolb(ArgExprs#argexprsb)]] ||
 [[#symbolb check "#symbolb" !~ /^(ELisp_Handle|L(SH|HH|VH|RH)|LISPSYM_INITIALLY)$/]]
@@ -3787,6 +3802,7 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#chunk call: XAUTO-0802 #dummy]]
 [[#chunk call: XAUTO-0803 #dummy]]
 [[#chunk call: XAUTO-0804 #dummy]]
+[[#chunk call: XAUTO-08045 #dummy]]
 [[#chunk call: XAUTO-0805 #dummy]]
 [[#chunk call: XAUTO-0806 #dummy]]
 [[#chunk call: XAUTO-0806125 #dummy]]
@@ -3948,8 +3964,8 @@ for my $chunk (@chunks) {
     my $counter = 10;
     my $md5 = md5_hex($chunk);
     push @md5s, $md5;
-    if (!$nomd5 && $defns == $defns_main && -e "chunkl-cache/$md5") {
-        print read_file("chunkl-cache/$md5");
+    if (!$nomd5 && $defns == $defns_main && -e "chunkl-cache/main/$md5") {
+        print read_file("chunkl-cache/main/$md5");
         next;
     }
     $chunk =~ s/^(\#[ \t]*include[ \t]+)TERM_HEADER.*$/$1\"gtkutil.h.hh\"/mg;
@@ -3957,8 +3973,8 @@ for my $chunk (@chunks) {
 
     for my $type (@EmacsCGrammar::types) {
         $chunk =~ s/\b$type\b/(__type__)$type/g;
-        $chunk =~ s/\(__type__\)($type\([^*])/$1/g;
-        $chunk =~ s/\(__type__\)($type \([^*])/$1/g;
+        $chunk =~ s/\(__type__\)($type\([^_*])/$1/g;
+        $chunk =~ s/\(__type__\)($type \([^_*])/$1/g;
         $chunk =~ s/\(__type__\)\(__type__\)/(__type__)/g;
     }
 
@@ -4006,9 +4022,13 @@ for my $chunk (@chunks) {
 
         $chunk = perform_replacements($chunk, @repl);
     };
-    warn $@ if $@;
+    warn "$cu:\n" . $@ if $@;
 
-    next if $defns == $defns_header;
+    if ($defns == $defns_header) {
+        mkdir("chunkl-cache/header");
+        write_file("chunkl-cache/header/$md5", "XXX\n");
+        next;
+    }
 
     my %prechunks;
     for my $prechunk (@prechunks) {
@@ -4021,7 +4041,8 @@ for my $chunk (@chunks) {
 
     print $chunk;
 
-    write_file("chunkl-cache/$md5", $chunk) if $cu && !$nomd5;
+    mkdir("chunkl-cache/main");
+    write_file("chunkl-cache/main/$md5", $chunk) if $cu && !$nomd5;
 }
 
 if ($cu) {
