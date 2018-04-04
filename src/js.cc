@@ -26,6 +26,7 @@ int catchall_real_value;
 typedef int64_t EMACS_INT;
 typedef uint64_t EMACS_UINT;
 
+extern JSClass elisp_exception_class;
 static JSClassOps cons_class_ops =
   {
    NULL, NULL, NULL, NULL,
@@ -941,8 +942,52 @@ ELisp_Return_Value elisp_to_jsval(ELisp_Handle ARG(arg))
     arg.v.v.setBoolean(false);
   else if (EQ (arg, LRH(Qt)))
     arg.v.v.setBoolean(true);
-  else
-    return arg;
+
+  return arg;
+}
+
+static ELisp_Return_Value elisp_exception_to_js_exception(ELisp_Handle exc)
+{
+  return exc;
+}
+
+JS::Heap<JSObject*> elisp_exception_class_proto __attribute__((init_priority(101)));
+static ELisp_Return_Value js_exception_to_elisp_exception(ELisp_Handle exc)
+{
+  //if (exc.isObject() && JS_GetClass(&exc.toObject()) == &elisp_exception_class)
+    return exc;
+
+  JSContext *cx = jsg.cx;
+  JS::RootedObject proto(cx);
+  proto = elisp_exception_class_proto;
+  JS::RootedObject obj(cx);
+  obj = JS_NewObjectWithGivenProto(cx, &elisp_exception_class, proto);
+
+  JS_SetProperty(cx, obj, "e", exc.v.v);
+
+  return JS::ObjectValue(*obj);
+}
+
+static void js_handle_exception(void)
+{
+  if (JS_IsExceptionPending(jsg.cx))
+    {
+      ELisp_Value jsexc;
+      JS_GetPendingException(jsg.cx, &jsexc.v.v);
+      ELisp_Value exc = js_exception_to_elisp_exception(jsexc);
+      if (CONSP (LVH (exc)) && EQ (LRH (XCAR (LVH (exc))), LRH (Qno_catch)))
+        {
+          fprintf(stderr, "throwing\n");
+          JS_ClearPendingException(jsg.cx);
+          Fthrow(LRH (XCAR (LRH (XCDR (LVH (exc))))),
+                 LRH (XCDR (LRH (XCDR (LVH (exc))))));
+        }
+      else
+        {
+          fprintf(stderr, "unhandled exception\n");
+          JS_ClearPendingException(jsg.cx);
+        }
+    }
 }
 
 EXFUN (Fjs, 1);
@@ -972,7 +1017,10 @@ usage: (js SOURCE)  */)
     return Qnil;
 
   if (!JS_ExecuteScript(cx, script, &result.v.v))
-    return Qnil;
+    {
+      js_handle_exception();
+      return Qnil;
+    }
 
   return jsval_to_elisp(result);
 }
@@ -1051,6 +1099,19 @@ js_call_function(ELisp_Handle fun, ELisp_Dynvector& vals)
   catchall_real_jmpbuf = NULL;
   if (!JS::Call(jsg.cx, thisv.v.v, fun.v.v, vals.vec.vec, &rval.v.v))
     {
+      if (JS_IsExceptionPending(jsg.cx))
+        {
+          ELisp_Value jsexc;
+          JS_GetPendingException(jsg.cx, &jsexc.v.v);
+          ELisp_Value exc = js_exception_to_elisp_exception(jsexc);
+          if (CONSP (LVH (exc)) && EQ (LRH (XCAR (LVH (exc))), LRH (Qno_catch)))
+            {
+              fprintf(stderr, "throwing\n");
+              JS_ClearPendingException(jsg.cx);
+              Fthrow(LRH (XCAR (LRH (XCDR (LVH (exc))))),
+                     LRH (XCDR (LRH (XCDR (LVH (exc))))));
+            }
+        }
       if (catchall_real_jmpbuf)
         {
           sys_jmp_buf *jmpbuf = catchall_real_jmpbuf;
@@ -1633,7 +1694,7 @@ static ELisp_Return_Value elisp_vector_call_inner(ELisp_Vector) __attribute__((n
 
 static ELisp_Return_Value elisp_vector_call_voidp(void *lvp)
 {
-  ELisp_Vector *lv = lvp;
+  ELisp_Vector *lv = (ELisp_Vector *)lvp;
 
   return Ffuncall (*lv);
 }
@@ -1643,7 +1704,9 @@ static ELisp_Return_Value elisp_vector_call_handler(ELisp_Handle arg)
   if (JS_IsExceptionPending(jsg.cx))
     while (1);
 
-  //JS_SetPendingException(jsg.cx, arg.v.v);
+  ELisp_Value exc;
+  exc = js_exception_to_elisp_exception(arg);
+  JS_SetPendingException(jsg.cx, exc.v.v);
 
   return Qnil;
 }
@@ -1660,10 +1723,11 @@ static ELisp_Return_Value elisp_vector_call_inner(ELisp_Vector *lv, bool *succes
       return Qnil;
     }
 
-  //auto ret = internal_catch_all (elisp_vector_call_voidp, static_cast<void *>(lv), elisp_vector_call_handler);
-  auto ret = elisp_vector_call_voidp(static_cast<void *>(lv));
+  auto ret = internal_catch_all (elisp_vector_call_voidp, static_cast<void *>(lv), elisp_vector_call_handler);
   catchall_jmpbuf = old_jmpbuf;
   *successp = true;
+  if (JS_IsExceptionPending(jsg.cx))
+    *successp = false;
   return ret;
 }
 
@@ -2117,6 +2181,17 @@ elisp_miscany_finalize(JSFreeOp* cx, JSObject *obj)
   //xfree(JS_GetPrivate(obj));
 }
 
+static JSClassOps elisp_exception_ops =
+  {
+   NULL,
+  };
+
+JSClass elisp_exception_class =
+  {
+   "ELisp_Exception", 0,
+   &elisp_exception_ops
+  };
+
 static JSClassOps elisp_miscany_ops =
 {
   NULL, NULL, NULL, NULL,
@@ -2169,7 +2244,7 @@ elisp_string_toString(JSContext* cx, unsigned argc, JS::Value *vp)
   ELisp_Value s;
   s.v.v = args.thisv();
 
-  char *bytes = SDATA(s);
+  unsigned char *bytes = SDATA(s);
   size_t len = SBYTES(s);
   JS::RootedString res(cx, JS_NewStringCopyN(cx, bytes, len));
   if (!res)
@@ -2266,6 +2341,7 @@ elisp_classes_init(JSContext *cx, JS::HandleObject glob)
                nullptr, nullptr, nullptr, nullptr);
   JS_InitClass(cx, glob, nullptr, &elisp_vectorlike_class, nullptr, 0,
                nullptr, nullptr, nullptr, nullptr);
+  elisp_exception_class_proto = JS_InitClass(cx, glob, nullptr, &elisp_exception_class, nullptr, 0, nullptr, nullptr, nullptr, nullptr);
 }
 
 void jsprint(JS::Value v);
