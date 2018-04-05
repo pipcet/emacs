@@ -1685,7 +1685,7 @@ sub fork {
         cb => $self->{cb},
         outvar => PointedHash->new,
         counter => $self->{counter},
-        output => $self->{output};
+        output => $self->{output},
     }, ref $self;
 }
 
@@ -1963,7 +1963,9 @@ sub rec_print {
 }
 
 sub print {
-    ${$self->{output}} .= $_[0];
+    my ($self) = @_;
+
+    ${$self->{output}} .= $_[1];
 }
 
 sub step {

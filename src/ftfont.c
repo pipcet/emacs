@@ -1111,7 +1111,7 @@ ftfont_open2 (struct frame *f,
   filename = XCAR (val);
   idx = XCDR (val);
   val = XCDR (cache);
-  cache_data = XSAVE_POINTER (XCDR (cache), 0);
+  cache_data = XSAVE_POINTER (LRH (XCDR (cache)), 0);
   ft_face = cache_data->ft_face;
   if (XSAVE_INTEGER (val, 1) > 0)
     {

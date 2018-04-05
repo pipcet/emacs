@@ -51,7 +51,7 @@ ftxfont_get_gcs (struct frame *f, unsigned long foreground, unsigned long backgr
   XColor color;
   XGCValues xgcv;
   int i;
-  struct ftxfont_frame_data *data = font_get_frame_data (f, Qftx);
+  struct ftxfont_frame_data *data = font_get_frame_data (f, LRH (Qftx));
   struct ftxfont_frame_data *prev = NULL, *this = NULL, *new;
 
   if (data)
@@ -319,7 +319,7 @@ ftxfont_draw (struct glyph_string *s, int from, int to, int x, int y,
 static int
 ftxfont_end_for_frame (struct frame *f)
 {
-  struct ftxfont_frame_data *data = font_get_frame_data (f, Qftx);
+  struct ftxfont_frame_data *data = font_get_frame_data (f, LRH (Qftx));
 
   block_input ();
   while (data)

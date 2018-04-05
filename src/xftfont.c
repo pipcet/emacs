@@ -577,7 +577,7 @@ xftfont_text_extents (struct font *font, unsigned int *code,
 static XftDraw *
 xftfont_get_xft_draw (struct frame *f)
 {
-  XftDraw *xft_draw = font_get_frame_data (f, Qxft);
+  XftDraw *xft_draw = font_get_frame_data (f, LRH (Qxft));
 
   if (! xft_draw)
     {
@@ -679,7 +679,7 @@ xftfont_end_for_frame (struct frame *f)
   block_input ();
   XftDraw *xft_draw;
 
-  xft_draw = font_get_frame_data (f, Qxft);
+  xft_draw = font_get_frame_data (f, LRH (Qxft));
   if (xft_draw)
     {
       block_input ();

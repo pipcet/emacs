@@ -1157,7 +1157,7 @@ usage: (js SOURCE)  */)
   JS::RootedScript script(cx);
   size_t sourcelen = strlen(source);
   JS::CompileOptions options(cx);
-  options.setIntroductionType("js shell interactive")
+  options.setIntroductionType("evaluation from Emacs")
     .setUTF8(true)
     .setIsRunOnce(true)
     .setFileAndLine("typein", 1);
@@ -1178,7 +1178,7 @@ EXFUN (Fjsdrain, 0);
 
 DEFUN ("jsdrain", Fjsdrain, Sjsdrain, 0, 0, 0,
        doc: /* Drain the job queue.
-usage: (jsdrain SOURCE)  */)
+usage: (jsdrain)  */)
   ()
 {
   JSContext* cx = jsg.cx;
@@ -1248,26 +1248,7 @@ js_call_function(ELisp_Handle fun, ELisp_Dynvector& vals)
   catchall_real_jmpbuf = NULL;
   if (!JS::Call(jsg.cx, thisv.v.v, fun.v.v, vals.vec.vec, &rval.v.v))
     {
-      if (JS_IsExceptionPending(jsg.cx))
-        {
-          ELisp_Value jsexc;
-          JS_GetPendingException(jsg.cx, &jsexc.v.v);
-          ELisp_Value exc = js_exception_to_elisp_exception(jsexc);
-          if (CONSP (LVH (exc)) && EQ (LRH (XCAR (LVH (exc))), LRH (Qno_catch)))
-            {
-              fprintf(stderr, "throwing\n");
-              JS_ClearPendingException(jsg.cx);
-              Fthrow(LRH (XCAR (LRH (XCDR (LVH (exc))))),
-                     LRH (XCDR (LRH (XCDR (LVH (exc))))));
-            }
-        }
-      if (catchall_real_jmpbuf)
-        {
-          sys_jmp_buf *jmpbuf = catchall_real_jmpbuf;
-          catchall_real_jmpbuf = NULL;
-          sys_longjmp((*jmpbuf), catchall_real_value);
-        }
-
+      js_handle_exception();
       return LRH(Qnil);
     }
 
