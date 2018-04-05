@@ -3809,8 +3809,6 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#chunk call: XAUTO-08015 #dummy]]
 [[#chunk call: XAUTO-0802 #dummy]]
 [[#chunk call: XAUTO-0803 #dummy]]
-[[#chunk call: XAUTO-0804 #dummy]]
-[[#chunk call: XAUTO-08045 #dummy]]
 [[#chunk call: XAUTO-0805 #dummy]]
 [[#chunk call: XAUTO-0806 #dummy]]
 [[#chunk call: XAUTO-0806125 #dummy]]
@@ -3820,6 +3818,8 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#chunk call: XAUTO-0808 #dummy]]
 [[#chunk call: XAUTO-080825 #dummy]]
 [[#chunk call: XAUTO-08085 #dummy]]
+[[#chunk call: XAUTO-0804 #dummy]]
+[[#chunk call: XAUTO-08045 #dummy]]
 
 [[#dummy AUTO-0890-REPEAT #chunk]]:
 [[#chunk the eighthundreds #dummy]]

@@ -319,7 +319,7 @@ ftxfont_draw (struct glyph_string *s, int from, int to, int x, int y,
 static int
 ftxfont_end_for_frame (struct frame *f)
 {
-  struct ftxfont_frame_data *data = font_get_frame_data (f, LRH (Qftx));
+  struct ftxfont_frame_data *data = font_get_frame_data (f, Qftx);
 
   block_input ();
   while (data)

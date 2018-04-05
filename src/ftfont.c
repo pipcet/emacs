@@ -601,7 +601,8 @@ ftfont_get_open_type_spec (Lisp_Object otf_spec)
 	continue;
       len = Flength (val);
       spec->features[i] =
-	(min (PTRDIFF_MAX, SIZE_MAX) / sizeof (int) < XINT (len)
+	(typeof spec->features[i])
+        (min (PTRDIFF_MAX, SIZE_MAX) / sizeof (int) < XINT (len)
 	 ? 0
 	 : malloc (XINT (len) * sizeof *spec->features[i]));
       if (! spec->features[i])
@@ -1111,7 +1112,7 @@ ftfont_open2 (struct frame *f,
   filename = XCAR (val);
   idx = XCDR (val);
   val = XCDR (cache);
-  cache_data = XSAVE_POINTER (LRH (XCDR (cache)), 0);
+  cache_data = XSAVE_POINTER (XCDR (cache), 0);
   ft_face = cache_data->ft_face;
   if (XSAVE_INTEGER (val, 1) > 0)
     {
