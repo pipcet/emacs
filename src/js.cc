@@ -309,10 +309,14 @@ Q_resolve(JSContext *cx, JS::HandleObject obj, JS::HandleId id, bool *resolvedp)
     return true;
 }
 
+static bool Q_call(JSContext *cx, unsigned argc, JS::Value *vp);
+static bool V_call(JSContext *cx, unsigned argc, JS::Value *vp);
+static bool F_call(JSContext *cx, unsigned argc, JS::Value *vp);
+
 static const JSClassOps Q_classOps =
   {
    nullptr, nullptr, nullptr, nullptr,
-   Q_resolve, nullptr, nullptr, nullptr, nullptr, nullptr,
+   Q_resolve, nullptr, nullptr, Q_call, nullptr, nullptr, nullptr,
   };
 
 static const JSClass Q_class =
@@ -321,29 +325,25 @@ static const JSClass Q_class =
    &Q_classOps,
   };
 
-static bool
-V_resolve(JSContext *cx, JS::HandleObject obj, JS::HandleId id, bool *resolvedp)
+static bool Q_call(JSContext *cx, unsigned argc, JS::Value *vp)
 {
-  *resolvedp = false;
-  if (JSID_IS_STRING (id))
+  JS::CallArgs args = CallArgsFromVp(argc, vp);
+  JS::RootedObject obj(cx, &args.callee());
+  if (JS_GetClass(obj) != &Q_class)
+    return false;
+
+  if (args.length() != 1)
+    return false;
+
+  if (args[0].isString())
     {
-      JS::RootedString fs(cx, JS_FORGET_STRING_FLATNESS(JSID_TO_FLAT_STRING (id)));
-      char *bytes = JS_EncodeStringToUTF8 (cx, fs);
+      JS::RootedString str(cx, args[0].toString());
+      char *bytes = JS_EncodeStringToUTF8 (cx, str);
+
+      fprintf(stderr, "resolving Q.%s\n", bytes);
 
       if (!bytes)
         return false;
-
-      fprintf(stderr, "resolving V.%s\n", bytes);
-
-#if 0
-      for (char *p = bytes; *p; p++)
-        {
-          if (*p == '_')
-            *p = '-';
-          else if (*p == '-')
-            *p = '_';
-        }
-#endif
 
       ELisp_Value obarray;
       obarray.v.v = JS_GetReservedSlot(obj, 0);
@@ -351,32 +351,24 @@ V_resolve(JSContext *cx, JS::HandleObject obj, JS::HandleId id, bool *resolvedp)
 
       tem = oblookup (obarray, bytes, strlen (bytes), strlen (bytes));
 
-      if (INTEGERP (tem))
-        *resolvedp = false;
-      else
-        {
-          tem = find_symbol_value (tem);
+      //tem = find_symbol_value (tem);
 
-          JS_SetProperty (cx, obj, bytes, tem.v.v);
-          *resolvedp = true;
+      if (INTEGERP (tem))
+        {
+          //*resolvedp = false;
+          tem = intern_1 (bytes, strlen(bytes));
         }
 
       JS_free(cx, bytes);
+
+      args.rval().set(tem.v.v);
     }
-    return true;
+  else
+    return false;
+
+  return true;
 }
 
-static const JSClassOps V_classOps =
-  {
-   nullptr, nullptr, nullptr, nullptr,
-   V_resolve, nullptr, nullptr, nullptr, nullptr, nullptr,
-  };
-
-static const JSClass V_class =
-  {
-   "EmacsVariables", JSCLASS_HAS_RESERVED_SLOTS(1),
-   &V_classOps,
-  };
 
 static bool
 F_resolve(JSContext *cx, JS::HandleObject obj, JS::HandleId id, bool *resolvedp)
@@ -426,7 +418,7 @@ F_resolve(JSContext *cx, JS::HandleObject obj, JS::HandleId id, bool *resolvedp)
 static const JSClassOps F_classOps =
   {
    nullptr, nullptr, nullptr, nullptr,
-   F_resolve, nullptr, nullptr, nullptr, nullptr, nullptr,
+   F_resolve, nullptr, nullptr, F_call, nullptr, nullptr,
   };
 
 static const JSClass F_class =
@@ -434,6 +426,158 @@ static const JSClass F_class =
    "EmacsFunctions", JSCLASS_HAS_RESERVED_SLOTS(1),
    &F_classOps,
   };
+
+static bool F_call(JSContext *cx, unsigned argc, JS::Value *vp)
+{
+  JS::CallArgs args = CallArgsFromVp(argc, vp);
+  JS::RootedObject obj(cx, &args.callee());
+  if (JS_GetClass(obj) != &F_class)
+    return false;
+
+  if (args.length() != 1)
+    return false;
+
+  if (args[0].isString())
+    {
+      JS::RootedString str(cx, args[0].toString());
+      char *bytes = JS_EncodeStringToUTF8 (cx, str);
+
+      fprintf(stderr, "resolving F.%s\n", bytes);
+
+      if (!bytes)
+        return false;
+
+      ELisp_Value obarray;
+      obarray.v.v = JS_GetReservedSlot(obj, 0);
+      ELisp_Value tem;
+
+      tem = oblookup (obarray, bytes, strlen (bytes), strlen (bytes));
+
+      //tem = find_symbol_value (tem);
+
+      if (INTEGERP (tem))
+        {
+          //*resolvedp = false;
+          args.rval().set(LRH (Qnil).v.v);
+        }
+      else
+        {
+          tem = XSYMBOL (tem)->function;
+          args.rval().set(tem.v.v);
+        }
+
+      JS_free(cx, bytes);
+    }
+  else
+    return false;
+
+  return true;
+}
+
+static bool
+V_resolve(JSContext *cx, JS::HandleObject obj, JS::HandleId id, bool *resolvedp)
+{
+  *resolvedp = false;
+  if (JSID_IS_STRING (id))
+    {
+      JS::RootedString fs(cx, JS_FORGET_STRING_FLATNESS(JSID_TO_FLAT_STRING (id)));
+      char *bytes = JS_EncodeStringToUTF8 (cx, fs);
+
+      if (!bytes)
+        return false;
+
+      fprintf(stderr, "resolving V.%s\n", bytes);
+
+#if 0
+      for (char *p = bytes; *p; p++)
+        {
+          if (*p == '_')
+            *p = '-';
+          else if (*p == '-')
+            *p = '_';
+        }
+#endif
+
+      ELisp_Value obarray;
+      obarray.v.v = JS_GetReservedSlot(obj, 0);
+      ELisp_Value tem;
+
+      tem = oblookup (obarray, bytes, strlen (bytes), strlen (bytes));
+
+      if (INTEGERP (tem))
+        *resolvedp = false;
+      else
+        {
+          tem = find_symbol_value (tem);
+
+          JS_SetProperty (cx, obj, bytes, tem.v.v);
+          *resolvedp = true;
+        }
+
+      JS_free(cx, bytes);
+    }
+    return true;
+}
+
+static const JSClassOps V_classOps =
+  {
+   nullptr, nullptr, nullptr, nullptr,
+   V_resolve, nullptr, nullptr, V_call, nullptr, nullptr,
+  };
+
+static const JSClass V_class =
+  {
+   "EmacsVariables", JSCLASS_HAS_RESERVED_SLOTS(1),
+   &V_classOps,
+  };
+
+static bool V_call(JSContext *cx, unsigned argc, JS::Value *vp)
+{
+  JS::CallArgs args = CallArgsFromVp(argc, vp);
+  JS::RootedObject obj(cx, &args.callee());
+  if (JS_GetClass(obj) != &V_class)
+    return false;
+
+  if (args.length() != 1)
+    return false;
+
+  if (args[0].isString())
+    {
+      JS::RootedString str(cx, args[0].toString());
+      char *bytes = JS_EncodeStringToUTF8 (cx, str);
+
+      fprintf(stderr, "resolving V.%s\n", bytes);
+
+      if (!bytes)
+        return false;
+
+      ELisp_Value obarray;
+      obarray.v.v = JS_GetReservedSlot(obj, 0);
+      ELisp_Value tem;
+
+      tem = oblookup (obarray, bytes, strlen (bytes), strlen (bytes));
+
+      //tem = find_symbol_value (tem);
+
+      if (INTEGERP (tem))
+        {
+          //*resolvedp = false;
+          args.rval().set(LRH (Qnil).v.v);
+        }
+      else
+        {
+          tem = find_symbol_value (tem);
+          args.rval().set(tem.v.v);
+        }
+
+      JS_free(cx, bytes);
+    }
+  else
+    return false;
+
+  return true;
+}
+
 
 static bool
 global_enumerate(JSContext* cx, JS::HandleObject obj, JS::AutoIdVector& properties,
@@ -931,7 +1075,7 @@ ELisp_Return_Value jsval_to_elisp(ELisp_Handle ARG(arg))
       return build_string (bytes);
     }
   else
-    return Qnil;
+    return arg;
 }
 
 ELisp_Return_Value elisp_to_jsval(ELisp_Handle ARG(arg))
@@ -977,10 +1121,15 @@ static void js_handle_exception(void)
       ELisp_Value exc = js_exception_to_elisp_exception(jsexc);
       if (CONSP (LVH (exc)) && EQ (LRH (XCAR (LVH (exc))), LRH (Qno_catch)))
         {
-          fprintf(stderr, "throwing\n");
           JS_ClearPendingException(jsg.cx);
           Fthrow(LRH (XCAR (LRH (XCDR (LVH (exc))))),
                  LRH (XCDR (LRH (XCDR (LVH (exc))))));
+        }
+      else if (CONSP (LVH (exc)))
+        {
+          JS_ClearPendingException(jsg.cx);
+          Fsignal(LRH (XCAR (LVH (exc))),
+                  LRH (XCDR (LVH (exc))));
         }
       else
         {
@@ -1159,7 +1308,7 @@ usage: (jsread SOURCE)  */)
     options.setIntroductionType("jsread run")
       .setUTF8(true)
       .setIsRunOnce(true)
-      .setFileAndLine(source, 1);
+      .setFileAndLine(reinterpret_cast<const char *>(source), 1);
 
     if (!JS_CompileScript(cx, str, strlen(str), options, &script))
       goto error;
@@ -1220,7 +1369,7 @@ static bool
 elisp_cons_resolve(JSContext *cx, JS::HandleObject obj,
                      JS::HandleId id, bool *resolvedp)
 {
-  struct Lisp_Cons *s = JS_GetPrivate(obj);
+  struct Lisp_Cons *s = (struct Lisp_Cons *)JS_GetPrivate(obj);
 
   *resolvedp = false;
   if (JSID_IS_STRING (id))
@@ -1318,6 +1467,93 @@ JSClass elisp_cons_class =
   };
 
 static bool
+elisp_symbol_function_getter(JSContext *cx, unsigned argc, JS::Value *vp)
+{
+  JS::CallArgs args = CallArgsFromVp(argc, vp);
+  JS::RootedValue thisv(cx, args.thisv());
+  if (!thisv.isObject())
+    return false;
+  JS::RootedObject obj(cx, &thisv.toObject());
+  if (JS_GetClass(obj) != &elisp_symbol_class)
+    return false;
+
+  struct Lisp_Symbol *s = (struct Lisp_Symbol *)JS_GetPrivate(obj);
+
+  args.rval().set(s->function.v.v);
+
+  return true;
+}
+
+static bool
+elisp_symbol_function_setter(JSContext *cx, unsigned argc, JS::Value *vp)
+{
+  JS::CallArgs args = CallArgsFromVp(argc, vp);
+  JS::RootedValue thisv(cx, args.thisv());
+  if (!thisv.isObject())
+    return false;
+  JS::RootedObject obj(cx, &thisv.toObject());
+  if (JS_GetClass(obj) != &elisp_symbol_class)
+    return false;
+
+  struct Lisp_Symbol *s = (struct Lisp_Symbol *)JS_GetPrivate(obj);
+
+  if (args.length() != 1)
+    return false;
+
+  s->function.v.v = args[0];
+  args.rval().setUndefined();
+
+  return true;
+}
+
+static bool
+elisp_symbol_value_getter(JSContext *cx, unsigned argc, JS::Value *vp)
+{
+  JS::CallArgs args = CallArgsFromVp(argc, vp);
+  JS::RootedValue thisv(cx, args.thisv());
+  if (!thisv.isObject())
+    return false;
+  JS::RootedObject obj(cx, &thisv.toObject());
+  if (JS_GetClass(obj) != &elisp_symbol_class)
+    return false;
+
+  struct Lisp_Symbol *s = (struct Lisp_Symbol *)JS_GetPrivate(obj);
+  ELisp_Value sym;
+
+  sym.v.v = s->jsval;
+  args.rval().set(find_symbol_value (sym).v);
+
+  return true;
+}
+
+static bool
+elisp_symbol_value_setter(JSContext *cx, unsigned argc, JS::Value *vp)
+{
+  JS::CallArgs args = CallArgsFromVp(argc, vp);
+  JS::RootedValue thisv(cx, args.thisv());
+  if (!thisv.isObject())
+    return false;
+  JS::RootedObject obj(cx, &thisv.toObject());
+  if (JS_GetClass(obj) != &elisp_symbol_class)
+    return false;
+
+  struct Lisp_Symbol *s = (struct Lisp_Symbol *)JS_GetPrivate(obj);
+  ELisp_Value sym;
+
+  sym.v.v = s->jsval;
+
+  if (args.length() != 1)
+    return false;
+
+  ELisp_Value newval;
+  newval.v.v = args[0];
+
+  args.rval().set (Fset (sym, newval).v);
+
+  return true;
+}
+
+static bool
 elisp_symbol_resolve(JSContext *cx, JS::HandleObject obj,
                      JS::HandleId id, bool *resolvedp)
 {
@@ -1336,7 +1572,10 @@ elisp_symbol_resolve(JSContext *cx, JS::HandleObject obj,
       else if (JS_FlatStringEqualsAscii (JSID_TO_FLAT_STRING (id), "function"))
         {
           JS::RootedValue val(cx, s->function);
-          JS_SetProperty (cx, obj, "function", val);
+          JS_DefinePropertyById (cx, obj, id,
+                                 elisp_symbol_function_getter,
+                                 elisp_symbol_function_setter,
+                                 0);
           *resolvedp = true;
 
           return true;
@@ -1355,7 +1594,10 @@ elisp_symbol_resolve(JSContext *cx, JS::HandleObject obj,
           sym.v.v = JS::ObjectValue(*obj);
           JS::RootedValue val(cx, find_symbol_value (sym).v);
 
-          JS_SetProperty (cx, obj, "value", val);
+          JS_DefinePropertyById (cx, obj, id,
+                                 elisp_symbol_value_getter,
+                                 elisp_symbol_value_setter,
+                                 0);
           *resolvedp = true;
 
           return true;
@@ -1392,7 +1634,7 @@ static bool elisp_symbol_call(JSContext *cx, unsigned argc, JS::Value *vp)
 static void
 elisp_symbol_trace(JSTracer *trc, JSObject *obj)
 {
-  struct Lisp_Symbol *s = JS_GetPrivate(obj);
+  struct Lisp_Symbol *s = (struct Lisp_Symbol *)JS_GetPrivate(obj);
 
   if (!s) return;
 
@@ -1667,7 +1909,7 @@ extern JSClass elisp_vector_class;
 static bool elisp_vector_resolve(JSContext *cx, JS::HandleObject obj,
                                  JS::HandleId id, bool *resolvedp)
 {
-  struct Lisp_Vector *v = JS_GetPrivate(obj);
+  struct Lisp_Vector *v = (struct Lisp_Vector *)JS_GetPrivate(obj);
   *resolvedp = false;
   if (JSID_IS_INT(id))
     {
@@ -2105,7 +2347,7 @@ elisp_misc_finalize(JSFreeOp* cx, JSObject *obj)
 static void
 elisp_misc_trace(JSTracer *trc, JSObject *obj)
 {
-  struct Lisp_Misc_Any *s = JS_GetPrivate(obj);
+  struct Lisp_Misc_Any *s = (struct Lisp_Misc_Any *)JS_GetPrivate(obj);
 
   if (!s) return;
 
@@ -2246,7 +2488,7 @@ elisp_string_toString(JSContext* cx, unsigned argc, JS::Value *vp)
 
   unsigned char *bytes = SDATA(s);
   size_t len = SBYTES(s);
-  JS::RootedString res(cx, JS_NewStringCopyN(cx, bytes, len));
+  JS::RootedString res(cx, JS_NewStringCopyN(cx, reinterpret_cast<char *>(bytes), len));
   if (!res)
     return false;
 
