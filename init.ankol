@@ -1,5 +1,31 @@
   do
-    js.F.fset
-        js.Q.x
-        jssync({:})
-            while not(jstrue(js.D(js.F.bobp()))): js.F.forward-line(js.E(-1))
+    say "here"
+    f: {:}
+        say "in f"
+        throw_exception(.kill: "kill")
+        throw_exception(.kill: "kill")
+    g: {:}
+        &counter: & 0
+        unwind
+            .reenter: {:}
+                say "reentering g for the", counter, "th time"
+                setq counter: add(counter, 1)
+            .leave: {:}
+                say "leaving g for the", counter, "th time"
+            {}:
+                f()
+    {.kill: {e:continue_exception(e)}, g}()
+    say "neither here nor there"
+    say({.kill: {e:"killed"},f}())
+    say "there"
+    emacs: {}
+        .save-excursion: {}
+            f:
+                js.F.save-excursion(js.F.list(js.F.list(js.F.list(js.Q.funcall, jssync(f)))))
+    setq
+        js.Q.x.function:
+            jssync({:})
+                emacs.save-excursion({:})
+                    while not(jstrue(js.D(js.F.bobp()))): js.F.forward-line(js.E(-1))
+                    js.F.message(js.E ("point: %S"), js.F.point())
+
