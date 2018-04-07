@@ -2701,9 +2701,9 @@ my $defns_header = Parser::parse_defns(<<'EOF', 0);
 [[#symbol print $returns{#symbol} = "Lisp_Object"; #CU;]]
 
 [[# AUTO-0950 #]]:
-[[# contains Stmt#stmt]]
+[[# contains TLS#stmt]]
 [[#stmt matches EXFUN(Symbol#symbol, Expr#n);]]
-[[#n check "#n" ~ /^[0-9]+$/]]
+[[#n check "#n" =~ /^[0-9]+$/]]
 [[#symbol print for my $i (0 .. (#n-1)) { $accepts{#symbol}[$i] = "Lisp_Object"; } $returns{#symbol} = "Lisp_Object"; #CU; ]]
 EOF
 
@@ -4036,7 +4036,7 @@ for my $chunk (@chunks) {
     if ($defns == $defns_header) {
         mkdir("chunkl-cache/header");
         write_file("chunkl-cache/header/$md5", "$output\n");
-        print "$output\n";
+        print "$output";
         next;
     }
 
