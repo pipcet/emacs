@@ -69,7 +69,7 @@
 	  t))
     (let ((dir (car load-path)))
       ;; We'll probably overflow the pure space.
-      ;; (setq purify-flag nil)
+      (setq purify-flag nil)
       ;; Value of max-lisp-eval-depth when compiling initially.
       ;; During bootstrapping the byte-compiler is run interpreted when
       ;; compiling itself, which uses a lot more stack than usual.
