@@ -1090,7 +1090,8 @@ A user option, or customizable variable, is one for which
 
   name = Fcompleting_read (prompt, Vobarray,
 			   Qcustom_variable_p, Qt,
-			   Qnil, Qnil, default_string, Qnil);
+			   Qnil, Qcustom_variable_history,
+			   default_string, Qnil);
   if (NILP (name))
     return name;
   return Fintern (name, Qnil);
@@ -1926,6 +1927,9 @@ syms_of_minibuf (void)
   DEFSYM (Qminibuffer_completion_table, "minibuffer-completion-table");
 
   staticpro (&last_minibuf_string, Qnil);
+
+  DEFSYM (Qcustom_variable_history, "custom-variable-history");
+  Fset (Qcustom_variable_history, Qnil);
 
   DEFSYM (Qminibuffer_history, "minibuffer-history");
   DEFSYM (Qbuffer_name_history, "buffer-name-history");
