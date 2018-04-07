@@ -17,6 +17,8 @@ package EmacsCGrammar;
     int
     long
 
+    change_type
+
     signed
     unsigned
 
