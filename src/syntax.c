@@ -139,6 +139,7 @@ enum
 
 /* This is the internal form of the parse state used in parse-partial-sexp.  */
 
+/* XXX rootme */
 struct lisp_parse_state
   {
     EMACS_INT depth;	/* Depth at end of parsing.  */

@@ -4468,13 +4468,6 @@ Does not copy symbols.  Copies strings without text properties.  */)
   return obj;
 }
 
-/* Pinned objects are marked before every GC cycle.  */
-static struct pinned_object
-{
-  Lisp_Object object;
-  struct pinned_object *next;
-} *pinned_objects;
-
 static Lisp_Object
 purecopy (Lisp_Object obj)
 {

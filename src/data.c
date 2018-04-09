@@ -1762,7 +1762,7 @@ usage: (setq-default [VAR VALUE]...)  */)
 }
 
 /* Lisp functions for creating and removing buffer-local variables.  */
-
+/* XXX rootme */
 struct Lisp_Val_Fwd
   {
     Lisp_Object value;

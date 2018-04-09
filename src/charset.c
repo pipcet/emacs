@@ -1735,6 +1735,7 @@ decode_char (struct charset *charset, unsigned int code)
 }
 
 /* Variable used temporarily by the macro ENCODE_CHAR.  */
+/* XXX rooted? */
 Lisp_Object charset_work;
 
 /* Return a code-point of C in CHARSET.  If C doesn't belong to
@@ -2251,7 +2252,7 @@ See also `charset-priority-list' and `set-charset-priority'.  */)
     {
       elt = XCAR (tail);
       CHECK_CHARSET_GET_ATTR (elt, attrs);
-      sort_data[i].charset = elt;
+      sort_data[i].charset = elt; // XXX rootme
       sort_data[i].id = id = XINT (CHARSET_ATTR_ID (attrs));
       if (id < min_id)
 	min_id = id;

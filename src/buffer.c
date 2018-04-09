@@ -3298,7 +3298,7 @@ record_overlay_string (struct sortstrlist *ssl, Lisp_Object str,
 
   if (ssl->used == ssl->size)
     ssl->buf = xpalloc (ssl->buf, &ssl->size, 5, -1, sizeof *ssl->buf);
-  ssl->buf[ssl->used].string = str;
+  ssl->buf[ssl->used].string = str; // XXX rootme
   ssl->buf[ssl->used].string2 = str2;
   ssl->buf[ssl->used].size = size;
   ssl->buf[ssl->used].priority = (INTEGERP (pri) ? XINT (pri) : 0);

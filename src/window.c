@@ -6243,6 +6243,7 @@ from the top of the window.  */)
 			 Window Configuration
  ***********************************************************************/
 
+/* XXX rootme */
 struct save_window_data
   {
     struct vectorlike_header header;
@@ -6271,6 +6272,7 @@ struct save_window_data
   };
 
 /* This is saved as a Lisp_Vector.  */
+/* So it should be rooted? XXX rootme */
 struct saved_window
 {
   struct vectorlike_header header;

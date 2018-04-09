@@ -2189,6 +2189,7 @@ font_vconcat_entity_vectors (Lisp_Object list)
 
 
 /* The structure for elements being sorted by qsort.  */
+/* XXX rootme */
 struct font_sort_data
 {
   unsigned score;

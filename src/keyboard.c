@@ -8776,6 +8776,7 @@ active_maps (Lisp_Object first_event, Lisp_Object second_event)
 
 /* Structure used to keep track of partial application of key remapping
    such as Vfunction_key_map and Vkey_translation_map.  */
+/* XXX rootme? */
 typedef struct keyremap
 {
   /* This is the map originally specified for this use.  */

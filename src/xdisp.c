@@ -5619,7 +5619,7 @@ handle_composition_prop (struct it *it)
 /* The following structure is used to record overlay strings for
    later sorting in load_overlay_strings.  */
 
-/* XXX stack struct */
+/* XXX stack struct rootme */
 struct overlay_entry
 {
   Lisp_Object overlay;

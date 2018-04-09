@@ -316,7 +316,7 @@ do_casify_unibyte_string (struct casing_context *ctx, Lisp_Object obj)
 static Lisp_Object
 casify_object (enum case_action flag, Lisp_Object obj)
 {
-  struct casing_context ctx;
+  struct casing_context ctx; // XXX rootme
   prepare_casing_context (&ctx, flag, false);
 
   if (NATNUMP (obj))
@@ -482,7 +482,7 @@ static ptrdiff_t
 casify_region (enum case_action flag, Lisp_Object b, Lisp_Object e)
 {
   ptrdiff_t added;
-  struct casing_context ctx;
+  struct casing_context ctx; // XXX rootme
 
   validate_region (&b, &e);
   ptrdiff_t start = XFASTINT (b);

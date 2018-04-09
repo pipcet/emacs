@@ -36,6 +36,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 
 /* If the regexp is non-nil, then the buffer contains the compiled form
    of that regexp, suitable for searching.  */
+/* XXX rootme? */
 struct regexp_cache
 {
   struct regexp_cache *next;

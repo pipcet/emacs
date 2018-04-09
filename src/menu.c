@@ -250,6 +250,7 @@ push_menu_item (Lisp_Object name, Lisp_Object enable, Lisp_Object key, Lisp_Obje
 }
 
 /* Args passed between single_keymap_panes and single_menu_item.  */
+/* XXX rootme */
 struct skp
   {
      Lisp_Object pending_maps;

@@ -2392,6 +2392,7 @@ shadow_lookup (Lisp_Object shadow, Lisp_Object key, Lisp_Object flag,
 
 static Lisp_Object Vmouse_events;
 
+/* XXX rootme */
 struct where_is_internal_data {
   Lisp_Object definition, this, last;
   bool last_is_meta, noindirect;

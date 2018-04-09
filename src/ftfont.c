@@ -528,7 +528,7 @@ ftfont_get_charset (Lisp_Object registry)
 
 struct OpenTypeSpec
 {
-  Lisp_Object script;
+  Lisp_Object script; // XXX rootme
   unsigned int script_tag, langsys_tag;
   int nfeatures[2];
   unsigned int *features[2];

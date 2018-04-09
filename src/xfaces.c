@@ -1764,6 +1764,7 @@ enum named_merge_point_kind
    linked- list of struct named_merge_point structures, typically
    allocated on the stack frame of the named lookup functions which are
    active (so no consing is required).  */
+/* XXX rootme */
 struct named_merge_point
 {
   Lisp_Object face_name;

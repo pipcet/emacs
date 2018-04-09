@@ -676,6 +676,7 @@ enum image_value_type
 
 /* Structure used when parsing image specifications.  */
 
+/* XXX rootme */
 struct image_keyword
 {
   /* Name of keyword.  */

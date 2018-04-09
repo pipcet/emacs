@@ -138,6 +138,7 @@ static void update_theme_scrollbar_width (void);
 static void update_theme_scrollbar_height (void);
 
 #define TB_INFO_KEY "xg_frame_tb_info"
+/* XXX rootme */
 struct xg_frame_tb_info
 {
   Lisp_Object last_tool_bar;

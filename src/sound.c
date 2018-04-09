@@ -180,6 +180,7 @@ struct au_header
 
 /* Interface structure for sound devices.  */
 
+/* XXX rootme */
 struct sound_device
 {
   /* If a string, the name of the device; otherwise use a default.  */
