@@ -23,7 +23,9 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 
 #include "lisp.h"
 
-#define DISP_TABLE_P(obj)						    \
+EXTERN_C
+
+#define DISP_TABLE_P(obj)                                               \
   (CHAR_TABLE_P (obj)							    \
    && EQ (LSH (XCHAR_TABLE (obj)->purpose), LSH (Qdisplay_table))       \
    && CHAR_TABLE_EXTRA_SLOTS (XCHAR_TABLE (obj)) == DISP_TABLE_EXTRA_SLOTS)
@@ -97,5 +99,7 @@ extern struct Lisp_Char_Table *buffer_display_table (void);
 
 #define SET_GLYPH_FROM_CHAR(glyph, c) \
   SET_GLYPH (glyph, c, DEFAULT_FACE_ID)
+
+EXTERN_C_END
 
 #endif /* EMACS_DISPTAB_H */

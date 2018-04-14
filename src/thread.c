@@ -37,6 +37,7 @@ static sys_mutex_t global_lock;
 extern int poll_suppress_count;
 extern volatile int interrupt_input_blocked;
 
+EXTERN_C
 
 
 /* m_specpdl is set when the thread is created and cleared when the

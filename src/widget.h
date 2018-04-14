@@ -85,6 +85,8 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #define XtNinitialGeometry "initialGeometry"
 #define XtCInitialGeometry "InitialGeometry"
 
+EXTERN_C
+
 /* structures
  */
 typedef struct _EmacsFrameRec *EmacsFrame;
@@ -98,5 +100,6 @@ extern struct _DisplayContext *display_context;
 void EmacsFrameSetCharSize (Widget, int, int);
 void widget_store_internal_border (Widget widget);
 void widget_update_wm_size_hints (Widget widget);
+EXTERN_C_END
 
 #endif /* _EmacsFrame_h */

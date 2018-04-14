@@ -26,6 +26,7 @@ struct composition_it;
 struct face;
 struct glyph_string;
 
+EXTERN_C
 INLINE_HEADER_BEGIN
 
 /* We have three types of Lisp objects related to font.
@@ -959,5 +960,6 @@ font_data_structures_may_be_ill_formed (void)
 }
 
 INLINE_HEADER_END
+EXTERN_C_END
 
 #endif	/* not EMACS_FONT_H */

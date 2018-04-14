@@ -22,6 +22,8 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 
 #include "lisp.h"
 
+EXTERN_C
+
 struct glyph_matrix;
 struct glyph_string;
 struct xwidget;
@@ -126,5 +128,7 @@ INLINE void xwidget_end_redisplay (struct window *w, struct glyph_matrix *m) {}
 INLINE void kill_buffer_xwidgets (Lisp_Object buf) {}
 INLINE_HEADER_END
 #endif
+
+EXTERN_C_END
 
 #endif /* XWIDGET_H_INCLUDED */

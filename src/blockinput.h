@@ -19,6 +19,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #ifndef EMACS_BLOCKINPUT_H
 #define EMACS_BLOCKINPUT_H
 
+EXTERN_C
 INLINE_HEADER_BEGIN
 
 /* Emacs should avoid doing anything hairy in a signal handler, because
@@ -68,5 +69,6 @@ input_blocked_p (void)
 }
 
 INLINE_HEADER_END
+EXTERN_C_END
 
 #endif /* EMACS_BLOCKINPUT_H */

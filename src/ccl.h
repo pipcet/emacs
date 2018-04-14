@@ -26,6 +26,8 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #ifndef EMACS_CCL_H
 #define EMACS_CCL_H
 
+EXTERN_C
+
 /* Macros for exit status of CCL program.  */
 #define CCL_STAT_SUCCESS	0 /* Terminated successfully.  */
 #define CCL_STAT_SUSPEND_BY_SRC	1 /* Terminated by empty input.  */
@@ -84,5 +86,7 @@ extern void ccl_driver (struct ccl_program *, int *, int *, int, int,
     if (NILP (LRH (Fccl_program_p (x))))        \
       wrong_type_argument (LSH (Qcclp), (x));	\
   } while (false);
+
+EXTERN_C_END
 
 #endif /* EMACS_CCL_H */

@@ -21,6 +21,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 
 #include "lisp.h"
 
+EXTERN_C
 INLINE_HEADER_BEGIN
 
 /* Define PURESIZE, the number of bytes of pure Lisp code to leave space for.
@@ -111,5 +112,6 @@ CHECK_IMPURE (Lisp_Object obj, void *ptr)
 #endif
 
 INLINE_HEADER_END
+EXTERN_C_END
 
 #endif /* EMACS_PURESIZE_H */

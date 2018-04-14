@@ -21,6 +21,8 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 
 #include "lisp.h"
 
+EXTERN_C
+
 struct position
   {
     ptrdiff_t bufpos;
@@ -56,5 +58,7 @@ bool disptab_matches_widthtab (struct Lisp_Char_Table *disptab,
 /* Recompute BUF's width table, using the display table DISPTAB.  */
 void recompute_width_table (struct buffer *buf,
                             struct Lisp_Char_Table *disptab);
+
+};
 
 #endif /* EMACS_INDENT_H */

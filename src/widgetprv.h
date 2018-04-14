@@ -24,6 +24,8 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #include <X11/IntrinsicP.h>
 #include <X11/CoreP.h>
 
+EXTERN_C
+
 typedef struct {
   struct frame *frame;		/* the *emacs* frame object */
 
@@ -67,5 +69,6 @@ typedef struct _EmacsFrameClassRec {	/* full class record declaration */
     CoreClassPart		core_class;
     EmacsFrameClassPart	emacs_frame_class;
 } EmacsFrameClassRec;
+EXTERN_C_END
 
 #endif /* _EmacsFrameP_h */

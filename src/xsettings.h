@@ -22,6 +22,8 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 
 #include <X11/Xlib.h>
 
+EXTERN_C
+
 struct x_display_info;
 
 extern void xsettings_initialize (struct x_display_info *);
@@ -30,6 +32,6 @@ extern const char *xsettings_get_system_font (void);
 #ifdef USE_LUCID
 extern const char *xsettings_get_system_normal_font (void);
 #endif
-
+EXTERN_C_END
 
 #endif /* XSETTINGS_H */

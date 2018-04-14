@@ -21,6 +21,8 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 
 #include "lisp.h"
 
+EXTERN_C
+
 /* The maximum byte size consumed by push_key_description.
    All callers should assure that at least this size of memory is
    allocated at the place pointed by the second argument.
@@ -52,4 +54,5 @@ extern void map_keymap_canonical (Lisp_Object map,
 				  map_keymap_function_t fun,
 				  Lisp_Object args, void *data);
 
+EXTERN_C_END
 #endif

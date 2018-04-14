@@ -21,6 +21,8 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 
 #include <time.h>
 
+EXTERN_C
+
 /* Forward declaration.  */
 
 struct atimer;
@@ -80,5 +82,7 @@ void run_all_atimers (void);
 #ifdef HAVE_TIMERFD
 void timerfd_callback (int, void *);
 #endif
+
+EXTERN_C_END
 
 #endif /* EMACS_ATIMER_H */

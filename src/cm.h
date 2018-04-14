@@ -19,6 +19,8 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #ifndef EMACS_CM_H
 #define EMACS_CM_H
 
+EXTERN_C
+
 /* Holds the minimum and maximum costs for the parameterized capabilities.  */
 struct parmcap
   {
@@ -169,5 +171,7 @@ extern void cmcostinit (struct tty_display_info *);
 extern void cmgoto (struct tty_display_info *, int, int);
 extern void Wcm_clear (struct tty_display_info *);
 extern int Wcm_init (struct tty_display_info *);
+
+EXTERN_C_END
 
 #endif /* EMACS_CM_H */

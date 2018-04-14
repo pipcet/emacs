@@ -39,6 +39,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 
 static void swap_in_symval_forwarding (struct Lisp_Symbol *,
 				       struct Lisp_Buffer_Local_Value *);
+EXTERN_C_END
 
 static bool
 BOOLFWDP (union Lisp_Fwd *a)
@@ -2154,7 +2155,9 @@ If the current binding is global (the default), the value is nil.  */)
    keyboard-local-values.  */
 #if 0
 
+EXTERN_C
 extern struct terminal *get_terminal (Lisp_Object display, int);
+EXTERN_C_END
 
 DEFUN ("terminal-local-value", Fterminal_local_value,
        Sterminal_local_value, 2, 2, 0,
@@ -2270,6 +2273,7 @@ or a byte-code object.  IDX starts at 0.  */)
       if (! STRING_MULTIBYTE (array))
 	return make_number ((unsigned char) SREF (array, idxval));
       idxval_byte = string_char_to_byte (array, idxval);
+EXTERN_C
 
       c = STRING_CHAR (SDATA (array) + idxval_byte);
       return make_number (c);

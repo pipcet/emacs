@@ -74,6 +74,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #define file_tell ftell
 #endif
 
+EXTERN_C_END
 /* The objects or placeholders read with the #n=object form.
 
    A hash table maps a number to either a placeholder (while the

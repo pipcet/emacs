@@ -26,6 +26,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #include <verify.h>
 #include "lisp.h"
 
+EXTERN_C
 INLINE_HEADER_BEGIN
 
 /* character code	1st byte   byte sequence
@@ -722,5 +723,6 @@ char_hexdigit (int c)
 }
 
 INLINE_HEADER_END
+EXTERN_C_END
 
 #endif /* EMACS_CHARACTER_H */

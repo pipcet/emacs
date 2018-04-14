@@ -22,6 +22,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #include <stdio.h>
 #include "dispextern.h"
 
+EXTERN_C
 /* Each termcap frame points to its own struct tty_output object in
    the output_data.tty field.  The tty_output structure contains the
    information that is specific to termcap frames. */
@@ -230,5 +231,7 @@ extern struct tty_display_info *tty_list;
    : (emacs_abort (), (struct tty_display_info *) 0))
 
 #define CURTTY() FRAME_TTY (SELECTED_FRAME())
+
+EXTERN_C_END
 
 #endif /* EMACS_TERMCHAR_H */

@@ -27,6 +27,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #include "character.h"
 #include "lisp.h"
 
+EXTERN_C
 INLINE_HEADER_BEGIN
 
 /* Accessing the parameters of the current buffer.  */
@@ -1414,5 +1415,6 @@ lowercasep (int c)
 }
 
 INLINE_HEADER_END
+EXTERN_C_END
 
 #endif /* EMACS_BUFFER_H */

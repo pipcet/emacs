@@ -22,6 +22,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 
 #include "dispextern.h"
 
+EXTERN_C
 INLINE_HEADER_BEGIN
 
 /* Windows are allocated as if they were vectors, but then the
@@ -1132,5 +1133,6 @@ output_cursor_to (struct window *w, int vpos, int hpos, int y, int x)
 }
 
 INLINE_HEADER_END
+EXTERN_C_END
 
 #endif /* not WINDOW_H_INCLUDED */

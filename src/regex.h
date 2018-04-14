@@ -183,6 +183,8 @@ typedef unsigned long reg_syntax_t;
 /* extern Lisp_Object re_match_object; */
 #endif
 
+EXTERN_C
+
 /* Roughly the maximum number of failure points on the stack.  */
 extern size_t emacs_re_max_failures;
 
@@ -644,6 +646,8 @@ extern re_wctype_t re_wctype_parse (const unsigned char **strp, unsigned limit);
 typedef int re_wchar_t;
 
 #endif /* not WIDE_CHAR_SUPPORT */
+
+EXTERN_C_END
 
 #endif /* regex.h */
 

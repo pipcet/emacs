@@ -29,6 +29,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #include "gnutls.h"
 #endif
 
+EXTERN_C
 INLINE_HEADER_BEGIN
 
 /* Bound on number of file descriptors opened on behalf of a process,
@@ -300,5 +301,6 @@ extern Lisp_Object remove_slash_colon (Lisp_Object);
 extern void update_processes_for_thread_death (Lisp_Object);
 
 INLINE_HEADER_END
+EXTERN_C_END
 
 #endif /* EMACS_PROCESS_H */

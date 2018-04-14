@@ -30,6 +30,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #include <verify.h>
 #include "lisp.h"
 
+EXTERN_C
 INLINE_HEADER_BEGIN
 
 /* Index to arguments of Fdefine_charset_internal.  */
@@ -541,5 +542,6 @@ extern void map_charset_chars (void (*) (Lisp_Object, Lisp_Object),
                                struct charset *, unsigned, unsigned);
 
 INLINE_HEADER_END
+EXTERN_C_END
 
 #endif /* EMACS_CHARSET_H */

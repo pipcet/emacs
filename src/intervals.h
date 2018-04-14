@@ -22,6 +22,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #include "buffer.h"
 #include "lisp.h"
 
+EXTERN_C
 INLINE_HEADER_BEGIN
 
 /* Basic data type for use of intervals.  */
@@ -296,5 +297,6 @@ extern int text_property_stickiness (Lisp_Object prop, Lisp_Object pos,
 extern void syms_of_textprop (void);
 
 INLINE_HEADER_END
+EXTERN_C_END
 
 #endif /* EMACS_INTERVALS_H */

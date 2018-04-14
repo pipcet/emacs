@@ -28,6 +28,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 
 struct glyph;
 
+EXTERN_C
 INLINE_HEADER_BEGIN
 
 enum scroll_bar_part {
@@ -749,5 +750,6 @@ extern int cursorY (struct tty_display_info *);
 #endif
 
 INLINE_HEADER_END
+EXTERN_C_END
 
 #endif /* EMACS_TERMHOOKS_H */

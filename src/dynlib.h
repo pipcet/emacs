@@ -22,6 +22,8 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 
 #include <stdbool.h>
 
+EXTERN_C
+
 typedef void *dynlib_handle_ptr;
 dynlib_handle_ptr dynlib_open (const char *path);
 int dynlib_close (dynlib_handle_ptr h);
@@ -36,5 +38,8 @@ dynlib_function_ptr dynlib_func (dynlib_handle_ptr h, const char *sym);
    its symbol name.  If the file or symbol name could not be
    determined, set the corresponding argument to NULL.  */
 void dynlib_addr (void *ptr, const char **file, const char **sym);
+
+EXTERN_C_END
+
 
 #endif /* DYNLIB_H */

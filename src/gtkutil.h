@@ -27,6 +27,8 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #include "../lwlib/lwlib-widget.h"
 #include "xterm.h"
 
+EXTERN_C
+
 /* Minimum and maximum values used for GTK scroll bars  */
 
 #define XG_SB_MIN 1
@@ -201,6 +203,8 @@ extern void xg_initialize (void);
 /* Setting scrollbar values invokes the callback.  Use this variable
    to indicate that the callback should do nothing.  */
 extern bool xg_ignore_gtk_scrollbar;
+
+EXTERN_C_END
 
 #endif /* USE_GTK */
 #endif /* GTKUTIL_H */

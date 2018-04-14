@@ -33,6 +33,8 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #include "systime.h"		/* FIXME */
 #include "systhread.h"
 
+EXTERN_C
+
 struct thread_state
 {
   struct vectorlike_header header;
@@ -314,5 +316,7 @@ int thread_select  (select_func *func, int max_fds, fd_set *rfds,
 		    sigset_t *sigmask);
 
 bool thread_check_current_buffer (struct buffer *);
+
+EXTERN_C_END
 
 #endif /* THREAD_H */

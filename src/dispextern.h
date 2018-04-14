@@ -48,6 +48,7 @@ typedef struct {
 #include "msdos.h"
 #endif
 
+EXTERN_C
 INLINE_HEADER_BEGIN
 
 #include <c-strcase.h>

@@ -27,6 +27,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 
 #include "font.h"
 
+EXTERN_C
 INLINE_HEADER_BEGIN
 
 /* Methods to display a sequence of components of a composition.  */
@@ -323,5 +324,6 @@ extern int composition_update_it (struct composition_it *,
 extern ptrdiff_t composition_adjust_point (ptrdiff_t, ptrdiff_t);
 
 INLINE_HEADER_END
+EXTERN_C_END
 
 #endif /* not EMACS_COMPOSITE_H */

@@ -57,6 +57,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 
 #include "lisp.h"
 
+EXTERN_C
 INLINE_HEADER_BEGIN
 
 #define CATEGORYP(x) RANGED_INTEGERP (0x20, x, 0x7E)
@@ -120,5 +121,6 @@ CHAR_HAS_CATEGORY (int ch, int category)
 extern bool word_boundary_p (int, int);
 
 INLINE_HEADER_END
+EXTERN_C_END
 
 #endif /* EMACS_CATEGORY_H */

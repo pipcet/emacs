@@ -25,6 +25,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 
 struct frame;
 
+EXTERN_C
 G_BEGIN_DECLS
 
 struct frame;
@@ -47,5 +48,6 @@ struct _EmacsFixedClass
 extern GtkWidget *emacs_fixed_new (struct frame *f);
 
 G_END_DECLS
+EXTERN_C_END
 
 #endif /* EMACSGTKFIXED_H */

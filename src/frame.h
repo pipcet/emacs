@@ -22,6 +22,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #include "termhooks.h"
 #include "window.h"
 
+EXTERN_C
 INLINE_HEADER_BEGIN
 
 enum vertical_scroll_bar_type
@@ -1626,6 +1627,7 @@ extern Lisp_Object make_monitor_attribute_list (struct MonitorInfo *monitors,
 
 
 INLINE_HEADER_END
+EXTERN_C_END
 
 /* Suppress -Wsuggest-attribute=const if there are no scroll bars.
    This is for functions like x_set_horizontal_scroll_bars that have

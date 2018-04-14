@@ -105,6 +105,7 @@ typedef GtkWidget *xt_or_gtk_widget;
 #include "dispextern.h"
 #include "termhooks.h"
 
+EXTERN_C
 INLINE_HEADER_BEGIN
 
 /* Black and white pixel values for the screen which frame F is on.  */
@@ -1293,5 +1294,6 @@ extern void x_session_close (void);
    (nr).height = (rheight))
 
 INLINE_HEADER_END
+EXTERN_C_END
 
 #endif /* XTERM_H */

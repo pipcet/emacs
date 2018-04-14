@@ -21,6 +21,8 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #ifndef EMACS_REGION_CACHE_H
 #define EMACS_REGION_CACHE_H
 
+EXTERN_C
+
 /* This code was written by Jim Blandy <jimb@cs.oberlin.edu> to help
    GNU Emacs better support the gene editor written for the University
    of Illinois at Urbana-Champagne's Ribosome Database Project (RDP).
@@ -108,5 +110,7 @@ extern int region_cache_forward (struct buffer *buf, struct region_cache *c,
 /* Likewise, except before POS rather than after POS.  */
 extern int region_cache_backward (struct buffer *buf, struct region_cache *c,
 				  ptrdiff_t pos, ptrdiff_t *next);
+
+EXTERN_C_END
 
 #endif /* EMACS_REGION_CACHE_H */

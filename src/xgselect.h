@@ -23,10 +23,12 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #include "lisp.h"
 #include "sysselect.h"
 
+EXTERN_C
 struct timespec;
 
 extern int xg_select (int max_fds,
 		      fd_set *rfds, fd_set *wfds, fd_set *efds,
 		      struct timespec *timeout, sigset_t *sigmask);
+EXTERN_C_END
 
 #endif /* XGSELECT_H */

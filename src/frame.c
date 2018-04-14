@@ -54,6 +54,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #include "widget.h"
 #endif
 
+EXTERN_C
 /* The currently selected frame.  */
 
 Lisp_Object selected_frame;

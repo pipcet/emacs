@@ -24,6 +24,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #include "buffer.h"
 #include "lisp.h"
 
+EXTERN_C
 INLINE_HEADER_BEGIN
 
 extern void update_syntax_table (ptrdiff_t, EMACS_INT, bool, Lisp_Object);
@@ -233,5 +234,6 @@ extern ptrdiff_t scan_words (ptrdiff_t, EMACS_INT);
 extern void SETUP_SYNTAX_TABLE_FOR_OBJECT (Lisp_Object, ptrdiff_t, ptrdiff_t);
 
 INLINE_HEADER_END
+EXTERN_C_END
 
 #endif /* EMACS_SYNTAX_H */

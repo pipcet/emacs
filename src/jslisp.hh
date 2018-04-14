@@ -30,6 +30,9 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #include "js/RootingAPI.h"
 #include "js/Conversions.h" // as of SpiderMonkey 38; previously in jsapi.h
 
+#define EXTERN_C extern "C" {
+#define EXTERN_C_END };
+
 #define ARG(x) (x ## _arg)
 #define MODIFY_ARG(x) do { } while (0)
 #define L(v) ELisp_Value (v)
@@ -4482,6 +4485,7 @@ extern ELisp_Return_Value list4 (ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp
 extern ELisp_Return_Value list5 (ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle,
                           ELisp_Handle);
 enum constype {CONSTYPE_HEAP, CONSTYPE_PURE};
+EXTERN_C_END
 
 template<class... A>
 inline ELisp_Return_Value listn (enum constype ct, ptrdiff_t len, A...);
@@ -5639,5 +5643,7 @@ maybe_gc (void)
 #define XSETSCROLL_BAR(a,b) (a).xsetvector((struct Lisp_Vector *)b)
 
 INLINE_HEADER_END
+
+EXTERN_C_END
 
 #endif /* EMACS_LISP_H */

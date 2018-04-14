@@ -86,6 +86,7 @@ static long int tm_gmtoff (struct tm *);
 static int tm_diff (struct tm *, struct tm *);
 static void update_buffer_properties (ptrdiff_t, ptrdiff_t);
 static Lisp_Object styled_format (ptrdiff_t, Lisp_Object *, bool);
+EXTERN_C_END
 
 #ifndef HAVE_TM_GMTOFF
 # define HAVE_TM_GMTOFF false

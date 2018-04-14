@@ -21,6 +21,8 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 
 #include "lisp.h"
 
+EXTERN_C
+
 /* Number of successful iterations so far
    for innermost keyboard macro.
    This is not bound at each level,
@@ -46,5 +48,7 @@ extern void finalize_kbd_macro_chars (void);
 /* Store a character into kbd macro being defined */
 
 extern void store_kbd_macro_char (Lisp_Object);
+
+EXTERN_C_END
 
 #endif /* EMACS_MACROS_H */

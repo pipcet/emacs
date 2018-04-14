@@ -21,6 +21,8 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 
 #include "lisp.h"
 
+EXTERN_C
+
 #define Ctl(c) ((c)&037)
 
 /* Define the names of keymaps, just so people can refer to them in
@@ -43,5 +45,7 @@ extern Lisp_Object unread_switch_frame;
 /* Nonzero if input is coming from the keyboard.  */
 
 #define INTERACTIVE (NILP (Vexecuting_kbd_macro) && !noninteractive)
+
+EXTERN_C_END
 
 #endif /* EMACS_COMMANDS_H */

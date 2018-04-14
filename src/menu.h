@@ -21,6 +21,8 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 
 #include "../lwlib/lwlib-widget.h"
 
+EXTERN_C
+
 /* Bit fields used by terminal-specific menu_show_hook.  */
 
 enum {
@@ -61,4 +63,7 @@ extern Lisp_Object tty_menu_show (struct frame *, int, int, int,
 				  Lisp_Object, const char **);
 extern ptrdiff_t menu_item_width (const unsigned char *);
 extern Lisp_Object x_popup_menu_1 (Lisp_Object position, Lisp_Object menu);
+
+EXTERN_C_END
+
 #endif /* MENU_H */

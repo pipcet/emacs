@@ -30,6 +30,8 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 
 #include "lisp.h"
 
+EXTERN_C
+
 /* This limits the attempts to handshake per process (connection).  It
    should work out to about one minute in asynchronous cases. */
 #define GNUTLS_EMACS_HANDSHAKES_LIMIT 6000
@@ -97,5 +99,7 @@ extern Lisp_Object gnutls_verify_boot (Lisp_Object proc, Lisp_Object proplist);
 #endif
 
 extern void syms_of_gnutls (void);
+
+EXTERN_C_END
 
 #endif

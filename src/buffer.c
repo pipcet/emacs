@@ -688,6 +688,7 @@ clone_per_buffer_values (struct buffer *from, struct buffer *to)
   bset_local_var_alist (to, buffer_lisp_local_variables (from, 1));
 }
 
+EXTERN_C
 
 /* If buffer B has markers to record PT, BEGV and ZV when it is not
    current, update these markers.  */
@@ -734,6 +735,7 @@ fetch_buffer_markers (struct buffer *b)
     }
 }
 
+EXTERN_C_END
 
 DEFUN ("make-indirect-buffer", Fmake_indirect_buffer, Smake_indirect_buffer,
        2, 3,
