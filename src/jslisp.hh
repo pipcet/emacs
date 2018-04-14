@@ -1488,6 +1488,7 @@ public:
   }
 };
 
+EXTERN_C
 struct ELisp_Vector { ptrdiff_t n; ELisp_Pointer vec;};
 
 typedef struct ELisp_Vector ELisp_Vector_Handle;
@@ -3839,6 +3840,7 @@ enum maxargs
 
 /* Call a function F that accepts many args, passing it ARRAY's elements.  */
 #define CALLMANY(f, array) (f) (LV (ARRAYELTS (array), array))
+EXTERN_C_END
 
 template<typename... As>
 ELisp_Return_Value
@@ -3855,6 +3857,7 @@ CALLN(ELisp_Return_Value (*f) (ELisp_Vector_Handle), As... args)
   return ret;
 }
 
+EXTERN_C
 extern void defvar_lisp (struct Lisp_Objfwd *, const char *, ELisp_Pointer);
 extern void defvar_lisp_nopro (struct Lisp_Objfwd *, const char *, ELisp_Pointer);
 extern void defvar_bool (struct Lisp_Boolfwd *, const char *, bool *);
@@ -4504,6 +4507,7 @@ inline ELisp_Return_Value listn (enum constype, ptrdiff_t)
 
 /* Build a frequently used 2/3/4-integer lists.  */
 
+EXTERN_C
 INLINE ELisp_Return_Value
 list2i (EMACS_INT x, EMACS_INT y)
 {

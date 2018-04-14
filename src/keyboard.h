@@ -27,6 +27,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 # include "xterm.h"		/* for struct selection_input_event */
 #endif
 
+EXTERN_C
 INLINE_HEADER_BEGIN
 
 /* Most code should use this macro to access Lisp fields in struct kboard.  */
@@ -502,5 +503,6 @@ extern const char *const lispy_function_keys[];
 extern char const DEV_TTY[];
 
 INLINE_HEADER_END
+EXTERN_C_END
 
 #endif /* EMACS_KEYBOARD_H */
