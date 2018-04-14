@@ -1209,32 +1209,35 @@ read_file_as_string(JSContext* cx, const char* pathname)
 
   if (fseek(file, 0, SEEK_END) != 0) {
     JS_ReportErrorUTF8(cx, "can't seek end of %s", pathname);
-    goto error;
+    goto err_exit;
   }
 
   size_t len = ftell(file);
   if (fseek(file, 0, SEEK_SET) != 0) {
     JS_ReportErrorUTF8(cx, "can't seek start of %s", pathname);
-    goto error;
+    goto err_exit;
   }
 
-  char *buf = static_cast<char*>(js_malloc(len + 1));
-  if (!buf)
-    goto error;
+  {
+    char *buf = static_cast<char*>(js_malloc(len + 1));
+    if (!buf)
+      goto err_exit;
 
-  buf[len] = 0;
-  size_t cc = fread(buf, 1, len, file);
-  if (cc != len) {
-    if (ptrdiff_t(cc) < 0) {
-    } else {
-      JS_ReportErrorUTF8(cx, "can't read %s: short read", pathname);
+    buf[len] = 0;
+    size_t cc = fread(buf, 1, len, file);
+    if (cc != len) {
+      if (ptrdiff_t(cc) < 0) {
+        JS_ReportErrorUTF8(cx, "can't read %s: error %d", pathname, errno);
+      } else {
+        JS_ReportErrorUTF8(cx, "can't read %s: short read", pathname);
+      }
+      goto err_exit;
     }
-    goto error;
+
+    return buf;
   }
 
-  return buf;
-
- error:
+ err_exit:
   fclose(file);
   return nullptr;
 }

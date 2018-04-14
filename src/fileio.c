@@ -5494,7 +5494,7 @@ struct auto_save_unwind
 static void
 do_auto_save_unwind (void *arg)
 {
-  struct auto_save_unwind *p = arg;
+  struct auto_save_unwind *p = (struct auto_save_unwind *)arg;
   FILE *stream = p->stream;
   minibuffer_auto_raise = p->auto_raise;
   auto_saving = 0;

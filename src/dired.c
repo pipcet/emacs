@@ -127,7 +127,7 @@ directory_files_internal_w32_unwind (Lisp_Object arg)
 static void
 directory_files_internal_unwind (void *d)
 {
-  closedir (d);
+  closedir ((DIR *)d);
 }
 
 /* Return the next directory entry from DIR; DIR's name is DIRNAME.
