@@ -169,6 +169,7 @@ package EmacsCGrammar;
     dbus_int32_t
     dbus_int16_t
     dbus_uint16_t
+    uint16_t
     ELisp_Dynvector
     size_t
     guchar
@@ -847,7 +848,7 @@ $EmacsCGrammar::dsl = <<'EODSL';
 
 Chunk ::= Empty | TLS Chunk
 TLS ::= Directive | Stmt
-Directive ::= 'INLINE_HEADER_BEGIN' | 'INLINE_HEADER_END' | 'DEF_DLL_FN' '(' Type ',' Symbol ',' PArgs ')' ';'
+Directive ::= 'INLINE_HEADER_BEGIN' | 'INLINE_HEADER_END' | 'DEF_DLL_FN' '(' Type ',' Symbol ',' PArgs ')' ';' | 'EXTERN_C' | 'EXTERN_C_END'
 Expr0 ::= Empty | CExpr
 TypeStmt ::= Type ';'
 StmtShouldHaveSemicolon ::= 'WEAK_ALIAS' '(' Symbol ',' Symbol ')'
