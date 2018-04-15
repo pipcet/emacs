@@ -4652,31 +4652,6 @@ compact_undo_list (Lisp_Object list)
   return list;
 }
 
-static void
-mark_pinned_objects (void)
-{
-  for (struct pinned_object *pobj = pinned_objects; pobj; pobj = pobj->next)
-    mark_object (pobj->object);
-}
-
-static void
-mark_pinned_symbols (void)
-{
-  struct symbol_block *sblk;
-  int lim = (symbol_block_pinned == symbol_block
-	     ? symbol_block_index : SYMBOL_BLOCK_SIZE);
-
-  for (sblk = symbol_block_pinned; sblk; sblk = sblk->next)
-    {
-      union aligned_Lisp_Symbol *sym = sblk->symbols, *end = sym + lim;
-      for (; sym < end; ++sym)
-	if (sym->s.pinned)
-	  mark_object (make_lisp_symbol (&sym->s));
-
-      lim = SYMBOL_BLOCK_SIZE;
-    }
-}
-
 /* Subroutine of Fgarbage_collect that does most of the work.  It is a
    separate function so that we could limit mark_stack in searching
    the stack frames below this function, thus avoiding the rare cases

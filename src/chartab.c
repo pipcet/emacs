@@ -62,6 +62,7 @@ typedef Lisp_Object (*uniprop_encoder_t) (Lisp_Object, Lisp_Object);
 
 static Lisp_Object uniprop_table_uncompress (Lisp_Object, int);
 EXTERN_C
+EXTERN_C_END
 static uniprop_decoder_t uniprop_get_decoder (Lisp_Object);
 
 /* 1 iff TABLE is a uniprop table.  */

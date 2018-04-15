@@ -441,6 +441,7 @@ Returns nil if MARKER points into a dead buffer.  */)
   return Qnil;
 }
 
+EXTERN_C
 DEFUN ("marker-position", Fmarker_position, Smarker_position, 1, 1, 0,
        doc: /* Return the position of MARKER, or nil if it points nowhere.  */)
   (Lisp_Object marker)
