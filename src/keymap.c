@@ -538,9 +538,10 @@ access_keymap (Lisp_Object map, Lisp_Object idx,
   return EQ (val, Qunbound) ? Qnil : val;
 }
 
-static void
 EXTERN_C
 EXTERN_C_END
+
+static void
 map_keymap_item (map_keymap_function_t fun, Lisp_Object args, Lisp_Object key, Lisp_Object val, void *data)
 {
   if (EQ (val, Qt))

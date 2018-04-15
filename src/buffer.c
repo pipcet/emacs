@@ -2790,7 +2790,7 @@ the normal hook `change-major-mode-hook'.  */)
    default (BEGV or ZV).  */
 
 ptrdiff_t
-overlays_at (EMACS_INT pos, bool extend, ELisp_Dynvector* vec_ptr,
+overlays_at (EMACS_INT pos, bool extend, ELisp_Pointer*vec_ptr,
 	     ptrdiff_t *len_ptr,
 	     ptrdiff_t *next_ptr, ptrdiff_t *prev_ptr, bool change_req)
 {
@@ -2798,7 +2798,7 @@ overlays_at (EMACS_INT pos, bool extend, ELisp_Dynvector* vec_ptr,
   struct Lisp_Overlay *tail;
   ptrdiff_t idx = 0;
   ptrdiff_t len = *len_ptr;
-  ELisp_Dynvector vec = *vec_ptr;
+  Lisp_Object *vec = *vec_ptr;
   ptrdiff_t next = ZV;
   ptrdiff_t prev = BEGV;
   bool inhibit_storing = 0;

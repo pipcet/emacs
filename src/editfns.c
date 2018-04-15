@@ -75,6 +75,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 
 #define TM_YEAR_BASE 1900
 
+EXTERN_C
 #ifdef WINDOWSNT
 extern Lisp_Object w32_get_internal_run_time (void);
 #endif
