@@ -3619,5 +3619,6 @@ extern void x_redo_mouse_highlight (Display_Info *);
 #endif /* HAVE_WINDOW_SYSTEM */
 
 INLINE_HEADER_END
+EXTERN_C_END
 
 #endif /* not DISPEXTERN_H_INCLUDED */

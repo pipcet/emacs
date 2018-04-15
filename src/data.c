@@ -36,6 +36,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #include "process.h"
 #include "frame.h"
 #include "keymap.h"
+EXTERN_C
 
 static void swap_in_symval_forwarding (struct Lisp_Symbol *,
 				       struct Lisp_Buffer_Local_Value *);
@@ -1194,6 +1195,7 @@ swap_in_global_binding (struct Lisp_Symbol *symbol)
    Return the value forwarded one step past the buffer-local stage.
    This could be another forwarding pointer.  */
 
+EXTERN_C
 static void
 swap_in_symval_forwarding (struct Lisp_Symbol *symbol, struct Lisp_Buffer_Local_Value *blv)
 {
@@ -2253,6 +2255,7 @@ function chain of symbols.  */)
 
 /* Extract and set vector and string elements.  */
 
+EXTERN_C
 DEFUN ("aref", Faref, Saref, 2, 2, 0,
        doc: /* Return the element of ARRAY at index IDX.
 ARRAY may be a vector, a string, a char-table, a bool-vector, a record,
@@ -2273,7 +2276,6 @@ or a byte-code object.  IDX starts at 0.  */)
       if (! STRING_MULTIBYTE (array))
 	return make_number ((unsigned char) SREF (array, idxval));
       idxval_byte = string_char_to_byte (array, idxval);
-EXTERN_C
 
       c = STRING_CHAR (SDATA (array) + idxval_byte);
       return make_number (c);

@@ -55,6 +55,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #endif
 
 EXTERN_C
+EXTERN_C_END
 /* The currently selected frame.  */
 
 Lisp_Object selected_frame;

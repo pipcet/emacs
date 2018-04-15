@@ -38,6 +38,7 @@ extern int poll_suppress_count;
 extern volatile int interrupt_input_blocked;
 
 EXTERN_C
+EXTERN_C_END
 
 
 /* m_specpdl is set when the thread is created and cleared when the
