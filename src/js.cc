@@ -800,10 +800,14 @@ extern struct Lisp_Subr Sframe_windows_min_size;
 extern ptrdiff_t print_depth;
 extern ELisp_Struct_Value being_printed[PRINT_CIRCLE];
 
+static JS::GCVector<JS::Value, 0, js::SystemAllocPolicy> *js_promise_jobs;
+
 static void
 js_gc_trace(JSTracer* tracer, void* data)
 {
   fprintf(stderr, "that one's mine! And that one! And...\n");
+
+  //TraceEdge(tracer, *js_promise_jobs, "js promise jobs");
 
   for (ptrdiff_t i = 0; i < PRINT_CIRCLE; i++)
     TraceEdge(tracer, &being_printed[i].v.v, "being_printed");
@@ -946,8 +950,6 @@ elisp_gc_callback_register(JSContext *cx)
 
 static void
 elisp_classes_init(JSContext *cx, JS::HandleObject glob);
-
-static JS::GCVector<JS::Value, 0, js::SystemAllocPolicy> *js_promise_jobs;
 
 bool js_job_callback(JSContext *cx, JS::HandleObject job,
                      JS::HandleObject allocationSite, JS::HandleObject incumbentGlobal,
@@ -1179,7 +1181,7 @@ EXFUN (Fjsdrain, 0);
 DEFUN ("jsdrain", Fjsdrain, Sjsdrain, 0, 0, 0,
        doc: /* Drain the job queue.
 usage: (jsdrain)  */)
-  ()
+     (void)
 {
   JSContext* cx = jsg.cx;
   size_t i = 0;
@@ -1194,7 +1196,107 @@ usage: (jsdrain)  */)
 
   js_promise_jobs->clear();
 
-  return Qnil;
+  return make_number(i);
+}
+
+EXFUN (Fjsglobal, 0);
+
+DEFUN ("jsglobal", Fjsglobal, Sjsglobal, 0, 0, 0,
+       doc: /* */)
+     (void)
+{
+  JSContext* cx = jsg.cx;
+  ELisp_Value ret;
+  JS::RootedObject glob(cx, JS::CurrentGlobalOrNull(cx));
+  if (!cx)
+    return Qnil;
+
+  ret.v.v = JS::ObjectValue(*glob);
+
+  return ret;
+}
+
+EXFUN (Fjsmethod, MANY);
+DEFUN ("jsmethod", Fjsmethod, Sjsmethod, 2, MANY, 0,
+       doc: /* */)
+     (ELisp_Vector_Handle args)
+{
+  JSContext* cx = jsg.cx;
+  ELisp_Value thisv = args.vec.ref(0);
+  if (!thisv.isObject())
+    return Qnil;
+  JS::RootedObject obj(cx, &thisv.toObject());
+  ELisp_Value namev = args.vec.ref(1);
+  ELisp_Value methv;
+  CHECK_STRING (namev);
+  if (!JS_GetProperty(cx, obj, SDATA (namev), &methv.v.v))
+    return Qnil;
+  size_t nargs = args.n - 2;
+  ELisp_Dynvector rargs;
+  rargs.resize(nargs);
+  for (size_t i = 0; i < nargs; i++)
+    rargs.sref(i, args.vec.ref(i + 2));
+  ELisp_Value rval;
+  catchall_real_jmpbuf = NULL;
+
+  if (!JS::Call(cx, thisv.v.v, methv.v.v, rargs.vec.vec, &rval.v.v))
+    {
+      js_handle_exception();
+      return Qnil;
+    }
+
+  return rval;
+}
+
+EXFUN (Fjsderef, 2);
+DEFUN ("jsderef", Fjsderef, Sjsderef, 2, 2, 0,
+       doc: /* */)
+     (ELisp_Handle ARG(object), ELisp_Handle ARG(name))
+{
+  JSContext* cx = jsg.cx;
+  ELisp_Value object = ARG(object);
+
+  if (!object.isObject())
+    return Qnil;
+
+  ELisp_Value name = ARG(name);
+  CHECK_STRING (name);
+  const unsigned char *namestr = SDATA(name);
+
+  JS::RootedObject obj(cx, &object.v.v.toObject());
+  JS_GetProperty(cx, obj, namestr, &object.v.v);
+
+  return object;
+}
+
+EXFUN (Fjspromise, 1);
+
+DEFUN ("jspromise", Fjspromise, Sjspromise, 1, 1, 0,
+       doc: /* make a JavaScript promise */)
+     (ELisp_Handle ARG(arg))
+{
+  JSContext* cx = jsg.cx;
+  size_t i = 0;
+  ELisp_Value arg = ARG(arg);
+
+  JS::RootedObject glob(cx, JS::CurrentGlobalOrNull(cx));
+  if (!cx)
+    return Qnil;
+
+  JS::RootedValue promv(cx);
+  JS_GetProperty(cx, glob, "Promise", &promv);
+
+  if (!promv.isObject())
+    return Qnil;
+  JS::RootedObject prom(cx, &promv.toObject());
+
+  JS::AutoValueArray<1> vp(cx);
+  vp[0].set(arg.v.v);
+  JS::RootedObject promise(cx, JS_New(cx, prom, vp));
+
+  arg.v.v = JS::ObjectValue(*promise);
+
+  return arg;
 }
 
 /* This is from js.cpp in the Mozilla distribution. */
@@ -1212,29 +1314,31 @@ read_file_as_string(JSContext* cx, const char* pathname)
     goto err_exit;
   }
 
-  size_t len = ftell(file);
-  if (fseek(file, 0, SEEK_SET) != 0) {
-    JS_ReportErrorUTF8(cx, "can't seek start of %s", pathname);
-    goto err_exit;
-  }
-
   {
-    char *buf = static_cast<char*>(js_malloc(len + 1));
-    if (!buf)
-      goto err_exit;
-
-    buf[len] = 0;
-    size_t cc = fread(buf, 1, len, file);
-    if (cc != len) {
-      if (ptrdiff_t(cc) < 0) {
-        JS_ReportErrorUTF8(cx, "can't read %s: error %d", pathname, errno);
-      } else {
-        JS_ReportErrorUTF8(cx, "can't read %s: short read", pathname);
-      }
+    size_t len = ftell(file);
+    if (fseek(file, 0, SEEK_SET) != 0) {
+      JS_ReportErrorUTF8(cx, "can't seek start of %s", pathname);
       goto err_exit;
     }
 
-    return buf;
+    {
+      char *buf = static_cast<char*>(js_malloc(len + 1));
+      if (!buf)
+        goto err_exit;
+
+      buf[len] = 0;
+      size_t cc = fread(buf, 1, len, file);
+      if (cc != len) {
+        if (ptrdiff_t(cc) < 0) {
+          JS_ReportErrorUTF8(cx, "can't read %s: error %d", pathname, errno);
+        } else {
+          JS_ReportErrorUTF8(cx, "can't read %s: short read", pathname);
+        }
+        goto err_exit;
+      }
+
+      return buf;
+    }
   }
 
  err_exit:
@@ -2592,6 +2696,10 @@ syms_of_js (void)
   defsubr(&Sjs);
   defsubr(&Sjsread);
   defsubr(&Sjsdrain);
+  defsubr(&Sjsglobal);
+  defsubr(&Sjsderef);
+  defsubr(&Sjsmethod);
+  defsubr(&Sjspromise);
   defsubr(&Sspecbind);
   defsubr(&Ssetinternal);
   defsubr(&Sunbind_to_rel);
