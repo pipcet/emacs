@@ -35,11 +35,11 @@
 ;; It's only used to init nnspool-spool-directory, so why not just
 ;; set that variable's default directly?
 (eval-and-compile
+  (defvaralias 'news-path 'news-directory)
   (defvar news-directory (if (file-exists-p "/usr/spool/news/")
 			     "/usr/spool/news/"
 			   "/var/spool/news/")
-    "The root directory below which all news files are stored.")
-  (defvaralias 'news-path 'news-directory))
+    "The root directory below which all news files are stored."))
 
 ;; Ditto re obsolescence.
 (defvar news-inews-program
@@ -105,7 +105,7 @@ If nil, nnspool will load the entire file into a buffer and process it
 there.")
 
 (defvoo nnspool-rejected-article-hook nil
-  "*A hook that will be run when an article has been rejected by the server.")
+  "A hook that will be run when an article has been rejected by the server.")
 
 (defvoo nnspool-file-coding-system nnheader-file-coding-system
   "Coding system for nnspool.")

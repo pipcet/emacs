@@ -158,6 +158,9 @@ Convert it to Flymake internal format."
 	  (setq converted-list (cons (list regexp file line col) converted-list)))))
     converted-list))
 
+(define-obsolete-variable-alias 'flymake-err-line-patterns
+  'flymake-proc-err-line-patterns "26.1")
+
 (defvar flymake-proc-err-line-patterns ; regexp file-idx line-idx col-idx (optional) text-idx(optional), match-end to end of string is error text
   (append
    '(
@@ -334,6 +337,9 @@ to the beginning of the list (File.h -> File.cpp moved to top)."
   (and (equal (file-name-sans-extension flymake-proc--included-file-name)
 	      (file-name-base file-one))
        (not (equal file-one file-two))))
+
+(define-obsolete-variable-alias 'flymake-check-file-limit
+  'flymake-proc-check-file-limit "26.1")
 
 (defvar flymake-proc-check-file-limit 8192
   "Maximum number of chars to look at when checking possible master file.
@@ -787,43 +793,43 @@ can also be executed interactively independently of
         (flymake-proc--clear-buildfile-cache)
         (flymake-proc--clear-project-include-dirs-cache)
 
-        (let* ((cleanup-f (flymake-proc--get-cleanup-function buffer-file-name))
-               (cmd-and-args (funcall init-f))
-               (cmd          (nth 0 cmd-and-args))
-               (args         (nth 1 cmd-and-args))
-               (dir          (nth 2 cmd-and-args))
-               (success nil))
+        (let ((cleanup-f (flymake-proc--get-cleanup-function buffer-file-name))
+              (success nil))
           (unwind-protect
-              (cond
-               ((not cmd-and-args)
-                (flymake-log 1 "init function %s for %s failed, cleaning up"
-                             init-f buffer-file-name))
-               (t
-                (setq proc
-                      (let ((default-directory (or dir default-directory)))
-                        (when dir
-                          (flymake-log 3 "starting process on dir %s" dir))
-                        (make-process
-                         :name "flymake-proc"
-                         :buffer (current-buffer)
-                         :command (cons cmd args)
-                         :noquery t
-                         :filter
-                         (lambda (proc string)
-                           (let ((flymake-proc--report-fn report-fn))
-                             (flymake-proc--process-filter proc string)))
-                         :sentinel
-                         (lambda (proc event)
-                           (let ((flymake-proc--report-fn report-fn))
-                             (flymake-proc--process-sentinel proc event))))))
-                (process-put proc 'flymake-proc--output-buffer
-                             (generate-new-buffer
-                              (format " *flymake output for %s*" (current-buffer))))
-                (setq flymake-proc--current-process proc)
-                (flymake-log 2 "started process %d, command=%s, dir=%s"
-                             (process-id proc) (process-command proc)
-                             default-directory)
-                (setq success t)))
+              (let* ((cmd-and-args (funcall init-f))
+                     (cmd          (nth 0 cmd-and-args))
+                     (args         (nth 1 cmd-and-args))
+                     (dir          (nth 2 cmd-and-args)))
+                (cond
+                 ((not cmd-and-args)
+                  (flymake-log 1 "init function %s for %s failed, cleaning up"
+                               init-f buffer-file-name))
+                 (t
+                  (setq proc
+                        (let ((default-directory (or dir default-directory)))
+                          (when dir
+                            (flymake-log 3 "starting process on dir %s" dir))
+                          (make-process
+                           :name "flymake-proc"
+                           :buffer (current-buffer)
+                           :command (cons cmd args)
+                           :noquery t
+                           :filter
+                           (lambda (proc string)
+                             (let ((flymake-proc--report-fn report-fn))
+                               (flymake-proc--process-filter proc string)))
+                           :sentinel
+                           (lambda (proc event)
+                             (let ((flymake-proc--report-fn report-fn))
+                               (flymake-proc--process-sentinel proc event))))))
+                  (process-put proc 'flymake-proc--output-buffer
+                               (generate-new-buffer
+                                (format " *flymake output for %s*" (current-buffer))))
+                  (setq flymake-proc--current-process proc)
+                  (flymake-log 2 "started process %d, command=%s, dir=%s"
+                               (process-id proc) (process-command proc)
+                               default-directory)
+                  (setq success t))))
             (unless success
               (funcall cleanup-f))))))))
 
@@ -1148,12 +1154,8 @@ Use CREATE-TEMP-F for creating temp copy."
 
 ;;;;
 
-(define-obsolete-variable-alias 'flymake-check-file-limit
-  'flymake-proc-check-file-limit "26.1")
 (define-obsolete-function-alias 'flymake-reformat-err-line-patterns-from-compile-el
   'flymake-proc-reformat-err-line-patterns-from-compile-el "26.1")
-(define-obsolete-variable-alias 'flymake-err-line-patterns
-  'flymake-proc-err-line-patterns "26.1")
 (define-obsolete-function-alias 'flymake-parse-line
   'flymake-proc-parse-line "26.1")
 (define-obsolete-function-alias 'flymake-get-include-dirs

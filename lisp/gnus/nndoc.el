@@ -38,14 +38,14 @@
 (nnoo-declare nndoc)
 
 (defvoo nndoc-article-type 'guess
-  "*Type of the file.
+  "Type of the file.
 One of `mbox', `babyl', `digest', `news', `rnews', `mmdf', `forward',
 `rfc934', `rfc822-forward', `mime-parts', `standard-digest',
 `slack-digest', `clari-briefs', `nsmail', `outlook', `oe-dbx',
 `mailman', `exim-bounce', or `guess'.")
 
 (defvoo nndoc-post-type 'mail
-  "*Whether the nndoc group is `mail' or `post'.")
+  "Whether the nndoc group is `mail' or `post'.")
 
 (defvoo nndoc-open-document-hook 'nnheader-ms-strip-cr
   "Hook run after opening a document.
@@ -765,7 +765,7 @@ from the document.")
   (looking-at "JMF"))
 
 (defun nndoc-oe-dbx-type-p ()
-  (looking-at (string-to-multibyte "\317\255\022\376")))
+  (looking-at "\317\255\022\376"))
 
 (defun nndoc-read-little-endian ()
   (+ (prog1 (char-after) (forward-char 1))

@@ -428,13 +428,19 @@ host runs a registered shell, it shall be added to this list, too."
   :require 'tramp)
 
 ;;;###tramp-autoload
-(defconst tramp-local-host-regexp
+(defcustom tramp-local-host-regexp
   (concat
    "\\`"
    (regexp-opt
     (list "localhost" "localhost6" (system-name) "127.0.0.1" "::1") t)
    "\\'")
-  "Host names which are regarded as local host.")
+  "Host names which are regarded as local host.
+If the local host runs a chrooted environment, set this to nil."
+  :version "27.1"
+  :group 'tramp
+  :type '(choice (const :tag "Chrooted environment" nil)
+		 (regexp :tag "Host regexp"))
+  :require 'tramp)
 
 (defvar tramp-completion-function-alist nil
   "Alist of methods for remote files.
@@ -911,7 +917,7 @@ Used in `tramp-make-tramp-file-name'.")
   "Regexp matching delimiter between host names and localnames.
 Derived from `tramp-postfix-host-format'.")
 
-(defconst tramp-localname-regexp ".*$"
+(defconst tramp-localname-regexp "[^\n\r]*\\'"
   "Regexp matching localnames.")
 
 (defconst tramp-unknown-id-string "UNKNOWN"
@@ -1185,6 +1191,11 @@ means to use always cached values for the directory contents."
 
 (defvar tramp-current-connection nil
   "Last connection timestamp.")
+
+(defvar tramp-password-save-function nil
+  "Password save function.
+Will be called once the password has been verified by successful
+authentication.")
 
 (defconst tramp-completion-file-name-handler-alist
   '((file-name-all-completions
@@ -3846,7 +3857,9 @@ connection buffer."
 	(with-current-buffer (tramp-get-connection-buffer vec)
 	  (widen)
 	  (tramp-message vec 6 "\n%s" (buffer-string)))
-	(unless (eq exit 'ok)
+	(if (eq exit 'ok)
+	    (ignore-errors (funcall tramp-password-save-function))
+	  ;; Not successful.
 	  (tramp-clear-passwd vec)
 	  (delete-process proc)
 	  (tramp-error-with-buffer
@@ -4239,11 +4252,12 @@ be granted."
 
 ;;;###tramp-autoload
 (defun tramp-local-host-p (vec)
-  "Return t if this points to the local host, nil otherwise."
+  "Return t if this points to the local host, nil otherwise.
+This handles also chrooted environments, which are not regarded as local."
   (let ((host (tramp-file-name-host vec))
 	(port (tramp-file-name-port vec)))
     (and
-     (stringp host)
+     (stringp tramp-local-host-regexp) (stringp host)
      (string-match tramp-local-host-regexp host)
      ;; A port is an indication for an ssh tunnel or alike.
      (null port)
@@ -4451,13 +4465,15 @@ Invokes `password-read' if available, `read-passwd' else."
 	      (with-current-buffer (process-buffer proc)
 		(tramp-check-for-regexp proc tramp-password-prompt-regexp)
 		(format "%s for %s " (capitalize (match-string 1)) key))))
+	 (auth-source-creation-prompts `((secret . ,pw-prompt)))
 	 ;; We suspend the timers while reading the password.
          (stimers (with-timeout-suspend))
 	 auth-info auth-passwd)
 
     (unwind-protect
 	(with-parsed-tramp-file-name key nil
-	  (setq user
+	  (setq tramp-password-save-function nil
+		user
 		(or user (tramp-get-connection-property key "login-as" nil)))
 	  (prog1
 	      (or
@@ -4467,31 +4483,41 @@ Invokes `password-read' if available, `read-passwd' else."
 		       v "first-password-request" nil)
 		      ;; Try with Tramp's current method.
 		      (setq auth-info
-			    (auth-source-search
-			     :max 1
-			     (and user :user)
-			     (if domain
-				 (concat user tramp-prefix-domain-format domain)
-			       user)
-			     :host
-			     (if port
-				 (concat host tramp-prefix-port-format port)
-			       host)
-			     :port method
-			     :require (cons :secret (and user '(:user))))
-			    auth-passwd (plist-get
-					 (nth 0 auth-info) :secret)
-			    auth-passwd (if (functionp auth-passwd)
-					    (funcall auth-passwd)
-					  auth-passwd))))
+			    (car
+			     (auth-source-search
+			      :max 1
+			      (and user :user)
+			      (if domain
+				  (concat
+				   user tramp-prefix-domain-format domain)
+				user)
+			      :host
+			      (if port
+				  (concat
+				   host tramp-prefix-port-format port)
+				host)
+			      :port method
+			      :require (cons :secret (and user '(:user)))
+			      :create t))
+			    tramp-password-save-function
+			    (plist-get auth-info :save-function)
+			    auth-passwd (plist-get auth-info :secret)))
+		 (while (functionp auth-passwd)
+		   (setq auth-passwd (funcall auth-passwd)))
+		 auth-passwd)
+
 	       ;; Try the password cache.
-	       (let ((password (password-read pw-prompt key)))
-		 ;; FIXME test password works before caching it.
-		 (password-cache-add key password)
-		 password)
-	       ;; Else, get the password interactively.
+	       (progn
+		 (setq auth-passwd (password-read pw-prompt key)
+		       tramp-password-save-function
+		       (lambda () (password-cache-add key auth-passwd)))
+		 auth-passwd)
+
+	       ;; Else, get the password interactively w/o cache.
 	       (read-passwd pw-prompt))
+
 	    (tramp-set-connection-property v "first-password-request" nil)))
+
       ;; Reenable the timers.
       (with-timeout-unsuspend stimers))))
 

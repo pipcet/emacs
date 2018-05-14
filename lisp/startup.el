@@ -63,6 +63,9 @@ string or function value that this variable has."
   :version "23.1"
   :group 'initialization)
 
+(defvaralias 'inhibit-splash-screen 'inhibit-startup-screen)
+(defvaralias 'inhibit-startup-message 'inhibit-startup-screen)
+
 (defcustom inhibit-startup-screen nil
   "Non-nil inhibits the startup screen.
 
@@ -70,9 +73,6 @@ This is for use in your personal init file (but NOT site-start.el),
 once you are familiar with the contents of the startup screen."
   :type 'boolean
   :group 'initialization)
-
-(defvaralias 'inhibit-splash-screen 'inhibit-startup-screen)
-(defvaralias 'inhibit-startup-message 'inhibit-startup-screen)
 
 (defvar startup-screen-inhibit-startup-screen nil)
 
@@ -120,9 +120,6 @@ Elements look like (SWITCH-STRING . HANDLER-FUNCTION).
 HANDLER-FUNCTION receives the switch string as its sole argument;
 the remaining command-line args are in the variable `command-line-args-left'.")
 
-(defvar command-line-args-left nil
-  "List of command-line args not yet processed.")
-
 (with-no-warnings
   (defvaralias 'argv 'command-line-args-left
     "List of command-line args not yet processed.
@@ -130,6 +127,9 @@ This is a convenience alias, so that one can write (pop argv)
 inside of --eval command line arguments in order to access
 following arguments."))
 (internal-make-var-non-special 'argv)
+
+(defvar command-line-args-left nil
+  "List of command-line args not yet processed.")
 
 (with-no-warnings
   (defvar argi nil
@@ -2490,7 +2490,12 @@ nil default-directory" name)
 	     (insert (substitute-command-keys initial-scratch-message))
 	     (set-buffer-modified-p nil))))
 
-    ;; Prepend `initial-buffer-choice' to `displayable-buffers'.
+    ;; Prepend `initial-buffer-choice' to `displayable-buffers'. If
+    ;; the buffer is already a member of that list then shift the
+    ;; buffer to the head of the list. The shift behavior is intended
+    ;; to prevent the same buffer being displayed in two windows when
+    ;; an `initial-buffer-choice' function happens to return the head
+    ;; of `displayable-buffers'.
     (when initial-buffer-choice
       (let ((buf
              (cond ((stringp initial-buffer-choice)
@@ -2503,7 +2508,7 @@ nil default-directory" name)
                     (error "initial-buffer-choice must be a string, a function, or t.")))))
         (unless (buffer-live-p buf)
           (error "initial-buffer-choice is not a live buffer."))
-        (setq displayable-buffers (cons buf displayable-buffers))))
+        (setq displayable-buffers (cons buf (delq buf displayable-buffers)))))
 
     ;; Display the first two buffers in `displayable-buffers'.  If
     ;; `initial-buffer-choice' is non-nil, its buffer will be the

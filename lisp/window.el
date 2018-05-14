@@ -6641,6 +6641,7 @@ represents a live window, nil otherwise."
                        ))
 	frame))))
 
+(defvaralias 'even-window-heights 'even-window-sizes)
 (defcustom even-window-sizes t
   "If non-nil `display-buffer' will try to even window sizes.
 Otherwise `display-buffer' will leave the window configuration
@@ -6654,7 +6655,6 @@ any of them."
 	  (const :tag "Always" t))
   :version "25.1"
   :group 'windows)
-(defvaralias 'even-window-heights 'even-window-sizes)
 
 (defun window--even-window-sizes (window)
   "Even sizes of WINDOW and selected window.
@@ -8923,35 +8923,17 @@ This is different from `scroll-down-command' that scrolls a full screen."
 (put 'scroll-down-line 'scroll-command t)
 
 
-(defun scroll-other-window-down (&optional lines)
-  "Scroll the \"other window\" down.
-For more details, see the documentation for `scroll-other-window'."
-  (interactive "P")
-  (scroll-other-window
-   ;; Just invert the argument's meaning.
-   ;; We can do that without knowing which window it will be.
-   (if (eq lines '-) nil
-     (if (null lines) '-
-       (- (prefix-numeric-value lines))))))
-
 (defun beginning-of-buffer-other-window (arg)
   "Move point to the beginning of the buffer in the other window.
 Leave mark at previous position.
 With arg N, put point N/10 of the way from the true beginning."
   (interactive "P")
-  (let ((orig-window (selected-window))
-	(window (other-window-for-scrolling)))
-    ;; We use unwind-protect rather than save-window-excursion
-    ;; because the latter would preserve the things we want to change.
-    (unwind-protect
-	(progn
-	  (select-window window)
-	  ;; Set point and mark in that window's buffer.
-	  (with-no-warnings
-	   (beginning-of-buffer arg))
-	  ;; Set point accordingly.
-	  (recenter '(t)))
-      (select-window orig-window))))
+  (with-selected-window (other-window-for-scrolling)
+    ;; Set point and mark in that window's buffer.
+    (with-no-warnings
+      (beginning-of-buffer arg))
+    ;; Set point accordingly.
+    (recenter '(t))))
 
 (defun end-of-buffer-other-window (arg)
   "Move point to the end of the buffer in the other window.
@@ -8959,15 +8941,10 @@ Leave mark at previous position.
 With arg N, put point N/10 of the way from the true end."
   (interactive "P")
   ;; See beginning-of-buffer-other-window for comments.
-  (let ((orig-window (selected-window))
-	(window (other-window-for-scrolling)))
-    (unwind-protect
-	(progn
-	  (select-window window)
-	  (with-no-warnings
-	   (end-of-buffer arg))
-	  (recenter '(t)))
-      (select-window orig-window))))
+  (with-selected-window (other-window-for-scrolling)
+    (with-no-warnings
+      (end-of-buffer arg))
+    (recenter '(t))))
 
 (defvar mouse-autoselect-window-timer nil
   "Timer used by delayed window autoselection.")

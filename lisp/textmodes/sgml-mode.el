@@ -76,6 +76,8 @@ a DOCTYPE or an XML declaration."
   :version "22.1"
   :group 'sgml)
 
+(defvaralias 'sgml-transformation 'sgml-transformation-function)
+
 (defcustom sgml-transformation-function 'identity
   "Default value for `skeleton-transformation-function' in SGML mode."
   :type 'function
@@ -92,7 +94,6 @@ a DOCTYPE or an XML declaration."
 
 (put 'sgml-transformation-function 'variable-interactive
      "aTransformation function: ")
-(defvaralias 'sgml-transformation 'sgml-transformation-function)
 
 (defcustom sgml-mode-hook nil
   "Hook run by command `sgml-mode'.
@@ -618,7 +619,7 @@ Behaves electrically if `sgml-quick-keys' is non-nil."
     (delete-char -1)
     (sgml-close-tag))
    (t
-    (sgml-slash-matching arg))))
+    (insert-char ?/ arg))))
 
 (defun sgml-slash-matching (arg)
   "Insert `/' and display any previous matching `/'.

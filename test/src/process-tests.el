@@ -181,5 +181,26 @@
               (should-not (process-query-on-exit-flag process))))
         (kill-process process)))))
 
+(ert-deftest make-process/mix-stderr ()
+  "Check that `make-process' mixes the output streams if STDERR is nil."
+  (skip-unless (executable-find "bash"))
+  ;; Frequent random (?) failures on hydra.nixos.org, with no process output.
+  ;; Maybe this test should be tagged unstable?  See bug#31214.
+  (skip-unless (not (getenv "EMACS_HYDRA_CI")))
+  (with-temp-buffer
+    (let ((process (make-process
+                    :name "mix-stderr"
+                    :command (list "bash" "-c"
+                                   "echo stdout && echo stderr >&2")
+                    :buffer (current-buffer)
+                    :sentinel #'ignore
+                    :noquery t
+                    :connection-type 'pipe)))
+      (while (process-live-p process)
+        (accept-process-output process))
+      (should (eq (process-status process) 'exit))
+      (should (eq (process-exit-status process) 0))
+      (should (equal (buffer-string) "stdout\nstderr\n")))))
+
 (provide 'process-tests)
 ;; process-tests.el ends here.

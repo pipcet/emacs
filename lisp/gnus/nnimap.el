@@ -220,15 +220,16 @@ textual parts.")
 	    (cl-return)))
 	(goto-char (match-end 0))
 	;; Unfold quoted {number} strings.
-	(while (re-search-forward
-		"[^]][ (]{\\([0-9]+\\)}\r?\n"
-		(save-excursion
-		  ;; Start of the header section.
-		  (or (re-search-forward "] {[0-9]+}\r?\n" nil t)
-		      ;; Start of the next FETCH.
-		      (re-search-forward "\\* [0-9]+ FETCH" nil t)
-		      (point-max)))
-		t)
+	(while (or (looking-at "[ (]{\\([0-9]+\\)}\r?\n")
+		   (re-search-forward
+		    "[^]][ (]{\\([0-9]+\\)}\r?\n"
+		    (save-excursion
+		      ;; Start of the header section.
+		      (or (re-search-forward "] {[0-9]+}\r?\n" nil t)
+			  ;; Start of the next FETCH.
+			  (re-search-forward "\\* [0-9]+ FETCH" nil t)
+			  (point-max)))
+		    t))
 	  (setq size (string-to-number (match-string 1)))
 	  (delete-region (+ (match-beginning 0) 2) (point))
 	  (setq string (buffer-substring (point) (+ (point) size)))
@@ -522,6 +523,7 @@ textual parts.")
    ((and (not (nnimap-capability "LOGINDISABLED"))
 	 (eq (nnimap-stream-type nnimap-object) 'tls)
 	 (or (null nnimap-authenticator)
+             (eq nnimap-authenticator 'anonymous)
 	     (eq nnimap-authenticator 'login)))
     (nnimap-command "LOGIN %S %S" user password))
    ((and (nnimap-capability "AUTH=CRAM-MD5")
@@ -541,6 +543,7 @@ textual parts.")
       (nnimap-wait-for-response sequence)))
    ((and (not (nnimap-capability "LOGINDISABLED"))
 	 (or (null nnimap-authenticator)
+             (eq nnimap-authenticator 'anonymous)
 	     (eq nnimap-authenticator 'login)))
     (nnimap-command "LOGIN %S %S" user password))
    ((and (nnimap-capability "AUTH=PLAIN")
@@ -1544,6 +1547,8 @@ If LIMIT, first try to limit the search to the N last articles."
 	       info existing (nnimap-imap-ranges-to-gnus-ranges vanished) flags)
 	    ;; Do normal non-QRESYNC flag updates.
 	    ;; Update the list of read articles.
+	    (unless start-article
+	      (setq start-article 1))
 	    (let* ((unread
 		    (gnus-compress-sequence
 		     (gnus-set-difference
@@ -1861,7 +1866,9 @@ Return the server's response to the SELECT or EXAMINE command."
 	(setq nnimap-connection-alist (delq entry nnimap-connection-alist))
 	nil))))
 
-(defvar nnimap-sequence 0)
+;; Leave room for `open-network-stream' to issue a couple of IMAP
+;; commands before nnimap starts.
+(defvar nnimap-sequence 5)
 
 (defun nnimap-send-command (&rest args)
   (setf (nnimap-last-command-time nnimap-object) (current-time))

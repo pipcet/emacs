@@ -1301,10 +1301,9 @@ component is used as the target of the symlink."
                ;; On systems which have no quoting style, file names
                ;; with special characters could fail.
                (cond
-                ((tramp-get-ls-command-with-quoting-style vec)
-                 "--quoting-style=c")
-                ((tramp-get-ls-command-with-w-option vec)
-                 "-w")
+                ((tramp-get-ls-command-with
+		  vec "--quoting-style=literal --show-control-chars"))
+                ((tramp-get-ls-command-with vec "-w"))
                 (t ""))
                (tramp-shell-quote-argument localname)))
       ;; Parse `ls -l' output ...
@@ -1338,7 +1337,7 @@ component is used as the target of the symlink."
           (when symlinkp
             (search-forward "-> ")
             (setq res-symlink-target
-                  (if (tramp-get-ls-command-with-quoting-style vec)
+                  (if (looking-at "\"")
                       (read (current-buffer))
                     (buffer-substring (point) (point-at-eol)))))
           ;; Return data gathered.
@@ -1835,10 +1834,9 @@ be non-negative integers."
     ;; On systems which have no quoting style, file names with special
     ;; characters could fail.
     (cond
-     ((tramp-get-ls-command-with-quoting-style vec)
-      "--quoting-style=shell")
-     ((tramp-get-ls-command-with-w-option vec)
-      "-w")
+     ((tramp-get-ls-command-with
+       vec "--quoting-style=literal --show-control-chars"))
+     ((tramp-get-ls-command-with vec "-w"))
      (t ""))
     (tramp-get-remote-stat vec)
     tramp-stat-marker tramp-stat-marker
@@ -2639,10 +2637,12 @@ The method used must be an out-of-band method."
 	 filename switches wildcard full-directory-p)
       (when (stringp switches)
         (setq switches (split-string switches)))
-      (when (tramp-get-ls-command-with-quoting-style v)
-	(setq switches (append switches '("--quoting-style=literal"))))
-      (when (and (member "--dired" switches)
-		 (not (tramp-get-ls-command-with-dired v)))
+      (when (tramp-get-ls-command-with
+	     v "--quoting-style=literal --show-control-chars")
+	(setq switches
+	      (append
+	       switches '("--quoting-style=literal" "--show-control-chars"))))
+      (unless (tramp-get-ls-command-with v "--dired")
 	(setq switches (delete "--dired" switches)))
       (when wildcard
         (setq wildcard (tramp-run-real-handler
@@ -4162,7 +4162,10 @@ process to set up.  VEC specifies the connection."
     (with-current-buffer (process-buffer proc)
       ;; Use MULE to select the right EOL convention for communicating
       ;; with the process.
-      (let ((cs (or (and (memq 'utf-8 (coding-system-list))
+      (let ((cs (or (and (memq 'utf-8-hfs (coding-system-list))
+			 (string-match "^Darwin" uname)
+			 (cons 'utf-8-hfs 'utf-8-hfs))
+		    (and (memq 'utf-8 (coding-system-list))
 			 (string-match "utf-?8" (tramp-get-remote-locale vec))
 			 (cons 'utf-8 'utf-8))
 		    (process-coding-system proc)
@@ -4178,11 +4181,6 @@ process to set up.  VEC specifies the connection."
 	(goto-char (point-min))
 	(when (search-forward "\r" nil t)
 	  (setq cs-decode (coding-system-change-eol-conversion cs-decode 'dos)))
-	;; Special setting for macOS.
-	(when (and (string-match "^Darwin" uname)
-		   (memq 'utf-8-hfs (coding-system-list)))
-	  (setq cs-decode 'utf-8-hfs
-		cs-encode 'utf-8-hfs))
 	(set-process-coding-system proc cs-decode cs-encode)
 	(tramp-message
 	 vec 5 "Setting coding system to `%s' and `%s'" cs-decode cs-encode)))
@@ -4639,7 +4637,7 @@ Goes through the list `tramp-inline-compress-commands'."
     ;; host name in their command template.  In this case, the remote
     ;; file name must use either a local host name (first hop), or a
     ;; host name matching the previous hop.
-    (let ((previous-host tramp-local-host-regexp))
+    (let ((previous-host (or tramp-local-host-regexp "")))
       (setq choices target-alist)
       (while (setq item (pop choices))
 	(let ((host (tramp-file-name-host item)))
@@ -5142,11 +5140,12 @@ Return ATTR."
     (when (string-match "^d" (nth 8 attr))
       (setcar attr t))
     ;; Convert symlink from `tramp-do-file-attributes-with-stat'.
+    ;; Decode also multibyte string.
     (when (consp (car attr))
-      (if (and (stringp (caar attr))
-               (string-match ".+ -> .\\(.+\\)." (caar attr)))
-          (setcar attr (match-string 1 (caar attr)))
-        (setcar attr nil)))
+      (setcar attr
+	      (and (stringp (caar attr))
+		   (string-match ".+ -> .\\(.+\\)." (caar attr))
+		   (decode-coding-string (match-string 1 (caar attr)) 'utf-8))))
     ;; Set file's gid change bit.
     (setcar (nthcdr 9 attr)
             (if (numberp (nth 3 attr))
@@ -5350,36 +5349,18 @@ Nonexistent directories are removed from spec."
 	     (setq dl (cdr dl))))))
      (tramp-error vec 'file-error "Couldn't find a proper `ls' command"))))
 
-(defun tramp-get-ls-command-with-dired (vec)
-  "Check, whether the remote `ls' command supports the --dired option."
+(defun tramp-get-ls-command-with (vec option)
+  "Return OPTION, if the remote `ls' command supports the OPTION option."
   (save-match-data
-    (with-tramp-connection-property vec "ls-dired"
-      (tramp-message vec 5 "Checking, whether `ls --dired' works")
+    (with-tramp-connection-property vec (concat "ls" option)
+      (tramp-message vec 5 "Checking, whether `ls %s' works" option)
       ;; Some "ls" versions are sensible wrt the order of arguments,
       ;; they fail when "-al" is after the "--dired" argument (for
       ;; example on FreeBSD).
-      (tramp-send-command-and-check
-       vec (format "%s --dired -al /dev/null" (tramp-get-ls-command vec))))))
-
-(defun tramp-get-ls-command-with-quoting-style (vec)
-  "Check, whether the remote `ls' command supports the --quoting-style option."
-  (save-match-data
-    (with-tramp-connection-property vec "ls-quoting-style"
-      (tramp-message vec 5 "Checking, whether `ls --quoting-style=shell' works")
-      (tramp-send-command-and-check
-       vec (format "%s --quoting-style=shell -al /dev/null"
-		   (tramp-get-ls-command vec))))))
-
-(defun tramp-get-ls-command-with-w-option (vec)
-  "Check, whether the remote `ls' command supports the -w option."
-  (save-match-data
-    (with-tramp-connection-property vec "ls-w-option"
-      (tramp-message vec 5 "Checking, whether `ls -w' works")
-      ;; Option "-w" is available on BSD systems.  No argument is
-      ;; given, because this could return wrong results in case "ls"
-      ;; supports the "-w NUM" argument, as for busyboxes.
-      (tramp-send-command-and-check
-       vec (format "%s -alw" (tramp-get-ls-command vec))))))
+      (and
+       (tramp-send-command-and-check
+	vec (format "%s %s -al /dev/null" (tramp-get-ls-command vec) option))
+       option))))
 
 (defun tramp-get-test-command (vec)
   "Determine remote `test' command."

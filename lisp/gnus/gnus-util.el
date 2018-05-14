@@ -141,7 +141,7 @@ This is a compatibility function for different Emacsen."
   "Extract address components from a From header.
 Given an RFC-822 address FROM, extract full name and canonical address.
 Returns a list of the form (FULL-NAME CANONICAL-ADDRESS).  Much more simple
-solution than `mail-extract-address-components', which works much better, but
+solution than `mail-header-parse-address', which works much better, but
 is slower."
   (let (name address)
     ;; First find the address - the thing with the @ in it.  This may
@@ -1615,8 +1615,7 @@ empty directories from OLD-PATH."
   "Rescale IMAGE to SIZE if possible.
 SIZE is in format (WIDTH . HEIGHT). Return a new image.
 Sizes are in pixels."
-  (if (or (not (fboundp 'imagemagick-types))
-	  (not (get-buffer-window (current-buffer))))
+  (if (not (fboundp 'imagemagick-types))
       image
     (let ((new-width (car size))
           (new-height (cdr size)))

@@ -47,13 +47,12 @@
 ;; discovered during development time, is given in respective
 ;; comments.
 
-;; The custom option `tramp-gvfs-methods' contains the list of
-;; supported connection methods.  Per default, these are "afp", "dav",
-;; "davs", "gdrive", "obex", "owncloud", "sftp" and "synce".  Note
-;; that with "obex" it might be necessary to pair with the other
-;; bluetooth device, if it hasn't been done already.  There might be
-;; also some few seconds delay in discovering available bluetooth
-;; devices.
+;; The user option `tramp-gvfs-methods' contains the list of supported
+;; connection methods.  Per default, these are "afp", "dav", "davs",
+;; "gdrive", "obex", "owncloud", "sftp" and "synce".  Note that with
+;; "obex" it might be necessary to pair with the other bluetooth
+;; device, if it hasn't been done already.  There might be also some
+;; few seconds delay in discovering available bluetooth devices.
 
 ;; "gdrive" and "owncloud" connection methods require a respective
 ;; account in GNOME Online Accounts, with enabled "Files" service.
@@ -77,6 +76,8 @@
 ;;    :session tramp-gvfs-service-daemon tramp-gvfs-path-mounttracker
 ;;    tramp-gvfs-interface-mounttracker "ListMountableInfo")))
 
+;; See also /usr/share/gvfs/mounts
+
 ;; Note that all other connection methods are not tested, beside the
 ;; ones offered for customization in `tramp-gvfs-methods'.  If you
 ;; request an additional connection method to be supported, please
@@ -87,7 +88,7 @@
 ;; "synce" method), or from the zeroconf daemon (for the "afp", "dav",
 ;; "davs", and "sftp" methods).  The zeroconf daemon is pre-configured
 ;; to discover services in the "local" domain.  If another domain
-;; shall be used for discovering services, the custom option
+;; shall be used for discovering services, the user option
 ;; `tramp-gvfs-zeroconf-domain' can be set accordingly.
 
 ;; Restrictions:
@@ -1157,6 +1158,18 @@ If FILE-SYSTEM is non-nil, return file system attributes."
 	(setq dirp (if (equal "directory" (cdr (assoc "type" attributes))) t))
 	(setq res-symlink-target
 	      (cdr (assoc "standard::symlink-target" attributes)))
+	(when (stringp res-symlink-target)
+	  (setq res-symlink-target
+		;; Parse unibyte codes "\xNN".  We assume they are
+		;; non-ASCII codepoints in the range #x80 through #xff.
+		;; Convert them to multibyte.
+		(decode-coding-string
+		 (replace-regexp-in-string
+		  "\\\\x\\([[:xdigit:]]\\{2\\}\\)"
+		  (lambda (x)
+		    (unibyte-string (string-to-number (match-string 1 x) 16)))
+		  res-symlink-target)
+		 'utf-8)))
 	;; ... number links
 	(setq res-numlinks
 	      (string-to-number
@@ -2040,6 +2053,9 @@ connection if a previous connection has died for some reason."
 	       (tramp-get-file-property vec "/" "fuse-mountpoint" "") "/")
 	  (tramp-error vec 'file-error "FUSE mount denied"))
 
+	;; Save the password.
+	(ignore-errors (funcall tramp-password-save-function))
+
 	;; Set connection-local variables.
 	(tramp-set-connection-local-variables vec)
 
@@ -2365,7 +2381,7 @@ They are retrieved from the hal daemon."
 ;; * (Customizable) unmount when exiting Emacs.  See tramp-archive.el.
 
 ;; * Host name completion for existing mount points (afp-server,
-;;   smb-server, google-drive, owncloud) or via smb-network.
+;;   smb-server, google-drive, owncloud) or via smb-network or network.
 ;;
 ;; * Check, how two shares of the same SMB server can be mounted in
 ;;   parallel.
@@ -2374,5 +2390,7 @@ They are retrieved from the hal daemon."
 ;;   capability.
 ;;
 ;; * Implement obex for other serial communication but bluetooth.
+;;
+;; * What's up with ftps dns-sd afc admin computer?
 
 ;;; tramp-gvfs.el ends here

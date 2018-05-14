@@ -351,13 +351,12 @@ Example:
 (defvar artist-pointer-shape (if (eq window-system 'x) x-pointer-crosshair nil)
   "If in X Windows, use this pointer shape while drawing with the mouse.")
 
+(defvaralias 'artist-text-renderer 'artist-text-renderer-function)
 
 (defcustom artist-text-renderer-function 'artist-figlet
   "Function for doing text rendering."
   :group 'artist-text
   :type 'symbol)
-(defvaralias 'artist-text-renderer 'artist-text-renderer-function)
-
 
 (defcustom artist-figlet-program "figlet"
   "Program to run for `figlet'."
@@ -1401,7 +1400,10 @@ Keymap summary
 	 (artist-mode-exit))
 	(t
 	 ;; Turn mode on
-	 (artist-mode-init))))
+	 (artist-mode-init)
+         (let ((font (face-attribute 'default :font)))
+           (when (and (fontp font) (not (font-get font :spacing)))
+             (message "The default font isn't monospaced, so the drawings in this buffer may look odd"))))))
 
 ;; Init and exit
 (defun artist-mode-init ()

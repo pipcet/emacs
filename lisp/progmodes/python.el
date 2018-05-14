@@ -2923,10 +2923,16 @@ be asked for their values."
  "Instead call `python-shell-get-process' and create one if returns nil."
  "25.1")
 
+(define-obsolete-variable-alias
+  'python-buffer 'python-shell-internal-buffer "24.3")
+
 (defvar python-shell-internal-buffer nil
   "Current internal shell buffer for the current buffer.
 This is really not necessary at all for the code to work but it's
 there for compatibility with CEDET.")
+
+(define-obsolete-variable-alias
+  'python-preoutput-result 'python-shell-internal-last-output "24.3")
 
 (defvar python-shell-internal-last-output nil
   "Last output captured by the internal shell.
@@ -2942,12 +2948,6 @@ there for compatibility with CEDET.")
 
 (define-obsolete-function-alias
   'python-proc 'python-shell-internal-get-or-create-process "24.3")
-
-(define-obsolete-variable-alias
-  'python-buffer 'python-shell-internal-buffer "24.3")
-
-(define-obsolete-variable-alias
-  'python-preoutput-result 'python-shell-internal-last-output "24.3")
 
 (defun python-shell--save-temp-file (string)
   (let* ((temporary-file-directory
@@ -3163,9 +3163,12 @@ t when called interactively."
                        (beginning-of-line 1))
                    (> (current-indentation) 0)))
        (when (not arg)
-         (while (and (forward-line -1)
-                     (looking-at (python-rx decorator))))
-         (forward-line 1))
+         (while (and
+                 (eq (forward-line -1) 0)
+                 (if (looking-at (python-rx decorator))
+                     t
+                   (forward-line 1)
+                   nil))))
        (point-marker))
      (progn
        (or (python-nav-end-of-defun)

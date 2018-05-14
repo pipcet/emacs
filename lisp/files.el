@@ -318,7 +318,7 @@ If nil, ask confirmation.  Any other value prevents any trimming."
 
 (defcustom kept-new-versions 2
   "Number of newest versions to keep when a new numbered backup is made.
-Includes the new backup.  Must be > 0"
+Includes the new backup.  Must be greater than 0."
   :type 'integer
   :group 'backup)
 (put 'kept-new-versions 'safe-local-variable 'integerp)
@@ -2019,6 +2019,8 @@ think it does, because \"free\" is pretty hard to define in practice."
 OP-TYPE specifies the file operation being performed (for message to user)."
   (when (and large-file-warning-threshold size
 	     (> size large-file-warning-threshold)
+             ;; No point in warning if we can't read it.
+             (file-readable-p filename)
 	     (not (y-or-n-p (format "File %s is large (%s), really %s? "
 				    (file-name-nondirectory filename)
 				    (file-size-human-readable size) op-type))))
@@ -2350,10 +2352,15 @@ and local variable specifications in the file are ignored.
 Automatic uncompression and adding a newline at the end of the
 file due to `require-final-newline' is also disabled.
 
-You cannot absolutely rely on this function to result in
-visiting the file literally.  If Emacs already has a buffer
-which is visiting the file, you get the existing buffer,
-regardless of whether it was created literally or not.
+If Emacs already has a buffer which is visiting the file,
+this command asks you whether to visit it literally instead.
+
+In non-interactive use, the value is the buffer where the file is
+visited literally.  If the file was visited in a buffer before
+this command was invoked, it will reuse the existing buffer,
+regardless of whether it was created literally or not; however,
+the contents of that buffer will be the literal text of the file
+without any conversions.
 
 In a Lisp program, if you want to be sure of accessing a file's
 contents literally, you should create a temporary buffer and then read

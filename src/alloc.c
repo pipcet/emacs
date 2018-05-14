@@ -4716,11 +4716,7 @@ mark_glyph_matrix (struct glyph_matrix *matrix)
       }
 }
 
-/* Mark reference to a Lisp_Object.
-   If the object referred to has not been seen yet, recursively mark
-   all the references contained in it.  */
-
-#define LAST_MARKED_SIZE 500
+enum { LAST_MARKED_SIZE = 1 << 9 }; /* Must be a power of 2.  */
 Lisp_Object last_marked[LAST_MARKED_SIZE] EXTERNALLY_VISIBLE;
 static int last_marked_index;
 

@@ -488,7 +488,8 @@ Example:
     (to . "to\\|cc\\|apparently-to\\|resent-to\\|resent-cc")
     (from . "from\\|sender\\|resent-from")
     (nato . "to\\|cc\\|resent-to\\|resent-cc")
-    (naany . "from\\|to\\|cc\\|sender\\|resent-from\\|resent-to\\|resent-cc"))
+    (naany . "from\\|to\\|cc\\|sender\\|resent-from\\|resent-to\\|resent-cc")
+    (list . "list-id\\|list-post\\|x-mailing-list\||x-beenthere\\|x-loop"))
   "Alist of abbreviations allowed in `nnmail-split-fancy'."
   :group 'nnmail-split
   :type '(repeat (cons :format "%v" symbol regexp)))
@@ -665,7 +666,7 @@ nn*-request-list should have been called before calling this function."
 	      (setq group (symbol-name group)))
 	    (if (and (numberp (setq max (read buffer)))
 		     (numberp (setq min (read buffer))))
-		(push (list (string-as-unibyte group) (cons min max))
+		(push (list group (cons min max))
 		      group-assoc)))
 	(error nil))
       (widen)
@@ -1248,11 +1249,11 @@ Return the number of characters in the body."
 		     (progn (forward-line 1) (point))))
     (insert (format "Xref: %s" (system-name)))
     (while group-alist
-      (insert (if (mm-multibyte-p)
-		  (string-as-multibyte
-		   (format " %s:%d" (caar group-alist) (cdar group-alist)))
-		(string-as-unibyte
-		 (format " %s:%d" (caar group-alist) (cdar group-alist)))))
+      (insert (if enable-multibyte-characters
+		  (format " %s:%d" (caar group-alist) (cdar group-alist))
+		(encode-coding-string
+		 (format " %s:%d" (caar group-alist) (cdar group-alist))
+		 'utf-8)))
       (setq group-alist (cdr group-alist)))
     (insert "\n")))
 
@@ -1899,7 +1900,7 @@ If TIME is nil, then return the cutoff time for oldness instead."
     (unless (eq target 'delete)
       (when (or (gnus-request-group target nil nil (gnus-get-info target))
 		(gnus-request-create-group target))
-	(let ((group-art (gnus-request-accept-article target nil nil t)))
+	(let ((group-art (gnus-request-accept-article target nil t t)))
 	  (when (and (consp group-art)
 		     (cdr group-art))
 	    (gnus-group-mark-article-read target (cdr group-art))))))))

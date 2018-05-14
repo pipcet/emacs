@@ -156,7 +156,7 @@ If this variable is nil, no such courtesy message will be added."
   :group 'message-interface
   :type 'regexp)
 
-(defcustom message-from-style mail-from-style
+(defcustom message-from-style 'angles
   "Specifies how \"From\" headers look.
 
 If nil, they contain just the return address like:
@@ -168,12 +168,16 @@ If `angles', they look like:
 
 Otherwise, most addresses look like `angles', but they look like
 `parens' if `angles' would need quoting and `parens' would not."
-  :version "23.2"
+  :version "27.1"
   :type '(choice (const :tag "simple" nil)
 		 (const parens)
 		 (const angles)
 		 (const default))
   :group 'message-headers)
+(make-obsolete-variable
+ 'message-from-style
+ "Only the `angles' value is valid according to RFC2822" "27.1")
+
 
 (defcustom message-insert-canlock t
   "Whether to insert a Cancel-Lock header in news postings."
@@ -548,10 +552,15 @@ The provided functions are:
 		(function-item message-forward-subject-name-subject)
 		(repeat :tag "List of functions" function)))
 
-(defcustom message-forward-as-mime t
+(defcustom message-forward-as-mime nil
   "Non-nil means forward messages as an inline/rfc822 MIME section.
-Otherwise, directly inline the old message in the forwarded message."
-  :version "21.1"
+Otherwise, directly inline the old message in the forwarded
+message.
+
+When forwarding as MIME, certain MIME-related headers in the
+forwarded message may be removed/altered to ensure that the
+resulting mail is syntactically valid."
+  :version "27.1"
   :group 'message-forwarding
   :link '(custom-manual "(message)Forwarding")
   :type 'boolean)
@@ -603,6 +612,9 @@ Done before generating the new subject of a forward."
 
 (defcustom message-forward-ignored-headers "^Content-Transfer-Encoding:\\|^X-Gnus"
   "All headers that match this regexp will be deleted when forwarding a message.
+This variable is only consulted when forwarding \"normally\", not
+when forwarding as MIME or the like.
+
 This may also be a list of regexps."
   :version "21.1"
   :group 'message-forwarding
@@ -613,11 +625,12 @@ This may also be a list of regexps."
 			      (widget-editable-list-match widget value)))
 		 regexp))
 
-(defcustom message-forward-included-headers nil
+(defcustom message-forward-included-headers
+  '("^From:" "^Subject:" "^Date:")
   "If non-nil, delete non-matching headers when forwarding a message.
 Only headers that match this regexp will be included.  This
 variable should be a regexp or a list of regexps."
-  :version "25.1"
+  :version "27.1"
   :group 'message-forwarding
   :type '(repeat :value-to-internal (lambda (widget value)
 				      (custom-split-regexp-maybe value))
@@ -1339,7 +1352,8 @@ If nil, Message won't auto-save."
   :link '(custom-manual "(message)Various Message Variables")
   :type '(choice directory (const :tag "Don't auto-save" nil)))
 
-(defcustom message-default-charset (and (not (mm-multibyte-p)) 'iso-8859-1)
+(defcustom message-default-charset (and (not enable-multibyte-characters)
+					'iso-8859-1)
   "Default charset used in non-MULE Emacsen.
 If nil, you might be asked to input the charset."
   :version "21.1"
@@ -4282,7 +4296,7 @@ conformance."
 				(point-max))))
 	       (setq char (char-after)))
 	(when (or (< char 128)
-		  (and (mm-multibyte-p)
+		  (and enable-multibyte-characters
 		       (memq (char-charset char)
 			     '(eight-bit-control eight-bit-graphic
 						 ;; Emacs 23, Bug#1770:
@@ -4314,7 +4328,7 @@ conformance."
 	(while (not (eobp))
 	  (when (let ((char (char-after)))
 		  (or (< char 128)
-		      (and (mm-multibyte-p)
+		      (and enable-multibyte-characters
 			   ;; FIXME: Wrong for Emacs 23 (unicode) and for
 			   ;; things like undecodable utf-8 (in Emacs 21?).
 			   ;; Should at least use find-coding-systems-region.
@@ -4676,9 +4690,11 @@ that instead."
 	(message-send-mail-with-sendmail))
        ((equal (car method) "smtp")
 	(require 'smtpmail)
-	(let ((smtpmail-smtp-server (nth 1 method))
-	      (smtpmail-smtp-service (nth 2 method))
-	      (smtpmail-smtp-user (or (nth 3 method) smtpmail-smtp-user)))
+	(let* ((smtpmail-smtp-server (nth 1 method))
+	       (service (nth 2 method))
+	       (port (string-to-number service))
+	       (smtpmail-smtp-service (if (> port 0) port service))
+	       (smtpmail-smtp-user (or (nth 3 method) smtpmail-smtp-user)))
 	  (message-smtpmail-send-it)))
        (t
 	(error "Unknown method %s" method))))))
@@ -6865,6 +6881,9 @@ want to get rid of this query permanently.")))
 		    (setq recipients (delq recip recipients))))))))
 
       (setq recipients (message-prune-recipients recipients))
+      (setq recipients
+	    (cl-loop for (id . address) in recipients
+		     collect (cons id (message--alter-repeat-address address))))
 
       ;; Build the header alist.  Allow the user to be asked whether
       ;; or not to reply to all recipients in a wide reply.
@@ -6894,6 +6913,15 @@ want to get rid of this query permanently.")))
 		       (string-match dup-match (car recipient)))
 	      (setq recipients (delq recipient recipients))))))))
   recipients)
+
+(defun message--alter-repeat-address (address)
+  "Transform an address on the form \"\"foo@bar.com\"\" <foo@bar.com>\".
+The first bit will be elided if a match is made."
+  (let ((bits (gnus-extract-address-components address)))
+    (if (equal (car bits) (cadr bits))
+	(car bits)
+      ;; Return the original address if we don't have repetition.
+      address)))
 
 (defcustom message-simplify-subject-functions
   '(message-strip-list-identifiers
@@ -7409,7 +7437,8 @@ Optional DIGEST will use digest to forward."
       (when message-forward-included-headers
 	(message-remove-header
 	 (if (listp message-forward-included-headers)
-	     (regexp-opt message-forward-included-headers)
+	     (mapconcat #'identity (cons "^$" message-forward-included-headers)
+			"\\|")
 	   message-forward-included-headers)
 	 t nil t)))))
 
@@ -8382,6 +8411,9 @@ even if NEW-VALUE is empty."
 	(message-position-on-field header))
       (insert new-value))))
 
+(make-obsolete-variable
+ 'message-recipients-without-full-name
+ "Recipients are simplified by default" "27.1")
 (defcustom message-recipients-without-full-name
   (list "ding@gnus.org"
 	"bugs@gnus.org"
@@ -8397,6 +8429,7 @@ Used in `message-simplify-recipients'."
   :version "23.1" ;; No Gnus
   :group 'message-headers)
 
+(make-obsolete 'message-simplify-recipients nil "27.1")
 (defun message-simplify-recipients ()
   (interactive)
   (dolist (hdr '("Cc" "To"))
