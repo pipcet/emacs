@@ -265,7 +265,7 @@ Q_resolve(JSContext *cx, JS::HandleObject obj, JS::HandleId id, bool *resolvedp)
       if (!bytes)
         return false;
 
-      fprintf(stderr, "resolving Q.%s\n", bytes);
+      //fprintf(stderr, "resolving Q.%s\n", bytes);
 
       if (!strcmp(bytes, "valueOf"))
         return true;
@@ -340,7 +340,7 @@ static bool Q_call(JSContext *cx, unsigned argc, JS::Value *vp)
       JS::RootedString str(cx, args[0].toString());
       char *bytes = JS_EncodeStringToUTF8 (cx, str);
 
-      fprintf(stderr, "resolving Q.%s\n", bytes);
+      //fprintf(stderr, "resolving Q.%s\n", bytes);
 
       if (!bytes)
         return false;
@@ -382,7 +382,7 @@ F_resolve(JSContext *cx, JS::HandleObject obj, JS::HandleId id, bool *resolvedp)
       if (!bytes)
         return false;
 
-      fprintf(stderr, "resolving F.%s\n", bytes);
+      //fprintf(stderr, "resolving F.%s\n", bytes);
 
 #if 0
       for (char *p = bytes; *p; p++)
@@ -442,7 +442,7 @@ static bool F_call(JSContext *cx, unsigned argc, JS::Value *vp)
       JS::RootedString str(cx, args[0].toString());
       char *bytes = JS_EncodeStringToUTF8 (cx, str);
 
-      fprintf(stderr, "resolving F.%s\n", bytes);
+      //fprintf(stderr, "resolving F.%s\n", bytes);
 
       if (!bytes)
         return false;
@@ -486,7 +486,7 @@ V_resolve(JSContext *cx, JS::HandleObject obj, JS::HandleId id, bool *resolvedp)
       if (!bytes)
         return false;
 
-      fprintf(stderr, "resolving V.%s\n", bytes);
+      //fprintf(stderr, "resolving V.%s\n", bytes);
 
 #if 0
       for (char *p = bytes; *p; p++)
@@ -546,7 +546,7 @@ static bool V_call(JSContext *cx, unsigned argc, JS::Value *vp)
       JS::RootedString str(cx, args[0].toString());
       char *bytes = JS_EncodeStringToUTF8 (cx, str);
 
-      fprintf(stderr, "resolving V.%s\n", bytes);
+      //fprintf(stderr, "resolving V.%s\n", bytes);
 
       if (!bytes)
         return false;
@@ -598,7 +598,7 @@ global_resolve(JSContext* cx, JS::HandleObject obj, JS::HandleId id, bool* resol
       if (!bytes)
         return false;
 
-      fprintf(stderr, "resolving %s\n", bytes);
+      //fprintf(stderr, "resolving %s\n", bytes);
 
       if (strcmp(bytes, "Q") == 0)
         {
