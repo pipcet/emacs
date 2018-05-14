@@ -22,20 +22,23 @@
         .save-excursion: {}
             f:
                 js.F.save-excursion(js.F.list(js.F.list(js.F.list(js.Q.funcall, jssync(f)))))
-	.bobp: {}
-	    ():
-	        js.D(js.F.bobp())
+        .bobp: {}
+            ():
+                jstrue(js.D(js.F.bobp()))
         .forward-line: {}
             ():
                 js.F.forward-line()
             n:
-                js.F.forward-line n
+                js.F.forward-line(js.E(n))
+        .point: {}
+            ():
+                js.F.point()
     setq
         js.Q.x.function:
             jssync({:})
                 while
                     not
-                        jstrue(js.D(js.F.bobp()))
+                        emacs.bobp()
                     :
-                        js.F.forward-line(js.E(-1))
-                js.F.message(js.E ("point: %S"), js.F.point())
+                        emacs.forward-line(-1)
+                js.F.message(js.E ("point: %S"), emacs.point())
