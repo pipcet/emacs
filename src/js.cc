@@ -203,7 +203,7 @@ static JSClass marker_class = {
 static void
 misc_finalize(JSFreeOp* cx, JSObject *obj)
 {
-  struct Lisp_Misc *misc = (struct Lisp_Misc *)JS_GetPrivate(obj);
+  union Lisp_Misc *misc = (union Lisp_Misc *)JS_GetPrivate(obj);
 
   if (!misc)
     return;
@@ -780,8 +780,8 @@ WarningReporter(JSContext* cx, JSErrorReport* report)
   fprintf(stderr, "Warning!\n");
 }
 
-extern JS_PUBLIC_API(bool)
-JS_AddExtraGCRootsTracer(JSContext* cx, JSTraceDataOp traceOp, void* data);
+//extern JS_PUBLIC_API(bool)
+//JS_AddExtraGCRootsTracer(JSContext* cx, JSTraceDataOp traceOp, void* data);
 
 enum { NSTATICS = 2048 };
 extern ELisp_Struct_Value *staticvec[NSTATICS];
@@ -1157,14 +1157,14 @@ usage: (js SOURCE)  */)
 
   JSContext* cx = jsg.cx;
   JS::RootedScript script(cx);
-  size_t sourcelen = strlen(source);
+  size_t sourcelen = strlen((const char*)source);
   JS::CompileOptions options(cx);
   options.setIntroductionType("evaluation from Emacs")
     .setUTF8(true)
     .setIsRunOnce(true)
     .setFileAndLine("typein", 1);
 
-  if (!JS::Compile(cx, options, source, sourcelen, &script))
+  if (!JS::Compile(cx, options, (const char *)source, sourcelen, &script))
     return Qnil;
 
   if (!JS_ExecuteScript(cx, script, &result.v.v))
@@ -1229,11 +1229,10 @@ DEFUN ("jsmethod", Fjsmethod, Sjsmethod, 2, MANY, 0,
   ELisp_Value namev = args.vec.ref(1);
   ELisp_Value methv;
   CHECK_STRING (namev);
-  if (!JS_GetProperty(cx, obj, SDATA (namev), &methv.v.v))
+  if (!JS_GetProperty(cx, obj, (const char *)SDATA (namev), &methv.v.v))
     return Qnil;
   size_t nargs = args.n - 2;
   ELisp_Dynvector rargs;
-  fprintf(stderr, "%zd args", nargs);
   rargs.resize(nargs);
   for (size_t i = 0; i < nargs; i++)
     rargs.sref(i, args.vec.ref(i + 2));
@@ -1265,7 +1264,7 @@ DEFUN ("jsderef", Fjsderef, Sjsderef, 2, 2, 0,
   const unsigned char *namestr = SDATA(name);
 
   JS::RootedObject obj(cx, &object.v.v.toObject());
-  JS_GetProperty(cx, obj, namestr, &object.v.v);
+  JS_GetProperty(cx, obj, (const char *)namestr, &object.v.v);
 
   return object;
 }
@@ -1387,7 +1386,7 @@ usage: (jsread SOURCE)  */)
   ptrdiff_t len = SCHARS(arg);
 
   JSContext* cx = jsg.cx;
-  const char *str = read_file_as_string(cx, source);
+  const char *str = read_file_as_string(cx, (const char *)source);
   if (!str)
     goto error;
 
