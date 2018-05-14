@@ -1233,6 +1233,7 @@ DEFUN ("jsmethod", Fjsmethod, Sjsmethod, 2, MANY, 0,
     return Qnil;
   size_t nargs = args.n - 2;
   ELisp_Dynvector rargs;
+  fprintf(stderr, "%zd args", nargs);
   rargs.resize(nargs);
   for (size_t i = 0; i < nargs; i++)
     rargs.sref(i, args.vec.ref(i + 2));
@@ -1530,7 +1531,7 @@ static bool elisp_vector_call(JSContext *cx, unsigned argc, JS::Value *vp);
 static void
 elisp_cons_trace(JSTracer *trc, JSObject *obj)
 {
-  struct Lisp_Cons *s = JS_GetPrivate(obj);
+  struct Lisp_Cons *s = (struct Lisp_Cons *)JS_GetPrivate(obj);
 
   if (!s) return;
 
@@ -1645,7 +1646,7 @@ static bool
 elisp_symbol_resolve(JSContext *cx, JS::HandleObject obj,
                      JS::HandleId id, bool *resolvedp)
 {
-  struct Lisp_Symbol *s = JS_GetPrivate(obj);
+  struct Lisp_Symbol *s = (struct Lisp_Symbol *)JS_GetPrivate(obj);
 
   if (JSID_IS_STRING (id))
     {
@@ -1899,7 +1900,7 @@ interval_trace (JSTracer *trc, struct interval *i)
 static void
 elisp_string_trace(JSTracer *trc, JSObject *obj)
 {
-  struct Lisp_String *s = JS_GetPrivate(obj);
+  struct Lisp_String *s = (struct Lisp_String *)JS_GetPrivate(obj);
 
   if (!s) return;
 
@@ -1923,7 +1924,7 @@ JSClass elisp_string_class = {
 static void
 elisp_vector_finalize(JSFreeOp* cx, JSObject *obj)
 {
-  struct Lisp_Vector *s = JS_GetPrivate(obj);
+  struct Lisp_Vector *s = (struct Lisp_Vector *)JS_GetPrivate(obj);
   if (PSEUDOVECTOR_TYPEP((struct vectorlike_header *)s, PVEC_BUFFER))
     {
       while (all_buffers == (struct buffer *)s)
@@ -1943,7 +1944,7 @@ elisp_vector_finalize(JSFreeOp* cx, JSObject *obj)
 static void
 elisp_vector_trace(JSTracer *trc, JSObject *obj)
 {
-  struct Lisp_Vector *s = JS_GetPrivate(obj);
+  struct Lisp_Vector *s = (struct Lisp_Vector *)JS_GetPrivate(obj);
 
   if (!s) return;
 

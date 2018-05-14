@@ -22,6 +22,11 @@
         .save-excursion: {}
             f:
                 js.F.save-excursion(js.F.list(js.F.list(js.F.list(js.Q.funcall, jssync(f)))))
+        .forward-line: {}
+            ():
+                js.F.forward-line()
+            n:
+                js.F.forward-line n
     setq
         js.Q.x.function:
             jssync({:})
