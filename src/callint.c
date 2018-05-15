@@ -774,9 +774,9 @@ invoke it.  If KEYS is omitted or nil, the return value of
       for (ptrdiff_t i = 2; i < nargs; i++)
 	visargs[i] = (varies[i] > 0
 		      ? list1 (intern (callint_argfuns[varies[i]]))
-		      : quotify_arg (args[i]));
+		      : quotify_arg (args.ref(i)));
       call4 (intern ("add-to-history"), intern ("command-history"),
-             Flist (nargs - 1, visargs + 1), Qnil, Qt);
+             Flist (LV (nargs - 1, visargs + 1)), Qnil, Qt);
     }
 
   /* If we used a marker to hold point, mark, or an end of the region,

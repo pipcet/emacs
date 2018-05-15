@@ -1673,7 +1673,7 @@ lispsym_initially (struct Lisp_Symbol *s)
 # define DEFINE_NON_NIL_Q_SYMBOL_MACROS true
 #endif
 
-extern struct Lisp_Symbol lispsym[1220];
+extern struct Lisp_Symbol lispsym[1218];
 
 INLINE ELisp_Return_Value
 make_lisp_symbol (struct Lisp_Symbol *sym)
