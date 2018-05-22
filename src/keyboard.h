@@ -470,6 +470,7 @@ kbd_buffer_store_event_hold (struct input_event *event,
 			     struct input_event *hold_quit)
 {
   struct buffered_input_event *bie = xmalloc (sizeof *bie); // XXX leax
+  memset (bie, 0, sizeof *bie);
   bie->ie = *event;
   bie->kind = event->kind;
   kbd_buffer_store_buffered_event (bie, hold_quit);

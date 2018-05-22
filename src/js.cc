@@ -1934,6 +1934,8 @@ elisp_vector_finalize(JSFreeOp* cx, JSObject *obj)
     }
   else if (PSEUDOVECTOR_TYPEP((struct vectorlike_header *)s, PVEC_SUBR))
     return;
+  else if (PSEUDOVECTOR_TYPEP((struct vectorlike_header *)s, PVEC_THREAD))
+    return;
 
   xfree(JS_GetPrivate(obj));
 }
@@ -2683,6 +2685,7 @@ void jsprint(JS::Value v)
   x.v.v = v;
   printf("%lx\n", *(long *)&v);
   debug_print(x);
+  printf("%lx\n", *(long *)&v);
 }
 
 void jsprintl(unsigned long l)
