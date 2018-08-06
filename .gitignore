@@ -272,3 +272,9 @@ nt/emacs.rc
 nt/emacsclient.rc
 src/gdb.ini
 /var/
+*.c.cc
+*.c.chunkl
+*.h.chunkl
+*.h.hh
+chunkl-cache
+chunkl.all
