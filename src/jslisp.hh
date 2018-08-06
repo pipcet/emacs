@@ -21,7 +21,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #ifndef EMACS_LISP_H
 #define EMACS_LISP_H
 
-//#define DEBUG
+#define DEBUG
 #include "js-config.h"
 #include "jsapi.h"
 

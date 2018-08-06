@@ -190,8 +190,10 @@ typedef enum { RECC_ERROR = 0,
 	       RECC_ASCII, RECC_UNIBYTE
 } re_wctype_t;
 
+extern "C" {
 extern bool re_iswctype (int ch, re_wctype_t cc);
 extern re_wctype_t re_wctype_parse (const unsigned char **strp,
 				    unsigned limit);
+};
 
 #endif /* EMACS_REGEX_H */

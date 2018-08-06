@@ -3083,7 +3083,6 @@ void
 free_save_value (Lisp_Object save)
 {
   xfree (XSAVE_POINTER (save, 0));
-  free_misc (save);
 }
 
 /* Return a Lisp_Misc_Overlay object with specified START, END and PLIST.  */

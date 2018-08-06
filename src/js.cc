@@ -1,7 +1,7 @@
 // shell g++ -ggdb -g3 -std=c++11 -I ../src/ -I ../js/dist/include/ ./js.cpp -L ../js/dist/bin/ -lz -lpthread -ldl -lmozjs-58a1 -Wl,--whole-archive ../js/mozglue/build/libmozglue.a -Wl,--no-whole-archive -pthread
 #include "config.h.hh"
 
-//#define DEBUG
+#define DEBUG
 #include "js-config.h"
 #include "jsapi.h"
 
@@ -800,7 +800,7 @@ extern struct Lisp_Subr Sframe_windows_min_size;
 extern ptrdiff_t print_depth;
 extern ELisp_Struct_Value being_printed[PRINT_CIRCLE];
 
-static JS::GCVector<JS::Value, 0, js::SystemAllocPolicy> *js_promise_jobs;
+static JS::GCVector<JS::Value, 0, js::TempAllocPolicy> *js_promise_jobs;
 
 static void
 js_gc_trace(JSTracer* tracer, void* data)
@@ -817,11 +817,13 @@ js_gc_trace(JSTracer* tracer, void* data)
   // might be made unbound.
   TraceEdge(tracer, &Sframe_windows_min_size.header.jsval, "Sframe_windows_min_size");
 
+  /*
   TraceEdge(tracer, &elisp_cons_class_proto, "cons class proto");
   TraceEdge(tracer, &elisp_string_class_proto, "string class proto");
   TraceEdge(tracer, &elisp_symbol_class_proto, "symbol class proto");
   TraceEdge(tracer, &elisp_vector_class_proto, "vector class proto");
   TraceEdge(tracer, &elisp_misc_class_proto, "misc class proto");
+  */
 
   for (size_t i = 0; i < GLOBAL_OBJECTS; i++) {
     TraceEdge(tracer, &(((ELisp_Struct_Value *)&globals)+i)->v.v, "global");
@@ -956,7 +958,7 @@ bool js_job_callback(JSContext *cx, JS::HandleObject job,
                      void *data)
 {
   JS::RootedValue val(cx, JS::ObjectValue(*job));
-  JS::GCVector<JS::Value, 0, js::SystemAllocPolicy> *vecp = static_cast<JS::GCVector<JS::Value, 0, js::SystemAllocPolicy> *>(data);
+  JS::GCVector<JS::Value, 0, js::TempAllocPolicy> *vecp = static_cast<JS::GCVector<JS::Value, 0, js::TempAllocPolicy> *>(data);
 
   return vecp->append(val);
 }
@@ -968,28 +970,31 @@ bool js_init()
   if (!JS_Init())
     return false;
 
-  JSContext *cx = JS_NewContext(64 * JS::DefaultHeapMaxBytes, JS::DefaultNurseryBytes);
+  JSContext *cx = JS_NewContext(JS::DefaultHeapMaxBytes, JS::DefaultNurseryBytes);
   global_js_context = cx;
   if (!cx)
     return false;
-  //JS_SetFutexCanWait(cx);
+  JS_SetFutexCanWait(cx);
   JS::SetWarningReporter(cx, WarningReporter);
-  //JS_SetGCParameter(cx, JSGC_MAX_BYTES, 0x1fffffffL);
+  JS_SetGCParameter(cx, JSGC_MAX_BYTES, 0xffffffffL);
 
   JS_SetNativeStackQuota(cx, 8 * 1024 * 1024);
 
   if (!JS::InitSelfHostedCode(cx))
     return false;
 
-  JS::ContextOptionsRef(cx).setBaseline(false).setIon(false);
-  JS_SetGCParameter(cx, JSGC_MODE, JSGC_MODE_INCREMENTAL);
-  JS::GCVector<JS::Value, 0, js::SystemAllocPolicy> *vecp = new JS::GCVector<JS::Value, 0, js::SystemAllocPolicy>();
+  JS_AddInterruptCallback(cx, (void *)0x55555555);
+  //JS::ContextOptionsRef(cx).setBaseline(false).setIon(false);
+  //JS_SetGCParameter(cx, JSGC_MODE, JSGC_MODE_INCREMENTAL);
+  JS::GCVector<JS::Value, 0, js::TempAllocPolicy> *vecp = new JS::GCVector<JS::Value, 0, js::TempAllocPolicy>(cx);
   js_promise_jobs = vecp;
   JS::SetEnqueuePromiseJobCallback(cx, js_job_callback, static_cast<void *>(vecp));
 
   {
+    JSAutoRequest ar(cx);
     JS_BeginRequest(cx);
     JS::RealmOptions compartment_options;
+    compartment_options.creationOptions();
     JS::RootedObject glob(cx, JS_NewGlobalObject(cx, &global_class, nullptr, JS::FireOnNewGlobalHook, compartment_options));
 
     if (!glob)
@@ -997,8 +1002,11 @@ bool js_init()
 
     {
       JSAutoRealm(cx, glob);
-      if (!JS_DefineFunctions(cx, glob, emacs_functions))
+      if (!JS::InitRealmStandardClasses(cx))
         return false;
+
+      //if (!JS_DefineFunctions(cx, glob, emacs_functions))
+      //  return false;
       elisp_classes_init(cx, glob);
       elisp_gc_callback_register(cx);
       JS_InitClass(cx, glob, nullptr, &cons_class, cons_construct, 2,
