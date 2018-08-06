@@ -799,7 +799,7 @@ load_pixmap (struct frame *f, Lisp_Object name)
 
   if (bitmap_id < 0)
     {
-      add_to_log ("Invalid or undefined bitmap `%s'", name);
+      add_to_log ("Invalid or undefined bitmap `%s'", LVH (name));
       bitmap_id = 0;
     }
   else
@@ -1102,7 +1102,7 @@ load_color2 (struct frame *f, struct face *face, Lisp_Object name,
      to the values in an existing cell. */
   if (!defined_color (f, SSDATA (name), color, true))
     {
-      add_to_log ("Unable to load color \"%s\"", name);
+      add_to_log ("Unable to load color \"%s\"", LVH (name));
 
       switch (target_index)
 	{
@@ -2257,7 +2257,7 @@ evaluate_face_filter (Lisp_Object filter, struct window *w,
 
  err:
   if (err_msgs)
-    add_to_log ("Invalid face filter %S", orig_filter);
+    add_to_log ("Invalid face filter %S", LVH (orig_filter));
   *ok = false;
   return false;
 }
@@ -2310,7 +2310,7 @@ filter_face_ref (Lisp_Object face_ref,
 
  err:
   if (err_msgs)
-    add_to_log ("Invalid face ref %S", orig_face_ref);
+    add_to_log ("Invalid face ref %S", LVH (orig_face_ref));
   *ok = false;
   return Qnil;
 }
@@ -5519,7 +5519,7 @@ realize_named_face (struct frame *f, Lisp_Object symbol, int id)
 
   /* Merge SYMBOL's face with the default face.  */
   get_lface_attributes_no_remap (f, symbol, LV (ARRAYELTS (symbol_attrs), symbol_attrs), true);
-  merge_face_vectors (NULL< f, symbol_attrs, attrs, 0);
+  merge_face_vectors (NULL, f, symbol_attrs, attrs, 0);
 
   /* Realize the face.  */
   realize_face (c, LV (ARRAYELTS (attrs), attrs), id);

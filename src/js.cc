@@ -989,16 +989,14 @@ bool js_init()
 
   {
     JS_BeginRequest(cx);
-    JS::CompartmentOptions compartment_options;
+    JS::RealmOptions compartment_options;
     JS::RootedObject glob(cx, JS_NewGlobalObject(cx, &global_class, nullptr, JS::FireOnNewGlobalHook, compartment_options));
 
     if (!glob)
       return false;
 
     {
-      JS_EnterCompartment (cx, glob);
-      if (!JS_InitStandardClasses(cx, glob))
-        return false;
+      JSAutoRealm(cx, glob);
       if (!JS_DefineFunctions(cx, glob, emacs_functions))
         return false;
       elisp_classes_init(cx, glob);

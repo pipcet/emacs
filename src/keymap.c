@@ -549,17 +549,15 @@ map_keymap_item (map_keymap_function_t fun, Lisp_Object args, Lisp_Object key, L
   (*fun) (key, val, args, data);
 }
 
-union map_keymap
+struct map_keymap_struct
 {
-  struct
-  {
-    map_keymap_function_t fun;
-    Lisp_Object args;
-    void *data;
+  struct {
+  map_keymap_function_t fun;
+  ELisp_Struct_Value args;
+  void *data;
   } s;
-  GCALIGNED_UNION
 };
-verify (alignof (union map_keymap) % GCALIGNMENT == 0);
+verify (alignof (union map_keymap_struct) % GCALIGNMENT == 0);
 
 static void
 map_keymap_char_table_item (Lisp_Object args, Lisp_Object key, Lisp_Object val)
@@ -570,7 +568,7 @@ map_keymap_char_table_item (Lisp_Object args, Lisp_Object key, Lisp_Object val)
 	 it in place.  */
       if (CONSP (key))
 	key = Fcons (XCAR (key), XCDR (key));
-      union map_keymap *md = XINTPTR (args);
+      union map_keymap_struct *md = xmint_pointer (args);
       map_keymap_item (md->s.fun, md->s.args, key, val, md->s.data);
     }
 }
@@ -608,9 +606,9 @@ map_keymap_internal (Lisp_Object map,
 	}
       else if (CHAR_TABLE_P (binding))
 	{
-	  union map_keymap mapdata = {{fun, args, data}};
+	  union map_keymap_struct mapdata = {{fun, args, data}};
 	  map_char_table (map_keymap_char_table_item, Qnil, binding,
-			  make_pointer_integer (&mapdata));
+			  make_mint_ptr (&mapdata));
 	}
     }
 

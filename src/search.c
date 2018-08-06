@@ -3443,8 +3443,7 @@ syms_of_search (void)
 
   staticpro (&saved_last_thing_searched, Qnil);
 
-  re_match_object = Qnil;
-  staticpro (&re_match_object);
+  staticpro (&re_match_object, Qnil);
 
   DEFVAR_LISP ("search-spaces-regexp", Vsearch_spaces_regexp,
       doc: /* Regexp to substitute for bunches of spaces in regexp search.

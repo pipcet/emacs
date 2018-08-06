@@ -1118,7 +1118,7 @@ ftfont_open2 (struct frame *f,
   filename = XCAR (val);
   idx = XCDR (val);
   val = XCDR (cache);
-  cache_data = xmint_pointer (XCDR (cache));
+  cache_data = xmint_pointer (LRH (XCDR (cache)));
   ft_face = cache_data->ft_face;
   if (cache_data->face_refcount > 0)
     {

@@ -1925,7 +1925,7 @@ usage: (make-process &rest ARGS)  */)
   else
     create_pty (proc);
 
-  return SAFE_FREE_UNBIND_TO (count, proc);
+  return SAFE_FREE_UNBIND_TO (count, LVH (proc));
 }
 
 /* If PROC doesn't have its pid set, then an error was signaled and
@@ -4040,13 +4040,8 @@ usage: (make-network-process &rest ARGS)  */)
       if (nowait)
 	{
 	  ptrdiff_t hostlen = SBYTES (host);
-	  struct req
-	  {
-	    struct gaicb gaicb;
-	    struct addrinfo hints;
-	    char str[FLEXIBLE_ARRAY_MEMBER];
-	  } *req = xmalloc (FLEXSIZEOF (struct req, str,
-					hostlen + 1 + portstringlen + 1));
+	  struct req *req = xmalloc (FLEXSIZEOF (struct req, str,
+                                                 hostlen + 1 + portstringlen + 1));
 	  dns_request = &req->gaicb;
 	  dns_request->ar_name = req->str;
 	  dns_request->ar_service = req->str + hostlen + 1;

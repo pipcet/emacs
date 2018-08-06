@@ -228,13 +228,15 @@ directory_files_internal (Lisp_Object directory, Lisp_Object full,
     needsep = 1;
 
   /* Windows users want case-insensitive wildcards.  */
-  Lisp_Object case_table =
 #ifdef WINDOWSNT
+  Lisp_Object case_table =
     BVAR (&buffer_defaults, case_canon_table)
-#else
-    Qnil
-#endif
     ;
+#else
+  Lisp_Object case_table =
+    Qnil
+    ;
+#endif
 
   /* Loop reading directory entries.  */
   for (struct dirent *dp; (dp = read_dirent (d, directory)); )

@@ -572,7 +572,7 @@ buffer_memory_full (ptrdiff_t nbytes)
    often waste up to 8 bytes, since alignof (max_align_t) is 16 but
    typical vectors need only an alignment of 8.  However, it is not
    worth the hassle to avoid this waste.  */
-enum { LISP_ALIGNMENT = alignof (union { max_align_t x; GCALIGNED_UNION }) };
+enum { LISP_ALIGNMENT = 8 };
 verify (LISP_ALIGNMENT % GCALIGNMENT == 0);
 
 /* True if malloc (N) is known to return storage suitably aligned for
@@ -2525,6 +2525,7 @@ set_next_vector (struct Lisp_Vector *v, struct Lisp_Vector *p)
 
 #define VECTOR_BLOCK_SIZE 4096
 
+#define roundup_size 8
 
 /* Verify assumptions described above.  */
 verify (VECTOR_BLOCK_SIZE % roundup_size == 0);
@@ -3021,18 +3022,23 @@ allocate_misc (enum Lisp_Misc_Type type)
 {
   Lisp_Object val;
   union Lisp_Misc *m = (union Lisp_Misc *)xzalloc(sizeof *m);
-  
+
   m->u_any.type = type;
   XSETMISC (val, m);
 
   return val;
 }
 
-Lisp_Object
+ELisp_Return_Value
 make_misc_ptr (void *a)
 {
-  Lisp_Object val = allocate_misc (Lisp_Misc_Ptr);
-  XUNTAG (val, Lisp_Misc, struct Lisp_Misc_Ptr)->pointer = a;
+  Lisp_Object val;
+  union Lisp_Misc *m = (union Lisp_Misc *)xzalloc(sizeof *m);
+
+  m->u_any.type = Lisp_Misc_Ptr;
+  m->u_pointer.pointer = a;
+  XSETMISC (val, m);
+
   return val;
 }
 
@@ -3864,8 +3870,6 @@ live_misc_p (struct mem_node *m, void *p)
 void
 mark_maybe_objects (Lisp_Object *array, ptrdiff_t nelts)
 {
-  for (Lisp_Object *lim = array + nelts; array < lim; array++)
-    mark_maybe_object (*array);
 }
 
 /* Return true if P might point to Lisp data that can be garbage
@@ -4803,25 +4807,6 @@ mark_localized_symbol (struct Lisp_Symbol *ptr)
 static Lisp_Object
 mark_discard_killed_buffers (Lisp_Object list)
 {
-  Lisp_Object tail, *prev = &list;
-
-  for (tail = list; CONSP (tail) && !CONS_MARKED_P (XCONS (tail));
-       tail = XCDR (tail))
-    {
-      Lisp_Object tem = XCAR (tail);
-      if (CONSP (tem))
-	tem = XCAR (tem);
-      if (BUFFERP (tem) && !BUFFER_LIVE_P (XBUFFER (tem)))
-	*prev = XCDR (tail);
-      else
-	{
-	  CONS_MARK (XCONS (tail));
-	  mark_object (XCAR (tail));
-	  prev = xcdr_addr (tail);
-	}
-    }
-  mark_object (tail);
-  return list;
 }
 
 /* Determine type of generic Lisp_Object and mark it accordingly.

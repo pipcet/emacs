@@ -1897,7 +1897,7 @@ otf_open (Lisp_Object file)
   OTF *otf;
 
   if (! NILP (val))
-    otf = xmint_pointer (XCDR (val));
+    otf = xmint_pointer (LRH (XCDR (val)));
   else
     {
       otf = STRINGP (file) ? OTF_open (SSDATA (file)) : NULL;
@@ -3647,7 +3647,7 @@ font_get_frame_data (struct frame *f, Lisp_Object driver)
 {
   Lisp_Object val = assq_no_quit (driver, f->font_data);
 
-  return NILP (val) ? NULL : xmint_pointer (XCDR (val));
+  return NILP (val) ? NULL : xmint_pointer (LRH (XCDR (val)));
 }
 
 #endif /* HAVE_XFT || HAVE_FREETYPE */

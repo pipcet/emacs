@@ -2637,7 +2637,7 @@ safe__call (bool inhibit_quit, ptrdiff_t nargs, Lisp_Object func, va_list ap)
 	 so there is no possibility of wanting to redisplay.  */
       val = internal_condition_case_n (Ffuncall, LV (nargs, args), Qt,
 				       safe_eval_handler);
-      val = SAFE_FREE_UNBIND_TO (count, val);
+      val = SAFE_FREE_UNBIND_TO (count, LVH (val));
     }
 
   return val;
@@ -23627,13 +23627,14 @@ display_mode_element (struct it *it, int depth, int field_width, int precision,
 		    /* PROPS might cause set-text-properties to signal
 		       an error, so we call it via internal_condition_case_n,
 		       to avoid an infloop in redisplay due to the error.  */
+                    ELisp_Dynvector args;
+                    args.resize(4);
+                    args.sref(0, make_number (0));
+                    args.sref(1, Flength (elt));
+                    args.sref(2, props);
+                    args.sref(3, elt);
 		    internal_condition_case_n (safe_set_text_properties,
-					       4,
-					       ((Lisp_Object [])
-					       {make_number (0),
-						   Flength (elt),
-						   props,
-						   elt}),
+                                               LV (4, args),
 					       Qt, safe_eval_handler);
 		    /* Add this item to mode_line_proptrans_alist.  */
 		    mode_line_proptrans_alist

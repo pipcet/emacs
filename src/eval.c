@@ -1040,7 +1040,7 @@ usage: (let VARLIST BODY...)  */)
     specbind (Qinternal_interpreter_environment, lexenv);
 
   elt = Fprogn (XCDR (args));
-  return SAFE_FREE_UNBIND_TO (count, elt);
+  return SAFE_FREE_UNBIND_TO (count, LVH (elt));
 }
 
 DEFUN ("while", Fwhile, Swhile, 1, UNEVALLED, 0,
@@ -3613,8 +3613,7 @@ void
 record_unwind_protect_array (Lisp_Object *array, ptrdiff_t nelts)
 {
   specpdl_ptr->unwind_array.kind = SPECPDL_UNWIND_ARRAY;
-  specpdl_ptr->unwind_array.array = array;
-  specpdl_ptr->unwind_array.nelts = nelts;
+  specpdl_ptr->unwind_array.vector = LV(nelts, array);
   grow_specpdl ();
 }
 
@@ -3684,7 +3683,6 @@ do_one_unbind (struct specbinding_stack *this_binding, bool unwinding,
       this_binding->unwind.func (this_binding->unwind.arg);
       break;
     case SPECPDL_UNWIND_ARRAY:
-      xfree (this_binding->unwind_array.array);
       break;
     case SPECPDL_UNWIND_PTR:
       this_binding->unwind_ptr.func (this_binding->unwind_ptr.arg);

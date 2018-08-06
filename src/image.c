@@ -7093,7 +7093,7 @@ tiff_read_from_memory (thandle_t data, tdata_t buf, tsize_t size)
 {
   tiff_memory_source *src = (tiff_memory_source *) data;
 
-  size = min (size, src->len - src->index);
+  size = c_min (size, src->len - src->index);
   memcpy (buf, src->bytes + src->index, size);
   src->index += size;
   return size;

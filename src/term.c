@@ -3779,7 +3779,7 @@ tty_menu_show (struct frame *f, int x, int y, int menuflags,
 
  tty_menu_end:
 
-  return SAFE_FREE_UNBIND_TO (specpdl_count, entry);
+  return SAFE_FREE_UNBIND_TO (specpdl_count, LVH (entry));
 }
 
 #endif	/* !MSDOS */

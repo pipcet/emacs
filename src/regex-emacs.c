@@ -932,11 +932,11 @@ typedef struct
    : ((fail_stack).stack						\
       = REGEX_REALLOCATE ((fail_stack).stack,				\
 	  (fail_stack).size * sizeof (fail_stack_elt_t),		\
-          min (emacs_re_max_failures * TYPICAL_FAILURE_SIZE,                  \
+          c_min (emacs_re_max_failures * TYPICAL_FAILURE_SIZE,                  \
                ((fail_stack).size * FAIL_STACK_GROWTH_FACTOR))          \
           * sizeof (fail_stack_elt_t)),                                 \
       ((fail_stack).size						\
-       = (min (emacs_re_max_failures * TYPICAL_FAILURE_SIZE,		\
+       = (c_min (emacs_re_max_failures * TYPICAL_FAILURE_SIZE,		\
 	       ((fail_stack).size * FAIL_STACK_GROWTH_FACTOR)))),	\
       1))
 
@@ -1709,7 +1709,7 @@ regex_compile (re_char *pattern, size_t size,
   re_char *pend = pattern + size;
 
   /* How to translate the characters in the pattern.  */
-  Lisp_Object translate = bufp->translate;
+  ELisp_Value translate = bufp->translate;
 
   /* Address of the count-byte of the most recently inserted 'exactn'
      command.  This makes it possible to tell if a new exact-match
@@ -2121,7 +2121,7 @@ regex_compile (re_char *pattern, size_t size,
 		  {
 		    if (c < 128)
 		      {
-			ch = min (127, c1);
+			ch = c_min (127, c1);
 			SETUP_ASCII_RANGE (range_table_work, c, ch);
 			c = ch + 1;
 			if (CHAR_BYTE8_P (c1))
@@ -3883,7 +3883,7 @@ re_match_2_internal (struct re_pattern_buffer *bufp, re_char *string1,
   re_char *pend = p + bufp->used;
 
   /* We use this to map every character in the string.	*/
-  Lisp_Object translate = bufp->translate;
+  ELisp_Value translate = bufp->translate;
 
   /* True if BUFP is setup from a multibyte regex.  */
   bool multibyte = RE_MULTIBYTE_P (bufp);
@@ -4120,7 +4120,7 @@ re_match_2_internal (struct re_pattern_buffer *bufp, re_char *string1,
 		{ /* No.  So allocate them with malloc.  We need one
 		     extra element beyond 'num_regs' for the '-1' marker
 		     GNU code uses.  */
-		  regs->num_regs = max (RE_NREGS, num_regs + 1);
+		  regs->num_regs = c_max (RE_NREGS, num_regs + 1);
 		  regs->start = TALLOC (regs->num_regs, ptrdiff_t);
 		  regs->end = TALLOC (regs->num_regs, ptrdiff_t);
 		  bufp->regs_allocated = REGS_REALLOCATE;
@@ -4150,7 +4150,7 @@ re_match_2_internal (struct re_pattern_buffer *bufp, re_char *string1,
 
 	      /* Go through the first 'min (num_regs, regs->num_regs)'
 		 registers, since that is all we initialized.  */
-	      for (reg = 1; reg < min (num_regs, regs->num_regs); reg++)
+	      for (reg = 1; reg < c_min (num_regs, regs->num_regs); reg++)
 		{
 		  if (REG_UNSET (regstart[reg]) || REG_UNSET (regend[reg]))
 		    regs->start[reg] = regs->end[reg] = -1;

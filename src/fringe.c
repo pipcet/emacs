@@ -586,8 +586,7 @@ draw_fringe_bitmap_1 (struct window *w, struct glyph_row *row, int left_p, int o
 
   if (face_id == DEFAULT_FACE_ID)
     {
-      face_id = NILP (face) ? lookup_named_face (w, f, Qfringe, false)
-	: lookup_derived_face (w, f, face, FRINGE_FACE_ID, 0);
+      face_id = lookup_named_face (w, f, Qfringe, false);
       if (face_id < 0)
 	face_id = FRINGE_FACE_ID;
     }

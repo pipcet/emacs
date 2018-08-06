@@ -62,6 +62,7 @@
     (#x1C00 #x1C4F lepcha)
     (#x1C50 #x1C7F ol-chiki)
     (#x1C80 #x1C8F cyrillic) ; Cyrillic Extended-C
+    (#x1C90 #x1CBF georgian) ; Georgian Extended
     (#x1CC0 #x1CCF sundanese) ; Sundanese Supplement
     (#x1CD0 #x1CFF vedic) ; Vedic Extensions
     (#x1D00 #x1DBF phonetic) ; Phonetic Extensions, Phonetic Extensions Supplement
@@ -166,7 +167,10 @@
     (#x10B80 #x10BAF psalter-pahlavi)
     (#x10C00 #x10C4F old-turkic)
     (#x10C80 #x10CFF old-hungarian)
+    (#x10D00 #x10D3F hanifi-rohingya)
     (#x10E60 #x10E7F rumi-number)
+    (#x10F00 #x10F2F old-sogdian)
+    (#x10F30 #x10F6F sogdian)
     (#x11000 #x1107F brahmi)
     (#x11080 #x110CF kaithi)
     (#x110D0 #x110FF sora-sompeng)
@@ -185,6 +189,7 @@
     (#x11660 #x1167F mongolian) ; Mongolian Supplement
     (#x11680 #x116CF takri)
     (#x11700 #x1173F ahom)
+    (#x11800 #x1184F dogra)
     (#x118A0 #x118FF warang-citi)
     (#x11A00 #x11A4F zanabazar-square)
     (#x11A50 #x11AAF soyombo)
@@ -192,6 +197,8 @@
     (#x11C00 #x11C6F bhaiksuki)
     (#x11C70 #x11CBF marchen)
     (#x11D00 #x11D5F masaram-gondi)
+    (#x11D60 #x11DAF gunjala-gondi)
+    (#x11EE0 #x11EFF makasar)
     (#x12000 #x123FF cuneiform)
     (#x12400 #x1247F cuneiform-numbers-and-punctuation)
     (#x12480 #x1254F cuneiform) ; Early Dynastic Cuneiform
@@ -201,6 +208,7 @@
     (#x16A40 #x16A6F mro)
     (#x16AD0 #x16AFF bassa-vah)
     (#x16B00 #x16B8F pahawh-hmong)
+    (#x16E40 #x16E9F medefaidrin)
     (#x16F00 #x16F9F miao)
     (#x16FE0 #x16FFF symbol) ; Ideographic Symbols and Punctuation
     (#x17000 #x187FF tangut)
@@ -211,6 +219,7 @@
     (#x1D000 #x1D0FF byzantine-musical-symbol)
     (#x1D100 #x1D1FF musical-symbol)
     (#x1D200 #x1D24F ancient-greek-musical-notation)
+    (#x1D2E0 #x1D2FF mayan-numeral)
     (#x1D300 #x1D35F tai-xuan-jing-symbol)
     (#x1D360 #x1D37F counting-rod-numeral)
     (#x1D400 #x1D7FF mathematical) ; Mathematical Alphanumeric Symbols
@@ -218,6 +227,7 @@
     (#x1E000 #x1E02F glagolitic) ; Glagolitic Supplement
     (#x1E800 #x1E8DF mende-kikakui)
     (#x1E900 #x1E95F adlam)
+    (#x1EC70 #x1ECBF indic-siyaq-number)
     (#x1EE00 #x1EEFF arabic) ; Arabic Mathematical Alphabetic Symbols
     (#x1F000 #x1F02F mahjong-tile)
     (#x1F030 #x1F09F domino-tile)
@@ -225,6 +235,7 @@
     (#x1F100 #x1F1FF symbol) ; Enclosed Alphanumeric Supplement
     (#x1F200 #x1F2FF han) ; Enclosed Ideographic Supplement
     (#x1F300 #x1F9FF symbol) ; Miscellaneous Symbols and Pictographs, Emoticons, Ornamental Dingbats, Transport and Map Symbols, Alchemical Symbols, Geometric Shapes Extended, Supplemental Arrows-C, Supplemental Symbols and Pictographs
+    (#x1FA00 #x1FA6F chess-symbol)
     (#x20000 #x2A6DF han) ; CJK Unified Ideographs Extension B
     (#x2A700 #x2EBEF han) ; CJK Unified Ideographs Extension C, CJK Unified Ideographs Extension D, CJK Unified Ideographs Extension E, CJK Unified Ideographs Extension F
     (#x2F800 #x2FA1F han) ; CJK Compatibility Ideographs Supplement

@@ -3393,14 +3393,14 @@ union read_non_regular
     int fd;
     ptrdiff_t inserted, trytry;
   } s;
-  GCALIGNED_UNION
+  GCALIGNED
 };
 verify (alignof (union read_non_regular) % GCALIGNMENT == 0);
 
 static Lisp_Object
 read_non_regular (Lisp_Object state)
 {
-  union read_non_regular *data = XINTPTR (state);
+  union read_non_regular *data = xmint_pointer (state);
   int nbytes = emacs_read_quit (data->s.fd,
 				((char *) BEG_ADDR + PT_BYTE - BEG_BYTE
 				 + data->s.inserted),
@@ -4261,7 +4261,7 @@ by calling `format-decode', which see.  */)
 	       to be signaled after decoding the text we read.  */
 	    union read_non_regular data = {{fd, inserted, trytry}};
 	    nbytes = internal_condition_case_1
-	      (read_non_regular, make_pointer_integer (&data),
+	      (read_non_regular, make_mint_ptr (&data),
 	       Qerror, read_non_regular_quit);
 
 	    if (NILP (nbytes))

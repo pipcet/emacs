@@ -6655,8 +6655,10 @@ This function potentially generates an artifical switch-frame event.  */)
 {
   Lisp_Object frame;
   if (!EQ (CAR_SAFE (event), Qfocus_in) ||
-      !CONSP (XCDR (event)) ||
-      !FRAMEP ((frame = XCAR (XCDR (event)))))
+      !CONSP (XCDR (event)))
+    error ("invalid focus-in event");
+  frame = XCAR (XCDR (event));
+  if (!FRAMEP (frame))
     error ("invalid focus-in event");
 
   /* Conceptually, the concept of window manager focus on a particular
