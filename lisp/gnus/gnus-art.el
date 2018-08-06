@@ -198,9 +198,9 @@ Possible values in this list are:
   `newsgroups'  Newsgroup identical to Gnus group.
   `to-address'  To identical to To-address.
   `to-list'     To identical to To-list.
-  `cc-list'     CC identical to To-list.
-  `followup-to' Followup-to identical to Newsgroups.
-  `reply-to'    Reply-to identical to From.
+  `cc-list'     Cc identical to To-list.
+  `followup-to' Followup-To identical to Newsgroups.
+  `reply-to'    Reply-To identical to From.
   `date'        Date less than four days old.
   `long-to'     To and/or Cc longer than 1024 characters.
   `many-to'     Multiple To and/or Cc."
@@ -208,9 +208,9 @@ Possible values in this list are:
 	      (const :tag "Newsgroups identical to Gnus group." newsgroups)
 	      (const :tag "To identical to To-address." to-address)
 	      (const :tag "To identical to To-list." to-list)
-	      (const :tag "CC identical to To-list." cc-list)
-	      (const :tag "Followup-to identical to Newsgroups." followup-to)
-	      (const :tag "Reply-to identical to From." reply-to)
+	      (const :tag "Cc identical to To-list." cc-list)
+	      (const :tag "Followup-To identical to Newsgroups." followup-to)
+	      (const :tag "Reply-To identical to From." reply-to)
 	      (const :tag "Date less than four days old." date)
 	      (const :tag "To and/or Cc longer than 1024 characters." long-to)
 	      (const :tag "Multiple To and/or Cc headers." many-to))
@@ -1616,6 +1616,22 @@ It is a string, such as \"PGP\". If nil, ask user."
 
 (defcustom gnus-blocked-images 'gnus-block-private-groups
   "Images that have URLs matching this regexp will be blocked.
+Note that the main reason external images are included in HTML
+emails (these days) is to allow tracking whether you've read the
+email message or not.  If you allow loading images in HTML
+emails, you give up privacy.
+
+The default value of this variable blocks loading external
+resources when reading email groups (and therefore stops
+tracking), but allows loading external resources when reading
+from NNTP newsgroups and the like.
+
+People controlling these external resources won't be able to tell
+that any one person in particular has read the message (since
+it's in a public venue, many people will end up loading that
+resource), but they'll be able to tell that somebody from your IP
+address has accessed the resource.
+
 This can also be a function to be evaluated.  If so, it will be
 called with the group name as the parameter, and should return a
 regexp."
@@ -1937,7 +1953,7 @@ always hide."
 		(when (and cc to-list
 			   (ignore-errors
 			     (gnus-string-equal
-			      ;; only one address in CC
+			      ;; only one address in Cc
 			      (nth 1 (mail-extract-address-components cc))
 			      to-list)))
 		  (gnus-article-hide-header "cc"))))

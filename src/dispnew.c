@@ -2508,8 +2508,7 @@ spec_glyph_lookup_face (struct window *w, GLYPH *glyph)
   /* Convert the glyph's specified face to a realized (cache) face.  */
   if (lface_id > 0)
     {
-      int face_id = merge_faces (XFRAME (w->frame),
-				 Qt, lface_id, DEFAULT_FACE_ID);
+      int face_id = merge_faces (w, Qt, lface_id, DEFAULT_FACE_ID);
       SET_GLYPH_FACE (*glyph, face_id);
     }
 }
@@ -5832,8 +5831,7 @@ immediately by pending input.  */)
   if (!NILP (force) && !redisplay_dont_pause)
     specbind (Qredisplay_dont_pause, Qt);
   redisplay_preserve_echo_area (2);
-  unbind_to (count, Qnil);
-  return Qt;
+  return unbind_to (count, Qt);
 }
 
 

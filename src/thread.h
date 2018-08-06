@@ -19,7 +19,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #ifndef THREAD_H
 #define THREAD_H
 
-#include "regex.h"
+#include "regex-emacs.h"
 
 #ifdef WINDOWSNT
 #include <sys/socket.h>
@@ -53,6 +53,9 @@ struct thread_state
 
   /* The thread's function.  */
   Lisp_Object function;
+
+  /* The thread's result, if function has finished.  */
+  Lisp_Object result;
 
   /* If non-nil, this thread has been signaled.  */
   Lisp_Object error_symbol;
@@ -115,8 +118,8 @@ struct thread_state
   struct buffer *m_current_buffer;
 #define current_buffer (current_thread->m_current_buffer)
 
-  /* Every call to re_match, etc., must pass &search_regs as the regs
-     argument unless you can show it is unnecessary (i.e., if re_match
+  /* Every call to re_match_2, etc., must pass &search_regs as the regs
+     argument unless you can show it is unnecessary (i.e., if re_match_2
      is certainly going to be called again before region-around-match
      can be called).
 
@@ -142,15 +145,6 @@ struct thread_state
 
   struct re_registers m_saved_search_regs;
 #define saved_search_regs (current_thread->m_saved_search_regs)
-
-  /* This is the string or buffer in which we
-     are matching.  It is used for looking up syntax properties.
-
-     If the value is a Lisp string object, we are matching text in that
-     string; if it's nil, we are matching text in the current buffer; if
-     it's t, we are matching text in a C string.  */
-  Lisp_Object m_re_match_object;
-#define re_match_object (current_thread->m_re_match_object)
 
   /* This member is different from waiting_for_input.
      It is used to communicate to a lisp process-filter/sentinel (via the

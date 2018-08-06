@@ -850,14 +850,18 @@ If DIRNAME is already in a Dired buffer, that buffer is used without refresh."
 	     (not (eq (car attributes) t))
 	     (equal (nth 5 attributes) modtime)))))
 
+(defvar auto-revert-remote-files)
+
 (defun dired-buffer-stale-p (&optional noconfirm)
   "Return non-nil if current Dired buffer needs updating.
-If NOCONFIRM is non-nil, then this function always returns nil
-for a remote directory.  This feature is used by Auto Revert mode."
+If NOCONFIRM is non-nil, then this function returns nil for a
+remote directory, unless `auto-revert-remote-files' is non-nil.
+This feature is used by Auto Revert mode."
   (let ((dirname
 	 (if (consp dired-directory) (car dired-directory) dired-directory)))
     (and (stringp dirname)
-	 (not (when noconfirm (file-remote-p dirname)))
+	 (not (when noconfirm (and (not auto-revert-remote-files)
+                                   (file-remote-p dirname))))
 	 (file-readable-p dirname)
 	 ;; Do not auto-revert when the dired buffer can be currently
 	 ;; written by the user as in `wdired-mode'.
@@ -1439,7 +1443,8 @@ ARG and NOCONFIRM, passed from `revert-buffer', are ignored."
       (dolist (dir hidden-subdirs)
 	(if (dired-goto-subdir dir)
 	    (dired-hide-subdir 1))))
-    (unless modflag (restore-buffer-modified-p nil)))
+    (unless modflag (restore-buffer-modified-p nil))
+    (hack-dir-local-variables-non-file-buffer))
   ;; outside of the let scope
 ;;;  Might as well not override the user if the user changed this.
 ;;;  (setq buffer-read-only t)
@@ -1797,6 +1802,9 @@ Do so according to the former subdir alist OLD-SUBDIR-ALIST."
     (define-key map [menu-bar immediate create-directory]
       '(menu-item "Create Directory..." dired-create-directory
 		  :help "Create a directory"))
+    (define-key map [menu-bar immediate create-empty-file]
+      '(menu-item "Create Empty file..." dired-create-empty-file
+		  :help "Create an empty file"))
     (define-key map [menu-bar immediate wdired-mode]
       '(menu-item "Edit File Names" wdired-change-to-wdired-mode
 		  :help "Put a Dired buffer in a mode in which filenames are editable"

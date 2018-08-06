@@ -1456,7 +1456,7 @@ x_set_icon_type (struct frame *f, Lisp_Object arg, Lisp_Object oldval)
       if (STRINGP (oldval) && EQ (Fstring_equal (oldval, arg), Qt))
 	return;
     }
-  else if (!STRINGP (oldval) && EQ (oldval, Qnil) == EQ (arg, Qnil))
+  else if (!STRINGP (oldval) && NILP (oldval) == NILP (arg))
     return;
 
   block_input ();
@@ -5321,12 +5321,16 @@ x_frame_list_z_order (Display* dpy, Window window)
 	  Lisp_Object frame, tail;
 
 	  FOR_EACH_FRAME (tail, frame)
-	    /* With a reparenting window manager the parent_desc field
-	       usually specifies the topmost windows of our frames.
-	       Otherwise FRAME_OUTER_WINDOW should do.  */
-	    if (XFRAME (frame)->output_data.x->parent_desc == children[i]
-		|| FRAME_OUTER_WINDOW (XFRAME (frame)) == children[i])
-	      frames = Fcons (frame, frames);
+            {
+              struct frame *cf = XFRAME (frame);
+              /* With a reparenting window manager the parent_desc
+                 field usually specifies the topmost windows of our
+                 frames.  Otherwise FRAME_OUTER_WINDOW should do.  */
+              if (FRAME_X_P (cf)
+                  && (cf->output_data.x->parent_desc == children[i]
+                      || FRAME_OUTER_WINDOW (cf) == children[i]))
+                frames = Fcons (frame, frames);
+            }
 	}
 
       if (children) XFree ((char *)children);
@@ -5718,7 +5722,7 @@ If TERMINAL is omitted or nil, that stands for the selected frame's display.  */
 {
   struct x_display_info *dpyinfo = check_x_display_info (terminal);
 
-  XSynchronize (dpyinfo->display, !EQ (on, Qnil));
+  XSynchronize (dpyinfo->display, !NILP (on));
 
   return Qnil;
 }

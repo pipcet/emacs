@@ -265,7 +265,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
    character to be delivered is a composed character, the iteration
    calls composition_reseat_it and next_element_from_composition.  If
    they succeed to compose the character with one or more of the
-   following characters, the whole sequence of characters that where
+   following characters, the whole sequence of characters that were
    composed is recorded in the `struct composition_it' object that is
    part of the buffer iterator.  The composed sequence could produce
    one or more font glyphs (called "grapheme clusters") on the screen.
@@ -2637,8 +2637,7 @@ safe__call (bool inhibit_quit, ptrdiff_t nargs, Lisp_Object func, va_list ap)
 	 so there is no possibility of wanting to redisplay.  */
       val = internal_condition_case_n (Ffuncall, LV (nargs, args), Qt,
 				       safe_eval_handler);
-      SAFE_FREE ();
-      val = unbind_to (count, val);
+      val = SAFE_FREE_UNBIND_TO (count, val);
     }
 
   return val;
@@ -2809,7 +2808,7 @@ init_iterator (struct it *it, struct window *w,
   /* Perhaps remap BASE_FACE_ID to a user-specified alternative.  */
   if (! NILP (Vface_remapping_alist))
     remapped_base_face_id
-      = lookup_basic_face (XFRAME (w->frame), base_face_id);
+      = lookup_basic_face (w, XFRAME (w->frame), base_face_id);
 
   /* Use one of the mode line rows of W's desired matrix if
      appropriate.  */
@@ -4060,7 +4059,7 @@ handle_face_prop (struct it *it)
 	     might be a big deal.  */
 	  base_face_id = it->string_from_prefix_prop_p
 	    ? (!NILP (Vface_remapping_alist)
-	       ? lookup_basic_face (it->f, DEFAULT_FACE_ID)
+	       ? lookup_basic_face (it->w, it->f, DEFAULT_FACE_ID)
 	       : DEFAULT_FACE_ID)
 	    : underlying_face_id (it);
 	}
@@ -4938,7 +4937,7 @@ handle_single_display_spec (struct it *it, Lisp_Object spec, Lisp_Object object,
       specbind (Qposition, make_number (CHARPOS (*position)));
       specbind (Qbuffer_position, make_number (bufpos));
       form = safe_eval (form);
-      unbind_to (count, Qnil);
+      form = unbind_to (count, form);
     }
 
   if (NILP (form))
@@ -4988,7 +4987,7 @@ handle_single_display_spec (struct it *it, Lisp_Object spec, Lisp_Object object,
 		  struct face *f;
 
 		  f = FACE_FROM_ID (it->f,
-				    lookup_basic_face (it->f, DEFAULT_FACE_ID));
+				    lookup_basic_face (it->w, it->f, DEFAULT_FACE_ID));
 		  new_height = (XFLOATINT (it->font_height)
 				* XINT (f->lface[LFACE_HEIGHT_INDEX]));
 		}
@@ -5001,7 +5000,7 @@ handle_single_display_spec (struct it *it, Lisp_Object spec, Lisp_Object object,
 
 		  specbind (Qheight, face->lface[LFACE_HEIGHT_INDEX]);
 		  value = safe_eval (it->font_height);
-		  unbind_to (count, Qnil);
+		  value = unbind_to (count, value);
 
 		  if (NUMBERP (value))
 		    new_height = XFLOATINT (value);
@@ -5175,12 +5174,12 @@ handle_single_display_spec (struct it *it, Lisp_Object spec, Lisp_Object object,
 
       if (it)
 	{
-	  int face_id = lookup_basic_face (it->f, DEFAULT_FACE_ID);
+	  int face_id = lookup_basic_face (it->w, it->f, DEFAULT_FACE_ID);
 
 	  if (CONSP (XCDR (XCDR (spec))))
 	    {
 	      Lisp_Object face_name = XCAR (XCDR (XCDR (spec)));
-	      int face_id2 = lookup_derived_face (it->f, face_name,
+	      int face_id2 = lookup_derived_face (it->w, it->f, face_name,
 						  FRINGE_FACE_ID, false);
 	      if (face_id2 >= 0)
 		face_id = face_id2;
@@ -6986,7 +6985,7 @@ merge_escape_glyph_face (struct it *it)
   else
     {
       /* Merge the `escape-glyph' face into the current face.  */
-      face_id = merge_faces (it->f, Qescape_glyph, 0, it->face_id);
+      face_id = merge_faces (it->w, Qescape_glyph, 0, it->face_id);
       last_escape_glyph_frame = it->f;
       last_escape_glyph_face_id = it->face_id;
       last_escape_glyph_merged_face_id = face_id;
@@ -7011,7 +7010,7 @@ merge_glyphless_glyph_face (struct it *it)
   else
     {
       /* Merge the `glyphless-char' face into the current face.  */
-      face_id = merge_faces (it->f, Qglyphless_char, 0, it->face_id);
+      face_id = merge_faces (it->w, Qglyphless_char, 0, it->face_id);
       last_glyphless_glyph_frame = it->f;
       last_glyphless_glyph_face_id = it->face_id;
       last_glyphless_glyph_merged_face_id = face_id;
@@ -7185,7 +7184,7 @@ get_next_display_element (struct it *it)
 		    }
 
 		  face_id = (lface_id
-			     ? merge_faces (it->f, Qt, lface_id, it->face_id)
+			     ? merge_faces (it->w, Qt, lface_id, it->face_id)
 			     : merge_escape_glyph_face (it));
 
 		  XSETINT (it->ctl_chars[0], g);
@@ -7200,7 +7199,7 @@ get_next_display_element (struct it *it)
 	      if (nonascii_space_p && EQ (Vnobreak_char_display, Qt))
 		{
 		  /* Merge `nobreak-space' into the current face.  */
-		  face_id = merge_faces (it->f, Qnobreak_space, 0,
+		  face_id = merge_faces (it->w, Qnobreak_space, 0,
 					 it->face_id);
 		  XSETINT (it->ctl_chars[0], ' ');
 		  ctl_len = 1;
@@ -7213,7 +7212,7 @@ get_next_display_element (struct it *it)
 	      if (nonascii_hyphen_p && EQ (Vnobreak_char_display, Qt))
 		{
 		  /* Merge `nobreak-space' into the current face.  */
-		  face_id = merge_faces (it->f, Qnobreak_hyphen, 0,
+		  face_id = merge_faces (it->w, Qnobreak_hyphen, 0,
 					 it->face_id);
 		  XSETINT (it->ctl_chars[0], '-');
 		  ctl_len = 1;
@@ -7233,7 +7232,7 @@ get_next_display_element (struct it *it)
 		}
 
 	      face_id = (lface_id
-			 ? merge_faces (it->f, Qt, lface_id, it->face_id)
+			 ? merge_faces (it->w, Qt, lface_id, it->face_id)
 			 : merge_escape_glyph_face (it));
 
 	      /* Draw non-ASCII space/hyphen with escape glyph: */
@@ -7861,7 +7860,7 @@ next_element_from_display_vector (struct it *it)
 	{
 	  int lface_id = GLYPH_CODE_FACE (gc);
 	  if (lface_id > 0)
-	    it->face_id = merge_faces (it->f, Qt, lface_id,
+	    it->face_id = merge_faces (it->w, Qt, lface_id,
 				       it->saved_face_id);
 	}
 
@@ -7890,7 +7889,7 @@ next_element_from_display_vector (struct it *it)
 		GLYPH_CODE_FACE (it->dpvec[it->current.dpvec_index + 1]);
 
 	      if (lface_id > 0)
-		next_face_id = merge_faces (it->f, Qt, lface_id,
+		next_face_id = merge_faces (it->w, Qt, lface_id,
 					    it->saved_face_id);
 	    }
 	}
@@ -8386,7 +8385,7 @@ next_element_from_buffer (struct it *it)
   eassert (IT_CHARPOS (*it) >= BEGV);
   eassert (NILP (it->string) && !it->s);
   eassert (!it->bidi_p
-	   || (EQ (it->bidi_it.string.lstring, Qnil)
+	   || (NILP (it->bidi_it.string.lstring)
 	       && it->bidi_it.string.s == NULL));
 
   /* With bidi reordering, the character to display might not be the
@@ -16919,6 +16918,7 @@ redisplay_window (Lisp_Object window, bool just_this_one_p)
       /* We used to issue a CHECK_MARGINS argument to try_window here,
 	 but this causes scrolling to fail when point begins inside
 	 the scroll margin (bug#148) -- cyd  */
+      clear_glyph_matrix (w->desired_matrix);
       if (!try_window (window, startp, 0))
 	{
 	  w->force_start = true;
@@ -20086,7 +20086,7 @@ append_space_for_newline (struct it *it, bool default_face_p)
 	  /* If the default face was remapped, be sure to use the
 	     remapped face for the appended newline.  */
 	  if (default_face_p)
-	    it->face_id = lookup_basic_face (it->f, DEFAULT_FACE_ID);
+	    it->face_id = lookup_basic_face (it->w, it->f, DEFAULT_FACE_ID);
 	  else if (it->face_before_selective_p)
 	    it->face_id = it->saved_face_id;
 	  face = FACE_FROM_ID (it->f, it->face_id);
@@ -20233,8 +20233,8 @@ extend_face_to_end_of_line (struct it *it)
     return;
 
   /* The default face, possibly remapped. */
-  default_face = FACE_FROM_ID_OR_NULL (f,
-				       lookup_basic_face (f, DEFAULT_FACE_ID));
+  default_face =
+    FACE_FROM_ID_OR_NULL (f, lookup_basic_face (it->w, f, DEFAULT_FACE_ID));
 
   /* Face extension extends the background and box of IT->face_id
      to the end of the line.  If the background equals the background
@@ -20488,11 +20488,12 @@ trailing_whitespace_p (ptrdiff_t charpos)
 }
 
 
-/* Highlight trailing whitespace, if any, in ROW.  */
+/* Highlight trailing whitespace, if any, in row at IT.  */
 
 static void
-highlight_trailing_whitespace (struct frame *f, struct glyph_row *row)
+highlight_trailing_whitespace (struct it *it)
 {
+  struct glyph_row *row = it->glyph_row;
   int used = row->used[TEXT_AREA];
 
   if (used)
@@ -20537,7 +20538,7 @@ highlight_trailing_whitespace (struct frame *f, struct glyph_row *row)
 		  && glyph->u.ch == ' '))
 	  && trailing_whitespace_p (glyph->charpos))
 	{
-	  int face_id = lookup_named_face (f, Qtrailing_whitespace, false);
+	  int face_id = lookup_named_face (it->w, it->f, Qtrailing_whitespace, false);
 	  if (face_id < 0)
 	    return;
 
@@ -21109,9 +21110,9 @@ maybe_produce_line_number (struct it *it)
   char lnum_buf[INT_STRLEN_BOUND (ptrdiff_t) + 1];
   bool beyond_zv = IT_BYTEPOS (*it) >= ZV_BYTE ? true : false;
   ptrdiff_t lnum_offset = -1; /* to produce 1-based line numbers */
-  int lnum_face_id = merge_faces (it->f, Qline_number, 0, DEFAULT_FACE_ID);
+  int lnum_face_id = merge_faces (it->w, Qline_number, 0, DEFAULT_FACE_ID);
   int current_lnum_face_id
-    = merge_faces (it->f, Qline_number_current_line, 0, DEFAULT_FACE_ID);
+    = merge_faces (it->w, Qline_number_current_line, 0, DEFAULT_FACE_ID);
   /* Compute point's line number if needed.  */
   if ((EQ (Vdisplay_line_numbers, Qrelative)
        || EQ (Vdisplay_line_numbers, Qvisual)
@@ -21561,7 +21562,8 @@ display_line (struct it *it, int cursor_vpos)
 	     portions of the screen will clear with the default face's
 	     background color.  */
 	  if (row->reversed_p
-	      || lookup_basic_face (it->f, DEFAULT_FACE_ID) != DEFAULT_FACE_ID)
+	      || lookup_basic_face (it->w, it->f, DEFAULT_FACE_ID)
+              != DEFAULT_FACE_ID)
 	    extend_face_to_end_of_line (it);
 	  break;
 	}
@@ -22194,7 +22196,7 @@ display_line (struct it *it, int cursor_vpos)
 
   /* Highlight trailing whitespace.  */
   if (!NILP (Vshow_trailing_whitespace))
-    highlight_trailing_whitespace (it->f, it->glyph_row);
+    highlight_trailing_whitespace (it);
 
   /* Compute pixel dimensions of this line.  */
   compute_line_metrics (it);
@@ -23517,6 +23519,17 @@ move_elt_to_front (Lisp_Object elt, Lisp_Object list)
   return list;
 }
 
+/* Subroutine to call Fset_text_properties through
+   internal_condition_case_n.  ARGS are the arguments of
+   Fset_text_properties, in order.  */
+
+static Lisp_Object
+safe_set_text_properties (ptrdiff_t nargs, Lisp_Object *args)
+{
+  eassert (nargs == 4);
+  return Fset_text_properties (args[0], args[1], args[2], args[3]);
+}
+
 /* Contribute ELT to the mode line for window IT->w.  How it
    translates into text depends on its data type.
 
@@ -23611,8 +23624,17 @@ display_mode_element (struct it *it, int depth, int field_width, int precision,
 			= Fdelq (aelt, mode_line_proptrans_alist);
 
 		    elt = Fcopy_sequence (elt);
-		    Fset_text_properties (make_number (0), Flength (elt),
-					  props, elt);
+		    /* PROPS might cause set-text-properties to signal
+		       an error, so we call it via internal_condition_case_n,
+		       to avoid an infloop in redisplay due to the error.  */
+		    internal_condition_case_n (safe_set_text_properties,
+					       4,
+					       ((Lisp_Object [])
+					       {make_number (0),
+						   Flength (elt),
+						   props,
+						   elt}),
+					       Qt, safe_eval_handler);
 		    /* Add this item to mode_line_proptrans_alist.  */
 		    mode_line_proptrans_alist
 		      = Fcons (Fcons (elt, props),
@@ -24184,8 +24206,7 @@ are the selected window and the WINDOW's buffer).  */)
 			empty_unibyte_string);
     }
 
-  unbind_to (count, Qnil);
-  return str;
+  return unbind_to (count, str);
 }
 
 /* Write a null-terminated, right justified decimal representation of
@@ -24805,7 +24826,7 @@ decode_mode_spec (struct window *w, register int c, int field_width,
 	if (STRINGP (curdir))
 	  val = call1 (intern ("file-remote-p"), curdir);
 
-	unbind_to (count, Qnil);
+	val = unbind_to (count, val);
 
 	if (NILP (val))
 	  return "-";
@@ -27864,7 +27885,7 @@ calc_line_height_property (struct it *it, Lisp_Object val, struct font *font,
       int face_id;
       struct face *face;
 
-      face_id = lookup_named_face (it->f, face_name, false);
+      face_id = lookup_named_face (it->w, it->f, face_name, false);
       face = FACE_FROM_ID_OR_NULL (it->f, face_id);
       if (face == NULL || ((font = face->font) == NULL))
 	return make_number (-1);
@@ -32449,7 +32470,12 @@ syms_of_xdisp (void)
 
   DEFVAR_BOOL("inhibit-message", inhibit_message,
               doc:  /* Non-nil means calls to `message' are not displayed.
-They are still logged to the *Messages* buffer.  */);
+They are still logged to the *Messages* buffer.
+
+Do NOT set this globally to a non-nil value, as doing that will
+disable messages everywhere, including in I-search and other
+places where they are necessary.  This variable is intended to
+be let-bound around code that needs to disable messages temporarily. */);
   inhibit_message = 0;
 
   staticpro (&message_dolog_marker1, Fmake_marker ());
@@ -32826,8 +32852,10 @@ mouse pointer enters it.
 Autoselection selects the minibuffer only if it is active, and never
 unselects the minibuffer if it is active.
 
-When customizing this variable make sure that the actual value of
-`focus-follows-mouse' matches the behavior of your window manager.  */);
+If you want to use the mouse to autoselect a window on another frame,
+make sure that (1) your window manager has focus follow the mouse and
+(2) the value of the option `focus-follows-mouse' matches the policy
+of your window manager.  */);
   Vmouse_autoselect_window = Qnil;
 
   DEFVAR_LISP ("auto-resize-tool-bars", Vauto_resize_tool_bars,

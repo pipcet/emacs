@@ -63,7 +63,8 @@ But it is possible to add elements to the list, or remove elements.
 
 @defun sequencep object
 This function returns @code{t} if @var{object} is a list, vector,
-string, bool-vector, or char-table, @code{nil} otherwise.
+string, bool-vector, or char-table, @code{nil} otherwise.  See also
+@code{seqp} below.
 @end defun
 
 @defun length sequence
@@ -71,11 +72,13 @@ string, bool-vector, or char-table, @code{nil} otherwise.
 @cindex list length
 @cindex vector length
 @cindex sequence length
+@cindex bool-vector length
 @cindex char-table length
 @anchor{Definition of length}
-This function returns the number of elements in @var{sequence}.  If
-@var{sequence} is a dotted list, a @code{wrong-type-argument} error is
-signaled.  Circular lists may cause an infinite loop.  For a
+This function returns the number of elements in @var{sequence}.  The
+function signals the @code{wrong-type-argument} error if the argument
+is not a sequence or is a dotted list; it signals the
+@code{circular-list} error if the argument is a circular list.  For a
 char-table, the value returned is always one more than the maximum
 Emacs character code.
 
@@ -474,10 +477,11 @@ built-in sequence types, @code{seq-length} behaves like @code{length}.
 @xref{Definition of length}.
 @end defun
 
-@defun seqp sequence
-  This function returns non-@code{nil} if @var{sequence} is a sequence
+@defun seqp object
+  This function returns non-@code{nil} if @var{object} is a sequence
 (a list or array), or any additional type of sequence defined via
-@file{seq.el} generic functions.
+@file{seq.el} generic functions.  This is an extensible variant of
+@code{sequencep}.
 
 @example
 @group
@@ -1353,7 +1357,7 @@ each initialized to @var{object}.
 @defun vconcat &rest sequences
 @cindex copying vectors
 This function returns a new vector containing all the elements of
-@var{sequences}.  The arguments @var{sequences} may be true lists,
+@var{sequences}.  The arguments @var{sequences} may be proper lists,
 vectors, strings or bool-vectors.  If no @var{sequences} are given,
 the empty vector is returned.
 

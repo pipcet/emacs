@@ -614,14 +614,16 @@ with a prefix argument."
 
 (declare-function mailcap-file-default-commands "mailcap" (files))
 
+(defvar dired-aux-files)
+
 (defun minibuffer-default-add-dired-shell-commands ()
   "Return a list of all commands associated with current dired files.
 This function is used to add all related commands retrieved by `mailcap'
 to the end of the list of defaults just after the default value."
   (interactive)
-  (let* ((files minibuffer-completion-table)
-         (commands (and (require 'mailcap nil t)
-                        (mailcap-file-default-commands files))))
+  (let ((commands (and (boundp 'dired-aux-files)
+		       (require 'mailcap nil t)
+		       (mailcap-file-default-commands dired-aux-files))))
     (if (listp minibuffer-default)
 	(append minibuffer-default commands)
       (cons minibuffer-default commands))))
@@ -639,9 +641,9 @@ This normally reads using `read-shell-command', but if the
 offer a smarter default choice of shell command."
   (minibuffer-with-setup-hook
       (lambda ()
-        (set (make-local-variable 'minibuffer-completion-table) files)
-	(set (make-local-variable 'minibuffer-default-add-function)
-	     'minibuffer-default-add-dired-shell-commands))
+	(setq-local dired-aux-files files)
+	(setq-local minibuffer-default-add-function
+		    #'minibuffer-default-add-dired-shell-commands))
     (setq prompt (format prompt (dired-mark-prompt arg files)))
     (if (functionp 'dired-guess-shell-command)
 	(dired-mark-pop-up nil 'shell files
@@ -1987,6 +1989,19 @@ Optional arg HOW-TO determines how to treat the target.
       dired-dirs)))
 
 
+
+;; We use this function in `dired-create-directory' and
+;; `dired-create-empty-file'; the return value is the new entry
+;; in the updated Dired buffer.
+(defun dired--find-topmost-parent-dir (filename)
+  "Return the topmost nonexistent parent dir of FILENAME.
+FILENAME is a full file name."
+  (let ((try filename) new)
+    (while (and try (not (file-exists-p try)) (not (equal new try)))
+      (setq new try
+	    try (directory-file-name (file-name-directory try))))
+    new))
+
 ;;;###autoload
 (defun dired-create-directory (directory)
   "Create a directory called DIRECTORY.
@@ -1995,14 +2010,28 @@ If DIRECTORY already exists, signal an error."
   (interactive
    (list (read-file-name "Create directory: " (dired-current-directory))))
   (let* ((expanded (directory-file-name (expand-file-name directory)))
-	 (try expanded) new)
+	 new)
     (if (file-exists-p expanded)
 	(error "Cannot create directory %s: file exists" expanded))
-    ;; Find the topmost nonexistent parent dir (variable `new')
-    (while (and try (not (file-exists-p try)) (not (equal new try)))
-      (setq new try
-	    try (directory-file-name (file-name-directory try))))
+    (setq new (dired--find-topmost-parent-dir expanded))
     (make-directory expanded t)
+    (when new
+      (dired-add-file new)
+      (dired-move-to-filename))))
+
+;;;###autoload
+(defun dired-create-empty-file (file)
+  "Create an empty file called FILE.
+ Add a new entry for the new file in the Dired buffer.
+ Parent directories of FILE are created as needed.
+ If FILE already exists, signal an error."
+  (interactive (list (read-file-name "Create empty file: ")))
+  (let* ((expanded (expand-file-name file))
+         new)
+    (if (file-exists-p expanded)
+        (error "Cannot create file %s: file exists" expanded))
+    (setq new (dired--find-topmost-parent-dir expanded))
+    (make-empty-file file 'parents)
     (when new
       (dired-add-file new)
       (dired-move-to-filename))))
@@ -2854,11 +2883,11 @@ REGEXP should use constructs supported by your local `grep' command."
   (interactive "sSearch marked files (regexp): ")
   (require 'grep)
   (defvar grep-find-ignored-files)
-  (defvar grep-find-ignored-directories)
+  (declare-function rgrep-find-ignored-directories "grep" (dir))
   (let* ((files (dired-get-marked-files nil nil nil nil t))
          (ignores (nconc (mapcar
                           (lambda (s) (concat s "/"))
-                          grep-find-ignored-directories)
+                          (rgrep-find-ignored-directories default-directory))
                          grep-find-ignored-files))
          (xrefs (mapcan
                  (lambda (file)

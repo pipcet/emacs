@@ -165,10 +165,12 @@
                 :type 'overflow-error)
   (should-error (read (substring (format "%d" most-negative-fixnum) 1))
                 :type 'overflow-error)
-  (should-error (read (format "#x%x" most-negative-fixnum))
-                :type 'overflow-error)
-  (should-error (read (format "#o%o" most-negative-fixnum))
-                :type 'overflow-error)
+  (let ((binary-as-unsigned nil))
+    (dolist (fmt '("%d" "%s" "#o%o" "#x%x"))
+      (dolist (val (list most-negative-fixnum (1+ most-negative-fixnum)
+                         -1 0 1
+                         (1- most-positive-fixnum) most-positive-fixnum))
+        (should (eq val (read (format fmt val)))))))
   (should-error (read (format "#32rG%x" most-positive-fixnum))
                 :type 'overflow-error))
 
@@ -176,6 +178,14 @@
   (should-error (format "%o" -1e-37)
                 :type 'overflow-error))
 
+;; Bug#31938
+(ert-deftest format-%d-float ()
+  (should (string-equal (format "%d" -1.1) "-1"))
+  (should (string-equal (format "%d" -0.9) "0"))
+  (should (string-equal (format "%d" -0.0) "0"))
+  (should (string-equal (format "%d" 0.0) "0"))
+  (should (string-equal (format "%d" 0.9) "0"))
+  (should (string-equal (format "%d" 1.1) "1")))
 
 ;;; Check format-time-string with various TZ settings.
 ;;; Use only POSIX-compatible TZ values, since the tests should work
@@ -287,6 +297,17 @@
         (should (equal-including-properties
                  (buffer-string)
                  "foo bar baz qux"))))))
+
+(ert-deftest replace-buffer-contents-bug31837 ()
+  (switch-to-buffer "a")
+  (insert-char (char-from-name "SMILE"))
+  (insert "1234")
+  (switch-to-buffer "b")
+  (insert-char (char-from-name "SMILE"))
+  (insert "5678")
+  (replace-buffer-contents "a")
+  (should (equal (buffer-substring-no-properties (point-min) (point-max))
+                 (concat (string (char-from-name "SMILE")) "1234"))))
 
 (ert-deftest delete-region-undo-markers-1 ()
   "Make sure we don't end up with freed markers reachable from Lisp."

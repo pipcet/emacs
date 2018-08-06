@@ -683,7 +683,7 @@ invoke_thread_function (void)
 {
   ptrdiff_t count = SPECPDL_INDEX ();
 
-  Ffuncall (LV (1, &current_thread->function));
+  current_thread->result = Ffuncall (LV (1, &current_thread->function));
   return unbind_to (count, Qnil);
 }
 
@@ -792,6 +792,7 @@ If NAME is given, it must be a string; it names the new thread.  */)
   new_thread->m_last_thing_searched = Qnil; /* copy from parent? */
   new_thread->m_saved_last_thing_searched = Qnil;
   new_thread->m_current_buffer = current_thread->m_current_buffer;
+  new_thread->result = Qnil;
   new_thread->error_symbol = Qnil;
   new_thread->error_data = Qnil;
   new_thread->event_object = Qnil;
@@ -937,12 +938,13 @@ thread_join_callback (void *arg)
 
 DEFUN ("thread-join", Fthread_join, Sthread_join, 1, 1, 0,
        doc: /* Wait for THREAD to exit.
-This blocks the current thread until THREAD exits or until
-the current thread is signaled.
-It is an error for a thread to try to join itself.  */)
+This blocks the current thread until THREAD exits or until the current
+thread is signaled.  It returns the result of the THREAD function.  It
+is an error for a thread to try to join itself.  */)
   (Lisp_Object thread)
 {
   struct thread_state *tstate;
+  Lisp_Object error_symbol, error_data;
 
   CHECK_THREAD (thread);
   tstate = XTHREAD (thread);
@@ -950,10 +952,16 @@ It is an error for a thread to try to join itself.  */)
   if (tstate == current_thread)
     error ("Cannot join current thread");
 
+  error_symbol = tstate->error_symbol;
+  error_data = tstate->error_data;
+
   if (thread_alive_p (tstate))
     flush_stack_call_func (thread_join_callback, tstate);
 
-  return Qnil;
+  if (!NILP (error_symbol))
+    Fsignal (error_symbol, error_data);
+
+  return tstate->result;
 }
 
 DEFUN ("all-threads", Fall_threads, Sall_threads, 0, 0, 0,
@@ -977,11 +985,17 @@ DEFUN ("all-threads", Fall_threads, Sall_threads, 0, 0, 0,
   return result;
 }
 
-DEFUN ("thread-last-error", Fthread_last_error, Sthread_last_error, 0, 0, 0,
-       doc: /* Return the last error form recorded by a dying thread.  */)
-  (void)
+DEFUN ("thread-last-error", Fthread_last_error, Sthread_last_error, 0, 1, 0,
+       doc: /* Return the last error form recorded by a dying thread.
+If CLEANUP is non-nil, remove this error form from history.  */)
+     (Lisp_Object cleanup)
 {
-  return last_thread_error;
+  Lisp_Object result = last_thread_error;
+
+  if (!NILP (cleanup))
+    last_thread_error = Qnil;
+
+  return result;
 }
 
 
@@ -1015,6 +1029,7 @@ init_main_thread (void)
   main_thread.m_saved_last_thing_searched = Qnil;
   main_thread.name = Qnil;
   main_thread.function = Qnil;
+  main_thread.result = Qnil;
   main_thread.error_symbol = Qnil;
   main_thread.error_data = Qnil;
   main_thread.event_object = Qnil;
@@ -1079,9 +1094,19 @@ syms_of_threads (void)
       defsubr (&Sthread_last_error);
 
       staticpro (&last_thread_error, Qnil);
+
+      Fprovide (intern_c_string ("threads"), Qnil);
     }
 
   DEFSYM (Qthreadp, "threadp");
   DEFSYM (Qmutexp, "mutexp");
   DEFSYM (Qcondition_variable_p, "condition-variable-p");
+
+  DEFVAR_LISP ("main-thread", Vmain_thread,
+    doc: /* The main thread of Emacs.  */);
+#ifdef THREADS_ENABLED
+  XSETTHREAD (Vmain_thread, &main_thread);
+#else
+  Vmain_thread = Qnil;
+#endif
 }

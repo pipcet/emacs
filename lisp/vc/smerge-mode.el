@@ -1075,9 +1075,10 @@ used to replace chars to try and eliminate some spurious differences."
           (if smerge-refine-weight-hack (make-hash-table :test #'equal))))
     (unless (markerp beg1) (setq beg1 (copy-marker beg1)))
     (unless (markerp beg2) (setq beg2 (copy-marker beg2)))
-    ;; Chop up regions into smaller elements and save into files.
-    (smerge--refine-chopup-region beg1 end1 file1 preproc)
-    (smerge--refine-chopup-region beg2 end2 file2 preproc)
+    (let ((write-region-inhibit-fsync t)) ; Don't fsync temp files (Bug#12747).
+      ;; Chop up regions into smaller elements and save into files.
+      (smerge--refine-chopup-region beg1 end1 file1 preproc)
+      (smerge--refine-chopup-region beg2 end2 file2 preproc))
 
     ;; Call diff on those files.
     (unwind-protect
@@ -1398,9 +1399,7 @@ with a \\[universal-argument] prefix, makes up a 3-way conflict."
 ;;;###autoload
 (define-minor-mode smerge-mode
   "Minor mode to simplify editing output from the diff3 program.
-With a prefix argument ARG, enable the mode if ARG is positive,
-and disable it otherwise.  If called from Lisp, enable the mode
-if ARG is omitted or nil.
+
 \\{smerge-mode-map}"
   :group 'smerge :lighter " SMerge"
   (when (and (boundp 'font-lock-mode) font-lock-mode)

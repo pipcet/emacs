@@ -560,9 +560,17 @@ It is the default value of the variable `top-level'."
 	    (if default-directory
 		(setq default-directory
                       (if (eq system-type 'windows-nt)
-                          ;; Convert backslashes to forward slashes.
-                          (expand-file-name
-                           (decode-coding-string default-directory coding t))
+                          ;; We pass the decoded default-directory as
+                          ;; the 2nd arg to expand-file-name to make
+                          ;; sure it sees a multibyte string as the
+                          ;; default directory; this avoids the side
+                          ;; effect of returning a unibyte string from
+                          ;; expand-file-name because it still sees
+                          ;; the undecoded value of default-directory.
+                          (let ((defdir (decode-coding-string default-directory
+                                                              coding t)))
+                            ;; Convert backslashes to forward slashes.
+                            (expand-file-name defdir defdir))
                         (decode-coding-string default-directory coding t))))))
 
 	;; Decode all the important variables and directory lists, now
@@ -1118,11 +1126,11 @@ please check its value")
   ;; Re-evaluate predefined variables whose initial value depends on
   ;; the runtime context.
   (let (current-load-list) ; c-r-s may call defvar, and hence LOADHIST_ATTACH
-    (mapc 'custom-reevaluate-setting
+    (setq custom-delayed-init-variables
           ;; Initialize them in the same order they were loaded, in case there
           ;; are dependencies between them.
-          (prog1 (nreverse custom-delayed-init-variables)
-            (setq custom-delayed-init-variables nil))))
+          (nreverse custom-delayed-init-variables))
+    (mapc 'custom-reevaluate-setting custom-delayed-init-variables))
 
   ;; Warn for invalid user name.
   (when init-file-user
@@ -1254,6 +1262,13 @@ please check its value")
     (startup--setup-quote-display)
     (setq internal--text-quoting-flag t))
 
+  ;; Re-evaluate again the predefined variables whose initial value
+  ;; depends on the runtime context, in case some of them depend on
+  ;; the window-system features.  Example: blink-cursor-mode.
+  (let (current-load-list) ; c-r-s may call defvar, and hence LOADHIST_ATTACH
+    (mapc 'custom-reevaluate-setting custom-delayed-init-variables)
+    (setq custom-delayed-init-variables nil))
+
   (normal-erase-is-backspace-setup-frame)
 
   ;; Register default TTY colors for the case the terminal hasn't a
@@ -1279,11 +1294,10 @@ please check its value")
     ;; should check init-file-user instead, since that is already set.
     ;; See cus-edit.el for an example.
     (if site-run-file
-	(load site-run-file t t))
-
-    ;; Sites should not disable this.  Only individuals should disable
-    ;; the startup screen.
-    (setq inhibit-startup-screen nil)
+        ;; Sites should not disable the startup screen.
+        ;; Only individuals should disable the startup screen.
+        (let ((inhibit-startup-screen inhibit-startup-screen))
+	  (load site-run-file t t)))
 
     ;; Load that user's init file, or the default one, or none.
     (load-user-init-file
@@ -1885,7 +1899,8 @@ we put it on this frame."
       (if (and (frame-visible-p frame)
 	       (not (window-minibuffer-p (frame-selected-window frame))))
 	  (setq chosen-frame frame)))
-    chosen-frame))
+    ;; If there are no visible frames yet, try the selected one.
+    (or chosen-frame (selected-frame))))
 
 (defun use-fancy-splash-screens-p ()
   "Return t if fancy splash screens should be used."

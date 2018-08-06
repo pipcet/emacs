@@ -285,8 +285,8 @@ The string is based on `url-privacy-level' and `url-user-agent'."
     (if ua-string (format "User-Agent: %s\r\n" (string-trim ua-string)) "")))
 
 (defun url-http-create-request ()
-  "Create an HTTP request for `url-http-target-url', using `url-http-referer'
-as the Referer-header (subject to `url-privacy-level'."
+  "Create an HTTP request for `url-http-target-url'.
+Use `url-http-referer' as the Referer-header (subject to `url-privacy-level')."
   (let* ((extra-headers)
 	 (request nil)
 	 (no-cache (cdr-safe (assoc "Pragma" url-http-extra-headers)))
@@ -1412,7 +1412,9 @@ The return value of this function is the retrieval buffer."
                         'url-http-wait-for-headers-change-function)
                   (set-process-filter tls-connection 'url-http-generic-filter)
                   (process-send-string tls-connection
-                                       (url-http-create-request)))
+                                       ;; Use the non-proxy form of the request
+                                       (let (url-http-proxy)
+                                         (url-http-create-request))))
               (gnutls-error
                (url-http-activate-callback)
                (error "gnutls-error: %s" e))
@@ -1600,7 +1602,6 @@ p3p
 
 ;; HTTPS.  This used to be in url-https.el, but that file collides
 ;; with url-http.el on systems with 8-character file names.
-(require 'tls)
 
 (defconst url-https-asynchronous-p t "HTTPS retrievals are asynchronous.")
 

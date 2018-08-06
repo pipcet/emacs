@@ -374,7 +374,9 @@ Notice that using \\[next-error] or \\[compile-goto-error] modifies
               ;; to handle weird file names (with colons in them) as
               ;; well as possible.  E.g., use [1-9][0-9]* rather than
               ;; [0-9]+ so as to accept ":034:" in file names.
-              "\\(?1:[^\n:]+?[^\n/:]\\):[\t ]*\\(?2:[1-9][0-9]*\\)[\t ]*:"
+              "\\(?1:"
+              "\\(?:[a-zA-Z]:\\)?" ; Allow "C:..." for w32.
+              "[^\n:]+?[^\n/:]\\):[\t ]*\\(?2:[1-9][0-9]*\\)[\t ]*:"
               "\\)")
      1 2
      ;; Calculate column positions (col . end-col) of first grep match on a line
@@ -632,22 +634,22 @@ This function is called from `compilation-filter-hook'."
 			  ;; `grep-command' is already set, so
 			  ;; use that for testing.
 			  (grep-probe grep-command
-				      `(nil t nil "^English" ,hello-file)
+				      `(nil t nil "^Copyright" ,hello-file)
 				      #'call-process-shell-command)
 			;; otherwise use `grep-program'
 			(grep-probe grep-program
-				    `(nil t nil "-nH" "^English" ,hello-file)))
+				    `(nil t nil "-nH" "^Copyright" ,hello-file)))
 		      (progn
 			(goto-char (point-min))
 			(looking-at
 			 (concat (regexp-quote hello-file)
-				 ":[0-9]+:English")))))))))
+				 ":[0-9]+:Copyright")))))))))
 
     (when (eq grep-use-null-filename-separator 'auto-detect)
       (setq grep-use-null-filename-separator
             (with-temp-buffer
               (let* ((hello-file (expand-file-name "HELLO" data-directory))
-                     (args `("--null" "-ne" "^English" ,hello-file)))
+                     (args `("--null" "-ne" "^Copyright" ,hello-file)))
                 (if grep-use-null-device
                     (setq args (append args (list null-device)))
                   (push "-H" args))
@@ -656,7 +658,7 @@ This function is called from `compilation-filter-hook'."
                        (goto-char (point-min))
                        (looking-at
                         (concat (regexp-quote hello-file)
-                                "\0[0-9]+:English"))))))))
+                                "\0[0-9]+:Copyright"))))))))
 
     (when (eq grep-highlight-matches 'auto-detect)
       (setq grep-highlight-matches

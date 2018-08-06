@@ -30,6 +30,15 @@
 ;; This distinction is to support indexing of computer programming
 ;; language terms that may contain ":" but not ": ".
 
+;; The commands in this file should start either with "Info-" or with
+;; "info-".  The capitalized version is for commands that are bound to
+;; keys, and therefore are unlikely to be invoked by name via "M-x";
+;; the lower-case version is for commands invoked by name.  This
+;; arrangement makes completion of "info-" commands work better,
+;; because the "Info-" commands (of which there are a lot) don't get
+;; in the way.  Please adhere to this convention when you add commands
+;; here.
+
 ;;; Code:
 
 (eval-when-compile (require 'cl-lib))
@@ -3929,8 +3938,8 @@ If FORK is a string, it is the name to use for the new buffer."
 If FORK is non-nil, it is passed to `Info-goto-node'."
   (let (node)
     (cond
-     ((setq node (Info-get-token (point) "[hf]t?tps?://"
-				 "\\([hf]t?tps?://[^ \t\n\"`‘({<>})’']+\\)"))
+     ((setq node (Info-get-token (point) "\\(?:f\\(?:ile\\|tp\\)\\|https?\\)://"
+				 "\\(\\(?:f\\(?:ile\\|tp\\)\\|https?\\)://[^ \t\n\"`‘({<>})’']+\\)"))
       (browse-url node)
       (setq node t))
      ((setq node (Info-get-token (point) "\\*note[ \n\t]+"

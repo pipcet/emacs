@@ -84,7 +84,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #include "composite.h"
 #include "dispextern.h"
 #include "ptr-bounds.h"
-#include "regex.h"
+#include "regex-emacs.h"
 #include "sheap.h"
 #include "syntax.h"
 #include "sysselect.h"
@@ -716,10 +716,12 @@ main (int argc, char **argv)
   bool disable_aslr = dumping;
 # endif
 
-  if (disable_aslr && disable_address_randomization ())
+  if (disable_aslr && disable_address_randomization ()
+      && !getenv ("EMACS_HEAP_EXEC"))
     {
       /* Set this so the personality will be reverted before execs
-	 after this one.  */
+	 after this one, and to work around an re-exec loop on buggy
+	 kernels (Bug#32083).  */
       xputenv ("EMACS_HEAP_EXEC=true");
 
       /* Address randomization was enabled, but is now disabled.
@@ -848,9 +850,9 @@ main (int argc, char **argv)
     {
       rlim_t lim = rlim.rlim_cur;
 
-      /* Approximate the amount regex.c needs per unit of
+      /* Approximate the amount regex-emacs.c needs per unit of
 	 emacs_re_max_failures, then add 33% to cover the size of the
-	 smaller stacks that regex.c successively allocates and
+	 smaller stacks that regex-emacs.c successively allocates and
 	 discards on its way to the maximum.  */
       int min_ratio = 20 * sizeof (char *);
       int ratio = min_ratio + min_ratio / 3;
@@ -889,7 +891,7 @@ main (int argc, char **argv)
 		lim = newlim;
 	    }
 	}
-      /* If the stack is big enough, let regex.c more of it before
+      /* If the stack is big enough, let regex-emacs.c more of it before
          falling back to heap allocation.  */
       emacs_re_safe_alloca = max
         (min (lim - extra, SIZE_MAX) * (min_ratio / ratio),
@@ -1074,7 +1076,7 @@ main (int argc, char **argv)
 #endif /* HAVE_LIBSYSTEMD */
 
 #ifdef USE_GTK
-      fprintf (stderr, "\nWarning: due to a long standing Gtk+ bug\nhttp://bugzilla.gnome.org/show_bug.cgi?id=85715\n\
+      fprintf (stderr, "\nWarning: due to a long standing Gtk+ bug\nhttps://gitlab.gnome.org/GNOME/gtk/issues/221\n\
 Emacs might crash when run in daemon mode and the X11 connection is unexpectedly lost.\n\
 Using an Emacs configured with --with-x-toolkit=lucid does not have this problem.\n");
 #endif /* USE_GTK */
@@ -2024,6 +2026,10 @@ all of which are called before Emacs is actually killed.  */
 {
   int exit_code;
 
+#ifdef HAVE_LIBSYSTEMD
+  sd_notify(0, "STOPPING=1");
+#endif /* HAVE_LIBSYSTEMD */
+
   /* Fsignal calls emacs_abort () if it sees that waiting_for_input is
      set.  */
   waiting_for_input = 0;
@@ -2483,6 +2489,13 @@ from the parent process and its tty file descriptors.  */)
   if (NILP (Vafter_init_time))
     error ("This function can only be called after loading the init files");
 #ifndef WINDOWSNT
+
+  if (daemon_type == 1)
+    {
+#ifdef HAVE_LIBSYSTEMD
+      sd_notify(0, "READY=1");
+#endif /* HAVE_LIBSYSTEMD */
+    }
 
   if (daemon_type == 2)
     {

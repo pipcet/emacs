@@ -263,9 +263,6 @@ This backup prevents any accidental clearance of `hide-fidef-env' by
 ;;;###autoload
 (define-minor-mode hide-ifdef-mode
   "Toggle features to hide/show #ifdef blocks (Hide-Ifdef mode).
-With a prefix argument ARG, enable Hide-Ifdef mode if ARG is
-positive, and disable it otherwise.  If called from Lisp, enable
-the mode if ARG is omitted or nil.
 
 Hide-Ifdef mode is a buffer-local minor mode for use with C and
 C-like major modes.  When enabled, code within #ifdef constructs
@@ -1628,7 +1625,7 @@ not be expanded."
          ((integerp result)
           (if (or (= 0 result) (= 1 result))
               (message "%S <= `%s'" result exprstring)
-            (message "%S (0x%x) <= `%s'" result result exprstring)))
+            (message "%S (%#x) <= `%s'" result result exprstring)))
          ((null result) (message "%S <= `%s'" 'false exprstring))
          ((eq t result) (message "%S <= `%s'" 'true exprstring))
          (t (message "%S <= `%s'" result exprstring)))

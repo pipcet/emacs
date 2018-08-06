@@ -498,7 +498,7 @@ its argument list allows full Common Lisp conventions."
       ;; `&aux' args aren't arguments, so let's just drop them from the
       ;; usage info.
       (setq arglist (cl-subseq arglist 0 aux))))
-  (if (cdr-safe (last arglist))         ;Not a proper list.
+  (if (not (proper-list-p arglist))
       (let* ((last (last arglist))
              (tail (cdr last)))
         (unwind-protect
@@ -1998,12 +1998,15 @@ a `let' form, except that the list of symbols can be computed at run-time."
 ;;;###autoload
 (defmacro cl-flet (bindings &rest body)
   "Make local function definitions.
-Like `cl-labels' but the definitions are not recursive.
-Each binding can take the form (FUNC EXP) where
+Each definition can take the form (FUNC EXP) where
 FUNC is the function name, and EXP is an expression that returns the
 function value to which it should be bound, or it can take the more common
 form \(FUNC ARGLIST BODY...) which is a shorthand
 for (FUNC (lambda ARGLIST BODY)).
+
+FUNC is defined only within FORM, not BODY, so you can't write
+recursive function definitions.  Use `cl-labels' for that.  See
+info node `(cl) Function Bindings' for details.
 
 \(fn ((FUNC ARGLIST BODY...) ...) FORM...)"
   (declare (indent 1) (debug ((&rest (cl-defun)) cl-declarations body)))
@@ -2046,9 +2049,13 @@ Like `cl-flet' but the definitions can refer to previous ones.
 
 ;;;###autoload
 (defmacro cl-labels (bindings &rest body)
-  "Make temporary function bindings.
-The bindings can be recursive and the scoping is lexical, but capturing them
-in closures will only work if `lexical-binding' is in use.
+    "Make local (recursive) function definitions.
+Each definition can take the form (FUNC ARGLIST BODY...) where
+FUNC is the function name, ARGLIST its arguments, and BODY the
+forms of the function body.  FUNC is defined in any BODY, as well
+as FORM, so you can write recursive and mutually recursive
+function definitions.  See info node `(cl) Function Bindings' for
+details.
 
 \(fn ((FUNC ARGLIST BODY...) ...) FORM...)"
   (declare (indent 1) (debug cl-flet))
@@ -2076,10 +2083,7 @@ This is like `cl-flet', but for macros instead of functions.
 
 \(fn ((NAME ARGLIST BODY...) ...) FORM...)"
   (declare (indent 1)
-           (debug
-            ((&rest (&define name (&rest arg) cl-declarations-or-string
-                             def-body))
-             cl-declarations body)))
+           (debug (cl-macrolet-expr)))
   (if (cdr bindings)
       `(cl-macrolet (,(car bindings)) (cl-macrolet ,(cdr bindings) ,@body))
     (if (null bindings) (macroexp-progn body)
@@ -2964,10 +2968,10 @@ non-nil value, that slot cannot be set via `setf'.
 
 ;;;###autoload
 (pcase-defmacro cl-struct (type &rest fields)
-  "Pcase patterns to match cl-structs.
-Elements of FIELDS can be of the form (NAME PAT) in which case the contents of
-field NAME is matched against PAT, or they can be of the form NAME which
-is a shorthand for (NAME NAME)."
+  "Pcase patterns that match cl-struct EXPVAL of type TYPE.
+Elements of FIELDS can be of the form (NAME PAT) in which case the
+contents of field NAME is matched against PAT, or they can be of
+the form NAME which is a shorthand for (NAME NAME)."
   (declare (debug (sexp &rest [&or (sexp pcase-PAT) sexp])))
   `(and (pred (pcase--flip cl-typep ',type))
         ,@(mapcar

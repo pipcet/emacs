@@ -360,7 +360,7 @@ xd_signature (char *signature, int dtype, int parent_type, Lisp_Object object)
       break;
 
     case DBUS_TYPE_BOOLEAN:
-      if (!EQ (object, Qt) && !EQ (object, Qnil))
+      if (!EQ (object, Qt) && !NILP (object))
 	wrong_type_argument (intern ("booleanp"), object);
       sprintf (signature, "%c", dtype);
       break;
@@ -396,7 +396,7 @@ xd_signature (char *signature, int dtype, int parent_type, Lisp_Object object)
       CHECK_CONS (object);
 
       /* Type symbol is optional.  */
-      if (EQ (QCarray, CAR_SAFE (elt)))
+      if (EQ (QCarray, XCAR (elt)))
 	elt = XD_NEXT_VALUE (elt);
 
       /* If the array is empty, DBUS_TYPE_STRING is the default
@@ -416,10 +416,12 @@ xd_signature (char *signature, int dtype, int parent_type, Lisp_Object object)
       /* If the element type is DBUS_TYPE_SIGNATURE, and this is the
 	 only element, the value of this element is used as the
 	 array's element signature.  */
-      if ((subtype == DBUS_TYPE_SIGNATURE)
-	  && STRINGP (CAR_SAFE (XD_NEXT_VALUE (elt)))
-	  && NILP (CDR_SAFE (XD_NEXT_VALUE (elt))))
-	subsig = SSDATA (CAR_SAFE (XD_NEXT_VALUE (elt)));
+      if (subtype == DBUS_TYPE_SIGNATURE)
+	{
+	  Lisp_Object elt1 = XD_NEXT_VALUE (elt);
+	  if (CONSP (elt1) && STRINGP (XCAR (elt1)) && NILP (XCDR (elt1)))
+	    subsig = SSDATA (XCAR (elt1));
+	}
 
       while (!NILP (elt))
 	{
@@ -943,7 +945,7 @@ xd_get_connection_references (DBusConnection *connection)
 static DBusConnection *
 xd_lisp_dbus_to_dbus (Lisp_Object bus)
 {
-  return (DBusConnection *) XSAVE_POINTER (bus, 0);
+  return xmint_pointer (bus);
 }
 
 /* Return D-Bus connection address.  BUS is either a Lisp symbol,
@@ -1187,7 +1189,7 @@ this connection to those buses.  */)
 	XD_SIGNAL1 (build_string ("Cannot add watch functions"));
 
       /* Add bus to list of registered buses.  */
-      val = make_save_ptr (connection);
+      val = make_mint_ptr (connection);
       xd_registered_buses = Fcons (Fcons (bus, val), xd_registered_buses);
 
       /* Cleanup.  */

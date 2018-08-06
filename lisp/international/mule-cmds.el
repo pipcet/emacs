@@ -300,8 +300,7 @@ wrong, use this command again to toggle back to the right mode."
 	 (cmd (key-binding keyseq))
 	 prefix)
     ;; read-key-sequence ignores quit, so make an explicit check.
-    ;; Like many places, this assumes quit == C-g, but it need not be.
-    (if (equal last-input-event ?\C-g)
+    (if (equal last-input-event (nth 3 (current-input-mode)))
 	(keyboard-quit))
     (when (memq cmd '(universal-argument digit-argument))
       (call-interactively cmd)
@@ -314,16 +313,16 @@ wrong, use this command again to toggle back to the right mode."
 	(let ((current-prefix-arg prefix-arg)
 	      ;; Have to bind `last-command-event' here so that
 	      ;; `digit-argument', for instance, can compute the
-	      ;; prefix arg.
+	      ;; `prefix-arg'.
 	      (last-command-event (aref keyseq 0)))
 	  (call-interactively cmd)))
 
       ;; This is the final call to `universal-argument-other-key', which
-      ;; set's the final `prefix-arg.
+      ;; sets the final `prefix-arg'.
       (let ((current-prefix-arg prefix-arg))
 	(call-interactively cmd))
 
-      ;; Read the command to execute with the given prefix arg.
+      ;; Read the command to execute with the given `prefix-arg'.
       (setq prefix prefix-arg
 	    keyseq (read-key-sequence nil t)
 	    cmd (key-binding keyseq)))
@@ -988,6 +987,11 @@ It is highly recommended to fix it before writing to a file."
 
       ;; If all the defaults failed, ask a user.
       (when (not coding-system)
+        ;; If UTF-8 is in CODINGS, but is not its first member, make
+        ;; it the first one, so it is offered as the default.
+        (and (memq 'utf-8 codings) (not (eq 'utf-8 (car codings)))
+             (setq codings (append '(utf-8) (delq 'utf-8 codings))))
+
 	(setq coding-system (select-safe-coding-system-interactively
 			     from to codings unsafe rejected (car codings))))
 
@@ -2910,7 +2914,7 @@ on encoding."
 	       (#x4DC0 . #x4DFF)
 	       ;; (#x4E00 . #x9FFF) CJK Unified Ideographs
 	       (#xA000 . #xD7FF)
-	       ;; (#xD800 . #xFAFF) Surrogate/Private
+	       ;; (#xD800 . #xF8FF) Surrogate/Private
 	       (#xFB00 . #x134FF)
 	       ;; (#x13500 . #x143FF) unused
                (#x14400 . #x14646)

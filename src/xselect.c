@@ -387,7 +387,7 @@ x_get_local_selection (Lisp_Object selection_symbol, Lisp_Object target_type,
 		       XCAR (XCDR (local_value)));
       else
 	value = Qnil;
-      unbind_to (count, Qnil);
+      value = unbind_to (count, value);
     }
 
   /* Make sure this value is of a type that we could transmit
@@ -2094,7 +2094,7 @@ On Nextstep, TERMINAL is unused.  */)
   struct frame *f = frame_for_x_selection (terminal);
 
   CHECK_SYMBOL (selection);
-  if (EQ (selection, Qnil)) selection = QPRIMARY;
+  if (NILP (selection)) selection = QPRIMARY;
   if (EQ (selection, Qt)) selection = QSECONDARY;
 
   if (f && !NILP (LOCAL_SELECTION (selection, FRAME_DISPLAY_INFO (f))))
@@ -2124,7 +2124,7 @@ On Nextstep, TERMINAL is unused.  */)
   struct x_display_info *dpyinfo;
 
   CHECK_SYMBOL (selection);
-  if (EQ (selection, Qnil)) selection = QPRIMARY;
+  if (NILP (selection)) selection = QPRIMARY;
   if (EQ (selection, Qt)) selection = QSECONDARY;
 
   if (!f)

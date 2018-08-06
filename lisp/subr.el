@@ -359,6 +359,13 @@ was called."
   (lambda (&rest args2)
     (apply fun (append args args2))))
 
+(defun zerop (number)
+  "Return t if NUMBER is zero."
+  ;; Used to be in C, but it's pointless since (= 0 n) is faster anyway because
+  ;; = has a byte-code.
+  (declare (compiler-macro (lambda (_) `(= 0 ,number))))
+  (= 0 number))
+
 
 ;;;; List functions.
 
@@ -547,13 +554,6 @@ If N is omitted or nil, remove the last element."
 	 (progn
 	   (if (> n 0) (setcdr (nthcdr (- (1- m) n) list) nil))
 	   list))))
-
-(defun zerop (number)
-  "Return t if NUMBER is zero."
-  ;; Used to be in C, but it's pointless since (= 0 n) is faster anyway because
-  ;; = has a byte-code.
-  (declare (compiler-macro (lambda (_) `(= 0 ,number))))
-  (= 0 number))
 
 (defun delete-dups (list)
   "Destructively remove `equal' duplicates from LIST.
@@ -1438,8 +1438,13 @@ be a list of the form returned by `event-start' and `event-end'."
                "27.1")
 (make-obsolete 'invocation-name "use the variable of the same name." "27.1")
 
+;; We used to declare string-to-unibyte obsolete, but it is a valid
+;; way of getting a unibyte string that can be indexed by bytes, when
+;; the original string has raw bytes in their internal multibyte
+;; representation.  This can be useful when one needs to examine
+;; individual bytes at known offsets from the string beginning.
+;; (make-obsolete 'string-to-unibyte   "use `encode-coding-string'." "26.1")
 ;; bug#23850
-(make-obsolete 'string-to-unibyte   "use `encode-coding-string'." "26.1")
 (make-obsolete 'string-as-unibyte   "use `encode-coding-string'." "26.1")
 (make-obsolete 'string-make-unibyte   "use `encode-coding-string'." "26.1")
 (make-obsolete 'string-to-multibyte "use `decode-coding-string'." "26.1")
@@ -1861,7 +1866,7 @@ running their FOO-mode-hook."
 	(push hook delayed-mode-hooks))
     ;; Normal case, just run the hook as before plus any delayed hooks.
     (setq hooks (nconc (nreverse delayed-mode-hooks) hooks))
-    (and syntax-propertize-function
+    (and (bound-and-true-p syntax-propertize-function)
          (not (local-variable-p 'parse-sexp-lookup-properties))
          ;; `syntax-propertize' sets `parse-sexp-lookup-properties' for us, but
          ;; in order for the sexp primitives to automatically call
@@ -1903,6 +1908,36 @@ If you just want to check `major-mode', use `derived-mode-p'."
   "Non-nil if the current major mode is derived from one of MODES.
 Uses the `derived-mode-parent' property of the symbol to trace backwards."
   (apply #'provided-mode-derived-p major-mode modes))
+
+(defvar-local major-mode--suspended nil)
+(put 'major-mode--suspended 'permanent-local t)
+
+(defun major-mode-suspend ()
+  "Exit current major, remembering it."
+  (let* ((prev-major-mode (or major-mode--suspended
+			      (unless (eq major-mode 'fundamental-mode)
+			        major-mode))))
+    (kill-all-local-variables)
+    (setq-local major-mode--suspended prev-major-mode)))
+
+(defun major-mode-restore (&optional avoided-modes)
+  "Restore major mode earlier suspended with `major-mode-suspend'.
+If there was no earlier suspended major mode, then fallback to `normal-mode',
+tho trying to avoid AVOIDED-MODES."
+  (if major-mode--suspended
+      (funcall (prog1 major-mode--suspended
+                 (kill-local-variable 'major-mode--suspended)))
+    (let ((auto-mode-alist
+           (let ((alist (copy-sequence auto-mode-alist)))
+             (dolist (mode avoided-modes)
+               (setq alist (rassq-delete-all mode alist)))
+             alist))
+          (magic-fallback-mode-alist
+           (let ((alist (copy-sequence magic-fallback-mode-alist)))
+             (dolist (mode avoided-modes)
+               (setq alist (rassq-delete-all mode alist)))
+             alist)))
+      (normal-mode))))
 
 ;;;; Minor modes.
 
@@ -2177,6 +2212,10 @@ It can be retrieved with `(process-get PROCESS PROPNAME)'."
   (set-process-plist process
 		     (plist-put (process-plist process) propname value)))
 
+(defun memory-limit ()
+  "Return an estimate of Emacs virtual memory usage, divided by 1024."
+  (or (cdr (assq 'vsize (process-attributes (emacs-pid)))) 0))
+
 
 ;;;; Input and display facilities.
 
@@ -2260,7 +2299,7 @@ some sort of escape sequence, the ambiguity is resolved via `read-key-delay'."
 If optional CONFIRM is non-nil, read the password twice to make sure.
 Optional DEFAULT is a default password to use instead of empty input.
 
-This function echoes `.' for each character that the user types.
+This function echoes `*' for each character that the user types.
 You could let-bind `read-hide-char' to another hiding character, though.
 
 Once the caller uses the password, it can erase the password
@@ -2286,7 +2325,7 @@ by doing (clear-string STRING)."
                                      beg)))
              (dotimes (i (- end beg))
                (put-text-property (+ i beg) (+ 1 i beg)
-                                  'display (string (or read-hide-char ?.))))))
+                                  'display (string (or read-hide-char ?*))))))
           minibuf)
       (minibuffer-with-setup-hook
           (lambda ()
@@ -2301,7 +2340,7 @@ by doing (clear-string STRING)."
             (add-hook 'after-change-functions hide-chars-fun nil 'local))
         (unwind-protect
             (let ((enable-recursive-minibuffers t)
-		  (read-hide-char (or read-hide-char ?.)))
+		  (read-hide-char (or read-hide-char ?*)))
               (read-string prompt nil t default)) ; t = "no history"
           (when (buffer-live-p minibuf)
             (with-current-buffer minibuf
@@ -3025,6 +3064,8 @@ This function is like `insert', except it honors the variables
 	 (inhibit-read-only inhibit-read-only)
 	 end)
 
+    ;; FIXME: This throws away any yank-undo-function set by previous calls
+    ;; to insert-for-yank-1 within the loop of insert-for-yank!
     (setq yank-undo-function t)
     (if (nth 0 handler) ; FUNCTION
 	(funcall (car handler) param)
@@ -3515,9 +3556,31 @@ If BODY finishes, `while-no-input' returns whatever value BODY produced."
   (let ((catch-sym (make-symbol "input")))
     `(with-local-quit
        (catch ',catch-sym
-	 (let ((throw-on-input ',catch-sym))
-	   (or (input-pending-p)
-	       (progn ,@body)))))))
+	 (let ((throw-on-input ',catch-sym)
+               val)
+           (setq val (or (input-pending-p)
+	                 (progn ,@body)))
+           (cond
+            ;; When input arrives while throw-on-input is non-nil,
+            ;; kbd_buffer_store_buffered_event sets quit-flag to the
+            ;; value of throw-on-input.  If, when BODY finishes,
+            ;; quit-flag still has the same value as throw-on-input, it
+            ;; means BODY never tested quit-flag, and therefore ran to
+            ;; completion even though input did arrive before it
+            ;; finished.  In that case, we must manually simulate what
+            ;; 'throw' in process_quit_flag would do, and we must
+            ;; reset quit-flag, because leaving it set will cause us
+            ;; quit to top-level, which has undesirable consequences,
+            ;; such as discarding input etc.  We return t in that case
+            ;; because input did arrive during execution of BODY.
+            ((eq quit-flag throw-on-input)
+             (setq quit-flag nil)
+             t)
+            ;; This is for when the user actually QUITs during
+            ;; execution of BODY.
+            (quit-flag
+             nil)
+            (t val)))))))
 
 (defmacro condition-case-unless-debug (var bodyform &rest handlers)
   "Like `condition-case' except that it does not prevent debugging.
@@ -4624,25 +4687,6 @@ The properties used on SYMBOL are `composefunc', `sendfunc',
   (put symbol 'hookvar (or hookvar 'mail-send-hook)))
 
 
-(defun backtrace--print-frame (evald func args flags)
-  "Print a trace of a single stack frame to `standard-output'.
-EVALD, FUNC, ARGS, FLAGS are as in `mapbacktrace'."
-  (princ (if (plist-get flags :debug-on-exit) "* " "  "))
-  (cond
-   ((and evald (not debugger-stack-frame-as-list))
-    (cl-prin1 func)
-    (if args (cl-prin1 args) (princ "()")))
-   (t
-    (cl-prin1 (cons func args))))
-  (princ "\n"))
-
-(defun backtrace ()
-  "Print a trace of Lisp function calls currently active.
-Output stream used is value of `standard-output'."
-  (let ((print-level (or print-level 8))
-        (print-escape-control-characters t))
-    (mapbacktrace #'backtrace--print-frame 'backtrace)))
-
 (defun backtrace-frames (&optional base)
   "Collect all frames of current backtrace into a list.
 If non-nil, BASE should be a function, and frames before its
@@ -5008,32 +5052,62 @@ NEW-MESSAGE, if non-nil, sets a new message for the reporter."
   "Print reporter's message followed by word \"done\" in echo area."
   (message "%sdone" (aref (cdr reporter) 3)))
 
-(defmacro dotimes-with-progress-reporter (spec message &rest body)
+(defmacro dotimes-with-progress-reporter (spec reporter-or-message &rest body)
   "Loop a certain number of times and report progress in the echo area.
 Evaluate BODY with VAR bound to successive integers running from
 0, inclusive, to COUNT, exclusive.  Then evaluate RESULT to get
 the return value (nil if RESULT is omitted).
 
-At each iteration MESSAGE followed by progress percentage is
-printed in the echo area.  After the loop is finished, MESSAGE
-followed by word \"done\" is printed.  This macro is a
-convenience wrapper around `make-progress-reporter' and friends.
+REPORTER-OR-MESSAGE is a progress reporter object or a string.  In the latter
+case, use this string to create a progress reporter.
 
-\(fn (VAR COUNT [RESULT]) MESSAGE BODY...)"
+At each iteration, print the reporter message followed by progress
+percentage in the echo area.  After the loop is finished,
+print the reporter message followed by the word \"done\".
+
+This macro is a convenience wrapper around `make-progress-reporter' and friends.
+
+\(fn (VAR COUNT [RESULT]) REPORTER-OR-MESSAGE BODY...)"
   (declare (indent 2) (debug ((symbolp form &optional form) form body)))
-  (let ((temp (make-symbol "--dotimes-temp--"))
-	(temp2 (make-symbol "--dotimes-temp2--"))
-	(start 0)
-	(end (nth 1 spec)))
-    `(let ((,temp ,end)
-	   (,(car spec) ,start)
-	   (,temp2 (make-progress-reporter ,message ,start ,end)))
-       (while (< ,(car spec) ,temp)
-	 ,@body
-	 (progress-reporter-update ,temp2
-				   (setq ,(car spec) (1+ ,(car spec)))))
-       (progress-reporter-done ,temp2)
-       nil ,@(cdr (cdr spec)))))
+  (let ((prep (make-symbol "--dotimes-prep--"))
+        (end (make-symbol "--dotimes-end--")))
+    `(let ((,prep ,reporter-or-message)
+           (,end ,(cadr spec)))
+       (when (stringp ,prep)
+         (setq ,prep (make-progress-reporter ,prep 0 ,end)))
+       (dotimes (,(car spec) ,end)
+         ,@body
+         (progress-reporter-update ,prep (1+ ,(car spec))))
+       (progress-reporter-done ,prep)
+       (or ,@(cdr (cdr spec)) nil))))
+
+(defmacro dolist-with-progress-reporter (spec reporter-or-message &rest body)
+  "Loop over a list and report progress in the echo area.
+Evaluate BODY with VAR bound to each car from LIST, in turn.
+Then evaluate RESULT to get return value, default nil.
+
+REPORTER-OR-MESSAGE is a progress reporter object or a string.  In the latter
+case, use this string to create a progress reporter.
+
+At each iteration, print the reporter message followed by progress
+percentage in the echo area.  After the loop is finished,
+print the reporter message followed by the word \"done\".
+
+\(fn (VAR LIST [RESULT]) REPORTER-OR-MESSAGE BODY...)"
+  (declare (indent 2) (debug ((symbolp form &optional form) form body)))
+  (let ((prep (make-symbol "--dolist-progress-reporter--"))
+        (count (make-symbol "--dolist-count--"))
+        (list (make-symbol "--dolist-list--")))
+    `(let ((,prep ,reporter-or-message)
+           (,count 0)
+           (,list ,(cadr spec)))
+       (when (stringp ,prep)
+         (setq ,prep (make-progress-reporter ,prep 0 (1- (length ,list)))))
+       (dolist (,(car spec) ,list)
+         ,@body
+         (progress-reporter-update ,prep (setq ,count (1+ ,count))))
+       (progress-reporter-done ,prep)
+       (or ,@(cdr (cdr spec)) nil))))
 
 
 ;;;; Comparing version strings.

@@ -817,16 +817,6 @@ See `ispell-buffer-with-debug' for an example of use."
 ;; because otherwise this file gets autoloaded every time Emacs starts
 ;; so that it can set up the menus and determine keyboard equivalents.
 
-;;;###autoload
-(defvar ispell-menu-map nil "Key map for ispell menu.")
-;; Redo menu when loading ispell to get dictionary modifications
-(setq ispell-menu-map nil)
-
-;;; Set up dictionary
-;;;###autoload
-(defvar ispell-menu-map-needed
-  (unless ispell-menu-map 'reload))
-
 (defvar ispell-library-directory (condition-case ()
 				     (ispell-check-version)
 				   (error nil))
@@ -1205,9 +1195,11 @@ Internal use.")
   (with-output-to-string
     (with-current-buffer
         standard-output
-      (apply 'ispell-call-process
-             (replace-regexp-in-string "enchant\\(-[0-9]\\)?$" "enchant-lsmod\\1"
-                                       ispell-program-name) nil t nil args))))
+      (apply #'ispell-call-process
+             (replace-regexp-in-string "enchant\\(-[0-9]\\)?\\'"
+                                       "enchant-lsmod\\1"
+                                       ispell-program-name)
+             nil t nil args))))
 
 (defun ispell--get-extra-word-characters (&optional lang)
   "Get the extra word characters for LANG as a character class.
@@ -1415,80 +1407,78 @@ The variable `ispell-library-directory' defines their location."
 	  (push name dict-list)))
     dict-list))
 
-;; Define commands in menu in opposite order you want them to appear.
 ;;;###autoload
-(if ispell-menu-map-needed
-    (progn
-      (setq ispell-menu-map (make-sparse-keymap "Spell"))
-      (define-key ispell-menu-map [ispell-change-dictionary]
-	`(menu-item ,(purecopy "Change Dictionary...") ispell-change-dictionary
-		    :help ,(purecopy "Supply explicit dictionary file name")))
-      (define-key ispell-menu-map [ispell-kill-ispell]
-	`(menu-item ,(purecopy "Kill Process")
-		    (lambda () (interactive) (ispell-kill-ispell nil 'clear))
-		    :enable (and (boundp 'ispell-process) ispell-process
-				 (eq (ispell-process-status) 'run))
-		    :help ,(purecopy "Terminate Ispell subprocess")))
-      (define-key ispell-menu-map [ispell-pdict-save]
-	`(menu-item ,(purecopy "Save Dictionary")
-		    (lambda () (interactive) (ispell-pdict-save t t))
-		    :help ,(purecopy "Save personal dictionary")))
-      (define-key ispell-menu-map [ispell-customize]
-	`(menu-item ,(purecopy "Customize...")
-		    (lambda () (interactive) (customize-group 'ispell))
-		    :help ,(purecopy "Customize spell checking options")))
-      (define-key ispell-menu-map [ispell-help]
-	;; use (x-popup-menu last-nonmenu-event(list "" ispell-help-list)) ?
-	`(menu-item ,(purecopy "Help")
-		    (lambda () (interactive) (describe-function 'ispell-help))
-		    :help ,(purecopy "Show standard Ispell keybindings and commands")))
-      (define-key ispell-menu-map [flyspell-mode]
-	`(menu-item ,(purecopy "Automatic spell checking (Flyspell)")
-		    flyspell-mode
-		    :help ,(purecopy "Check spelling while you edit the text")
-		    :button (:toggle . (bound-and-true-p flyspell-mode))))
-      (define-key ispell-menu-map [ispell-complete-word]
-	`(menu-item ,(purecopy "Complete Word") ispell-complete-word
-		    :help ,(purecopy "Complete word at cursor using dictionary")))
-      (define-key ispell-menu-map [ispell-complete-word-interior-frag]
-	`(menu-item ,(purecopy "Complete Word Fragment")
-                    ispell-complete-word-interior-frag
-		    :help ,(purecopy "Complete word fragment at cursor")))))
+(defconst ispell-menu-map
+  ;; Use `defconst' so as to redo the menu when loading ispell, like the
+  ;; previous code did.
 
+  ;; Define commands in menu in opposite order you want them to appear.
+  (let ((map (make-sparse-keymap "Spell")))
+    (define-key map [ispell-change-dictionary]
+      `(menu-item ,(purecopy "Change Dictionary...") ispell-change-dictionary
+		  :help ,(purecopy "Supply explicit dictionary file name")))
+    (define-key map [ispell-kill-ispell]
+      `(menu-item ,(purecopy "Kill Process")
+		  (lambda () (interactive) (ispell-kill-ispell nil 'clear))
+		  :enable (and (boundp 'ispell-process) ispell-process
+			       (eq (ispell-process-status) 'run))
+		  :help ,(purecopy "Terminate Ispell subprocess")))
+    (define-key map [ispell-pdict-save]
+      `(menu-item ,(purecopy "Save Dictionary")
+		  (lambda () (interactive) (ispell-pdict-save t t))
+		  :help ,(purecopy "Save personal dictionary")))
+    (define-key map [ispell-customize]
+      `(menu-item ,(purecopy "Customize...")
+		  (lambda () (interactive) (customize-group 'ispell))
+		  :help ,(purecopy "Customize spell checking options")))
+    (define-key map [ispell-help]
+      ;; use (x-popup-menu last-nonmenu-event(list "" ispell-help-list)) ?
+      `(menu-item ,(purecopy "Help")
+		  (lambda () (interactive) (describe-function 'ispell-help))
+		  :help ,(purecopy "Show standard Ispell keybindings and commands")))
+    (define-key map [flyspell-mode]
+      `(menu-item ,(purecopy "Automatic spell checking (Flyspell)")
+		  flyspell-mode
+		  :help ,(purecopy "Check spelling while you edit the text")
+		  :button (:toggle . (bound-and-true-p flyspell-mode))))
+    (define-key map [ispell-complete-word]
+      `(menu-item ,(purecopy "Complete Word") ispell-complete-word
+		  :help ,(purecopy "Complete word at cursor using dictionary")))
+    (define-key map [ispell-complete-word-interior-frag]
+      `(menu-item ,(purecopy "Complete Word Fragment")
+                  ispell-complete-word-interior-frag
+		  :help ,(purecopy "Complete word fragment at cursor")))
+
+    (define-key map [ispell-continue]
+      `(menu-item ,(purecopy "Continue Spell-Checking") ispell-continue
+		  :enable (and (boundp 'ispell-region-end)
+			       (marker-position ispell-region-end)
+			       (equal (marker-buffer ispell-region-end)
+				      (current-buffer)))
+		  :help ,(purecopy "Continue spell checking last region")))
+    (define-key map [ispell-word]
+      `(menu-item ,(purecopy "Spell-Check Word") ispell-word
+		  :help ,(purecopy "Spell-check word at cursor")))
+    (define-key map [ispell-comments-and-strings]
+      `(menu-item ,(purecopy "Spell-Check Comments")
+                  ispell-comments-and-strings
+		  :help ,(purecopy "Spell-check only comments and strings")))
+
+    (define-key map [ispell-region]
+      `(menu-item ,(purecopy "Spell-Check Region") ispell-region
+		  :enable mark-active
+		  :help ,(purecopy "Spell-check text in marked region")))
+    (define-key map [ispell-message]
+      `(menu-item ,(purecopy "Spell-Check Message") ispell-message
+		  :visible (eq major-mode 'mail-mode)
+		  :help ,(purecopy "Skip headers and included message text")))
+    (define-key map [ispell-buffer]
+      `(menu-item ,(purecopy "Spell-Check Buffer") ispell-buffer
+		  :help ,(purecopy "Check spelling of selected buffer")))
+    map)
+  "Key map for ispell menu.")
 ;;;###autoload
-(if ispell-menu-map-needed
-    (progn
-      (define-key ispell-menu-map [ispell-continue]
-	`(menu-item ,(purecopy "Continue Spell-Checking") ispell-continue
-		    :enable (and (boundp 'ispell-region-end)
-				 (marker-position ispell-region-end)
-				 (equal (marker-buffer ispell-region-end)
-					(current-buffer)))
-		    :help ,(purecopy "Continue spell checking last region")))
-      (define-key ispell-menu-map [ispell-word]
-	`(menu-item ,(purecopy "Spell-Check Word") ispell-word
-		    :help ,(purecopy "Spell-check word at cursor")))
-      (define-key ispell-menu-map [ispell-comments-and-strings]
-	`(menu-item ,(purecopy "Spell-Check Comments")
-                    ispell-comments-and-strings
-		    :help ,(purecopy "Spell-check only comments and strings")))))
-
-;;;###autoload
-(if ispell-menu-map-needed
-    (progn
-      (define-key ispell-menu-map [ispell-region]
-	`(menu-item ,(purecopy "Spell-Check Region") ispell-region
-		    :enable mark-active
-		    :help ,(purecopy "Spell-check text in marked region")))
-      (define-key ispell-menu-map [ispell-message]
-	`(menu-item ,(purecopy "Spell-Check Message") ispell-message
-		    :visible (eq major-mode 'mail-mode)
-		    :help ,(purecopy "Skip headers and included message text")))
-      (define-key ispell-menu-map [ispell-buffer]
-	`(menu-item ,(purecopy "Spell-Check Buffer") ispell-buffer
-		    :help ,(purecopy "Check spelling of selected buffer")))
-      (fset 'ispell-menu-map (symbol-value 'ispell-menu-map))))
-
+(fset 'ispell-menu-map (symbol-value 'ispell-menu-map))
 
 ;;; **********************************************************************
 
@@ -2272,8 +2262,9 @@ Global `ispell-quit' set to start location to continue spell session."
 		    (ispell-pdict-save ispell-silently-savep)
 		    (message "%s"
 		     (substitute-command-keys
-		      (concat "Spell-checking suspended;"
-			      " use C-u \\[ispell-word] to resume")))
+		      (concat
+                       "Spell-checking suspended; use "
+		       "\\[universal-argument] \\[ispell-word] to resume")))
 		    (setq ispell-quit start)
 		    nil)
 		   ((= char ?q)
@@ -3705,9 +3696,6 @@ available on the net."
 ;;;###autoload
 (define-minor-mode ispell-minor-mode
   "Toggle last-word spell checking (Ispell minor mode).
-With a prefix argument ARG, enable Ispell minor mode if ARG is
-positive, and disable it otherwise.  If called from Lisp, enable
-the mode if ARG is omitted or nil.
 
 Ispell minor mode is a buffer-local minor mode.  When enabled,
 typing SPC or RET warns you if the previous word is incorrectly

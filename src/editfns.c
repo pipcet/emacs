@@ -47,6 +47,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #include <errno.h>
 #include <float.h>
 #include <limits.h>
+#include <math.h>
 
 #ifdef HAVE_TIMEZONE_T
 # include <sys/param.h>
@@ -1000,58 +1001,46 @@ This function does not move point.  */)
 			      Qnil, Qt, Qnil);
 }
 
-/* Save current buffer state for `save-excursion' special form.
-   We (ab)use Lisp_Misc_Save_Value to allow explicit free and so
-   offload some work from GC.  */
+/* Save current buffer state for save-excursion special form.  */
 
-Lisp_Object
-save_excursion_save (void)
+void
+save_excursion_save (union specbinding *pdl)
 {
-  return make_save_obj_obj_obj_obj
-    (Fpoint_marker (),
-     Qnil,
-     /* Selected window if current buffer is shown in it, nil otherwise.  */
-     (EQ (XWINDOW (selected_window)->contents, Fcurrent_buffer ())
-      ? selected_window : Qnil),
-     Qnil);
+  eassert (pdl->unwind_excursion.kind == SPECPDL_UNWIND_EXCURSION);
+  pdl->unwind_excursion.marker = Fpoint_marker ();
+  /* Selected window if current buffer is shown in it, nil otherwise.  */
+  pdl->unwind_excursion.window
+    = (EQ (XWINDOW (selected_window)->contents, Fcurrent_buffer ())
+       ? selected_window : Qnil);
 }
 
 /* Restore saved buffer before leaving `save-excursion' special form.  */
 
 void
-save_excursion_restore (Lisp_Object info)
+save_excursion_restore (Lisp_Object marker, Lisp_Object window)
 {
-  Lisp_Object tem, tem1;
-
-  tem = Fmarker_buffer (XSAVE_OBJECT (info, 0));
+  Lisp_Object buffer = Fmarker_buffer (marker);
   /* If we're unwinding to top level, saved buffer may be deleted.  This
-     means that all of its markers are unchained and so tem is nil.  */
-  if (NILP (tem))
-    goto out;
+     means that all of its markers are unchained and so BUFFER is nil.  */
+  if (NILP (buffer))
+    return;
 
-  Fset_buffer (tem);
+  Fset_buffer (buffer);
 
   /* Point marker.  */
-  tem = XSAVE_OBJECT (info, 0);
-  Fgoto_char (tem);
-  unchain_marker (XMARKER (tem));
+  Fgoto_char (marker);
+  unchain_marker (XMARKER (marker));
 
   /* If buffer was visible in a window, and a different window was
      selected, and the old selected window is still showing this
      buffer, restore point in that window.  */
-  tem = XSAVE_OBJECT (info, 2);
-  if (WINDOWP (tem)
-      && !EQ (tem, selected_window)
-      && (tem1 = XWINDOW (tem)->contents,
-	  (/* Window is live...  */
-	   BUFFERP (tem1)
-	   /* ...and it shows the current buffer.  */
-	   && XBUFFER (tem1) == current_buffer)))
-    Fset_window_point (tem, make_number (PT));
-
- out:
-
-  free_misc (info);
+  if (WINDOWP (window) && !EQ (window, selected_window))
+    {
+      /* Set window point if WINDOW is live and shows the current buffer.  */
+      Lisp_Object contents = XWINDOW (window)->contents;
+      if (BUFFERP (contents) && XBUFFER (contents) == current_buffer)
+	Fset_window_point (window, make_number (PT));
+    }
 }
 
 DEFUN ("save-excursion", Fsave_excursion, Ssave_excursion, 0, UNEVALLED, 0,
@@ -1073,7 +1062,7 @@ usage: (save-excursion &rest BODY)  */)
   register Lisp_Object val;
   ptrdiff_t count = SPECPDL_INDEX ();
 
-  record_unwind_protect (save_excursion_restore, save_excursion_save ());
+  record_unwind_protect_excursion ();
 
   val = Fprogn (args);
   return unbind_to (count, val);
@@ -3143,6 +3132,9 @@ determines whether case is significant or ignored.  */)
 #undef ELEMENT
 #undef EQUAL
 
+/* Counter used to rarely_quit in replace-buffer-contents.  */
+static unsigned short rbc_quitcounter;
+
 #define XVECREF_YVECREF_EQUAL(ctx, xoff, yoff)  \
   buffer_chars_equal ((ctx), (xoff), (yoff))
 
@@ -3152,6 +3144,12 @@ determines whether case is significant or ignored.  */)
   /* Buffers to compare.  */                    \
   struct buffer *buffer_a;                      \
   struct buffer *buffer_b;                      \
+  /* BEGV of each buffer */			\
+  ptrdiff_t beg_a;				\
+  ptrdiff_t beg_b;				\
+  /* Whether each buffer is unibyte/plain-ASCII or not.  */ \
+  bool a_unibyte;				\
+  bool b_unibyte;				\
   /* Bit vectors recording for each character whether it was deleted
      or inserted.  */                           \
   unsigned char *deletions;                     \
@@ -3175,7 +3173,9 @@ SOURCE can be a buffer or a string that names a buffer.
 Interactively, prompt for SOURCE.
 As far as possible the replacement is non-destructive, i.e. existing
 buffer contents, markers, properties, and overlays in the current
-buffer stay intact.  */)
+buffer stay intact.
+Warning: this function can be slow if there's a large number of small
+differences between the two buffers.  */)
   (Lisp_Object source)
 {
   struct buffer *a = current_buffer;
@@ -3212,6 +3212,8 @@ buffer stay intact.  */)
       return Qnil;
     }
 
+  ptrdiff_t count = SPECPDL_INDEX ();
+
   /* FIXME: It is not documented how to initialize the contents of the
      context structure.  This code cargo-cults from the existing
      caller in src/analyze.c of GNU Diffutils, which appears to
@@ -3228,6 +3230,10 @@ buffer stay intact.  */)
   struct context ctx = {
     .buffer_a = a,
     .buffer_b = b,
+    .beg_a = min_a,
+    .beg_b = min_b,
+    .a_unibyte = BUF_ZV (a) == BUF_ZV_BYTE (a),
+    .b_unibyte = BUF_ZV (b) == BUF_ZV_BYTE (b),
     .deletions = SAFE_ALLOCA (del_bytes),
     .insertions = SAFE_ALLOCA (ins_bytes),
     .fdiag = buffer + size_b + 1,
@@ -3243,11 +3249,24 @@ buffer stay intact.  */)
   /* Since we didn’t define EARLY_ABORT, we should never abort
      early.  */
   eassert (! early_abort);
-  SAFE_FREE ();
+
+  rbc_quitcounter = 0;
 
   Fundo_boundary ();
-  ptrdiff_t count = SPECPDL_INDEX ();
-  record_unwind_protect (save_excursion_restore, save_excursion_save ());
+  bool modification_hooks_inhibited = false;
+  record_unwind_protect_excursion ();
+
+  /* We are going to make a lot of small modifications, and having the
+     modification hooks called for each of them will slow us down.
+     Instead, we announce a single modification for the entire
+     modified region.  But don't do that if the caller inhibited
+     modification hooks, because then they don't want that.  */
+  if (!inhibit_modification_hooks)
+    {
+      prepare_to_modify_buffer (BEGV, ZV, NULL);
+      specbind (Qinhibit_modification_hooks, Qt);
+      modification_hooks_inhibited = true;
+    }
 
   ptrdiff_t i = size_a;
   ptrdiff_t j = size_b;
@@ -3256,6 +3275,9 @@ buffer stay intact.  */)
      walk backwards, we don’t have to keep the positions in sync.  */
   while (i >= 0 || j >= 0)
     {
+      /* Allow the user to quit if this gets too slow.  */
+      rarely_quit (++rbc_quitcounter);
+
       /* Check whether there is a change (insertion or deletion)
          before the current position.  */
       if ((i > 0 && bit_is_set (ctx.deletions, i - 1)) ||
@@ -3268,14 +3290,13 @@ buffer stay intact.  */)
             --i;
 	  while (j > 0 && bit_is_set (ctx.insertions, j - 1))
             --j;
+
+	  rarely_quit (rbc_quitcounter++);
+
           ptrdiff_t beg_a = min_a + i;
           ptrdiff_t beg_b = min_b + j;
-          eassert (beg_a >= BEGV);
-          eassert (beg_b >= BUF_BEGV (b));
           eassert (beg_a <= end_a);
           eassert (beg_b <= end_b);
-          eassert (end_a <= ZV);
-          eassert (end_b <= BUF_ZV (b));
           eassert (beg_a < end_a || beg_b < end_b);
           if (beg_a < end_a)
             del_range (beg_a, end_a);
@@ -3289,8 +3310,16 @@ buffer stay intact.  */)
       --i;
       --j;
     }
+  SAFE_FREE_UNBIND_TO (count, Qnil);
+  rbc_quitcounter = 0;
 
-  return unbind_to (count, Qnil);
+  if (modification_hooks_inhibited)
+    {
+      signal_after_change (BEGV, size_a, ZV - BEGV);
+      update_compositions (BEGV, ZV, CHECK_INSIDE);
+    }
+
+  return Qnil;
 }
 
 static void
@@ -3316,24 +3345,45 @@ bit_is_set (const unsigned char *a, ptrdiff_t i)
 /* Return true if the characters at position POS_A of buffer
    CTX->buffer_a and at position POS_B of buffer CTX->buffer_b are
    equal.  POS_A and POS_B are zero-based.  Text properties are
-   ignored.  */
+   ignored.
+
+   Implementation note: this function is called inside the inner-most
+   loops of compareseq, so it absolutely must be optimized for speed,
+   every last bit of it.  E.g., each additional use of BEGV or such
+   likes will slow down replace-buffer-contents by dozens of percents,
+   because builtin_lisp_symbol will be called one more time in the
+   innermost loop.  */
 
 static bool
 buffer_chars_equal (struct context *ctx,
                     ptrdiff_t pos_a, ptrdiff_t pos_b)
 {
-  eassert (pos_a >= 0);
-  pos_a += BUF_BEGV (ctx->buffer_a);
-  eassert (pos_a >= BUF_BEGV (ctx->buffer_a));
-  eassert (pos_a < BUF_ZV (ctx->buffer_a));
+  pos_a += ctx->beg_a;
+  pos_b += ctx->beg_b;
 
-  eassert (pos_b >= 0);
-  pos_b += BUF_BEGV (ctx->buffer_b);
-  eassert (pos_b >= BUF_BEGV (ctx->buffer_b));
-  eassert (pos_b < BUF_ZV (ctx->buffer_b));
+  /* Allow the user to escape out of a slow compareseq call.  */
+  rarely_quit (++rbc_quitcounter);
 
-  return BUF_FETCH_CHAR_AS_MULTIBYTE (ctx->buffer_a, pos_a)
-    == BUF_FETCH_CHAR_AS_MULTIBYTE (ctx->buffer_b, pos_b);
+  ptrdiff_t bpos_a =
+    ctx->a_unibyte ? pos_a : buf_charpos_to_bytepos (ctx->buffer_a, pos_a);
+  ptrdiff_t bpos_b =
+    ctx->b_unibyte ? pos_b : buf_charpos_to_bytepos (ctx->buffer_b, pos_b);
+
+  /* We make the below a series of specific test to avoid using
+     BUF_FETCH_CHAR_AS_MULTIBYTE, which references Lisp symbols, and
+     is therefore significantly slower (see the note in the commentary
+     to this function).  */
+  if (ctx->a_unibyte && ctx->b_unibyte)
+    return BUF_FETCH_BYTE (ctx->buffer_a, bpos_a)
+      == BUF_FETCH_BYTE (ctx->buffer_b, bpos_b);
+  if (ctx->a_unibyte && !ctx->b_unibyte)
+    return UNIBYTE_TO_CHAR (BUF_FETCH_BYTE (ctx->buffer_a, bpos_a))
+      == BUF_FETCH_MULTIBYTE_CHAR (ctx->buffer_b, bpos_b);
+  if (!ctx->a_unibyte && ctx->b_unibyte)
+    return BUF_FETCH_MULTIBYTE_CHAR (ctx->buffer_a, bpos_a)
+      == UNIBYTE_TO_CHAR (BUF_FETCH_BYTE (ctx->buffer_b, bpos_b));
+  return BUF_FETCH_MULTIBYTE_CHAR (ctx->buffer_a, bpos_a)
+    == BUF_FETCH_MULTIBYTE_CHAR (ctx->buffer_b, bpos_b);
 }
 
 
@@ -3525,8 +3575,7 @@ Both characters must have the same length of multi-byte form.  */)
       update_compositions (changed, last_changed, CHECK_ALL);
     }
 
-  unbind_to (count, Qnil);
-  return Qnil;
+  return unbind_to (count, Qnil);
 }
 
 
@@ -4110,7 +4159,8 @@ the next available argument, or the argument explicitly specified:
 
 %s means print a string argument.  Actually, prints any object, with `princ'.
 %d means print as signed number in decimal.
-%o means print as unsigned number in octal, %x as unsigned number in hex.
+%o means print as unsigned number in octal.
+%x means print as unsigned number in hex.
 %X is like %x, but uses upper case.
 %e means print a number in exponential notation.
 %f means print a number in decimal-point notation.
@@ -4137,14 +4187,14 @@ Nth argument is substituted instead of the next one.  A format can
 contain either numbered or unnumbered %-sequences but not both, except
 that %% can be mixed with numbered %-sequences.
 
-The + flag character inserts a + before any positive number, while a
-space inserts a space before any positive number; these flags only
-affect %d, %e, %f, and %g sequences, and the + flag takes precedence.
+The + flag character inserts a + before any nonnegative number, while a
+space inserts a space before any nonnegative number; these flags
+affect only numeric %-sequences, and the + flag takes precedence.
 The - and 0 flags affect the width specifier, as described below.
 
 The # flag means to use an alternate display form for %o, %x, %X, %e,
 %f, and %g sequences: for %o, it ensures that the result begins with
-\"0\"; for %x and %X, it prefixes the result with \"0x\" or \"0X\";
+\"0\"; for %x and %X, it prefixes nonzero results with \"0x\" or \"0X\";
 for %e and %f, it causes a decimal point to be included even if the
 precision is zero; for %g, it causes a decimal point to be
 included even if the precision is zero, and also forces trailing
@@ -4665,6 +4715,12 @@ styled_format (ptrdiff_t nargs, Lisp_Object *args, bool message)
 		    {
 		      strcpy (f - pMlen - 1, "f");
 		      double x = XFLOAT_DATA (arg);
+
+		      /* Truncate and then convert -0 to 0, to be more
+			 consistent with %x etc.; see Bug#31938.  */
+		      x = trunc (x);
+		      x = x ? x : 0;
+
 		      sprintf_bytes = sprintf (sprintf_buf, convspec, 0, x);
 		      char c0 = sprintf_buf[0];
 		      bool signedp = ! ('0' <= c0 && c0 <= '9');
@@ -4673,10 +4729,22 @@ styled_format (ptrdiff_t nargs, Lisp_Object *args, bool message)
 		}
 	      else
 		{
-		  /* Don't sign-extend for octal or hex printing.  */
 		  uprintmax_t x;
+		  bool negative;
 		  if (INTEGERP (arg))
-		    x = XUINT (arg);
+		    {
+		      if (binary_as_unsigned)
+			{
+			  x = XUINT (arg);
+			  negative = false;
+			}
+		      else
+			{
+			  EMACS_INT i = XINT (arg);
+			  negative = i < 0;
+			  x = negative ? -i : i;
+			}
+		    }
 		  else
 		    {
 		      double d = XFLOAT_DATA (arg);
@@ -4684,8 +4752,13 @@ styled_format (ptrdiff_t nargs, Lisp_Object *args, bool message)
 		      if (! (0 <= d && d < uprintmax + 1))
 			xsignal1 (Qoverflow_error, arg);
 		      x = d;
+		      negative = false;
 		    }
-		  sprintf_bytes = sprintf (sprintf_buf, convspec, prec, x);
+		  sprintf_buf[0] = negative ? '-' : plus_flag ? '+' : ' ';
+		  bool signedp = negative | plus_flag | space_flag;
+		  sprintf_bytes = sprintf (sprintf_buf + signedp,
+					   convspec, prec, x);
+		  sprintf_bytes += signedp;
 		}
 
 	      /* Now the length of the formatted item is known, except it omits
@@ -4872,7 +4945,6 @@ styled_format (ptrdiff_t nargs, Lisp_Object *args, bool message)
       if (buf == initial_buffer)
 	{
 	  buf = xmalloc (bufsize);
-	  sa_must_free = true;
 	  buf_save_value_index = SPECPDL_INDEX ();
 	  record_unwind_protect_ptr (xfree, buf);
 	  memcpy (buf, initial_buffer, used);
@@ -5496,6 +5568,22 @@ functions if all the text being accessed has this property.  */);
 
   DEFVAR_LISP ("operating-system-release", Voperating_system_release,
 	       doc: /* The release of the operating system Emacs is running on.  */);
+
+  DEFVAR_BOOL ("binary-as-unsigned",
+	       binary_as_unsigned,
+	       doc: /* Non-nil means `format' %x and %o treat integers as unsigned.
+This has machine-dependent results.  Nil means to treat integers as
+signed, which is portable; for example, if N is a negative integer,
+(read (format "#x%x") N) returns N only when this variable is nil.
+
+This variable is experimental; email 32252@debbugs.gnu.org if you need
+it to be non-nil.  */);
+  /* For now, default to true if bignums exist, false in traditional Emacs.  */
+#ifdef lisp_h_FIXNUMP
+  binary_as_unsigned = false;
+#else
+  binary_as_unsigned = true;
+#endif
 
   defsubr (&Spropertize);
   defsubr (&Schar_equal);

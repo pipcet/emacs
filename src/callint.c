@@ -199,7 +199,7 @@ fix_command (Lisp_Object input, Lisp_Object values)
 		  carelt = XCAR (elt);
 		  /* If it is (if X Y), look at Y.  */
 		  if (EQ (carelt, Qif)
-		      && EQ (Fnthcdr (make_number (3), elt), Qnil))
+		      && NILP (Fnthcdr (make_number (3), elt)))
 		    elt = Fnth (make_number (2), elt);
 		  /* If it is (when ... Y), look at Y.  */
 		  else if (EQ (carelt, Qwhen))
@@ -799,10 +799,8 @@ invoke it.  If KEYS is omitted or nil, the return value of
 
   specbind (Qcommand_debug_status, Qnil);
 
-  Lisp_Object val = Ffuncall (LV (nargs, args));
-  val = unbind_to (speccount, val);
-  SAFE_FREE ();
-  return val;
+  Lisp_Object val = Ffuncall (nargs, args);
+  return SAFE_FREE_UNBIND_TO (speccount, val);
 }
 
 DEFUN ("prefix-numeric-value", Fprefix_numeric_value, Sprefix_numeric_value,

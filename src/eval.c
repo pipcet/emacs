@@ -333,8 +333,12 @@ call_debugger (Lisp_Object arg)
   /* Do not allow max_specpdl_size less than actual depth (Bug#16603).  */
   EMACS_INT old_max = max (max_specpdl_size, count);
 
-  if (lisp_eval_depth + 40 > max_lisp_eval_depth)
-    max_lisp_eval_depth = lisp_eval_depth + 40;
+  /* The previous value of 40 is too small now that the debugger
+     prints using cl-prin1 instead of prin1.  Printing lists nested 8
+     deep (which is the value of print-level used in the debugger)
+     currently requires 77 additional frames.  See bug#31919.  */
+  if (lisp_eval_depth + 100 > max_lisp_eval_depth)
+    max_lisp_eval_depth = lisp_eval_depth + 100;
 
   /* While debugging Bug#16603, previous value of 100 was found
      too small to avoid specpdl overflow in the debugger itself.  */
@@ -675,6 +679,16 @@ The return value is BASE-VARIABLE.  */)
   if (NILP (Fboundp (base_variable)))
     set_internal (base_variable, find_symbol_value (new_alias),
                   Qnil, SET_INTERNAL_BIND);
+  else if (!NILP (Fboundp (new_alias))
+           && !EQ (find_symbol_value (new_alias),
+                   find_symbol_value (base_variable)))
+    call2 (intern ("display-warning"),
+           list3 (intern ("defvaralias"), intern ("losing-value"), new_alias),
+           CALLN (Fformat_message,
+                  build_string
+                  ("Overwriting value of `%s' by aliasing to `%s'"),
+                  new_alias, base_variable));
+
   {
     struct specbinding *p;
 
@@ -715,8 +729,10 @@ default_toplevel_binding (Lisp_Object symbol)
 	  break;
 
 	case SPECPDL_UNWIND:
+	case SPECPDL_UNWIND_ARRAY:
 	case SPECPDL_UNWIND_PTR:
 	case SPECPDL_UNWIND_INT:
+	case SPECPDL_UNWIND_EXCURSION:
 	case SPECPDL_UNWIND_VOID:
 	case SPECPDL_BACKTRACE:
 	case SPECPDL_LET_LOCAL:
@@ -1024,8 +1040,7 @@ usage: (let VARLIST BODY...)  */)
     specbind (Qinternal_interpreter_environment, lexenv);
 
   elt = Fprogn (XCDR (args));
-  SAFE_FREE ();
-  return unbind_to (count, elt);
+  return SAFE_FREE_UNBIND_TO (count, elt);
 }
 
 DEFUN ("while", Fwhile, Swhile, 1, UNEVALLED, 0,
@@ -1841,28 +1856,12 @@ xsignal3 (Lisp_Object error_symbol, Lisp_Object arg1, Lisp_Object arg2, Lisp_Obj
 }
 
 /* Signal `error' with message S, and additional arg ARG.
-   If ARG is not a genuine list, make it a one-element list.  */
+   If ARG is not a proper list, make it a one-element list.  */
 
 void
 signal_error (const char *s, Lisp_Object arg)
 {
-  Lisp_Object tortoise, hare;
-
-  hare = tortoise = arg;
-  while (CONSP (hare))
-    {
-      hare = XCDR (hare);
-      if (!CONSP (hare))
-	break;
-
-      hare = XCDR (hare);
-      tortoise = XCDR (tortoise);
-
-      if (EQ (hare, tortoise))
-	break;
-    }
-
-  if (!NILP (hare))
+  if (NILP (Fproper_list_p (arg)))
     arg = list1 (arg);
 
   xsignal (Qerror, Fcons (build_string (s), arg));
@@ -2528,7 +2527,7 @@ eval_sub (Lisp_Object form)
 	  specbind (Qlexical_binding,
 		    NILP (Vinternal_interpreter_environment) ? Qnil : Qt);
 	  exp = apply1 (Fcdr (fun), original_args);
-	  unbind_to (count1, Qnil);
+	  exp = unbind_to (count1, exp);
 	  val = eval_sub (exp);
 	}
       else if (EQ (funcar, Qlambda)
@@ -3611,6 +3610,15 @@ record_unwind_protect (void (*function) (Lisp_Object), Lisp_Object arg)
 }
 
 void
+record_unwind_protect_array (Lisp_Object *array, ptrdiff_t nelts)
+{
+  specpdl_ptr->unwind_array.kind = SPECPDL_UNWIND_ARRAY;
+  specpdl_ptr->unwind_array.array = array;
+  specpdl_ptr->unwind_array.nelts = nelts;
+  grow_specpdl ();
+}
+
+void
 record_unwind_protect_ptr (void (*function) (void *), void *arg)
 {
   prepare_grow_specpdl ();
@@ -3627,6 +3635,14 @@ record_unwind_protect_int (void (*function) (int), int arg)
   specpdl_ptr->kind = SPECPDL_UNWIND_INT;
   specpdl_ptr->unwind_int.func = function;
   specpdl_ptr->unwind_int.arg = arg;
+  grow_specpdl ();
+}
+
+void
+record_unwind_protect_excursion (void)
+{
+  specpdl_ptr->unwind_excursion.kind = SPECPDL_UNWIND_EXCURSION;
+  save_excursion_save (specpdl_ptr);
   grow_specpdl ();
 }
 
@@ -3667,6 +3683,9 @@ do_one_unbind (struct specbinding_stack *this_binding, bool unwinding,
     case SPECPDL_UNWIND:
       this_binding->unwind.func (this_binding->unwind.arg);
       break;
+    case SPECPDL_UNWIND_ARRAY:
+      xfree (this_binding->unwind_array.array);
+      break;
     case SPECPDL_UNWIND_PTR:
       this_binding->unwind_ptr.func (this_binding->unwind_ptr.arg);
       break;
@@ -3675,6 +3694,10 @@ do_one_unbind (struct specbinding_stack *this_binding, bool unwinding,
       break;
     case SPECPDL_UNWIND_VOID:
       this_binding->unwind_void.func ();
+      break;
+    case SPECPDL_UNWIND_EXCURSION:
+      save_excursion_restore (this_binding->unwind_excursion.marker,
+			      this_binding->unwind_excursion.window);
       break;
     case SPECPDL_BACKTRACE:
       break;
@@ -3966,18 +3989,22 @@ backtrace_eval_unrewind (int distance)
 	     unwind_protect, but the problem is that we don't know how to
 	     rewind them afterwards.  */
 	case SPECPDL_UNWIND:
-	  {
-	    Lisp_Object oldarg = tmp->unwind.arg;
-	    if (tmp->unwind.func == set_buffer_if_live)
+	  if (tmp->unwind.func == set_buffer_if_live)
+	    {
+	      Lisp_Object oldarg = tmp->unwind.arg;
 	      tmp->unwind.arg = Fcurrent_buffer ();
-	    else if (tmp->unwind.func == save_excursion_restore)
-	      tmp->unwind.arg = save_excursion_save ();
-	    else
-	      break;
-	    tmp->unwind.func (oldarg);
-	    break;
+	      set_buffer_if_live (oldarg);
+	    }
+	  break;
+	case SPECPDL_UNWIND_EXCURSION:
+	  {
+	    Lisp_Object marker = tmp->unwind_excursion.marker;
+	    Lisp_Object window = tmp->unwind_excursion.window;
+	    save_excursion_save (tmp);
+	    save_excursion_restore (marker, window);
 	  }
-
+	  break;
+	case SPECPDL_UNWIND_ARRAY:
 	case SPECPDL_UNWIND_PTR:
 	case SPECPDL_UNWIND_INT:
 	case SPECPDL_UNWIND_VOID:
@@ -4109,8 +4136,10 @@ NFRAMES and BASE specify the activation frame to use, as in `backtrace-frame'.  
 	    break;
 
 	  case SPECPDL_UNWIND:
+	  case SPECPDL_UNWIND_ARRAY:
 	  case SPECPDL_UNWIND_PTR:
 	  case SPECPDL_UNWIND_INT:
+	  case SPECPDL_UNWIND_EXCURSION:
 	  case SPECPDL_UNWIND_VOID:
 	  case SPECPDL_BACKTRACE:
 	    break;

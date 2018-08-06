@@ -5655,12 +5655,17 @@ scroll_command (Lisp_Object window, Lisp_Object n, int direction)
   w = XWINDOW (window);
   other_window = ! EQ (window, selected_window);
 
-  /* If given window's buffer isn't current, make it current for
-     the moment.  But don't screw up if window_scroll gets an error.  */
-  if (XBUFFER (w->contents) != current_buffer)
+  /* If given window's buffer isn't current, make it current for the
+     moment.  If the window's buffer is the same, but it is not the
+     selected window, we need to save-excursion to avoid affecting
+     point in the selected window (which would cause the selected
+     window to scroll).  Don't screw up if window_scroll gets an
+     error.  */
+  if (other_window || XBUFFER (w->contents) != current_buffer)
     {
-      record_unwind_protect (save_excursion_restore, save_excursion_save ());
-      Fset_buffer (w->contents);
+      record_unwind_protect_excursion ();
+      if (XBUFFER (w->contents) != current_buffer)
+	Fset_buffer (w->contents);
     }
 
   if (other_window)
@@ -5774,8 +5779,7 @@ which see.  */)
 {
   ptrdiff_t count = SPECPDL_INDEX ();
   scroll_command (Fother_window_for_scrolling (), arg, 1);
-  unbind_to (count, Qnil);
-  return Qnil;
+  return unbind_to (count, Qnil);
 }
 
 DEFUN ("scroll-other-window-down", Fscroll_other_window_down,
@@ -5786,8 +5790,7 @@ For more details, see the documentation for `scroll-other-window'.  */)
 {
   ptrdiff_t count = SPECPDL_INDEX ();
   scroll_command (Fother_window_for_scrolling (), arg, -1);
-  unbind_to (count, Qnil);
-  return Qnil;
+  return unbind_to (count, Qnil);
 }
 
 DEFUN ("scroll-left", Fscroll_left, Sscroll_left, 0, 2, "^P\np",
@@ -5901,22 +5904,23 @@ displayed_window_lines (struct window *w)
 }
 
 
-DEFUN ("recenter", Frecenter, Srecenter, 0, 1, "P",
+DEFUN ("recenter", Frecenter, Srecenter, 0, 2, "P\np",
        doc: /* Center point in selected window and maybe redisplay frame.
 With a numeric prefix argument ARG, recenter putting point on screen line ARG
 relative to the selected window.  If ARG is negative, it counts up from the
 bottom of the window.  (ARG should be less than the height of the window.)
 
-If ARG is omitted or nil, then recenter with point on the middle line of
-the selected window; if the variable `recenter-redisplay' is non-nil,
-also erase the entire frame and redraw it (when `auto-resize-tool-bars'
-is set to `grow-only', this resets the tool-bar's height to the minimum
-height needed); if `recenter-redisplay' has the special value `tty',
-then only tty frames are redrawn.
+If ARG is omitted or nil, then recenter with point on the middle line
+of the selected window; if REDISPLAY & `recenter-redisplay' are
+non-nil, also erase the entire frame and redraw it (when
+`auto-resize-tool-bars' is set to `grow-only', this resets the
+tool-bar's height to the minimum height needed); if
+`recenter-redisplay' has the special value `tty', then only tty frames
+are redrawn.  Interactively, REDISPLAY is always non-nil.
 
 Just C-u as prefix means put point in the center of the window
 and redisplay normally--don't erase and redraw the frame.  */)
-  (register Lisp_Object arg)
+  (Lisp_Object arg, Lisp_Object redisplay)
 {
   struct window *w = XWINDOW (selected_window);
   struct buffer *buf = XBUFFER (w->contents);
@@ -5936,7 +5940,8 @@ and redisplay normally--don't erase and redraw the frame.  */)
 
   if (NILP (arg))
     {
-      if (!NILP (Vrecenter_redisplay)
+      if (!NILP (redisplay)
+	  && !NILP (Vrecenter_redisplay)
 	  && (!EQ (Vrecenter_redisplay, Qtty)
 	      || !NILP (Ftty_type (selected_frame))))
 	{
@@ -6614,10 +6619,10 @@ the return value is nil.  Otherwise the value is t.  */)
 			       make_number (old_point),
 			       XWINDOW (data->current_window)->contents);
 
-      /* In the following call to `select-window', prevent "swapping out
+      /* In the following call to select_window, prevent "swapping out
 	 point" in the old selected window using the buffer that has
-	 been restored into it.  We already swapped out that point from
-	 that window's old buffer.
+	 been restored into it.  We already swapped out that point
+	 from that window's old buffer.
 
 	 Do not record the buffer here.  We do that in a separate call
 	 to select_window below.  See also Bug#16207.  */
@@ -6660,10 +6665,10 @@ the return value is nil.  Otherwise the value is t.  */)
       if (WINDOW_LIVE_P (data->current_window))
 	select_window (data->current_window, Qnil, false);
 
-      /* Fselect_window will have made f the selected frame, so we
-	 reselect the proper frame here.  Fhandle_switch_frame will change the
-	 selected window too, but that doesn't make the call to
-	 Fselect_window above totally superfluous; it still sets f's
+      /* select_window will have made f the selected frame, so we
+	 reselect the proper frame here.  do_switch_frame will change
+	 the selected window too, but that doesn't make the call to
+	 select_window above totally superfluous; it still sets f's
 	 selected window.  */
       if (FRAME_LIVE_P (XFRAME (data->selected_frame)))
 	do_switch_frame (data->selected_frame, 0, 0, Qnil);
@@ -6700,8 +6705,21 @@ the return value is nil.  Otherwise the value is t.  */)
     {
       Fset_buffer (new_current_buffer);
       /* If the new current buffer doesn't appear in the selected
-	 window, go to its old point (see bug#12208).  */
-      if (!EQ (XWINDOW (data->current_window)->contents, new_current_buffer))
+	 window, go to its old point (Bug#12208).
+
+	 The original fix used data->current_window below which caused
+	 false positives (compare Bug#31695) when data->current_window
+	 is not on data->selected_frame.  This happens, for example,
+	 when read_minibuf restores the configuration of a stand-alone
+	 minibuffer frame: After switching to the previously selected
+	 "normal" frame, point of that frame's selected window jumped
+	 unexpectedly because new_current_buffer is usually *not*
+	 shown in data->current_window - the minibuffer frame's
+	 selected window.  Using selected_window instead fixes this
+	 because do_switch_frame has set up selected_window already to
+	 the "normal" frame's selected window and that window *does*
+	 show new_current_buffer.  */
+      if (!EQ (XWINDOW (selected_window)->contents, new_current_buffer))
 	Fgoto_char (make_number (old_point));
     }
 

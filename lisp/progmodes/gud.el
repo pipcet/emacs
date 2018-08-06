@@ -2605,7 +2605,12 @@ comint mode, which see."
 		      file-subst)))
 	 (filepart (and file-word (concat "-" (file-name-nondirectory file))))
 	 (existing-buffer (get-buffer (concat "*gud" filepart "*"))))
-    (switch-to-buffer (concat "*gud" filepart "*"))
+    (select-window
+     (display-buffer
+      (get-buffer-create (concat "*gud" filepart "*"))
+      '(display-buffer-reuse-window
+        display-buffer-in-previous-window
+        display-buffer-same-window display-buffer-pop-up-window)))
     (when (and existing-buffer (get-buffer-process existing-buffer))
       (error "This program is already being debugged"))
     ;; Set the dir, in case the buffer already existed with a different dir.
@@ -3358,10 +3363,7 @@ Treats actions as defuns."
 
 ;;;###autoload
 (define-minor-mode gud-tooltip-mode
-  "Toggle the display of GUD tooltips.
-With a prefix argument ARG, enable the feature if ARG is
-positive, and disable it otherwise.  If called from Lisp, enable
-it if ARG is omitted or nil."
+  "Toggle the display of GUD tooltips."
   :global t
   :group 'gud
   :group 'tooltip

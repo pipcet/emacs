@@ -73,7 +73,7 @@
 ;; c-c c-o comint-delete-output		   Delete last batch of process output
 ;; c-c c-r comint-show-output		   Show last batch of process output
 ;; c-c c-l comint-dynamic-list-input-ring  List input history
-;;         send-invisible                  Read line w/o echo & send to proc
+;;         comint-send-invisible           Read line w/o echo & send to proc
 ;;         comint-continue-subjob	   Useful if you accidentally suspend
 ;;					        top-level job
 ;; comint-mode-hook is the comint mode hook.
@@ -468,6 +468,8 @@ Shell buffers.  It implements `shell-completion-execonly' for
   (set (make-local-variable 'comint-file-name-chars) shell-file-name-chars)
   (set (make-local-variable 'comint-file-name-quote-list)
        shell-file-name-quote-list)
+  (set (make-local-variable 'comint-file-name-prefix)
+       (or (file-remote-p default-directory) ""))
   (set (make-local-variable 'comint-dynamic-complete-functions)
        shell-dynamic-complete-functions)
   (setq-local comint-unquote-function #'shell--unquote-argument)
@@ -498,7 +500,7 @@ Shell buffers.  It implements `shell-completion-execonly' for
     the end of process to the end of the current line.
 \\[comint-send-input] before end of process output copies the current line minus the prompt to
     the end of the buffer and sends it (\\[comint-copy-old-input] just copies the current line).
-\\[send-invisible] reads a line of text without echoing it, and sends it to
+\\[comint-send-invisible] reads a line of text without echoing it, and sends it to
     the shell.  This is useful for entering passwords.  Or, add the function
     `comint-watch-for-password-prompt' to `comint-output-filter-functions'.
 
@@ -965,9 +967,6 @@ Environment variables are expanded, see function `substitute-in-file-name'."
 
 (define-minor-mode shell-dirtrack-mode
   "Toggle directory tracking in this shell buffer (Shell Dirtrack mode).
-With a prefix argument ARG, enable Shell Dirtrack mode if ARG is
-positive, and disable it otherwise.  If called from Lisp, enable
-the mode if ARG is omitted or nil.
 
 The `dirtrack' package provides an alternative implementation of
 this feature; see the function `dirtrack-mode'."
@@ -1170,9 +1169,12 @@ Returns t if successful."
          (start (if (zerop (length filename)) (point) (match-beginning 0)))
          (end (if (zerop (length filename)) (point) (match-end 0)))
 	 (filenondir (file-name-nondirectory filename))
-	 ; why cdr? see `shell-dynamic-complete-command'
-	 (path-dirs (append (cdr (reverse exec-path))
-	   (if (memq system-type '(windows-nt ms-dos)) '("."))))
+	 (path-dirs
+	  ;; Ignore `exec-directory', the last entry in `exec-path'.
+          (append (cdr (reverse (exec-path)))
+	          (if (and (memq system-type '(windows-nt ms-dos))
+                           (not (file-remote-p default-directory)))
+                      '("."))))
 	 (cwd (file-name-as-directory (expand-file-name default-directory)))
 	 (ignored-extensions
 	  (and comint-completion-fignore

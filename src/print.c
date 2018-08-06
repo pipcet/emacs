@@ -38,6 +38,11 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #include <c-ctype.h>
 #include <float.h>
 #include <ftoastr.h>
+#include <math.h>
+
+#if IEEE_FLOATING_POINT
+# include <ieee754.h>
+#endif
 
 #ifdef WINDOWSNT
 # include <sys/socket.h> /* for F_DUPFD_CLOEXEC */
@@ -879,6 +884,17 @@ safe_debug_print (Lisp_Object arg)
     }
 }
 
+/* This function formats the given object and returns the result as a
+   string. Use this in contexts where you can inspect strings, but
+   where stderr output won't work --- e.g., while replaying rr
+   recordings.  */
+const char * debug_format (const char *, Lisp_Object) EXTERNALLY_VISIBLE;
+const char *
+debug_format (const char *fmt, Lisp_Object arg)
+{
+  return SSDATA (CALLN (Fformat, build_string (fmt), arg));
+}
+
 
 DEFUN ("error-message-string", Ferror_message_string, Serror_message_string,
        1, 1, 0,
@@ -1014,43 +1030,22 @@ float_to_string (char *buf, double data)
   int width;
   int len;
 
-  /* Check for plus infinity in a way that won't lose
-     if there is no plus infinity.  */
-  if (data == data / 2 && data > 1.0)
-    {
-      static char const infinity_string[] = "1.0e+INF";
-      strcpy (buf, infinity_string);
-      return sizeof infinity_string - 1;
-    }
-  /* Likewise for minus infinity.  */
-  if (data == data / 2 && data < -1.0)
+  if (isinf (data))
     {
       static char const minus_infinity_string[] = "-1.0e+INF";
-      strcpy (buf, minus_infinity_string);
-      return sizeof minus_infinity_string - 1;
+      bool positive = 0 < data;
+      strcpy (buf, minus_infinity_string + positive);
+      return sizeof minus_infinity_string - 1 - positive;
     }
-  /* Check for NaN in a way that won't fail if there are no NaNs.  */
-  if (! (data * 0.0 >= 0.0))
+#if IEEE_FLOATING_POINT
+  if (isnan (data))
     {
-      /* Prepend "-" if the NaN's sign bit is negative.
-	 The sign bit of a double is the bit that is 1 in -0.0.  */
-      static char const NaN_string[] = "0.0e+NaN";
-      int i;
-      union { double d; char c[sizeof (double)]; } u_data, u_minus_zero;
-      bool negative = 0;
-      u_data.d = data;
-      u_minus_zero.d = - 0.0;
-      for (i = 0; i < sizeof (double); i++)
-	if (u_data.c[i] & u_minus_zero.c[i])
-	  {
-	    *buf = '-';
-	    negative = 1;
-	    break;
-	  }
-
-      strcpy (buf + negative, NaN_string);
-      return negative + sizeof NaN_string - 1;
+      union ieee754_double u = { .d = data };
+      uprintmax_t hi = u.ieee_nan.mantissa0;
+      return sprintf (buf, &"-%"pMu".0e+NaN"[!u.ieee_nan.negative],
+		      (hi << 31 << 1) + u.ieee_nan.mantissa1);
     }
+#endif
 
   if (NILP (Vfloat_output_format)
       || !STRINGP (Vfloat_output_format))
@@ -1334,8 +1329,7 @@ print_check_string_charset_prop (INTERVAL interval, Lisp_Object string)
 	  || CONSP (XCDR (XCDR (val))))
 	print_check_string_result |= PRINT_STRING_NON_CHARSET_FOUND;
     }
-  if (NILP (Vprint_charset_text_property)
-      || ! (print_check_string_result & PRINT_STRING_UNSAFE_CHARSET_FOUND))
+  if (! (print_check_string_result & PRINT_STRING_UNSAFE_CHARSET_FOUND))
     {
       int i, c;
       ptrdiff_t charpos = interval->position;
@@ -1365,7 +1359,8 @@ print_prune_string_charset (Lisp_Object string)
   print_check_string_result = 0;
   traverse_intervals (string_intervals (string), 0,
 		      print_check_string_charset_prop, string);
-  if (! (print_check_string_result & PRINT_STRING_UNSAFE_CHARSET_FOUND))
+  if (NILP (Vprint_charset_text_property)
+      || ! (print_check_string_result & PRINT_STRING_UNSAFE_CHARSET_FOUND))
     {
       string = Fcopy_sequence (string);
       if (print_check_string_result & PRINT_STRING_NON_CHARSET_FOUND)
@@ -2186,7 +2181,7 @@ print_object (Lisp_Object obj, Lisp_Object printcharfun, bool escapeflag)
 	  print_c_string ("#<misc free cell>", printcharfun);
 	  break;
 
-	case Lisp_Misc_Save_Value:
+	case Lisp_Misc_Ptr:
 	  {
 	    int i;
 	    struct Lisp_Save_Value *v = XSAVE_VALUE (obj);
@@ -2450,7 +2445,7 @@ that need to be recorded in the table.  */);
 
   DEFVAR_LISP ("print-charset-text-property", Vprint_charset_text_property,
 	       doc: /* A flag to control printing of `charset' text property on printing a string.
-The value must be nil, t, or `default'.
+The value should be nil, t, or `default'.
 
 If the value is nil, don't print the text property `charset'.
 
@@ -2458,7 +2453,8 @@ If the value is t, always print the text property `charset'.
 
 If the value is `default', print the text property `charset' only when
 the value is different from what is guessed in the current charset
-priorities.  */);
+priorities.  Values other than nil or t are also treated as
+`default'.  */);
   Vprint_charset_text_property = Qdefault;
 
   /* prin1_to_string_buffer initialized in init_buffer_once in buffer.c */

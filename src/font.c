@@ -1897,11 +1897,11 @@ otf_open (Lisp_Object file)
   OTF *otf;
 
   if (! NILP (val))
-    otf = XSAVE_POINTER (XCDR (val), 0);
+    otf = xmint_pointer (XCDR (val));
   else
     {
       otf = STRINGP (file) ? OTF_open (SSDATA (file)) : NULL;
-      val = make_save_ptr (otf);
+      val = make_mint_ptr (otf);
       otf_list = Fcons (Fcons (file, val), otf_list);
     }
   return otf;
@@ -3635,10 +3635,10 @@ font_put_frame_data (struct frame *f, Lisp_Object driver, void *data)
   else
     {
       if (NILP (val))
-	fset_font_data (f, Fcons (Fcons (driver, make_save_ptr (data)),
+	fset_font_data (f, Fcons (Fcons (driver, make_mint_ptr (data)),
 				  f->font_data));
       else
-	XSETCDR (val, make_save_ptr (data));
+	XSETCDR (val, make_mint_ptr (data));
     }
 }
 
@@ -3647,7 +3647,7 @@ font_get_frame_data (struct frame *f, Lisp_Object driver)
 {
   Lisp_Object val = assq_no_quit (driver, f->font_data);
 
-  return NILP (val) ? NULL : XSAVE_POINTER (XCDR (val), 0);
+  return NILP (val) ? NULL : xmint_pointer (XCDR (val));
 }
 
 #endif /* HAVE_XFT || HAVE_FREETYPE */
@@ -3813,7 +3813,7 @@ font_range (ptrdiff_t pos, ptrdiff_t pos_byte, ptrdiff_t *limit,
 	  face_id =
 	    NILP (Vface_remapping_alist)
 	    ? DEFAULT_FACE_ID
-	    : lookup_basic_face (f, DEFAULT_FACE_ID);
+	    : lookup_basic_face (w, f, DEFAULT_FACE_ID);
 
 	  face_id = face_at_string_position (w, string, pos, 0, &ignore,
 					     face_id, false);
@@ -4361,10 +4361,9 @@ clear_font_cache (struct frame *f)
 	Lisp_Object val, tmp, cache = driver_list->driver->get_cache (f);
 
 	val = XCDR (cache);
-	while (! NILP (val)
-	       && ! EQ (XCAR (XCAR (val)), driver_list->driver->type))
+	while (eassert (CONSP (val)),
+	       ! EQ (XCAR (XCAR (val)), driver_list->driver->type))
 	  val = XCDR (val);
-	eassert (! NILP (val));
 	tmp = XCDR (XCAR (val));
 	if (XINT (XCAR (tmp)) == 0)
 	  {
@@ -4566,7 +4565,7 @@ DEFUN ("internal-char-font", Finternal_char_font, Sinternal_char_font, 1, 2, 0,
       CHECK_CHARACTER (ch);
       c = XINT (ch);
       f = XFRAME (selected_frame);
-      face_id = lookup_basic_face (f, DEFAULT_FACE_ID);
+      face_id = lookup_basic_face (NULL, f, DEFAULT_FACE_ID);
       pos = -1;
     }
   else

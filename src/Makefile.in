@@ -106,7 +106,7 @@ LD_SWITCH_SYSTEM_TEMACS=@LD_SWITCH_SYSTEM_TEMACS@
 ## Flags to pass to ld only for temacs.
 TEMACS_LDFLAGS = $(LD_SWITCH_SYSTEM) $(LD_SWITCH_SYSTEM_TEMACS)
 
-## If available, the names of the paxctl and setfattr programs.
+## If needed, the names of the paxctl and setfattr programs.
 ## On grsecurity/PaX systems, unexec will fail due to a gap between
 ## the bss section and the heap.  Older versions need paxctl to work
 ## around this, newer ones setfattr.  See Bug#11398 and Bug#16343.
@@ -408,7 +408,7 @@ base_obj = dispnew.c.cc.o frame.c.cc.o scroll.c.cc.o xdisp.c.cc.o menu.c.cc.o $(
 	emacs.c.cc.o keyboard.c.cc.o macros.c.cc.o keymap.c.cc.o sysdep.c.cc.o \
 	buffer.c.cc.o filelock.c.cc.o insdel.c.cc.o marker.c.cc.o \
 	minibuf.c.cc.o fileio.c.cc.o dired.c.cc.o \
-	cmds.c.cc.o casetab.c.cc.o casefiddle.c.cc.o indent.c.cc.o search.c.cc.o regex.c.cc.o undo.c.cc.o \
+	cmds.c.cc.o casetab.c.cc.o casefiddle.c.cc.o indent.c.cc.o search.c.cc.o regex-emacs.c.cc.o undo.c.cc.o \
 	alloc.c.cc.o data.c.cc.o doc.c.cc.o editfns.c.cc.o callint.c.cc.o \
 	eval.c.cc.o floatfns.c.cc.o fns.c.cc.o font.c.cc.o print.c.cc.o lread.c.cc.o $(MODULES_OBJ) \
 	syntax.c.cc.o $(UNEXEC_OBJ) bytecode.c.cc.o \
@@ -701,13 +701,14 @@ ${ETAGS}: FORCE
 ctagsfiles1 = $(wildcard ${srcdir}/*.[hc])
 ctagsfiles2 = $(wildcard ${srcdir}/*.m)
 
-## FIXME? In out-of-tree builds, should TAGS be generated in srcdir?
+## In out-of-tree builds, TAGS are generated in the build dir, like
+## other non-bootstrap build products (see Bug#31744).
 
 ## This does not need to depend on ../lisp and ../lwlib TAGS files,
 ## because etags "--include" only includes a pointer to the file,
 ## rather than the file contents.
 TAGS: ${ETAGS} $(ctagsfiles1) $(ctagsfiles2)
-	${ETAGS} --include=../lisp/TAGS --include=$(lwlibdir)/TAGS \
+	$(AM_V_GEN)${ETAGS} --include=../lisp/TAGS --include=$(lwlibdir)/TAGS \
 	  --regex='{c}/[ 	]*DEFVAR_[A-Z_ 	(]+"\([^"]+\)"/\1/' \
 	  --regex='{c}/[ 	]*DEFVAR_[A-Z_ 	(]+"[^"]+",[ 	]\([A-Za-z0-9_]+\)/\1/' \
 	  $(ctagsfiles1) \
@@ -773,3 +774,8 @@ else
 endif
 	@: Compile some files earlier to speed up further compilation.
 	$(MAKE) -C ../lisp compile-first EMACS="$(bootstrap_exe)"
+
+### Flymake support (for C only)
+check-syntax:
+	$(AM_V_CC)$(CC) -c $(CPPFLAGS) $(ALL_CFLAGS) ${CHK_SOURCES} || true
+.PHONY: check-syntax

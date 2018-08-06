@@ -1612,7 +1612,7 @@ Anything else, means only clear those images which refer to FILTER,
 which is then usually a filename.  */)
   (Lisp_Object filter)
 {
-  if (!(EQ (filter, Qnil) || FRAMEP (filter)))
+  if (! (NILP (filter) || FRAMEP (filter)))
     clear_image_caches (filter);
   else
     clear_image_cache (decode_window_system_frame (filter), Qt);
@@ -9306,7 +9306,7 @@ svg_load_image (struct frame *f, struct image *img, char *contents,
 
   /* Set base_uri for properly handling referenced images (via 'href').
      See rsvg bug 596114 - "image refs are relative to curdir, not .svg file"
-     (https://bugzilla.gnome.org/show_bug.cgi?id=596114). */
+     <https://gitlab.gnome.org/GNOME/librsvg/issues/33>. */
   if (filename)
     rsvg_handle_set_base_uri(rsvg_handle, filename);
 

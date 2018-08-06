@@ -67,16 +67,14 @@
 (defcustom tramp-smb-program "smbclient"
   "Name of SMB client to run."
   :group 'tramp
-  :type 'string
-  :require 'tramp)
+  :type 'string)
 
 ;;;###tramp-autoload
 (defcustom tramp-smb-acl-program "smbcacls"
   "Name of SMB acls to run."
   :group 'tramp
   :type 'string
-  :version "24.4"
-  :require 'tramp)
+  :version "24.4")
 
 ;;;###tramp-autoload
 (defcustom tramp-smb-conf "/dev/null"
@@ -84,8 +82,7 @@
 If it is nil, no smb.conf will be added to the `tramp-smb-program'
 call, letting the SMB client use the default one."
   :group 'tramp
-  :type '(choice (const nil) (file :must-match t))
-  :require 'tramp)
+  :type '(choice (const nil) (file :must-match t)))
 
 (defvar tramp-smb-version nil
   "Version string of the SMB client.")
@@ -232,6 +229,7 @@ See `tramp-actions-before-shell' for more info.")
      . tramp-handle-directory-files-and-attributes)
     (dired-compress-file . ignore)
     (dired-uncache . tramp-handle-dired-uncache)
+    (exec-path . ignore)
     (expand-file-name . tramp-smb-handle-expand-file-name)
     (file-accessible-directory-p . tramp-handle-file-accessible-directory-p)
     (file-acl . tramp-smb-handle-file-acl)
@@ -300,8 +298,7 @@ If it isn't found in the local $PATH, the absolute path of winexe
 shall be given.  This is needed for remote processes."
   :group 'tramp
   :type 'string
-  :version "24.3"
-  :require 'tramp)
+  :version "24.3")
 
 ;;;###tramp-autoload
 (defcustom tramp-smb-winexe-shell-command "powershell.exe"
@@ -309,8 +306,7 @@ shall be given.  This is needed for remote processes."
 This must be Powershell V2 compatible."
   :group 'tramp
   :type 'string
-  :version "24.3"
-  :require 'tramp)
+  :version "24.3")
 
 ;;;###tramp-autoload
 (defcustom tramp-smb-winexe-shell-command-switch "-file -"
@@ -318,8 +314,7 @@ This must be Powershell V2 compatible."
 This can be used to disable echo etc."
   :group 'tramp
   :type 'string
-  :version "24.3"
-  :require 'tramp)
+  :version "24.3")
 
 ;; It must be a `defsubst' in order to push the whole code into
 ;; tramp-loaddefs.el.  Otherwise, there would be recursive autoloading.
@@ -721,8 +716,7 @@ PRESERVE-UID-GID and PRESERVE-EXTENDED-ATTRIBUTES are completely ignored."
       ;; No tilde characters in file name, do normal
       ;; `expand-file-name' (this does "/./" and "/../").
       (tramp-make-tramp-file-name
-       method user domain host port
-       (tramp-run-real-handler 'expand-file-name (list localname))))))
+       v (tramp-run-real-handler 'expand-file-name (list localname))))))
 
 (defun tramp-smb-action-get-acl (proc vec)
   "Read ACL data from connection buffer."
@@ -1241,8 +1235,7 @@ component is used as the target of the symlink."
 	    (setq input (with-parsed-tramp-file-name infile nil localname))
 	  ;; INFILE must be copied to remote host.
 	  (setq input (tramp-make-tramp-temp-file v)
-		tmpinput
-		(tramp-make-tramp-file-name method user domain host port input))
+		tmpinput (tramp-make-tramp-file-name v input))
 	  (copy-file infile tmpinput t))
 	;; Transform input into a filename powershell does understand.
 	(setq input (format "//%s%s" host input)))

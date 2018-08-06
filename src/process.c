@@ -1925,8 +1925,7 @@ usage: (make-process &rest ARGS)  */)
   else
     create_pty (proc);
 
-  SAFE_FREE ();
-  return unbind_to (count, proc);
+  return SAFE_FREE_UNBIND_TO (count, proc);
 }
 
 /* If PROC doesn't have its pid set, then an error was signaled and
@@ -3593,17 +3592,23 @@ connect_network_socket (Lisp_Object proc, Lisp_Object addrinfos,
 
   if (s < 0)
     {
+      const char *err = (p->is_server
+			 ? "make server process failed"
+			 : "make client process failed");
+
       /* If non-blocking got this far - and failed - assume non-blocking is
          not supported after all.  This is probably a wrong assumption, but
          the normal blocking calls to open-network-stream handles this error
          better.  */
       if (p->is_non_blocking_client)
-        return;
+	{
+	  Lisp_Object data = get_file_errno_data (err, contact, xerrno);
 
-      report_file_errno ((p->is_server
-                          ? "make server process failed"
-                          : "make client process failed"),
-                         contact, xerrno);
+	  pset_status (p, list2 (Fcar (data), Fcdr (data)));
+	  return;
+	}
+
+      report_file_errno (err, contact, xerrno);
     }
 
   inch = s;
@@ -3909,12 +3914,15 @@ usage: (make-network-process &rest ARGS)  */)
   filter = Fplist_get (contact, QCfilter);
   sentinel = Fplist_get (contact, QCsentinel);
   use_external_socket_p = Fplist_get (contact, QCuse_external_socket);
+  Lisp_Object server = Fplist_get (contact, QCserver);
+  bool nowait = !NILP (Fplist_get (contact, QCnowait));
 
+  if (!NILP (server) && nowait)
+    error ("`:server' is incompatible with `:nowait'");
   CHECK_STRING (name);
 
   /* :local ADDRESS or :remote ADDRESS */
-  tem = Fplist_get (contact, QCserver);
-  if (NILP (tem))
+  if (NILP (server))
     address = Fplist_get (contact, QCremote);
   else
     address = Fplist_get (contact, QClocal);
@@ -4029,29 +4037,34 @@ usage: (make-network-process &rest ARGS)  */)
         }
 
 #ifdef HAVE_GETADDRINFO_A
-      if (!NILP (Fplist_get (contact, QCnowait)))
-        {
-          ptrdiff_t hostlen = SBYTES (host);
-          struct req
-            *req = xmalloc (FLEXSIZEOF (struct req, str,
-                                        hostlen + 1 + portstringlen + 1));
-          dns_request = &req->gaicb;
-          dns_request->ar_name = req->str;
-          dns_request->ar_service = req->str + hostlen + 1;
-          dns_request->ar_request = &req->hints;
-          dns_request->ar_result = NULL;
-          memset (&req->hints, 0, sizeof req->hints);
-          req->hints.ai_family = family;
-          req->hints.ai_socktype = socktype;
-          strcpy (req->str, SSDATA (host));
-          strcpy (req->str + hostlen + 1, portstring);
+      if (nowait)
+	{
+	  ptrdiff_t hostlen = SBYTES (host);
+	  struct req
+	  {
+	    struct gaicb gaicb;
+	    struct addrinfo hints;
+	    char str[FLEXIBLE_ARRAY_MEMBER];
+	  } *req = xmalloc (FLEXSIZEOF (struct req, str,
+					hostlen + 1 + portstringlen + 1));
+	  dns_request = &req->gaicb;
+	  dns_request->ar_name = req->str;
+	  dns_request->ar_service = req->str + hostlen + 1;
+	  dns_request->ar_request = &req->hints;
+	  dns_request->ar_result = NULL;
+	  memset (&req->hints, 0, sizeof req->hints);
+	  req->hints.ai_family = family;
+	  req->hints.ai_socktype = socktype;
+	  strcpy (req->str, SSDATA (host));
+	  strcpy (req->str + hostlen + 1, portstring);
 
-          int ret = getaddrinfo_a (GAI_NOWAIT, &dns_request, 1, NULL);
-          if (ret)
-            error ("%s/%s getaddrinfo_a error %d", SSDATA (host), portstring, ret);
+	  int ret = getaddrinfo_a (GAI_NOWAIT, &dns_request, 1, NULL);
+	  if (ret)
+	    error ("%s/%s getaddrinfo_a error %d",
+		   SSDATA (host), portstring, ret);
 
-          goto open_socket;
-        }
+	  goto open_socket;
+	}
 #endif /* HAVE_GETADDRINFO_A */
     }
   /* If we have a host, use getaddrinfo to resolve both host and service.
@@ -4170,20 +4183,13 @@ usage: (make-network-process &rest ARGS)  */)
 
   set_network_socket_coding_system (proc, host, service, name);
 
-  /* :server BOOL */
-  tem = Fplist_get (contact, QCserver);
-  if (!NILP (tem))
-    {
-      /* Don't support network sockets when non-blocking mode is
-         not available, since a blocked Emacs is not useful.  */
-      p->is_server = true;
-      if (TYPE_RANGED_INTEGERP (int, tem))
-        p->backlog = XINT (tem);
-    }
+  /* :server QLEN */
+  p->is_server = !NILP (server);
+  if (TYPE_RANGED_INTEGERP (int, server))
+    p->backlog = XINT (server);
 
   /* :nowait BOOL */
-  if (!p->is_server && socktype != SOCK_DGRAM
-      && !NILP (Fplist_get (contact, QCnowait)))
+  if (!p->is_server && socktype != SOCK_DGRAM && nowait)
     p->is_non_blocking_client = true;
 
   bool postpone_connection = false;
@@ -4617,18 +4623,17 @@ is nil, from any process) before the timeout expired.  */)
       struct Lisp_Process *proc = XPROCESS (process);
 
       /* Can't wait for a process that is dedicated to a different
-         thread.  */
-      if (!EQ (proc->thread, Qnil) && !EQ (proc->thread, Fcurrent_thread ()))
-        {
-          Lisp_Object proc_thread_name = XTHREAD (proc->thread)->name;
+	 thread.  */
+      if (!NILP (proc->thread) && !EQ (proc->thread, Fcurrent_thread ()))
+	{
+	  Lisp_Object proc_thread_name = XTHREAD (proc->thread)->name;
 
-          if (STRINGP (proc_thread_name))
-            error ("Attempt to accept output from process %s locked to thread %s",
-                   SDATA (proc->name), SDATA (proc_thread_name));
-          else
-            error ("Attempt to accept output from process %s locked to thread %p",
-                   SDATA (proc->name), XTHREAD (proc->thread));
-        }
+	  error ("Attempt to accept output from process %s locked to thread %s",
+		 SDATA (proc->name),
+		 STRINGP (proc_thread_name)
+		 ? SDATA (proc_thread_name)
+		 : SDATA (Fprin1_to_string (proc->thread, Qt)));
+	}
     }
   else
     just_this_one = Qnil;
@@ -5026,8 +5031,8 @@ wait_reading_process_output (intmax_t time_limit, int nsecs, int read_kbd,
   struct timespec now = invalid_timespec ();
 
   eassert (wait_proc == NULL
-           || EQ (wait_proc->thread, Qnil)
-           || XTHREAD (wait_proc->thread) == current_thread);
+	   || NILP (wait_proc->thread)
+	   || XTHREAD (wait_proc->thread) == current_thread);
 
   FD_ZERO (&Available);
   FD_ZERO (&Writeok);
