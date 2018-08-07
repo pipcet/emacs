@@ -122,6 +122,7 @@ struct re_pattern_buffer
 
 /* Declarations for routines.  */
 
+extern "C" {
 /* Compile the regular expression PATTERN, with length LENGTH
    and syntax given by the global 're_syntax_options', into the buffer
    BUFFER.  Return NULL if successful, and an error string if not.  */
@@ -190,7 +191,6 @@ typedef enum { RECC_ERROR = 0,
 	       RECC_ASCII, RECC_UNIBYTE
 } re_wctype_t;
 
-extern "C" {
 extern bool re_iswctype (int ch, re_wctype_t cc);
 extern re_wctype_t re_wctype_parse (const unsigned char **strp,
 				    unsigned limit);

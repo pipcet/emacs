@@ -662,7 +662,7 @@ close_emacs_globals (ptrdiff_t num_symbols)
 	   "#ifndef DEFINE_SYMBOLS\n"
 	   "extern\n"
            "#else\n"
-           "__attribute__((init_priority(102)))\n"
+           "__attribute__((init_priority(105)))\n"
 	   "#endif\n"
 	   "struct Lisp_Symbol lispsym[%td];\n"),
 	  num_symbols);

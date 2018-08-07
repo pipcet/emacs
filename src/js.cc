@@ -1,7 +1,7 @@
 // shell g++ -ggdb -g3 -std=c++11 -I ../src/ -I ../js/dist/include/ ./js.cpp -L ../js/dist/bin/ -lz -lpthread -ldl -lmozjs-58a1 -Wl,--whole-archive ../js/mozglue/build/libmozglue.a -Wl,--no-whole-archive -pthread
 #include "config.h.hh"
 
-#define DEBUG
+//#define DEBUG
 #include "js-config.h"
 #include "jsapi.h"
 
@@ -646,7 +646,7 @@ global_resolve(JSContext* cx, JS::HandleObject obj, JS::HandleId id, bool* resol
 static bool
 global_mayResolve(const JSAtomState& names, jsid id, JSObject* maybeObj)
 {
-    return JS_MayResolveStandardClass(names, id, maybeObj);
+  return true; // JS_MayResolveStandardClass(names, id, maybeObj);
 }
 
 static const JSClassOps global_classOps = {
@@ -817,13 +817,11 @@ js_gc_trace(JSTracer* tracer, void* data)
   // might be made unbound.
   TraceEdge(tracer, &Sframe_windows_min_size.header.jsval, "Sframe_windows_min_size");
 
-  /*
   TraceEdge(tracer, &elisp_cons_class_proto, "cons class proto");
   TraceEdge(tracer, &elisp_string_class_proto, "string class proto");
   TraceEdge(tracer, &elisp_symbol_class_proto, "symbol class proto");
   TraceEdge(tracer, &elisp_vector_class_proto, "vector class proto");
   TraceEdge(tracer, &elisp_misc_class_proto, "misc class proto");
-  */
 
   for (size_t i = 0; i < GLOBAL_OBJECTS; i++) {
     TraceEdge(tracer, &(((ELisp_Struct_Value *)&globals)+i)->v.v, "global");
@@ -994,19 +992,19 @@ bool js_init()
     JSAutoRequest ar(cx);
     JS_BeginRequest(cx);
     JS::RealmOptions compartment_options;
-    compartment_options.creationOptions();
+    compartment_options.creationOptions().setNewCompartmentAndZone();
     JS::RootedObject glob(cx, JS_NewGlobalObject(cx, &global_class, nullptr, JS::FireOnNewGlobalHook, compartment_options));
 
     if (!glob)
       return false;
 
     {
-      JSAutoRealm(cx, glob);
+      JS::Realm* oldRealm = JS::EnterRealm(cx, glob);
       if (!JS::InitRealmStandardClasses(cx))
         return false;
 
-      //if (!JS_DefineFunctions(cx, glob, emacs_functions))
-      //  return false;
+      if (!JS_DefineFunctions(cx, glob, emacs_functions))
+        return false;
       elisp_classes_init(cx, glob);
       elisp_gc_callback_register(cx);
       JS_InitClass(cx, glob, nullptr, &cons_class, cons_construct, 2,
@@ -1103,7 +1101,7 @@ static ELisp_Return_Value elisp_exception_to_js_exception(ELisp_Handle exc)
   return exc;
 }
 
-JS::Heap<JSObject*> elisp_exception_class_proto __attribute__((init_priority(101)));
+JS::Heap<JSObject*> elisp_exception_class_proto __attribute__((init_priority(103)));
 static ELisp_Return_Value js_exception_to_elisp_exception(ELisp_Handle exc)
 {
   //if (exc.isObject() && JS_GetClass(&exc.toObject()) == &elisp_exception_class)
@@ -1455,7 +1453,35 @@ DEFUN ("unbind_to_rel", Funbind_to_rel, Sunbind_to_rel, 2, 2, 0,
 
 JSG jsg __attribute__((init_priority(102)));
 
-JSContext* global_js_context;
+void *elisp_cons_class_proto_backup;
+void *elisp_string_class_proto_backup;
+void *elisp_symbol_class_proto_backup;
+void *elisp_vector_class_proto_backup;
+void *elisp_misc_class_proto_backup;
+void *elisp_exception_class_proto_backup;
+
+JS::Heap<JSObject*> elisp_cons_class_proto __attribute__((init_priority(103)));
+JS::Heap<JSObject*> elisp_string_class_proto __attribute__((init_priority(103)));
+JS::Heap<JSObject*> elisp_symbol_class_proto __attribute__((init_priority(103)));
+JS::Heap<JSObject*> elisp_vector_class_proto __attribute__((init_priority(103)));
+JS::Heap<JSObject*> elisp_misc_class_proto __attribute__((init_priority(103)));
+
+class JSG2 {
+public:
+  JSG2() {
+  memcpy(&elisp_cons_class_proto, &elisp_cons_class_proto_backup, sizeof elisp_cons_class_proto);
+  memcpy(&elisp_string_class_proto, &elisp_string_class_proto_backup, sizeof elisp_cons_class_proto);
+  memcpy(&elisp_symbol_class_proto, &elisp_symbol_class_proto_backup, sizeof elisp_cons_class_proto);
+  memcpy(&elisp_vector_class_proto, &elisp_vector_class_proto_backup, sizeof elisp_cons_class_proto);
+  memcpy(&elisp_misc_class_proto, &elisp_misc_class_proto_backup, sizeof elisp_cons_class_proto);
+  memcpy(&elisp_exception_class_proto, &elisp_exception_class_proto_backup, sizeof elisp_cons_class_proto);
+    
+  }
+};
+
+JSG2 jsg2 __attribute__((init_priority(104)));
+
+  JSContext* global_js_context;
 
 extern JSContext* global_js_context;
 
@@ -2598,11 +2624,6 @@ static JSFunctionSpec elisp_string_fns[] = {
                                       JS_FS_END
 };
 
-JS::Heap<JSObject*> elisp_cons_class_proto __attribute__((init_priority(101)));
-JS::Heap<JSObject*> elisp_string_class_proto __attribute__((init_priority(101)));
-JS::Heap<JSObject*> elisp_symbol_class_proto __attribute__((init_priority(101)));
-JS::Heap<JSObject*> elisp_vector_class_proto __attribute__((init_priority(101)));
-JS::Heap<JSObject*> elisp_misc_class_proto __attribute__((init_priority(101)));
 
 static void
 elisp_classes_init(JSContext *cx, JS::HandleObject glob)
@@ -2680,6 +2701,12 @@ elisp_classes_init(JSContext *cx, JS::HandleObject glob)
   JS_InitClass(cx, glob, nullptr, &elisp_vectorlike_class, nullptr, 0,
                nullptr, nullptr, nullptr, nullptr);
   elisp_exception_class_proto = JS_InitClass(cx, glob, nullptr, &elisp_exception_class, nullptr, 0, nullptr, nullptr, nullptr, nullptr);
+  memcpy(&elisp_cons_class_proto_backup, &elisp_cons_class_proto, sizeof elisp_cons_class_proto);
+  memcpy(&elisp_string_class_proto_backup, &elisp_string_class_proto, sizeof elisp_cons_class_proto);
+  memcpy(&elisp_symbol_class_proto_backup, &elisp_symbol_class_proto, sizeof elisp_cons_class_proto);
+  memcpy(&elisp_vector_class_proto_backup, &elisp_vector_class_proto, sizeof elisp_cons_class_proto);
+  memcpy(&elisp_misc_class_proto_backup, &elisp_misc_class_proto, sizeof elisp_cons_class_proto);
+  memcpy(&elisp_exception_class_proto_backup, &elisp_exception_class_proto, sizeof elisp_cons_class_proto);
 }
 
 void jsprint(JS::Value v);

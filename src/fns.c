@@ -3846,12 +3846,9 @@ hashfn_user_defined (struct hash_table_test *ht, Lisp_Object key)
 }
 
 struct hash_table_test
-  hashtest_eq = { LISPSYM_INITIALLY (Qeq), LISPSYM_INITIALLY (Qnil),
-		  LISPSYM_INITIALLY (Qnil), 0, hashfn_eq },
-  hashtest_eql = { LISPSYM_INITIALLY (Qeql), LISPSYM_INITIALLY (Qnil),
-		   LISPSYM_INITIALLY (Qnil), cmpfn_eql, hashfn_eql },
-  hashtest_equal = { LISPSYM_INITIALLY (Qequal), LISPSYM_INITIALLY (Qnil),
-		     LISPSYM_INITIALLY (Qnil), cmpfn_equal, hashfn_equal };
+hashtest_eq,
+  hashtest_eql,
+  hashtest_equal;
 
 /* Allocate basically initialized hash table.  */
 
@@ -5240,6 +5237,12 @@ disregarding any coding systems.  If nil, use the current buffer.  */ )
 void
 syms_of_fns (void)
 {
+  hashtest_eq = { LISPSYM_INITIALLY (Qeq), LISPSYM_INITIALLY (Qnil),
+		  LISPSYM_INITIALLY (Qnil), 0, hashfn_eq },
+  hashtest_eql = { LISPSYM_INITIALLY (Qeql), LISPSYM_INITIALLY (Qnil),
+		   LISPSYM_INITIALLY (Qnil), cmpfn_eql, hashfn_eql },
+  hashtest_equal = { LISPSYM_INITIALLY (Qequal), LISPSYM_INITIALLY (Qnil),
+		     LISPSYM_INITIALLY (Qnil), cmpfn_equal, hashfn_equal };
   /* Hash table stuff.  */
   DEFSYM (Qhash_table_p, "hash-table-p");
   DEFSYM (Qeq, "eq");
