@@ -3975,8 +3975,14 @@ for my $chunk (@chunks) {
     my $counter = 10;
     my $md5 = md5_hex($chunk);
     push @md5s, $md5;
-    if (!$nomd5 && $defns == $defns_main && -e "chunkl-cache/main/$md5") {
-        print read_file("chunkl-cache/main/$md5");
+    my $dir;
+    if ($defns == $defns_main) {
+        $dir = "main";
+    } elsif ($defns == $defns_header) {
+        $dir = "header";
+    }
+    if (!$nomd5 && ($dir ne "") && -e "chunkl-cache/$dir/$md5") {
+        print read_file("chunkl-cache/$dir/$md5");
         warn "chunk found";
         next;
     }
@@ -4056,8 +4062,8 @@ for my $chunk (@chunks) {
 
     print $chunk;
 
-    mkdir("chunkl-cache/main");
-    write_file("chunkl-cache/main/$md5", $chunk) if $cu && !$nomd5;
+    mkdir("chunkl-cache/$dir");
+    write_file("chunkl-cache/$dir/$md5", $chunk) if $cu && !$nomd5;
 }
 
 if ($cu) {
