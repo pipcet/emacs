@@ -3612,7 +3612,8 @@ record_unwind_protect (void (*function) (Lisp_Object), Lisp_Object arg)
 void
 record_unwind_protect_array (Lisp_Object *array, ptrdiff_t nelts)
 {
-  specpdl_ptr->unwind_array.kind = SPECPDL_UNWIND_ARRAY;
+  prepare_grow_specpdl ();
+  specpdl_ptr->kind = SPECPDL_UNWIND_ARRAY;
   specpdl_ptr->unwind_array.vector = LV(nelts, array);
   grow_specpdl ();
 }
@@ -3640,7 +3641,8 @@ record_unwind_protect_int (void (*function) (int), int arg)
 void
 record_unwind_protect_excursion (void)
 {
-  specpdl_ptr->unwind_excursion.kind = SPECPDL_UNWIND_EXCURSION;
+  prepare_grow_specpdl ();
+  specpdl_ptr->kind = SPECPDL_UNWIND_EXCURSION;
   save_excursion_save (specpdl_ptr);
   grow_specpdl ();
 }
@@ -3812,6 +3814,9 @@ unbind_to (ptrdiff_t count, Lisp_Object value)
       this_binding.unwind_int.func = specpdl_ptr->unwind_int.func;
       this_binding.unwind_int.arg = specpdl_ptr->unwind_int.arg;
       this_binding.unwind_void.func = specpdl_ptr->unwind_void.func;
+      this_binding.unwind_array.vector = specpdl_ptr->unwind_array.vector;
+      this_binding.unwind_excursion.marker = specpdl_ptr->unwind_excursion.marker;
+      this_binding.unwind_excursion.window = specpdl_ptr->unwind_excursion.window;
       this_binding.let.symbol = specpdl_ptr->let.symbol;
       this_binding.let.old_value = specpdl_ptr->let.old_value;
       this_binding.let.where = specpdl_ptr->let.where;

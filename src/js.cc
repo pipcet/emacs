@@ -843,8 +843,10 @@ js_gc_trace(JSTracer* tracer, void* data)
     TraceEdge(tracer, &pdl->let.symbol.v.v, "symbol");
     TraceEdge(tracer, &pdl->let.old_value.v.v, "old value");
     TraceEdge(tracer, &pdl->let.saved_value.v.v, "saved_value");
-    ptrdiff_t nargs = pdl->bt.nargs;
     TraceEdge(tracer, &pdl->bt.function.v.v, "backtrace function");
+    TraceEdge(tracer, &pdl->unwind_excursion.marker.v.v, "backtrace function");
+    TraceEdge(tracer, &pdl->unwind_excursion.window.v.v, "backtrace function");
+    //TraceEdge(tracer, &pdl->unwind_array.vector.v);
   }
 
   for (struct specbinding *pdl = specpdl_invalid_ptr; pdl < specpdl + specpdl_size; pdl++) {

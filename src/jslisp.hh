@@ -3997,7 +3997,6 @@ struct specbinding
       ELisp_Struct_Value arg;
     } unwind;
     struct {
-      ENUM_BF (specbind_tag) kind : CHAR_BIT;
       ELisp_Vector vector;
     } unwind_array;
     struct {
@@ -4009,7 +4008,6 @@ struct specbinding
       int arg;
     } unwind_int;
     struct {
-      ENUM_BF (specbind_tag) kind : CHAR_BIT;
       ELisp_Struct_Value marker;
       ELisp_Struct_Value window;
     } unwind_excursion;
