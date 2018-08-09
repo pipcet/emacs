@@ -1,4 +1,5 @@
 (jsread "emacs.js" "/home/pip/git/ankol")
+(js "var console = {log: x => F.message(E(x))};")
 (js "ankol(\" say js.F.message(js.E(\\\"hi\\\"))\")")
 (js "ankol(\" setq(js.jsfun: jssync({:js.ankol(js.F.buffer-string().toString())}))\")")
 (setq jsfun (js "jsfun"))
@@ -7,3 +8,5 @@
 (fset 'ankol-current-buffer jsfun)
 (setq f nil)
 ;;(message "3+1 is also %S" (jsf 3))
+(js "AnkolFunction")
+(js "AnkolTokenList")

@@ -807,7 +807,7 @@ js_gc_trace(JSTracer* tracer, void* data)
 {
   fprintf(stderr, "that one's mine! And that one! And...\n");
 
-  //TraceEdge(tracer, *js_promise_jobs, "js promise jobs");
+  (*js_promise_jobs).trace(tracer);
 
   for (ptrdiff_t i = 0; i < PRINT_CIRCLE; i++)
     TraceEdge(tracer, &being_printed[i].v.v, "being_printed");
@@ -976,7 +976,7 @@ bool js_init()
     return false;
   JS_SetFutexCanWait(cx);
   JS::SetWarningReporter(cx, WarningReporter);
-  JS_SetGCParameter(cx, JSGC_MAX_BYTES, 0xffffffffL);
+  JS_SetGCParameter(cx, JSGC_MAX_BYTES, 0xfffffffffL);
 
   JS_SetNativeStackQuota(cx, 8 * 1024 * 1024);
 
@@ -1120,6 +1120,9 @@ static ELisp_Return_Value js_exception_to_elisp_exception(ELisp_Handle exc)
   return JS::ObjectValue(*obj);
 }
 
+void jsprint(JS::Value v);
+void jsprint(JS::HandleValue v);
+
 static void js_handle_exception(void)
 {
   if (JS_IsExceptionPending(jsg.cx))
@@ -1142,6 +1145,7 @@ static void js_handle_exception(void)
       else
         {
           fprintf(stderr, "unhandled exception\n");
+          jsprint(jsexc);
           JS_ClearPendingException(jsg.cx);
         }
     }
@@ -2710,9 +2714,6 @@ elisp_classes_init(JSContext *cx, JS::HandleObject glob)
   memcpy(&elisp_misc_class_proto_backup, &elisp_misc_class_proto, sizeof elisp_cons_class_proto);
   memcpy(&elisp_exception_class_proto_backup, &elisp_exception_class_proto, sizeof elisp_cons_class_proto);
 }
-
-void jsprint(JS::Value v);
-void jsprint(JS::HandleValue v);
 
 void jsprint(JS::Value v)
 {

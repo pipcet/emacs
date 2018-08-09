@@ -3983,10 +3983,8 @@ for my $chunk (@chunks) {
     }
     if (!$nomd5 && ($dir ne "") && -e "chunkl-cache/$dir/$md5") {
         print read_file("chunkl-cache/$dir/$md5");
-        warn "chunk found";
         next;
     }
-    warn "chunk not found";
     $chunk =~ s/^(\#[ \t]*include[ \t]+)TERM_HEADER.*$/$1\"gtkutil.h.hh\"/mg;
     $chunk =~ s/^(\#[ \t]*include[ \t]+)\"(.*\.h)\"/$1\"$2.hh\"/mg;
 
