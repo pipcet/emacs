@@ -209,11 +209,6 @@ alloc_unexec_post (void)
 }
 #endif
 
-/* Mark, unmark, query mark bit of a Lisp string.  S must be a pointer
-   to a struct Lisp_String.  */
-
-#define STRING_MARKED_P(S)	(((S)->size & ARRAY_MARK_FLAG) != 0)
-
 #define VECTOR_MARK(V)		((V)->header.size |= ARRAY_MARK_FLAG)
 #define VECTOR_MARKED_P(V)	(((V)->header.size & ARRAY_MARK_FLAG) != 0)
 
@@ -1481,556 +1476,11 @@ mark_interval (INTERVAL i, void *dummy)
       traverse_intervals_noorder (i, mark_interval, NULL);	\
   } while (0)
 
-/***********************************************************************
-			  String Allocation
- ***********************************************************************/
-
-/* Lisp_Strings are allocated in string_block structures.  When a new
-   string_block is allocated, all the Lisp_Strings it contains are
-   added to a free-list string_free_list.  When a new Lisp_String is
-   needed, it is taken from that list.  During the sweep phase of GC,
-   string_blocks that are entirely free are freed, except two which
-   we keep.
-
-   String data is allocated from sblock structures.  Strings larger
-   than LARGE_STRING_BYTES, get their own sblock, data for smaller
-   strings is sub-allocated out of sblocks of size SBLOCK_SIZE.
-
-   Sblocks consist internally of sdata structures, one for each
-   Lisp_String.  The sdata structure points to the Lisp_String it
-   belongs to.  The Lisp_String points back to the `u.data' member of
-   its sdata structure.
-
-   When a Lisp_String is freed during GC, it is put back on
-   string_free_list, and its `data' member and its sdata's `string'
-   pointer is set to null.  The size of the string is recorded in the
-   `n.nbytes' member of the sdata.  So, sdata structures that are no
-   longer used, can be easily recognized, and it's easy to compact the
-   sblocks of small strings which we do in compact_small_strings.  */
-
-/* Size in bytes of an sblock structure used for small strings.  This
-   is 8192 minus malloc overhead.  */
-
-#define SBLOCK_SIZE 8188
-
-/* Strings larger than this are considered large strings.  String data
-   for large strings is allocated from individual sblocks.  */
-
-#define LARGE_STRING_BYTES 1024
-
-/* The SDATA typedef is a struct or union describing string memory
-   sub-allocated from an sblock.  This is where the contents of Lisp
-   strings are stored.  */
-
-struct sdata
-{
-  /* Back-pointer to the string this sdata belongs to.  If null, this
-     structure is free, and NBYTES (in this structure or in the union below)
-     contains the string's byte size (the same value that STRING_BYTES
-     would return if STRING were non-null).  If non-null, STRING_BYTES
-     (STRING) is the size of the data, and DATA contains the string's
-     contents.  */
-  struct Lisp_String *string;
-
-#ifdef GC_CHECK_STRING_BYTES
-  ptrdiff_t nbytes;
-#endif
-
-  unsigned char data[FLEXIBLE_ARRAY_MEMBER];
-};
-
-#ifdef GC_CHECK_STRING_BYTES
-
-typedef struct sdata sdata;
-#define SDATA_NBYTES(S)	(S)->nbytes
-#define SDATA_DATA(S)	(S)->data
-
-#else
-
-typedef union
-{
-  struct Lisp_String *string;
-
-  /* When STRING is nonnull, this union is actually of type 'struct sdata',
-     which has a flexible array member.  However, if implemented by
-     giving this union a member of type 'struct sdata', the union
-     could not be the last (flexible) member of 'struct sblock',
-     because C99 prohibits a flexible array member from having a type
-     that is itself a flexible array.  So, comment this member out here,
-     but remember that the option's there when using this union.  */
-#if 0
-  struct sdata u;
-#endif
-
-  /* When STRING is null.  */
-  struct
-  {
-    struct Lisp_String *string;
-    ptrdiff_t nbytes;
-  } n;
-} sdata_union;
-
-#define SDATA_NBYTES(S)	(S)->n.nbytes
-#define SDATA_DATA(S)	((struct sdata *) (S))->data
-
-#endif /* not GC_CHECK_STRING_BYTES */
-
-enum { SDATA_DATA_OFFSET = offsetof (struct sdata, data) };
-
-/* Structure describing a block of memory which is sub-allocated to
-   obtain string data memory for strings.  Blocks for small strings
-   are of fixed size SBLOCK_SIZE.  Blocks for large strings are made
-   as large as needed.  */
-
-struct sblock
-{
-  /* Next in list.  */
-  struct sblock *next;
-
-  /* Pointer to the next free sdata block.  This points past the end
-     of the sblock if there isn't any space left in this block.  */
-  sdata_union *next_free;
-
-  /* String data.  */
-  sdata_union data[FLEXIBLE_ARRAY_MEMBER];
-};
-
-/* Number of Lisp strings in a string_block structure.  The 1020 is
-   1024 minus malloc overhead.  */
-
-#define STRING_BLOCK_SIZE \
-  ((1020 - sizeof (struct string_block *)) / sizeof (struct Lisp_String))
-
-/* Structure describing a block from which Lisp_String structures
-   are allocated.  */
-
-struct string_block
-{
-  /* Place `strings' first, to preserve alignment.  */
-  struct Lisp_String strings[STRING_BLOCK_SIZE];
-  struct string_block *next;
-};
-
-/* Head and tail of the list of sblock structures holding Lisp string
-   data.  We always allocate from current_sblock.  The NEXT pointers
-   in the sblock structures go from oldest_sblock to current_sblock.  */
-
-static struct sblock *oldest_sblock, *current_sblock;
-
-/* List of sblocks for large strings.  */
-
-static struct sblock *large_sblocks;
-
-/* List of string_block structures.  */
-
-static struct string_block *string_blocks;
-
-/* Free-list of Lisp_Strings.  */
-
-static struct Lisp_String *string_free_list;
-
-/* Number of live and free Lisp_Strings.  */
-
-static EMACS_INT total_strings, total_free_strings;
-
-/* Number of bytes used by live strings.  */
-
-static EMACS_INT total_string_bytes;
-
-/* Given a pointer to a Lisp_String S which is on the free-list
-   string_free_list, return a pointer to its successor in the
-   free-list.  */
-
-/* Return a pointer to the sdata structure belonging to Lisp string S.
-   S must be live, i.e. S->data must not be null.  S->data is actually
-   a pointer to the `u.data' member of its sdata structure; the
-   structure starts at a constant offset in front of that.  */
-
-#define SDATA_OF_STRING(S) ((sdata_union *) ((S)->data - SDATA_DATA_OFFSET))
-
-
-#ifdef GC_CHECK_STRING_OVERRUN
-
-/* We check for overrun in string data blocks by appending a small
-   "cookie" after each allocated string data block, and check for the
-   presence of this cookie during GC.  */
-
-#define GC_STRING_OVERRUN_COOKIE_SIZE	4
-static char const string_overrun_cookie[GC_STRING_OVERRUN_COOKIE_SIZE] =
-  { '\xde', '\xad', '\xbe', '\xef' };
-
-#else
-#define GC_STRING_OVERRUN_COOKIE_SIZE 0
-#endif
-
-/* Value is the size of an sdata structure large enough to hold NBYTES
-   bytes of string data.  The value returned includes a terminating
-   NUL byte, the size of the sdata structure, and padding.  */
-
-#ifdef GC_CHECK_STRING_BYTES
-
-#define SDATA_SIZE(NBYTES) FLEXSIZEOF (struct sdata, data, NBYTES)
-
-#else /* not GC_CHECK_STRING_BYTES */
-
-/* The 'max' reserves space for the nbytes union member even when NBYTES + 1 is
-   less than the size of that member.  The 'max' is not needed when
-   SDATA_DATA_OFFSET is a multiple of FLEXALIGNOF (struct sdata),
-   because then the alignment code reserves enough space.  */
-
-#define SDATA_SIZE(NBYTES)				      \
-     ((SDATA_DATA_OFFSET				      \
-       + (SDATA_DATA_OFFSET % FLEXALIGNOF (struct sdata) == 0 \
-	  ? NBYTES					      \
-	  : c_max (NBYTES, FLEXALIGNOF (struct sdata) - 1))   \
-       + 1						      \
-       + FLEXALIGNOF (struct sdata) - 1)		      \
-      & ~(FLEXALIGNOF (struct sdata) - 1))
-
-#endif /* not GC_CHECK_STRING_BYTES */
-
-/* Extra bytes to allocate for each string.  */
-
-#define GC_STRING_EXTRA (GC_STRING_OVERRUN_COOKIE_SIZE)
-
-/* Exact bound on the number of bytes in a string, not counting the
-   terminating null.  A string cannot contain more bytes than
-   STRING_BYTES_BOUND, nor can it be so long that the size_t
-   arithmetic in allocate_string_data would overflow while it is
-   calculating a value to be passed to malloc.  */
-static ptrdiff_t const STRING_BYTES_MAX =
-  min (STRING_BYTES_BOUND,
-       ((SIZE_MAX - XMALLOC_OVERRUN_CHECK_OVERHEAD
-	 - GC_STRING_EXTRA
-	 - offsetof (struct sblock, data)
-	 - SDATA_DATA_OFFSET)
-	& ~(sizeof (EMACS_INT) - 1)));
-
-/* Initialize string allocation.  Called from init_alloc_once.  */
-
 static void
 init_strings (void)
 {
   empty_unibyte_string = make_pure_string ("", 0, 0, 0);
   empty_multibyte_string = make_pure_string ("", 0, 0, 1);
-}
-
-
-#ifdef GC_CHECK_STRING_BYTES
-
-static int check_string_bytes_count;
-
-/* Like STRING_BYTES, but with debugging check.  Can be
-   called during GC, so pay attention to the mark bit.  */
-
-ptrdiff_t
-string_bytes (struct Lisp_String *s)
-{
-  ptrdiff_t nbytes =
-    (s->size_byte < 0 ? s->size & ~ARRAY_MARK_FLAG : s->size_byte);
-
-  if (!PURE_P (s) && s->data && nbytes != SDATA_NBYTES (SDATA_OF_STRING (s)))
-    emacs_abort ();
-  return nbytes;
-}
-
-/* Check validity of Lisp strings' string_bytes member in B.  */
-
-static void
-check_sblock (struct sblock *b)
-{
-  sdata_union *from, *end, *from_end;
-
-  end = b->next_free;
-
-  for (from = b->data; from < end; from = from_end)
-    {
-      /* Compute the next FROM here because copying below may
-	 overwrite data we need to compute it.  */
-      ptrdiff_t nbytes;
-
-      /* Check that the string size recorded in the string is the
-	 same as the one recorded in the sdata structure.  */
-      nbytes = SDATA_SIZE (from->string ? string_bytes (from->string)
-			   : SDATA_NBYTES (from));
-      from_end = (sdata_union *) ((char *) from + nbytes + GC_STRING_EXTRA);
-    }
-}
-
-
-/* Check validity of Lisp strings' string_bytes member.  ALL_P
-   means check all strings, otherwise check only most
-   recently allocated strings.  Used for hunting a bug.  */
-
-static void
-check_string_bytes (bool all_p)
-{
-  if (all_p)
-    {
-      struct sblock *b;
-
-      for (b = large_sblocks; b; b = b->next)
-	{
-	  struct Lisp_String *s = b->data[0].string;
-	  if (s)
-	    string_bytes (s);
-	}
-
-      for (b = oldest_sblock; b; b = b->next)
-	check_sblock (b);
-    }
-  else if (current_sblock)
-    check_sblock (current_sblock);
-}
-
-#else /* not GC_CHECK_STRING_BYTES */
-
-#define check_string_bytes(all) ((void) 0)
-
-#endif /* GC_CHECK_STRING_BYTES */
-
-#ifdef GC_CHECK_STRING_FREE_LIST
-
-/* Walk through the string free list looking for bogus next pointers.
-   This may catch buffer overrun from a previous string.  */
-
-static void
-check_string_free_list (void)
-{
-  struct Lisp_String *s;
-
-  /* Pop a Lisp_String off the free-list.  */
-  s = string_free_list;
-  while (s != NULL)
-    {
-      if ((uintptr_t) s < 1024)
-	emacs_abort ();
-      s = NEXT_FREE_LISP_STRING (s);
-    }
-}
-#else
-#define check_string_free_list()
-#endif
-
-/* Return a new Lisp_String.  */
-
-static struct Lisp_String *
-allocate_string (void)
-{
-  struct Lisp_String *s;
-
-  s = xzalloc (sizeof *s);
-
-  return s;
-}
-
-
-/* Set up Lisp_String S for holding NCHARS characters, NBYTES bytes,
-   plus a NUL byte at the end.  Allocate an sdata structure DATA for
-   S, and set S->u.s.data to SDATA->u.data.  Store a NUL byte at the
-   end of S->u.s.data.  Set S->u.s.size to NCHARS and S->u.s.size_byte
-   to NBYTES.  Free S->u.s.data if it was initially non-null.  */
-
-void
-allocate_string_data (struct Lisp_String *s,
-		      EMACS_INT nchars, EMACS_INT nbytes)
-{
-  sdata_union *data, *old_data;
-  struct sblock *b;
-  ptrdiff_t needed, old_nbytes;
-
-  if (STRING_BYTES_MAX < nbytes)
-    string_overflow ();
-
-  /* Determine the number of bytes needed to store NBYTES bytes
-     of string data.  */
-  needed = SDATA_SIZE (nbytes);
-  if (s->data)
-    {
-      old_data = SDATA_OF_STRING (s);
-      old_nbytes = STRING_BYTES (s);
-    }
-  else
-    old_data = NULL;
-
-  MALLOC_BLOCK_INPUT;
-
-  if (nbytes > LARGE_STRING_BYTES)
-    {
-      size_t size = FLEXSIZEOF (struct sblock, data, needed);
-
-#ifdef DOUG_LEA_MALLOC
-      if (!mmap_lisp_allowed_p ())
-        mallopt (M_MMAP_MAX, 0);
-#endif
-
-      b = lisp_malloc (size + GC_STRING_EXTRA, MEM_TYPE_NON_LISP);
-
-#ifdef DOUG_LEA_MALLOC
-      if (!mmap_lisp_allowed_p ())
-        mallopt (M_MMAP_MAX, MMAP_MAX_AREAS);
-#endif
-
-      data = b->data;
-      b->next = large_sblocks;
-      b->next_free = data;
-      large_sblocks = b;
-    }
-  else if (current_sblock == NULL
-	   || (((char *) current_sblock + SBLOCK_SIZE
-		- (char *) current_sblock->next_free)
-	       < (needed + GC_STRING_EXTRA)))
-    {
-      /* Not enough room in the current sblock.  */
-      b = lisp_malloc (SBLOCK_SIZE, MEM_TYPE_NON_LISP);
-      data = b->data;
-      b->next = NULL;
-      b->next_free = data;
-
-      if (current_sblock)
-	current_sblock->next = b;
-      else
-	oldest_sblock = b;
-      current_sblock = b;
-    }
-  else
-    {
-      b = current_sblock;
-      data = b->next_free;
-    }
-
-  data->string = s;
-  b->next_free = (sdata_union *) ((char *) data + needed + GC_STRING_EXTRA);
-
-  MALLOC_UNBLOCK_INPUT;
-
-  s->data = SDATA_DATA (data);
-#ifdef GC_CHECK_STRING_BYTES
-  SDATA_NBYTES (data) = nbytes;
-#endif
-  s->size = nchars;
-  s->size_byte = nbytes;
-  s->data[nbytes] = '\0';
-#ifdef GC_CHECK_STRING_OVERRUN
-  memcpy ((char *) data + needed, string_overrun_cookie,
-	  GC_STRING_OVERRUN_COOKIE_SIZE);
-#endif
-
-  /* Note that Faset may call to this function when S has already data
-     assigned.  In this case, mark data as free by setting it's string
-     back-pointer to null, and record the size of the data in it.  */
-  if (old_data)
-    {
-      SDATA_NBYTES (old_data) = old_nbytes;
-      old_data->string = NULL;
-    }
-
-  consing_since_gc += needed;
-}
-
-/* Compact data of small strings.  Free sblocks that don't contain
-   data of live strings after compaction.  */
-
-static void
-compact_small_strings (void)
-{
-  /* TB is the sblock we copy to, TO is the sdata within TB we copy
-     to, and TB_END is the end of TB.  */
-  struct sblock *tb = oldest_sblock;
-  if (tb)
-    {
-      sdata_union *tb_end = (sdata_union *) ((char *) tb + SBLOCK_SIZE);
-      sdata_union *to = tb->data;
-
-      /* Step through the blocks from the oldest to the youngest.  We
-	 expect that old blocks will stabilize over time, so that less
-	 copying will happen this way.  */
-      struct sblock *b = tb;
-      do
-	{
-	  sdata_union *end = b->next_free;
-	  eassert ((char *) end <= (char *) b + SBLOCK_SIZE);
-
-	  for (sdata_union *from = b->data; from < end; )
-	    {
-	      /* Compute the next FROM here because copying below may
-		 overwrite data we need to compute it.  */
-	      ptrdiff_t nbytes;
-	      struct Lisp_String *s = from->string;
-
-#ifdef GC_CHECK_STRING_BYTES
-	      /* Check that the string size recorded in the string is the
-		 same as the one recorded in the sdata structure.  */
-	      if (s && string_bytes (s) != SDATA_NBYTES (from))
-		emacs_abort ();
-#endif /* GC_CHECK_STRING_BYTES */
-
-	      nbytes = s ? STRING_BYTES (s) : SDATA_NBYTES (from);
-	      eassert (nbytes <= LARGE_STRING_BYTES);
-
-	      nbytes = SDATA_SIZE (nbytes);
-	      sdata_union *from_end = (sdata_union *) ((char *) from
-					   + nbytes + GC_STRING_EXTRA);
-
-#ifdef GC_CHECK_STRING_OVERRUN
-	      if (memcmp (string_overrun_cookie,
-			  (char *) from_end - GC_STRING_OVERRUN_COOKIE_SIZE,
-			  GC_STRING_OVERRUN_COOKIE_SIZE))
-		emacs_abort ();
-#endif
-
-	      /* Non-NULL S means it's alive.  Copy its data.  */
-	      if (s)
-		{
-		  /* If TB is full, proceed with the next sblock.  */
-		  sdata_union *to_end = (sdata_union *) ((char *) to
-					     + nbytes + GC_STRING_EXTRA);
-		  if (to_end > tb_end)
-		    {
-		      tb->next_free = to;
-		      tb = tb->next;
-		      tb_end = (sdata_union *) ((char *) tb + SBLOCK_SIZE);
-		      to = tb->data;
-		      to_end = (sdata_union *) ((char *) to + nbytes + GC_STRING_EXTRA);
-		    }
-
-		  /* Copy, and update the string's `data' pointer.  */
-		  if (from != to)
-		    {
-		      eassert (tb != b || to < from);
-		      memmove (to, from, nbytes + GC_STRING_EXTRA);
-		      to->string->data = SDATA_DATA (to);
-		    }
-
-		  /* Advance past the sdata we copied to.  */
-		  to = to_end;
-		}
-	      from = from_end;
-	    }
-	  b = b->next;
-	}
-      while (b);
-
-      /* The rest of the sblocks following TB don't contain live data, so
-	 we can free them.  */
-      for (b = tb->next; b; )
-	{
-	  struct sblock *next = b->next;
-	  lisp_free (b);
-	  b = next;
-	}
-
-      tb->next_free = to;
-      tb->next = NULL;
-    }
-
-  current_sblock = tb;
-}
-
-void
-string_overflow (void)
-{
-  error ("Maximum string size exceeded");
 }
 
 DEFUN ("make-string", Fmake_string, Smake_string, 2, 3, 0,
@@ -2272,19 +1722,12 @@ make_uninit_string (EMACS_INT length)
 Lisp_Object
 make_uninit_multibyte_string (EMACS_INT nchars, EMACS_INT nbytes)
 {
-  Lisp_Object string;
-  struct Lisp_String *s;
+  void *buf = xmalloc(nbytes + 1);
+  memset(buf, 0, nbytes + 1);
+  Lisp_Object fixbuf = js_fixbuf(buf, nbytes + 1);
+  Lisp_Object mbstring = js_mbstring(fixbuf, nbytes, nchars);
+  Lisp_Object string = js_string(mbstring, NULL);
 
-  if (nchars < 0)
-    emacs_abort ();
-  if (!nbytes)
-    return empty_multibyte_string;
-
-  s = allocate_string ();
-  s->intervals = NULL;
-  allocate_string_data (s, nchars, nbytes);
-  XSETSTRING (string, s);
-  string_chars_consed += nbytes;
   return string;
 }
 
@@ -3414,13 +2857,7 @@ refill_memory_reserve (void)
   if (spare_memory[4] == 0)
     spare_memory[4] = lisp_align_malloc (sizeof (struct cons_block),
 					 MEM_TYPE_SPARE);
-  if (spare_memory[5] == 0)
-    spare_memory[5] = lisp_malloc (sizeof (struct string_block),
-				   MEM_TYPE_SPARE);
-  if (spare_memory[6] == 0)
-    spare_memory[6] = lisp_malloc (sizeof (struct string_block),
-				   MEM_TYPE_SPARE);
-  if (spare_memory[0] && spare_memory[1] && spare_memory[5])
+  if (spare_memory[0] && spare_memory[1])
     Vmemory_full = Qnil;
 #endif
 }
@@ -4306,19 +3743,14 @@ Lisp_Object
 make_pure_string (const char *data,
 		  ptrdiff_t nchars, ptrdiff_t nbytes, bool multibyte)
 {
-  Lisp_Object string;
-  struct Lisp_String *s = pure_alloc (sizeof *s, Lisp_String);
-  s->data = NULL;
-  if (s->data == NULL)
-    {
-      s->data = pure_alloc (nbytes + 1, -1);
-      memcpy (s->data, data, nbytes);
-      s->data[nbytes] = '\0';
-    }
-  s->size = nchars;
-  s->size_byte = multibyte ? nbytes : -1;
-  s->intervals = NULL;
-  XSETSTRING (string, s);
+  char *newbuf = xmalloc(nbytes + 1);
+  memcpy (newbuf, data, nbytes);
+  newbuf[nbytes] = '\0';
+
+  Lisp_Object fixbuf = js_fixbuf(newbuf, nbytes + 1);
+  Lisp_Object mbstring = js_mbstring(fixbuf, multibyte ? nbytes : -1, nchars);
+  Lisp_Object string = js_string(mbstring, NULL);
+
   return string;
 }
 
@@ -4328,13 +3760,10 @@ make_pure_string (const char *data,
 Lisp_Object
 make_pure_c_string (const char *data, ptrdiff_t nchars)
 {
-  Lisp_Object string;
-  struct Lisp_String *s = pure_alloc (sizeof *s, Lisp_String);
-  s->size = nchars;
-  s->size_byte = -1;
-  s->data = (unsigned char *) data;
-  s->intervals = NULL;
-  XSETSTRING (string, s);
+  Lisp_Object fixbuf = js_fixbuf((char *)data, nchars + 1);
+  Lisp_Object mbstring = js_mbstring(fixbuf, -1, nchars);
+  Lisp_Object string = js_string(mbstring, NULL);
+
   return string;
 }
 
@@ -4478,10 +3907,8 @@ total_bytes_of_live_objects (void)
   tot += total_conses  * sizeof (struct Lisp_Cons);
   tot += total_symbols * sizeof (struct Lisp_Symbol);
   tot += total_markers * sizeof (union Lisp_Misc);
-  tot += total_string_bytes;
   tot += total_vector_slots * word_size;
   tot += total_intervals * sizeof (struct interval);
-  tot += total_strings * sizeof (struct Lisp_String);
   return tot;
 }
 
@@ -4661,10 +4088,6 @@ mark_glyph_matrix (struct glyph_matrix *matrix)
 	    struct glyph *glyph = row->glyphs[area];
 	    struct glyph *end_glyph = glyph + row->used[area];
 
-	    for (; glyph < end_glyph; ++glyph)
-	      if (STRINGP (glyph->object)
-		  && !STRING_MARKED_P (XSTRING (glyph->object)))
-		mark_object (glyph->object);
 	  }
       }
 }
@@ -4874,10 +4297,6 @@ survives_gc_p (Lisp_Object obj)
 
     case Lisp_Misc:
       survives_p = XMISCANY (obj)->gcmarkbit;
-      break;
-
-    case Lisp_String:
-      survives_p = STRING_MARKED_P (XSTRING (obj));
       break;
 
     case Lisp_Vectorlike:

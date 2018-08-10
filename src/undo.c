@@ -341,8 +341,7 @@ truncate_undo_list (struct buffer *b)
 	{
 	  size_so_far += sizeof (struct Lisp_Cons);
 	  if (STRINGP (XCAR (elt)))
-	    size_so_far += (sizeof (struct Lisp_String) - 1
-			    + SCHARS (XCAR (elt)));
+	    size_so_far += 1;
 	}
 
       /* Advance to next element.  */
@@ -397,8 +396,7 @@ truncate_undo_list (struct buffer *b)
 	{
 	  size_so_far += sizeof (struct Lisp_Cons);
 	  if (STRINGP (XCAR (elt)))
-	    size_so_far += (sizeof (struct Lisp_String) - 1
-			    + SCHARS (XCAR (elt)));
+	    size_so_far += 1;
 	}
 
       /* Advance to next element.  */

@@ -2319,7 +2319,6 @@ bool-vector.  IDX starts at 0.  */)
     {
       int c;
 
-      CHECK_IMPURE (array, XSTRING (array));
       if (idxval < 0 || idxval >= SCHARS (array))
 	args_out_of_range (array, idx);
       CHECK_CHARACTER (newelt);
@@ -2336,23 +2335,6 @@ bool-vector.  IDX starts at 0.  */)
 	  p1 = SDATA (array) + idxval_byte;
 	  prev_bytes = BYTES_BY_CHAR_HEAD (*p1);
 	  new_bytes = CHAR_STRING (c, p0);
-	  if (prev_bytes != new_bytes)
-	    {
-	      /* We must relocate the string data.  */
-	      ptrdiff_t nchars = SCHARS (array);
-	      USE_SAFE_ALLOCA;
-	      unsigned char *str = SAFE_ALLOCA (nbytes);
-
-	      memcpy (str, SDATA (array), nbytes);
-	      allocate_string_data (XSTRING (array), nchars,
-				    nbytes + new_bytes - prev_bytes);
-	      memcpy (SDATA (array), str, idxval_byte);
-	      p1 = SDATA (array) + idxval_byte;
-	      memcpy (p1 + new_bytes, str + idxval_byte + prev_bytes,
-		      nbytes - (idxval_byte + prev_bytes));
-	      SAFE_FREE ();
-	      clear_string_char_byte_cache ();
-	    }
 	  while (new_bytes--)
 	    *p1++ = *p0++;
 	}

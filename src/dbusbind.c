@@ -1184,7 +1184,7 @@ this connection to those buses.  */)
 						xd_toggle_watch,
 						SYMBOLP (bus)
 						? (void *) XSYMBOL (bus)
-						: (void *) XSTRING (bus),
+						: (void *) 0,
 						NULL))
 	XD_SIGNAL1 (build_string ("Cannot add watch functions"));
 
@@ -1656,8 +1656,7 @@ xd_read_queued_messages (int fd, void *data)
     while (!NILP (busp))
       {
 	key = CAR_SAFE (CAR_SAFE (busp));
-	if ((SYMBOLP (key) && XSYMBOL (key) == data)
-	    || (STRINGP (key) && XSTRING (key) == data))
+	if (SYMBOLP (key) && XSYMBOL (key) == data)
 	  bus = key;
 	busp = CDR_SAFE (busp);
       }

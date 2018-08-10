@@ -130,12 +130,11 @@ case_character_impl (struct casing_str_buf *buf,
       prop = CHAR_TABLE_REF (ctx->specialcase_char_tables[flag], ch);
       if (STRINGP (prop))
         {
-          struct Lisp_String *str = XSTRING (prop);
-          if (STRING_BYTES (str) <= sizeof buf->data)
+          if (SBYTES (prop) <= sizeof buf->data)
 	    {
-	      buf->len_chars = str->size;
-	      buf->len_bytes = STRING_BYTES (str);
-	      memcpy (buf->data, str->data, buf->len_bytes);
+	      buf->len_chars = js_string_size (prop);
+	      buf->len_bytes = SBYTES (prop);
+	      memcpy (buf->data, js_string_data (prop), buf->len_bytes);
 	      return 1;
 	    }
         }

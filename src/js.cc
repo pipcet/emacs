@@ -65,10 +65,35 @@ cons_construct(JSContext *cx, unsigned argc, JS::Value* vp)
   return true;
 }
 
+/* fixbuf
+ *  private pointer: pointer to buffer
+ *  reserved slot 0: length of buffer, in bytes.
+ *
+ * mbstring
+ *  reserved slot 0: fixbuf
+ *  reserved slot 1: length of buffer in bytes or -1
+ *  reserved slot 2: length of buffer in characters or -1
+ *
+ * string
+ *  private pointer: INTERVAL
+ *  reserved slot 0: mbstring.
+ */
+
+static void
+fixbuf_finalize(JSFreeOp* freeop, JSObject *obj)
+{
+  JS_freeop(freeop, (void *)JS_GetPrivate(obj));
+}
+
+static void
+mbstring_finalize(JSFreeOp* freeop, JSObject *obj)
+{
+}
+
 static void
 string_finalize(JSFreeOp* freeop, JSObject *obj)
 {
-  //JS_freeop(freeop, (void *)JS_GetPrivate(obj));
+  // XXX free intervals
 }
 
 static bool
@@ -89,47 +114,17 @@ string_toString(JSContext* cx, unsigned argc, JS::Value *vp)
   return true;
 }
 
-static bool
-string_intervals(JSContext* cx, unsigned argc, JS::Value *vp)
-{
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
-  if (!args.thisv().isObject())
-    return false;
+static JSClassOps fixbuf_class_ops =
+  {
+   NULL, NULL, NULL, NULL,
+   NULL, NULL, fixbuf_finalize
+  };
 
-  JS::RootedObject obj(cx, &args.thisv().toObject());
-
-  args.rval().set(JS_GetReservedSlot(obj, 0));
-
-  return true;
-}
-
-static bool
-string_size(JSContext* cx, unsigned argc, JS::Value *vp)
-{
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
-  if (!args.thisv().isObject())
-    return false;
-
-  JS::RootedObject obj(cx, &args.thisv().toObject());
-
-  args.rval().set(JS_GetReservedSlot(obj, 1));
-
-  return true;
-}
-
-static bool
-string_size_byte(JSContext* cx, unsigned argc, JS::Value *vp)
-{
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
-  if (!args.thisv().isObject())
-    return false;
-
-  JS::RootedObject obj(cx, &args.thisv().toObject());
-
-  args.rval().set(JS_GetReservedSlot(obj, 2));
-
-  return true;
-}
+static JSClassOps mbstring_class_ops =
+  {
+   NULL, NULL, NULL, NULL,
+   NULL, NULL, mbstring_finalize
+  };
 
 static JSClassOps string_class_ops =
   {
@@ -143,23 +138,289 @@ static JSFunctionSpec string_fns[] = {
 };
 
 static JSPropertySpec string_props[] = {
-                                        JS_PSG("intervals", string_intervals, JSPROP_ENUMERATE|JSPROP_PERMANENT),
-                                        JS_PSG("size", string_size, JSPROP_ENUMERATE|JSPROP_PERMANENT),
-                                        JS_PSG("size_byte", string_size_byte, JSPROP_ENUMERATE|JSPROP_PERMANENT),
                                         JS_PS_END
 };
 
-static JSClass string_class = {
-                               "ELisp_String",
-                               JSCLASS_HAS_PRIVATE | JSCLASS_HAS_RESERVED_SLOTS(3) | JSCLASS_FOREGROUND_FINALIZE,
-                               &string_class_ops,
-};
+static JSClass fixbuf_class =
+  {
+   "Fixbuf",
+   JSCLASS_HAS_PRIVATE | JSCLASS_HAS_RESERVED_SLOTS(1) | JSCLASS_FOREGROUND_FINALIZE,
+   &fixbuf_class_ops,
+  };
+
+static JSClass mbstring_class =
+  {
+   "mbstring",
+   JSCLASS_HAS_RESERVED_SLOTS(3) | JSCLASS_FOREGROUND_FINALIZE,
+   &mbstring_class_ops,
+  };
+
+bool js_fixbufp(ELisp_Handle s)
+{
+  JSContext *cx = jsg.cx;
+  if (!s.isObject())
+    return false;
+  JS::RootedObject obj(cx, &s.toObject());
+  if (JS_GetClass(obj) != &fixbuf_class)
+    return false;
+
+  return true;
+}
+
+bool js_mbstringp(ELisp_Handle s)
+{
+  JSContext *cx = jsg.cx;
+  if (!s.isObject())
+    return false;
+  JS::RootedObject obj(cx, &s.toObject());
+  if (JS_GetClass(obj) != &mbstring_class)
+    return false;
+
+  return true;
+}
+
+static JSClass elisp_string_class =
+  {
+   "ELisp_String",
+   JSCLASS_HAS_PRIVATE | JSCLASS_HAS_RESERVED_SLOTS(1) | JSCLASS_FOREGROUND_FINALIZE,
+   &string_class_ops,
+  };
+
+bool js_stringp(ELisp_Handle s)
+{
+  JSContext *cx = jsg.cx;
+  if (!s.isObject())
+    return false;
+  JS::RootedObject obj(cx, &s.toObject());
+  if (JS_GetClass(obj) != &elisp_string_class)
+    return false;
+
+  return true;
+}
+
+ELisp_Return_Value js_fixbuf(void *buf, ptrdiff_t size)
+{
+  JSContext *cx = jsg.cx;
+  JS::RootedObject obj(cx, JS_NewObject(cx, &fixbuf_class));
+
+  JS_SetPrivate(obj, buf);
+  JS_SetReservedSlot(obj, 0, JS::Int32Value(size));
+
+  return JS::ObjectValue(*obj);
+}
+
+ELisp_Return_Value js_mbstring(ELisp_Handle fixbuf, ptrdiff_t size_byte, ptrdiff_t size)
+{
+  JSContext *cx = jsg.cx;
+  JS::RootedObject obj(cx, JS_NewObject(cx, &mbstring_class));
+
+  JS_SetReservedSlot(obj, 0, fixbuf);
+  JS_SetReservedSlot(obj, 1, JS::Int32Value(size_byte));
+  JS_SetReservedSlot(obj, 2, JS::Int32Value(size));
+
+  return JS::ObjectValue(*obj);
+}
+
+ELisp_Return_Value js_string(ELisp_Handle mbstring, INTERVAL interval)
+{
+  JSContext *cx = jsg.cx;
+  JS::RootedObject obj(cx, JS_NewObject(cx, &elisp_string_class));
+
+  JS_SetPrivate(obj, interval);
+  JS_SetReservedSlot(obj, 0, mbstring);
+
+  return JS::ObjectValue(*obj);
+}
+
+ELisp_Return_Value js_mbstring_fixbuf(ELisp_Handle s)
+{
+  JSContext *cx = jsg.cx;
+  if (!s.isObject())
+    for (;;);
+  JS::RootedObject obj(cx, &s.toObject());
+  if (JS_GetClass(obj) != &mbstring_class)
+    for (;;);
+
+  JS::RootedValue bytesv(cx, JS_GetReservedSlot (obj, 0));
+  ELisp_Value retv;
+  retv.v.v = bytesv;
+  return retv;
+}
+
+void *js_fixbuf_data(ELisp_Handle s)
+{
+  JSContext *cx = jsg.cx;
+  if (!s.isObject())
+    for (;;);
+  JS::RootedObject obj(cx, &s.toObject());
+  if (JS_GetClass(obj) != &fixbuf_class)
+    for (;;);
+
+  return JS_GetPrivate(obj);
+}
+
+void *js_mbstring_data(ELisp_Handle s)
+{
+  JSContext *cx = jsg.cx;
+  if (!s.isObject())
+    for (;;);
+  JS::RootedObject obj(cx, &s.toObject());
+  if (JS_GetClass(obj) != &mbstring_class)
+    for (;;);
+
+  JS::RootedValue bytesv(cx, JS_GetReservedSlot (obj, 0));
+  ELisp_Value v;
+  v.v.v = bytesv;
+  return js_fixbuf_data(v);
+}
+
+_Noreturn void string_overflow(void)
+{
+  for(;;);
+}
+
+ptrdiff_t js_mbstring_size_byte(ELisp_Handle s)
+{
+  JSContext *cx = jsg.cx;
+  if (!s.isObject())
+    for (;;);
+  JS::RootedObject obj(cx, &s.toObject());
+  if (JS_GetClass(obj) != &mbstring_class)
+    for (;;);
+
+  JS::RootedValue bytesv(cx, JS_GetReservedSlot (obj, 1));
+  return bytesv.toInt32();
+}
+
+void js_mbstring_set_size_byte(ELisp_Handle s, ptrdiff_t size)
+{
+  JSContext *cx = jsg.cx;
+  if (!s.isObject())
+    for (;;);
+  JS::RootedObject obj(cx, &s.toObject());
+  if (JS_GetClass(obj) != &mbstring_class)
+    for (;;);
+
+  JS_SetReservedSlot (obj, 1, JS::Int32Value(size));
+}
+
+ptrdiff_t js_mbstring_size(ELisp_Handle s)
+{
+  JSContext *cx = jsg.cx;
+  if (!s.isObject())
+    for (;;);
+  JS::RootedObject obj(cx, &s.toObject());
+  if (JS_GetClass(obj) != &mbstring_class)
+    for (;;);
+
+  JS::RootedValue bytesv(cx, JS_GetReservedSlot (obj, 2));
+  return bytesv.toInt32();
+}
+
+ELisp_Return_Value js_string_mbstring(ELisp_Handle s)
+{
+  JSContext* cx = jsg.cx;
+  if (!s.isObject())
+    for (;;);
+  JS::RootedObject obj(cx, &s.toObject());
+  if (JS_GetClass(obj) != &elisp_string_class)
+    for (;;);
+
+  JS::RootedValue bytesv(cx, JS_GetReservedSlot (obj, 0));
+  ELisp_Value retv;
+  retv.v.v = bytesv;
+  return retv;
+}
+
+ptrdiff_t js_string_size_byte(ELisp_Handle s)
+{
+  JSContext *cx = jsg.cx;
+  if (!s.isObject())
+    for (;;);
+  JS::RootedObject obj(cx, &s.toObject());
+  if (JS_GetClass(obj) != &elisp_string_class)
+    for (;;);
+
+  JS::RootedValue mbstringv(cx, JS_GetReservedSlot (obj, 0));
+  ELisp_Value mbstring;
+  mbstring.v.v = mbstringv;
+  return js_mbstring_size_byte(mbstring);
+}
+
+ptrdiff_t js_string_size(ELisp_Handle s)
+{
+  JSContext *cx = jsg.cx;
+  if (!s.isObject())
+    for (;;);
+  JS::RootedObject obj(cx, &s.toObject());
+  if (JS_GetClass(obj) != &elisp_string_class)
+    for (;;);
+
+  JS::RootedValue mbstringv(cx, JS_GetReservedSlot (obj, 0));
+  ELisp_Value mbstring;
+  mbstring.v.v = mbstringv;
+  return js_mbstring_size(mbstring);
+}
+
+void js_string_set_size_byte(ELisp_Handle s, ptrdiff_t size)
+{
+  JSContext *cx = jsg.cx;
+  if (!s.isObject())
+    for (;;);
+  JS::RootedObject obj(cx, &s.toObject());
+  if (JS_GetClass(obj) != &elisp_string_class)
+    for (;;);
+
+  JS::RootedValue mbstringv(cx, JS_GetReservedSlot (obj, 0));
+  ELisp_Value mbstring;
+  mbstring.v.v = mbstringv;
+  return js_mbstring_set_size_byte(mbstring, size);
+}
+
+void *js_string_data(ELisp_Handle s)
+{
+  JSContext *cx = jsg.cx;
+  if (!s.isObject())
+    for (;;);
+  JS::RootedObject obj(cx, &s.toObject());
+  if (JS_GetClass(obj) != &elisp_string_class)
+    for (;;);
+
+  JS::RootedValue mbstringv(cx, JS_GetReservedSlot (obj, 0));
+  ELisp_Value mbstring;
+  mbstring.v.v = mbstringv;
+  return js_mbstring_data(mbstring);
+}
+
+void *js_string_intervals(ELisp_Handle s)
+{
+  JSContext *cx = jsg.cx;
+  if (!s.isObject())
+    for (;;);
+  JS::RootedObject obj(cx, &s.toObject());
+  if (JS_GetClass(obj) != &elisp_string_class)
+    for (;;);
+
+  return JS_GetPrivate(obj);
+}
+
+void js_set_string_intervals(ELisp_Handle s, void *intervals)
+{
+  JSContext *cx = jsg.cx;
+  if (!s.isObject())
+    for (;;);
+  JS::RootedObject obj(cx, &s.toObject());
+  if (JS_GetClass(obj) != &elisp_string_class)
+    for (;;);
+
+  JS_SetPrivate(obj, intervals);
+}
 
 static bool
 string_construct(JSContext *cx, unsigned argc, JS::Value *vp)
 {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
-  JSObject *obj = JS_NewObjectForConstructor(cx, &string_class, args);;
+  JSObject *obj = JS_NewObjectForConstructor(cx, &elisp_string_class, args);;
   JS::RootedObject o(cx, obj);
 
   JS::RootedString str(cx, JS::ToString(cx, args[0]));
@@ -976,14 +1237,14 @@ bool js_init()
     return false;
   JS_SetFutexCanWait(cx);
   JS::SetWarningReporter(cx, WarningReporter);
-  JS_SetGCParameter(cx, JSGC_MAX_BYTES, 0xfffffffffL);
+  JS_SetGCParameter(cx, JSGC_MAX_BYTES, 0xffffffffL);
 
   JS_SetNativeStackQuota(cx, 8 * 1024 * 1024);
 
   if (!JS::InitSelfHostedCode(cx))
     return false;
 
-  JS_AddInterruptCallback(cx, (void *)0x55555555);
+  //JS_AddInterruptCallback(cx, (void *)0x55555555);
   //JS::ContextOptionsRef(cx).setBaseline(false).setIon(false);
   //JS_SetGCParameter(cx, JSGC_MODE, JSGC_MODE_INCREMENTAL);
   JS::GCVector<JS::Value, 0, js::TempAllocPolicy> *vecp = new JS::GCVector<JS::Value, 0, js::TempAllocPolicy>(cx);
@@ -1011,7 +1272,7 @@ bool js_init()
       elisp_gc_callback_register(cx);
       JS_InitClass(cx, glob, nullptr, &cons_class, cons_construct, 2,
                    nullptr, nullptr, nullptr, nullptr);
-      JS_InitClass(cx, glob, nullptr, &string_class, string_construct, 1,
+      JS_InitClass(cx, glob, nullptr, &elisp_string_class, string_construct, 1,
                    string_props, string_fns, nullptr, nullptr);
     }
 
@@ -1934,30 +2195,13 @@ interval_trace (JSTracer *trc, struct interval *i)
     interval_trace(trc, i->right);
 }
 
-static void
-elisp_string_trace(JSTracer *trc, JSObject *obj)
-{
-  struct Lisp_String *s = (struct Lisp_String *)JS_GetPrivate(obj);
-
-  if (!s) return;
-
-  TraceEdge(trc, &s->jsval, "jsval");
-
-  if (s->intervals)
-    interval_trace(trc, s->intervals);
-}
-
 static JSClassOps elisp_string_ops =
 {
   NULL, NULL, NULL, NULL,
   NULL, NULL, elisp_string_finalize,
-  NULL, NULL, NULL, elisp_string_trace,
+  NULL, NULL, NULL, NULL,
 };
 
-JSClass elisp_string_class = {
-                            "ELisp_String", JSCLASS_HAS_PRIVATE|JSCLASS_FOREGROUND_FINALIZE,
-                            &elisp_string_ops,
-};
 static void
 elisp_vector_finalize(JSFreeOp* cx, JSObject *obj)
 {

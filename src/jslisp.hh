@@ -2107,19 +2107,12 @@ CDR_SAFE (ELisp_Handle c)
 
 /* In a string or vector, the sign bit of the `size' is the gc mark bit.  */
 
-struct GCALIGNED Lisp_String
-  {
-    JS::Heap<JS::Value> jsval;
-    ptrdiff_t size;
-    ptrdiff_t size_byte;
-    INTERVAL intervals;		/* Text properties in this string.  */
-    unsigned char *data;
-  };
+extern bool js_stringp(ELisp_Handle x);
 
 INLINE bool
 STRINGP (ELisp_Handle x)
 {
-  return x.stringp();
+  return js_stringp(x);
 }
 
 INLINE void
@@ -2128,17 +2121,20 @@ CHECK_STRING (ELisp_Handle x)
   CHECK_TYPE (STRINGP (x), LSH (Qstringp), x);
 }
 
-INLINE struct Lisp_String *
-XSTRING (ELisp_Handle a)
-{
-  return a.xstring();
-}
+extern ELisp_Return_Value js_fixbuf(void *buf, ptrdiff_t size);
+extern ELisp_Return_Value js_mbstring(ELisp_Handle fixbuf, ptrdiff_t size_byte, ptrdiff_t size);
+extern ELisp_Return_Value js_string(ELisp_Handle mbstring, INTERVAL);
+
+extern ptrdiff_t js_string_size(ELisp_Handle x);
+extern ptrdiff_t js_string_size_byte(ELisp_Handle x);
+extern void js_string_set_size(ELisp_Handle x, ptrdiff_t);
+extern void js_string_set_size_byte(ELisp_Handle x, ptrdiff_t);
 
 /* True if STR is a multibyte string.  */
 INLINE bool
 STRING_MULTIBYTE (ELisp_Handle str)
 {
-  return 0 <= XSTRING (str)->size_byte;
+  return 0 <= js_string_size_byte (str);
 }
 
 /* An upper bound on the number of bytes in a Lisp string, not
@@ -2160,34 +2156,35 @@ STRING_MULTIBYTE (ELisp_Handle str)
 /* Mark STR as a unibyte string.  */
 #define STRING_SET_UNIBYTE(STR)				\
   do {							\
-    if (XSTRING (STR)->size == 0)			\
+    if (js_string_size(STR) == 0)                       \
       (STR) = empty_unibyte_string;			\
     else						\
-      XSTRING (STR)->size_byte = -1;			\
+      js_string_set_size_byte(STR, -1);                 \
   } while (false)
 
 /* Mark STR as a multibyte string.  Assure that STR contains only
    ASCII characters in advance.  */
-#define STRING_SET_MULTIBYTE(STR)			\
-  do {							\
-    if (XSTRING (STR)->size == 0)			\
-      (STR) = empty_multibyte_string;			\
-    else						\
-      XSTRING (STR)->size_byte = XSTRING (STR)->size;	\
+#define STRING_SET_MULTIBYTE(STR)                               \
+  do {                                                          \
+      if (js_string_size(STR) == 0)                             \
+        (STR) = empty_multibyte_string;                         \
+      else                                                      \
+        js_string_set_size_byte(STR, js_string_size(STR));	\
   } while (false)
 
 /* Convenience functions for dealing with Lisp strings.  */
 
+extern void *js_string_data(ELisp_Handle);
 INLINE unsigned char *
 SDATA (ELisp_Handle string)
 {
-  return XSTRING (string)->data;
+  return (unsigned char *)js_string_data (string);
 }
 INLINE char *
 SSDATA (ELisp_Handle string)
 {
   /* Avoid "differ in sign" warnings.  */
-  return (char *) SDATA (string);
+  return (char *)js_string_data (string);
 }
 INLINE unsigned char
 SREF (ELisp_Handle string, ptrdiff_t index)
@@ -2202,30 +2199,21 @@ SSET (ELisp_Handle string, ptrdiff_t index, unsigned char c_new)
 INLINE ptrdiff_t
 SCHARS (ELisp_Handle string)
 {
-  ptrdiff_t nchars = XSTRING (string)->size;
+  ptrdiff_t nchars = js_string_size (string);
   eassume (0 <= nchars);
   return nchars;
 }
 
-#ifdef GC_CHECK_STRING_BYTES
-extern ptrdiff_t string_bytes (struct Lisp_String *);
-#endif
-INLINE ptrdiff_t
-STRING_BYTES (struct Lisp_String *s)
-{
-#ifdef GC_CHECK_STRING_BYTES
-  ptrdiff_t nbytes = string_bytes (s);
-#else
-  ptrdiff_t nbytes = s->size_byte < 0 ? s->size : s->size_byte;
-#endif
-  eassume (0 <= nbytes);
-  return nbytes;
-}
+extern ptrdiff_t js_string_bytes(ELisp_Handle);
+extern ptrdiff_t js_string_chars(ELisp_Handle);
 
 INLINE ptrdiff_t
 SBYTES (ELisp_Handle string)
 {
-  return STRING_BYTES (XSTRING (string));
+  ptrdiff_t size_byte = js_string_size_byte(string);
+  if (size_byte < 0)
+    return js_string_size(string);
+  return js_string_size_byte(string);
 }
 INLINE void
 STRING_SET_CHARS (ELisp_Handle string, ptrdiff_t newsize)
@@ -2235,7 +2223,7 @@ STRING_SET_CHARS (ELisp_Handle string, ptrdiff_t newsize)
   eassert (STRING_MULTIBYTE (string)
            ? 0 <= newsize && newsize <= SBYTES (string)
            : newsize == SCHARS (string));
-  XSTRING (string)->size = newsize;
+  // XXX XSTRING (string)->size = newsize;
 }
 
 /* A regular vector is just a header plus an array of Lisp_Objects.  */
@@ -4239,18 +4227,21 @@ set_overlay_plist (ELisp_Handle overlay, ELisp_Handle plist)
 
 /* Get text properties of S.  */
 
+extern void *js_string_intervals (ELisp_Handle s);
+
 INLINE INTERVAL
 string_intervals (ELisp_Handle s)
 {
-  return XSTRING (s)->intervals;
+  return (INTERVAL) js_string_intervals (s);
 }
 
 /* Set text properties of S to I.  */
 
+extern void js_set_string_intervals (ELisp_Handle s, void *i);
 INLINE void
 set_string_intervals (ELisp_Handle s, INTERVAL i)
 {
-  XSTRING (s)->intervals = i;
+  js_set_string_intervals (s, (void *) i);
 }
 
 /* Set a Lisp slot in TABLE to VAL.  Most code should use this instead
@@ -4526,7 +4517,6 @@ extern void parse_str_as_multibyte (const unsigned char *, ptrdiff_t,
 extern void *my_heap_start (void);
 extern void check_pure_size (void);
 extern void free_misc (ELisp_Handle);
-extern void allocate_string_data (struct Lisp_String *, EMACS_INT, EMACS_INT);
 extern void malloc_warning (const char *);
 extern _Noreturn void memory_full (size_t);
 extern _Noreturn void buffer_memory_full (ptrdiff_t);
@@ -5598,12 +5588,6 @@ union Aligned_Cons
   double d; intmax_t i; void *p;
 };
 
-union Aligned_String
-{
-  struct Lisp_String s;
-  double d; intmax_t i; void *p;
-};
-
 /* True for stack-based cons and string implementations, respectively.
    Use stack-based strings only if stack-based cons also works.
    Otherwise, STACK_CONS would create heap-based cons cells that
@@ -5613,9 +5597,6 @@ enum
   {
     USE_STACK_CONS = (USE_STACK_LISP_OBJECTS
                       && alignof (union Aligned_Cons) % GCALIGNMENT == 0),
-    USE_STACK_STRING = (USE_STACK_CONS
-                        && !defined_GC_CHECK_STRING_BYTES
-                        && alignof (union Aligned_String) % GCALIGNMENT == 0)
   };
 
 /* Auxiliary macros used for auto allocation of Lisp objects.  Please
