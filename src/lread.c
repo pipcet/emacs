@@ -4097,6 +4097,13 @@ intern_sym (Lisp_Object sym, Lisp_Object obarray, Lisp_Object index)
   ptr = aref_addr (obarray, XINT (index));
   if (SYMBOLP (ptr.ref(0)))
     elisp_symbol_set_next (sym, LRH(ptr.ref(0)));
+  else
+    {
+      Lisp_Object undef;
+      undef.v.v.setUndefined();
+      elisp_symbol_set_next (sym, undef);
+    }
+
   *ptr = sym;
   return sym;
 }
