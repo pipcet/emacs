@@ -3956,7 +3956,6 @@ save_restriction_restore (Lisp_Object data)
       /* Detach the markers, and free the cons instead of waiting for GC.  */
       detach_marker (XCAR (data));
       detach_marker (XCDR (data));
-      free_cons (XCONS (data));
     }
   else
     /* A buffer, which means that there was no old restriction.  */

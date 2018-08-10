@@ -2861,7 +2861,6 @@ read1 (Lisp_Object readcharfun, int *pch, bool first_in_list)
 		  Lisp_Object tbl, tmp = read_list (1, readcharfun);
 		  ptrdiff_t size = XINT (Flength (tmp));
 		  int i, depth, min_char;
-		  struct Lisp_Cons *cell;
 
 		  if (size == 0)
 		    error ("Zero-sized sub char-table");
@@ -2871,21 +2870,18 @@ read1 (Lisp_Object readcharfun, int *pch, bool first_in_list)
 		  depth = XINT (XCAR (tmp));
 		  if (chartab_size[depth] != size - 2)
 		    error ("Invalid size in sub char-table");
-		  cell = XCONS (tmp), tmp = XCDR (tmp), size--;
-		  free_cons (cell);
+		  tmp = XCDR (tmp), size--;
 
 		  if (! RANGED_INTEGERP (0, XCAR (tmp), MAX_CHAR))
 		    error ("Invalid minimum character in sub-char-table");
 		  min_char = XINT (XCAR (tmp));
-		  cell = XCONS (tmp), tmp = XCDR (tmp), size--;
-		  free_cons (cell);
+		  tmp = XCDR (tmp), size--;
 
 		  tbl = make_uninit_sub_char_table (depth, min_char);
 		  for (i = 0; i < size; i++)
 		    {
 		      XSUB_CHAR_TABLE (tbl)->contents[i] = XCAR (tmp);
-		      cell = XCONS (tmp), tmp = XCDR (tmp);
-		      free_cons (cell);
+		      tmp = XCDR (tmp);
 		    }
 		  return tbl;
 		}
@@ -3835,7 +3831,6 @@ read_vector (Lisp_Object readcharfun, bool bytecodeflag)
   ptrdiff_t i, size;
   Lisp_Object *ptr;
   Lisp_Object tem, item, vector;
-  struct Lisp_Cons *otem;
   Lisp_Object len;
 
   tem = read_list (1, readcharfun);
@@ -3882,10 +3877,8 @@ read_vector (Lisp_Object readcharfun, bool bytecodeflag)
 		  if (!CONSP (item))
 		    error ("Invalid byte code");
 
-		  otem = XCONS (item);
 		  bytestr = XCAR (item);
 		  item = XCDR (item);
-		  free_cons (otem);
 		}
 
 	      /* Now handle the bytecode slot.  */
@@ -3902,9 +3895,7 @@ read_vector (Lisp_Object readcharfun, bool bytecodeflag)
 	    }
 	}
       ASET (vector, i, item);
-      otem = XCONS (tem);
       tem = Fcdr (tem);
-      free_cons (otem);
     }
   return vector;
 }

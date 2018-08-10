@@ -1035,20 +1035,6 @@ lisp_to_value (emacs_env *env, Lisp_Object o)
       /* Package the incompressible object pointer inside a pair
 	 that is compressible.  */
       Lisp_Object pair = Fcons (o, ltv_mark);
-
-      if (! HAVE_STRUCT_ATTRIBUTE_ALIGNED)
-	{
-	  /* Keep calling Fcons until it returns a compressible pair.
-	     This shouldn't take long.  */
-	  while ((intptr_t) XCONS (pair) & (GCALIGNMENT - 1))
-	    pair = Fcons (o, pair);
-
-	  /* Plant the mark.  The garbage collector will eventually
-	     reclaim any just-allocated incompressible pairs.  */
-	  XSETCDR (pair, ltv_mark);
-	}
-
-      v = (emacs_value) ((intptr_t) XCONS (pair) + Lisp_Cons);
     }
 
   eassert (EQ (o, value_to_lisp (v)));

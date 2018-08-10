@@ -1035,23 +1035,6 @@ lisp_malloc (size_t nbytes, enum mem_type type)
 
   val = lmalloc (nbytes);
 
-#if ! USE_LSB_TAG
-  /* If the memory just allocated cannot be addressed thru a Lisp
-     object's pointer, and it needs to be,
-     that's equivalent to running out of memory.  */
-  if (val && type != MEM_TYPE_NON_LISP)
-    {
-      Lisp_Object tem;
-      XSETCONS (tem, (char *) val + nbytes - 1);
-      if ((char *) XCONS (tem) != (char *) val + nbytes - 1)
-	{
-	  lisp_malloc_loser = val;
-	  free (val);
-	  val = 0;
-	}
-    }
-#endif
-
 #ifndef GC_MALLOC_CHECK
   if (val && type != MEM_TYPE_NON_LISP)
     mem_insert (val, (char *) val + nbytes, type);
@@ -1240,25 +1223,6 @@ lisp_align_malloc (size_t nbytes, enum mem_type type)
 #ifdef DOUG_LEA_MALLOC
       if (!mmap_lisp_allowed_p ())
           mallopt (M_MMAP_MAX, MMAP_MAX_AREAS);
-#endif
-
-#if ! USE_LSB_TAG
-      /* If the memory just allocated cannot be addressed thru a Lisp
-	 object's pointer, and it needs to be, that's equivalent to
-	 running out of memory.  */
-      if (type != MEM_TYPE_NON_LISP)
-	{
-	  Lisp_Object tem;
-	  char *end = (char *) base + ABLOCKS_BYTES - 1;
-	  XSETCONS (tem, end);
-	  if ((char *) XCONS (tem) != end)
-	    {
-	      lisp_malloc_loser = base;
-	      free (base);
-	      MALLOC_UNBLOCK_INPUT;
-	      memory_full (SIZE_MAX);
-	    }
-	}
 #endif
 
       /* Initialize the blocks and put them on the free list.
@@ -1845,9 +1809,8 @@ DEFUN ("cons", Fcons, Scons, 2, 2, 0,
   (Lisp_Object car, Lisp_Object cdr)
 {
   register Lisp_Object val;
-  struct Lisp_Cons *cons = xzalloc(sizeof *cons);
 
-  XSETCONS (val, cons);
+  val.xsetcons();
 
   XSETCAR (val, car);
   XSETCDR (val, cdr);
@@ -3776,8 +3739,7 @@ Lisp_Object
 pure_cons (Lisp_Object car, Lisp_Object cdr)
 {
   Lisp_Object new;
-  struct Lisp_Cons *p = pure_alloc (sizeof *p, Lisp_Cons);
-  XSETCONS (new, p);
+  new.xsetcons();
   XSETCAR (new, purecopy (car));
   XSETCDR (new, purecopy (cdr));
   return new;
@@ -4301,10 +4263,6 @@ survives_gc_p (Lisp_Object obj)
 
     case Lisp_Vectorlike:
       survives_p = SUBRP (obj) || VECTOR_MARKED_P (XVECTOR (obj));
-      break;
-
-    case Lisp_Cons:
-      survives_p = CONS_MARKED_P (XCONS (obj));
       break;
 
     case Lisp_Float:
