@@ -4084,20 +4084,6 @@ mark_face_cache (struct face_cache *c)
     }
 }
 
-NO_INLINE /* To reduce stack depth in mark_object.  */
-static void
-mark_localized_symbol (struct Lisp_Symbol *ptr)
-{
-  struct Lisp_Buffer_Local_Value *blv = SYMBOL_BLV (ptr);
-  Lisp_Object where = blv->where;
-  /* If the value is set up for a killed buffer restore its global binding.  */
-  if ((BUFFERP (where) && !BUFFER_LIVE_P (XBUFFER (where))))
-    swap_in_global_binding (ptr);
-  mark_object (blv->where);
-  mark_object (blv->valcell);
-  mark_object (blv->defcell);
-}
-
 /* Determine type of generic Lisp_Object and mark it accordingly.
 
    This function implements a straightforward depth-first marking
