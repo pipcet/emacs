@@ -2290,12 +2290,6 @@ static struct symbol_block *symbol_block_pinned;
 
 static struct Lisp_Symbol *symbol_free_list;
 
-static void
-set_symbol_name (Lisp_Object sym, Lisp_Object name)
-{
-  XSYMBOL (sym)->name = name;
-}
-
 void
 init_symbol (Lisp_Object val, Lisp_Object name)
 {
@@ -4103,14 +4097,6 @@ mark_localized_symbol (struct Lisp_Symbol *ptr)
   mark_object (blv->where);
   mark_object (blv->valcell);
   mark_object (blv->defcell);
-}
-
-/* Remove killed buffers or items whose car is a killed buffer from
-   LIST, and mark other items.  Return changed LIST, which is marked.  */
-
-static Lisp_Object
-mark_discard_killed_buffers (Lisp_Object list)
-{
 }
 
 /* Determine type of generic Lisp_Object and mark it accordingly.

@@ -1757,6 +1757,9 @@ XSYMBOL (ELisp_Handle a)
 extern ELisp_Return_Value elisp_symbol_plist(ELisp_Handle a);
 extern void elisp_symbol_set_plist(ELisp_Handle a, ELisp_Handle b);
 
+extern ELisp_Return_Value elisp_symbol_name(ELisp_Handle a);
+extern void elisp_symbol_set_name(ELisp_Handle a, ELisp_Handle b);
+
 INLINE ELisp_Return_Value
 XSYMBOL_PLIST (ELisp_Handle a)
 {
@@ -1767,6 +1770,18 @@ INLINE void
 XSYMBOL_PLIST_SET (ELisp_Handle a, ELisp_Handle b)
 {
   elisp_symbol_set_plist(a, b);
+}
+
+INLINE ELisp_Return_Value
+XSYMBOL_NAME (ELisp_Handle a)
+{
+  return elisp_symbol_name (a);
+}
+
+INLINE void
+XSYMBOL_NAME_SET (ELisp_Handle a, ELisp_Handle b)
+{
+  elisp_symbol_set_name(a, b);
 }
 
 INLINE void
@@ -2847,7 +2862,7 @@ SET_SYMBOL_FWD (struct Lisp_Symbol *sym, union Lisp_Fwd *v)
 INLINE ELisp_Return_Value
 SYMBOL_NAME (ELisp_Handle sym)
 {
-  return XSYMBOL (sym)->name;
+  return XSYMBOL_NAME (sym);
 }
 
 /* Value is true if SYM is an interned symbol.  */
@@ -4222,6 +4237,12 @@ INLINE void
 set_symbol_plist (ELisp_Handle sym, ELisp_Handle plist)
 {
   elisp_symbol_set_plist (sym, plist);
+}
+
+INLINE void
+set_symbol_name (ELisp_Handle sym, ELisp_Handle plist)
+{
+  elisp_symbol_set_name (sym, plist);
 }
 
 INLINE void

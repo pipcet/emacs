@@ -2168,6 +2168,22 @@ elisp_symbol_set_plist(ELisp_Handle symbol, ELisp_Handle plist)
   JS_SetReservedSlot(obj, 3, plist);
 }
 
+static ELisp_Return_Value
+elisp_symbol_name(ELisp_Handle symbol)
+{
+  JSContext *cx = jsg.cx;
+  JS::RootedObject obj(cx, &symbol.toObject());
+  return JS_GetReservedSlot(obj, 0);
+}
+
+static void
+elisp_symbol_set_name(ELisp_Handle symbol, ELisp_Handle plist)
+{
+  JSContext *cx = jsg.cx;
+  JS::RootedObject obj(cx, &symbol.toObject());
+  JS_SetReservedSlot(obj, 0, plist);
+}
+
 static JSClassOps elisp_marker_ops =
 {
   NULL, NULL, NULL, NULL,
