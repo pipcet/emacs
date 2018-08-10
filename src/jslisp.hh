@@ -1606,9 +1606,6 @@ struct Lisp_Symbol
 
   /* Function value of the symbol or Qnil if not fboundp.  */
   ELisp_Struct_Value function;
-
-  /* Next symbol in obarray bucket, if the symbol is interned.  */
-  struct Lisp_Symbol *next;
 };
 
 /* Declare a Lisp-callable function.  The MAXARGS parameter has the same
@@ -1760,6 +1757,9 @@ extern void elisp_symbol_set_plist(ELisp_Handle a, ELisp_Handle b);
 extern ELisp_Return_Value elisp_symbol_name(ELisp_Handle a);
 extern void elisp_symbol_set_name(ELisp_Handle a, ELisp_Handle b);
 
+extern ELisp_Return_Value elisp_symbol_next(ELisp_Handle a);
+extern void elisp_symbol_set_next(ELisp_Handle a, ELisp_Handle b);
+
 INLINE ELisp_Return_Value
 XSYMBOL_PLIST (ELisp_Handle a)
 {
@@ -1782,6 +1782,18 @@ INLINE void
 XSYMBOL_NAME_SET (ELisp_Handle a, ELisp_Handle b)
 {
   elisp_symbol_set_name(a, b);
+}
+
+INLINE ELisp_Return_Value
+XSYMBOL_NEXT (ELisp_Handle a)
+{
+  return elisp_symbol_next (a);
+}
+
+INLINE void
+XSYMBOL_NEXT_SET (ELisp_Handle a, ELisp_Handle b)
+{
+  elisp_symbol_set_next(a, b);
 }
 
 INLINE void
@@ -4243,12 +4255,6 @@ INLINE void
 set_symbol_name (ELisp_Handle sym, ELisp_Handle plist)
 {
   elisp_symbol_set_name (sym, plist);
-}
-
-INLINE void
-set_symbol_next (ELisp_Handle sym, struct Lisp_Symbol *next)
-{
-  XSYMBOL (sym)->next = next;
 }
 
 INLINE void

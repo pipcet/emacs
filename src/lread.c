@@ -4095,7 +4095,8 @@ intern_sym (Lisp_Object sym, Lisp_Object obarray, Lisp_Object index)
     }
 
   ptr = aref_addr (obarray, XINT (index));
-  set_symbol_next (sym, SYMBOLP (ptr.ref(0)) ? XSYMBOL (ptr.ref(0)) : NULL);
+  if (SYMBOLP (ptr.ref(0)))
+    elisp_symbol_set_next (sym, LRH(ptr.ref(0)));
   *ptr = sym;
   return sym;
 }
@@ -4204,6 +4205,8 @@ it defaults to the value of `obarray'.  */)
     return tem;
 }
 
+extern bool js_not_undefined(Lisp_Object);
+
 DEFUN ("unintern", Funintern, Sunintern, 1, 2, 0,
        doc: /* Delete the symbol named NAME, if any, from OBARRAY.
 The value is t if a symbol was found and deleted, nil otherwise.
@@ -4249,27 +4252,26 @@ usage: (unintern NAME OBARRAY)  */)
 
   if (EQ (AREF (obarray, hash), tem))
     {
-      if (XSYMBOL (tem)->next)
+      Lisp_Object next = XSYMBOL_NEXT (tem);
+      if (js_not_undefined (next))
 	{
-	  Lisp_Object sym;
-	  XSETSYMBOL (sym, XSYMBOL (tem)->next);
-	  ASET (obarray, hash, sym);
+	  ASET (obarray, hash, next);
 	}
       else
 	ASET (obarray, hash, make_number (0));
     }
   else
     {
-      Lisp_Object tail, following;
+      Lisp_Object tail, following, next;
 
       for (tail = AREF (obarray, hash);
-	   XSYMBOL (tail)->next;
+	   js_not_undefined (next = XSYMBOL_NEXT (tail));
 	   tail = following)
 	{
-	  XSETSYMBOL (following, XSYMBOL (tail)->next);
+          following = next;
 	  if (EQ (following, tem))
 	    {
-	      set_symbol_next (tail, XSYMBOL (following)->next);
+	      elisp_symbol_set_next (tail, next);
 	      break;
 	    }
 	}
@@ -4316,8 +4318,9 @@ oblookup (Lisp_Object obarray, register const char *ptr, ptrdiff_t size, ptrdiff
 {
   size_t hash;
   size_t obsize;
-  register Lisp_Object tail;
+  Lisp_Object tail;
   Lisp_Object bucket, tem;
+  Lisp_Object next;
 
   obarray = check_obarray (obarray);
   /* This is sometimes needed in the middle of GC.  */
@@ -4330,13 +4333,13 @@ oblookup (Lisp_Object obarray, register const char *ptr, ptrdiff_t size, ptrdiff
   else if (!SYMBOLP (bucket))
     error ("Bad data in guts of obarray"); /* Like CADR error message.  */
   else
-    for (tail = bucket; ; XSETSYMBOL (tail, XSYMBOL (tail)->next))
+    for (tail = bucket; ; tail = next)
       {
 	if (SBYTES (SYMBOL_NAME (tail)) == size_byte
 	    && SCHARS (SYMBOL_NAME (tail)) == size
 	    && !memcmp (SDATA (SYMBOL_NAME (tail)), ptr, size_byte))
 	  return tail;
-	else if (XSYMBOL (tail)->next == 0)
+	else if (!js_not_undefined (next = XSYMBOL_NEXT (tail)))
 	  break;
       }
   XSETINT (tem, hash);
@@ -4347,7 +4350,7 @@ void
 map_obarray (Lisp_Object obarray, void (*fn) (Lisp_Object, Lisp_Object), Lisp_Object arg)
 {
   ptrdiff_t i;
-  register Lisp_Object tail;
+  Lisp_Object tail, next;
   CHECK_VECTOR (obarray);
   for (i = ASIZE (obarray) - 1; i >= 0; i--)
     {
@@ -4356,9 +4359,9 @@ map_obarray (Lisp_Object obarray, void (*fn) (Lisp_Object, Lisp_Object), Lisp_Ob
 	while (1)
 	  {
 	    (*fn) (tail, arg);
-	    if (XSYMBOL (tail)->next == 0)
+	    if (!js_not_undefined (next = XSYMBOL_NEXT (tail)))
 	      break;
-	    XSETSYMBOL (tail, XSYMBOL (tail)->next);
+            tail = next;
 	  }
     }
 }

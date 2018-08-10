@@ -1141,6 +1141,8 @@ minibuf_conform_representation (Lisp_Object string, Lisp_Object basis)
     return Fstring_make_multibyte (string);
 }
 
+bool js_not_undefined(ELisp_Handle);
+
 DEFUN ("try-completion", Ftry_completion, Stry_completion, 2, 3, 0,
        doc: /* Return common substring of all completions of STRING in COLLECTION.
 Test each possible completion specified by COLLECTION
@@ -1229,8 +1231,8 @@ is used to further constrain the set of candidates.  */)
 		error ("Bad data in guts of obarray");
 	      elt = bucket;
 	      eltstring = elt;
-	      if (XSYMBOL (bucket)->next)
-		XSETSYMBOL (bucket, XSYMBOL (bucket)->next);
+	      if (js_not_undefined (XSYMBOL_NEXT (bucket)))
+                bucket = XSYMBOL_NEXT (bucket);
 	      else
 		XSETFASTINT (bucket, 0);
 	    }
@@ -1481,8 +1483,8 @@ with a space are ignored unless STRING itself starts with a space.  */)
 		error ("Bad data in guts of obarray");
 	      elt = bucket;
 	      eltstring = elt;
-	      if (XSYMBOL (bucket)->next)
-		XSETSYMBOL (bucket, XSYMBOL (bucket)->next);
+	      if (js_not_undefined (XSYMBOL_NEXT (bucket)))
+                bucket = XSYMBOL_NEXT (bucket);
 	      else
 		XSETFASTINT (bucket, 0);
 	    }
@@ -1702,9 +1704,9 @@ the values STRING, PREDICATE and `lambda'.  */)
 			tem = tail;
 			break;
 		      }
-		    if (XSYMBOL (tail)->next == 0)
+                    if (!js_not_undefined (XSYMBOL_NEXT (tail)))
 		      break;
-		    XSETSYMBOL (tail, XSYMBOL (tail)->next);
+                    tail = XSYMBOL_NEXT (tail);
 		  }
 	    }
 	}

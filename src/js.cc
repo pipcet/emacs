@@ -45,6 +45,13 @@ cons_get_property(JSContext *cx, JS::HandleObject obj, JS::HandleId id,
   return true;
 }
 
+bool
+js_not_undefined(ELisp_Handle x)
+{
+  ELisp_Value v; v= x;
+  return !v.v.v.isUndefined();
+}
+
 static bool
 cons_construct(JSContext *cx, unsigned argc, JS::Value* vp)
 {
@@ -2112,10 +2119,6 @@ elisp_symbol_trace(JSTracer *trc, JSObject *obj)
       }
     }
   TraceEdge(trc, &s->function.v.v, "function");
-
-  if (s->next) {
-    TraceEdge(trc, &s->next->jsval, "next");
-  }
 }
 
 static void
@@ -2182,6 +2185,22 @@ elisp_symbol_set_name(ELisp_Handle symbol, ELisp_Handle plist)
   JSContext *cx = jsg.cx;
   JS::RootedObject obj(cx, &symbol.toObject());
   JS_SetReservedSlot(obj, 0, plist);
+}
+
+static ELisp_Return_Value
+elisp_symbol_next(ELisp_Handle symbol)
+{
+  JSContext *cx = jsg.cx;
+  JS::RootedObject obj(cx, &symbol.toObject());
+  return JS_GetReservedSlot(obj, 4);
+}
+
+static void
+elisp_symbol_set_next(ELisp_Handle symbol, ELisp_Handle plist)
+{
+  JSContext *cx = jsg.cx;
+  JS::RootedObject obj(cx, &symbol.toObject());
+  JS_SetReservedSlot(obj, 4, plist);
 }
 
 static JSClassOps elisp_marker_ops =
