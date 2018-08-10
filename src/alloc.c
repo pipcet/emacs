@@ -1746,64 +1746,6 @@ make_float (double float_value)
 }
 
 
-
-/***********************************************************************
-			   Cons Allocation
- ***********************************************************************/
-
-/* We store cons cells inside of cons_blocks, allocating a new
-   cons_block with malloc whenever necessary.  Cons cells reclaimed by
-   GC are put on a free list to be reallocated before allocating
-   any new cons cells from the latest cons_block.  */
-
-#define CONS_BLOCK_SIZE						\
-  (((BLOCK_BYTES - sizeof (struct cons_block *)			\
-     /* The compiler might add padding at the end.  */		\
-     - (sizeof (struct Lisp_Cons) - sizeof (bits_word))) * CHAR_BIT)	\
-   / (sizeof (struct Lisp_Cons) * CHAR_BIT + 1))
-
-#define CONS_BLOCK(fptr) \
-  ((struct cons_block *) ((uintptr_t) (fptr) & ~(BLOCK_ALIGN - 1)))
-
-#define CONS_INDEX(fptr) \
-  (((uintptr_t) (fptr) & (BLOCK_ALIGN - 1)) / sizeof (struct Lisp_Cons))
-
-struct cons_block
-{
-  /* Place `conses' at the beginning, to ease up CONS_INDEX's job.  */
-  struct Lisp_Cons conses[CONS_BLOCK_SIZE];
-  bits_word gcmarkbits[1 + CONS_BLOCK_SIZE / BITS_PER_BITS_WORD];
-  struct cons_block *next;
-};
-
-#define CONS_MARKED_P(fptr) \
-  GETMARKBIT (CONS_BLOCK (fptr), CONS_INDEX ((fptr)))
-
-#define CONS_MARK(fptr) \
-  SETMARKBIT (CONS_BLOCK (fptr), CONS_INDEX ((fptr)))
-
-#define CONS_UNMARK(fptr) \
-  UNSETMARKBIT (CONS_BLOCK (fptr), CONS_INDEX ((fptr)))
-
-/* Current cons_block.  */
-
-static struct cons_block *cons_block;
-
-/* Index of first unused Lisp_Cons in the current block.  */
-
-static int cons_block_index = CONS_BLOCK_SIZE;
-
-/* Free-list of Lisp_Cons structures.  */
-
-static struct Lisp_Cons *cons_free_list;
-
-/* Explicitly free a cons cell by putting it on the free-list.  */
-
-void
-free_cons (struct Lisp_Cons *ptr)
-{
-}
-
 DEFUN ("cons", Fcons, Scons, 2, 2, 0,
        doc: /* Create a new cons, give it CAR and CDR as components, and return it.  */)
   (Lisp_Object car, Lisp_Object cdr)
@@ -1817,18 +1759,6 @@ DEFUN ("cons", Fcons, Scons, 2, 2, 0,
 
   return val;
 }
-
-#ifdef GC_CHECK_CONS_LIST
-/* Get an error now if there's any junk in the cons free list.  */
-void
-check_cons_list (void)
-{
-  struct Lisp_Cons *tail = cons_free_list;
-
-  while (tail)
-    tail = tail->u.chain;
-}
-#endif
 
 /* Make a list of 1, 2, 3, 4 or 5 specified objects.  */
 
@@ -2774,8 +2704,6 @@ memory_full (size_t nbytes)
 
       Vmemory_full = Qt;
 
-      memory_full_cons_threshold = sizeof (struct cons_block);
-
       /* The first time we get here, free the spare memory.  */
       for (i = 0; i < ARRAYELTS (spare_memory); i++)
 	if (spare_memory[i])
@@ -2805,24 +2733,6 @@ memory_full (size_t nbytes)
 void
 refill_memory_reserve (void)
 {
-#if !defined SYSTEM_MALLOC && !defined HYBRID_MALLOC
-  if (spare_memory[0] == 0)
-    spare_memory[0] = malloc (SPARE_MEMORY);
-  if (spare_memory[1] == 0)
-    spare_memory[1] = lisp_align_malloc (sizeof (struct cons_block),
-						  MEM_TYPE_SPARE);
-  if (spare_memory[2] == 0)
-    spare_memory[2] = lisp_align_malloc (sizeof (struct cons_block),
-					 MEM_TYPE_SPARE);
-  if (spare_memory[3] == 0)
-    spare_memory[3] = lisp_align_malloc (sizeof (struct cons_block),
-					 MEM_TYPE_SPARE);
-  if (spare_memory[4] == 0)
-    spare_memory[4] = lisp_align_malloc (sizeof (struct cons_block),
-					 MEM_TYPE_SPARE);
-  if (spare_memory[0] && spare_memory[1])
-    Vmemory_full = Qnil;
-#endif
 }
 
 /************************************************************************
@@ -3866,7 +3776,6 @@ static size_t
 total_bytes_of_live_objects (void)
 {
   size_t tot = 0;
-  tot += total_conses  * sizeof (struct Lisp_Cons);
   tot += total_symbols * sizeof (struct Lisp_Symbol);
   tot += total_markers * sizeof (union Lisp_Misc);
   tot += total_vector_slots * word_size;
@@ -4277,85 +4186,6 @@ survives_gc_p (Lisp_Object obj)
 }
 
 
-
-
-NO_INLINE /* For better stack traces */
-static void
-sweep_conses (void)
-{
-  struct cons_block *cblk;
-  struct cons_block **cprev = &cons_block;
-  int lim = cons_block_index;
-  EMACS_INT num_free = 0, num_used = 0;
-
-  cons_free_list = 0;
-
-  for (cblk = cons_block; cblk; cblk = *cprev)
-    {
-      int i = 0;
-      int this_free = 0;
-      int ilim = (lim + BITS_PER_BITS_WORD - 1) / BITS_PER_BITS_WORD;
-
-      /* Scan the mark bits an int at a time.  */
-      for (i = 0; i < ilim; i++)
-        {
-          if (cblk->gcmarkbits[i] == BITS_WORD_MAX)
-            {
-              /* Fast path - all cons cells for this int are marked.  */
-              cblk->gcmarkbits[i] = 0;
-              num_used += BITS_PER_BITS_WORD;
-            }
-          else
-            {
-              /* Some cons cells for this int are not marked.
-                 Find which ones, and free them.  */
-              int start, pos, stop;
-
-              start = i * BITS_PER_BITS_WORD;
-              stop = lim - start;
-              if (stop > BITS_PER_BITS_WORD)
-                stop = BITS_PER_BITS_WORD;
-              stop += start;
-
-              for (pos = start; pos < stop; pos++)
-                {
-                  if (!CONS_MARKED_P (&cblk->conses[pos]))
-                    {
-                      this_free++;
-                      cblk->conses[pos].u.chain = cons_free_list;
-                      cons_free_list = &cblk->conses[pos];
-                      cons_free_list->car = Vdead;
-                    }
-                  else
-                    {
-                      num_used++;
-                      CONS_UNMARK (&cblk->conses[pos]);
-                    }
-                }
-            }
-        }
-
-      lim = CONS_BLOCK_SIZE;
-      /* If this block contains only free conses and we have already
-         seen more than two blocks worth of free conses then deallocate
-         this block.  */
-      if (this_free == CONS_BLOCK_SIZE && num_free > CONS_BLOCK_SIZE)
-        {
-          *cprev = cblk->next;
-          /* Unhook from the free list.  */
-          cons_free_list = cblk->conses[0].u.chain;
-          lisp_align_free (cblk);
-        }
-      else
-        {
-          num_free += this_free;
-          cprev = &cblk->next;
-        }
-    }
-  total_conses = num_used;
-  total_free_conses = num_free;
-}
-
 NO_INLINE /* For better stack traces */
 static void
 sweep_intervals (void)
@@ -4636,19 +4466,6 @@ die (const char *msg, const char *file, int line)
 
 /* Stress alloca with inconveniently sized requests and check
    whether all allocated areas may be used for Lisp_Object.  */
-
-NO_INLINE static void
-verify_alloca (void)
-{
-  int i;
-  enum { ALLOCA_CHECK_MAX = 256 };
-  /* Start from size of the smallest Lisp object.  */
-  for (i = sizeof (struct Lisp_Cons); i <= ALLOCA_CHECK_MAX; i++)
-    {
-      void *ptr = alloca (i);
-      make_lisp_ptr (ptr, Lisp_Cons);
-    }
-}
 
 #else /* not ENABLE_CHECKING && USE_STACK_LISP_OBJECTS */
 

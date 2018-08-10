@@ -33,12 +33,6 @@ static JSClassOps cons_class_ops =
    NULL, NULL, NULL,
   };
 
-static const JSClass cons_class = {
-                                   "ELisp_Cons",
-                                   JSCLASS_HAS_RESERVED_SLOTS(2),
-                                   &cons_class_ops,
-};
-
 static bool
 cons_get_property(JSContext *cx, JS::HandleObject obj, JS::HandleId id,
                   JS::MutableHandleValue vp)
@@ -55,7 +49,7 @@ static bool
 cons_construct(JSContext *cx, unsigned argc, JS::Value* vp)
 {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
-  JSObject *obj = JS_NewObjectForConstructor(cx, &cons_class, args);
+  JSObject *obj = JS_NewObjectForConstructor(cx, &elisp_cons_class, args);
   JS::RootedObject o(cx, obj);
   JS_SetElement(cx, o, 0, args[0]);
   JS_SetElement(cx, o, 1, args[1]);
@@ -179,7 +173,7 @@ bool js_mbstringp(ELisp_Handle s)
   return true;
 }
 
-static JSClass elisp_string_class =
+JSClass elisp_string_class =
   {
    "ELisp_String",
    JSCLASS_HAS_PRIVATE | JSCLASS_HAS_RESERVED_SLOTS(1) | JSCLASS_FOREGROUND_FINALIZE,
@@ -219,6 +213,71 @@ ELisp_Return_Value js_mbstring(ELisp_Handle fixbuf, ptrdiff_t size_byte, ptrdiff
   JS_SetReservedSlot(obj, 2, JS::Int32Value(size));
 
   return JS::ObjectValue(*obj);
+}
+
+ELisp_Return_Value elisp_cons(void)
+{
+  JSContext *cx = jsg.cx;
+  JS::RootedObject obj(cx, JS_NewObject(cx, &elisp_cons_class));
+
+  JS_SetReservedSlot(obj, 0, JS::ObjectValue(*obj));
+  JS_SetReservedSlot(obj, 1, JS::ObjectValue(*obj));
+
+  return JS::ObjectValue(*obj);
+}
+
+ELisp_Return_Value elisp_cons_car(ELisp_Handle cons)
+{
+  JSContext* cx = jsg.cx;
+  if (!cons.isObject())
+    for(;;);
+  JS::RootedObject obj(cx, &cons.toObject());
+  if (JS_GetClass(obj) != &elisp_cons_class)
+    for(;;);
+
+  ELisp_Value ret;
+  ret.v.v = JS_GetReservedSlot(obj, 0);
+
+  return ret;
+}
+
+ELisp_Return_Value elisp_cons_cdr(ELisp_Handle cons)
+{
+  JSContext* cx = jsg.cx;
+  if (!cons.isObject())
+    for(;;);
+  JS::RootedObject obj(cx, &cons.toObject());
+  if (JS_GetClass(obj) != &elisp_cons_class)
+    for(;;);
+
+  ELisp_Value ret;
+  ret.v.v = JS_GetReservedSlot(obj, 1);
+
+  return ret;
+}
+
+void elisp_cons_setcar(ELisp_Handle cons, ELisp_Handle car)
+{
+  JSContext* cx = jsg.cx;
+  if (!cons.isObject())
+    for(;;);
+  JS::RootedObject obj(cx, &cons.toObject());
+  if (JS_GetClass(obj) != &elisp_cons_class)
+    for(;;);
+
+  JS_SetReservedSlot(obj, 0, car.v.v);
+}
+
+void elisp_cons_setcdr(ELisp_Handle cons, ELisp_Handle cdr)
+{
+  JSContext* cx = jsg.cx;
+  if (!cons.isObject())
+    for(;;);
+  JS::RootedObject obj(cx, &cons.toObject());
+  if (JS_GetClass(obj) != &elisp_cons_class)
+    for(;;);
+
+  JS_SetReservedSlot(obj, 1, cdr.v.v);
 }
 
 ELisp_Return_Value js_string(ELisp_Handle mbstring, INTERVAL interval)
@@ -1270,8 +1329,6 @@ bool js_init()
         return false;
       elisp_classes_init(cx, glob);
       elisp_gc_callback_register(cx);
-      JS_InitClass(cx, glob, nullptr, &cons_class, cons_construct, 2,
-                   nullptr, nullptr, nullptr, nullptr);
       JS_InitClass(cx, glob, nullptr, &elisp_string_class, string_construct, 1,
                    string_props, string_fns, nullptr, nullptr);
     }
@@ -1314,7 +1371,7 @@ static void eval_js(const char *source)
 void
 late_js_init(void)
 {
-  eval_js("Object.getPrototypeOf(F.list(3,4,5))[Symbol.iterator] = function* () { yield this.car; yield* this.cdr; }");
+  //eval_js("Object.getPrototypeOf(F.list(3,4,5))[Symbol.iterator] = function* () { yield this.car; yield* this.cdr; }");
   eval_js("Q.nil[Symbol.iterator] = function* () {}");
 }
 
@@ -1849,7 +1906,8 @@ static JSClassOps elisp_cons_ops =
 
 JSClass elisp_cons_class =
   {
-   "ELisp_Cons", JSCLASS_HAS_PRIVATE|JSCLASS_FOREGROUND_FINALIZE,
+   "ELisp_Cons",
+   JSCLASS_HAS_RESERVED_SLOTS(2)|JSCLASS_FOREGROUND_FINALIZE,
    &elisp_cons_ops,
   };
 

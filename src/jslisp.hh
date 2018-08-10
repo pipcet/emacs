@@ -661,11 +661,24 @@ enum Lisp_Fwd_Type
   }
 
 #define XALL                                                            \
-  XCLASS(cons, elisp_cons_class, struct Lisp_Cons *);                   \
-  XCLASS(string, elisp_string_class, struct Lisp_String *);             \
   XCLASS(symbol, elisp_symbol_class, struct Lisp_Symbol *);             \
   XCLASS(vector, elisp_vector_class, struct Lisp_Vector *);             \
   XCLASS(misc, elisp_misc_class, union Lisp_Misc *);                    \
+                                                                        \
+  inline bool                                                           \
+  consp ()                                                              \
+  {                                                                     \
+    if (!V.isObject())                                                  \
+      return false;                                                     \
+                                                                        \
+    return JS_GetClass (&V.toObject()) == &elisp_cons_class;            \
+  }                                                                     \
+                                                                        \
+  inline void                                                           \
+  xsetcons ()                                                           \
+  {                                                                     \
+    V.set(elisp_cons());                                                \
+  }                                                                     \
                                                                         \
   inline EMACS_INT                                                      \
   xint ()                                                               \
@@ -771,6 +784,9 @@ class Lisp_Value_Return;
 class Lisp_Value_Heap;
 class Lisp_Value_Stack;
 class Lisp_Value_Handle;
+
+typedef JSReturnValue ELisp_Return_Value;
+extern ELisp_Return_Value elisp_cons (void);
 
 class JSReturnValue {
 public:
@@ -1414,7 +1430,6 @@ inline Lisp_Value_Heap::Lisp_Value_Heap(const Lisp_Value_Handle v2) {
 
 ///#poison Lisp_Object
 //typedef JSReturnValue Lisp_Object;
-typedef JSReturnValue ELisp_Return_Value;
 typedef Lisp_Value_Handle ELisp_Handle;
 typedef Lisp_Value_Heap ELisp_Heap_Value;
 typedef Lisp_Value_Heap ELisp_Struct_Value;
@@ -2041,22 +2056,23 @@ CHECK_CONS (ELisp_Handle x)
   CHECK_TYPE (CONSP (x), LSH (Qconsp), x);
 }
 
-INLINE struct Lisp_Cons *
-(XCONS) (ELisp_Handle ARG(a))
-{
-  ELisp_Value a = ARG(a);
-  return a.xcons();
-}
+extern ELisp_Return_Value elisp_cons_car (ELisp_Handle);
+extern ELisp_Return_Value elisp_cons_cdr (ELisp_Handle);
 
 /* Use these from normal code.  */
 INLINE ELisp_Return_Value XCAR(ELisp_Handle v)
 {
-  return XCONS(v)->car;
+  return elisp_cons_car (v);
 }
 INLINE ELisp_Return_Value XCDR(ELisp_Handle v)
 {
-  return XCONS(v)->u.cdr;
+  return elisp_cons_cdr (v);
 }
+
+extern void
+elisp_cons_setcar (ELisp_Handle c, ELisp_Handle n);
+extern void
+elisp_cons_setcdr (ELisp_Handle c, ELisp_Handle n);
 
 /* Use these to set the fields of a cons cell.
 
@@ -2065,12 +2081,12 @@ INLINE ELisp_Return_Value XCDR(ELisp_Handle v)
 INLINE void
 XSETCAR (ELisp_Handle c, ELisp_Handle n)
 {
-  XCONS(c)->car = n;
+  elisp_cons_setcar (c, n);
 }
 INLINE void
 XSETCDR (ELisp_Handle c, ELisp_Handle n)
 {
-  XCONS(c)->u.cdr = n;
+  elisp_cons_setcdr (c, n);
 }
 
 /* Take the car or cdr of something whose type is not known.  */
