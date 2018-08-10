@@ -80,7 +80,7 @@ cons_construct(JSContext *cx, unsigned argc, JS::Value* vp)
  */
 
 static void
-fixbuf_finalize(JSFreeOp* freeop, JSObject *obj)
+elisp_fixbuf_finalize(JSFreeOp* freeop, JSObject *obj)
 {
   JS_freeop(freeop, (void *)JS_GetPrivate(obj));
 }
@@ -114,10 +114,10 @@ string_toString(JSContext* cx, unsigned argc, JS::Value *vp)
   return true;
 }
 
-static JSClassOps fixbuf_class_ops =
+static JSClassOps elisp_fixbuf_class_ops =
   {
    NULL, NULL, NULL, NULL,
-   NULL, NULL, fixbuf_finalize
+   NULL, NULL, elisp_fixbuf_finalize
   };
 
 static JSClassOps mbstring_class_ops =
@@ -141,11 +141,11 @@ static JSPropertySpec string_props[] = {
                                         JS_PS_END
 };
 
-static JSClass fixbuf_class =
+static JSClass elisp_fixbuf_class =
   {
    "Fixbuf",
    JSCLASS_HAS_PRIVATE | JSCLASS_HAS_RESERVED_SLOTS(1) | JSCLASS_FOREGROUND_FINALIZE,
-   &fixbuf_class_ops,
+   &elisp_fixbuf_class_ops,
   };
 
 static JSClass mbstring_class =
@@ -161,7 +161,7 @@ bool js_fixbufp(ELisp_Handle s)
   if (!s.isObject())
     return false;
   JS::RootedObject obj(cx, &s.toObject());
-  if (JS_GetClass(obj) != &fixbuf_class)
+  if (JS_GetClass(obj) != &elisp_fixbuf_class)
     return false;
 
   return true;
@@ -201,7 +201,7 @@ bool js_stringp(ELisp_Handle s)
 ELisp_Return_Value js_fixbuf(void *buf, ptrdiff_t size)
 {
   JSContext *cx = jsg.cx;
-  JS::RootedObject obj(cx, JS_NewObject(cx, &fixbuf_class));
+  JS::RootedObject obj(cx, JS_NewObject(cx, &elisp_fixbuf_class));
 
   JS_SetPrivate(obj, buf);
   JS_SetReservedSlot(obj, 0, JS::Int32Value(size));
@@ -253,7 +253,7 @@ void *js_fixbuf_data(ELisp_Handle s)
   if (!s.isObject())
     for (;;);
   JS::RootedObject obj(cx, &s.toObject());
-  if (JS_GetClass(obj) != &fixbuf_class)
+  if (JS_GetClass(obj) != &elisp_fixbuf_class)
     for (;;);
 
   return JS_GetPrivate(obj);
