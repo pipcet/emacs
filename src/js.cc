@@ -2027,7 +2027,7 @@ elisp_symbol_resolve(JSContext *cx, JS::HandleObject obj,
         }
       else if (JS_FlatStringEqualsAscii (JSID_TO_FLAT_STRING (id), "plist"))
         {
-          JS::RootedValue val(cx, s->plist);
+          JS::RootedValue val(cx, JS_GetReservedSlot(obj, 3));
           JS_SetProperty (cx, obj, "plist", val);
           *resolvedp = true;
 
@@ -2112,7 +2112,6 @@ elisp_symbol_trace(JSTracer *trc, JSObject *obj)
       }
     }
   TraceEdge(trc, &s->function.v.v, "function");
-  TraceEdge(trc, &s->plist.v.v, "plist");
 
   if (s->next) {
     TraceEdge(trc, &s->next->jsval, "next");
@@ -2132,9 +2131,17 @@ static JSClassOps elisp_symbol_ops =
   NULL, NULL, NULL, elisp_symbol_trace,
 };
 
+/* Reserved slots:
+ *  0: name
+ *  1: value
+ *  2: function
+ *  3: plist
+ *  4: next
+ */
+
 JSClass elisp_symbol_class =
   {
-   "ELisp_Symbol", JSCLASS_HAS_PRIVATE|JSCLASS_FOREGROUND_FINALIZE,
+   "ELisp_Symbol", JSCLASS_HAS_PRIVATE|JSCLASS_HAS_RESERVED_SLOTS(5)|JSCLASS_FOREGROUND_FINALIZE,
    &elisp_symbol_ops,
   };
 
@@ -2143,6 +2150,22 @@ elisp_marker_finalize(JSFreeOp* cx, JSObject *obj)
 {
   // XXX unchain marker
   // xfree(JS_GetPrivate(obj));
+}
+
+static ELisp_Return_Value
+elisp_symbol_plist(ELisp_Handle symbol)
+{
+  JSContext *cx = jsg.cx;
+  JS::RootedObject obj(cx, &symbol.toObject());
+  return JS_GetReservedSlot(obj, 3);
+}
+
+static void
+elisp_symbol_set_plist(ELisp_Handle symbol, ELisp_Handle plist)
+{
+  JSContext *cx = jsg.cx;
+  JS::RootedObject obj(cx, &symbol.toObject());
+  JS_SetReservedSlot(obj, 3, plist);
 }
 
 static JSClassOps elisp_marker_ops =
@@ -2246,7 +2269,6 @@ interval_trace (JSTracer *trc, struct interval *i)
 {
   if (i->up_obj)
     TraceEdge(trc, &i->up.obj.v.v, "up object");
-  TraceEdge(trc, &i->plist.v.v, "plist");
   if (i->left)
     interval_trace(trc, i->left);
   if (i->right)

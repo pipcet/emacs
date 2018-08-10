@@ -2117,7 +2117,7 @@ This is the last value stored with `(put SYMBOL PROPNAME VALUE)'.  */)
                                     propname);
   if (!NILP (propval))
     return propval;
-  return Fplist_get (XSYMBOL (symbol)->plist, propname);
+  return Fplist_get (XSYMBOL_PLIST (symbol), propname);
 }
 
 DEFUN ("plist-put", Fplist_put, Splist_put, 3, 3, 0,
@@ -2163,7 +2163,7 @@ It can be retrieved with `(get SYMBOL PROPNAME)'.  */)
 {
   CHECK_SYMBOL (symbol);
   set_symbol_plist
-    (symbol, Fplist_put (XSYMBOL (symbol)->plist, propname, value));
+    (symbol, Fplist_put (XSYMBOL_PLIST (symbol), propname, value));
   return value;
 }
 

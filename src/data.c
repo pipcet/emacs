@@ -747,7 +747,7 @@ DEFUN ("symbol-plist", Fsymbol_plist, Ssymbol_plist, 1, 1, 0,
   (register Lisp_Object symbol)
 {
   CHECK_SYMBOL (symbol);
-  return XSYMBOL (symbol)->plist;
+  return XSYMBOL_PLIST (symbol);
 }
 
 DEFUN ("symbol-name", Fsymbol_name, Ssymbol_name, 1, 1, 0,

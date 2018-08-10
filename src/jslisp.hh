@@ -1607,9 +1607,6 @@ struct Lisp_Symbol
   /* Function value of the symbol or Qnil if not fboundp.  */
   ELisp_Struct_Value function;
 
-  /* The symbol's property list.  */
-  ELisp_Struct_Value plist;
-
   /* Next symbol in obarray bucket, if the symbol is interned.  */
   struct Lisp_Symbol *next;
 };
@@ -1755,6 +1752,21 @@ INLINE struct Lisp_Symbol *
 XSYMBOL (ELisp_Handle a)
 {
   return a.xsymbol();
+}
+
+extern ELisp_Return_Value elisp_symbol_plist(ELisp_Handle a);
+extern void elisp_symbol_set_plist(ELisp_Handle a, ELisp_Handle b);
+
+INLINE ELisp_Return_Value
+XSYMBOL_PLIST (ELisp_Handle a)
+{
+  return elisp_symbol_plist (a);
+}
+
+INLINE void
+XSYMBOL_PLIST_SET (ELisp_Handle a, ELisp_Handle b)
+{
+  elisp_symbol_set_plist(a, b);
 }
 
 INLINE void
@@ -4209,7 +4221,7 @@ set_symbol_function (ELisp_Handle sym, ELisp_Handle function)
 INLINE void
 set_symbol_plist (ELisp_Handle sym, ELisp_Handle plist)
 {
-  XSYMBOL (sym)->plist = plist;
+  elisp_symbol_set_plist (sym, plist);
 }
 
 INLINE void
