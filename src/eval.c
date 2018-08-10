@@ -1094,7 +1094,7 @@ definitions to shadow the loaded ones for use in file byte-compilation.  */)
 	  tem = Fassq (sym, environment);
 	  if (NILP (tem))
 	    {
-	      def = XSYMBOL (sym)->function;
+	      def = elisp_symbol_function (sym);
 	      if (!NILP (def))
 		continue;
 	    }
@@ -2111,8 +2111,8 @@ this does nothing and returns nil.  */)
   CHECK_STRING (file);
 
   /* If function is defined and not as an autoload, don't override.  */
-  if (!NILP (XSYMBOL (function)->function)
-      && !AUTOLOADP (XSYMBOL (function)->function))
+  if (!NILP (elisp_symbol_function (function))
+      && !AUTOLOADP (elisp_symbol_function (function)))
     return Qnil;
 
   if (!NILP (Vpurify_flag) && EQ (docstring, make_number (0)))
@@ -2354,7 +2354,7 @@ eval_sub (Lisp_Object form)
   fun = original_fun;
   if (!SYMBOLP (fun))
     fun = Ffunction (Fcons (fun, Qnil));
-  else if (!NILP (fun) && (fun = XSYMBOL (fun)->function, SYMBOLP (fun)))
+  else if (!NILP (fun) && (fun = elisp_symbol_function (fun), SYMBOLP (fun)))
     fun = indirect_function (fun);
 
   if (SUBRP (fun))
@@ -2576,7 +2576,7 @@ usage: (apply FUNCTION &rest ARGUMENTS)  */)
 
   /* Optimize for no indirection.  */
   if (SYMBOLP (fun) && !NILP (fun)
-      && (fun = XSYMBOL (fun)->function, SYMBOLP (fun)))
+      && (fun = elisp_symbol_function (fun), SYMBOLP (fun)))
     {
       fun = indirect_function (fun);
       if (NILP (fun))
@@ -2989,7 +2989,7 @@ usage: (funcall FUNCTION &rest ARGUMENTS)  */)
   /* Optimize for no indirection.  */
   fun = original_fun;
   if (SYMBOLP (fun) && !NILP (fun)
-      && (fun = XSYMBOL (fun)->function, SYMBOLP (fun)))
+      && (fun = elisp_symbol_function (fun), SYMBOLP (fun)))
     fun = indirect_function (fun);
 
   if (SUBRP (fun))
@@ -3338,7 +3338,7 @@ function with `&rest' args, or `unevalled' for a special form.  */)
   function = original;
   if (SYMBOLP (function) && !NILP (function))
     {
-      function = XSYMBOL (function)->function;
+      function = elisp_symbol_function (function);
       if (SYMBOLP (function))
 	function = indirect_function (function);
     }
@@ -3487,14 +3487,15 @@ let_shadows_buffer_binding_p (struct Lisp_Symbol *symbol)
 }
 
 static void
-do_specbind (struct Lisp_Symbol *sym, struct specbinding *bind,
+do_specbind (Lisp_Object symval, struct specbinding *bind,
              Lisp_Object value, enum Set_Internal_Bind bindflag)
 {
+  struct Lisp_Symbol *sym = XSYMBOL (symval);
   switch (sym->redirect)
     {
     case SYMBOL_PLAINVAL:
       if (!sym->trapped_write)
-	SET_SYMBOL_VAL (sym, value);
+	elisp_symbol_set_value (symval, value);
       else
         set_internal (specpdl_symbol (bind), value, Qnil, bindflag);
       break;
@@ -3547,10 +3548,10 @@ specbind (Lisp_Object symbol, Lisp_Object value)
       prepare_grow_specpdl ();
       specpdl_ptr->kind = SPECPDL_LET;
       specpdl_ptr->let.symbol = symbol;
-      specpdl_ptr->let.old_value = SYMBOL_VAL (sym);
+      specpdl_ptr->let.old_value = elisp_symbol_value (symbol);
       specpdl_ptr->let.saved_value = Qnil;
       grow_specpdl ();
-      do_specbind (sym, specpdl_ptr - 1, value, SET_INTERNAL_BIND);
+      do_specbind (symbol, specpdl_ptr - 1, value, SET_INTERNAL_BIND);
       break;
     case SYMBOL_LOCALIZED:
     case SYMBOL_FORWARDED:
@@ -3582,7 +3583,7 @@ specbind (Lisp_Object symbol, Lisp_Object value)
 	      {
 		specpdl_ptr->kind = SPECPDL_LET_DEFAULT;
 		grow_specpdl ();
-                do_specbind (sym, specpdl_ptr - 1, value, SET_INTERNAL_BIND);
+                do_specbind (symbol, specpdl_ptr - 1, value, SET_INTERNAL_BIND);
 		return;
 	      }
 	  }
@@ -3590,7 +3591,7 @@ specbind (Lisp_Object symbol, Lisp_Object value)
 	  specpdl_ptr->kind = SPECPDL_LET;
 
 	grow_specpdl ();
-        do_specbind (sym, specpdl_ptr - 1, value, SET_INTERNAL_BIND);
+        do_specbind (symbol, specpdl_ptr - 1, value, SET_INTERNAL_BIND);
 	break;
       }
     default: emacs_abort ();
@@ -3668,7 +3669,7 @@ rebind_for_thread_switch (void)
 	  Lisp_Object value = specpdl_saved_value (bind);
 	  Lisp_Object sym = specpdl_symbol (bind);
 	  bind->let.saved_value = Qnil;
-          do_specbind (XSYMBOL (sym), bind, value,
+          do_specbind (sym, bind, value,
                        SET_INTERNAL_THREAD_SWITCH);
 	}
     }
@@ -3708,9 +3709,9 @@ do_one_unbind (struct specbinding_stack *this_binding, bool unwinding,
 	if (SYMBOLP (sym) && XSYMBOL (sym)->redirect == SYMBOL_PLAINVAL)
 	  {
 	    if (XSYMBOL (sym)->trapped_write == SYMBOL_UNTRAPPED_WRITE)
-	      SET_SYMBOL_VAL (XSYMBOL (sym), specpdl_stack_old_value (this_binding));
+	      elisp_symbol_set_value (sym, LRH (specpdl_stack_old_value (this_binding)));
 	    else
-	      set_internal (sym, specpdl_stack_old_value (this_binding),
+	      set_internal (sym, LRH (specpdl_stack_old_value (this_binding)),
                             Qnil, bindflag);
 	    break;
 	  }
@@ -4021,8 +4022,8 @@ backtrace_eval_unrewind (int distance)
 	    if (SYMBOLP (sym) && XSYMBOL (sym)->redirect == SYMBOL_PLAINVAL)
 	      {
 		Lisp_Object old_value = specpdl_old_value (tmp);
-		set_specpdl_old_value (tmp, SYMBOL_VAL (XSYMBOL (sym)));
-		SET_SYMBOL_VAL (XSYMBOL (sym), old_value);
+		set_specpdl_old_value (tmp, elisp_symbol_value (sym));
+		elisp_symbol_set_value (sym, old_value);
 		break;
 	      }
 	  }

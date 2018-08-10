@@ -2297,7 +2297,7 @@ init_symbol (Lisp_Object val, Lisp_Object name)
   set_symbol_name (val, name);
   set_symbol_plist (val, Qnil);
   p->redirect = SYMBOL_PLAINVAL;
-  SET_SYMBOL_VAL (p, Qunbound);
+  elisp_symbol_set_value (val, LRH (Qunbound));
   set_symbol_function (val, Qnil);
   p->gcmarkbit = false;
   p->interned = SYMBOL_UNINTERNED;
@@ -4304,10 +4304,10 @@ symbol_uses_obj (Lisp_Object symbol, Lisp_Object obj)
   struct Lisp_Symbol *sym = XSYMBOL (symbol);
   Lisp_Object val = find_symbol_value (symbol);
   return (EQ (val, obj)
-	  || EQ (sym->function, obj)
-	  || (!NILP (sym->function)
-	      && COMPILEDP (sym->function)
-	      && EQ (AREF (sym->function, COMPILED_BYTECODE), obj))
+	  || EQ (elisp_symbol_function (symbol), obj)
+	  || (!NILP (elisp_symbol_function (symbol))
+	      && COMPILEDP (elisp_symbol_function (symbol))
+	      && EQ (AREF (elisp_symbol_function (symbol), COMPILED_BYTECODE), obj))
 	  || (!NILP (val)
 	      && COMPILEDP (val)
 	      && EQ (AREF (val, COMPILED_BYTECODE), obj)));

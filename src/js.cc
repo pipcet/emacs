@@ -731,7 +731,7 @@ F_resolve(JSContext *cx, JS::HandleObject obj, JS::HandleId id, bool *resolvedp)
         *resolvedp = false;
       else
         {
-          tem = XSYMBOL (tem)->function;
+          tem = elisp_symbol_function (tem);
 
           JS_SetProperty (cx, obj, bytes, tem.v.v);
           *resolvedp = true;
@@ -789,7 +789,7 @@ static bool F_call(JSContext *cx, unsigned argc, JS::Value *vp)
         }
       else
         {
-          tem = XSYMBOL (tem)->function;
+          tem = elisp_symbol_function (tem);
           args.rval().set(tem.v.v);
         }
 
@@ -1931,7 +1931,9 @@ elisp_symbol_function_getter(JSContext *cx, unsigned argc, JS::Value *vp)
 
   struct Lisp_Symbol *s = (struct Lisp_Symbol *)JS_GetPrivate(obj);
 
-  args.rval().set(s->function.v.v);
+  ELisp_Value v;
+  v.v.v = thisv;
+  args.rval().set(elisp_symbol_function (v));
 
   return true;
 }
@@ -1952,7 +1954,11 @@ elisp_symbol_function_setter(JSContext *cx, unsigned argc, JS::Value *vp)
   if (args.length() != 1)
     return false;
 
-  s->function.v.v = args[0];
+  ELisp_Value v;
+  v.v.v = thisv;
+  ELisp_Value v2;
+  v2.v.v = args[0];
+  elisp_symbol_set_function (v, v2);
   args.rval().setUndefined();
 
   return true;
@@ -2009,13 +2015,15 @@ static bool
 elisp_symbol_resolve(JSContext *cx, JS::HandleObject obj,
                      JS::HandleId id, bool *resolvedp)
 {
+  ELisp_Value v;
+  v.v.v = JS::ObjectValue(*obj);
   struct Lisp_Symbol *s = (struct Lisp_Symbol *)JS_GetPrivate(obj);
 
   if (JSID_IS_STRING (id))
     {
       if (JS_FlatStringEqualsAscii (JSID_TO_FLAT_STRING (id), "name"))
         {
-          JS::RootedValue val(cx, s->name);
+          JS::RootedValue val(cx, elisp_symbol_function(v));
           JS_SetProperty (cx, obj, "name", val);
           *resolvedp = true;
 
@@ -2023,7 +2031,7 @@ elisp_symbol_resolve(JSContext *cx, JS::HandleObject obj,
         }
       else if (JS_FlatStringEqualsAscii (JSID_TO_FLAT_STRING (id), "function"))
         {
-          JS::RootedValue val(cx, s->function);
+          JS::RootedValue val(cx, elisp_symbol_function (v));
           JS_DefinePropertyById (cx, obj, id,
                                  elisp_symbol_function_getter,
                                  elisp_symbol_function_setter,
@@ -2091,9 +2099,8 @@ elisp_symbol_trace(JSTracer *trc, JSObject *obj)
   if (!s) return;
 
   TraceEdge(trc, &s->jsval, "jsval");
-  TraceEdge(trc, &s->name.v.v, "name");
   if (s->redirect == SYMBOL_PLAINVAL)
-    TraceEdge(trc, &s->val.value.v.v, "value");
+    ;
   else if (s->redirect == SYMBOL_VARALIAS)
     TraceEdge(trc, &s->val.alias->jsval, "alias");
   else if (s->redirect == SYMBOL_LOCALIZED)
@@ -2118,7 +2125,6 @@ elisp_symbol_trace(JSTracer *trc, JSObject *obj)
         break;
       }
     }
-  TraceEdge(trc, &s->function.v.v, "function");
 }
 
 static void
@@ -2153,6 +2159,38 @@ elisp_marker_finalize(JSFreeOp* cx, JSObject *obj)
 {
   // XXX unchain marker
   // xfree(JS_GetPrivate(obj));
+}
+
+static ELisp_Return_Value
+elisp_symbol_function(ELisp_Handle symbol)
+{
+  JSContext *cx = jsg.cx;
+  JS::RootedObject obj(cx, &symbol.toObject());
+  return JS_GetReservedSlot(obj, 2);
+}
+
+static void
+elisp_symbol_set_function(ELisp_Handle symbol, ELisp_Handle plist)
+{
+  JSContext *cx = jsg.cx;
+  JS::RootedObject obj(cx, &symbol.toObject());
+  JS_SetReservedSlot(obj, 2, plist);
+}
+
+static ELisp_Return_Value
+elisp_symbol_value(ELisp_Handle symbol)
+{
+  JSContext *cx = jsg.cx;
+  JS::RootedObject obj(cx, &symbol.toObject());
+  return JS_GetReservedSlot(obj, 1);
+}
+
+static void
+elisp_symbol_set_value(ELisp_Handle symbol, ELisp_Handle plist)
+{
+  JSContext *cx = jsg.cx;
+  JS::RootedObject obj(cx, &symbol.toObject());
+  JS_SetReservedSlot(obj, 1, plist);
 }
 
 static ELisp_Return_Value

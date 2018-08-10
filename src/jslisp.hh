@@ -397,11 +397,11 @@ DEFINE_GDB_SYMBOL_END (VALMASK)
 #define lisp_h_MISCP(x) (XTYPE (x) == Lisp_Misc)
 #define lisp_h_NILP(x) EQ (x, Qnil)
 #define lisp_h_SET_SYMBOL_VAL(sym, v) \
-   (eassert ((sym)->redirect == SYMBOL_PLAINVAL), (sym)->val.value = (v))
+  (eassert ((sym)->redirect == SYMBOL_PLAINVAL), elisp_symbol_set_value (sym, v))
 #define lisp_h_SYMBOL_CONSTANT_P(sym) (XSYMBOL (sym)->trapped_write == SYMBOL_NOWRITE)
 #define lisp_h_SYMBOL_TRAPPED_WRITE_P(sym) (XSYMBOL (sym)->trapped_write)
 #define lisp_h_SYMBOL_VAL(sym) \
-   (eassert ((sym)->redirect == SYMBOL_PLAINVAL), (sym)->val.value)
+   (eassert ((sym)->redirect == SYMBOL_PLAINVAL), elisp_symbol_value (sym))
 #define lisp_h_SYMBOLP(x) (XTYPE (x) == Lisp_Symbol)
 #define lisp_h_XCAR(c) XCONS (c)->car
 #define lisp_h_XCDR(c) XCONS (c)->u.cdr
@@ -1592,20 +1592,13 @@ struct Lisp_Symbol
   /* True if pointed to from purespace and hence can't be GC'd.  */
   bool_bf pinned : 1;
 
-  /* The symbol's name, as a Lisp string.  */
-  ELisp_Struct_Value name;
-
   /* Value of the symbol or Qunbound if unbound.  Which alternative of the
      union is used depends on the `redirect' field above.  */
   struct {
-    ELisp_Struct_Value value;
     struct Lisp_Symbol *alias;
     struct Lisp_Buffer_Local_Value *blv;
     union Lisp_Fwd *fwd;
   } val;
-
-  /* Function value of the symbol or Qnil if not fboundp.  */
-  ELisp_Struct_Value function;
 };
 
 /* Declare a Lisp-callable function.  The MAXARGS parameter has the same
@@ -1750,6 +1743,12 @@ XSYMBOL (ELisp_Handle a)
 {
   return a.xsymbol();
 }
+
+extern ELisp_Return_Value elisp_symbol_value(ELisp_Handle a);
+extern void elisp_symbol_set_value(ELisp_Handle a, ELisp_Handle b);
+
+extern ELisp_Return_Value elisp_symbol_function(ELisp_Handle a);
+extern void elisp_symbol_set_function(ELisp_Handle a, ELisp_Handle b);
 
 extern ELisp_Return_Value elisp_symbol_plist(ELisp_Handle a);
 extern void elisp_symbol_set_plist(ELisp_Handle a, ELisp_Handle b);
@@ -2819,14 +2818,6 @@ typedef jmp_buf sys_jmp_buf;
                                Symbols
  ***********************************************************************/
 
-/* Value is name of symbol.  */
-
-INLINE ELisp_Return_Value
-(SYMBOL_VAL) (struct Lisp_Symbol *sym)
-{
-  return lisp_h_SYMBOL_VAL (sym);
-}
-
 INLINE struct Lisp_Symbol *
 SYMBOL_ALIAS (struct Lisp_Symbol *sym)
 {
@@ -2844,12 +2835,6 @@ SYMBOL_FWD (struct Lisp_Symbol *sym)
 {
   eassume (sym->redirect == SYMBOL_FORWARDED && sym->val.fwd);
   return sym->val.fwd;
-}
-
-INLINE void
-(SET_SYMBOL_VAL) (struct Lisp_Symbol *sym, ELisp_Handle v)
-{
-  lisp_h_SET_SYMBOL_VAL (sym, v);
 }
 
 INLINE void
@@ -4242,7 +4227,7 @@ set_hash_value_slot (struct Lisp_Hash_Table *h, ptrdiff_t idx, ELisp_Handle val)
 INLINE void
 set_symbol_function (ELisp_Handle sym, ELisp_Handle function)
 {
-  XSYMBOL (sym)->function = function;
+  elisp_symbol_set_function (sym, function);
 }
 
 INLINE void

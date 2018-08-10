@@ -1189,7 +1189,7 @@ buffer_local_value (Lisp_Object variable, Lisp_Object buffer)
   switch (sym->redirect)
     {
     case SYMBOL_VARALIAS: sym = indirect_variable (sym); goto start;
-    case SYMBOL_PLAINVAL: result = SYMBOL_VAL (sym); break;
+    case SYMBOL_PLAINVAL: result = elisp_symbol_value (variable); break;
     case SYMBOL_LOCALIZED:
       { /* Look in local_var_alist.  */
 	struct Lisp_Buffer_Local_Value *blv = SYMBOL_BLV (sym);

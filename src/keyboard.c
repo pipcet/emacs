@@ -7891,7 +7891,7 @@ parse_menu_item (Lisp_Object item, int inmenubar)
 		       (such as lmenu.el set it up), check if the
 		       original command matches the cached command.  */
 		    && !(SYMBOLP (def)
-			 && EQ (tem, XSYMBOL (def)->function))))
+			 && EQ (tem, elisp_symbol_function (def)))))
 	      keys = Qnil;
 	  }
 
@@ -8767,9 +8767,9 @@ access_keymap_keyremap (Lisp_Object map, Lisp_Object key, Lisp_Object prompt,
   /* Handle a symbol whose function definition is a keymap
      or an array.  */
   if (SYMBOLP (next) && !NILP (Ffboundp (next))
-      && (ARRAYP (XSYMBOL (next)->function)
-	  || KEYMAPP (XSYMBOL (next)->function)))
-    next = Fautoload_do_load (XSYMBOL (next)->function, next, Qnil);
+      && (ARRAYP (elisp_symbol_function (next))
+	  || KEYMAPP (elisp_symbol_function (next))))
+    next = Fautoload_do_load (elisp_symbol_function (next), next, Qnil);
 
   /* If the keymap gives a function, not an
      array, then call the function with one arg and use

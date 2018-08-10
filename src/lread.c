@@ -4091,7 +4091,7 @@ intern_sym (Lisp_Object sym, Lisp_Object obarray, Lisp_Object index)
     {
       make_symbol_constant (sym);
       XSYMBOL (sym)->redirect = SYMBOL_PLAINVAL;
-      SET_SYMBOL_VAL (XSYMBOL (sym), sym);
+      elisp_symbol_set_value (sym, sym);
     }
 
   ptr = aref_addr (obarray, XINT (index));
@@ -4407,12 +4407,12 @@ init_obarray (void)
   DEFSYM (Qunbound, "unbound");
 
   DEFSYM (Qnil, "nil");
-  SET_SYMBOL_VAL (XSYMBOL (Qnil), Qnil);
+  elisp_symbol_set_value (LRH (Qnil), LRH (Qnil));
   make_symbol_constant (Qnil);
   XSYMBOL (Qnil)->declared_special = true;
 
   DEFSYM (Qt, "t");
-  SET_SYMBOL_VAL (XSYMBOL (Qt), Qt);
+  elisp_symbol_set_value (LRH (Qt), LRH (Qt));
   make_symbol_constant (Qt);
   XSYMBOL (Qt)->declared_special = true;
 

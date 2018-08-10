@@ -672,7 +672,7 @@ global value outside of any lexical scope.  */)
  start:
   switch (sym->redirect)
     {
-    case SYMBOL_PLAINVAL: valcontents = SYMBOL_VAL (sym); break;
+    case SYMBOL_PLAINVAL: valcontents = elisp_symbol_value (symbol); break;
     case SYMBOL_VARALIAS: sym = indirect_variable (sym); goto start;
     case SYMBOL_LOCALIZED:
       {
@@ -707,7 +707,7 @@ DEFUN ("fboundp", Ffboundp, Sfboundp, 1, 1, 0,
   (register Lisp_Object symbol)
 {
   CHECK_SYMBOL (symbol);
-  return NILP (XSYMBOL (symbol)->function) ? Qnil : Qt;
+  return NILP (elisp_symbol_function (symbol)) ? Qnil : Qt;
 }
 
 DEFUN ("makunbound", Fmakunbound, Smakunbound, 1, 1, 0,
@@ -739,7 +739,7 @@ DEFUN ("symbol-function", Fsymbol_function, Ssymbol_function, 1, 1, 0,
   (register Lisp_Object symbol)
 {
   CHECK_SYMBOL (symbol);
-  return XSYMBOL (symbol)->function;
+  return elisp_symbol_function (symbol);
 }
 
 DEFUN ("symbol-plist", Fsymbol_plist, Ssymbol_plist, 1, 1, 0,
@@ -771,7 +771,7 @@ DEFUN ("fset", Ffset, Sfset, 2, 2, 0,
   if (NILP (symbol))
     xsignal1 (Qsetting_constant, symbol);
 
-  function = XSYMBOL (symbol)->function;
+  function = elisp_symbol_function (symbol);
 
   if (!NILP (Vautoload_queue) && !NILP (function))
     Vautoload_queue = Fcons (Fcons (symbol, function), Vautoload_queue);
@@ -809,7 +809,7 @@ The return value is undefined.  */)
       { /* Only add autoload entries after dumping, because the ones before are
 	   not useful and else we get loads of them from the loaddefs.el.  */
 
-	if (AUTOLOADP (XSYMBOL (symbol)->function))
+	if (AUTOLOADP (elisp_symbol_function (symbol)))
 	  /* Remember that the function was already an autoload.  */
 	  LOADHIST_ATTACH (Fcons (Qt, symbol));
 	LOADHIST_ATTACH (Fcons (autoload ? Qautoload : Qdefun, symbol));
@@ -1250,7 +1250,7 @@ find_symbol_value (Lisp_Object symbol)
   switch (sym->redirect)
     {
     case SYMBOL_VARALIAS: sym = indirect_variable (sym); goto start;
-    case SYMBOL_PLAINVAL: return SYMBOL_VAL (sym);
+    case SYMBOL_PLAINVAL: return elisp_symbol_value (symbol);
     case SYMBOL_LOCALIZED:
       {
 	struct Lisp_Buffer_Local_Value *blv = SYMBOL_BLV (sym);
@@ -1309,7 +1309,7 @@ set_internal (Lisp_Object symbol, Lisp_Object newval, Lisp_Object where,
 
   CHECK_SYMBOL (symbol);
   sym = XSYMBOL (symbol);
-  switch (sym->trapped_write)
+  switch (XSYMBOL (symbol)->trapped_write)
     {
     case SYMBOL_NOWRITE:
       if (NILP (Fkeywordp (symbol))
@@ -1335,13 +1335,13 @@ set_internal (Lisp_Object symbol, Lisp_Object newval, Lisp_Object where,
     }
 
  start:
-  switch (sym->redirect)
+  switch (XSYMBOL (symbol)->redirect)
     {
-    case SYMBOL_VARALIAS: sym = indirect_variable (sym); goto start;
-    case SYMBOL_PLAINVAL: SET_SYMBOL_VAL (sym , newval); return;
+    case SYMBOL_VARALIAS: sym = indirect_variable (XSYMBOL (symbol)); goto start;
+    case SYMBOL_PLAINVAL: elisp_symbol_set_value (symbol, newval); return;
     case SYMBOL_LOCALIZED:
       {
-	struct Lisp_Buffer_Local_Value *blv = SYMBOL_BLV (sym);
+	struct Lisp_Buffer_Local_Value *blv = SYMBOL_BLV (XSYMBOL (symbol));
 	if (NILP (where))
 	  XSETBUFFER (where, current_buffer);
 
@@ -1378,7 +1378,7 @@ set_internal (Lisp_Object symbol, Lisp_Object newval, Lisp_Object where,
 		   Likewise if the variable has been let-bound
 		   in the current buffer.  */
 		if (bindflag || !blv->local_if_set
-		    || let_shadows_buffer_binding_p (sym))
+		    || let_shadows_buffer_binding_p (XSYMBOL (symbol)))
 		  {
 		    blv->found = false;
 		    tem1 = blv->defcell;
@@ -1421,22 +1421,22 @@ set_internal (Lisp_Object symbol, Lisp_Object newval, Lisp_Object where,
       {
 	struct buffer *buf
 	  = BUFFERP (where) ? XBUFFER (where) : current_buffer;
-	union Lisp_Fwd *innercontents = SYMBOL_FWD (sym);
+	union Lisp_Fwd *innercontents = SYMBOL_FWD (XSYMBOL (symbol));
 	if (BUFFER_OBJFWDP (innercontents))
 	  {
 	    int offset = XBUFFER_OBJFWD (innercontents)->offset;
 	    int idx = PER_BUFFER_IDX (offset);
 	    if (idx > 0
                 && bindflag == SET_INTERNAL_SET
-		&& !let_shadows_buffer_binding_p (sym))
+		&& !let_shadows_buffer_binding_p (XSYMBOL (symbol)))
 	      SET_PER_BUFFER_VALUE_P (buf, idx, 1);
 	  }
 
 	if (voide)
 	  { /* If storing void (making the symbol void), forward only through
 	       buffer-local indicator, not through Lisp_Objfwd, etc.  */
-	    sym->redirect = SYMBOL_PLAINVAL;
-	    SET_SYMBOL_VAL (sym, newval);
+	    XSYMBOL (symbol)->redirect = SYMBOL_PLAINVAL;
+	    elisp_symbol_set_value (symbol, newval);
 	  }
 	else
 	  store_symval_forwarding (/* sym, */ innercontents, newval, buf);
@@ -1451,9 +1451,9 @@ static void
 set_symbol_trapped_write (Lisp_Object symbol, enum symbol_trapped_write trap)
 {
   struct Lisp_Symbol *sym = XSYMBOL (symbol);
-  if (sym->trapped_write == SYMBOL_NOWRITE)
+  if (XSYMBOL (symbol)->trapped_write == SYMBOL_NOWRITE)
     xsignal1 (Qtrapping_constant, symbol);
-  sym->trapped_write = trap;
+  XSYMBOL (symbol)->trapped_write = trap;
 }
 
 static void
@@ -1583,17 +1583,17 @@ default_value (Lisp_Object symbol)
   sym = XSYMBOL (symbol);
 
  start:
-  switch (sym->redirect)
+  switch (XSYMBOL (symbol)->redirect)
     {
-    case SYMBOL_VARALIAS: sym = indirect_variable (sym); goto start;
-    case SYMBOL_PLAINVAL: return SYMBOL_VAL (sym);
+    case SYMBOL_VARALIAS: sym = indirect_variable (XSYMBOL (symbol)); goto start;
+    case SYMBOL_PLAINVAL: return elisp_symbol_value(symbol);
     case SYMBOL_LOCALIZED:
       {
 	/* If var is set up for a buffer that lacks a local value for it,
 	   the current value is nominally the default value.
 	   But the `realvalue' slot may be more up to date, since
 	   ordinary setq stores just that slot.  So use that.  */
-	struct Lisp_Buffer_Local_Value *blv = SYMBOL_BLV (sym);
+	struct Lisp_Buffer_Local_Value *blv = SYMBOL_BLV (XSYMBOL (symbol));
 	if (blv->fwd && EQ (blv->valcell, blv->defcell))
 	  return do_symval_forwarding (blv->fwd);
 	else
@@ -1601,7 +1601,7 @@ default_value (Lisp_Object symbol)
       }
     case SYMBOL_FORWARDED:
       {
-	union Lisp_Fwd *valcontents = SYMBOL_FWD (sym);
+	union Lisp_Fwd *valcontents = SYMBOL_FWD (XSYMBOL (symbol));
 
 	/* For a built-in buffer-local variable, get the default value
 	   rather than letting do_symval_forwarding get the current value.  */
@@ -1665,7 +1665,7 @@ set_default_internal (Lisp_Object symbol, Lisp_Object value,
 
     case SYMBOL_TRAPPED_WRITE:
       /* Don't notify here if we're going to call Fset anyway.  */
-      if (sym->redirect != SYMBOL_PLAINVAL
+      if (XSYMBOL (symbol)->redirect != SYMBOL_PLAINVAL
           /* Setting due to thread switching doesn't count.  */
           && bindflag != SET_INTERNAL_THREAD_SWITCH)
         notify_variable_watchers (symbol, value, Qset_default, Qnil);
@@ -1677,13 +1677,13 @@ set_default_internal (Lisp_Object symbol, Lisp_Object value,
     }
 
  start:
-  switch (sym->redirect)
+  switch (XSYMBOL (symbol)->redirect)
     {
-    case SYMBOL_VARALIAS: sym = indirect_variable (sym); goto start;
+    case SYMBOL_VARALIAS: symbol = indirect_variable (XSYMBOL (symbol))->jsval; goto start;
     case SYMBOL_PLAINVAL: set_internal (symbol, value, Qnil, bindflag); return;
     case SYMBOL_LOCALIZED:
       {
-	struct Lisp_Buffer_Local_Value *blv = SYMBOL_BLV (sym);
+	struct Lisp_Buffer_Local_Value *blv = SYMBOL_BLV (XSYMBOL (symbol));
 
 	/* Store new value into the DEFAULT-VALUE slot.  */
 	XSETCDR (blv->defcell, value);
@@ -1695,7 +1695,7 @@ set_default_internal (Lisp_Object symbol, Lisp_Object value,
       }
     case SYMBOL_FORWARDED:
       {
-	union Lisp_Fwd *valcontents = SYMBOL_FWD (sym);
+	union Lisp_Fwd *valcontents = SYMBOL_FWD (XSYMBOL (symbol));
 
 	/* Handle variables like case-fold-search that have special slots
 	   in the buffer.
@@ -1839,19 +1839,19 @@ The function `default-value' gets the default value and `set-default' sets it.  
   sym = XSYMBOL (variable);
 
  start:
-  switch (sym->redirect)
+  switch (XSYMBOL (variable)->redirect)
     {
-    case SYMBOL_VARALIAS: sym = indirect_variable (sym); goto start;
+    case SYMBOL_VARALIAS: variable = indirect_variable (XSYMBOL (variable))->jsval; goto start;
     case SYMBOL_PLAINVAL:
-      forwarded = 0; valcontents.value = SYMBOL_VAL (sym);
+      forwarded = 0; valcontents.value = elisp_symbol_value (variable);
       if (EQ (valcontents.value, Qunbound))
 	valcontents.value = Qnil;
       break;
     case SYMBOL_LOCALIZED:
-      blv = SYMBOL_BLV (sym);
+      blv = SYMBOL_BLV (XSYMBOL (variable));
       break;
     case SYMBOL_FORWARDED:
-      forwarded = 1; valcontents.fwd = SYMBOL_FWD (sym);
+      forwarded = 1; valcontents.fwd = SYMBOL_FWD (XSYMBOL (variable));
       if (KBOARD_OBJFWDP (valcontents.fwd))
 	error ("Symbol %s may not be buffer-local",
 	       SDATA (SYMBOL_NAME (variable)));
@@ -1866,9 +1866,9 @@ The function `default-value' gets the default value and `set-default' sets it.  
 
   if (!blv)
     {
-      blv = make_blv (sym, forwarded, valcontents);
-      sym->redirect = SYMBOL_LOCALIZED;
-      SET_SYMBOL_BLV (sym, blv);
+      blv = make_blv (XSYMBOL (variable), forwarded, valcontents);
+      XSYMBOL (variable)->redirect = SYMBOL_LOCALIZED;
+      SET_SYMBOL_BLV (XSYMBOL (variable), blv);
     }
 
   blv->local_if_set = 1;
@@ -1908,16 +1908,16 @@ Instead, use `add-hook' and specify t for the LOCAL argument.  */)
   sym = XSYMBOL (variable);
 
  start:
-  switch (sym->redirect)
+  switch (XSYMBOL (variable)->redirect)
     {
-    case SYMBOL_VARALIAS: sym = indirect_variable (sym); goto start;
+    case SYMBOL_VARALIAS: variable = indirect_variable (XSYMBOL (variable))->jsval; goto start;
     case SYMBOL_PLAINVAL:
-      forwarded = 0; valcontents.value = SYMBOL_VAL (sym); break;
+      forwarded = 0; valcontents.value = elisp_symbol_value (variable); break;
     case SYMBOL_LOCALIZED:
-      blv = SYMBOL_BLV (sym);
+      blv = SYMBOL_BLV (XSYMBOL (variable));
       break;
     case SYMBOL_FORWARDED:
-      forwarded = 1; valcontents.fwd = SYMBOL_FWD (sym);
+      forwarded = 1; valcontents.fwd = SYMBOL_FWD (XSYMBOL (variable));
       if (KBOARD_OBJFWDP (valcontents.fwd))
 	error ("Symbol %s may not be buffer-local",
 	       SDATA (SYMBOL_NAME (variable)));
@@ -1925,7 +1925,7 @@ Instead, use `add-hook' and specify t for the LOCAL argument.  */)
     default: emacs_abort ();
     }
 
-  if (sym->trapped_write == SYMBOL_NOWRITE)
+  if (XSYMBOL (variable)->trapped_write == SYMBOL_NOWRITE)
     xsignal1 (Qsetting_constant, variable);
 
   if (blv ? blv->local_if_set
@@ -1939,17 +1939,17 @@ Instead, use `add-hook' and specify t for the LOCAL argument.  */)
     }
   if (!blv)
     {
-      blv = make_blv (sym, forwarded, valcontents);
-      sym->redirect = SYMBOL_LOCALIZED;
-      SET_SYMBOL_BLV (sym, blv);
+      blv = make_blv (XSYMBOL (variable), forwarded, valcontents);
+      XSYMBOL (variable)->redirect = SYMBOL_LOCALIZED;
+      SET_SYMBOL_BLV (XSYMBOL (variable), blv);
     }
 
   /* Make sure this buffer has its own value of symbol.  */
-  XSETSYMBOL (variable, sym);	/* Update in case of aliasing.  */
+  XSETSYMBOL (variable, XSYMBOL (variable));	/* Update in case of aliasing.  */
   tem = Fassq (variable, BVAR (current_buffer, local_var_alist));
   if (NILP (tem))
     {
-      if (let_shadows_buffer_binding_p (sym))
+      if (let_shadows_buffer_binding_p (XSYMBOL (variable)))
 	{
 	  AUTO_STRING (format,
 		       "Making %s buffer-local while locally let-bound!");
@@ -1959,7 +1959,7 @@ Instead, use `add-hook' and specify t for the LOCAL argument.  */)
       if (BUFFERP (blv->where) && current_buffer == XBUFFER (blv->where))
         /* Make sure the current value is permanently recorded, if it's the
            default value.  */
-        swap_in_global_binding (sym);
+        swap_in_global_binding (XSYMBOL (variable));
 
       bset_local_var_alist
 	(current_buffer,
@@ -1984,13 +1984,13 @@ From now on the default value will apply in this buffer.  Return VARIABLE.  */)
   sym = XSYMBOL (variable);
 
  start:
-  switch (sym->redirect)
+  switch (XSYMBOL (variable)->redirect)
     {
-    case SYMBOL_VARALIAS: sym = indirect_variable (sym); goto start;
+    case SYMBOL_VARALIAS: variable = indirect_variable (XSYMBOL (variable))->jsval; goto start;
     case SYMBOL_PLAINVAL: return variable;
     case SYMBOL_FORWARDED:
       {
-	union Lisp_Fwd *valcontents = SYMBOL_FWD (sym);
+	union Lisp_Fwd *valcontents = SYMBOL_FWD (XSYMBOL (variable));
 	if (BUFFER_OBJFWDP (valcontents))
 	  {
 	    int offset = XBUFFER_OBJFWD (valcontents)->offset;
@@ -2006,16 +2006,16 @@ From now on the default value will apply in this buffer.  Return VARIABLE.  */)
 	return variable;
       }
     case SYMBOL_LOCALIZED:
-      blv = SYMBOL_BLV (sym);
+      blv = SYMBOL_BLV (XSYMBOL (variable));
       break;
     default: emacs_abort ();
     }
 
-  if (sym->trapped_write == SYMBOL_TRAPPED_WRITE)
+  if (XSYMBOL (variable)->trapped_write == SYMBOL_TRAPPED_WRITE)
     notify_variable_watchers (variable, Qnil, Qmakunbound, Fcurrent_buffer ());
 
   /* Get rid of this buffer's alist element, if any.  */
-  XSETSYMBOL (variable, sym);	/* Propagate variable indirection.  */
+  XSETSYMBOL (variable, XSYMBOL (variable));	/* Propagate variable indirection.  */
   tem = Fassq (variable, BVAR (current_buffer, local_var_alist));
   if (!NILP (tem))
     bset_local_var_alist
@@ -2028,7 +2028,7 @@ From now on the default value will apply in this buffer.  Return VARIABLE.  */)
   {
     Lisp_Object buf; XSETBUFFER (buf, current_buffer);
     if (EQ (buf, blv->where))
-      swap_in_global_binding (sym);
+      swap_in_global_binding (XSYMBOL (variable));
   }
 
   return variable;
@@ -2186,12 +2186,12 @@ indirect_function (register Lisp_Object object)
     {
       if (!SYMBOLP (hare) || NILP (hare))
 	break;
-      hare = XSYMBOL (hare)->function;
+      hare = elisp_symbol_function (hare);
       if (!SYMBOLP (hare) || NILP (hare))
 	break;
-      hare = XSYMBOL (hare)->function;
+      hare = elisp_symbol_function (hare);
 
-      tortoise = XSYMBOL (tortoise)->function;
+      tortoise = elisp_symbol_function (tortoise);
 
       if (EQ (hare, tortoise))
 	xsignal1 (Qcyclic_function_indirection, object);
@@ -2213,7 +2213,7 @@ function chain of symbols.  */)
   /* Optimize for no indirection.  */
   result = object;
   if (SYMBOLP (result) && !NILP (result)
-      && (result = XSYMBOL (result)->function, SYMBOLP (result)))
+      && (result = elisp_symbol_function (result), SYMBOLP (result)))
     result = indirect_function (result);
   if (!NILP (result))
     return result;
@@ -3825,7 +3825,7 @@ syms_of_data (void)
   defsubr (&Sbool_vector_count_consecutive);
   defsubr (&Sbool_vector_count_population);
 
-  set_symbol_function (Qwholenump, XSYMBOL (Qnatnump)->function);
+  set_symbol_function (Qwholenump, LRH (elisp_symbol_function (LRH (Qnatnump))));
 
   DEFVAR_LISP ("most-positive-fixnum", Vmost_positive_fixnum,
 	       doc: /* The largest value that is representable in a Lisp integer.
