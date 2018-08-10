@@ -1183,12 +1183,12 @@ buffer_local_value (Lisp_Object variable, Lisp_Object buffer)
   CHECK_SYMBOL (variable);
   CHECK_BUFFER (buffer);
   buf = XBUFFER (buffer);
-  sym = XSYMBOL (variable);
 
  start:
+  sym = XSYMBOL (variable);
   switch (sym->redirect)
     {
-    case SYMBOL_VARALIAS: sym = indirect_variable (sym); goto start;
+    case SYMBOL_VARALIAS: variable = indirect_variable (variable); goto start;
     case SYMBOL_PLAINVAL: result = elisp_symbol_value (variable); break;
     case SYMBOL_LOCALIZED:
       { /* Look in local_var_alist.  */

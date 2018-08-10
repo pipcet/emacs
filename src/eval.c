@@ -3535,13 +3535,13 @@ specbind (Lisp_Object symbol, Lisp_Object value)
   struct Lisp_Symbol *sym;
 
   CHECK_SYMBOL (symbol);
-  sym = XSYMBOL (symbol);
 
  start:
+  sym = XSYMBOL (symbol);
   switch (sym->redirect)
     {
     case SYMBOL_VARALIAS:
-      sym = indirect_variable (sym); XSETSYMBOL (symbol, sym); goto start;
+      symbol = indirect_variable (symbol); goto start;
     case SYMBOL_PLAINVAL:
       /* The most common case is that of a non-constant symbol with a
 	 trivial value.  Make that as fast as we can.  */

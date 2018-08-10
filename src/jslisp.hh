@@ -2819,10 +2819,9 @@ typedef jmp_buf sys_jmp_buf;
  ***********************************************************************/
 
 INLINE struct Lisp_Symbol *
-SYMBOL_ALIAS (struct Lisp_Symbol *sym)
+SYMBOL_ALIAS (ELisp_Handle sym)
 {
-  eassume (sym->redirect == SYMBOL_VARALIAS && sym->val.alias);
-  return sym->val.alias;
+  return XSYMBOL (sym)->val.alias;
 }
 INLINE struct Lisp_Buffer_Local_Value *
 SYMBOL_BLV (struct Lisp_Symbol *sym)
@@ -4357,7 +4356,7 @@ extern ELisp_Return_Value uintbig_to_lisp (uintmax_t);
 extern intmax_t cons_to_signed (ELisp_Handle, intmax_t, intmax_t);
 extern uintmax_t cons_to_unsigned (ELisp_Handle, uintmax_t);
 
-extern struct Lisp_Symbol *indirect_variable (struct Lisp_Symbol *);
+extern ELisp_Return_Value indirect_variable (ELisp_Handle);
 extern _Noreturn void args_out_of_range (ELisp_Handle, ELisp_Handle);
 extern _Noreturn void args_out_of_range_3 (ELisp_Handle, ELisp_Handle,
                                            ELisp_Handle);

@@ -667,13 +667,13 @@ global value outside of any lexical scope.  */)
   Lisp_Object valcontents;
   struct Lisp_Symbol *sym;
   CHECK_SYMBOL (symbol);
-  sym = XSYMBOL (symbol);
 
  start:
+  sym = XSYMBOL (symbol);
   switch (sym->redirect)
     {
     case SYMBOL_PLAINVAL: valcontents = elisp_symbol_value (symbol); break;
-    case SYMBOL_VARALIAS: sym = indirect_variable (sym); goto start;
+    case SYMBOL_VARALIAS: symbol = indirect_variable (symbol); goto start;
     case SYMBOL_LOCALIZED:
       {
 	struct Lisp_Buffer_Local_Value *blv = SYMBOL_BLV (sym);
@@ -928,27 +928,25 @@ Value, if non-nil, is a list (interactive SPEC).  */)
    `cyclic-variable-indirection' if SYMBOL's chain of variable
    indirections contains a loop.  */
 
-struct Lisp_Symbol *
-indirect_variable (struct Lisp_Symbol *symbol)
+Lisp_Object
+indirect_variable (Lisp_Object symbol)
 {
-  struct Lisp_Symbol *tortoise, *hare;
+  Lisp_Object tortoise, hare;
 
   hare = tortoise = symbol;
 
-  while (hare->redirect == SYMBOL_VARALIAS)
+  while (XSYMBOL (hare)->redirect == SYMBOL_VARALIAS)
     {
-      hare = SYMBOL_ALIAS (hare);
-      if (hare->redirect != SYMBOL_VARALIAS)
+      hare = SYMBOL_ALIAS (hare)->jsval;
+      if (XSYMBOL (hare)->redirect != SYMBOL_VARALIAS)
 	break;
 
-      hare = SYMBOL_ALIAS (hare);
-      tortoise = SYMBOL_ALIAS (tortoise);
+      hare = SYMBOL_ALIAS (hare)->jsval;
+      tortoise = SYMBOL_ALIAS (tortoise)->jsval;
 
-      if (hare == tortoise)
+      if (EQ (hare, tortoise))
 	{
-	  Lisp_Object tem;
-	  XSETSYMBOL (tem, symbol);
-	  xsignal1 (Qcyclic_variable_indirection, tem);
+	  xsignal1 (Qcyclic_variable_indirection, symbol);
 	}
     }
 
@@ -968,8 +966,7 @@ chain of aliases, signal a `cyclic-variable-indirection' error.  */)
 {
   if (SYMBOLP (object))
     {
-      struct Lisp_Symbol *sym = indirect_variable (XSYMBOL (object));
-      XSETSYMBOL (object, sym);
+      return indirect_variable (object);
     }
   return object;
 }
@@ -1244,12 +1241,12 @@ find_symbol_value (Lisp_Object symbol)
   struct Lisp_Symbol *sym;
 
   CHECK_SYMBOL (symbol);
-  sym = XSYMBOL (symbol);
 
  start:
+  sym = XSYMBOL (symbol);
   switch (sym->redirect)
     {
-    case SYMBOL_VARALIAS: sym = indirect_variable (sym); goto start;
+    case SYMBOL_VARALIAS: symbol = indirect_variable (symbol); goto start;
     case SYMBOL_PLAINVAL: return elisp_symbol_value (symbol);
     case SYMBOL_LOCALIZED:
       {
@@ -1337,7 +1334,7 @@ set_internal (Lisp_Object symbol, Lisp_Object newval, Lisp_Object where,
  start:
   switch (XSYMBOL (symbol)->redirect)
     {
-    case SYMBOL_VARALIAS: sym = indirect_variable (XSYMBOL (symbol)); goto start;
+    case SYMBOL_VARALIAS: symbol = indirect_variable (symbol); goto start;
     case SYMBOL_PLAINVAL: elisp_symbol_set_value (symbol, newval); return;
     case SYMBOL_LOCALIZED:
       {
@@ -1585,7 +1582,7 @@ default_value (Lisp_Object symbol)
  start:
   switch (XSYMBOL (symbol)->redirect)
     {
-    case SYMBOL_VARALIAS: sym = indirect_variable (XSYMBOL (symbol)); goto start;
+    case SYMBOL_VARALIAS: symbol = indirect_variable (symbol); goto start;
     case SYMBOL_PLAINVAL: return elisp_symbol_value(symbol);
     case SYMBOL_LOCALIZED:
       {
@@ -1679,7 +1676,7 @@ set_default_internal (Lisp_Object symbol, Lisp_Object value,
  start:
   switch (XSYMBOL (symbol)->redirect)
     {
-    case SYMBOL_VARALIAS: symbol = indirect_variable (XSYMBOL (symbol))->jsval; goto start;
+    case SYMBOL_VARALIAS: symbol = indirect_variable (symbol); goto start;
     case SYMBOL_PLAINVAL: set_internal (symbol, value, Qnil, bindflag); return;
     case SYMBOL_LOCALIZED:
       {
@@ -1841,7 +1838,7 @@ The function `default-value' gets the default value and `set-default' sets it.  
  start:
   switch (XSYMBOL (variable)->redirect)
     {
-    case SYMBOL_VARALIAS: variable = indirect_variable (XSYMBOL (variable))->jsval; goto start;
+    case SYMBOL_VARALIAS: variable = indirect_variable (variable); goto start;
     case SYMBOL_PLAINVAL:
       forwarded = 0; valcontents.value = elisp_symbol_value (variable);
       if (EQ (valcontents.value, Qunbound))
@@ -1910,7 +1907,7 @@ Instead, use `add-hook' and specify t for the LOCAL argument.  */)
  start:
   switch (XSYMBOL (variable)->redirect)
     {
-    case SYMBOL_VARALIAS: variable = indirect_variable (XSYMBOL (variable))->jsval; goto start;
+    case SYMBOL_VARALIAS: variable = indirect_variable (variable); goto start;
     case SYMBOL_PLAINVAL:
       forwarded = 0; valcontents.value = elisp_symbol_value (variable); break;
     case SYMBOL_LOCALIZED:
@@ -1986,7 +1983,7 @@ From now on the default value will apply in this buffer.  Return VARIABLE.  */)
  start:
   switch (XSYMBOL (variable)->redirect)
     {
-    case SYMBOL_VARALIAS: variable = indirect_variable (XSYMBOL (variable))->jsval; goto start;
+    case SYMBOL_VARALIAS: variable = indirect_variable (variable); goto start;
     case SYMBOL_PLAINVAL: return variable;
     case SYMBOL_FORWARDED:
       {
@@ -2046,12 +2043,12 @@ BUFFER defaults to the current buffer.  */)
   struct Lisp_Symbol *sym;
 
   CHECK_SYMBOL (variable);
-  sym = XSYMBOL (variable);
 
  start:
+  sym = XSYMBOL (variable);
   switch (sym->redirect)
     {
-    case SYMBOL_VARALIAS: sym = indirect_variable (sym); goto start;
+    case SYMBOL_VARALIAS: variable = indirect_variable (variable); goto start;
     case SYMBOL_PLAINVAL: return Qnil;
     case SYMBOL_LOCALIZED:
       {
@@ -2100,12 +2097,12 @@ value in BUFFER, or if VARIABLE is automatically buffer-local (see
   struct Lisp_Symbol *sym;
 
   CHECK_SYMBOL (variable);
-  sym = XSYMBOL (variable);
 
  start:
+  sym = XSYMBOL (variable);
   switch (sym->redirect)
     {
-    case SYMBOL_VARALIAS: sym = indirect_variable (sym); goto start;
+    case SYMBOL_VARALIAS: variable = indirect_variable (variable); goto start;
     case SYMBOL_PLAINVAL: return Qnil;
     case SYMBOL_LOCALIZED:
       {
@@ -2138,9 +2135,10 @@ If the current binding is global (the default), the value is nil.  */)
   find_symbol_value (variable);
 
  start:
+  sym = XSYMBOL (variable);
   switch (sym->redirect)
     {
-    case SYMBOL_VARALIAS: sym = indirect_variable (sym); goto start;
+    case SYMBOL_VARALIAS: variable = indirect_variable (variable); goto start;
     case SYMBOL_PLAINVAL: return Qnil;
     case SYMBOL_FORWARDED:
       {
