@@ -1185,7 +1185,6 @@ buffer_local_value (Lisp_Object variable, Lisp_Object buffer)
   buf = XBUFFER (buffer);
 
  start:
-  sym = XSYMBOL (variable);
   switch (SYMBOL_REDIRECT (variable))
     {
     case SYMBOL_VARALIAS: variable = indirect_variable (variable); goto start;
@@ -2123,7 +2122,6 @@ void set_buffer_internal_2 (register struct buffer *b)
       for (tail = BVAR (b, local_var_alist); CONSP (tail); tail = XCDR (tail))
 	{
 	  Lisp_Object var = XCAR (XCAR (tail));
-	  struct Lisp_Symbol *sym = XSYMBOL (var);
 	  if (SYMBOL_REDIRECT (var) == SYMBOL_LOCALIZED /* Just to be sure.  */
 	      && SYMBOL_BLV (var)->fwd)
 	    /* Just reference the variable
@@ -5432,7 +5430,6 @@ defvar_per_buffer (struct Lisp_Buffer_Objfwd *bo_fwd, const char *namestring,
   int offset;
 
   Lisp_Object symbol = intern (namestring);
-  sym = XSYMBOL (symbol);
   offset = (char *)address.u.heap - (char *)current_buffer;
 
   bo_fwd->type = Lisp_Fwd_Buffer_Obj;
@@ -5441,7 +5438,7 @@ defvar_per_buffer (struct Lisp_Buffer_Objfwd *bo_fwd, const char *namestring,
   SET_SYMBOL_DECLARED_SPECIAL (symbol, 1);
   SET_SYMBOL_REDIRECT (symbol, SYMBOL_FORWARDED);
   SET_SYMBOL_FWD (symbol, (union Lisp_Fwd *) bo_fwd);
-  XSETSYMBOL (PER_BUFFER_SYMBOL (offset), sym);
+  XSETSYMBOL (PER_BUFFER_SYMBOL (offset), XSYMBOL (symbol));
 
   if (PER_BUFFER_IDX (offset) == 0)
     /* Did a DEFVAR_PER_BUFFER without initializing the corresponding

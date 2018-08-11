@@ -2272,7 +2272,6 @@ static struct Lisp_Symbol *symbol_free_list;
 void
 init_symbol (Lisp_Object val, Lisp_Object name)
 {
-  struct Lisp_Symbol *p = XSYMBOL (val);
   set_symbol_name (val, name);
   set_symbol_plist (val, Qnil);
   SET_SYMBOL_REDIRECT (val, SYMBOL_PLAINVAL);
@@ -4100,7 +4099,6 @@ Frames, windows, buffers, and subprocesses count as vectors
 static bool
 symbol_uses_obj (Lisp_Object symbol, Lisp_Object obj)
 {
-  struct Lisp_Symbol *sym = XSYMBOL (symbol);
   Lisp_Object val = find_symbol_value (symbol);
   return (EQ (val, obj)
 	  || EQ (elisp_symbol_function (symbol), obj)

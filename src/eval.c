@@ -657,8 +657,6 @@ The return value is BASE-VARIABLE.  */)
     /* Making it an alias effectively changes its value.  */
     error ("Cannot make a constant an alias");
 
-  sym = XSYMBOL (new_alias);
-
   switch (SYMBOL_REDIRECT (new_alias))
     {
     case SYMBOL_FORWARDED:
@@ -3477,9 +3475,8 @@ let_shadows_buffer_binding_p (struct Lisp_Symbol *symbol)
     if ((--p)->kind > SPECPDL_LET)
       {
         Lisp_Object let_bound_sym = specpdl_symbol (p);
-	struct Lisp_Symbol *let_bound_symbol = XSYMBOL (let_bound_sym);
 	eassert (SYMBOL_REDIRECT (let_bound_sym) != SYMBOL_VARALIAS);
-	if (symbol == let_bound_symbol
+	if (symbol == XSYMBOL (let_bound_sym)
 	    && EQ (specpdl_where (p), buf))
 	  return 1;
       }
@@ -3491,7 +3488,6 @@ static void
 do_specbind (Lisp_Object symval, struct specbinding *bind,
              Lisp_Object value, enum Set_Internal_Bind bindflag)
 {
-  struct Lisp_Symbol *sym = XSYMBOL (symval);
   switch (SYMBOL_REDIRECT (symval))
     {
     case SYMBOL_PLAINVAL:
@@ -3538,7 +3534,6 @@ specbind (Lisp_Object symbol, Lisp_Object value)
   CHECK_SYMBOL (symbol);
 
  start:
-  sym = XSYMBOL (symbol);
   switch (SYMBOL_REDIRECT (symbol))
     {
     case SYMBOL_VARALIAS:
