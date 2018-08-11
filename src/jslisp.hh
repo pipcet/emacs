@@ -2824,16 +2824,14 @@ SYMBOL_ALIAS (ELisp_Handle sym)
   return XSYMBOL (sym)->val.alias;
 }
 INLINE struct Lisp_Buffer_Local_Value *
-SYMBOL_BLV (struct Lisp_Symbol *sym)
+SYMBOL_BLV (ELisp_Handle sym)
 {
-  eassume (sym->redirect == SYMBOL_LOCALIZED && sym->val.blv);
-  return sym->val.blv;
+  return XSYMBOL (sym)->val.blv;
 }
 INLINE union Lisp_Fwd *
-SYMBOL_FWD (struct Lisp_Symbol *sym)
+SYMBOL_FWD (ELisp_Handle sym)
 {
-  eassume (sym->redirect == SYMBOL_FORWARDED && sym->val.fwd);
-  return sym->val.fwd;
+  return XSYMBOL (sym)->val.fwd;
 }
 
 INLINE void
@@ -2842,16 +2840,14 @@ SET_SYMBOL_ALIAS (ELisp_Handle sym, ELisp_Handle v)
   XSYMBOL (sym)->val.alias = v;
 }
 INLINE void
-SET_SYMBOL_BLV (struct Lisp_Symbol *sym, struct Lisp_Buffer_Local_Value *v)
+SET_SYMBOL_BLV (ELisp_Handle sym, struct Lisp_Buffer_Local_Value *v)
 {
-  eassume (sym->redirect == SYMBOL_LOCALIZED && v);
-  sym->val.blv = v;
+  XSYMBOL (sym)->val.blv = v;
 }
 INLINE void
-SET_SYMBOL_FWD (struct Lisp_Symbol *sym, union Lisp_Fwd *v)
+SET_SYMBOL_FWD (ELisp_Handle sym, union Lisp_Fwd *v)
 {
-  eassume (sym->redirect == SYMBOL_FORWARDED && v);
-  sym->val.fwd = v;
+  XSYMBOL (sym)->val.fwd = v;
 }
 
 INLINE ELisp_Return_Value
@@ -4373,7 +4369,7 @@ extern void set_default_internal (ELisp_Handle, ELisp_Handle,
                                   enum Set_Internal_Bind bindflag);
 
 extern void syms_of_data (void);
-extern void swap_in_global_binding (struct Lisp_Symbol *);
+extern void swap_in_global_binding (ELisp_Handle);
 
 /* Defined in cmds.c */
 extern void syms_of_cmds (void);

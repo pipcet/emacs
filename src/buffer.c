@@ -1009,11 +1009,11 @@ reset_buffer_local_variables (struct buffer *b, bool permanent_too)
           eassert (XSYMBOL (sym)->redirect == SYMBOL_LOCALIZED);
           /* Need not do anything if some other buffer's binding is
 	     now cached.  */
-          if (EQ (SYMBOL_BLV (XSYMBOL (sym))->where, buffer))
+          if (EQ (SYMBOL_BLV (sym)->where, buffer))
 	    {
 	      /* Symbol is set up for this buffer's old local value:
 	         swap it out!  */
-	      swap_in_global_binding (XSYMBOL (sym));
+	      swap_in_global_binding (sym);
 	    }
 
           if (!NILP (prop))
@@ -1192,8 +1192,7 @@ buffer_local_value (Lisp_Object variable, Lisp_Object buffer)
     case SYMBOL_PLAINVAL: result = elisp_symbol_value (variable); break;
     case SYMBOL_LOCALIZED:
       { /* Look in local_var_alist.  */
-	struct Lisp_Buffer_Local_Value *blv = SYMBOL_BLV (sym);
-	XSETSYMBOL (variable, sym); /* Update In case of aliasing.  */
+	struct Lisp_Buffer_Local_Value *blv = SYMBOL_BLV (variable);
 	result = Fassoc (variable, BVAR (buf, local_var_alist), Qnil);
 	if (!NILP (result))
 	  {
@@ -1218,7 +1217,7 @@ buffer_local_value (Lisp_Object variable, Lisp_Object buffer)
       }
     case SYMBOL_FORWARDED:
       {
-	union Lisp_Fwd *fwd = SYMBOL_FWD (sym);
+	union Lisp_Fwd *fwd = SYMBOL_FWD (variable);
 	if (BUFFER_OBJFWDP (fwd))
 	  result = per_buffer_value (buf, XBUFFER_OBJFWD (fwd)->offset);
 	else
@@ -2126,7 +2125,7 @@ void set_buffer_internal_2 (register struct buffer *b)
 	  Lisp_Object var = XCAR (XCAR (tail));
 	  struct Lisp_Symbol *sym = XSYMBOL (var);
 	  if (sym->redirect == SYMBOL_LOCALIZED /* Just to be sure.  */
-	      && SYMBOL_BLV (sym)->fwd)
+	      && SYMBOL_BLV (var)->fwd)
 	    /* Just reference the variable
 	       to cause it to become set for this buffer.  */
 	    Fsymbol_value (var);
@@ -5432,7 +5431,8 @@ defvar_per_buffer (struct Lisp_Buffer_Objfwd *bo_fwd, const char *namestring,
   struct Lisp_Symbol *sym;
   int offset;
 
-  sym = XSYMBOL (intern (namestring));
+  Lisp_Object symbol = intern (namestring);
+  sym = XSYMBOL (symbol);
   offset = (char *)address.u.heap - (char *)current_buffer;
 
   bo_fwd->type = Lisp_Fwd_Buffer_Obj;
@@ -5440,7 +5440,7 @@ defvar_per_buffer (struct Lisp_Buffer_Objfwd *bo_fwd, const char *namestring,
   bo_fwd->predicate = predicate;
   sym->declared_special = 1;
   sym->redirect = SYMBOL_FORWARDED;
-  SET_SYMBOL_FWD (sym, (union Lisp_Fwd *) bo_fwd);
+  SET_SYMBOL_FWD (symbol, (union Lisp_Fwd *) bo_fwd);
   XSETSYMBOL (PER_BUFFER_SYMBOL (offset), sym);
 
   if (PER_BUFFER_IDX (offset) == 0)

@@ -3501,7 +3501,7 @@ do_specbind (Lisp_Object symval, struct specbinding *bind,
       break;
 
     case SYMBOL_FORWARDED:
-      if (BUFFER_OBJFWDP (SYMBOL_FWD (sym))
+      if (BUFFER_OBJFWDP (SYMBOL_FWD (symval))
 	  && specpdl_kind (bind) == SPECPDL_LET_DEFAULT)
 	{
           set_default_internal (specpdl_symbol (bind), value, bindflag);
@@ -3565,14 +3565,14 @@ specbind (Lisp_Object symbol, Lisp_Object value)
 	specpdl_ptr->let.saved_value = Qnil;
 
 	eassert (sym->redirect != SYMBOL_LOCALIZED
-		 || (EQ (SYMBOL_BLV (sym)->where, LRH (Fcurrent_buffer ()))));
+		 || (EQ (SYMBOL_BLV (symbol)->where, LRH (Fcurrent_buffer ()))));
 
 	if (sym->redirect == SYMBOL_LOCALIZED)
 	  {
-	    if (!blv_found (SYMBOL_BLV (sym)))
+	    if (!blv_found (SYMBOL_BLV (symbol)))
 	      specpdl_ptr->kind = SPECPDL_LET_DEFAULT;
 	  }
-	else if (BUFFER_OBJFWDP (SYMBOL_FWD (sym)))
+	else if (BUFFER_OBJFWDP (SYMBOL_FWD (symbol)))
 	  {
 	    /* If SYMBOL is a per-buffer variable which doesn't have a
 	       buffer-local value here, make the `let' change the global
