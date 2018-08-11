@@ -1784,17 +1784,15 @@ struct Lisp_Val_Fwd
   };
 
 static struct Lisp_Buffer_Local_Value *
-make_blv (struct Lisp_Symbol *sym, bool forwarded,
+make_blv (Lisp_Object symbol, bool forwarded,
 	  union Lisp_Val_Fwd valcontents)
 {
   struct Lisp_Buffer_Local_Value *blv = xmalloc (sizeof *blv);
-  Lisp_Object symbol;
   Lisp_Object tem;
 
- XSETSYMBOL (symbol, sym);
- tem = Fcons (symbol, (forwarded
-                       ? do_symval_forwarding (valcontents.fwd)
-                       : ELisp_Return_Value(valcontents.value)));
+  tem = Fcons (symbol, (forwarded
+                        ? do_symval_forwarding (valcontents.fwd)
+                        : ELisp_Return_Value(valcontents.value)));
 
   /* Buffer_Local_Values cannot have as realval a buffer-local
      or keyboard-local forwarding.  */
@@ -1865,7 +1863,7 @@ The function `default-value' gets the default value and `set-default' sets it.  
 
   if (!blv)
     {
-      blv = make_blv (XSYMBOL (variable), forwarded, valcontents);
+      blv = make_blv (variable, forwarded, valcontents);
       XSYMBOL (variable)->redirect = SYMBOL_LOCALIZED;
       SET_SYMBOL_BLV (variable, blv);
     }
@@ -1938,7 +1936,7 @@ Instead, use `add-hook' and specify t for the LOCAL argument.  */)
     }
   if (!blv)
     {
-      blv = make_blv (XSYMBOL (variable), forwarded, valcontents);
+      blv = make_blv (variable, forwarded, valcontents);
       XSYMBOL (variable)->redirect = SYMBOL_LOCALIZED;
       SET_SYMBOL_BLV (variable, blv);
     }
