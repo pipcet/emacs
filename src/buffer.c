@@ -5438,7 +5438,7 @@ defvar_per_buffer (struct Lisp_Buffer_Objfwd *bo_fwd, const char *namestring,
   SET_SYMBOL_DECLARED_SPECIAL (symbol, 1);
   SET_SYMBOL_REDIRECT (symbol, SYMBOL_FORWARDED);
   SET_SYMBOL_FWD (symbol, (union Lisp_Fwd *) bo_fwd);
-  XSETSYMBOL (PER_BUFFER_SYMBOL (offset), XSYMBOL (symbol));
+  PER_BUFFER_SYMBOL (offset) = symbol;
 
   if (PER_BUFFER_IDX (offset) == 0)
     /* Did a DEFVAR_PER_BUFFER without initializing the corresponding

@@ -1920,7 +1920,6 @@ Instead, use `add-hook' and specify t for the LOCAL argument.  */)
     }
 
   /* Make sure this buffer has its own value of symbol.  */
-  XSETSYMBOL (variable, XSYMBOL (variable));	/* Update in case of aliasing.  */
   tem = Fassq (variable, BVAR (current_buffer, local_var_alist));
   if (NILP (tem))
     {
@@ -1988,7 +1987,6 @@ From now on the default value will apply in this buffer.  Return VARIABLE.  */)
     notify_variable_watchers (variable, Qnil, Qmakunbound, Fcurrent_buffer ());
 
   /* Get rid of this buffer's alist element, if any.  */
-  XSETSYMBOL (variable, XSYMBOL (variable));	/* Propagate variable indirection.  */
   tem = Fassq (variable, BVAR (current_buffer, local_var_alist));
   if (!NILP (tem))
     bset_local_var_alist

@@ -1023,16 +1023,6 @@ xd_remove_watch (DBusWatch *watch, void *data)
   if (fd == -1)
     return;
 
-  /* Unset session environment.  */
-#if 0
-  /* This is buggy, since unsetenv is not thread-safe.  */
-  if (XSYMBOL (QCsession) == data)
-    {
-      XD_DEBUG_MESSAGE ("unsetenv DBUS_SESSION_BUS_ADDRESS");
-      unsetenv ("DBUS_SESSION_BUS_ADDRESS");
-    }
-#endif
-
   if (flags & DBUS_WATCH_WRITABLE)
     delete_write_fd (fd);
   if (flags & DBUS_WATCH_READABLE)
@@ -1183,7 +1173,7 @@ this connection to those buses.  */)
 						xd_remove_watch,
 						xd_toggle_watch,
 						SYMBOLP (bus)
-						? (void *) XSYMBOL (bus)
+						? (void *) 0
 						: (void *) 0,
 						NULL))
 	XD_SIGNAL1 (build_string ("Cannot add watch functions"));
@@ -1656,8 +1646,6 @@ xd_read_queued_messages (int fd, void *data)
     while (!NILP (busp))
       {
 	key = CAR_SAFE (CAR_SAFE (busp));
-	if (SYMBOLP (key) && XSYMBOL (key) == data)
-	  bus = key;
 	busp = CDR_SAFE (busp);
       }
 

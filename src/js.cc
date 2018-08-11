@@ -1155,7 +1155,7 @@ js_gc_trace(JSTracer* tracer, void* data)
   }
 
   for (size_t i = 0; i < ARRAYELTS (lispsym); i++) {
-    TraceEdge(tracer, &lispsym[i].jsval, "global symbol");
+    TraceEdge(tracer, &lispsym[i].v.v, "global symbol");
   }
 
   for (struct handler *h = handlerlist; h; h = h->next)
@@ -1929,8 +1929,6 @@ elisp_symbol_function_getter(JSContext *cx, unsigned argc, JS::Value *vp)
   if (JS_GetClass(obj) != &elisp_symbol_class)
     return false;
 
-  struct Lisp_Symbol *s = (struct Lisp_Symbol *)JS_GetPrivate(obj);
-
   ELisp_Value v;
   v.v.v = thisv;
   args.rval().set(elisp_symbol_function (v));
@@ -1948,8 +1946,6 @@ elisp_symbol_function_setter(JSContext *cx, unsigned argc, JS::Value *vp)
   JS::RootedObject obj(cx, &thisv.toObject());
   if (JS_GetClass(obj) != &elisp_symbol_class)
     return false;
-
-  struct Lisp_Symbol *s = (struct Lisp_Symbol *)JS_GetPrivate(obj);
 
   if (args.length() != 1)
     return false;
@@ -1975,10 +1971,9 @@ elisp_symbol_value_getter(JSContext *cx, unsigned argc, JS::Value *vp)
   if (JS_GetClass(obj) != &elisp_symbol_class)
     return false;
 
-  struct Lisp_Symbol *s = (struct Lisp_Symbol *)JS_GetPrivate(obj);
   ELisp_Value sym;
 
-  sym.v.v = s->jsval;
+  sym.v.v = thisv;
   args.rval().set(find_symbol_value (sym).v);
 
   return true;
@@ -1995,10 +1990,9 @@ elisp_symbol_value_setter(JSContext *cx, unsigned argc, JS::Value *vp)
   if (JS_GetClass(obj) != &elisp_symbol_class)
     return false;
 
-  struct Lisp_Symbol *s = (struct Lisp_Symbol *)JS_GetPrivate(obj);
   ELisp_Value sym;
 
-  sym.v.v = s->jsval;
+  sym.v.v = thisv;
 
   if (args.length() != 1)
     return false;
@@ -2017,7 +2011,6 @@ elisp_symbol_resolve(JSContext *cx, JS::HandleObject obj,
 {
   ELisp_Value v;
   v.v.v = JS::ObjectValue(*obj);
-  struct Lisp_Symbol *s = (struct Lisp_Symbol *)JS_GetPrivate(obj);
 
   if (JSID_IS_STRING (id))
     {
@@ -2094,26 +2087,20 @@ static bool elisp_symbol_call(JSContext *cx, unsigned argc, JS::Value *vp)
 static void
 elisp_symbol_trace(JSTracer *trc, JSObject *obj)
 {
-  struct Lisp_Symbol *s = (struct Lisp_Symbol *)JS_GetPrivate(obj);
+  union Lisp_Symbol_Flags flags;
+  flags.i = JS_GetReservedSlot(obj, 5).toInt32();
 
-  if (!s) return;
-
-  TraceEdge(trc, &s->jsval, "jsval");
-  if (s->flags.s.redirect == SYMBOL_PLAINVAL)
-    ;
-  else if (s->flags.s.redirect == SYMBOL_VARALIAS)
-    TraceEdge(trc, &s->val.alias.v.v, "alias");
-  else if (s->flags.s.redirect == SYMBOL_LOCALIZED)
+  if (flags.s.redirect == SYMBOL_LOCALIZED)
     {
-      struct Lisp_Buffer_Local_Value *blv = s->val.blv;
+      struct Lisp_Buffer_Local_Value *blv = (struct Lisp_Buffer_Local_Value *)JS_GetPrivate(obj);
 
       TraceEdge(trc, &blv->where.v.v, "where");
       TraceEdge(trc, &blv->defcell.v.v, "defcell");
       TraceEdge(trc, &blv->valcell.v.v, "valcell");
     }
-  else if (s->flags.s.redirect == SYMBOL_FORWARDED)
+  else if (flags.s.redirect == SYMBOL_FORWARDED)
     {
-      union Lisp_Fwd *fwd = s->val.fwd;
+      union Lisp_Fwd *fwd = (union Lisp_Fwd *)JS_GetPrivate(obj);
 
       switch (XFWDTYPE (fwd)) {
       case Lisp_Fwd_Obj:
@@ -2161,6 +2148,17 @@ elisp_marker_finalize(JSFreeOp* cx, JSObject *obj)
   // xfree(JS_GetPrivate(obj));
 }
 
+ELisp_Return_Value
+elisp_symbol()
+{
+  JSContext *cx = jsg.cx;
+  JS::RootedObject obj(cx, JS_NewObject(cx, &elisp_symbol_class));
+
+  JS_SetReservedSlot(obj, 3, Qnil);
+
+  return JS::ObjectValue(*obj);
+}
+
 static ELisp_Return_Value
 elisp_symbol_function(ELisp_Handle symbol)
 {
@@ -2177,6 +2175,22 @@ elisp_symbol_set_function(ELisp_Handle symbol, ELisp_Handle plist)
   JS_SetReservedSlot(obj, 2, plist);
 }
 
+static Lisp_Buffer_Local_Value *
+elisp_symbol_blv(ELisp_Handle symbol)
+{
+  JSContext *cx = jsg.cx;
+  JS::RootedObject obj(cx, &symbol.toObject());
+  return JS_GetPrivate(obj);
+}
+
+union Lisp_Fwd *
+elisp_symbol_fwd(ELisp_Handle symbol)
+{
+  JSContext *cx = jsg.cx;
+  JS::RootedObject obj(cx, &symbol.toObject());
+  return JS_GetPrivate(obj);
+}
+
 static ELisp_Return_Value
 elisp_symbol_value(ELisp_Handle symbol)
 {
@@ -2191,6 +2205,30 @@ elisp_symbol_set_value(ELisp_Handle symbol, ELisp_Handle plist)
   JSContext *cx = jsg.cx;
   JS::RootedObject obj(cx, &symbol.toObject());
   JS_SetReservedSlot(obj, 1, plist);
+}
+
+static void
+elisp_symbol_set_alias(ELisp_Handle symbol, ELisp_Handle plist)
+{
+  JSContext *cx = jsg.cx;
+  JS::RootedObject obj(cx, &symbol.toObject());
+  JS_SetReservedSlot(obj, 1, plist);
+}
+
+static void
+elisp_symbol_set_blv(ELisp_Handle symbol, struct Lisp_Buffer_Local_Value *blv)
+{
+  JSContext *cx = jsg.cx;
+  JS::RootedObject obj(cx, &symbol.toObject());
+  JS_SetPrivate(obj, blv);
+}
+
+static void
+elisp_symbol_set_fwd(ELisp_Handle symbol, union Lisp_Fwd *fwd)
+{
+  JSContext *cx = jsg.cx;
+  JS::RootedObject obj(cx, &symbol.toObject());
+  JS_SetPrivate(obj, fwd);
 }
 
 static ELisp_Return_Value
@@ -3223,7 +3261,7 @@ void jsprint(JS::Value v)
   ELisp_Value x;
   x.v.v = v;
   printf("%lx\n", *(long *)&v);
-  debug_print(x);
+  debug_print(LVH(x));
   printf("%lx\n", *(long *)&v);
 }
 

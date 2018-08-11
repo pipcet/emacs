@@ -459,8 +459,6 @@ DEFINE_GDB_SYMBOL_END (VALMASK)
 
 enum Lisp_Type
   {
-    /* Symbol.  XSYMBOL (object) points to a struct Lisp_Symbol.  */
-
    Lisp_Symbol = 0,
 
     /* Miscellaneous.  XMISC (object) points to a union Lisp_Misc,
@@ -661,9 +659,17 @@ enum Lisp_Fwd_Type
   }
 
 #define XALL                                                            \
-  XCLASS(symbol, elisp_symbol_class, struct Lisp_Symbol *);             \
   XCLASS(vector, elisp_vector_class, struct Lisp_Vector *);             \
   XCLASS(misc, elisp_misc_class, union Lisp_Misc *);                    \
+                                                                        \
+  inline bool                                                           \
+  symbolp ()                                                            \
+  {                                                                     \
+    if (!V.isObject())                                                  \
+      return false;                                                     \
+                                                                        \
+    return JS_GetClass (&V.toObject()) == &elisp_symbol_class;          \
+  }                                                                     \
                                                                         \
   inline bool                                                           \
   consp ()                                                              \
@@ -1594,20 +1600,6 @@ union Lisp_Symbol_Flags
   int32_t i;
 };
 
-struct Lisp_Symbol
-{
-  JS::Heap<JS::Value> jsval;
-
-  union Lisp_Symbol_Flags flags;
-  /* Value of the symbol or Qunbound if unbound.  Which alternative of the
-     union is used depends on the `redirect' field above.  */
-  struct {
-    ELisp_Struct_Value alias;
-    struct Lisp_Buffer_Local_Value *blv;
-    union Lisp_Fwd *fwd;
-  } val;
-};
-
 /* Declare a Lisp-callable function.  The MAXARGS parameter has the same
    meaning as in the DEFUN macro, and is used to construct a prototype.  */
 /* We can use the same trick as in the DEFUN macro to generate the
@@ -1663,12 +1655,19 @@ struct Lisp_Symbol
    except the former expands to an integer constant expression.  */
 #define XLI_BUILTIN_LISPSYM(iname) TAG_SYMOFFSET ((iname) * sizeof *lispsym)
 
+extern ELisp_Return_Value elisp_symbol();
+
 INLINE ELisp_Return_Value
-lispsym_initially (struct Lisp_Symbol *s)
+lispsym_initially (ELisp_Struct_Value *sym)
 {
-  ELisp_Value ret;
-  ret.xsetsymbol(s);
-  return ret;
+  ELisp_Value v;
+  v = *sym;
+  if (v.v.v.isUndefined())
+    {
+      v = elisp_symbol();
+      *sym = v;
+    }
+  return v;
 }
 
 /* LISPSYM_INITIALLY (Qfoo) is equivalent to Qfoo except it is
@@ -1683,20 +1682,18 @@ lispsym_initially (struct Lisp_Symbol *s)
 # define DEFINE_NON_NIL_Q_SYMBOL_MACROS true
 #endif
 
-extern struct Lisp_Symbol lispsym[1221];
+extern ELisp_Struct_Value lispsym[1221];
 
 INLINE ELisp_Return_Value
-make_lisp_symbol (struct Lisp_Symbol *sym)
+make_lisp_symbol (ELisp_Handle sym)
 {
-  ELisp_Value ret;
-  ret.xsetsymbol (sym);
-  return ret;
+  return sym;
 }
 
 INLINE ELisp_Return_Value
 builtin_lisp_symbol (int index)
 {
-  return lispsym[index].jsval;
+  return lispsym[index];
 }
 
 #include "globals.h.hh"
@@ -1743,12 +1740,6 @@ INLINE bool
 SYMBOLP (ELisp_Handle x)
 {
   return x.symbolp();
-}
-
-INLINE struct Lisp_Symbol *
-XSYMBOL (ELisp_Handle a)
-{
-  return a.xsymbol();
 }
 
 extern ELisp_Return_Value elisp_symbol_value(ELisp_Handle a);
@@ -2828,7 +2819,7 @@ typedef jmp_buf sys_jmp_buf;
 INLINE ELisp_Return_Value
 SYMBOL_ALIAS (ELisp_Handle sym)
 {
-  return XSYMBOL (sym)->val.alias;
+  return elisp_symbol_value (sym);
 }
 
 extern enum symbol_redirect
@@ -2840,15 +2831,22 @@ SYMBOL_REDIRECT (ELisp_Handle sym)
   return elisp_symbol_redirect (sym);
 }
 
+extern struct Lisp_Buffer_Local_Value *
+elisp_symbol_blv (ELisp_Handle sym);
+
 INLINE struct Lisp_Buffer_Local_Value *
 SYMBOL_BLV (ELisp_Handle sym)
 {
-  return XSYMBOL (sym)->val.blv;
+  return elisp_symbol_blv (sym);
 }
+
+extern union Lisp_Fwd *
+elisp_symbol_fwd (ELisp_Handle sym);
+
 INLINE union Lisp_Fwd *
 SYMBOL_FWD (ELisp_Handle sym)
 {
-  return XSYMBOL (sym)->val.fwd;
+  return elisp_symbol_fwd (sym);
 }
 
 extern void
@@ -2860,20 +2858,30 @@ SET_SYMBOL_REDIRECT (ELisp_Handle sym, enum symbol_redirect x)
   elisp_symbol_set_redirect(sym, x);
 }
 
+extern void
+elisp_symbol_set_alias (ELisp_Handle, ELisp_Handle);
+
 INLINE void
 SET_SYMBOL_ALIAS (ELisp_Handle sym, ELisp_Handle v)
 {
-  XSYMBOL (sym)->val.alias = v;
+  elisp_symbol_set_alias (sym, v);
 }
+
+extern void
+elisp_symbol_set_blv (ELisp_Handle, struct Lisp_Buffer_Local_Value *);
+
 INLINE void
 SET_SYMBOL_BLV (ELisp_Handle sym, struct Lisp_Buffer_Local_Value *v)
 {
-  XSYMBOL (sym)->val.blv = v;
+  elisp_symbol_set_blv (sym, v);
 }
+extern void
+elisp_symbol_set_fwd (ELisp_Handle, union Lisp_Fwd *);
+
 INLINE void
 SET_SYMBOL_FWD (ELisp_Handle sym, union Lisp_Fwd *v)
 {
-  XSYMBOL (sym)->val.fwd = v;
+  elisp_symbol_set_fwd (sym, v);
 }
 
 INLINE ELisp_Return_Value
@@ -4287,9 +4295,6 @@ set_hash_value_slot (struct Lisp_Hash_Table *h, ptrdiff_t idx, ELisp_Handle val)
 {
   gc_aset (LSH (h->key_and_value), 2 * idx + 1, val);
 }
-
-/* Use these functions to set Lisp_Object
-   or pointer slots of struct Lisp_Symbol.  */
 
 INLINE void
 set_symbol_function (ELisp_Handle sym, ELisp_Handle function)

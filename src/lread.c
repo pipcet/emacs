@@ -4401,8 +4401,11 @@ init_obarray (void)
 
   for (int i = 0; i < ARRAYELTS (lispsym); i++)
     {
-      define_symbol (make_lisp_symbol (&lispsym[i]), defsym_name[i]);
+      //lispsym[i] = Fmake_symbol(make_string(defsym_name[i], strlen(defsym_name[i])));
+      define_symbol (lispsym[i], defsym_name[i]);
     }
+
+  elisp_symbol_set_plist (lispsym[0], lispsym[0]);
 
   DEFSYM (Qunbound, "unbound");
 

@@ -2224,51 +2224,6 @@ usage: (make-byte-code ARGLIST BYTE-CODE CONSTANTS DEPTH &optional DOCSTRING INT
 
 
 
-/***********************************************************************
-			   Symbol Allocation
- ***********************************************************************/
-
-/* Like struct Lisp_Symbol, but padded so that the size is a multiple
-   of the required alignment.  */
-
-union aligned_Lisp_Symbol
-{
-  struct Lisp_Symbol s;
-  unsigned char c[(sizeof (struct Lisp_Symbol) + GCALIGNMENT - 1)
-		  & -GCALIGNMENT];
-};
-
-/* Each symbol_block is just under 1020 bytes long, since malloc
-   really allocates in units of powers of two and uses 4 bytes for its
-   own overhead.  */
-
-#define SYMBOL_BLOCK_SIZE \
-  ((1020 - sizeof (struct symbol_block *)) / sizeof (union aligned_Lisp_Symbol))
-
-struct symbol_block
-{
-  /* Place `symbols' first, to preserve alignment.  */
-  union aligned_Lisp_Symbol symbols[SYMBOL_BLOCK_SIZE];
-  struct symbol_block *next;
-};
-
-/* Current symbol block and index of first unused Lisp_Symbol
-   structure in it.  */
-
-static struct symbol_block *symbol_block;
-static int symbol_block_index = SYMBOL_BLOCK_SIZE;
-/* Pointer to the first symbol_block that contains pinned symbols.
-   Tests for 24.4 showed that at dump-time, Emacs contains about 15K symbols,
-   10K of which are pinned (and all but 250 of them are interned in obarray),
-   whereas a "typical session" has in the order of 30K symbols.
-   `symbol_block_pinned' lets mark_pinned_symbols scan only 15K symbols rather
-   than 30K to find the 10K symbols we need to mark.  */
-static struct symbol_block *symbol_block_pinned;
-
-/* List of free symbols.  */
-
-static struct Lisp_Symbol *symbol_free_list;
-
 void
 init_symbol (Lisp_Object val, Lisp_Object name)
 {
@@ -2292,11 +2247,9 @@ Its value is void, and its function definition and property list are nil.  */)
 
   CHECK_STRING (name);
 
-  struct Lisp_Symbol *sym = xzalloc(sizeof *sym);
-
-  XSETSYMBOL (val, sym);
-
+  val = elisp_symbol();
   init_symbol (val, name);
+
   return val;
 }
 
@@ -3740,7 +3693,6 @@ static size_t
 total_bytes_of_live_objects (void)
 {
   size_t tot = 0;
-  tot += total_symbols * sizeof (struct Lisp_Symbol);
   tot += total_markers * sizeof (union Lisp_Misc);
   tot += total_vector_slots * word_size;
   tot += total_intervals * sizeof (struct interval);
@@ -4116,46 +4068,8 @@ symbol_uses_obj (Lisp_Object symbol, Lisp_Object obj)
 Lisp_Object
 which_symbols (Lisp_Object obj, EMACS_INT find_max)
 {
-   struct symbol_block *sblk;
-   ptrdiff_t gc_count = inhibit_garbage_collection ();
    Lisp_Object found = Qnil;
-
-   if (! DEADP (obj))
-     {
-       for (int i = 0; i < ARRAYELTS (lispsym); i++)
-	 {
-	   Lisp_Object sym = builtin_lisp_symbol (i);
-	   if (symbol_uses_obj (sym, obj))
-	     {
-	       found = Fcons (sym, found);
-	       if (--find_max == 0)
-		 goto out;
-	     }
-	 }
-
-       for (sblk = symbol_block; sblk; sblk = sblk->next)
-	 {
-	   union aligned_Lisp_Symbol *aligned_sym = sblk->symbols;
-	   int bn;
-
-	   for (bn = 0; bn < SYMBOL_BLOCK_SIZE; bn++, aligned_sym++)
-	     {
-	       if (sblk == symbol_block && bn >= symbol_block_index)
-		 break;
-
-	       Lisp_Object sym = make_lisp_symbol (&aligned_sym->s);
-	       if (symbol_uses_obj (sym, obj))
-		 {
-		   found = Fcons (sym, found);
-		   if (--find_max == 0)
-		     goto out;
-		 }
-	     }
-	 }
-     }
-
-  out:
-   return unbind_to (gc_count, found);
+   return found;
 }
 
 #ifdef SUSPICIOUS_OBJECT_CHECKING
