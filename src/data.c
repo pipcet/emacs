@@ -665,12 +665,10 @@ global value outside of any lexical scope.  */)
   (register Lisp_Object symbol)
 {
   Lisp_Object valcontents;
-  struct Lisp_Symbol *sym;
   CHECK_SYMBOL (symbol);
 
  start:
-  sym = XSYMBOL (symbol);
-  switch (sym->redirect)
+  switch (XSYMBOL (symbol)->redirect)
     {
     case SYMBOL_PLAINVAL: valcontents = elisp_symbol_value (symbol); break;
     case SYMBOL_VARALIAS: symbol = indirect_variable (symbol); goto start;
@@ -1170,7 +1168,6 @@ store_symval_forwarding (union Lisp_Fwd *valcontents, register Lisp_Object newva
 void
 swap_in_global_binding (Lisp_Object sym)
 {
-  struct Lisp_Symbol *symbol = XSYMBOL (sym);
   struct Lisp_Buffer_Local_Value *blv = SYMBOL_BLV (sym);
 
   /* Unload the previously loaded binding.  */
@@ -1199,7 +1196,6 @@ EXTERN_C_END
 static void
 swap_in_symval_forwarding (Lisp_Object sym, struct Lisp_Buffer_Local_Value *blv)
 {
-  struct Lisp_Symbol *symbol = XSYMBOL (sym);
   register Lisp_Object tem1;
 
   eassert (blv == SYMBOL_BLV (sym));
@@ -1216,8 +1212,7 @@ swap_in_symval_forwarding (Lisp_Object sym, struct Lisp_Buffer_Local_Value *blv)
 	set_blv_value (blv, do_symval_forwarding (blv->fwd));
       /* Choose the new binding.  */
       {
-	Lisp_Object var;
-	XSETSYMBOL (var, symbol);
+	Lisp_Object var = sym;
 	tem1 = assq_no_quit (var, BVAR (current_buffer, local_var_alist));
 	set_blv_where (blv, Fcurrent_buffer ());
       }
@@ -1240,13 +1235,10 @@ swap_in_symval_forwarding (Lisp_Object sym, struct Lisp_Buffer_Local_Value *blv)
 Lisp_Object
 find_symbol_value (Lisp_Object symbol)
 {
-  struct Lisp_Symbol *sym;
-
   CHECK_SYMBOL (symbol);
 
  start:
-  sym = XSYMBOL (symbol);
-  switch (sym->redirect)
+  switch (XSYMBOL (symbol)->redirect)
     {
     case SYMBOL_VARALIAS: symbol = indirect_variable (symbol); goto start;
     case SYMBOL_PLAINVAL: return elisp_symbol_value (symbol);
@@ -1299,7 +1291,6 @@ set_internal (Lisp_Object symbol, Lisp_Object newval, Lisp_Object where,
               enum Set_Internal_Bind bindflag)
 {
   bool voide = EQ (newval, Qunbound);
-  struct Lisp_Symbol *sym;
   Lisp_Object tem1;
 
   /* If restoring in a dead buffer, do nothing.  */
@@ -1307,7 +1298,6 @@ set_internal (Lisp_Object symbol, Lisp_Object newval, Lisp_Object where,
       return; */
 
   CHECK_SYMBOL (symbol);
-  sym = XSYMBOL (symbol);
   switch (XSYMBOL (symbol)->trapped_write)
     {
     case SYMBOL_NOWRITE:
@@ -1360,7 +1350,6 @@ set_internal (Lisp_Object symbol, Lisp_Object newval, Lisp_Object where,
 	      set_blv_value (blv, do_symval_forwarding (blv->fwd));
 
 	    /* Find the new binding.  */
-	    XSETSYMBOL (symbol, sym); /* May have changed via aliasing.  */
 	    tem1 = assq_no_quit (symbol,
 				 BVAR (XBUFFER (where), local_var_alist));
 	    set_blv_where (blv, where);
@@ -1449,7 +1438,6 @@ set_internal (Lisp_Object symbol, Lisp_Object newval, Lisp_Object where,
 static void
 set_symbol_trapped_write (Lisp_Object symbol, enum symbol_trapped_write trap)
 {
-  struct Lisp_Symbol *sym = XSYMBOL (symbol);
   if (XSYMBOL (symbol)->trapped_write == SYMBOL_NOWRITE)
     xsignal1 (Qtrapping_constant, symbol);
   XSYMBOL (symbol)->trapped_write = trap;
@@ -1576,10 +1564,7 @@ notify_variable_watchers (Lisp_Object symbol,
 static Lisp_Object
 default_value (Lisp_Object symbol)
 {
-  struct Lisp_Symbol *sym;
-
   CHECK_SYMBOL (symbol);
-  sym = XSYMBOL (symbol);
 
  start:
   switch (XSYMBOL (symbol)->redirect)
@@ -1648,11 +1633,8 @@ void
 set_default_internal (Lisp_Object symbol, Lisp_Object value,
                       enum Set_Internal_Bind bindflag)
 {
-  struct Lisp_Symbol *sym;
-
   CHECK_SYMBOL (symbol);
-  sym = XSYMBOL (symbol);
-  switch (sym->trapped_write)
+  switch (XSYMBOL (symbol)->trapped_write)
     {
     case SYMBOL_NOWRITE:
       if (NILP (Fkeywordp (symbol))
@@ -1827,13 +1809,11 @@ property.
 The function `default-value' gets the default value and `set-default' sets it.  */)
   (register Lisp_Object variable)
 {
-  struct Lisp_Symbol *sym;
   struct Lisp_Buffer_Local_Value *blv = NULL;
   union Lisp_Val_Fwd valcontents;
   bool forwarded UNINIT;
 
   CHECK_SYMBOL (variable);
-  sym = XSYMBOL (variable);
 
  start:
   switch (XSYMBOL (variable)->redirect)
@@ -1897,12 +1877,10 @@ Instead, use `add-hook' and specify t for the LOCAL argument.  */)
   Lisp_Object tem;
   bool forwarded UNINIT;
   union Lisp_Val_Fwd valcontents;
-  struct Lisp_Symbol *sym;
   struct Lisp_Buffer_Local_Value *blv = NULL;
 
   MODIFY_ARG (&variable);
   CHECK_SYMBOL (variable);
-  sym = XSYMBOL (variable);
 
  start:
   switch (XSYMBOL (variable)->redirect)
@@ -1975,10 +1953,8 @@ From now on the default value will apply in this buffer.  Return VARIABLE.  */)
 {
   register Lisp_Object tem;
   struct Lisp_Buffer_Local_Value *blv;
-  struct Lisp_Symbol *sym;
 
   CHECK_SYMBOL (variable);
-  sym = XSYMBOL (variable);
 
  start:
   switch (XSYMBOL (variable)->redirect)
@@ -2040,13 +2016,11 @@ BUFFER defaults to the current buffer.  */)
   (Lisp_Object variable, Lisp_Object buffer)
 {
   struct buffer *buf = decode_buffer (buffer);
-  struct Lisp_Symbol *sym;
 
   CHECK_SYMBOL (variable);
 
  start:
-  sym = XSYMBOL (variable);
-  switch (sym->redirect)
+  switch (XSYMBOL (variable)->redirect)
     {
     case SYMBOL_VARALIAS: variable = indirect_variable (variable); goto start;
     case SYMBOL_PLAINVAL: return Qnil;
@@ -2055,7 +2029,6 @@ BUFFER defaults to the current buffer.  */)
 	Lisp_Object tail, elt, tmp;
 	struct Lisp_Buffer_Local_Value *blv = SYMBOL_BLV (variable);
 	XSETBUFFER (tmp, buf);
-	XSETSYMBOL (variable, sym); /* Update in case of aliasing.  */
 
 	if (EQ (blv->where, tmp)) /* The binding is already loaded.  */
 	  return blv_found (blv) ? Qt : Qnil;
@@ -2094,13 +2067,11 @@ value in BUFFER, or if VARIABLE is automatically buffer-local (see
 `make-variable-buffer-local').  */)
   (register Lisp_Object variable, Lisp_Object buffer)
 {
-  struct Lisp_Symbol *sym;
 
   CHECK_SYMBOL (variable);
 
  start:
-  sym = XSYMBOL (variable);
-  switch (sym->redirect)
+  switch (XSYMBOL (variable)->redirect)
     {
     case SYMBOL_VARALIAS: variable = indirect_variable (variable); goto start;
     case SYMBOL_PLAINVAL: return Qnil;
@@ -2109,7 +2080,6 @@ value in BUFFER, or if VARIABLE is automatically buffer-local (see
 	struct Lisp_Buffer_Local_Value *blv = SYMBOL_BLV (variable);
 	if (blv->local_if_set)
 	  return Qt;
-	XSETSYMBOL (variable, sym); /* Update in case of aliasing.  */
 	return Flocal_variable_p (variable, buffer);
       }
     case SYMBOL_FORWARDED:
@@ -2126,17 +2096,13 @@ If the current binding is buffer-local, the value is the current buffer.
 If the current binding is global (the default), the value is nil.  */)
   (register Lisp_Object variable)
 {
-  struct Lisp_Symbol *sym;
-
   CHECK_SYMBOL (variable);
-  sym = XSYMBOL (variable);
 
   /* Make sure the current binding is actually swapped in.  */
   find_symbol_value (variable);
 
  start:
-  sym = XSYMBOL (variable);
-  switch (sym->redirect)
+  switch (XSYMBOL (variable)->redirect)
     {
     case SYMBOL_VARALIAS: variable = indirect_variable (variable); goto start;
     case SYMBOL_PLAINVAL: return Qnil;
@@ -2154,7 +2120,7 @@ If the current binding is global (the default), the value is nil.  */)
 	 buffer's or frame's value we are saving.  */
       if (!NILP (Flocal_variable_p (variable, Qnil)))
 	return Fcurrent_buffer ();
-      else if (sym->redirect == SYMBOL_LOCALIZED
+      else if (XSYMBOL (variable)->redirect == SYMBOL_LOCALIZED
 	       && blv_found (SYMBOL_BLV (variable)))
 	return SYMBOL_BLV (variable)->where;
       else
