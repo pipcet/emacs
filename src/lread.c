@@ -4090,7 +4090,7 @@ intern_sym (Lisp_Object sym, Lisp_Object obarray, Lisp_Object index)
   if (SREF (SYMBOL_NAME (sym), 0) == ':' && EQ (obarray, initial_obarray))
     {
       make_symbol_constant (sym);
-      XSYMBOL (sym)->redirect = SYMBOL_PLAINVAL;
+      SET_SYMBOL_REDIRECT (sym, SYMBOL_PLAINVAL);
       elisp_symbol_set_value (sym, sym);
     }
 
@@ -4456,7 +4456,7 @@ defvar_int (struct Lisp_Intfwd *i_fwd,
   i_fwd->type = Lisp_Fwd_Int;
   i_fwd->intvar = address;
   XSYMBOL (sym)->declared_special = 1;
-  XSYMBOL (sym)->redirect = SYMBOL_FORWARDED;
+  SET_SYMBOL_REDIRECT (sym, SYMBOL_FORWARDED);
   SET_SYMBOL_FWD (sym, (union Lisp_Fwd *)i_fwd);
 }
 
@@ -4471,7 +4471,7 @@ defvar_bool (struct Lisp_Boolfwd *b_fwd,
   b_fwd->type = Lisp_Fwd_Bool;
   b_fwd->boolvar = address;
   XSYMBOL (sym)->declared_special = 1;
-  XSYMBOL (sym)->redirect = SYMBOL_FORWARDED;
+  SET_SYMBOL_REDIRECT (sym, SYMBOL_FORWARDED);
   SET_SYMBOL_FWD (sym, (union Lisp_Fwd *)b_fwd);
   Vbyte_boolean_vars = Fcons (sym, Vbyte_boolean_vars);
 }
@@ -4490,7 +4490,7 @@ defvar_lisp_nopro (struct Lisp_Objfwd *o_fwd,
   o_fwd->type = Lisp_Fwd_Obj;
   o_fwd->objvar = address;
   XSYMBOL (sym)->declared_special = 1;
-  XSYMBOL (sym)->redirect = SYMBOL_FORWARDED;
+  SET_SYMBOL_REDIRECT (sym, SYMBOL_FORWARDED);
   SET_SYMBOL_FWD (sym, (union Lisp_Fwd *)o_fwd);
 }
 
@@ -4514,7 +4514,7 @@ defvar_kboard (struct Lisp_Kboard_Objfwd *ko_fwd,
   ko_fwd->type = Lisp_Fwd_Kboard_Obj;
   ko_fwd->offset = offset;
   XSYMBOL (sym)->declared_special = 1;
-  XSYMBOL (sym)->redirect = SYMBOL_FORWARDED;
+  SET_SYMBOL_REDIRECT (sym, SYMBOL_FORWARDED);
   SET_SYMBOL_FWD (sym, (union Lisp_Fwd *)ko_fwd);
 }
 

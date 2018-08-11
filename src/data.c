@@ -668,7 +668,7 @@ global value outside of any lexical scope.  */)
   CHECK_SYMBOL (symbol);
 
  start:
-  switch (XSYMBOL (symbol)->redirect)
+  switch (SYMBOL_REDIRECT (symbol))
     {
     case SYMBOL_PLAINVAL: valcontents = elisp_symbol_value (symbol); break;
     case SYMBOL_VARALIAS: symbol = indirect_variable (symbol); goto start;
@@ -933,10 +933,10 @@ indirect_variable (Lisp_Object symbol)
 
   hare = tortoise = symbol;
 
-  while (XSYMBOL (hare)->redirect == SYMBOL_VARALIAS)
+  while (SYMBOL_REDIRECT (hare) == SYMBOL_VARALIAS)
     {
       hare = SYMBOL_ALIAS (hare);
-      if (XSYMBOL (hare)->redirect != SYMBOL_VARALIAS)
+      if (SYMBOL_REDIRECT (hare) != SYMBOL_VARALIAS)
 	break;
 
       hare = SYMBOL_ALIAS (hare);
@@ -1238,7 +1238,7 @@ find_symbol_value (Lisp_Object symbol)
   CHECK_SYMBOL (symbol);
 
  start:
-  switch (XSYMBOL (symbol)->redirect)
+  switch (SYMBOL_REDIRECT (symbol))
     {
     case SYMBOL_VARALIAS: symbol = indirect_variable (symbol); goto start;
     case SYMBOL_PLAINVAL: return elisp_symbol_value (symbol);
@@ -1324,7 +1324,7 @@ set_internal (Lisp_Object symbol, Lisp_Object newval, Lisp_Object where,
     }
 
  start:
-  switch (XSYMBOL (symbol)->redirect)
+  switch (SYMBOL_REDIRECT (symbol))
     {
     case SYMBOL_VARALIAS: symbol = indirect_variable (symbol); goto start;
     case SYMBOL_PLAINVAL: elisp_symbol_set_value (symbol, newval); return;
@@ -1423,7 +1423,7 @@ set_internal (Lisp_Object symbol, Lisp_Object newval, Lisp_Object where,
 	if (voide)
 	  { /* If storing void (making the symbol void), forward only through
 	       buffer-local indicator, not through Lisp_Objfwd, etc.  */
-	    XSYMBOL (symbol)->redirect = SYMBOL_PLAINVAL;
+	    SET_SYMBOL_REDIRECT (symbol, SYMBOL_PLAINVAL);
 	    elisp_symbol_set_value (symbol, newval);
 	  }
 	else
@@ -1567,7 +1567,7 @@ default_value (Lisp_Object symbol)
   CHECK_SYMBOL (symbol);
 
  start:
-  switch (XSYMBOL (symbol)->redirect)
+  switch (SYMBOL_REDIRECT (symbol))
     {
     case SYMBOL_VARALIAS: symbol = indirect_variable (symbol); goto start;
     case SYMBOL_PLAINVAL: return elisp_symbol_value(symbol);
@@ -1646,7 +1646,7 @@ set_default_internal (Lisp_Object symbol, Lisp_Object value,
 
     case SYMBOL_TRAPPED_WRITE:
       /* Don't notify here if we're going to call Fset anyway.  */
-      if (XSYMBOL (symbol)->redirect != SYMBOL_PLAINVAL
+      if (SYMBOL_REDIRECT (symbol) != SYMBOL_PLAINVAL
           /* Setting due to thread switching doesn't count.  */
           && bindflag != SET_INTERNAL_THREAD_SWITCH)
         notify_variable_watchers (symbol, value, Qset_default, Qnil);
@@ -1658,7 +1658,7 @@ set_default_internal (Lisp_Object symbol, Lisp_Object value,
     }
 
  start:
-  switch (XSYMBOL (symbol)->redirect)
+  switch (SYMBOL_REDIRECT (symbol))
     {
     case SYMBOL_VARALIAS: symbol = indirect_variable (symbol); goto start;
     case SYMBOL_PLAINVAL: set_internal (symbol, value, Qnil, bindflag); return;
@@ -1816,7 +1816,7 @@ The function `default-value' gets the default value and `set-default' sets it.  
   CHECK_SYMBOL (variable);
 
  start:
-  switch (XSYMBOL (variable)->redirect)
+  switch (SYMBOL_REDIRECT (variable))
     {
     case SYMBOL_VARALIAS: variable = indirect_variable (variable); goto start;
     case SYMBOL_PLAINVAL:
@@ -1844,7 +1844,7 @@ The function `default-value' gets the default value and `set-default' sets it.  
   if (!blv)
     {
       blv = make_blv (variable, forwarded, valcontents);
-      XSYMBOL (variable)->redirect = SYMBOL_LOCALIZED;
+      SET_SYMBOL_REDIRECT (variable, SYMBOL_LOCALIZED);
       SET_SYMBOL_BLV (variable, blv);
     }
 
@@ -1883,7 +1883,7 @@ Instead, use `add-hook' and specify t for the LOCAL argument.  */)
   CHECK_SYMBOL (variable);
 
  start:
-  switch (XSYMBOL (variable)->redirect)
+  switch (SYMBOL_REDIRECT (variable))
     {
     case SYMBOL_VARALIAS: variable = indirect_variable (variable); goto start;
     case SYMBOL_PLAINVAL:
@@ -1915,7 +1915,7 @@ Instead, use `add-hook' and specify t for the LOCAL argument.  */)
   if (!blv)
     {
       blv = make_blv (variable, forwarded, valcontents);
-      XSYMBOL (variable)->redirect = SYMBOL_LOCALIZED;
+      SET_SYMBOL_REDIRECT (variable, SYMBOL_LOCALIZED);
       SET_SYMBOL_BLV (variable, blv);
     }
 
@@ -1957,7 +1957,7 @@ From now on the default value will apply in this buffer.  Return VARIABLE.  */)
   CHECK_SYMBOL (variable);
 
  start:
-  switch (XSYMBOL (variable)->redirect)
+  switch (SYMBOL_REDIRECT (variable))
     {
     case SYMBOL_VARALIAS: variable = indirect_variable (variable); goto start;
     case SYMBOL_PLAINVAL: return variable;
@@ -2020,7 +2020,7 @@ BUFFER defaults to the current buffer.  */)
   CHECK_SYMBOL (variable);
 
  start:
-  switch (XSYMBOL (variable)->redirect)
+  switch (SYMBOL_REDIRECT (variable))
     {
     case SYMBOL_VARALIAS: variable = indirect_variable (variable); goto start;
     case SYMBOL_PLAINVAL: return Qnil;
@@ -2071,7 +2071,7 @@ value in BUFFER, or if VARIABLE is automatically buffer-local (see
   CHECK_SYMBOL (variable);
 
  start:
-  switch (XSYMBOL (variable)->redirect)
+  switch (SYMBOL_REDIRECT (variable))
     {
     case SYMBOL_VARALIAS: variable = indirect_variable (variable); goto start;
     case SYMBOL_PLAINVAL: return Qnil;
@@ -2102,7 +2102,7 @@ If the current binding is global (the default), the value is nil.  */)
   find_symbol_value (variable);
 
  start:
-  switch (XSYMBOL (variable)->redirect)
+  switch (SYMBOL_REDIRECT (variable))
     {
     case SYMBOL_VARALIAS: variable = indirect_variable (variable); goto start;
     case SYMBOL_PLAINVAL: return Qnil;
@@ -2120,7 +2120,7 @@ If the current binding is global (the default), the value is nil.  */)
 	 buffer's or frame's value we are saving.  */
       if (!NILP (Flocal_variable_p (variable, Qnil)))
 	return Fcurrent_buffer ();
-      else if (XSYMBOL (variable)->redirect == SYMBOL_LOCALIZED
+      else if (SYMBOL_REDIRECT (variable) == SYMBOL_LOCALIZED
 	       && blv_found (SYMBOL_BLV (variable)))
 	return SYMBOL_BLV (variable)->where;
       else

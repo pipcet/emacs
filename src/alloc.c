@@ -2296,7 +2296,7 @@ init_symbol (Lisp_Object val, Lisp_Object name)
   struct Lisp_Symbol *p = XSYMBOL (val);
   set_symbol_name (val, name);
   set_symbol_plist (val, Qnil);
-  p->redirect = SYMBOL_PLAINVAL;
+  SET_SYMBOL_REDIRECT (val, SYMBOL_PLAINVAL);
   elisp_symbol_set_value (val, LRH (Qunbound));
   set_symbol_function (val, Qnil);
   p->gcmarkbit = false;

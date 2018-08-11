@@ -1006,7 +1006,7 @@ reset_buffer_local_variables (struct buffer *b, bool permanent_too)
             notify_variable_watchers (local_var, Qnil,
                                       Qmakunbound, Fcurrent_buffer ());
 
-          eassert (XSYMBOL (sym)->redirect == SYMBOL_LOCALIZED);
+          eassert (SYMBOL_REDIRECT (sym) == SYMBOL_LOCALIZED);
           /* Need not do anything if some other buffer's binding is
 	     now cached.  */
           if (EQ (SYMBOL_BLV (sym)->where, buffer))
@@ -1186,7 +1186,7 @@ buffer_local_value (Lisp_Object variable, Lisp_Object buffer)
 
  start:
   sym = XSYMBOL (variable);
-  switch (sym->redirect)
+  switch (SYMBOL_REDIRECT (variable))
     {
     case SYMBOL_VARALIAS: variable = indirect_variable (variable); goto start;
     case SYMBOL_PLAINVAL: result = elisp_symbol_value (variable); break;
@@ -2124,7 +2124,7 @@ void set_buffer_internal_2 (register struct buffer *b)
 	{
 	  Lisp_Object var = XCAR (XCAR (tail));
 	  struct Lisp_Symbol *sym = XSYMBOL (var);
-	  if (sym->redirect == SYMBOL_LOCALIZED /* Just to be sure.  */
+	  if (SYMBOL_REDIRECT (var) == SYMBOL_LOCALIZED /* Just to be sure.  */
 	      && SYMBOL_BLV (var)->fwd)
 	    /* Just reference the variable
 	       to cause it to become set for this buffer.  */
@@ -5439,7 +5439,7 @@ defvar_per_buffer (struct Lisp_Buffer_Objfwd *bo_fwd, const char *namestring,
   bo_fwd->offset = offset;
   bo_fwd->predicate = predicate;
   sym->declared_special = 1;
-  sym->redirect = SYMBOL_FORWARDED;
+  SET_SYMBOL_REDIRECT (symbol, SYMBOL_FORWARDED);
   SET_SYMBOL_FWD (symbol, (union Lisp_Fwd *) bo_fwd);
   XSETSYMBOL (PER_BUFFER_SYMBOL (offset), sym);
 

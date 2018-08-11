@@ -659,7 +659,7 @@ The return value is BASE-VARIABLE.  */)
 
   sym = XSYMBOL (new_alias);
 
-  switch (sym->redirect)
+  switch (SYMBOL_REDIRECT (new_alias))
     {
     case SYMBOL_FORWARDED:
       error ("Cannot make an internal variable an alias");
@@ -703,7 +703,7 @@ The return value is BASE-VARIABLE.  */)
 
   sym->declared_special = 1;
   XSYMBOL (base_variable)->declared_special = 1;
-  sym->redirect = SYMBOL_VARALIAS;
+  SET_SYMBOL_REDIRECT (new_alias, SYMBOL_VARALIAS);
   SET_SYMBOL_ALIAS (new_alias, base_variable);
   sym->trapped_write = XSYMBOL (base_variable)->trapped_write;
   LOADHIST_ATTACH (new_alias);
@@ -3476,8 +3476,9 @@ let_shadows_buffer_binding_p (struct Lisp_Symbol *symbol)
   for (p = specpdl_ptr; p > specpdl; )
     if ((--p)->kind > SPECPDL_LET)
       {
-	struct Lisp_Symbol *let_bound_symbol = XSYMBOL (specpdl_symbol (p));
-	eassert (let_bound_symbol->redirect != SYMBOL_VARALIAS);
+        Lisp_Object let_bound_sym = specpdl_symbol (p);
+	struct Lisp_Symbol *let_bound_symbol = XSYMBOL (let_bound_sym);
+	eassert (SYMBOL_REDIRECT (let_bound_sym) != SYMBOL_VARALIAS);
 	if (symbol == let_bound_symbol
 	    && EQ (specpdl_where (p), buf))
 	  return 1;
@@ -3491,7 +3492,7 @@ do_specbind (Lisp_Object symval, struct specbinding *bind,
              Lisp_Object value, enum Set_Internal_Bind bindflag)
 {
   struct Lisp_Symbol *sym = XSYMBOL (symval);
-  switch (sym->redirect)
+  switch (SYMBOL_REDIRECT (symval))
     {
     case SYMBOL_PLAINVAL:
       if (!sym->trapped_write)
@@ -3538,7 +3539,7 @@ specbind (Lisp_Object symbol, Lisp_Object value)
 
  start:
   sym = XSYMBOL (symbol);
-  switch (sym->redirect)
+  switch (SYMBOL_REDIRECT (symbol))
     {
     case SYMBOL_VARALIAS:
       symbol = indirect_variable (symbol); goto start;
@@ -3564,10 +3565,10 @@ specbind (Lisp_Object symbol, Lisp_Object value)
 	specpdl_ptr->let.where = Fcurrent_buffer ();
 	specpdl_ptr->let.saved_value = Qnil;
 
-	eassert (sym->redirect != SYMBOL_LOCALIZED
+	eassert (SYMBOL_REDIRECT (symbol) != SYMBOL_LOCALIZED
 		 || (EQ (SYMBOL_BLV (symbol)->where, LRH (Fcurrent_buffer ()))));
 
-	if (sym->redirect == SYMBOL_LOCALIZED)
+	if (SYMBOL_REDIRECT (symbol) == SYMBOL_LOCALIZED)
 	  {
 	    if (!blv_found (SYMBOL_BLV (symbol)))
 	      specpdl_ptr->kind = SPECPDL_LET_DEFAULT;
@@ -3706,7 +3707,7 @@ do_one_unbind (struct specbinding_stack *this_binding, bool unwinding,
       { /* If variable has a trivial value (no forwarding), and isn't
 	   trapped, we can just set it.  */
 	Lisp_Object sym = specpdl_stack_symbol (this_binding);
-	if (SYMBOLP (sym) && XSYMBOL (sym)->redirect == SYMBOL_PLAINVAL)
+	if (SYMBOLP (sym) && SYMBOL_REDIRECT (sym) == SYMBOL_PLAINVAL)
 	  {
 	    if (XSYMBOL (sym)->trapped_write == SYMBOL_UNTRAPPED_WRITE)
 	      elisp_symbol_set_value (sym, LRH (specpdl_stack_old_value (this_binding)));
@@ -4019,7 +4020,7 @@ backtrace_eval_unrewind (int distance)
 	       just set it.  No need to check for constant symbols here,
 	       since that was already done by specbind.  */
 	    Lisp_Object sym = specpdl_symbol (tmp);
-	    if (SYMBOLP (sym) && XSYMBOL (sym)->redirect == SYMBOL_PLAINVAL)
+	    if (SYMBOLP (sym) && SYMBOL_REDIRECT (sym) == SYMBOL_PLAINVAL)
 	      {
 		Lisp_Object old_value = specpdl_old_value (tmp);
 		set_specpdl_old_value (tmp, elisp_symbol_value (sym));

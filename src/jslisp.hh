@@ -2823,6 +2823,13 @@ SYMBOL_ALIAS (ELisp_Handle sym)
 {
   return XSYMBOL (sym)->val.alias;
 }
+
+INLINE enum symbol_redirect
+SYMBOL_REDIRECT (ELisp_Handle sym)
+{
+  return XSYMBOL (sym)->redirect;
+}
+
 INLINE struct Lisp_Buffer_Local_Value *
 SYMBOL_BLV (ELisp_Handle sym)
 {
@@ -2832,6 +2839,12 @@ INLINE union Lisp_Fwd *
 SYMBOL_FWD (ELisp_Handle sym)
 {
   return XSYMBOL (sym)->val.fwd;
+}
+
+INLINE void
+SET_SYMBOL_REDIRECT (ELisp_Handle sym, enum symbol_redirect x)
+{
+  XSYMBOL (sym)->redirect = x;
 }
 
 INLINE void
