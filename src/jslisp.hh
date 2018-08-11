@@ -2892,6 +2892,36 @@ SYMBOL_INTERNED_IN_INITIAL_OBARRAY_P (ELisp_Handle sym)
   return XSYMBOL (sym)->flags.s.interned == SYMBOL_INTERNED_IN_INITIAL_OBARRAY;
 }
 
+INLINE void
+SET_SYMBOL_INTERNED (ELisp_Handle sym, unsigned interned)
+{
+  XSYMBOL (sym)->flags.s.interned = interned;
+}
+
+INLINE void
+SET_SYMBOL_TRAPPED_WRITE (ELisp_Handle sym, enum symbol_trapped_write trapped_write)
+{
+  XSYMBOL (sym)->flags.s.trapped_write = trapped_write;
+}
+
+INLINE bool
+SYMBOL_DECLARED_SPECIAL_P (ELisp_Handle sym)
+{
+  return XSYMBOL (sym)->flags.s.declared_special;
+}
+
+INLINE void
+SET_SYMBOL_DECLARED_SPECIAL (ELisp_Handle sym, bool declared_special)
+{
+  XSYMBOL (sym)->flags.s.declared_special = declared_special;
+}
+
+INLINE void
+SET_SYMBOL_PINNED (ELisp_Handle sym, bool pinned)
+{
+  XSYMBOL (sym)->flags.s.pinned = pinned;
+}
+
 /* Value is non-zero if symbol cannot be changed through a simple set,
    i.e. it's a constant (e.g. nil, t, :keywords), or it has some
    watching functions.  */
@@ -2900,6 +2930,12 @@ INLINE int
 (SYMBOL_TRAPPED_WRITE_P) (ELisp_Handle sym)
 {
   return lisp_h_SYMBOL_TRAPPED_WRITE_P (sym);
+}
+
+INLINE int
+(SYMBOL_TRAPPED_WRITE_VALUE) (ELisp_Handle sym)
+{
+  return XSYMBOL (sym)->flags.s.trapped_write;
 }
 
 /* Value is non-zero if symbol cannot be changed at all, i.e. it's a

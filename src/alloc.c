@@ -2278,10 +2278,10 @@ init_symbol (Lisp_Object val, Lisp_Object name)
   SET_SYMBOL_REDIRECT (val, SYMBOL_PLAINVAL);
   elisp_symbol_set_value (val, LRH (Qunbound));
   set_symbol_function (val, Qnil);
-  p->flags.s.interned = SYMBOL_UNINTERNED;
-  p->flags.s.trapped_write = SYMBOL_UNTRAPPED_WRITE;
-  p->flags.s.declared_special = false;
-  p->flags.s.pinned = false;
+  SET_SYMBOL_INTERNED (val, SYMBOL_UNINTERNED);
+  SET_SYMBOL_TRAPPED_WRITE (val, SYMBOL_UNTRAPPED_WRITE);
+  SET_SYMBOL_DECLARED_SPECIAL (val, false);
+  SET_SYMBOL_PINNED (val, false);
 }
 
 DEFUN ("make-symbol", Fmake_symbol, Smake_symbol, 1, 1, 0,

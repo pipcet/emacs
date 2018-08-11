@@ -4083,9 +4083,9 @@ intern_sym (Lisp_Object sym, Lisp_Object obarray, Lisp_Object index)
 {
   Lisp_Object *ptr;
 
-  XSYMBOL (sym)->flags.s.interned = (EQ (obarray, initial_obarray)
-                                     ? SYMBOL_INTERNED_IN_INITIAL_OBARRAY
-                                     : SYMBOL_INTERNED);
+  SET_SYMBOL_INTERNED (sym, (EQ (obarray, initial_obarray)
+                             ? SYMBOL_INTERNED_IN_INITIAL_OBARRAY
+                             : SYMBOL_INTERNED));
 
   if (SREF (SYMBOL_NAME (sym), 0) == ':' && EQ (obarray, initial_obarray))
     {
@@ -4253,7 +4253,7 @@ usage: (unintern NAME OBARRAY)  */)
   /* if (NILP (tem) || EQ (tem, Qt))
        error ("Attempt to unintern t or nil"); */
 
-  XSYMBOL (tem)->flags.s.interned = SYMBOL_UNINTERNED;
+  SET_SYMBOL_INTERNED (tem, SYMBOL_UNINTERNED);
 
   hash = oblookup_last_bucket_number;
 
@@ -4409,12 +4409,12 @@ init_obarray (void)
   DEFSYM (Qnil, "nil");
   elisp_symbol_set_value (LRH (Qnil), LRH (Qnil));
   make_symbol_constant (Qnil);
-  XSYMBOL (Qnil)->flags.s.declared_special = true;
+  SET_SYMBOL_DECLARED_SPECIAL (LRH (Qnil), true);
 
   DEFSYM (Qt, "t");
   elisp_symbol_set_value (LRH (Qt), LRH (Qt));
   make_symbol_constant (Qt);
-  XSYMBOL (Qt)->flags.s.declared_special = true;
+  SET_SYMBOL_DECLARED_SPECIAL (LRH (Qt), true);
 
   /* Qt is correct even if CANNOT_DUMP.  loadup.el will set to nil at end.  */
   Vpurify_flag = Qt;
@@ -4455,7 +4455,7 @@ defvar_int (struct Lisp_Intfwd *i_fwd,
   sym = intern_c_string (namestring);
   i_fwd->type = Lisp_Fwd_Int;
   i_fwd->intvar = address;
-  XSYMBOL (sym)->flags.s.declared_special = 1;
+  SET_SYMBOL_DECLARED_SPECIAL (sym, 1);
   SET_SYMBOL_REDIRECT (sym, SYMBOL_FORWARDED);
   SET_SYMBOL_FWD (sym, (union Lisp_Fwd *)i_fwd);
 }
@@ -4470,7 +4470,7 @@ defvar_bool (struct Lisp_Boolfwd *b_fwd,
   sym = intern_c_string (namestring);
   b_fwd->type = Lisp_Fwd_Bool;
   b_fwd->boolvar = address;
-  XSYMBOL (sym)->flags.s.declared_special = 1;
+  SET_SYMBOL_DECLARED_SPECIAL (sym, 1);
   SET_SYMBOL_REDIRECT (sym, SYMBOL_FORWARDED);
   SET_SYMBOL_FWD (sym, (union Lisp_Fwd *)b_fwd);
   Vbyte_boolean_vars = Fcons (sym, Vbyte_boolean_vars);
@@ -4489,7 +4489,7 @@ defvar_lisp_nopro (struct Lisp_Objfwd *o_fwd,
   sym = intern_c_string (namestring);
   o_fwd->type = Lisp_Fwd_Obj;
   o_fwd->objvar = address;
-  XSYMBOL (sym)->flags.s.declared_special = 1;
+  SET_SYMBOL_DECLARED_SPECIAL (sym, 1);
   SET_SYMBOL_REDIRECT (sym, SYMBOL_FORWARDED);
   SET_SYMBOL_FWD (sym, (union Lisp_Fwd *)o_fwd);
 }
@@ -4513,7 +4513,7 @@ defvar_kboard (struct Lisp_Kboard_Objfwd *ko_fwd,
   sym = intern_c_string (namestring);
   ko_fwd->type = Lisp_Fwd_Kboard_Obj;
   ko_fwd->offset = offset;
-  XSYMBOL (sym)->flags.s.declared_special = 1;
+  SET_SYMBOL_DECLARED_SPECIAL (sym, 1);
   SET_SYMBOL_REDIRECT (sym, SYMBOL_FORWARDED);
   SET_SYMBOL_FWD (sym, (union Lisp_Fwd *)ko_fwd);
 }
@@ -4848,7 +4848,7 @@ to find all the symbols in an obarray, use `mapatoms'.  */);
   DEFVAR_LISP ("values", Vvalues,
 	       doc: /* List of values of all expressions which were read, evaluated and printed.
 Order is reverse chronological.  */);
-  XSYMBOL (intern ("values"))->flags.s.declared_special = false;
+  SET_SYMBOL_DECLARED_SPECIAL (LRH (intern ("values")), false);
 
   DEFVAR_LISP ("standard-input", Vstandard_input,
 	       doc: /* Stream for read to get input from.
