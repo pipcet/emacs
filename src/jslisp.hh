@@ -397,11 +397,11 @@ DEFINE_GDB_SYMBOL_END (VALMASK)
 #define lisp_h_MISCP(x) (XTYPE (x) == Lisp_Misc)
 #define lisp_h_NILP(x) EQ (x, Qnil)
 #define lisp_h_SET_SYMBOL_VAL(sym, v) \
-  (eassert ((sym)->redirect == SYMBOL_PLAINVAL), elisp_symbol_set_value (sym, v))
-#define lisp_h_SYMBOL_CONSTANT_P(sym) (XSYMBOL (sym)->trapped_write == SYMBOL_NOWRITE)
-#define lisp_h_SYMBOL_TRAPPED_WRITE_P(sym) (XSYMBOL (sym)->trapped_write)
+  (elisp_symbol_set_value (sym, v))
+#define lisp_h_SYMBOL_CONSTANT_P(sym) (XSYMBOL (sym)->flags.s.trapped_write == SYMBOL_NOWRITE)
+#define lisp_h_SYMBOL_TRAPPED_WRITE_P(sym) (XSYMBOL (sym)->flags.s.trapped_write)
 #define lisp_h_SYMBOL_VAL(sym) \
-   (eassert ((sym)->redirect == SYMBOL_PLAINVAL), elisp_symbol_value (sym))
+   (elisp_symbol_value (sym))
 #define lisp_h_SYMBOLP(x) (XTYPE (x) == Lisp_Symbol)
 #define lisp_h_XCAR(c) XCONS (c)->car
 #define lisp_h_XCDR(c) XCONS (c)->u.cdr
@@ -1564,34 +1564,41 @@ enum symbol_trapped_write
   SYMBOL_TRAPPED_WRITE = 2
 };
 
+union Lisp_Symbol_Flags
+{
+  struct
+  {
+    /* Indicates where the value can be found:
+       0 : it's a plain var, the value is in the `value' field.
+       1 : it's a varalias, the value is really in the `alias' symbol.
+       2 : it's a localized var, the value is in the `blv' object.
+       3 : it's a forwarding variable, the value is in `forward'.  */
+    ENUM_BF (symbol_redirect) redirect : 3;
+
+    /* 0 : normal case, just set the value
+       1 : constant, cannot set, e.g. nil, t, :keywords.
+       2 : trap the write, call watcher functions.  */
+    ENUM_BF (symbol_trapped_write) trapped_write : 2;
+
+    /* Interned state of the symbol.  This is an enumerator from
+       enum symbol_interned.  */
+    unsigned interned : 2;
+
+    /* True means that this variable has been explicitly declared
+       special (with `defvar' etc), and shouldn't be lexically bound.  */
+    bool_bf declared_special : 1;
+
+    /* True if pointed to from purespace and hence can't be GC'd.  */
+    bool_bf pinned : 1;
+  } s;
+  int32_t i;
+};
+
 struct Lisp_Symbol
 {
   JS::Heap<JS::Value> jsval;
-  bool_bf gcmarkbit : 1;
 
-  /* Indicates where the value can be found:
-     0 : it's a plain var, the value is in the `value' field.
-     1 : it's a varalias, the value is really in the `alias' symbol.
-     2 : it's a localized var, the value is in the `blv' object.
-     3 : it's a forwarding variable, the value is in `forward'.  */
-  ENUM_BF (symbol_redirect) redirect : 3;
-
-  /* 0 : normal case, just set the value
-     1 : constant, cannot set, e.g. nil, t, :keywords.
-     2 : trap the write, call watcher functions.  */
-  ENUM_BF (symbol_trapped_write) trapped_write : 2;
-
-  /* Interned state of the symbol.  This is an enumerator from
-     enum symbol_interned.  */
-  unsigned interned : 2;
-
-  /* True means that this variable has been explicitly declared
-     special (with `defvar' etc), and shouldn't be lexically bound.  */
-  bool_bf declared_special : 1;
-
-  /* True if pointed to from purespace and hence can't be GC'd.  */
-  bool_bf pinned : 1;
-
+  union Lisp_Symbol_Flags flags;
   /* Value of the symbol or Qunbound if unbound.  Which alternative of the
      union is used depends on the `redirect' field above.  */
   struct {
@@ -2827,7 +2834,7 @@ SYMBOL_ALIAS (ELisp_Handle sym)
 INLINE enum symbol_redirect
 SYMBOL_REDIRECT (ELisp_Handle sym)
 {
-  return XSYMBOL (sym)->redirect;
+  return XSYMBOL (sym)->flags.s.redirect;
 }
 
 INLINE struct Lisp_Buffer_Local_Value *
@@ -2844,7 +2851,7 @@ SYMBOL_FWD (ELisp_Handle sym)
 INLINE void
 SET_SYMBOL_REDIRECT (ELisp_Handle sym, enum symbol_redirect x)
 {
-  XSYMBOL (sym)->redirect = x;
+  XSYMBOL (sym)->flags.s.redirect = x;
 }
 
 INLINE void
@@ -2874,7 +2881,7 @@ SYMBOL_NAME (ELisp_Handle sym)
 INLINE bool
 SYMBOL_INTERNED_P (ELisp_Handle sym)
 {
-  return XSYMBOL (sym)->interned != SYMBOL_UNINTERNED;
+  return XSYMBOL (sym)->flags.s.interned != SYMBOL_UNINTERNED;
 }
 
 /* Value is true if SYM is interned in initial_obarray.  */
@@ -2882,7 +2889,7 @@ SYMBOL_INTERNED_P (ELisp_Handle sym)
 INLINE bool
 SYMBOL_INTERNED_IN_INITIAL_OBARRAY_P (ELisp_Handle sym)
 {
-  return XSYMBOL (sym)->interned == SYMBOL_INTERNED_IN_INITIAL_OBARRAY;
+  return XSYMBOL (sym)->flags.s.interned == SYMBOL_INTERNED_IN_INITIAL_OBARRAY;
 }
 
 /* Value is non-zero if symbol cannot be changed through a simple set,
@@ -3079,8 +3086,7 @@ struct Lisp_Misc_Any		/* Supertype of all Misc types.  */
 {
   JS::Heap<JS::Value> jsval;
   ENUM_BF (Lisp_Misc_Type) type : 16;		/* = Lisp_Misc_??? */
-  bool_bf gcmarkbit : 1;
-  unsigned spacer : 15;
+  unsigned spacer : 16;
 };
 
 INLINE bool
@@ -3105,8 +3111,7 @@ XMISCTYPE (ELisp_Handle a)
 struct Lisp_Misc_Ptr
 {
     ENUM_BF (Lisp_Misc_Type) type : 16;	/* = Lisp_Misc_Ptr */
-    bool_bf gcmarkbit : 1;
-    unsigned spacer : 15;
+    unsigned spacer : 16;
     void *pointer;
 };
 
@@ -3129,8 +3134,7 @@ struct Lisp_Marker
 {
   JS::Heap<JS::Value> jsval;
   ENUM_BF (Lisp_Misc_Type) type : 16;		/* = Lisp_Misc_Marker */
-  bool_bf gcmarkbit : 1;
-  unsigned spacer : 13;
+  unsigned spacer : 14;
   /* This flag is temporarily used in the functions
      decode/encode_coding_object to record that the marker position
      must be adjusted after the conversion.  */
@@ -3184,8 +3188,7 @@ struct Lisp_Overlay
   {
     JS::Heap<JS::Value> jsval;
     ENUM_BF (Lisp_Misc_Type) type : 16;	/* = Lisp_Misc_Overlay */
-    bool_bf gcmarkbit : 1;
-    unsigned spacer : 15;
+    unsigned spacer : 16;
     struct Lisp_Overlay *next;
     ELisp_Struct_Value start;
     ELisp_Struct_Value end;
@@ -3266,8 +3269,7 @@ struct Lisp_Save_Value
   {
     JS::Heap<JS::Value> jsval;
     ENUM_BF (Lisp_Misc_Type) type : 16;	/* = Lisp_Misc_Save_Value */
-    bool_bf gcmarkbit : 1;
-    unsigned spacer : 32 - (16 + 1 + SAVE_TYPE_BITS);
+    unsigned spacer : 32 - (16 + SAVE_TYPE_BITS);
 
     /* V->data may hold up to SAVE_VALUE_SLOTS entries.  The type of
        V's data entries are determined by V->save_type.  E.g., if
@@ -3375,8 +3377,7 @@ struct Lisp_User_Ptr
 {
   JS::Heap<JS::Value> jsval;
   ENUM_BF (Lisp_Misc_Type) type : 16;	     /* = Lisp_Misc_User_Ptr */
-  bool_bf gcmarkbit : 1;
-  unsigned spacer : 15;
+  unsigned spacer : 16;
 
   void (*finalizer) (void *);
   void *p;
@@ -3416,8 +3417,7 @@ struct Lisp_Free
   {
     JS::Heap<JS::Value> jsval;
     ENUM_BF (Lisp_Misc_Type) type : 16;	/* = Lisp_Misc_Free */
-    bool_bf gcmarkbit : 1;
-    unsigned spacer : 15;
+    unsigned spacer : 16;
     union Lisp_Misc *chain;
   };
 
@@ -4252,7 +4252,7 @@ set_symbol_name (ELisp_Handle sym, ELisp_Handle plist)
 INLINE void
 make_symbol_constant (ELisp_Handle sym)
 {
-  XSYMBOL (sym)->trapped_write = SYMBOL_NOWRITE;
+  XSYMBOL (sym)->flags.s.trapped_write = SYMBOL_NOWRITE;
 }
 
 /* Buffer-local variable access functions.  */

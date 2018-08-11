@@ -1002,7 +1002,7 @@ reset_buffer_local_variables (struct buffer *b, bool permanent_too)
           Lisp_Object sym = local_var;
 
           /* Watchers are run *before* modifying the var.  */
-          if (XSYMBOL (local_var)->trapped_write == SYMBOL_TRAPPED_WRITE)
+          if (XSYMBOL (local_var)->flags.s.trapped_write == SYMBOL_TRAPPED_WRITE)
             notify_variable_watchers (local_var, Qnil,
                                       Qmakunbound, Fcurrent_buffer ());
 
@@ -1041,7 +1041,7 @@ reset_buffer_local_variables (struct buffer *b, bool permanent_too)
                           newlist = Fcons (elt, newlist);
                       }
                   newlist = Fnreverse (newlist);
-                  if (XSYMBOL (local_var)->trapped_write == SYMBOL_TRAPPED_WRITE)
+                  if (XSYMBOL (local_var)->flags.s.trapped_write == SYMBOL_TRAPPED_WRITE)
                     notify_variable_watchers (local_var, newlist,
                                               Qmakunbound, Fcurrent_buffer ());
                   XSETCDR (XCAR (tmp), newlist);
@@ -5438,7 +5438,7 @@ defvar_per_buffer (struct Lisp_Buffer_Objfwd *bo_fwd, const char *namestring,
   bo_fwd->type = Lisp_Fwd_Buffer_Obj;
   bo_fwd->offset = offset;
   bo_fwd->predicate = predicate;
-  sym->declared_special = 1;
+  sym->flags.s.declared_special = 1;
   SET_SYMBOL_REDIRECT (symbol, SYMBOL_FORWARDED);
   SET_SYMBOL_FWD (symbol, (union Lisp_Fwd *) bo_fwd);
   XSETSYMBOL (PER_BUFFER_SYMBOL (offset), sym);

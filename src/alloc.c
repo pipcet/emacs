@@ -1419,27 +1419,6 @@ make_interval (void)
   return val;
 }
 
-
-/* Mark Lisp objects in interval I.  */
-
-static void
-mark_interval (INTERVAL i, void *dummy)
-{
-  /* Intervals should never be shared.  So, if extra internal checking is
-     enabled, GC aborts if it seems to have visited an interval twice.  */
-  eassert (!i->gcmarkbit);
-  i->gcmarkbit = 1;
-  mark_object (i->plist);
-}
-
-/* Mark the interval tree rooted in I.  */
-
-#define MARK_INTERVAL_TREE(i)					\
-  do {								\
-    if (i && !i->gcmarkbit)					\
-      traverse_intervals_noorder (i, mark_interval, NULL);	\
-  } while (0)
-
 static void
 init_strings (void)
 {
@@ -2299,11 +2278,10 @@ init_symbol (Lisp_Object val, Lisp_Object name)
   SET_SYMBOL_REDIRECT (val, SYMBOL_PLAINVAL);
   elisp_symbol_set_value (val, LRH (Qunbound));
   set_symbol_function (val, Qnil);
-  p->gcmarkbit = false;
-  p->interned = SYMBOL_UNINTERNED;
-  p->trapped_write = SYMBOL_UNTRAPPED_WRITE;
-  p->declared_special = false;
-  p->pinned = false;
+  p->flags.s.interned = SYMBOL_UNINTERNED;
+  p->flags.s.trapped_write = SYMBOL_UNTRAPPED_WRITE;
+  p->flags.s.declared_special = false;
+  p->flags.s.pinned = false;
 }
 
 DEFUN ("make-symbol", Fmake_symbol, Smake_symbol, 1, 1, 0,
@@ -2578,7 +2556,6 @@ mark_finalizer_list (struct Lisp_Finalizer *head)
        finalizer != head;
        finalizer = finalizer->next)
     {
-      finalizer->base.gcmarkbit = true;
       mark_object (finalizer->function);
     }
 }
@@ -2595,11 +2572,6 @@ queue_doomed_finalizers (struct Lisp_Finalizer *dest,
   while (finalizer != src)
     {
       struct Lisp_Finalizer *next = finalizer->next;
-      if (!finalizer->base.gcmarkbit && !NILP (finalizer->function))
-        {
-          unchain_finalizer (finalizer);
-          finalizer_insert (dest, finalizer);
-        }
 
       finalizer = next;
     }
@@ -3887,8 +3859,7 @@ compact_undo_list (Lisp_Object list)
   for (tail = list; CONSP (tail); tail = XCDR (tail))
     {
       if (CONSP (XCAR (tail))
-	  && MARKERP (XCAR (XCAR (tail)))
-	  && !XMARKER (XCAR (XCAR (tail)))->gcmarkbit)
+	  && MARKERP (XCAR (XCAR (tail))))
 	*prev = XCDR (tail);
       else
 	prev = & XCDR (tail);
@@ -3985,105 +3956,6 @@ mark_vectorlike (struct Lisp_Vector *ptr)
     mark_object (ptr->contents[i]);
 }
 
-/* Like mark_vectorlike but optimized for char-tables (and
-   sub-char-tables) assuming that the contents are mostly integers or
-   symbols.  */
-
-static void
-mark_char_table (struct Lisp_Vector *ptr, enum pvec_type pvectype)
-{
-  int size = ptr->header.size & PSEUDOVECTOR_SIZE_MASK;
-  /* Consult the Lisp_Sub_Char_Table layout before changing this.  */
-  int i, idx = (pvectype == PVEC_SUB_CHAR_TABLE ? SUB_CHAR_TABLE_OFFSET : 0);
-
-  eassert (!VECTOR_MARKED_P (ptr));
-  VECTOR_MARK (ptr);
-  for (i = idx; i < size; i++)
-    {
-      Lisp_Object val = ptr->contents[i];
-
-      if (INTEGERP (val) || (SYMBOLP (val) && XSYMBOL (val)->gcmarkbit))
-	continue;
-      if (SUB_CHAR_TABLE_P (val))
-	{
-	  if (! VECTOR_MARKED_P (XVECTOR (val)))
-	    mark_char_table (XVECTOR (val), PVEC_SUB_CHAR_TABLE);
-	}
-      else
-	mark_object (val);
-    }
-}
-
-NO_INLINE /* To reduce stack depth in mark_object.  */
-static ELisp_Return_Value
-mark_compiled (struct Lisp_Vector *ptr)
-{
-}
-
-/* Mark the chain of overlays starting at PTR.  */
-
-static void
-mark_overlay (struct Lisp_Overlay *ptr)
-{
-  for (; ptr && !ptr->gcmarkbit; ptr = ptr->next)
-    {
-      ptr->gcmarkbit = 1;
-      /* These two are always markers and can be marked fast.  */
-      XMARKER (ptr->start)->gcmarkbit = 1;
-      XMARKER (ptr->end)->gcmarkbit = 1;
-      mark_object (ptr->plist);
-    }
-}
-
-/* Mark Lisp_Objects and special pointers in BUFFER.  */
-
-static void
-mark_buffer (struct buffer *buffer)
-{
-  /* This is handled much like other pseudovectors...  */
-  mark_vectorlike ((struct Lisp_Vector *) buffer);
-
-  /* ...but there are some buffer-specific things.  */
-
-  MARK_INTERVAL_TREE (buffer_intervals (buffer));
-
-  /* For now, we just don't mark the undo_list.  It's done later in
-     a special way just before the sweep phase, and after stripping
-     some of its elements that are not needed any more.  */
-
-  mark_overlay (buffer->overlays_before);
-  mark_overlay (buffer->overlays_after);
-
-  /* If this is an indirect buffer, mark its base buffer.  */
-  if (buffer->base_buffer && !VECTOR_MARKED_P (buffer->base_buffer))
-    mark_buffer (buffer->base_buffer);
-}
-
-/* Mark Lisp faces in the face cache C.  */
-
-NO_INLINE /* To reduce stack depth in mark_object.  */
-static void
-mark_face_cache (struct face_cache *c)
-{
-  if (c)
-    {
-      int i, j;
-      for (i = 0; i < c->used; ++i)
-	{
-	  struct face *face = FACE_FROM_ID_OR_NULL (c->f, i);
-
-	  if (face)
-	    {
-	      if (face->font && !VECTOR_MARKED_P (face->font))
-		mark_vectorlike ((struct Lisp_Vector *) face->font);
-
-	      for (j = 0; j < LFACE_VECTOR_SIZE; ++j)
-		mark_object (face->lface[j]);
-	    }
-	}
-    }
-}
-
 /* Determine type of generic Lisp_Object and mark it accordingly.
 
    This function implements a straightforward depth-first marking
@@ -4133,14 +4005,6 @@ survives_gc_p (Lisp_Object obj)
       survives_p = 1;
       break;
 
-    case Lisp_Symbol:
-      survives_p = XSYMBOL (obj)->gcmarkbit;
-      break;
-
-    case Lisp_Misc:
-      survives_p = XMISCANY (obj)->gcmarkbit;
-      break;
-
     case Lisp_Vectorlike:
       survives_p = SUBRP (obj) || VECTOR_MARKED_P (XVECTOR (obj));
       break;
@@ -4156,57 +4020,6 @@ survives_gc_p (Lisp_Object obj)
   return survives_p;
 }
 
-
-NO_INLINE /* For better stack traces */
-static void
-sweep_intervals (void)
-{
-  register struct interval_block *iblk;
-  struct interval_block **iprev = &interval_block;
-  register int lim = interval_block_index;
-  EMACS_INT num_free = 0, num_used = 0;
-
-  interval_free_list = 0;
-
-  for (iblk = interval_block; iblk; iblk = *iprev)
-    {
-      register int i;
-      int this_free = 0;
-
-      for (i = 0; i < lim; i++)
-        {
-          if (!iblk->intervals[i].gcmarkbit)
-            {
-              set_interval_parent (&iblk->intervals[i], interval_free_list);
-              interval_free_list = &iblk->intervals[i];
-              this_free++;
-            }
-          else
-            {
-              num_used++;
-              iblk->intervals[i].gcmarkbit = 0;
-            }
-        }
-      lim = INTERVAL_BLOCK_SIZE;
-      /* If this block contains only free intervals and we have already
-         seen more than two blocks worth of free intervals then
-         deallocate this block.  */
-      if (this_free == INTERVAL_BLOCK_SIZE && num_free > INTERVAL_BLOCK_SIZE)
-        {
-          *iprev = iblk->next;
-          /* Unhook from the free list.  */
-          interval_free_list = INTERVAL_PARENT (&iblk->intervals[0]);
-          lisp_free (iblk);
-        }
-      else
-        {
-          num_free += this_free;
-          iprev = &iblk->next;
-        }
-    }
-  total_intervals = num_used;
-  total_free_intervals = num_free;
-}
 
 DEFUN ("memory-info", Fmemory_info, Smemory_info, 0, 0, 0,
        doc: /* Return a list of (TOTAL-RAM FREE-RAM TOTAL-SWAP FREE-SWAP).

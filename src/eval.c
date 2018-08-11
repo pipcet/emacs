@@ -698,14 +698,14 @@ The return value is BASE-VARIABLE.  */)
 	error ("Don't know how to make a let-bound variable an alias");
   }
 
-  if (sym->trapped_write == SYMBOL_TRAPPED_WRITE)
+  if (sym->flags.s.trapped_write == SYMBOL_TRAPPED_WRITE)
     notify_variable_watchers (new_alias, base_variable, Qdefvaralias, Qnil);
 
-  sym->declared_special = 1;
-  XSYMBOL (base_variable)->declared_special = 1;
+  sym->flags.s.declared_special = 1;
+  XSYMBOL (base_variable)->flags.s.declared_special = 1;
   SET_SYMBOL_REDIRECT (new_alias, SYMBOL_VARALIAS);
   SET_SYMBOL_ALIAS (new_alias, base_variable);
-  sym->trapped_write = XSYMBOL (base_variable)->trapped_write;
+  sym->flags.s.trapped_write = XSYMBOL (base_variable)->flags.s.trapped_write;
   LOADHIST_ATTACH (new_alias);
   /* Even if docstring is nil: remove old docstring.  */
   Fput (new_alias, Qvariable_documentation, docstring);
@@ -815,7 +815,7 @@ usage: (defvar SYMBOL &optional INITVALUE DOCSTRING)  */)
       tem = Fdefault_boundp (sym);
 
       /* Do it before evaluating the initial value, for self-references.  */
-      XSYMBOL (sym)->declared_special = 1;
+      XSYMBOL (sym)->flags.s.declared_special = 1;
 
       if (NILP (tem))
 	Fset_default (sym, eval_sub (XCAR (tail)));
@@ -839,7 +839,7 @@ usage: (defvar SYMBOL &optional INITVALUE DOCSTRING)  */)
       LOADHIST_ATTACH (sym);
     }
   else if (!NILP (Vinternal_interpreter_environment)
-	   && !XSYMBOL (sym)->declared_special)
+	   && !XSYMBOL (sym)->flags.s.declared_special)
     /* A simple (defvar foo) with lexical scoping does "nothing" except
        declare that var to be dynamically scoped *locally* (i.e. within
        the current file or let-block).  */
@@ -888,7 +888,7 @@ usage: (defconst SYMBOL INITVALUE [DOCSTRING])  */)
   if (!NILP (Vpurify_flag))
     tem = Fpurecopy (tem);
   Fset_default (sym, tem);
-  XSYMBOL (sym)->declared_special = 1;
+  XSYMBOL (sym)->flags.s.declared_special = 1;
   if (!NILP (docstring))
     {
       if (!NILP (Vpurify_flag))
@@ -907,7 +907,7 @@ DEFUN ("internal-make-var-non-special", Fmake_var_non_special,
      (Lisp_Object symbol)
 {
   CHECK_SYMBOL (symbol);
-  XSYMBOL (symbol)->declared_special = 0;
+  XSYMBOL (symbol)->flags.s.declared_special = 0;
   return Qnil;
 }
 
@@ -947,7 +947,7 @@ usage: (let* VARLIST BODY...)  */)
 	}
 
       if (!NILP (lexenv) && SYMBOLP (var)
-	  && !XSYMBOL (var)->declared_special
+	  && !XSYMBOL (var)->flags.s.declared_special
 	  && NILP (Fmemq (var, Vinternal_interpreter_environment)))
 	/* Lexically bind VAR by adding it to the interpreter's binding
 	   alist.  */
@@ -1023,7 +1023,7 @@ usage: (let VARLIST BODY...)  */)
       tem = temps[argnum];
 
       if (!NILP (lexenv) && SYMBOLP (var)
-	  && !XSYMBOL (var)->declared_special
+	  && !XSYMBOL (var)->flags.s.declared_special
 	  && NILP (Fmemq (var, Vinternal_interpreter_environment)))
         {
           tem = Fcons (var, tem);
@@ -3495,7 +3495,7 @@ do_specbind (Lisp_Object symval, struct specbinding *bind,
   switch (SYMBOL_REDIRECT (symval))
     {
     case SYMBOL_PLAINVAL:
-      if (!sym->trapped_write)
+      if (!sym->flags.s.trapped_write)
 	elisp_symbol_set_value (symval, value);
       else
         set_internal (specpdl_symbol (bind), value, Qnil, bindflag);
@@ -3709,7 +3709,7 @@ do_one_unbind (struct specbinding_stack *this_binding, bool unwinding,
 	Lisp_Object sym = specpdl_stack_symbol (this_binding);
 	if (SYMBOLP (sym) && SYMBOL_REDIRECT (sym) == SYMBOL_PLAINVAL)
 	  {
-	    if (XSYMBOL (sym)->trapped_write == SYMBOL_UNTRAPPED_WRITE)
+	    if (XSYMBOL (sym)->flags.s.trapped_write == SYMBOL_UNTRAPPED_WRITE)
 	      elisp_symbol_set_value (sym, LRH (specpdl_stack_old_value (this_binding)));
 	    else
 	      set_internal (sym, LRH (specpdl_stack_old_value (this_binding)),
@@ -3860,7 +3860,7 @@ context where binding is lexical by default.  */)
   (Lisp_Object symbol)
 {
    CHECK_SYMBOL (symbol);
-   return XSYMBOL (symbol)->declared_special ? Qt : Qnil;
+   return XSYMBOL (symbol)->flags.s.declared_special ? Qt : Qnil;
 }
 
 

@@ -1298,7 +1298,7 @@ set_internal (Lisp_Object symbol, Lisp_Object newval, Lisp_Object where,
       return; */
 
   CHECK_SYMBOL (symbol);
-  switch (XSYMBOL (symbol)->trapped_write)
+  switch (XSYMBOL (symbol)->flags.s.trapped_write)
     {
     case SYMBOL_NOWRITE:
       if (NILP (Fkeywordp (symbol))
@@ -1438,9 +1438,9 @@ set_internal (Lisp_Object symbol, Lisp_Object newval, Lisp_Object where,
 static void
 set_symbol_trapped_write (Lisp_Object symbol, enum symbol_trapped_write trap)
 {
-  if (XSYMBOL (symbol)->trapped_write == SYMBOL_NOWRITE)
+  if (XSYMBOL (symbol)->flags.s.trapped_write == SYMBOL_NOWRITE)
     xsignal1 (Qtrapping_constant, symbol);
-  XSYMBOL (symbol)->trapped_write = trap;
+  XSYMBOL (symbol)->flags.s.trapped_write = trap;
 }
 
 static void
@@ -1455,7 +1455,7 @@ harmonize_variable_watchers (Lisp_Object alias, Lisp_Object base_variable)
   if (!EQ (base_variable, alias)
       && EQ (base_variable, Findirect_variable (alias)))
     set_symbol_trapped_write
-      (alias, XSYMBOL (base_variable)->trapped_write);
+      (alias, XSYMBOL (base_variable)->flags.s.trapped_write);
 }
 
 DEFUN ("add-variable-watcher", Fadd_variable_watcher, Sadd_variable_watcher,
@@ -1634,7 +1634,7 @@ set_default_internal (Lisp_Object symbol, Lisp_Object value,
                       enum Set_Internal_Bind bindflag)
 {
   CHECK_SYMBOL (symbol);
-  switch (XSYMBOL (symbol)->trapped_write)
+  switch (XSYMBOL (symbol)->flags.s.trapped_write)
     {
     case SYMBOL_NOWRITE:
       if (NILP (Fkeywordp (symbol))
@@ -1900,7 +1900,7 @@ Instead, use `add-hook' and specify t for the LOCAL argument.  */)
     default: emacs_abort ();
     }
 
-  if (XSYMBOL (variable)->trapped_write == SYMBOL_NOWRITE)
+  if (XSYMBOL (variable)->flags.s.trapped_write == SYMBOL_NOWRITE)
     xsignal1 (Qsetting_constant, variable);
 
   if (blv ? blv->local_if_set
@@ -1984,7 +1984,7 @@ From now on the default value will apply in this buffer.  Return VARIABLE.  */)
     default: emacs_abort ();
     }
 
-  if (XSYMBOL (variable)->trapped_write == SYMBOL_TRAPPED_WRITE)
+  if (XSYMBOL (variable)->flags.s.trapped_write == SYMBOL_TRAPPED_WRITE)
     notify_variable_watchers (variable, Qnil, Qmakunbound, Fcurrent_buffer ());
 
   /* Get rid of this buffer's alist element, if any.  */

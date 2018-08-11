@@ -2099,11 +2099,11 @@ elisp_symbol_trace(JSTracer *trc, JSObject *obj)
   if (!s) return;
 
   TraceEdge(trc, &s->jsval, "jsval");
-  if (s->redirect == SYMBOL_PLAINVAL)
+  if (s->flags.s.redirect == SYMBOL_PLAINVAL)
     ;
-  else if (s->redirect == SYMBOL_VARALIAS)
+  else if (s->flags.s.redirect == SYMBOL_VARALIAS)
     TraceEdge(trc, &s->val.alias.v.v, "alias");
-  else if (s->redirect == SYMBOL_LOCALIZED)
+  else if (s->flags.s.redirect == SYMBOL_LOCALIZED)
     {
       struct Lisp_Buffer_Local_Value *blv = s->val.blv;
 
@@ -2111,7 +2111,7 @@ elisp_symbol_trace(JSTracer *trc, JSObject *obj)
       TraceEdge(trc, &blv->defcell.v.v, "defcell");
       TraceEdge(trc, &blv->valcell.v.v, "valcell");
     }
-  else if (s->redirect == SYMBOL_FORWARDED)
+  else if (s->flags.s.redirect == SYMBOL_FORWARDED)
     {
       union Lisp_Fwd *fwd = s->val.fwd;
 
