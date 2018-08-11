@@ -2150,7 +2150,7 @@ static JSClassOps elisp_symbol_ops =
 
 JSClass elisp_symbol_class =
   {
-   "ELisp_Symbol", JSCLASS_HAS_PRIVATE|JSCLASS_HAS_RESERVED_SLOTS(5)|JSCLASS_FOREGROUND_FINALIZE,
+   "ELisp_Symbol", JSCLASS_HAS_PRIVATE|JSCLASS_HAS_RESERVED_SLOTS(6)|JSCLASS_FOREGROUND_FINALIZE,
    &elisp_symbol_ops,
   };
 
@@ -2239,6 +2239,112 @@ elisp_symbol_set_next(ELisp_Handle symbol, ELisp_Handle plist)
   JSContext *cx = jsg.cx;
   JS::RootedObject obj(cx, &symbol.toObject());
   JS_SetReservedSlot(obj, 4, plist);
+}
+
+int
+elisp_symbol_trapped_write_value(ELisp_Handle symbol)
+{
+  JSContext *cx = jsg.cx;
+  JS::RootedObject obj(cx, &symbol.toObject());
+  union Lisp_Symbol_Flags flags;
+  flags.i = JS_GetReservedSlot(obj, 5).toInt32();
+  return flags.s.trapped_write;
+}
+
+enum symbol_redirect
+elisp_symbol_redirect(ELisp_Handle symbol)
+{
+  JSContext *cx = jsg.cx;
+  JS::RootedObject obj(cx, &symbol.toObject());
+  union Lisp_Symbol_Flags flags;
+  flags.i = JS_GetReservedSlot(obj, 5).toInt32();
+  return flags.s.redirect;
+}
+
+void
+elisp_symbol_set_declared_special (ELisp_Handle symbol, bool declared_special)
+{
+  JSContext *cx = jsg.cx;
+  JS::RootedObject obj(cx, &symbol.toObject());
+  union Lisp_Symbol_Flags flags;
+  flags.i = JS_GetReservedSlot(obj, 5).toInt32();
+  flags.s.declared_special = declared_special;
+  ELisp_Value v; v.v.v = JS::Int32Value(flags.i);
+  JS_SetReservedSlot(obj, 5, v);
+}
+
+bool
+elisp_symbol_declared_special_p(ELisp_Handle symbol)
+{
+  JSContext *cx = jsg.cx;
+  JS::RootedObject obj(cx, &symbol.toObject());
+  union Lisp_Symbol_Flags flags;
+  flags.i = JS_GetReservedSlot(obj, 5).toInt32();
+  return flags.s.declared_special;
+}
+
+void
+elisp_symbol_set_trapped_write(ELisp_Handle symbol, enum symbol_trapped_write trapped_write)
+{
+  JSContext *cx = jsg.cx;
+  JS::RootedObject obj(cx, &symbol.toObject());
+  union Lisp_Symbol_Flags flags;
+  flags.i = JS_GetReservedSlot(obj, 5).toInt32();
+  flags.s.trapped_write = trapped_write;
+  ELisp_Value v; v.v.v = JS::Int32Value(flags.i);
+  JS_SetReservedSlot(obj, 5, v);
+}
+
+void
+elisp_symbol_set_pinned(ELisp_Handle symbol, bool pinned)
+{
+  JSContext *cx = jsg.cx;
+  JS::RootedObject obj(cx, &symbol.toObject());
+  union Lisp_Symbol_Flags flags;
+  flags.i = JS_GetReservedSlot(obj, 5).toInt32();
+  flags.s.pinned = pinned;
+  ELisp_Value v; v.v.v = JS::Int32Value(flags.i);
+  JS_SetReservedSlot(obj, 5, v);
+}
+
+void
+elisp_symbol_make_constant(ELisp_Handle symbol)
+{
+  elisp_symbol_set_trapped_write(symbol, SYMBOL_NOWRITE);
+}
+
+unsigned
+elisp_symbol_interned(ELisp_Handle symbol)
+{
+  JSContext *cx = jsg.cx;
+  JS::RootedObject obj(cx, &symbol.toObject());
+  union Lisp_Symbol_Flags flags;
+  flags.i = JS_GetReservedSlot(obj, 5).toInt32();
+  return flags.s.interned;
+}
+
+void
+elisp_symbol_set_interned(ELisp_Handle symbol, unsigned interned)
+{
+  JSContext *cx = jsg.cx;
+  JS::RootedObject obj(cx, &symbol.toObject());
+  union Lisp_Symbol_Flags flags;
+  flags.i = JS_GetReservedSlot(obj, 5).toInt32();
+  flags.s.interned = interned;
+  ELisp_Value v; v.v.v = JS::Int32Value(flags.i);
+  JS_SetReservedSlot(obj, 5, v);
+}
+
+void
+elisp_symbol_set_redirect(ELisp_Handle symbol, enum symbol_redirect x)
+{
+  JSContext *cx = jsg.cx;
+  JS::RootedObject obj(cx, &symbol.toObject());
+  union Lisp_Symbol_Flags flags;
+  flags.i = JS_GetReservedSlot(obj, 5).toInt32();
+  flags.s.redirect = x;
+  ELisp_Value v; v.v.v = JS::Int32Value(flags.i);
+  JS_SetReservedSlot(obj, 5, v);
 }
 
 static JSClassOps elisp_marker_ops =

@@ -3466,7 +3466,7 @@ DEFUN ("fetch-bytecode", Ffetch_bytecode, Sfetch_bytecode,
    which was made in the buffer that is now current.  */
 
 bool
-let_shadows_buffer_binding_p (struct Lisp_Symbol *symbol)
+let_shadows_buffer_binding_p (Lisp_Object symbol)
 {
   struct specbinding *p;
   Lisp_Object buf = Fcurrent_buffer ();
@@ -3476,8 +3476,7 @@ let_shadows_buffer_binding_p (struct Lisp_Symbol *symbol)
       {
         Lisp_Object let_bound_sym = specpdl_symbol (p);
 	eassert (SYMBOL_REDIRECT (let_bound_sym) != SYMBOL_VARALIAS);
-	if (symbol == XSYMBOL (let_bound_sym)
-	    && EQ (specpdl_where (p), buf))
+	if (EQ (symbol, let_bound_sym) && EQ (specpdl_where (p), buf))
 	  return 1;
       }
 

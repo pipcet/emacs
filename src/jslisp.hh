@@ -398,8 +398,8 @@ DEFINE_GDB_SYMBOL_END (VALMASK)
 #define lisp_h_NILP(x) EQ (x, Qnil)
 #define lisp_h_SET_SYMBOL_VAL(sym, v) \
   (elisp_symbol_set_value (sym, v))
-#define lisp_h_SYMBOL_CONSTANT_P(sym) (XSYMBOL (sym)->flags.s.trapped_write == SYMBOL_NOWRITE)
-#define lisp_h_SYMBOL_TRAPPED_WRITE_P(sym) (XSYMBOL (sym)->flags.s.trapped_write)
+#define lisp_h_SYMBOL_CONSTANT_P(sym) (elisp_symbol_trapped_write_value(sym) == SYMBOL_NOWRITE)
+#define lisp_h_SYMBOL_TRAPPED_WRITE_P(sym) (elisp_symbol_trapped_write_value (sym))
 #define lisp_h_SYMBOL_VAL(sym) \
    (elisp_symbol_value (sym))
 #define lisp_h_SYMBOLP(x) (XTYPE (x) == Lisp_Symbol)
@@ -2831,10 +2831,13 @@ SYMBOL_ALIAS (ELisp_Handle sym)
   return XSYMBOL (sym)->val.alias;
 }
 
+extern enum symbol_redirect
+elisp_symbol_redirect (ELisp_Handle);
+
 INLINE enum symbol_redirect
 SYMBOL_REDIRECT (ELisp_Handle sym)
 {
-  return XSYMBOL (sym)->flags.s.redirect;
+  return elisp_symbol_redirect (sym);
 }
 
 INLINE struct Lisp_Buffer_Local_Value *
@@ -2848,10 +2851,13 @@ SYMBOL_FWD (ELisp_Handle sym)
   return XSYMBOL (sym)->val.fwd;
 }
 
+extern void
+elisp_symbol_set_redirect(ELisp_Handle, enum symbol_redirect);
+
 INLINE void
 SET_SYMBOL_REDIRECT (ELisp_Handle sym, enum symbol_redirect x)
 {
-  XSYMBOL (sym)->flags.s.redirect = x;
+  elisp_symbol_set_redirect(sym, x);
 }
 
 INLINE void
@@ -2876,12 +2882,13 @@ SYMBOL_NAME (ELisp_Handle sym)
   return XSYMBOL_NAME (sym);
 }
 
+extern unsigned elisp_symbol_interned(ELisp_Handle);
 /* Value is true if SYM is an interned symbol.  */
 
 INLINE bool
 SYMBOL_INTERNED_P (ELisp_Handle sym)
 {
-  return XSYMBOL (sym)->flags.s.interned != SYMBOL_UNINTERNED;
+  return elisp_symbol_interned(sym) != SYMBOL_UNINTERNED;
 }
 
 /* Value is true if SYM is interned in initial_obarray.  */
@@ -2889,38 +2896,55 @@ SYMBOL_INTERNED_P (ELisp_Handle sym)
 INLINE bool
 SYMBOL_INTERNED_IN_INITIAL_OBARRAY_P (ELisp_Handle sym)
 {
-  return XSYMBOL (sym)->flags.s.interned == SYMBOL_INTERNED_IN_INITIAL_OBARRAY;
+  return elisp_symbol_interned(sym) == SYMBOL_INTERNED_IN_INITIAL_OBARRAY;
 }
+
+extern void
+elisp_symbol_set_interned(ELisp_Handle, unsigned);
 
 INLINE void
 SET_SYMBOL_INTERNED (ELisp_Handle sym, unsigned interned)
 {
-  XSYMBOL (sym)->flags.s.interned = interned;
+  elisp_symbol_set_interned(sym, interned);
 }
+
+extern void
+elisp_symbol_set_trapped_write(ELisp_Handle sym, enum symbol_trapped_write);
 
 INLINE void
 SET_SYMBOL_TRAPPED_WRITE (ELisp_Handle sym, enum symbol_trapped_write trapped_write)
 {
-  XSYMBOL (sym)->flags.s.trapped_write = trapped_write;
+  elisp_symbol_set_trapped_write(sym, trapped_write);
 }
+
+extern bool elisp_symbol_declared_special_p(ELisp_Handle);
 
 INLINE bool
 SYMBOL_DECLARED_SPECIAL_P (ELisp_Handle sym)
 {
-  return XSYMBOL (sym)->flags.s.declared_special;
+  return elisp_symbol_declared_special_p (sym);
 }
+
+extern void
+elisp_symbol_set_declared_special(ELisp_Handle, bool);
 
 INLINE void
 SET_SYMBOL_DECLARED_SPECIAL (ELisp_Handle sym, bool declared_special)
 {
-  XSYMBOL (sym)->flags.s.declared_special = declared_special;
+  elisp_symbol_set_declared_special(sym, declared_special);
 }
+
+extern void
+elisp_symbol_set_pinned(ELisp_Handle, bool);
 
 INLINE void
 SET_SYMBOL_PINNED (ELisp_Handle sym, bool pinned)
 {
-  XSYMBOL (sym)->flags.s.pinned = pinned;
+  elisp_symbol_set_pinned(sym, pinned);
 }
+
+extern int
+elisp_symbol_trapped_write_value(ELisp_Handle symbol);
 
 /* Value is non-zero if symbol cannot be changed through a simple set,
    i.e. it's a constant (e.g. nil, t, :keywords), or it has some
@@ -2935,7 +2959,7 @@ INLINE int
 INLINE int
 (SYMBOL_TRAPPED_WRITE_VALUE) (ELisp_Handle sym)
 {
-  return XSYMBOL (sym)->flags.s.trapped_write;
+  return elisp_symbol_trapped_write_value(sym);
 }
 
 /* Value is non-zero if symbol cannot be changed at all, i.e. it's a
@@ -4285,10 +4309,13 @@ set_symbol_name (ELisp_Handle sym, ELisp_Handle plist)
   elisp_symbol_set_name (sym, plist);
 }
 
+extern void
+elisp_symbol_make_constant (ELisp_Handle);
+
 INLINE void
 make_symbol_constant (ELisp_Handle sym)
 {
-  XSYMBOL (sym)->flags.s.trapped_write = SYMBOL_NOWRITE;
+  elisp_symbol_make_constant (sym);
 }
 
 /* Buffer-local variable access functions.  */
@@ -4979,7 +5006,7 @@ extern ptrdiff_t record_in_backtrace (ELisp_Handle, ELisp_Pointer, ptrdiff_t);
 extern void mark_specpdl (struct specbinding *first, struct specbinding *ptr);
 extern void get_backtrace (ELisp_Handle array);
 ELisp_Return_Value backtrace_top_function (void);
-extern bool let_shadows_buffer_binding_p (struct Lisp_Symbol *symbol);
+extern bool let_shadows_buffer_binding_p (ELisp_Handle symbol);
 
 /* Defined in unexmacosx.c.  */
 #if defined DARWIN_OS && !defined CANNOT_DUMP

@@ -1366,7 +1366,7 @@ set_internal (Lisp_Object symbol, Lisp_Object newval, Lisp_Object where,
 		   Likewise if the variable has been let-bound
 		   in the current buffer.  */
 		if (bindflag || !blv->local_if_set
-		    || let_shadows_buffer_binding_p (XSYMBOL (symbol)))
+		    || let_shadows_buffer_binding_p (symbol))
 		  {
 		    blv->found = false;
 		    tem1 = blv->defcell;
@@ -1416,7 +1416,7 @@ set_internal (Lisp_Object symbol, Lisp_Object newval, Lisp_Object where,
 	    int idx = PER_BUFFER_IDX (offset);
 	    if (idx > 0
                 && bindflag == SET_INTERNAL_SET
-		&& !let_shadows_buffer_binding_p (XSYMBOL (symbol)))
+		&& !let_shadows_buffer_binding_p (symbol))
 	      SET_PER_BUFFER_VALUE_P (buf, idx, 1);
 	  }
 
@@ -1924,7 +1924,7 @@ Instead, use `add-hook' and specify t for the LOCAL argument.  */)
   tem = Fassq (variable, BVAR (current_buffer, local_var_alist));
   if (NILP (tem))
     {
-      if (let_shadows_buffer_binding_p (XSYMBOL (variable)))
+      if (let_shadows_buffer_binding_p (variable))
 	{
 	  AUTO_STRING (format,
 		       "Making %s buffer-local while locally let-bound!");
