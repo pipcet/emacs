@@ -2102,7 +2102,7 @@ elisp_symbol_trace(JSTracer *trc, JSObject *obj)
   if (s->redirect == SYMBOL_PLAINVAL)
     ;
   else if (s->redirect == SYMBOL_VARALIAS)
-    TraceEdge(trc, &s->val.alias->jsval, "alias");
+    TraceEdge(trc, &s->val.alias.v.v, "alias");
   else if (s->redirect == SYMBOL_LOCALIZED)
     {
       struct Lisp_Buffer_Local_Value *blv = s->val.blv;

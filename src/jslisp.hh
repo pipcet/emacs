@@ -1595,7 +1595,7 @@ struct Lisp_Symbol
   /* Value of the symbol or Qunbound if unbound.  Which alternative of the
      union is used depends on the `redirect' field above.  */
   struct {
-    struct Lisp_Symbol *alias;
+    ELisp_Struct_Value alias;
     struct Lisp_Buffer_Local_Value *blv;
     union Lisp_Fwd *fwd;
   } val;
@@ -2818,7 +2818,7 @@ typedef jmp_buf sys_jmp_buf;
                                Symbols
  ***********************************************************************/
 
-INLINE struct Lisp_Symbol *
+INLINE ELisp_Return_Value
 SYMBOL_ALIAS (ELisp_Handle sym)
 {
   return XSYMBOL (sym)->val.alias;
@@ -2837,10 +2837,9 @@ SYMBOL_FWD (struct Lisp_Symbol *sym)
 }
 
 INLINE void
-SET_SYMBOL_ALIAS (struct Lisp_Symbol *sym, struct Lisp_Symbol *v)
+SET_SYMBOL_ALIAS (ELisp_Handle sym, ELisp_Handle v)
 {
-  eassume (sym->redirect == SYMBOL_VARALIAS && v);
-  sym->val.alias = v;
+  XSYMBOL (sym)->val.alias = v;
 }
 INLINE void
 SET_SYMBOL_BLV (struct Lisp_Symbol *sym, struct Lisp_Buffer_Local_Value *v)

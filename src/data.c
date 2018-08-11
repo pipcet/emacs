@@ -937,12 +937,12 @@ indirect_variable (Lisp_Object symbol)
 
   while (XSYMBOL (hare)->redirect == SYMBOL_VARALIAS)
     {
-      hare = SYMBOL_ALIAS (hare)->jsval;
+      hare = SYMBOL_ALIAS (hare);
       if (XSYMBOL (hare)->redirect != SYMBOL_VARALIAS)
 	break;
 
-      hare = SYMBOL_ALIAS (hare)->jsval;
-      tortoise = SYMBOL_ALIAS (tortoise)->jsval;
+      hare = SYMBOL_ALIAS (hare);
+      tortoise = SYMBOL_ALIAS (tortoise);
 
       if (EQ (hare, tortoise))
 	{
