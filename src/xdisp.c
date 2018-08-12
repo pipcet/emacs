@@ -5859,6 +5859,7 @@ load_overlay_strings (struct it *it, ptrdiff_t charpos)
   for (struct Lisp_Overlay *ov = current_buffer->overlays_before;
        ov; ov = ov->next)
     {
+      Lisp_Object overlay;
       XSETOVERLAY (overlay, ov);
       eassert (OVERLAYP (overlay));
       ptrdiff_t start = OVERLAY_POSITION (OVERLAY_START (overlay));
@@ -5901,6 +5902,7 @@ load_overlay_strings (struct it *it, ptrdiff_t charpos)
   for (struct Lisp_Overlay *ov = current_buffer->overlays_after;
        ov; ov = ov->next)
     {
+      Lisp_Object overlay;
       XSETOVERLAY (overlay, ov);
       eassert (OVERLAYP (overlay));
       ptrdiff_t start = OVERLAY_POSITION (OVERLAY_START (overlay));
@@ -14145,7 +14147,7 @@ redisplay_internal (void)
     ELisp_Value a; a = a0;                                                \
     ELisp_Value entry; entry = Fgethash (LRH (make_fixnum (i)), a, LRH (make_fixnum (0))); \
     if (FIXNUMP (entry))						\
-      Fputhash (LRH (make_fixnum (i)), LRH (make_fixnum (1 + XINT (entry))), a); \
+      Fputhash (LRH (make_fixnum (i)), LRH (make_fixnum (1 + XFIXNUM (entry))), a); \
   }
 
   AINC (Vredisplay__all_windows_cause, windows_or_buffers_changed);

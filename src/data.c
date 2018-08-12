@@ -36,6 +36,11 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #include "process.h"
 #include "frame.h"
 #include "keymap.h"
+#ifdef HAVE_GMP
+#include <gmp.h>
+#else
+#include "mini-gmp.h"
+#endif
 EXTERN_C
 
 static void swap_in_symval_forwarding (Lisp_Object,
@@ -230,7 +235,6 @@ for example, (type-of 1) returns `integer'.  */)
 	case PVEC_BIGNUM: return Qinteger;
 	case PVEC_MARKER: return Qmarker;
 	case PVEC_OVERLAY: return Qoverlay;
-	case PVEC_FINALIZER: return Qfinalizer;
 #ifdef HAVE_MODULES
 	case PVEC_USER_PTR: return Quser_ptr;
 #endif
@@ -269,7 +273,6 @@ for example, (type-of 1) returns `integer'.  */)
         case PVEC_MODULE_FUNCTION:
           return Qmodule_function;
         /* "Impossible" cases.  */
-	case PVEC_MISC_PTR:
         case PVEC_XWIDGET:
         case PVEC_OTHER:
         case PVEC_XWIDGET_VIEW:
@@ -2358,7 +2361,7 @@ bignumcompare (Lisp_Object num1, Lisp_Object num2,
             {
               mpz_t tem;
               mpz_init (tem);
-              mpz_set_intmax (tem, XFIXNUM (num2));
+              mpz_set_intmax_slow (tem, XFIXNUM (num2));
               cmp = mpz_cmp (XBIGNUM (num1)->value, tem);
               mpz_clear (tem);
             }
@@ -2389,7 +2392,7 @@ bignumcompare (Lisp_Object num1, Lisp_Object num2,
             {
               mpz_t tem;
               mpz_init (tem);
-              mpz_set_intmax (tem, XFIXNUM (num1));
+              mpz_set_intmax_slow (tem, XFIXNUM (num1));
               cmp = - mpz_cmp (XBIGNUM (num2)->value, tem);
               mpz_clear (tem);
             }
@@ -2443,8 +2446,8 @@ arithcompare (Lisp_Object num1, Lisp_Object num2,
   MODIFY_ARG(&num1);
   MODIFY_ARG(&num2);
 
-  CHECK_NUMBER_COERCE_MARKER (num1);
-  CHECK_NUMBER_COERCE_MARKER (num2);
+  CHECK_FIXNUM_COERCE_MARKER (num1);
+  CHECK_FIXNUM_COERCE_MARKER (num2);
 
   if (BIGNUMP (num1) || BIGNUMP (num2))
     return bignumcompare (num1, num2, comparison);
@@ -2594,12 +2597,12 @@ DEFUN ("/=", Fneq, Sneq, 2, 2, 0,
   (eassert (FIXNUM_OVERFLOW_P (i)),				    \
    (! (FIXNUM_OVERFLOW_P ((extremum) >> 16)			    \
        && FIXNUM_OVERFLOW_P ((i) >> 16))			    \
-    ? Fcons (make_fixnum ((i) >> 16), make_fixnum ((i) & 0xffff))   \
+    ? Fcons (LRH (make_fixnum ((i) >> 16)), LRH (make_fixnum ((i) & 0xffff))) \
     : ! (FIXNUM_OVERFLOW_P ((extremum) >> 16 >> 24)		    \
 	 && FIXNUM_OVERFLOW_P ((i) >> 16 >> 24))		    \
-    ? Fcons (make_fixnum ((i) >> 16 >> 24),			    \
-	     Fcons (make_fixnum ((i) >> 16 & 0xffffff),		    \
-		    make_fixnum ((i) & 0xffff)))		    \
+    ? Fcons (LRH (make_fixnum ((i) >> 16 >> 24)),                   \
+	     LRH (Fcons (LRH (make_fixnum ((i) >> 16 & 0xffffff)),  \
+                         LRH (make_fixnum ((i) & 0xffffb)))))       \
     : make_float (i)))
 
 Lisp_Object
@@ -2834,7 +2837,7 @@ arith_driver (enum arithop code, ptrdiff_t nargs, Lisp_Object *args)
     {
       /* Using args[argnum] as argument to CHECK_NUMBER... */
       val = args[argnum];
-      CHECK_NUMBER_COERCE_MARKER (val);
+      CHECK_FIXNUM_COERCE_MARKER (val);
 
       if (FLOATP (val))
 	return unbind_to (count,
@@ -2849,7 +2852,7 @@ arith_driver (enum arithop code, ptrdiff_t nargs, Lisp_Object *args)
             {
 	      mpz_t tem;
 	      mpz_init (tem);
-	      mpz_set_intmax (tem, XFIXNUM (val));
+	      mpz_set_intmax_slow (tem, XFIXNUM (val));
 	      mpz_add (accum, accum, tem);
 	      mpz_clear (tem);
             }
@@ -2864,7 +2867,7 @@ arith_driver (enum arithop code, ptrdiff_t nargs, Lisp_Object *args)
 	      if (BIGNUMP (val))
 		mpz_set (accum, XBIGNUM (val)->value);
 	      else
-		mpz_set_intmax (accum, XFIXNUM (val));
+		mpz_set_intmax_slow (accum, XFIXNUM (val));
 	      if (nargs == 1)
 		mpz_neg (accum, accum);
 	    }
@@ -2874,7 +2877,7 @@ arith_driver (enum arithop code, ptrdiff_t nargs, Lisp_Object *args)
             {
 	      mpz_t tem;
 	      mpz_init (tem);
-	      mpz_set_intmax (tem, XFIXNUM (val));
+	      mpz_set_intmax_slow (tem, XFIXNUM (val));
 	      mpz_sub (accum, accum, tem);
 	      mpz_clear (tem);
             }
@@ -2890,7 +2893,7 @@ arith_driver (enum arithop code, ptrdiff_t nargs, Lisp_Object *args)
             {
 	      mpz_t tem;
 	      mpz_init (tem);
-	      mpz_set_intmax (tem, XFIXNUM (val));
+	      mpz_set_intmax_slow (tem, XFIXNUM (val));
 	      mpz_mul (accum, accum, tem);
 	      mpz_clear (tem);
             }
@@ -2903,7 +2906,7 @@ arith_driver (enum arithop code, ptrdiff_t nargs, Lisp_Object *args)
 	      if (BIGNUMP (val))
 		mpz_set (accum, XBIGNUM (val)->value);
 	      else
-		mpz_set_intmax (accum, XFIXNUM (val));
+		mpz_set_intmax_slow (accum, XFIXNUM (val));
 	    }
 	  else
 	    {
@@ -2917,7 +2920,7 @@ arith_driver (enum arithop code, ptrdiff_t nargs, Lisp_Object *args)
                 {
                   mpz_t tem;
                   mpz_init (tem);
-                  mpz_set_intmax (tem, XFIXNUM (val));
+                  mpz_set_intmax_slow (tem, XFIXNUM (val));
                   mpz_tdiv_q (accum, accum, tem);
                   mpz_clear (tem);
                 }
@@ -2940,7 +2943,7 @@ arith_driver (enum arithop code, ptrdiff_t nargs, Lisp_Object *args)
 	    {
 	      mpz_t tem;
 	      mpz_init (tem);
-	      mpz_set_uintmax (tem, XUFIXNUM (val));
+	      mpz_set_uintmax_slow (tem, XUFIXNUM (val));
 	      mpz_and (accum, accum, tem);
 	      mpz_clear (tem);
 	    }
@@ -2952,7 +2955,7 @@ arith_driver (enum arithop code, ptrdiff_t nargs, Lisp_Object *args)
 	    {
 	      mpz_t tem;
 	      mpz_init (tem);
-	      mpz_set_uintmax (tem, XUFIXNUM (val));
+	      mpz_set_uintmax_slow (tem, XUFIXNUM (val));
 	      mpz_ior (accum, accum, tem);
 	      mpz_clear (tem);
 	    }
@@ -2964,7 +2967,7 @@ arith_driver (enum arithop code, ptrdiff_t nargs, Lisp_Object *args)
 	    {
 	      mpz_t tem;
 	      mpz_init (tem);
-	      mpz_set_uintmax (tem, XUFIXNUM (val));
+	      mpz_set_uintmax_slow (tem, XUFIXNUM (val));
 	      mpz_xor (accum, accum, tem);
 	      mpz_clear (tem);
 	    }
@@ -2972,7 +2975,7 @@ arith_driver (enum arithop code, ptrdiff_t nargs, Lisp_Object *args)
 	}
     }
 
-  return unbind_to (count, make_number (accum));
+  return unbind_to (count, make_fixnum (accum));
 }
 
 static Lisp_Object
@@ -2986,7 +2989,7 @@ float_arith_driver (double accum, ptrdiff_t argnum, enum arithop code,
     {
       /* using args[argnum] as argument to CHECK_NUMBER_... */
       val = args[argnum];
-      CHECK_NUMBER_COERCE_MARKER (val);
+      CHECK_FIXNUM_COERCE_MARKER (val);
 
       if (FLOATP (val))
 	{
@@ -3079,8 +3082,8 @@ Both must be integers or markers.  */)
 {
   Lisp_Object val;
 
-  CHECK_INTEGER_COERCE_MARKER (x);
-  CHECK_INTEGER_COERCE_MARKER (y);
+  CHECK_FIXNUM_COERCE_MARKER (x);
+  CHECK_FIXNUM_COERCE_MARKER (y);
 
   /* Note that a bignum can never be 0, so we don't need to check that
      case.  */
@@ -3099,7 +3102,7 @@ Both must be integers or markers.  */)
       else
 	{
 	  mpz_init (xm);
-	  mpz_set_intmax (xm, XFIXNUM (x));
+	  mpz_set_intmax_slow (xm, XFIXNUM (x));
 	  xmp = &xm;
 	}
 
@@ -3108,13 +3111,13 @@ Both must be integers or markers.  */)
       else
 	{
 	  mpz_init (ym);
-	  mpz_set_intmax (ym, XFIXNUM (y));
+	  mpz_set_intmax_slow (ym, XFIXNUM (y));
 	  ymp = &ym;
 	}
 
       mpz_init (result);
       mpz_tdiv_r (result, *xmp, *ymp);
-      val = make_number (result);
+      val = make_fixnum (result);
       mpz_clear (result);
 
       if (xmp == &xm)
@@ -3134,8 +3137,8 @@ Both X and Y must be numbers or markers.  */)
   Lisp_Object val;
   EMACS_INT i1, i2;
 
-  CHECK_NUMBER_COERCE_MARKER (x);
-  CHECK_NUMBER_COERCE_MARKER (y);
+  CHECK_FIXNUM_COERCE_MARKER (x);
+  CHECK_FIXNUM_COERCE_MARKER (y);
 
   /* Note that a bignum can never be 0, so we don't need to check that
      case.  */
@@ -3172,7 +3175,7 @@ Both X and Y must be numbers or markers.  */)
       else
 	{
 	  mpz_init (xm);
-	  mpz_set_intmax (xm, XFIXNUM (x));
+	  mpz_set_intmax_slow (xm, XFIXNUM (x));
 	  xmp = &xm;
 	}
 
@@ -3181,7 +3184,7 @@ Both X and Y must be numbers or markers.  */)
       else
 	{
 	  mpz_init (ym);
-	  mpz_set_intmax (ym, XFIXNUM (y));
+	  mpz_set_intmax_slow (ym, XFIXNUM (y));
 	  ymp = &ym;
 	}
 
@@ -3194,7 +3197,7 @@ Both X and Y must be numbers or markers.  */)
       if (cmpy < 0 ? cmpr > 0 : cmpr < 0)
 	mpz_add (result, result, *ymp);
 
-      val = make_number (result);
+      val = make_fixnum (result);
       mpz_clear (result);
 
       if (xmp == &xm)
@@ -3211,11 +3214,11 @@ minmax_driver (ptrdiff_t nargs, Lisp_Object *args,
 	       enum Arith_Comparison comparison)
 {
   Lisp_Object accum = args[0];
-  CHECK_NUMBER_COERCE_MARKER (accum);
+  CHECK_FIXNUM_COERCE_MARKER (accum);
   for (ptrdiff_t argnum = 1; argnum < nargs; argnum++)
     {
       Lisp_Object val = args[argnum];
-      CHECK_NUMBER_COERCE_MARKER (val);
+      CHECK_FIXNUM_COERCE_MARKER (val);
       if (!NILP (arithcompare (val, accum, comparison)))
 	accum = val;
       else if (FLOATP (val) && isnan (XFLOAT_DATA (val)))
@@ -3276,7 +3279,7 @@ of VALUE.  If VALUE is negative, return the number of zero bits in the
 representation.  */)
   (Lisp_Object value)
 {
-  CHECK_INTEGER (value);
+  CHECK_FIXNUM (value);
 
   if (BIGNUMP (value))
     {
@@ -3308,7 +3311,7 @@ ash_lsh_impl (Lisp_Object value, Lisp_Object count, bool lsh)
 
   Lisp_Object val;
 
-  CHECK_INTEGER (value);
+  CHECK_FIXNUM (value);
   CHECK_FIXNUM (count);
 
   if (BIGNUMP (value))
@@ -3321,7 +3324,7 @@ ash_lsh_impl (Lisp_Object value, Lisp_Object count, bool lsh)
 	mpz_tdiv_q_2exp (result, XBIGNUM (value)->value, - XFIXNUM (count));
       else
 	mpz_fdiv_q_2exp (result, XBIGNUM (value)->value, - XFIXNUM (count));
-      val = make_number (result);
+      val = make_fixnum (result);
       mpz_clear (result);
     }
   else
@@ -3331,7 +3334,7 @@ ash_lsh_impl (Lisp_Object value, Lisp_Object count, bool lsh)
       eassume (FIXNUMP (value));
       mpz_init (result);
 
-      mpz_set_intmax (result, XFIXNUM (value));
+      mpz_set_intmax_slow (result, XFIXNUM (value));
 
       if (XFIXNUM (count) >= 0)
 	mpz_mul_2exp (result, result, XFIXNUM (count));
@@ -3345,7 +3348,7 @@ ash_lsh_impl (Lisp_Object value, Lisp_Object count, bool lsh)
       else /* ash */
 	mpz_fdiv_q_2exp (result, result, - XFIXNUM (count));
 
-      val = make_number (result);
+      val = make_fixnum (result);
       mpz_clear (result);
     }
 
@@ -3375,7 +3378,7 @@ DEFUN ("1+", Fadd1, Sadd1, 1, 1, 0,
 Markers are converted to integers.  */)
   (register Lisp_Object number)
 {
-  CHECK_NUMBER_COERCE_MARKER (number);
+  CHECK_FIXNUM_COERCE_MARKER (number);
 
   if (FLOATP (number))
     return (make_float (1.0 + XFLOAT_DATA (number)));
@@ -3385,7 +3388,7 @@ Markers are converted to integers.  */)
       mpz_t num;
       mpz_init (num);
       mpz_add_ui (num, XBIGNUM (number)->value, 1);
-      number = make_number (num);
+      number = make_fixnum (num);
       mpz_clear (num);
     }
   else
@@ -3397,8 +3400,8 @@ Markers are converted to integers.  */)
 	{
 	  mpz_t num;
 	  mpz_init (num);
-	  mpz_set_intmax (num, XFIXNUM (number) + 1);
-	  number = make_number (num);
+	  mpz_set_intmax_slow (num, XFIXNUM (number) + 1);
+	  number = make_fixnum (num);
 	  mpz_clear (num);
 	}
     }
@@ -3410,7 +3413,7 @@ DEFUN ("1-", Fsub1, Ssub1, 1, 1, 0,
 Markers are converted to integers.  */)
   (register Lisp_Object number)
 {
-  CHECK_NUMBER_COERCE_MARKER (number);
+  CHECK_FIXNUM_COERCE_MARKER (number);
 
   if (FLOATP (number))
     return (make_float (-1.0 + XFLOAT_DATA (number)));
@@ -3420,7 +3423,7 @@ Markers are converted to integers.  */)
       mpz_t num;
       mpz_init (num);
       mpz_sub_ui (num, XBIGNUM (number)->value, 1);
-      number = make_number (num);
+      number = make_fixnum (num);
       mpz_clear (num);
     }
   else
@@ -3432,8 +3435,8 @@ Markers are converted to integers.  */)
 	{
 	  mpz_t num;
 	  mpz_init (num);
-	  mpz_set_intmax (num, XFIXNUM (number) - 1);
-	  number = make_number (num);
+	  mpz_set_intmax_slow (num, XFIXNUM (number) - 1);
+	  number = make_fixnum (num);
 	  mpz_clear (num);
 	}
     }
@@ -3444,13 +3447,13 @@ DEFUN ("lognot", Flognot, Slognot, 1, 1, 0,
        doc: /* Return the bitwise complement of NUMBER.  NUMBER must be an integer.  */)
   (register Lisp_Object number)
 {
-  CHECK_INTEGER (number);
+  CHECK_FIXNUM (number);
   if (BIGNUMP (number))
     {
       mpz_t value;
       mpz_init (value);
       mpz_com (value, XBIGNUM (number)->value);
-      number = make_number (value);
+      number = make_fixnum (value);
       mpz_clear (value);
     }
   else
@@ -4196,13 +4199,13 @@ syms_of_data (void)
   DEFVAR_LISP ("most-positive-fixnum", Vmost_positive_fixnum,
 	       doc: /* The largest value that is representable in a Lisp fixed-precision integer.
 This variable cannot be set; trying to do so will signal an error.  */);
-  Vmost_positive_fixnum = make_number (0x7fffffff);
+  Vmost_positive_fixnum = make_fixnum (0x7fffffff);
   make_symbol_constant (intern_c_string ("most-positive-fixnum"));
 
   DEFVAR_LISP ("most-negative-fixnum", Vmost_negative_fixnum,
 	       doc: /* The smallest value that is representable in a Lisp fixed-precision integer.
 This variable cannot be set; trying to do so will signal an error.  */);
-  Vmost_negative_fixnum = make_number (-0x80000000);
+  Vmost_negative_fixnum = make_fixnum (-0x80000000);
   make_symbol_constant (intern_c_string ("most-negative-fixnum"));
 
   DEFSYM (Qwatchers, "watchers");

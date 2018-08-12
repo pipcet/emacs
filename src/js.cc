@@ -1,7 +1,7 @@
 // shell g++ -ggdb -g3 -std=c++11 -I ../src/ -I ../js/dist/include/ ./js.cpp -L ../js/dist/bin/ -lz -lpthread -ldl -lmozjs-58a1 -Wl,--whole-archive ../js/mozglue/build/libmozglue.a -Wl,--no-whole-archive -pthread
 #include "config.h.hh"
 
-//#define DEBUG
+#define DEBUG
 #include "js-config.h"
 #include "jsapi.h"
 
@@ -618,7 +618,7 @@ Q_resolve(JSContext *cx, JS::HandleObject obj, JS::HandleId id, bool *resolvedp)
 
       //tem = find_symbol_value (tem);
 
-      if (INTEGERP (tem))
+      if (FIXNUMP (tem))
         {
           //*resolvedp = false;
           tem = intern_1 (bytes, strlen(bytes));
@@ -680,7 +680,7 @@ static bool Q_call(JSContext *cx, unsigned argc, JS::Value *vp)
 
       //tem = find_symbol_value (tem);
 
-      if (INTEGERP (tem))
+      if (FIXNUMP (tem))
         {
           //*resolvedp = false;
           tem = intern_1 (bytes, strlen(bytes));
@@ -727,7 +727,7 @@ F_resolve(JSContext *cx, JS::HandleObject obj, JS::HandleId id, bool *resolvedp)
 
       tem = oblookup (obarray, bytes, strlen (bytes), strlen (bytes));
 
-      if (INTEGERP (tem))
+      if (FIXNUMP (tem))
         *resolvedp = false;
       else
         {
@@ -782,7 +782,7 @@ static bool F_call(JSContext *cx, unsigned argc, JS::Value *vp)
 
       //tem = find_symbol_value (tem);
 
-      if (INTEGERP (tem))
+      if (FIXNUMP (tem))
         {
           //*resolvedp = false;
           args.rval().set(LRH (Qnil).v.v);
@@ -831,7 +831,7 @@ V_resolve(JSContext *cx, JS::HandleObject obj, JS::HandleId id, bool *resolvedp)
 
       tem = oblookup (obarray, bytes, strlen (bytes), strlen (bytes));
 
-      if (INTEGERP (tem))
+      if (FIXNUMP (tem))
         *resolvedp = false;
       else
         {
@@ -886,7 +886,7 @@ static bool V_call(JSContext *cx, unsigned argc, JS::Value *vp)
 
       //tem = find_symbol_value (tem);
 
-      if (INTEGERP (tem))
+      if (FIXNUMP (tem))
         {
           //*resolvedp = false;
           args.rval().set(LRH (Qnil).v.v);
@@ -1048,7 +1048,7 @@ Oblookup(JSContext *cx, unsigned argc, JS::Value* vp)
     return false;
 
   tem = oblookup (obarray, bytes, strlen (bytes), strlen (bytes));
-  if (INTEGERP (tem))
+  if (FIXNUMP (tem))
     args.rval().setUndefined();
   else
     args.rval().set(tem.v.v);
@@ -1531,7 +1531,7 @@ usage: (jsdrain)  */)
 
   js_promise_jobs->clear();
 
-  return make_number(i);
+  return make_fixnum(i);
 }
 
 EXFUN (Fjsglobal, 0);
@@ -1778,7 +1778,7 @@ DEFUN ("unbind_to_rel", Funbind_to_rel, Sunbind_to_rel, 2, 2, 0,
        doc: /* Don't call this. */)
      (ELisp_Handle arg, ELisp_Handle arg2)
 {
-  unbind_to (SPECPDL_INDEX () - XINT (arg), arg2);
+  unbind_to (SPECPDL_INDEX () - XFIXNUM (arg), arg2);
   return Qnil;
 }
 

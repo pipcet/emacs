@@ -29,6 +29,10 @@ package EmacsCGrammar;
     intmax_t
     uintmax_t
 
+    mpz_t
+    mp_limb_t
+    mp_size_t
+
     unichar
 
     GConfClient
@@ -210,6 +214,7 @@ package EmacsCGrammar;
     cmsCIExyY
     thandle_t
     tdata_t
+    tsize_t
     toff_t
     JSAMPARRAY
     TIFF
@@ -857,7 +862,7 @@ Label ::= Symbol ':'
 CaseLabel ::= 'case' Expr ':' | 'CASE' '(' Expr ')' ':' | 'CASE_DEFAULT' | 'CASE_ABORT' ':' | 'FIRST'
 PExpr ::= '(' CExpr ')'
 CExpr ::= Expr ',' CExpr | Expr
-ExprWithType ::= 'INT_STRLEN_BOUND' '(' Type ')' | 'TYPE_MINIMUM' '(' Type ')' | 'TYPE_SIGNED' '(' Type ')' | 'INT_BUFSIZE_BOUND' '(' Type ')' | 'TYPE_RANGED_INTEGERP' '(' Type ',' Expr ')' | 'CHECK_TYPE_RANGED_INTEGER' '(' Type ',' Expr ')' | 'swapfield_' '(' Symbol ',' Type ')'
+ExprWithType ::= 'INT_STRLEN_BOUND' '(' Type ')' | 'TYPE_MINIMUM' '(' Type ')' | 'TYPE_SIGNED' '(' Type ')' | 'INT_BUFSIZE_BOUND' '(' Type ')' | 'TYPE_RANGED_INTEGERP' '(' Type ',' Expr ')' | 'CHECK_TYPE_RANGED_INTEGER' '(' Type ',' Expr ')' | 'TYPE_RANGED_FIXNUMP' '(' Type ',' Expr ')' | 'CHECK_TYPE_RANGED_FIXNUM' '(' Type ',' Expr ')' | 'swapfield_' '(' Symbol ',' Type ')'
 Expr ::=  ExprWithType | Expr BinOp Expr rank => 3 | '...' | 'VECSIZE' '(' Type ')' | 'FLEXSIZEOF' '(' Type ',' Expr ',' Expr ')' | 'PSEUDOVECSIZE' '(' Type ',' Expr ')' | 'ALLOCATE_PSEUDOVECTOR' '(' Type ',' Expr ',' Expr ')' | 'ALLOCATE_ZEROED_PSEUDOVECTOR' '(' Type ',' Expr ',' Expr ')' | 'REGEX_TALLOC' '(' Expr ',' Type ')' | 'UNSIGNED_CMP' '(' Expr ',' BinOp ',' Expr ')' | 'TYPE_MAXIMUM' '(' Type ')' | 'CONS_TO_INTEGER' '(' Expr ',' Type ',' Expr ')' | Symbol rank => 1 | Number | Expr PArgExprs rank => 1 | 'sizeof' Type | 'sizeof' '(' Type ')' | 'sizeof' Expr | 'alignof' '(' Type ')' | 'offsetof' '(' Type ',' Symbol ')' | 'offsetof' '(' Type ',' Expr ')' | PExpr | Expr '?' Expr ':' Expr rank => 5 | UnOp Expr rank => 2 | '(' Type ')' Expr | Expr '[' Expr ']' | String | '{' '}' | '{' CExpr '}' | '{' CExpr ',' '}' | Attr Expr | 'va_arg' '(' Expr ',' Type ')' | '[' Expr '...' Expr ']' '=' Expr | '[' Expr ']' '=' Expr | '.' Expr '=' Expr | '&&' Symbol | 'ELisp_Array_Imm' '(' Expr ',' CExpr ')' | '(' Expr ')' | Expr ModOp Expr rank => 6 | ModUnOp Expr | Expr ModPostOp
 String ::= string | String String | 'FOPEN_TEXT' | 'FOPEN_BINARY' | 'PACKAGE_BUGREPORT' | 'SCNuMAX' | 'WTMP_FILE' | 'L' String | StringSpec
 StringSpec ::= 'pI' | 'pD' | 'pMu' | 'pMd' | 'PRIu64' | 'PRIxPTR'

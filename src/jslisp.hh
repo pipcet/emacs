@@ -21,7 +21,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #ifndef EMACS_LISP_H
 #define EMACS_LISP_H
 
-//#define DEBUG
+#define DEBUG
 #include "js-config.h"
 #include "jsapi.h"
 
@@ -29,6 +29,12 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #include "js/Initialization.h"
 #include "js/RootingAPI.h"
 #include "js/Conversions.h" // as of SpiderMonkey 38; previously in jsapi.h
+
+#ifdef HAVE_GMP
+#include <gmp.h>
+#else
+#include "mini-gmp.h"
+#endif
 
 #define EXTERN_C extern "C" {
 #define EXTERN_C_END };
@@ -42,6 +48,8 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 //#define LSH(v) (v)
 #define LRH(v) ELisp_Handle (ELisp_Value (v))
 #define LSH(v) ELisp_Handle (ELisp_Value (v))
+
+#include "lisp.h.hh"
 
 extern _Noreturn void emacs_abort (void) NO_INLINE;
 extern bool js_init();
@@ -385,14 +393,15 @@ DEFINE_GDB_SYMBOL_END (VALMASK)
    Commentary for these macros can be found near their corresponding
    functions, below.  */
 
-#define lisp_h_CHECK_NUMBER(x) CHECK_TYPE (INTEGERP (x), LSH (Qintegerp), x)
+#define lisp_h_CHECK_NUMBER(x) CHECK_TYPE (NUMBERP (x), LSH (Qintegerp), x)
+#define lisp_h_CHECK_FIXNUM(x) CHECK_TYPE (FIXNUMP (x), LSH (Qfixnump), x)
 #define lisp_h_CHECK_SYMBOL(x) CHECK_TYPE (SYMBOLP (x), LSH (Qsymbolp), x)
 #define lisp_h_CHECK_TYPE(ok, predicate, x) \
    ((ok) ? (void) 0 : wrong_type_argument (predicate, x))
 #define lisp_h_CONSP(x) (XTYPE (x) == Lisp_Cons)
 #define lisp_h_EQ(x, y) (x).eq(y)
 #define lisp_h_FLOATP(x) (XTYPE (x) == Lisp_Float)
-#define lisp_h_INTEGERP(x) ((XTYPE (x) & (Lisp_Int0 | ~Lisp_Int1)) == Lisp_Int0)
+#define lisp_h_FIXNUMP(x) ((XTYPE (x) & (Lisp_Int0 | ~Lisp_Int1)) == Lisp_Int0)
 #define lisp_h_MARKERP(x) (MISCP (x) && XMISCTYPE (x) == Lisp_Misc_Marker)
 #define lisp_h_MISCP(x) (XTYPE (x) == Lisp_Misc)
 #define lisp_h_NILP(x) EQ (x, Qnil)
@@ -420,7 +429,7 @@ DEFINE_GDB_SYMBOL_END (VALMASK)
 #define CHECK_TYPE(ok, predicate, x) lisp_h_CHECK_TYPE (ok, predicate, x)
 #if DEFINE_KEY_OPS_AS_MACROS
 # define FLOATP(x) ((x).floatp())
-# define INTEGERP(x) ((x).integerp())
+# define FIXNUMP(x) ((x).integerp())
 # define MARKERP(x) (MISCP (x) && XMISCTYPE (x) == Lisp_Misc_Marker)
 # define MISCP(x) ((x).miscp())
 # define SET_SYMBOL_VAL(sym, v) lisp_h_SET_SYMBOL_VAL (sym, v)
@@ -465,7 +474,7 @@ enum Lisp_Type
        whose first member indicates the subtype.  */
     Lisp_Misc = 1,
 
-    /* Integer.  XINT (obj) is the integer value.  */
+    /* Integer.  XFIXNUM (obj) is the integer value.  */
     Lisp_Int0 = 2,
     Lisp_Int1 = USE_LSB_TAG ? 6 : 3,
 
@@ -1818,6 +1827,7 @@ enum pvec_type
 {
   PVEC_NORMAL_VECTOR,
   PVEC_FREE,
+  PVEC_BIGNUM,
   PVEC_PROCESS,
   PVEC_FRAME,
   PVEC_WINDOW,
@@ -1877,7 +1887,15 @@ enum More_Lisp_Bits
 #if USE_LSB_TAG
 
 INLINE ELisp_Return_Value
-make_number (EMACS_INT n)
+make_fixnum (EMACS_INT n)
+{
+  ELisp_Value ret;
+  ret.v.v.setInt32(n);
+  return ret;
+}
+
+INLINE ELisp_Return_Value
+make_fixed_natnum (EMACS_INT n)
 {
   ELisp_Value ret;
   ret.v.v.setInt32(n);
@@ -1885,13 +1903,19 @@ make_number (EMACS_INT n)
 }
 
 INLINE EMACS_INT
-XINT (ELisp_Handle a)
+XFIXNUM (ELisp_Handle a)
+{
+  return a.xint();
+}
+
+INLINE EMACS_UINT
+XUFIXNUM (ELisp_Handle a)
 {
   return a.xint();
 }
 
 INLINE EMACS_INT
-XFASTINT (ELisp_Handle a)
+XFIXNAT (ELisp_Handle a)
 {
   return a.xint();
 }
@@ -1905,7 +1929,7 @@ XFASTINT (ELisp_Handle a)
 /* Make a Lisp integer representing the value of the low order
    bits of N.  */
 INLINE ELisp_Return_Value
-make_number (EMACS_INT n)
+make_fixnum (EMACS_INT n)
 {
   EMACS_INT int0 = Lisp_Int0;
   if (USE_LSB_TAG)
@@ -1924,7 +1948,7 @@ make_number (EMACS_INT n)
 
 /* Extract A's value as a signed integer.  */
 INLINE EMACS_INT
-XINT (ELisp_Handle a)
+XFIXNUM (ELisp_Handle a)
 {
   EMACS_INT i = XLI (a);
   if (! USE_LSB_TAG)
@@ -1935,14 +1959,14 @@ XINT (ELisp_Handle a)
   return i >> INTTYPEBITS;
 }
 
-/* Like XINT (A), but may be faster.  A must be nonnegative.
+/* Like XFIXNUM (A), but may be faster.  A must be nonnegative.
    If ! USE_LSB_TAG, this takes advantage of the fact that Lisp
    integers have zero-bits in their tags.  */
 INLINE EMACS_INT
-XFASTINT (ELisp_Handle a)
+XFIXNAT (ELisp_Handle a)
 {
   EMACS_INT int0 = Lisp_Int0;
-  EMACS_INT n = USE_LSB_TAG ? XINT (a) : XLI (a) - (int0 << VALBITS);
+  EMACS_INT n = USE_LSB_TAG ? XFIXNUM (a) : XLI (a) - (int0 << VALBITS);
   eassume (0 <= n);
   return n;
 }
@@ -1995,7 +2019,7 @@ clip_to_bounds (ptrdiff_t lower, EMACS_INT num, ptrdiff_t upper)
 }
 
 INLINE bool
-(INTEGERP) (ELisp_Handle x)
+(FIXNUMP) (ELisp_Handle x)
 {
   return x.integerp();
 }
@@ -3185,10 +3209,10 @@ struct Lisp_Misc_Ptr
 
 /* A mint_ptr object OBJ represents a C-language pointer P efficiently.
    Preferably (and typically), OBJ is a Lisp integer I such that
-   XINTPTR (I) == P, as this represents P within a single Lisp value
+   XFIXNUMPTR (I) == P, as this represents P within a single Lisp value
    without requiring any auxiliary memory.  However, if P would be
    damaged by being tagged as an integer and then untagged via
-   XINTPTR, then OBJ is a Lisp_Misc_Ptr with pointer component P.
+   XFIXNUMPTR, then OBJ is a Lisp_Misc_Ptr with pointer component P.
 
    mint_ptr objects are efficiency hacks intended for C code.
    Although xmint_ptr can be given any mint_ptr generated by non-buggy
@@ -3424,7 +3448,7 @@ make_mint_ptr (void *a)
 INLINE bool
 mint_ptrp (ELisp_Handle x)
 {
-  return INTEGERP (x) || (MISCP (x) && XMISCTYPE (x) == Lisp_Misc_Ptr);
+  return FIXNUMP (x) || (MISCP (x) && XMISCTYPE (x) == Lisp_Misc_Ptr);
 }
 
 INLINE void *
@@ -3545,6 +3569,31 @@ XUSER_PTR (ELisp_Handle a)
   return (struct Lisp_User_Ptr *)a.xmisc();
 }
 #endif
+
+struct Lisp_Bignum
+{
+  union vectorlike_header header;
+  mpz_t value;
+};
+
+INLINE bool
+BIGNUMP (ELisp_Handle x)
+{
+  return PSEUDOVECTORP (x, PVEC_BIGNUM);
+}
+
+INLINE struct Lisp_Bignum *
+XBIGNUM (ELisp_Handle a)
+{
+  eassert (BIGNUMP (a));
+  return (struct Lisp_Bignum *)a.xmisc();
+}
+
+INLINE bool
+INTEGERP (ELisp_Handle x)
+{
+  return FIXNUMP (x) || BIGNUMP (x);
+}
 
 
 /* Forwarding pointer to an int variable.
@@ -3747,24 +3796,35 @@ enum char_bits
 INLINE bool
 NUMBERP (ELisp_Handle x)
 {
-  return INTEGERP (x) || FLOATP (x);
+  return FIXNUMP (x) || FLOATP (x);
 }
+INLINE bool
+FIXED_OR_FLOATP (ELisp_Handle x)
+{
+  return FIXNUMP (x) || FLOATP (x);
+}
+INLINE bool
+FIXNATP (ELisp_Handle x)
+{
+  return FIXNUMP (x) && 0 <= XFIXNUM (x);
+}
+
 INLINE bool
 NATNUMP (ELisp_Handle x)
 {
-  return INTEGERP (x) && 0 <= XINT (x);
+  return FIXNUMP (x) && 0 <= XFIXNUM (x);
 }
 
 INLINE bool
-RANGED_INTEGERP (intmax_t lo, ELisp_Handle x, intmax_t hi)
+RANGED_FIXNUMP (intmax_t lo, ELisp_Handle x, intmax_t hi)
 {
-  return INTEGERP (x) && lo <= XINT (x) && XINT (x) <= hi;
+  return FIXNUMP (x) && lo <= XFIXNUM (x) && XFIXNUM (x) <= hi;
 }
 
-#define TYPE_RANGED_INTEGERP(type, x) \
-  (INTEGERP (LRH (ELisp_Return_Value (x)))                              \
-   && (TYPE_SIGNED (type) ? TYPE_MINIMUM (type) <= XINT (LRH (ELisp_Return_Value (x))) : 0 <= XINT (LRH (ELisp_Return_Value (x)))) \
-   && XINT (LRH (ELisp_Return_Value (x))) <= TYPE_MAXIMUM (type))
+#define TYPE_RANGED_FIXNUMP(type, x) \
+  (FIXNUMP (LRH (ELisp_Return_Value (x)))                              \
+   && (TYPE_SIGNED (type) ? TYPE_MINIMUM (type) <= XFIXNUM (LRH (ELisp_Return_Value (x))) : 0 <= XFIXNUM (LRH (ELisp_Return_Value (x)))) \
+   && XFIXNUM (LRH (ELisp_Return_Value (x))) <= TYPE_MAXIMUM (type))
 
 INLINE bool
 AUTOLOADP (ELisp_Handle x)
@@ -3838,6 +3898,24 @@ CHECK_NUMBER (ELisp_Handle x)
 }
 
 INLINE void
+(CHECK_FIXNUM) (ELisp_Handle x)
+{
+  lisp_h_CHECK_FIXNUM (x);
+}
+
+INLINE void
+(CHECK_FIXNUM_OR_FLOAT) (ELisp_Handle x)
+{
+  CHECK_TYPE (FIXED_OR_FLOATP (x), LSH (Qnumberp), x);
+}
+
+INLINE void
+(CHECK_FIXNAT) (ELisp_Handle x)
+{
+  CHECK_TYPE (FIXNATP (x), LSH (Qwholenump), x);
+}
+
+INLINE void
 CHECK_STRING_CAR (ELisp_Handle x)
 {
   CHECK_TYPE (STRINGP (LRH (XCAR (x))), LSH (Qstringp), LRH (XCAR (x)));
@@ -3866,13 +3944,13 @@ CHECK_NATNUM (ELisp_Handle x)
 #define CHECK_RANGED_INTEGER(x, lo, hi)					\
   do {									\
     CHECK_NUMBER (x);							\
-    if (! ((lo) <= XINT (x) && XINT (x) <= (hi)))			\
+    if (! ((lo) <= XFIXNUM (x) && XFIXNUM (x) <= (hi)))			\
       args_out_of_range_3						\
         (x,								\
-         LRH (make_number ((lo) < 0 && (lo) < MOST_NEGATIVE_FIXNUM     \
+         LRH (make_fixnum ((lo) < 0 && (lo) < MOST_NEGATIVE_FIXNUM     \
                       ? MOST_NEGATIVE_FIXNUM				\
                            : (lo))),                                    \
-         LRH (make_number (c_min (hi, MOST_POSITIVE_FIXNUM))));         \
+         LRH (make_fixnum (c_min (hi, MOST_POSITIVE_FIXNUM))));         \
   } while (false)
 #define CHECK_TYPE_RANGED_INTEGER(type, x) \
   do {									\
@@ -3882,18 +3960,34 @@ CHECK_NATNUM (ELisp_Handle x)
       CHECK_RANGED_INTEGER (x, 0, TYPE_MAXIMUM (type));			\
   } while (false)
 
-#define CHECK_NUMBER_COERCE_MARKER(x)					\
+#define CHECK_FIXNUM_COERCE_MARKER(x)					\
   do {									\
     if (MARKERP ((x)))							\
       XSETFASTINT (x, marker_position (x));				\
     else								\
-      CHECK_TYPE (INTEGERP (x), LSH (Qinteger_or_marker_p), x);		\
+      CHECK_TYPE (FIXNUMP (x), LSH (Qinteger_or_marker_p), x);		\
   } while (false)
+
+INLINE void
+CHECK_FIXNUM_CAR (ELisp_Handle x)
+{
+  ELisp_Value tmp = XCAR (x);
+  CHECK_FIXNUM (tmp);
+  XSETCAR (x, tmp);
+}
+
+INLINE void
+CHECK_FIXNUM_CDR (ELisp_Handle x)
+{
+  ELisp_Value tmp = XCDR (x);
+  CHECK_FIXNUM (tmp);
+  XSETCDR (x, tmp);
+}
 
 INLINE double
 XFLOATINT (ELisp_Handle n)
 {
-  return FLOATP (n) ? XFLOAT_DATA (n) : XINT (n);
+  return FLOATP (n) ? XFLOAT_DATA (n) : XFIXNUM (n);
 }
 
 INLINE void
@@ -3901,6 +3995,14 @@ CHECK_NUMBER_OR_FLOAT (ELisp_Handle x)
 {
   CHECK_TYPE (NUMBERP (x), LSH (Qnumberp), x);
 }
+
+#define CHECK_FIXNUM_OR_FLOAT_COERCE_MARKER(x)				\
+  do {									\
+    if (MARKERP (x))							\
+      XSETFASTINT (x, marker_position (x));				\
+    else								\
+      CHECK_TYPE (NUMBERP (x), LSH (Qnumber_or_marker_p), x);           \
+  } while (false)
 
 #define CHECK_NUMBER_OR_FLOAT_COERCE_MARKER(x)				\
   do {									\
@@ -4417,7 +4519,7 @@ extern ELisp_Return_Value arithcompare (ELisp_Handle num1, ELisp_Handle num2,
    I should not have side effects.  */
 #define INTEGER_TO_CONS(i)					    \
   (! FIXNUM_OVERFLOW_P (i)					    \
-   ? make_number (i)						    \
+   ? make_fixnum (i)						    \
    : EXPR_SIGNED (i) ? intbig_to_lisp (i) : uintbig_to_lisp (i))
 extern ELisp_Return_Value intbig_to_lisp (intmax_t);
 extern ELisp_Return_Value uintbig_to_lisp (uintmax_t);
@@ -4658,6 +4760,11 @@ extern ELisp_Return_Value list5 (ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp
 enum constype {CONSTYPE_HEAP, CONSTYPE_PURE};
 EXTERN_C_END
 
+extern ELisp_Return_Value make_bignum_str (const char *num, int base);
+extern ELisp_Return_Value make_number (mpz_t value);
+extern void mpz_set_intmax_slow (mpz_t result, intmax_t v);
+extern void mpz_set_uintmax_slow (mpz_t result, uintmax_t v);
+
 template<class... A>
 inline ELisp_Return_Value listn (enum constype ct, ptrdiff_t len, A...);
 
@@ -4679,21 +4786,21 @@ EXTERN_C
 INLINE ELisp_Return_Value
 list2i (EMACS_INT x, EMACS_INT y)
 {
-  return list2 (LRH (make_number (x)), LRH (make_number (y)));
+  return list2 (LRH (make_fixnum (x)), LRH (make_fixnum (y)));
 }
 
 INLINE ELisp_Return_Value
 list3i (EMACS_INT x, EMACS_INT y, EMACS_INT w)
 {
-  return list3 (LRH (make_number (x)), LRH (make_number (y)),
-                LRH (make_number (w)));
+  return list3 (LRH (make_fixnum (x)), LRH (make_fixnum (y)),
+                LRH (make_fixnum (w)));
 }
 
 INLINE ELisp_Return_Value
 list4i (EMACS_INT x, EMACS_INT y, EMACS_INT w, EMACS_INT h)
 {
-  return list4 (LRH (make_number (x)), LRH (make_number (y)),
-                LRH (make_number (w)), LRH (make_number (h)));
+  return list4 (LRH (make_fixnum (x)), LRH (make_fixnum (y)),
+                LRH (make_fixnum (w)), LRH (make_fixnum (h)));
 }
 
 extern ELisp_Return_Value make_uninit_bool_vector (EMACS_INT);
@@ -5572,7 +5679,7 @@ extern void init_system_name (void);
    in a Lisp fixnum.  */
 
 #define make_fixnum_or_float(val) \
-   (FIXNUM_OVERFLOW_P (val) ? make_float (val) : make_number (val))
+   (FIXNUM_OVERFLOW_P (val) ? make_float (val) : make_fixnum (val))
 
 /* SAFE_ALLOCA normally allocates memory on the stack, but if size is
    larger than MAX_ALLOCA, use xmalloc to avoid overflowing the stack.  */

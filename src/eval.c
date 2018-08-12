@@ -2384,7 +2384,7 @@ eval_sub (Lisp_Object form)
 	      args_left = XCDR (args_left);
 	      vals[argnum++] = eval_sub (arg);
 	    }
-          while (argnum < XINT (numargs))
+          while (argnum < XFIXNUM (numargs))
             vals.sref(argnum++, Qnil);
 
           set_backtrace_args (specpdl + count, vals, argnum);
@@ -2481,15 +2481,15 @@ eval_sub (Lisp_Object form)
             ptrdiff_t argnum = 0;
             USE_SAFE_ALLOCA;
 
-            SAFE_ALLOCA_LISP (vals, XINT (numargs));
+            SAFE_ALLOCA_LISP (vals, XFIXNUM (numargs));
 
-            while (CONSP (args_left) && argnum < XINT (numargs))
+            while (CONSP (args_left) && argnum < XFIXNUM (numargs))
               {
                 Lisp_Object arg = XCAR (args_left);
                 args_left = XCDR (args_left);
                 vals[argnum++] = eval_sub (arg);
               }
-            while (argnum < XINT (numargs))
+            while (argnum < XFIXNUM (numargs))
               vals.sref(argnum++, Qnil);
 
             set_backtrace_args (specpdl + count, vals, argnum);

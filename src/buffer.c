@@ -2802,6 +2802,7 @@ overlays_at (EMACS_INT pos, bool extend, ELisp_Pointer*vec_ptr,
        tail; tail = tail->next)
     {
       ptrdiff_t startpos, endpos;
+      Lisp_Object overlay;
 
       XSETOVERLAY (overlay, tail);
 
@@ -2814,7 +2815,7 @@ overlays_at (EMACS_INT pos, bool extend, ELisp_Pointer*vec_ptr,
 	    prev = endpos;
 	  break;
 	}
-      ptrdiff_t startpos = OVERLAY_POSITION (start);
+      startpos = OVERLAY_POSITION (start);
       /* This one ends at or after POS
 	 so its start counts for PREV_PTR if it's before POS.  */
       if (prev < startpos && startpos < pos)
@@ -2851,6 +2852,8 @@ overlays_at (EMACS_INT pos, bool extend, ELisp_Pointer*vec_ptr,
        tail; tail = tail->next)
     {
       ptrdiff_t startpos, endpos;
+      Lisp_Object overlay;
+      ptrdiff_t start, end;
 
       XSETOVERLAY (overlay, tail);
 
@@ -2863,7 +2866,7 @@ overlays_at (EMACS_INT pos, bool extend, ELisp_Pointer*vec_ptr,
 	    next = startpos;
 	  break;
 	}
-      ptrdiff_t endpos = OVERLAY_POSITION (end);
+      endpos = OVERLAY_POSITION (end);
       if (pos < endpos)
 	{
 	  if (idx == len)
@@ -2937,6 +2940,7 @@ overlays_in (EMACS_INT beg, EMACS_INT end, bool extend,
        tail; tail = tail->next)
     {
       ptrdiff_t startpos, endpos;
+          Lisp_Object overlay;
 
       XSETOVERLAY (overlay, tail);
 
@@ -2949,7 +2953,7 @@ overlays_in (EMACS_INT beg, EMACS_INT end, bool extend,
 	    prev = endpos;
 	  break;
 	}
-      ptrdiff_t startpos = OVERLAY_POSITION (ostart);
+      startpos = OVERLAY_POSITION (ostart);
       /* Count an interval if it overlaps the range, is empty at the
 	 start of the range, or is empty at END provided END denotes the
 	 end of the buffer.  */
@@ -2985,6 +2989,8 @@ overlays_in (EMACS_INT beg, EMACS_INT end, bool extend,
        tail; tail = tail->next)
     {
       ptrdiff_t startpos, endpos;
+      ptrdiff_t ostart, oend;
+      Lisp_Object overlay;
 
       XSETOVERLAY (overlay, tail);
 
@@ -2997,7 +3003,7 @@ overlays_in (EMACS_INT beg, EMACS_INT end, bool extend,
 	    next = startpos;
 	  break;
 	}
-      ptrdiff_t endpos = OVERLAY_POSITION (oend);
+      endpos = OVERLAY_POSITION (oend);
       /* Count an interval if it overlaps the range, is empty at the
 	 start of the range, or is empty at END provided END denotes the
 	 end of the buffer.  */
@@ -3107,11 +3113,12 @@ overlay_touches_p (ptrdiff_t pos)
        tail; tail = tail->next)
     {
       ptrdiff_t endpos;
+          Lisp_Object overlay;
 
       XSETOVERLAY (overlay ,tail);
       eassert (OVERLAYP (overlay));
 
-      ptrdiff_t endpos = OVERLAY_POSITION (OVERLAY_END (overlay));
+      endpos = OVERLAY_POSITION (OVERLAY_END (overlay));
       if (endpos < pos)
 	break;
       if (endpos == pos || OVERLAY_POSITION (OVERLAY_START (overlay)) == pos)
@@ -3122,11 +3129,12 @@ overlay_touches_p (ptrdiff_t pos)
        tail; tail = tail->next)
     {
       ptrdiff_t startpos;
+          Lisp_Object overlay;
 
       XSETOVERLAY (overlay, tail);
       eassert (OVERLAYP (overlay));
 
-      ptrdiff_t startpos = OVERLAY_POSITION (OVERLAY_START (overlay));
+      startpos = OVERLAY_POSITION (OVERLAY_START (overlay));
       if (pos < startpos)
 	break;
       if (startpos == pos || OVERLAY_POSITION (OVERLAY_END (overlay)) == pos)
@@ -3353,6 +3361,8 @@ overlay_strings (ptrdiff_t pos, struct window *w, unsigned char **pstr)
   for (struct Lisp_Overlay *ov = current_buffer->overlays_before;
        ov; ov = ov->next)
     {
+                Lisp_Object overlay;
+
       XSETOVERLAY (overlay, ov);
       eassert (OVERLAYP (overlay));
 
@@ -3383,6 +3393,8 @@ overlay_strings (ptrdiff_t pos, struct window *w, unsigned char **pstr)
   for (struct Lisp_Overlay *ov = current_buffer->overlays_after;
        ov; ov = ov->next)
     {
+                Lisp_Object overlay;
+
       XSETOVERLAY (overlay, ov);
       eassert (OVERLAYP (overlay));
 
@@ -3481,6 +3493,8 @@ recenter_overlay_lists (struct buffer *buf, ptrdiff_t pos)
   for (struct Lisp_Overlay *tail = buf->overlays_before;
        tail; prev = tail, tail = next)
     {
+                Lisp_Object overlay;
+
       next = tail->next;
       XSETOVERLAY (overlay, tail);
       eassert (OVERLAYP (overlay));
@@ -3505,7 +3519,7 @@ recenter_overlay_lists (struct buffer *buf, ptrdiff_t pos)
 	  for (other = buf->overlays_after; other;
 	       other_prev = other, other = other->next)
 	    {
-	      Lisp_Object otherbeg, otheroverlay;
+	      Lisp_Object otheroverlay;
 
 	      XSETOVERLAY (otheroverlay, other);
 	      eassert (OVERLAYP (otheroverlay));
@@ -3535,6 +3549,7 @@ recenter_overlay_lists (struct buffer *buf, ptrdiff_t pos)
   for (struct Lisp_Overlay *tail = buf->overlays_after;
        tail; prev = tail, tail = next)
     {
+      Lisp_Object overlay;
       next = tail->next;
       XSETOVERLAY (overlay, tail);
       eassert (OVERLAYP (overlay));
@@ -3564,7 +3579,7 @@ recenter_overlay_lists (struct buffer *buf, ptrdiff_t pos)
 	  for (other = buf->overlays_before; other;
 	       other_prev = other, other = other->next)
 	    {
-	      Lisp_Object otherend, otheroverlay;
+	      Lisp_Object otheroverlay;
 
 	      XSETOVERLAY (otheroverlay, other);
 	      eassert (OVERLAYP (otheroverlay));
@@ -3646,6 +3661,7 @@ fix_start_end_in_overlays (register ptrdiff_t start, register ptrdiff_t end)
   for (struct Lisp_Overlay *tail = current_buffer->overlays_before;
        tail; tail = tail->next)
     {
+      Lisp_Object overlay;
       XSETOVERLAY (overlay, tail);
 
       ptrdiff_t endpos = OVERLAY_POSITION (OVERLAY_END (overlay));
@@ -3695,6 +3711,7 @@ fix_start_end_in_overlays (register ptrdiff_t start, register ptrdiff_t end)
   for (struct Lisp_Overlay *tail = current_buffer->overlays_after;
        tail; tail = tail->next)
     {
+      Lisp_Object overlay;
       XSETOVERLAY (overlay, tail);
 
       ptrdiff_t startpos = OVERLAY_POSITION (OVERLAY_START (overlay));
@@ -4320,14 +4337,17 @@ However, the overlays you get are the real objects that the buffer uses.  */)
   (void)
 {
   Lisp_Object before = Qnil, after = Qnil;
+  struct Lisp_Overlay *ol;
 
   for (ol = current_buffer->overlays_before; ol; ol = ol->next)
     {
+      Lisp_Object tmp;
       XSETOVERLAY (tmp, ol);
       before = Fcons (tmp, before);
     }
   for (ol = current_buffer->overlays_after; ol; ol = ol->next)
     {
+      Lisp_Object tmp;
       XSETOVERLAY (tmp, ol);
       after = Fcons (tmp, after);
     }
@@ -4470,6 +4490,7 @@ report_overlay_modification (Lisp_Object start, Lisp_Object end, bool after,
 	{
 	  ptrdiff_t startpos, endpos;
 	  Lisp_Object ostart, oend;
+          Lisp_Object overlay;
 
 	  XSETOVERLAY (overlay, tail);
 
@@ -4508,6 +4529,7 @@ report_overlay_modification (Lisp_Object start, Lisp_Object end, bool after,
 	{
 	  ptrdiff_t startpos, endpos;
 	  Lisp_Object ostart, oend;
+          Lisp_Object overlay;
 
 	  XSETOVERLAY (overlay, tail);
 
@@ -4609,6 +4631,7 @@ evaporate_overlays (ptrdiff_t pos)
 	 tail; tail = tail->next)
       {
 	ptrdiff_t endpos;
+        Lisp_Object overlay;
 	XSETOVERLAY (overlay, tail);
 	endpos = OVERLAY_POSITION (OVERLAY_END (overlay));
 	if (endpos < pos)
@@ -4622,7 +4645,9 @@ evaporate_overlays (ptrdiff_t pos)
 	 tail; tail = tail->next)
       {
 	ptrdiff_t startpos;
-	XSETOVERLAY (overlay, tail);
+        Lisp_Object overlay;
+
+        XSETOVERLAY (overlay, tail);
 	startpos = OVERLAY_POSITION (OVERLAY_START (overlay));
 	if (startpos > pos)
 	  break;

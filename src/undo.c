@@ -146,6 +146,7 @@ record_marker_adjustments (ptrdiff_t from, ptrdiff_t to)
 
           if (adjustment)
             {
+              Lisp_Object marker;
               XSETMARKER (marker, m);
               bset_undo_list
                 (current_buffer,

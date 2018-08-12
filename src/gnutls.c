@@ -1853,7 +1853,7 @@ one trustfile (usually a CA bundle).  */)
   GNUTLS_INITSTAGE (proc) = GNUTLS_STAGE_PRIORITY;
 
   if (FIXNUMP (prime_bits))
-    gnutls_dh_set_prime_bits (state, XUFIXNUM (prime_bits));
+    gnutls_dh_set_prime_bits (state, XFIXNUM (prime_bits));
 
   ret = EQ (type, Qgnutls_x509pki)
     ? gnutls_credentials_set (state, GNUTLS_CRD_CERTIFICATE, x509_cred)

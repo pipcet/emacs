@@ -93,6 +93,11 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 
 #include "getpagesize.h"
 #include "gnutls.h"
+#ifdef HAVE_GMP
+#include <gmp.h>
+#else
+#include "mini-gmp.h"
+#endif
 
 extern void syms_of_js(void);
 extern void late_js_init(void);

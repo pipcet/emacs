@@ -977,11 +977,11 @@ exec_byte_code (Lisp_Object bytestr, Lisp_Object vector, Lisp_Object maxdepth,
 	  NEXT;
 
 	CASE (Bsub1):
-          SETTOP(FIXNUMP (LRH (TOP)) && XFIXNUM (LRH (TOP)) != MOST_NEGATIVE_FIXNUM ? make_fixnum (XINT (LRH (TOP)) - 1) : Fsub1 (LRH (TOP)));
+          SETTOP(FIXNUMP (LRH (TOP)) && XFIXNUM (LRH (TOP)) != MOST_NEGATIVE_FIXNUM ? make_fixnum (XFIXNUM (LRH (TOP)) - 1) : Fsub1 (LRH (TOP)));
 	  NEXT;
 
         CASE (Badd1):
-	  SETTOP(FIXNUMP (LRH (TOP)) && XFIXNUM (LRH (TOP)) != MOST_POSITIVE_FIXNUM ? make_fixnum (XINT (LRH (TOP)) + 1) : Fadd1 (LRH (TOP)));
+	  SETTOP(FIXNUMP (LRH (TOP)) && XFIXNUM (LRH (TOP)) != MOST_POSITIVE_FIXNUM ? make_fixnum (XFIXNUM (LRH (TOP)) + 1) : Fadd1 (LRH (TOP)));
 	  NEXT;
 
 	CASE (Beqlsign):
@@ -1033,7 +1033,7 @@ exec_byte_code (Lisp_Object bytestr, Lisp_Object vector, Lisp_Object maxdepth,
 	  NEXT;
 
 	CASE (Bnegate):
-          SETTOP(FIXNUMP (LRH (TOP)) && XFIXNUM (TOP) != MOST_NEGATIVE_FIXNUM ? make_fixnum (- XINT (LRH (TOP))) : Fminus (LV (1, top)));
+          SETTOP(FIXNUMP (LRH (TOP)) && XFIXNUM (TOP) != MOST_NEGATIVE_FIXNUM ? make_fixnum (- XFIXNUM (LRH (TOP))) : Fminus (LV (1, top)));
 	  NEXT;
 
 	CASE (Bplus):

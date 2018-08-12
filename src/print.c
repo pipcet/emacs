@@ -1445,15 +1445,6 @@ print_vectorlike (Lisp_Object obj, Lisp_Object printcharfun, bool escapeflag,
       printchar ('>', printcharfun);
       break;
 
-    case PVEC_MISC_PTR:
-      {
-	/* This shouldn't happen in normal usage, but let's
-	   print it anyway for the benefit of the debugger.  */
-	int i = sprintf (buf, "#<ptr %p>", xmint_pointer (obj));
-	strout (buf, i, i, printcharfun);
-      }
-      break;
-
     case PVEC_PROCESS:
       if (escapeflag)
 	{

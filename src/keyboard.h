@@ -483,7 +483,7 @@ extern void kbd_buffer_unget_event (struct selection_input_event *);
 
 extern void poll_for_input_1 (void);
 extern void show_help_echo (Lisp_Object, Lisp_Object, Lisp_Object,
-                            Lisp_Object);
+                            Lisp_Object) __attribute__ ((noinline));
 extern void gen_help_event (Lisp_Object, Lisp_Object, Lisp_Object,
                             Lisp_Object, ptrdiff_t);
 extern void kbd_buffer_store_help_event (Lisp_Object, Lisp_Object);

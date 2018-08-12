@@ -2865,7 +2865,7 @@ CHECK_INTEGER (Lisp_Object x)
 /* Since we can't assign directly to the CAR or CDR fields of a cons
    cell, use these when checking that those fields contain numbers.  */
 INLINE void
-CHECK_FIXNUM_CAR (Lisp_Object x)
+CHECK_FIXNUM_CAR (ELisp_Handle x)
 {
   Lisp_Object tmp = XCAR (x);
   CHECK_FIXNUM (tmp);
@@ -2873,7 +2873,7 @@ CHECK_FIXNUM_CAR (Lisp_Object x)
 }
 
 INLINE void
-CHECK_FIXNUM_CDR (Lisp_Object x)
+CHECK_FIXNUM_CDR (ELisp_Handle x)
 {
   Lisp_Object tmp = XCDR (x);
   CHECK_FIXNUM (tmp);

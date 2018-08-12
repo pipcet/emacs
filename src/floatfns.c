@@ -282,7 +282,7 @@ DEFUN ("abs", Fabs, Sabs, 1, 1, 0,
     {
       mpz_t val;
       mpz_init (val);
-      mpz_set_intmax (val, - MOST_NEGATIVE_FIXNUM);
+      mpz_set_intmax_slow (val, - MOST_NEGATIVE_FIXNUM);
       arg = make_number (val);
       mpz_clear (val);
     }

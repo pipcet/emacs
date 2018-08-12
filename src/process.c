@@ -1586,7 +1586,7 @@ Return nil if format of ADDRESS is invalid.  */)
 
       for (i = 0; i < nargs; i++)
         {
-          if (! RANGED_INTEGERP (0, p->contents[i], 65535))
+          if (! RANGED_FIXNUMP (0, p->contents[i], 65535))
             return Qnil;
 
           if (nargs <= 5         /* IPv4 */

@@ -19,6 +19,8 @@ struct foo *XSUB_CHAR_TABLE(Lisp_Object);
 struct foo *XCHAR_TABLE(Lisp_Object);
 int XINT (Lisp_Object);
 int XFASTINT (Lisp_Object);
+int XFIXNUM (Lisp_Object);
+int XFIXNAT (Lisp_Object);
 boolean NILP(Lisp_Object);
 boolean CONSP(Lisp_Object);
 boolean LISTP(Lisp_Object);
@@ -26,6 +28,7 @@ boolean STRINGP(Lisp_Object);
 boolean SYMBOLP(Lisp_Object);
 boolean CHARACTERP(Lisp_Object);
 boolean INTEGERP(Lisp_Object);
+boolean FIXNUMP(Lisp_Object);
 boolean MARKERP(Lisp_Object);
 boolean NUMBERP(Lisp_Object);
 boolean NATNUMP(Lisp_Object);
@@ -35,6 +38,8 @@ boolean SUBRP(Lisp_Object);
 bool KEYMAPP (Lisp_Object);
 boolean RANGED_INTEGERP(ptrdiff_t, Lisp_Object, ptrdiff_t);
 bool CHECK_RANGED_INTEGER (Lisp_Object, ptrdiff_t, ptrdiff_t);
+boolean RANGED_FIXNUMP(ptrdiff_t, Lisp_Object, ptrdiff_t);
+bool CHECK_RANGED_FIXNUM (Lisp_Object, ptrdiff_t, ptrdiff_t);
 boolean FLOATP(Lisp_Object);
 boolean VECTORP(Lisp_Object);
 boolean VECTORLIKEP(Lisp_Object);
@@ -57,6 +62,7 @@ Lisp_Object Fcar (Lisp_Object);
 Lisp_Object Fcdr (Lisp_Object);
 boolean CHECK_CATEGORY (Lisp_Object);
 boolean TYPE_RANGED_INTEGERP (void *, Lisp_Object);
+boolean TYPE_RANGED_FIXNUMP (void *, Lisp_Object);
 // AUTO_STRING, AUTO_LIST_1
 // CHARSET_DEUNIFIER, CHARSET_ENCODER, CHARSET_SUPERSET, CHARSET_MIN_CODE, CHARSET_MAX_CODE, make_fixnum_or_float, CHARSET_SYMBOL_ID, CHARSET_ATTRIBUTES, BVAR?
 // INTEGER_TO_CONS
