@@ -296,7 +296,7 @@ extern void enlarge_buffer_text (struct buffer *, ptrdiff_t);
   do									\
     {									\
       ELisp_Value __pos = (pos);					\
-      if (NUMBERP (__pos))						\
+      if (FIXED_OR_FLOATP (__pos))						\
 	{								\
 	  charpos = __pos;						\
 	  bytepos = buf_charpos_to_bytepos (current_buffer, __pos);	\
@@ -1350,7 +1350,7 @@ extern int last_per_buffer_idx;
 
 
 #define PER_BUFFER_IDX(OFFSET) \
-      XINT (*(ELisp_Struct_Value *)((OFFSET) + (char *) &buffer_local_flags))
+      XFIXNUM (*(ELisp_Struct_Value *)((OFFSET) + (char *) &buffer_local_flags))
 
 /* Functions to get and set default value of the per-buffer
    variable at offset OFFSET in the buffer structure.  */
@@ -1388,7 +1388,7 @@ downcase (int c)
 {
   Lisp_Object downcase_table = BVAR (current_buffer, downcase_table);
   Lisp_Object down = CHAR_TABLE_REF (downcase_table, c);
-  return NATNUMP (down) ? XFASTINT (down) : c;
+  return FIXNATP (down) ? XFIXNAT (down) : c;
 }
 
 /* Upcase a character C, or make no change if that cannot be done. */
@@ -1397,7 +1397,7 @@ upcase (int c)
 {
   Lisp_Object upcase_table = BVAR (current_buffer, upcase_table);
   Lisp_Object up = CHAR_TABLE_REF (upcase_table, c);
-  return NATNUMP (up) ? XFASTINT (up) : c;
+  return FIXNATP (up) ? XFIXNAT (up) : c;
 }
 
 /* True if C is upper case.  */

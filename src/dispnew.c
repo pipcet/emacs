@@ -5720,8 +5720,8 @@ additional wait period, in milliseconds; this is for backwards compatibility.
 
   if (!NILP (milliseconds))
     {
-      CHECK_NUMBER (milliseconds);
-      duration += XINT (milliseconds) / 1000.0;
+      CHECK_FIXNUM (milliseconds);
+      duration += XFIXNUM (milliseconds) / 1000.0;
     }
 
   if (duration > 0)
@@ -5769,9 +5769,9 @@ sit_for (Lisp_Object timeout, bool reading, int display_option)
   if (display_option > 1)
     redisplay_preserve_echo_area (2);
 
-  if (INTEGERP (timeout))
+  if (FIXNUMP (timeout))
     {
-      sec = XINT (timeout);
+      sec = XFIXNUM (timeout);
       if (sec <= 0)
 	return Qt;
       nsec = 0;
@@ -5928,7 +5928,7 @@ pass nil for VARIABLE.  */)
       || n + 20 < ASIZE (state) / 2)
     /* Add 20 extra so we grow it less often.  */
     {
-      state = Fmake_vector (make_number (n + 20), Qlambda);
+      state = Fmake_vector (make_fixnum (n + 20), Qlambda);
       if (! NILP (variable))
 	Fset (variable, state);
       else
@@ -6044,7 +6044,7 @@ init_display (void)
     {
       Vinitial_window_system = Qx;
 #ifdef HAVE_X11
-      Vwindow_system_version = make_number (11);
+      Vwindow_system_version = make_fixnum (11);
 #endif
 #ifdef USE_NCURSES
       /* In some versions of ncurses,
@@ -6060,7 +6060,7 @@ init_display (void)
   if (!inhibit_window_system)
     {
       Vinitial_window_system = Qw32;
-      Vwindow_system_version = make_number (1);
+      Vwindow_system_version = make_fixnum (1);
       return;
     }
 #endif /* HAVE_NTGUI */
@@ -6073,7 +6073,7 @@ init_display (void)
       )
     {
       Vinitial_window_system = Qns;
-      Vwindow_system_version = make_number (10);
+      Vwindow_system_version = make_fixnum (10);
       return;
     }
 #endif
@@ -6226,7 +6226,7 @@ syms_of_display (void)
   defsubr (&Sdump_redisplay_history);
 #endif
 
-  staticpro (&frame_and_buffer_state, Fmake_vector (make_number (20), Qlambda));
+  staticpro (&frame_and_buffer_state, Fmake_vector (make_fixnum (20), Qlambda));
 
   /* This is the "purpose" slot of a display table.  */
   DEFSYM (Qdisplay_table, "display-table");

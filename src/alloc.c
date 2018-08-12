@@ -2913,51 +2913,6 @@ mem_rotate_right (struct mem_node *x)
 static void
 mem_delete (struct mem_node *z)
 {
-  struct mem_node *x, *y;
-
-  if (!z || z == MEM_NIL)
-    return;
-
-  if (z->left == MEM_NIL || z->right == MEM_NIL)
-    y = z;
-  else
-    {
-      y = z->right;
-      while (y->left != MEM_NIL)
-	y = y->left;
-    }
-
-  if (y->left != MEM_NIL)
-    x = y->left;
-  else
-    x = y->right;
-
-  x->parent = y->parent;
-  if (y->parent)
-    {
-      if (y == y->parent->left)
-	y->parent->left = x;
-      else
-	y->parent->right = x;
-    }
-  else
-    mem_root = x;
-
-  if (y != z)
-    {
-      z->start = y->start;
-      z->end = y->end;
-      z->type = y->type;
-    }
-
-  if (y->color == MEM_BLACK)
-    mem_delete_fixup (x);
-
-#ifdef GC_MALLOC_CHECK
-  free (y);
-#else
-  xfree (y);
-#endif
 }
 
 
@@ -3234,6 +3189,1318 @@ test_setjmp (void)
 # endif /* ! GC_SETJMP_WORKS */
 #endif /* ! HAVE___BUILTIN_UNWIND_INIT */
 
+
+
+Lisp_Object
+make_misc_ptr (void *a)
+{
+  struct Lisp_Misc_Ptr *p = ALLOCATE_PSEUDOVECTOR (struct Lisp_Misc_Ptr, pointer,
+						   PVEC_MISC_PTR);
+  p->pointer = a;
+  return make_lisp_ptr (p, Lisp_Vectorlike);
+}
+
+/* Return a new overlay with specified START, END and PLIST.  */
+
+Lisp_Object
+build_overlay (Lisp_Object start, Lisp_Object end, Lisp_Object plist)
+{
+  struct Lisp_Overlay *p = ALLOCATE_PSEUDOVECTOR (struct Lisp_Overlay, next,
+						  PVEC_OVERLAY);
+  Lisp_Object overlay = make_lisp_ptr (p, Lisp_Vectorlike);
+  OVERLAY_START (overlay) = start;
+  OVERLAY_END (overlay) = end;
+  set_overlay_plist (overlay, plist);
+  p->next = NULL;
+  return overlay;
+}
+
+DEFUN ("make-marker", Fmake_marker, Smake_marker, 0, 0, 0,
+       doc: /* Return a newly allocated marker which does not point at any place.  */)
+  (void)
+{
+  struct Lisp_Marker *p = ALLOCATE_PSEUDOVECTOR (struct Lisp_Marker, buffer,
+						 PVEC_MARKER);
+  p->buffer = 0;
+  p->bytepos = 0;
+  p->charpos = 0;
+  p->next = NULL;
+  p->insertion_type = 0;
+  p->need_adjustment = 0;
+  return make_lisp_ptr (p, Lisp_Vectorlike);
+}
+
+/* Return a newly allocated marker which points into BUF
+   at character position CHARPOS and byte position BYTEPOS.  */
+
+Lisp_Object
+build_marker (struct buffer *buf, ptrdiff_t charpos, ptrdiff_t bytepos)
+{
+  /* No dead buffers here.  */
+  eassert (BUFFER_LIVE_P (buf));
+
+  /* Every character is at least one byte.  */
+  eassert (charpos <= bytepos);
+
+  struct Lisp_Marker *m = ALLOCATE_PSEUDOVECTOR (struct Lisp_Marker, buffer,
+						 PVEC_MARKER);
+  m->buffer = buf;
+  m->charpos = charpos;
+  m->bytepos = bytepos;
+  m->insertion_type = 0;
+  m->need_adjustment = 0;
+  m->next = BUF_MARKERS (buf);
+  BUF_MARKERS (buf) = m;
+  return make_lisp_ptr (m, Lisp_Vectorlike);
+}
+
+
+
+Lisp_Object
+make_bignum_str (const char *num, int base)
+{
+  struct Lisp_Bignum *b = ALLOCATE_PSEUDOVECTOR (struct Lisp_Bignum, value,
+						 PVEC_BIGNUM);
+  mpz_init (b->value);
+  int check = mpz_set_str (b->value, num, base);
+  eassert (check == 0);
+  return make_lisp_ptr (b, Lisp_Vectorlike);
+}
+
+/* Given an mpz_t, make a number.  This may return a bignum or a
+   fixnum depending on VALUE.  */
+
+Lisp_Object
+make_number (mpz_t value)
+{
+  if (mpz_fits_slong_p (value))
+    {
+      long l = mpz_get_si (value);
+      if (!FIXNUM_OVERFLOW_P (l))
+	return make_fixnum (l);
+    }
+
+  /* Check if fixnum can be larger than long.  */
+  if (sizeof (EMACS_INT) > sizeof (long))
+    {
+      size_t bits = mpz_sizeinbase (value, 2);
+      int sign = mpz_sgn (value);
+
+      if (bits < FIXNUM_BITS + (sign < 0))
+        {
+          EMACS_INT v = 0;
+          size_t limbs = mpz_size (value);
+          mp_size_t i;
+
+          for (i = 0; i < limbs; i++)
+            {
+              mp_limb_t limb = mpz_getlimbn (value, i);
+              v |= (EMACS_INT) ((EMACS_UINT) limb << (i * mp_bits_per_limb));
+            }
+          if (sign < 0)
+            v = -v;
+
+          if (!FIXNUM_OVERFLOW_P (v))
+	    return make_fixnum (v);
+        }
+    }
+
+  struct Lisp_Bignum *b = ALLOCATE_PSEUDOVECTOR (struct Lisp_Bignum, value,
+						 PVEC_BIGNUM);
+  /* We could mpz_init + mpz_swap here, to avoid a copy, but the
+     resulting API seemed possibly confusing.  */
+  mpz_init_set (b->value, value);
+
+  return make_lisp_ptr (b, Lisp_Vectorlike);
+}
+
+void
+mpz_set_intmax_slow (mpz_t result, intmax_t v)
+{
+  /* If long is larger then a faster path is taken.  */
+  eassert (sizeof (intmax_t) > sizeof (long));
+
+  bool negate = false;
+  if (v < 0)
+    {
+      v = -v;
+      negate = true;
+    }
+  mpz_set_uintmax_slow (result, (uintmax_t) v);
+  if (negate)
+    mpz_neg (result, result);
+}
+
+void
+mpz_set_uintmax_slow (mpz_t result, uintmax_t v)
+{
+  /* If long is larger then a faster path is taken.  */
+  eassert (sizeof (uintmax_t) > sizeof (unsigned long));
+
+  /* COUNT = 1 means just a single word of the given size.  ORDER = -1
+     is arbitrary since there's only a single word.  ENDIAN = 0 means
+     use the native endian-ness.  NAILS = 0 means use the whole
+     word.  */
+  mpz_import (result, 1, -1, sizeof (uintmax_t), 0, 0, &v);
+}
+
+
+/* Return a newly created vector or string with specified arguments as
+   elements.  If all the arguments are characters that can fit
+   in a string of events, make a string; otherwise, make a vector.
+
+   Any number of arguments, even zero arguments, are allowed.  */
+
+Lisp_Object
+make_event_array (ptrdiff_t nargs, Lisp_Object *args)
+{
+  ptrdiff_t i;
+
+  for (i = 0; i < nargs; i++)
+    /* The things that fit in a string
+       are characters that are in 0...127,
+       after discarding the meta bit and all the bits above it.  */
+    if (!FIXNUMP (args[i])
+	|| (XFIXNUM (args[i]) & ~(-CHAR_META)) >= 0200)
+      return Fvector (nargs, args);
+
+  /* Since the loop exited, we know that all the things in it are
+     characters, so we can make a string.  */
+  {
+    Lisp_Object result;
+
+    result = Fmake_string (make_fixnum (nargs), make_fixnum (0), Qnil);
+    for (i = 0; i < nargs; i++)
+      {
+	SSET (result, i, XFIXNUM (args[i]));
+	/* Move the meta bit to the right place for a string char.  */
+	if (XFIXNUM (args[i]) & CHAR_META)
+	  SSET (result, i, SREF (result, i) | 0x80);
+      }
+
+    return result;
+  }
+}
+
+#ifdef HAVE_MODULES
+/* Create a new module user ptr object.  */
+Lisp_Object
+make_user_ptr (void (*finalizer) (void *), void *p)
+{
+  struct Lisp_User_Ptr *uptr = ALLOCATE_PSEUDOVECTOR (struct Lisp_User_Ptr,
+						      finalizer, PVEC_USER_PTR);
+  uptr->finalizer = finalizer;
+  uptr->p = p;
+  return make_lisp_ptr (uptr, Lisp_Vectorlike);
+}
+#endif
+
+static void
+init_finalizer_list (struct Lisp_Finalizer *head)
+{
+  head->prev = head->next = head;
+}
+
+/* Insert FINALIZER before ELEMENT.  */
+
+static void
+finalizer_insert (struct Lisp_Finalizer *element,
+                  struct Lisp_Finalizer *finalizer)
+{
+  eassert (finalizer->prev == NULL);
+  eassert (finalizer->next == NULL);
+  finalizer->next = element;
+  finalizer->prev = element->prev;
+  finalizer->prev->next = finalizer;
+  element->prev = finalizer;
+}
+
+static void
+unchain_finalizer (struct Lisp_Finalizer *finalizer)
+{
+  if (finalizer->prev != NULL)
+    {
+      eassert (finalizer->next != NULL);
+      finalizer->prev->next = finalizer->next;
+      finalizer->next->prev = finalizer->prev;
+      finalizer->prev = finalizer->next = NULL;
+    }
+}
+
+static void
+mark_finalizer_list (struct Lisp_Finalizer *head)
+{
+  for (struct Lisp_Finalizer *finalizer = head->next;
+       finalizer != head;
+       finalizer = finalizer->next)
+    {
+      VECTOR_MARK (finalizer);
+      mark_object (finalizer->function);
+    }
+}
+
+/* Move doomed finalizers to list DEST from list SRC.  A doomed
+   finalizer is one that is not GC-reachable and whose
+   finalizer->function is non-nil.  */
+
+static void
+queue_doomed_finalizers (struct Lisp_Finalizer *dest,
+                         struct Lisp_Finalizer *src)
+{
+  struct Lisp_Finalizer *finalizer = src->next;
+  while (finalizer != src)
+    {
+      struct Lisp_Finalizer *next = finalizer->next;
+      if (!VECTOR_MARKED_P (finalizer) && !NILP (finalizer->function))
+        {
+          unchain_finalizer (finalizer);
+          finalizer_insert (dest, finalizer);
+        }
+
+      finalizer = next;
+    }
+}
+
+static Lisp_Object
+run_finalizer_handler (Lisp_Object args)
+{
+  add_to_log ("finalizer failed: %S", args);
+  return Qnil;
+}
+
+static void
+run_finalizer_function (Lisp_Object function)
+{
+  ptrdiff_t count = SPECPDL_INDEX ();
+
+  specbind (Qinhibit_quit, Qt);
+  internal_condition_case_1 (call0, function, Qt, run_finalizer_handler);
+  unbind_to (count, Qnil);
+}
+
+static void
+run_finalizers (struct Lisp_Finalizer *finalizers)
+{
+  struct Lisp_Finalizer *finalizer;
+  Lisp_Object function;
+
+  while (finalizers->next != finalizers)
+    {
+      finalizer = finalizers->next;
+      unchain_finalizer (finalizer);
+      function = finalizer->function;
+      if (!NILP (function))
+	{
+	  finalizer->function = Qnil;
+	  run_finalizer_function (function);
+	}
+    }
+}
+
+DEFUN ("make-finalizer", Fmake_finalizer, Smake_finalizer, 1, 1, 0,
+       doc: /* Make a finalizer that will run FUNCTION.
+FUNCTION will be called after garbage collection when the returned
+finalizer object becomes unreachable.  If the finalizer object is
+reachable only through references from finalizer objects, it does not
+count as reachable for the purpose of deciding whether to run
+FUNCTION.  FUNCTION will be run once per finalizer object.  */)
+  (Lisp_Object function)
+{
+  struct Lisp_Finalizer *finalizer
+    = ALLOCATE_PSEUDOVECTOR (struct Lisp_Finalizer, prev, PVEC_FINALIZER);
+  finalizer->function = function;
+  finalizer->prev = finalizer->next = NULL;
+  finalizer_insert (&finalizers, finalizer);
+  return make_lisp_ptr (finalizer, Lisp_Vectorlike);
+}
+
+
+/************************************************************************
+			   Memory Full Handling
+ ************************************************************************/
+
+
+/* Called if malloc (NBYTES) returns zero.  If NBYTES == SIZE_MAX,
+   there may have been size_t overflow so that malloc was never
+   called, or perhaps malloc was invoked successfully but the
+   resulting pointer had problems fitting into a tagged EMACS_INT.  In
+   either case this counts as memory being full even though malloc did
+   not fail.  */
+
+void
+memory_full (size_t nbytes)
+{
+  /* Do not go into hysterics merely because a large request failed.  */
+  bool enough_free_memory = 0;
+  if (SPARE_MEMORY < nbytes)
+    {
+      void *p;
+
+      MALLOC_BLOCK_INPUT;
+      p = malloc (SPARE_MEMORY);
+      if (p)
+	{
+	  free (p);
+	  enough_free_memory = 1;
+	}
+      MALLOC_UNBLOCK_INPUT;
+    }
+
+  if (! enough_free_memory)
+    {
+      int i;
+
+      Vmemory_full = Qt;
+
+      memory_full_cons_threshold = sizeof (struct cons_block);
+
+      /* The first time we get here, free the spare memory.  */
+      for (i = 0; i < ARRAYELTS (spare_memory); i++)
+	if (spare_memory[i])
+	  {
+	    if (i == 0)
+	      free (spare_memory[i]);
+	    else if (i >= 1 && i <= 4)
+	      lisp_align_free (spare_memory[i]);
+	    else
+	      lisp_free (spare_memory[i]);
+	    spare_memory[i] = 0;
+	  }
+    }
+
+  /* This used to call error, but if we've run out of memory, we could
+     get infinite recursion trying to build the string.  */
+  xsignal (Qnil, Vmemory_signal_data);
+}
+
+/* If we released our reserve (due to running out of memory),
+   and we have a fair amount free once again,
+   try to set aside another reserve in case we run out once more.
+
+   This is called when a relocatable block is freed in ralloc.c,
+   and also directly from this file, in case we're not using ralloc.c.  */
+
+void
+refill_memory_reserve (void)
+{
+#if !defined SYSTEM_MALLOC && !defined HYBRID_MALLOC
+  if (spare_memory[0] == 0)
+    spare_memory[0] = malloc (SPARE_MEMORY);
+  if (spare_memory[1] == 0)
+    spare_memory[1] = lisp_align_malloc (sizeof (struct cons_block),
+						  MEM_TYPE_SPARE);
+  if (spare_memory[2] == 0)
+    spare_memory[2] = lisp_align_malloc (sizeof (struct cons_block),
+					 MEM_TYPE_SPARE);
+  if (spare_memory[3] == 0)
+    spare_memory[3] = lisp_align_malloc (sizeof (struct cons_block),
+					 MEM_TYPE_SPARE);
+  if (spare_memory[4] == 0)
+    spare_memory[4] = lisp_align_malloc (sizeof (struct cons_block),
+					 MEM_TYPE_SPARE);
+  if (spare_memory[5] == 0)
+    spare_memory[5] = lisp_malloc (sizeof (struct string_block),
+				   MEM_TYPE_SPARE);
+  if (spare_memory[6] == 0)
+    spare_memory[6] = lisp_malloc (sizeof (struct string_block),
+				   MEM_TYPE_SPARE);
+  if (spare_memory[0] && spare_memory[1] && spare_memory[5])
+    Vmemory_full = Qnil;
+#endif
+}
+
+/************************************************************************
+			   C Stack Marking
+ ************************************************************************/
+
+/* Conservative C stack marking requires a method to identify possibly
+   live Lisp objects given a pointer value.  We do this by keeping
+   track of blocks of Lisp data that are allocated in a red-black tree
+   (see also the comment of mem_node which is the type of nodes in
+   that tree).  Function lisp_malloc adds information for an allocated
+   block to the red-black tree with calls to mem_insert, and function
+   lisp_free removes it with mem_delete.  Functions live_string_p etc
+   call mem_find to lookup information about a given pointer in the
+   tree, and use that to determine if the pointer points into a Lisp
+   object or not.  */
+
+/* Initialize this part of alloc.c.  */
+
+static void
+mem_init (void)
+{
+  mem_z.left = mem_z.right = MEM_NIL;
+  mem_z.parent = NULL;
+  mem_z.color = MEM_BLACK;
+  mem_z.start = mem_z.end = NULL;
+  mem_root = MEM_NIL;
+}
+
+
+/* Value is a pointer to the mem_node containing START.  Value is
+   MEM_NIL if there is no node in the tree containing START.  */
+
+static struct mem_node *
+mem_find (void *start)
+{
+  struct mem_node *p;
+
+  if (start < min_heap_address || start > max_heap_address)
+    return MEM_NIL;
+
+  /* Make the search always successful to speed up the loop below.  */
+  mem_z.start = start;
+  mem_z.end = (char *) start + 1;
+
+  p = mem_root;
+  while (start < p->start || start >= p->end)
+    p = start < p->start ? p->left : p->right;
+  return p;
+}
+
+
+/* Insert a new node into the tree for a block of memory with start
+   address START, end address END, and type TYPE.  Value is a
+   pointer to the node that was inserted.  */
+
+static struct mem_node *
+mem_insert (void *start, void *end, enum mem_type type)
+{
+  struct mem_node *c, *parent, *x;
+
+  if (min_heap_address == NULL || start < min_heap_address)
+    min_heap_address = start;
+  if (max_heap_address == NULL || end > max_heap_address)
+    max_heap_address = end;
+
+  /* See where in the tree a node for START belongs.  In this
+     particular application, it shouldn't happen that a node is already
+     present.  For debugging purposes, let's check that.  */
+  c = mem_root;
+  parent = NULL;
+
+  while (c != MEM_NIL)
+    {
+      parent = c;
+      c = start < c->start ? c->left : c->right;
+    }
+
+  /* Create a new node.  */
+#ifdef GC_MALLOC_CHECK
+  x = malloc (sizeof *x);
+  if (x == NULL)
+    emacs_abort ();
+#else
+  x = xmalloc (sizeof *x);
+#endif
+  x->start = start;
+  x->end = end;
+  x->type = type;
+  x->parent = parent;
+  x->left = x->right = MEM_NIL;
+  x->color = MEM_RED;
+
+  /* Insert it as child of PARENT or install it as root.  */
+  if (parent)
+    {
+      if (start < parent->start)
+	parent->left = x;
+      else
+	parent->right = x;
+    }
+  else
+    mem_root = x;
+
+  /* Re-establish red-black tree properties.  */
+  mem_insert_fixup (x);
+
+  return x;
+}
+
+
+/* Re-establish the red-black properties of the tree, and thereby
+   balance the tree, after node X has been inserted; X is always red.  */
+
+static void
+mem_insert_fixup (struct mem_node *x)
+{
+  while (x != mem_root && x->parent->color == MEM_RED)
+    {
+      /* X is red and its parent is red.  This is a violation of
+	 red-black tree property #3.  */
+
+      if (x->parent == x->parent->parent->left)
+	{
+	  /* We're on the left side of our grandparent, and Y is our
+	     "uncle".  */
+	  struct mem_node *y = x->parent->parent->right;
+
+	  if (y->color == MEM_RED)
+	    {
+	      /* Uncle and parent are red but should be black because
+		 X is red.  Change the colors accordingly and proceed
+		 with the grandparent.  */
+	      x->parent->color = MEM_BLACK;
+	      y->color = MEM_BLACK;
+	      x->parent->parent->color = MEM_RED;
+	      x = x->parent->parent;
+            }
+	  else
+	    {
+	      /* Parent and uncle have different colors; parent is
+		 red, uncle is black.  */
+	      if (x == x->parent->right)
+		{
+		  x = x->parent;
+		  mem_rotate_left (x);
+                }
+
+	      x->parent->color = MEM_BLACK;
+	      x->parent->parent->color = MEM_RED;
+	      mem_rotate_right (x->parent->parent);
+            }
+        }
+      else
+	{
+	  /* This is the symmetrical case of above.  */
+	  struct mem_node *y = x->parent->parent->left;
+
+	  if (y->color == MEM_RED)
+	    {
+	      x->parent->color = MEM_BLACK;
+	      y->color = MEM_BLACK;
+	      x->parent->parent->color = MEM_RED;
+	      x = x->parent->parent;
+            }
+	  else
+	    {
+	      if (x == x->parent->left)
+		{
+		  x = x->parent;
+		  mem_rotate_right (x);
+		}
+
+	      x->parent->color = MEM_BLACK;
+	      x->parent->parent->color = MEM_RED;
+	      mem_rotate_left (x->parent->parent);
+            }
+        }
+    }
+
+  /* The root may have been changed to red due to the algorithm.  Set
+     it to black so that property #5 is satisfied.  */
+  mem_root->color = MEM_BLACK;
+}
+
+
+/*   (x)                   (y)
+     / \                   / \
+    a   (y)      ===>    (x)  c
+        / \              / \
+       b   c            a   b  */
+
+static void
+mem_rotate_left (struct mem_node *x)
+{
+  struct mem_node *y;
+
+  /* Turn y's left sub-tree into x's right sub-tree.  */
+  y = x->right;
+  x->right = y->left;
+  if (y->left != MEM_NIL)
+    y->left->parent = x;
+
+  /* Y's parent was x's parent.  */
+  if (y != MEM_NIL)
+    y->parent = x->parent;
+
+  /* Get the parent to point to y instead of x.  */
+  if (x->parent)
+    {
+      if (x == x->parent->left)
+	x->parent->left = y;
+      else
+	x->parent->right = y;
+    }
+  else
+    mem_root = y;
+
+  /* Put x on y's left.  */
+  y->left = x;
+  if (x != MEM_NIL)
+    x->parent = y;
+}
+
+
+/*     (x)                (Y)
+       / \                / \
+     (y)  c      ===>    a  (x)
+     / \                    / \
+    a   b                  b   c  */
+
+static void
+mem_rotate_right (struct mem_node *x)
+{
+  struct mem_node *y = x->left;
+
+  x->left = y->right;
+  if (y->right != MEM_NIL)
+    y->right->parent = x;
+
+  if (y != MEM_NIL)
+    y->parent = x->parent;
+  if (x->parent)
+    {
+      if (x == x->parent->right)
+	x->parent->right = y;
+      else
+	x->parent->left = y;
+    }
+  else
+    mem_root = y;
+
+  y->right = x;
+  if (x != MEM_NIL)
+    x->parent = y;
+}
+
+
+/* Delete node Z from the tree.  If Z is null or MEM_NIL, do nothing.  */
+
+static void
+mem_delete (struct mem_node *z)
+{
+  struct mem_node *x, *y;
+
+  if (!z || z == MEM_NIL)
+    return;
+
+  if (z->left == MEM_NIL || z->right == MEM_NIL)
+    y = z;
+  else
+    {
+      y = z->right;
+      while (y->left != MEM_NIL)
+	y = y->left;
+    }
+
+  if (y->left != MEM_NIL)
+    x = y->left;
+  else
+    x = y->right;
+
+  x->parent = y->parent;
+  if (y->parent)
+    {
+      if (y == y->parent->left)
+	y->parent->left = x;
+      else
+	y->parent->right = x;
+    }
+  else
+    mem_root = x;
+
+  if (y != z)
+    {
+      z->start = y->start;
+      z->end = y->end;
+      z->type = y->type;
+    }
+
+  if (y->color == MEM_BLACK)
+    mem_delete_fixup (x);
+
+#ifdef GC_MALLOC_CHECK
+  free (y);
+#else
+  xfree (y);
+#endif
+}
+
+
+/* Re-establish the red-black properties of the tree, after a
+   deletion.  */
+
+static void
+mem_delete_fixup (struct mem_node *x)
+{
+  while (x != mem_root && x->color == MEM_BLACK)
+    {
+      if (x == x->parent->left)
+	{
+	  struct mem_node *w = x->parent->right;
+
+	  if (w->color == MEM_RED)
+	    {
+	      w->color = MEM_BLACK;
+	      x->parent->color = MEM_RED;
+	      mem_rotate_left (x->parent);
+	      w = x->parent->right;
+            }
+
+	  if (w->left->color == MEM_BLACK && w->right->color == MEM_BLACK)
+	    {
+	      w->color = MEM_RED;
+	      x = x->parent;
+            }
+	  else
+	    {
+	      if (w->right->color == MEM_BLACK)
+		{
+		  w->left->color = MEM_BLACK;
+		  w->color = MEM_RED;
+		  mem_rotate_right (w);
+		  w = x->parent->right;
+                }
+	      w->color = x->parent->color;
+	      x->parent->color = MEM_BLACK;
+	      w->right->color = MEM_BLACK;
+	      mem_rotate_left (x->parent);
+	      x = mem_root;
+            }
+        }
+      else
+	{
+	  struct mem_node *w = x->parent->left;
+
+	  if (w->color == MEM_RED)
+	    {
+	      w->color = MEM_BLACK;
+	      x->parent->color = MEM_RED;
+	      mem_rotate_right (x->parent);
+	      w = x->parent->left;
+            }
+
+	  if (w->right->color == MEM_BLACK && w->left->color == MEM_BLACK)
+	    {
+	      w->color = MEM_RED;
+	      x = x->parent;
+            }
+	  else
+	    {
+	      if (w->left->color == MEM_BLACK)
+		{
+		  w->right->color = MEM_BLACK;
+		  w->color = MEM_RED;
+		  mem_rotate_left (w);
+		  w = x->parent->left;
+                }
+
+	      w->color = x->parent->color;
+	      x->parent->color = MEM_BLACK;
+	      w->left->color = MEM_BLACK;
+	      mem_rotate_right (x->parent);
+	      x = mem_root;
+            }
+        }
+    }
+
+  x->color = MEM_BLACK;
+}
+
+
+/* If P is a pointer into a live Lisp string object on the heap,
+   return the object.  Otherwise, return nil.  M is a pointer to the
+   mem_block for P.
+
+   This and other *_holding functions look for a pointer anywhere into
+   the object, not merely for a pointer to the start of the object,
+   because some compilers sometimes optimize away the latter.  See
+   Bug#28213.  */
+
+static Lisp_Object
+live_string_holding (struct mem_node *m, void *p)
+{
+  if (m->type == MEM_TYPE_STRING)
+    {
+      struct string_block *b = m->start;
+      char *cp = p;
+      ptrdiff_t offset = cp - (char *) &b->strings[0];
+
+      /* P must point into a Lisp_String structure, and it
+	 must not be on the free-list.  */
+      if (0 <= offset && offset < STRING_BLOCK_SIZE * sizeof b->strings[0])
+	{
+	  cp = ptr_bounds_copy (cp, b);
+	  struct Lisp_String *s = p = cp -= offset % sizeof b->strings[0];
+	  if (s->u.s.data)
+	    return make_lisp_ptr (s, Lisp_String);
+	}
+    }
+  return Qnil;
+}
+
+static bool
+live_string_p (struct mem_node *m, void *p)
+{
+  return !NILP (live_string_holding (m, p));
+}
+
+/* If P is a pointer into a live Lisp cons object on the heap, return
+   the object.  Otherwise, return nil.  M is a pointer to the
+   mem_block for P.  */
+
+static Lisp_Object
+live_cons_holding (struct mem_node *m, void *p)
+{
+  if (m->type == MEM_TYPE_CONS)
+    {
+      struct cons_block *b = m->start;
+      char *cp = p;
+      ptrdiff_t offset = cp - (char *) &b->conses[0];
+
+      /* P must point into a Lisp_Cons, not be
+	 one of the unused cells in the current cons block,
+	 and not be on the free-list.  */
+      if (0 <= offset && offset < CONS_BLOCK_SIZE * sizeof b->conses[0]
+	  && (b != cons_block
+	      || offset / sizeof b->conses[0] < cons_block_index))
+	{
+	  cp = ptr_bounds_copy (cp, b);
+	  struct Lisp_Cons *s = p = cp -= offset % sizeof b->conses[0];
+	  if (!EQ (s->u.s.car, Vdead))
+	    return make_lisp_ptr (s, Lisp_Cons);
+	}
+    }
+  return Qnil;
+}
+
+static bool
+live_cons_p (struct mem_node *m, void *p)
+{
+  return !NILP (live_cons_holding (m, p));
+}
+
+
+/* If P is a pointer into a live Lisp symbol object on the heap,
+   return the object.  Otherwise, return nil.  M is a pointer to the
+   mem_block for P.  */
+
+static Lisp_Object
+live_symbol_holding (struct mem_node *m, void *p)
+{
+  if (m->type == MEM_TYPE_SYMBOL)
+    {
+      struct symbol_block *b = m->start;
+      char *cp = p;
+      ptrdiff_t offset = cp - (char *) &b->symbols[0];
+
+      /* P must point into the Lisp_Symbol, not be
+	 one of the unused cells in the current symbol block,
+	 and not be on the free-list.  */
+      if (0 <= offset && offset < SYMBOL_BLOCK_SIZE * sizeof b->symbols[0]
+	  && (b != symbol_block
+	      || offset / sizeof b->symbols[0] < symbol_block_index))
+	{
+	  cp = ptr_bounds_copy (cp, b);
+	  struct Lisp_Symbol *s = p = cp -= offset % sizeof b->symbols[0];
+	  if (!EQ (s->u.s.function, Vdead))
+	    return make_lisp_symbol (s);
+	}
+    }
+  return Qnil;
+}
+
+static bool
+live_symbol_p (struct mem_node *m, void *p)
+{
+  return !NILP (live_symbol_holding (m, p));
+}
+
+
+/* Return true if P is a pointer to a live Lisp float on
+   the heap.  M is a pointer to the mem_block for P.  */
+
+static bool
+live_float_p (struct mem_node *m, void *p)
+{
+  if (m->type == MEM_TYPE_FLOAT)
+    {
+      struct float_block *b = m->start;
+      char *cp = p;
+      ptrdiff_t offset = cp - (char *) &b->floats[0];
+
+      /* P must point to the start of a Lisp_Float and not be
+	 one of the unused cells in the current float block.  */
+      return (offset >= 0
+	      && offset % sizeof b->floats[0] == 0
+	      && offset < (FLOAT_BLOCK_SIZE * sizeof b->floats[0])
+	      && (b != float_block
+		  || offset / sizeof b->floats[0] < float_block_index));
+    }
+  else
+    return 0;
+}
+
+/* If P is a pointer to a live vector-like object, return the object.
+   Otherwise, return nil.
+   M is a pointer to the mem_block for P.  */
+
+static Lisp_Object
+live_vector_holding (struct mem_node *m, void *p)
+{
+  struct Lisp_Vector *vp = p;
+
+  if (m->type == MEM_TYPE_VECTOR_BLOCK)
+    {
+      /* This memory node corresponds to a vector block.  */
+      struct vector_block *block = m->start;
+      struct Lisp_Vector *vector = (struct Lisp_Vector *) block->data;
+
+      /* P is in the block's allocation range.  Scan the block
+	 up to P and see whether P points to the start of some
+	 vector which is not on a free list.  FIXME: check whether
+	 some allocation patterns (probably a lot of short vectors)
+	 may cause a substantial overhead of this loop.  */
+      while (VECTOR_IN_BLOCK (vector, block) && vector <= vp)
+	{
+	  struct Lisp_Vector *next = ADVANCE (vector, vector_nbytes (vector));
+	  if (vp < next && !PSEUDOVECTOR_TYPEP (&vector->header, PVEC_FREE))
+	    return make_lisp_ptr (vector, Lisp_Vectorlike);
+	  vector = next;
+	}
+    }
+  else if (m->type == MEM_TYPE_VECTORLIKE)
+    {
+      /* This memory node corresponds to a large vector.  */
+      struct Lisp_Vector *vector = large_vector_vec (m->start);
+      struct Lisp_Vector *next = ADVANCE (vector, vector_nbytes (vector));
+      if (vector <= vp && vp < next)
+	return make_lisp_ptr (vector, Lisp_Vectorlike);
+    }
+  return Qnil;
+}
+
+static bool
+live_vector_p (struct mem_node *m, void *p)
+{
+  return !NILP (live_vector_holding (m, p));
+}
+
+/* If P is a pointer into a live buffer, return the buffer.
+   Otherwise, return nil.  M is a pointer to the mem_block for P.  */
+
+static Lisp_Object
+live_buffer_holding (struct mem_node *m, void *p)
+{
+  /* P must point into the block, and the buffer
+     must not have been killed.  */
+  if (m->type == MEM_TYPE_BUFFER)
+    {
+      struct buffer *b = m->start;
+      char *cb = m->start;
+      char *cp = p;
+      ptrdiff_t offset = cp - cb;
+      if (0 <= offset && offset < sizeof *b && !NILP (b->name_))
+	{
+	  Lisp_Object obj;
+	  XSETBUFFER (obj, b);
+	  return obj;
+	}
+    }
+  return Qnil;
+}
+
+static bool
+live_buffer_p (struct mem_node *m, void *p)
+{
+  return !NILP (live_buffer_holding (m, p));
+}
+
+/* Mark OBJ if we can prove it's a Lisp_Object.  */
+
+static void
+mark_maybe_object (Lisp_Object obj)
+{
+#if USE_VALGRIND
+  if (valgrind_p)
+    VALGRIND_MAKE_MEM_DEFINED (&obj, sizeof (obj));
+#endif
+
+  if (FIXNUMP (obj))
+    return;
+
+  void *po = XPNTR (obj);
+  struct mem_node *m = mem_find (po);
+
+  if (m != MEM_NIL)
+    {
+      bool mark_p = false;
+
+      switch (XTYPE (obj))
+	{
+	case Lisp_String:
+	  mark_p = EQ (obj, live_string_holding (m, po));
+	  break;
+
+	case Lisp_Cons:
+	  mark_p = EQ (obj, live_cons_holding (m, po));
+	  break;
+
+	case Lisp_Symbol:
+	  mark_p = EQ (obj, live_symbol_holding (m, po));
+	  break;
+
+	case Lisp_Float:
+	  mark_p = live_float_p (m, po);
+	  break;
+
+	case Lisp_Vectorlike:
+	  mark_p = (EQ (obj, live_vector_holding (m, po))
+		    || EQ (obj, live_buffer_holding (m, po)));
+	  break;
+
+	default:
+	  break;
+	}
+
+      if (mark_p)
+	mark_object (obj);
+    }
+}
+
+void
+mark_maybe_objects (Lisp_Object *array, ptrdiff_t nelts)
+{
+  for (Lisp_Object *lim = array + nelts; array < lim; array++)
+    mark_maybe_object (*array);
+}
+
+/* Return true if P might point to Lisp data that can be garbage
+   collected, and false otherwise (i.e., false if it is easy to see
+   that P cannot point to Lisp data that can be garbage collected).
+   Symbols are implemented via offsets not pointers, but the offsets
+   are also multiples of LISP_ALIGNMENT.  */
+
+static bool
+maybe_lisp_pointer (void *p)
+{
+  return (uintptr_t) p % LISP_ALIGNMENT == 0;
+}
+
+#ifndef HAVE_MODULES
+enum { HAVE_MODULES = false };
+#endif
+
+/* If P points to Lisp data, mark that as live if it isn't already
+   marked.  */
+
+static void
+mark_maybe_pointer (void *p)
+{
+  struct mem_node *m;
+
+#if USE_VALGRIND
+  if (valgrind_p)
+    VALGRIND_MAKE_MEM_DEFINED (&p, sizeof (p));
+#endif
+
+  if (sizeof (Lisp_Object) == sizeof (void *) || !HAVE_MODULES)
+    {
+      if (!maybe_lisp_pointer (p))
+        return;
+    }
+  else
+    {
+      /* For the wide-int case, also mark emacs_value tagged pointers,
+	 which can be generated by emacs-module.c's value_to_lisp.  */
+      p = (void *) ((uintptr_t) p & ~((1 << GCTYPEBITS) - 1));
+    }
+
+  m = mem_find (p);
+  if (m != MEM_NIL)
+    {
+      Lisp_Object obj = Qnil;
+
+      switch (m->type)
+	{
+	case MEM_TYPE_NON_LISP:
+	case MEM_TYPE_SPARE:
+	  /* Nothing to do; not a pointer to Lisp memory.  */
+	  break;
+
+	case MEM_TYPE_BUFFER:
+	  obj = live_buffer_holding (m, p);
+	  break;
+
+	case MEM_TYPE_CONS:
+	  obj = live_cons_holding (m, p);
+	  break;
+
+	case MEM_TYPE_STRING:
+	  obj = live_string_holding (m, p);
+	  break;
+
+	case MEM_TYPE_SYMBOL:
+	  obj = live_symbol_holding (m, p);
+	  break;
+
+	case MEM_TYPE_FLOAT:
+	  if (live_float_p (m, p))
+	    obj = make_lisp_ptr (p, Lisp_Float);
+	  break;
+
+	case MEM_TYPE_VECTORLIKE:
+	case MEM_TYPE_VECTOR_BLOCK:
+	  obj = live_vector_holding (m, p);
+	  break;
+
+	default:
+	  emacs_abort ();
+	}
+
+      if (!NILP (obj))
+	mark_object (obj);
+    }
+}
+
+
+/* Alignment of pointer values.  Use alignof, as it sometimes returns
+   a smaller alignment than GCC's __alignof__ and mark_memory might
+   miss objects if __alignof__ were used.  */
+#define GC_POINTER_ALIGNMENT alignof (void *)
+
+/* Mark Lisp objects referenced from the address range START+OFFSET..END
+   or END+OFFSET..START.  */
+
+static void ATTRIBUTE_NO_SANITIZE_ADDRESS
+mark_memory (void *start, void *end)
+{
+  char *pp;
+
+  /* Make START the pointer to the start of the memory region,
+     if it isn't already.  */
+  if (end < start)
+    {
+      void *tem = start;
+      start = end;
+      end = tem;
+    }
+
+  eassert (((uintptr_t) start) % GC_POINTER_ALIGNMENT == 0);
+
+  /* Mark Lisp data pointed to.  This is necessary because, in some
+     situations, the C compiler optimizes Lisp objects away, so that
+     only a pointer to them remains.  Example:
+
+     DEFUN ("testme", Ftestme, Stestme, 0, 0, 0, "")
+     ()
+     {
+       Lisp_Object obj = build_string ("test");
+       struct Lisp_String *s = XSTRING (obj);
+       Fgarbage_collect ();
+       fprintf (stderr, "test '%s'\n", s->u.s.data);
+       return Qnil;
+     }
+
+     Here, `obj' isn't really used, and the compiler optimizes it
+     away.  The only reference to the life string is through the
+     pointer `s'.  */
+
+  for (pp = start; (void *) pp < end; pp += GC_POINTER_ALIGNMENT)
+    {
+      mark_maybe_pointer (*(void **) pp);
+
+      verify (alignof (Lisp_Object) % GC_POINTER_ALIGNMENT == 0);
+      if (alignof (Lisp_Object) == GC_POINTER_ALIGNMENT
+	  || (uintptr_t) pp % alignof (Lisp_Object) == 0)
+	mark_maybe_object (*(Lisp_Object *) pp);
+    }
+}
+
+#ifndef HAVE___BUILTIN_UNWIND_INIT
+
+# ifdef GC_SETJMP_WORKS
+static void
+test_setjmp (void)
+{
+}
+# else
+
+static bool setjmp_tested_p;
+static int longjmps_done;
+
+#  define SETJMP_WILL_LIKELY_WORK "\
+\n\
+Emacs garbage collector has been changed to use conservative stack\n\
+marking.  Emacs has determined that the method it uses to do the\n\
+marking will likely work on your system, but this isn't sure.\n\
+\n\
+If you are a system-programmer, or can get the help of a local wizard\n\
+who is, please take a look at the function mark_stack in alloc.c, and\n\
+verify that the methods used are appropriate for your system.\n\
+\n\
+Please mail the result to <emacs-devel@gnu.org>.\n\
+"
+
+#  define SETJMP_WILL_NOT_WORK "\
+\n\
+Emacs garbage collector has been changed to use conservative stack\n\
+marking.  Emacs has determined that the default method it uses to do the\n\
+marking will not work on your system.  We will need a system-dependent\n\
+solution for your system.\n\
+\n\
+Please take a look at the function mark_stack in alloc.c, and\n\
+try to find a way to make it work on your system.\n\
+\n\
+Note that you may get false negatives, depending on the compiler.\n\
+In particular, you need to use -O with GCC for this test.\n\
+\n\
+Please mail the result to <emacs-devel@gnu.org>.\n\
+"
+
+
+/* Perform a quick check if it looks like setjmp saves registers in a
+   jmp_buf.  Print a message to stderr saying so.  When this test
+   succeeds, this is _not_ a proof that setjmp is sufficient for
+   conservative stack marking.  Only the sources or a disassembly
+   can prove that.  */
+
+static void
+test_setjmp (void)
+{
+  if (setjmp_tested_p)
+    return;
+  setjmp_tested_p = true;
+  char buf[10];
+  register int x;
+  sys_jmp_buf jbuf;
+
+  /* Arrange for X to be put in a register.  */
+  sprintf (buf, "1");
+  x = strlen (buf);
+  x = 2 * x - 1;
+
+  sys_setjmp (jbuf);
+  if (longjmps_done == 1)
+    {
+      /* Came here after the longjmp at the end of the function.
+
+         If x == 1, the longjmp has restored the register to its
+         value before the setjmp, and we can hope that setjmp
+         saves all such registers in the jmp_buf, although that
+	 isn't sure.
+
+         For other values of X, either something really strange is
+         taking place, or the setjmp just didn't save the register.  */
+
+      if (x == 1)
+	fprintf (stderr, SETJMP_WILL_LIKELY_WORK);
+      else
+	{
+	  fprintf (stderr, SETJMP_WILL_NOT_WORK);
+	  exit (1);
+	}
+    }
+
+  ++longjmps_done;
+  x = 2;
+  if (longjmps_done == 1)
+    sys_longjmp (jbuf, 1);
+}
+# endif /* ! GC_SETJMP_WORKS */
+#endif /* ! HAVE___BUILTIN_UNWIND_INIT */
+
 /* The type of an object near the stack top, whose address can be used
    as a stack scan limit.  */
 typedef union
@@ -3328,6 +4595,394 @@ typedef union
      |  Lisp_Object   |  size = 4
      +----------------+
      |	...	      |
+*/
+
+/***********************************************************************
+		       Pure Storage Management
+ ***********************************************************************/
+
+/* Allocate room for SIZE bytes from pure Lisp storage and return a
+   pointer to it.  TYPE is the Lisp type for which the memory is
+   allocated.  TYPE < 0 means it's not used for a Lisp object.  */
+
+static void *
+pure_alloc (size_t size, int type)
+{
+  void *result;
+
+ again:
+  if (type >= 0)
+    {
+      /* Allocate space for a Lisp object from the beginning of the free
+	 space with taking account of alignment.  */
+      result = pointer_align (purebeg + pure_bytes_used_lisp, LISP_ALIGNMENT);
+      pure_bytes_used_lisp = ((char *)result - (char *)purebeg) + size;
+    }
+  else
+    {
+      /* Allocate space for a non-Lisp object from the end of the free
+	 space.  */
+      pure_bytes_used_non_lisp += size;
+      result = purebeg + pure_size - pure_bytes_used_non_lisp;
+    }
+  pure_bytes_used = pure_bytes_used_lisp + pure_bytes_used_non_lisp;
+
+  if (pure_bytes_used <= pure_size)
+    return ptr_bounds_clip (result, size);
+
+  /* Don't allocate a large amount here,
+     because it might get mmap'd and then its address
+     might not be usable.  */
+  purebeg = xmalloc (10000);
+  pure_size = 10000;
+  pure_bytes_used_before_overflow += pure_bytes_used - size;
+  pure_bytes_used = 0;
+  pure_bytes_used_lisp = pure_bytes_used_non_lisp = 0;
+  goto again;
+}
+
+
+#ifndef CANNOT_DUMP
+
+/* Print a warning if PURESIZE is too small.  */
+
+void
+check_pure_size (void)
+{
+  if (pure_bytes_used_before_overflow)
+    message (("emacs:0:Pure Lisp storage overflow (approx. %"pI"d"
+	      " bytes needed)"),
+	     pure_bytes_used + pure_bytes_used_before_overflow);
+}
+#endif
+
+
+/* Find the byte sequence {DATA[0], ..., DATA[NBYTES-1], '\0'} from
+   the non-Lisp data pool of the pure storage, and return its start
+   address.  Return NULL if not found.  */
+
+static char *
+find_string_data_in_pure (const char *data, ptrdiff_t nbytes)
+{
+  int i;
+  ptrdiff_t skip, bm_skip[256], last_char_skip, infinity, start, start_max;
+  const unsigned char *p;
+  char *non_lisp_beg;
+
+  if (pure_bytes_used_non_lisp <= nbytes)
+    return NULL;
+
+  /* Set up the Boyer-Moore table.  */
+  skip = nbytes + 1;
+  for (i = 0; i < 256; i++)
+    bm_skip[i] = skip;
+
+  p = (const unsigned char *) data;
+  while (--skip > 0)
+    bm_skip[*p++] = skip;
+
+  last_char_skip = bm_skip['\0'];
+
+  non_lisp_beg = purebeg + pure_size - pure_bytes_used_non_lisp;
+  start_max = pure_bytes_used_non_lisp - (nbytes + 1);
+
+  /* See the comments in the function `boyer_moore' (search.c) for the
+     use of `infinity'.  */
+  infinity = pure_bytes_used_non_lisp + 1;
+  bm_skip['\0'] = infinity;
+
+  p = (const unsigned char *) non_lisp_beg + nbytes;
+  start = 0;
+  do
+    {
+      /* Check the last character (== '\0').  */
+      do
+	{
+	  start += bm_skip[*(p + start)];
+	}
+      while (start <= start_max);
+
+      if (start < infinity)
+	/* Couldn't find the last character.  */
+	return NULL;
+
+      /* No less than `infinity' means we could find the last
+	 character at `p[start - infinity]'.  */
+      start -= infinity;
+
+      /* Check the remaining characters.  */
+      if (memcmp (data, non_lisp_beg + start, nbytes) == 0)
+	/* Found.  */
+	return ptr_bounds_clip (non_lisp_beg + start, nbytes + 1);
+
+      start += last_char_skip;
+    }
+  while (start <= start_max);
+
+  return NULL;
+}
+
+
+/* Return a string allocated in pure space.  DATA is a buffer holding
+   NCHARS characters, and NBYTES bytes of string data.  MULTIBYTE
+   means make the result string multibyte.
+
+   Must get an error if pure storage is full, since if it cannot hold
+   a large string it may be able to hold conses that point to that
+   string; then the string is not protected from gc.  */
+
+Lisp_Object
+make_pure_string (const char *data,
+		  ptrdiff_t nchars, ptrdiff_t nbytes, bool multibyte)
+{
+  Lisp_Object string;
+  struct Lisp_String *s = pure_alloc (sizeof *s, Lisp_String);
+  s->u.s.data = (unsigned char *) find_string_data_in_pure (data, nbytes);
+  if (s->u.s.data == NULL)
+    {
+      s->u.s.data = pure_alloc (nbytes + 1, -1);
+      memcpy (s->u.s.data, data, nbytes);
+      s->u.s.data[nbytes] = '\0';
+    }
+  s->u.s.size = nchars;
+  s->u.s.size_byte = multibyte ? nbytes : -1;
+  s->u.s.intervals = NULL;
+  XSETSTRING (string, s);
+  return string;
+}
+
+/* Return a string allocated in pure space.  Do not
+   allocate the string data, just point to DATA.  */
+
+Lisp_Object
+make_pure_c_string (const char *data, ptrdiff_t nchars)
+{
+  Lisp_Object string;
+  struct Lisp_String *s = pure_alloc (sizeof *s, Lisp_String);
+  s->u.s.size = nchars;
+  s->u.s.size_byte = -1;
+  s->u.s.data = (unsigned char *) data;
+  s->u.s.intervals = NULL;
+  XSETSTRING (string, s);
+  return string;
+}
+
+static Lisp_Object purecopy (Lisp_Object obj);
+
+/* Return a cons allocated from pure space.  Give it pure copies
+   of CAR as car and CDR as cdr.  */
+
+Lisp_Object
+pure_cons (Lisp_Object car, Lisp_Object cdr)
+{
+  Lisp_Object new;
+  struct Lisp_Cons *p = pure_alloc (sizeof *p, Lisp_Cons);
+  XSETCONS (new, p);
+  XSETCAR (new, purecopy (car));
+  XSETCDR (new, purecopy (cdr));
+  return new;
+}
+
+
+/* Value is a float object with value NUM allocated from pure space.  */
+
+static Lisp_Object
+make_pure_float (double num)
+{
+  Lisp_Object new;
+  struct Lisp_Float *p = pure_alloc (sizeof *p, Lisp_Float);
+  XSETFLOAT (new, p);
+  XFLOAT_INIT (new, num);
+  return new;
+}
+
+/* Value is a bignum object with value VALUE allocated from pure
+   space.  */
+
+static Lisp_Object
+make_pure_bignum (struct Lisp_Bignum *value)
+{
+  size_t i, nlimbs = mpz_size (value->value);
+  size_t nbytes = nlimbs * sizeof (mp_limb_t);
+  mp_limb_t *pure_limbs;
+  mp_size_t new_size;
+
+  struct Lisp_Bignum *b = pure_alloc (sizeof *b, Lisp_Vectorlike);
+  XSETPVECTYPESIZE (b, PVEC_BIGNUM, 0, VECSIZE (struct Lisp_Bignum));
+
+  pure_limbs = pure_alloc (nbytes, -1);
+  for (i = 0; i < nlimbs; ++i)
+    pure_limbs[i] = mpz_getlimbn (value->value, i);
+
+  new_size = nlimbs;
+  if (mpz_sgn (value->value) < 0)
+    new_size = -new_size;
+
+  mpz_roinit_n (b->value, pure_limbs, new_size);
+
+  return make_lisp_ptr (b, Lisp_Vectorlike);
+}
+
+/* Return a vector with room for LEN Lisp_Objects allocated from
+   pure space.  */
+
+static Lisp_Object
+make_pure_vector (ptrdiff_t len)
+{
+  Lisp_Object new;
+  size_t size = header_size + len * word_size;
+  struct Lisp_Vector *p = pure_alloc (size, Lisp_Vectorlike);
+  XSETVECTOR (new, p);
+  XVECTOR (new)->header.size = len;
+  return new;
+}
+
+/* Copy all contents and parameters of TABLE to a new table allocated
+   from pure space, return the purified table.  */
+static struct Lisp_Hash_Table *
+purecopy_hash_table (struct Lisp_Hash_Table *table)
+{
+  eassert (NILP (table->weak));
+  eassert (table->pure);
+
+  struct Lisp_Hash_Table *pure = pure_alloc (sizeof *pure, Lisp_Vectorlike);
+  struct hash_table_test pure_test = table->test;
+
+  /* Purecopy the hash table test.  */
+  pure_test.name = purecopy (table->test.name);
+  pure_test.user_hash_function = purecopy (table->test.user_hash_function);
+  pure_test.user_cmp_function = purecopy (table->test.user_cmp_function);
+
+  pure->header = table->header;
+  pure->weak = purecopy (Qnil);
+  pure->hash = purecopy (table->hash);
+  pure->next = purecopy (table->next);
+  pure->index = purecopy (table->index);
+  pure->count = table->count;
+  pure->next_free = table->next_free;
+  pure->pure = table->pure;
+  pure->rehash_threshold = table->rehash_threshold;
+  pure->rehash_size = table->rehash_size;
+  pure->key_and_value = purecopy (table->key_and_value);
+  pure->test = pure_test;
+
+  return pure;
+}
+
+DEFUN ("purecopy", Fpurecopy, Spurecopy, 1, 1, 0,
+       doc: /* Make a copy of object OBJ in pure storage.
+Recursively copies contents of vectors and cons cells.
+Does not copy symbols.  Copies strings without text properties.  */)
+  (register Lisp_Object obj)
+{
+  if (NILP (Vpurify_flag))
+    return obj;
+  else if (MARKERP (obj) || OVERLAYP (obj) || SYMBOLP (obj))
+    /* Can't purify those.  */
+    return obj;
+  else
+    return purecopy (obj);
+}
+
+/* Pinned objects are marked before every GC cycle.  */
+static struct pinned_object
+{
+  Lisp_Object object;
+  struct pinned_object *next;
+} *pinned_objects;
+
+static Lisp_Object
+purecopy (Lisp_Object obj)
+{
+  if (FIXNUMP (obj)
+      || (! SYMBOLP (obj) && PURE_P (XPNTR (obj)))
+      || SUBRP (obj))
+    return obj;    /* Already pure.  */
+
+  if (STRINGP (obj) && XSTRING (obj)->u.s.intervals)
+    message_with_string ("Dropping text-properties while making string `%s' pure",
+			 obj, true);
+
+  if (HASH_TABLE_P (Vpurify_flag)) /* Hash consing.  */
+    {
+      Lisp_Object tmp = Fgethash (obj, Vpurify_flag, Qnil);
+      if (!NILP (tmp))
+	return tmp;
+    }
+
+  if (CONSP (obj))
+    obj = pure_cons (XCAR (obj), XCDR (obj));
+  else if (FLOATP (obj))
+    obj = make_pure_float (XFLOAT_DATA (obj));
+  else if (STRINGP (obj))
+    obj = make_pure_string (SSDATA (obj), SCHARS (obj),
+			    SBYTES (obj),
+			    STRING_MULTIBYTE (obj));
+  else if (HASH_TABLE_P (obj))
+    {
+      struct Lisp_Hash_Table *table = XHASH_TABLE (obj);
+      /* Do not purify hash tables which haven't been defined with
+         :purecopy as non-nil or are weak - they aren't guaranteed to
+         not change.  */
+      if (!NILP (table->weak) || !table->pure)
+        {
+          /* Instead, add the hash table to the list of pinned objects,
+             so that it will be marked during GC.  */
+          struct pinned_object *o = xmalloc (sizeof *o);
+          o->object = obj;
+          o->next = pinned_objects;
+          pinned_objects = o;
+          return obj; /* Don't hash cons it.  */
+        }
+
+      struct Lisp_Hash_Table *h = purecopy_hash_table (table);
+      XSET_HASH_TABLE (obj, h);
+    }
+  else if (COMPILEDP (obj) || VECTORP (obj) || RECORDP (obj))
+    {
+      struct Lisp_Vector *objp = XVECTOR (obj);
+      ptrdiff_t nbytes = vector_nbytes (objp);
+      struct Lisp_Vector *vec = pure_alloc (nbytes, Lisp_Vectorlike);
+      register ptrdiff_t i;
+      ptrdiff_t size = ASIZE (obj);
+      if (size & PSEUDOVECTOR_FLAG)
+	size &= PSEUDOVECTOR_SIZE_MASK;
+      memcpy (vec, objp, nbytes);
+      for (i = 0; i < size; i++)
+	vec->contents[i] = purecopy (vec->contents[i]);
+      XSETVECTOR (obj, vec);
+    }
+  else if (SYMBOLP (obj))
+    {
+      if (!XSYMBOL (obj)->u.s.pinned && !c_symbol_p (XSYMBOL (obj)))
+	{ /* We can't purify them, but they appear in many pure objects.
+	     Mark them as `pinned' so we know to mark them at every GC cycle.  */
+	  XSYMBOL (obj)->u.s.pinned = true;
+	  symbol_block_pinned = symbol_block;
+	}
+      /* Don't hash-cons it.  */
+      return obj;
+    }
+  else if (BIGNUMP (obj))
+    obj = make_pure_bignum (XBIGNUM (obj));
+  else
+    {
+      AUTO_STRING (fmt, "Don't know how to purify: %S");
+      Fsignal (Qerror, list1 (CALLN (Fformat, fmt, obj)));
+    }
+
+  if (HASH_TABLE_P (Vpurify_flag)) /* Hash consing.  */
+    Fputhash (obj, obj, Vpurify_flag);
+
+  return obj;
+}
+
+
+
+/***********************************************************************
+			  Protection from GC
+ ***********************************************************************/
+>>>>>>> origin/master
 
    In such a case, not every Lisp_Object will be aligned equally.  To
    find all Lisp_Object on the stack it won't be sufficient to walk
@@ -3818,21 +5473,6 @@ compact_undo_list (Lisp_Object list)
   return list;
 }
 
-/* Subroutine of Fgarbage_collect that does most of the work.  It is a
-   separate function so that we could limit mark_stack in searching
-   the stack frames below this function, thus avoiding the rare cases
-   where mark_stack finds values that look like live Lisp objects on
-   portions of stack that couldn't possibly contain such live objects.
-   For more details of this, see the discussion at
-   https://lists.gnu.org/r/emacs-devel/2014-05/msg00270.html.  */
-static Lisp_Object
-garbage_collect_1 (void *end)
-{
-  /* Can't GC if pure storage overflowed because we can't determine
-     if something is a pure object or not.  */
-  return Qnil;
-}
-
 DEFUN ("garbage-collect", Fgarbage_collect, Sgarbage_collect, 0, 0, "",
        doc: /* Reclaim storage for Lisp objects no longer needed.
 Garbage collection happens automatically if you cons more than
@@ -3970,7 +5610,6 @@ survives_gc_p (Lisp_Object obj)
 
   return survives_p;
 }
-
 
 DEFUN ("memory-info", Fmemory_info, Smemory_info, 0, 0, 0,
        doc: /* Return a list of (TOTAL-RAM FREE-RAM TOTAL-SWAP FREE-SWAP).
@@ -4295,7 +5934,6 @@ do hash-consing of the objects allocated to pure space.  */);
 
   DEFSYM (Qconses, "conses");
   DEFSYM (Qsymbols, "symbols");
-  DEFSYM (Qmiscs, "miscs");
   DEFSYM (Qstrings, "strings");
   DEFSYM (Qvectors, "vectors");
   DEFSYM (Qfloats, "floats");

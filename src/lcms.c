@@ -93,7 +93,7 @@ parse_lab_list (Lisp_Object lab_list, cmsCIELab *color)
 {
   MODIFY_ARG(&lab_list);
 #define PARSE_LAB_LIST_FIELD(field)					\
-  if (CONSP (lab_list) && NUMBERP (LRH (XCAR (lab_list))))              \
+  if (CONSP (lab_list) && FIXED_OR_FLOATP (LRH (XCAR (lab_list))))              \
     {									\
       color->field = XFLOATINT (LRH (XCAR (lab_list)));			\
       lab_list = XCDR (lab_list);					\
@@ -138,15 +138,15 @@ chroma, and hue, respectively. The parameters each default to 1.  */)
     signal_error ("Invalid color", color1);
   if (NILP (kL))
     Kl = 1.0f;
-  else if (!(NUMBERP (kL) && (Kl = XFLOATINT(kL))))
+  else if (!(FIXED_OR_FLOATP (kL) && (Kl = XFLOATINT(kL))))
     wrong_type_argument(Qnumberp, kL);
   if (NILP (kC))
     Kc = 1.0f;
-  else if (!(NUMBERP (kC) && (Kc = XFLOATINT(kC))))
+  else if (!(FIXED_OR_FLOATP (kC) && (Kc = XFLOATINT(kC))))
     wrong_type_argument(Qnumberp, kC);
   if (NILP (kL))
     Kh = 1.0f;
-  else if (!(NUMBERP (kH) && (Kh = XFLOATINT(kH))))
+  else if (!(FIXED_OR_FLOATP (kH) && (Kh = XFLOATINT(kH))))
     wrong_type_argument(Qnumberp, kH);
 
   return make_float (cmsCIE2000DeltaE (&Lab1, &Lab2, Kl, Kc, Kh));
@@ -185,7 +185,7 @@ parse_xyz_list (Lisp_Object xyz_list, cmsCIEXYZ *color)
 {
   MODIFY_ARG(&xyz_list);
 #define PARSE_XYZ_LIST_FIELD(field)					\
-  if (CONSP (xyz_list) && NUMBERP (LRH (XCAR (xyz_list))))              \
+  if (CONSP (xyz_list) && FIXED_OR_FLOATP (LRH (XCAR (xyz_list))))              \
     {									\
       color->field = 100.0 * XFLOATINT (LRH (XCAR (xyz_list)));		\
       xyz_list = XCDR (xyz_list);					\
@@ -205,7 +205,7 @@ parse_jch_list (Lisp_Object jch_list, cmsJCh *color)
 {
   MODIFY_ARG(&jch_list);
 #define PARSE_JCH_LIST_FIELD(field)					\
-  if (CONSP (jch_list) && NUMBERP (LRH (XCAR (jch_list))))              \
+  if (CONSP (jch_list) && FIXED_OR_FLOATP (LRH (XCAR (jch_list))))              \
     {									\
       color->field = XFLOATINT (LRH (XCAR (jch_list)));			\
       jch_list = XCDR (jch_list);					\
@@ -227,7 +227,7 @@ parse_jab_list (Lisp_Object jab_list, lcmsJab_t *color)
 {
   MODIFY_ARG(&jab_list);
 #define PARSE_JAB_LIST_FIELD(field)					\
-  if (CONSP (jab_list) && NUMBERP (LRH (XCAR (jab_list))))              \
+  if (CONSP (jab_list) && FIXED_OR_FLOATP (LRH (XCAR (jab_list))))              \
     {									\
       color->field = XFLOATINT (LRH (XCAR (jab_list)));			\
       jab_list = XCDR (jab_list);					\
@@ -248,7 +248,7 @@ parse_viewing_conditions (Lisp_Object view, const cmsCIEXYZ *wp,
 {
   MODIFY_ARG(&view);
 #define PARSE_VIEW_CONDITION_FLOAT(field)				\
-  if (CONSP (view) && NUMBERP (LRH (XCAR (view))))                      \
+  if (CONSP (view) && FIXED_OR_FLOATP (LRH (XCAR (view))))                      \
     {									\
       vc->field = XFLOATINT (LRH (XCAR (view)));                        \
       view = XCDR (view);						\
@@ -256,10 +256,10 @@ parse_viewing_conditions (Lisp_Object view, const cmsCIEXYZ *wp,
   else									\
     return false;
 #define PARSE_VIEW_CONDITION_INT(field)					\
-  if (CONSP (view) && NATNUMP (LRH (XCAR (view))))                      \
+  if (CONSP (view) && FIXNATP (LRH (XCAR (view))))                      \
     {									\
       CHECK_RANGED_INTEGER (LRH (XCAR (view)), 1, 4);                   \
-      vc->field = XINT (LRH (XCAR (view)));                             \
+      vc->field = XFIXNUM (LRH (XCAR (view)));                             \
       view = XCDR (view);						\
     }									\
   else									\
@@ -559,7 +559,7 @@ Valid range of TEMPERATURE is from 4000K to 25000K.  */)
     }
 #endif
 
-  CHECK_NUMBER_OR_FLOAT (temperature);
+  CHECK_FIXNUM_OR_FLOAT (temperature);
 
   tempK = XFLOATINT (temperature);
   if (!(cmsWhitePointFromTemp (&whitepoint, tempK)))

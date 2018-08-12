@@ -186,16 +186,16 @@ enum font_property_index
 
 /* Return the numeric weight value of FONT.  */
 #define FONT_WEIGHT_NUMERIC(font)		\
-  (INTEGERP (LRH (AREF ((font), FONT_WEIGHT_INDEX)))            \
-   ? (XINT (LRH (AREF ((font), FONT_WEIGHT_INDEX))) >> 8) : -1)
+  (FIXNUMP (LRH (AREF ((font), FONT_WEIGHT_INDEX)))            \
+   ? (XFIXNUM (LRH (AREF ((font), FONT_WEIGHT_INDEX))) >> 8) : -1)
 /* Return the numeric slant value of FONT.  */
 #define FONT_SLANT_NUMERIC(font)		\
-  (INTEGERP (LRH (AREF ((font), FONT_SLANT_INDEX)))                     \
-   ? (XINT (LRH (AREF ((font), FONT_SLANT_INDEX))) >> 8) : -1)
+  (FIXNUMP (LRH (AREF ((font), FONT_SLANT_INDEX)))                     \
+   ? (XFIXNUM (LRH (AREF ((font), FONT_SLANT_INDEX))) >> 8) : -1)
 /* Return the numeric width value of FONT.  */
 #define FONT_WIDTH_NUMERIC(font)		\
-  (INTEGERP (LRH (AREF ((font), FONT_WIDTH_INDEX)))                     \
-   ? (XINT (LRH (AREF ((font), FONT_WIDTH_INDEX))) >> 8) : -1)
+  (FIXNUMP (LRH (AREF ((font), FONT_WIDTH_INDEX)))                     \
+   ? (XFIXNUM (LRH (AREF ((font), FONT_WIDTH_INDEX))) >> 8) : -1)
 /* Return the symbolic weight value of FONT.  */
 #define FONT_WEIGHT_SYMBOLIC(font)	\
   font_style_symbolic (font, FONT_WEIGHT_INDEX, false)
@@ -229,7 +229,7 @@ enum font_property_index
    style-related font property index (FONT_WEIGHT/SLANT/WIDTH_INDEX).
    VAL (integer or symbol) is the numeric or symbolic style value.  */
 #define FONT_SET_STYLE(font, prop, val)	\
-  ASET ((font), prop, LRH (make_number (font_style_to_value (prop, val, true))))
+  ASET ((font), prop, LRH (make_fixnum (font_style_to_value (prop, val, true))))
 
 #ifndef MSDOS
 #define FONT_WIDTH(f) ((f)->max_width)

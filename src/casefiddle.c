@@ -151,7 +151,7 @@ case_character_impl (struct casing_str_buf *buf,
 	  prop = CHAR_TABLE_REF (ctx->titlecase_char_table, ch);
 	  if (CHARACTERP (prop))
 	    {
-	      cased = XFASTINT (prop);
+	      cased = XFIXNAT (prop);
 	      cased_is_set = true;
 	    }
 	}
@@ -224,7 +224,7 @@ do_casify_natnum (struct casing_context *ctx, Lisp_Object obj)
 {
   int flagbits = (CHAR_ALT | CHAR_SUPER | CHAR_HYPER
 		  | CHAR_SHIFT | CHAR_CTL | CHAR_META);
-  int ch = XFASTINT (obj);
+  int ch = XFIXNAT (obj);
 
   /* If the character has higher bits set above the flags, return it unchanged.
      It is not a real character.  */
@@ -249,7 +249,7 @@ do_casify_natnum (struct casing_context *ctx, Lisp_Object obj)
 
   if (! multibyte)
     MAKE_CHAR_UNIBYTE (cased);
-  return make_natnum (cased | flags);
+  return make_fixed_natnum (cased | flags);
 }
 
 static Lisp_Object
@@ -318,7 +318,7 @@ casify_object (enum case_action flag, Lisp_Object obj)
   struct casing_context ctx; // XXX rootme
   prepare_casing_context (&ctx, flag, false);
 
-  if (NATNUMP (obj))
+  if (FIXNATP (obj))
     return do_casify_natnum (&ctx, obj);
   else if (!STRINGP (obj))
     wrong_type_argument (Qchar_or_string_p, obj);
@@ -484,8 +484,8 @@ casify_region (enum case_action flag, Lisp_Object b, Lisp_Object e)
   struct casing_context ctx; // XXX rootme
 
   validate_region (&b, &e);
-  ptrdiff_t start = XFASTINT (b);
-  ptrdiff_t end = XFASTINT (e);
+  ptrdiff_t start = XFIXNAT (b);
+  ptrdiff_t end = XFIXNAT (e);
   if (start == end)
     /* Not modifying because nothing marked.  */
     return end;
@@ -600,11 +600,11 @@ character positions to operate on.  */)
 static Lisp_Object
 casify_word (enum case_action flag, Lisp_Object arg)
 {
-  CHECK_NUMBER (arg);
-  ptrdiff_t farend = scan_words (PT, XINT (arg));
+  CHECK_FIXNUM (arg);
+  ptrdiff_t farend = scan_words (PT, XFIXNUM (arg));
   if (!farend)
-    farend = XINT (arg) <= 0 ? BEGV : ZV;
-  SET_PT (casify_region (flag, make_number (PT), make_number (farend)));
+    farend = XFIXNUM (arg) <= 0 ? BEGV : ZV;
+  SET_PT (casify_region (flag, make_fixnum (PT), make_fixnum (farend)));
   return Qnil;
 }
 
