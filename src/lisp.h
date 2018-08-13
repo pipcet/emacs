@@ -4581,6 +4581,8 @@ safe_free (ptrdiff_t sa_count)
     }
 }
 
+#endif /* 0 */
+
 /* Pop the specpdl stack back to COUNT, and return VAL.
    Prefer this to { SAFE_FREE (); unbind_to (COUNT, VAL); }
    when COUNT predates USE_SAFE_ALLOCA, as it is a bit more efficient
@@ -4588,9 +4590,7 @@ safe_free (ptrdiff_t sa_count)
    that grow the specpdl stack.  */
 
 #define SAFE_FREE_UNBIND_TO(count, val) \
-  safe_free_unbind_to (count, sa_count, val)
-
-#endif /* 0 */
+  safe_free_unbind_to (count, sa_count, LRH (val))
 
 INLINE Lisp_Object
 safe_free_unbind_to (ptrdiff_t count, ptrdiff_t sa_count, Lisp_Object val)

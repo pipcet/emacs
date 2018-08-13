@@ -5532,15 +5532,6 @@ extern void *record_xmalloc (size_t) ATTRIBUTE_ALLOC_SIZE ((1));
     memcpy (ptr, SDATA (string), SBYTES (string) + 1);	\
   } while (false)
 
-/* Pop the specpdl stack back to COUNT, and return VAL.
-   Prefer this to { SAFE_FREE (); unbind_to (COUNT, VAL); }
-   when COUNT predates USE_SAFE_ALLOCA, as it is a bit more efficient
-   and also lets callers intermix SAFE_ALLOCA calls with other calls
-   that grow the specpdl stack.  */
-
-#define SAFE_FREE_UNBIND_TO(count, val) \
-  safe_free_unbind_to (count, sa_count, LRH (val))
-
 /* SAFE_FREE frees xmalloced memory and enables GC as needed.  */
 
 #define SAFE_FREE()			\
