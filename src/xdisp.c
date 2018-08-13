@@ -31414,7 +31414,7 @@ note_mouse_highlight (struct frame *f, int x, int y)
       struct glyph *glyph;
       Lisp_Object object;
       Lisp_Object mouse_face = Qnil, position;
-      Lisp_Object *overlay_vec = NULL;
+      Lisp_Object *overlay_vec = 0;
       ptrdiff_t i, noverlays;
       struct buffer *obuf;
       ptrdiff_t obegv, ozv;

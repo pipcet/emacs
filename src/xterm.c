@@ -7690,7 +7690,7 @@ handle_one_xevent (struct x_display_info *dpyinfo,
 		   const XEvent *event,
 		   int *finish, struct input_event *hold_quit)
 {
-  union buffered_input_event inev;
+  struct buffered_input_event inev;
   int count = 0;
   int do_help = 0;
   ptrdiff_t nbytes = 0;
