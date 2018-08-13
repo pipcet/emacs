@@ -4373,9 +4373,24 @@ map_obarray (Lisp_Object obarray, void (*fn) (Lisp_Object, Lisp_Object), Lisp_Ob
 }
 
 static void
+dump_obarray (Lisp_Object symbol, Lisp_Object dummy)
+{
+  debug_print(symbol);
+  debug_print(elisp_symbol_value (symbol));
+}
+
+static void
 mapatoms_1 (Lisp_Object sym, Lisp_Object function)
 {
   call1 (function, sym);
+}
+
+DEFUN ("dump-obarray", Fdump_obarray, Sdump_obarray, 0, 0, 0,
+       doc: /* Don't call this. */)
+     (void)
+{
+  map_obarray(Vobarray, dump_obarray, Qnil);
+  return Qnil;
 }
 
 DEFUN ("mapatoms", Fmapatoms, Smapatoms, 1, 2, 0,
@@ -4828,6 +4843,7 @@ syms_of_lread (void)
   defsubr (&Sread_char_exclusive);
   defsubr (&Sread_event);
   defsubr (&Sget_file_char);
+  defsubr (&Sdump_obarray);
   defsubr (&Smapatoms);
   defsubr (&Slocate_file_internal);
 
