@@ -7278,7 +7278,7 @@ produce_charset (struct coding_system *coding, int *charbuf, ptrdiff_t pos)
   do {								\
     ptrdiff_t units = c_min ((size) + MAX_CHARBUF_EXTRA_SIZE,	\
                              MAX_CHARBUF_SIZE);			\
-    coding->charbuf = (char *)SAFE_ALLOCA (units * sizeof (int));	\
+    coding->charbuf = (int *)SAFE_ALLOCA (units * sizeof (int));	\
     coding->charbuf_size = units;				\
   } while (0)
 
