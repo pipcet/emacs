@@ -5463,26 +5463,6 @@ lispstpcpy (char *dest, ELisp_Handle string)
   return dest + len;
 }
 
-extern void xputenv (const char *);
-
-extern char *egetenv_internal (const char *, ptrdiff_t);
-
-INLINE char *
-egetenv (const char *var)
-{
-  /* When VAR is a string literal, strlen can be optimized away.  */
-  return egetenv_internal (var, strlen (var));
-}
-
-/* Set up the name of the machine we're running on.  */
-extern void init_system_name (void);
-
-/* Return the absolute value of X.  X should be a signed integer
-   expression without side effects, and X's absolute value should not
-   exceed the maximum for its promoted type.  This is called 'eabs'
-   because 'abs' is reserved by the C standard.  */
-#define eabs(x)         ((x) < 0 ? -(x) : (x))
-
 /* Return a fixnum or float, depending on whether the integer VAL fits
    in a Lisp fixnum.  */
 

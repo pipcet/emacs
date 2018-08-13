@@ -24,6 +24,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 
 #ifndef EMACS_LISP_H
 #define EMACS_LISP_H
+
 #if 0
 
 #include <alloca.h>
@@ -43,6 +44,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 
 #include <intprops.h>
 #include <verify.h>
+
 #endif /* 0 */
 
 INLINE_HEADER_BEGIN
@@ -4479,6 +4481,9 @@ extern char *xstrdup (const char *) ATTRIBUTE_MALLOC;
 extern char *xlispstrdup (Lisp_Object) ATTRIBUTE_MALLOC;
 extern void dupstring (char **, char const *);
 
+#endif /* 0 */
+
+#if 0
 /* Make DEST a copy of STRING's data.  Return a pointer to DEST's terminating
    null byte.  This is like stpcpy, except the source is a Lisp string.  */
 
@@ -4489,6 +4494,7 @@ lispstpcpy (char *dest, Lisp_Object string)
   memcpy (dest, SDATA (string), len + 1);
   return dest + len;
 }
+#endif /* 0 */
 
 extern void xputenv (const char *);
 
@@ -4510,6 +4516,7 @@ extern void init_system_name (void);
    because 'abs' is reserved by the C standard.  */
 #define eabs(x)         ((x) < 0 ? -(x) : (x))
 
+#if 0
 /* Return a fixnum or float, depending on whether the integer VAL fits
    in a Lisp fixnum.  */
 
