@@ -855,7 +855,7 @@ The name is the same object that was passed to `make-thread'.  */)
 static void
 thread_signal_callback (void *arg)
 {
-  struct thread_state *tstate = arg;
+  struct thread_state *tstate = (struct thread_state *)arg;
   struct thread_state *self = current_thread;
 
   sys_cond_broadcast (tstate->wait_condvar);
@@ -921,7 +921,7 @@ Otherwise, if THREAD is not blocked, return nil.  */)
 static void
 thread_join_callback (void *arg)
 {
-  struct thread_state *tstate = arg;
+  struct thread_state *tstate = (struct thread_state *)arg;
   struct thread_state *self = current_thread;
   Lisp_Object thread;
 

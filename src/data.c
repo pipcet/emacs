@@ -2975,7 +2975,7 @@ arith_driver (enum arithop code, ptrdiff_t nargs, Lisp_Object *args)
 	}
     }
 
-  return unbind_to (count, make_fixnum (accum));
+  return unbind_to (count, make_number (accum));
 }
 
 static Lisp_Object
@@ -3117,7 +3117,7 @@ Both must be integers or markers.  */)
 
       mpz_init (result);
       mpz_tdiv_r (result, *xmp, *ymp);
-      val = make_fixnum (result);
+      val = make_number (result);
       mpz_clear (result);
 
       if (xmp == &xm)
@@ -3197,7 +3197,7 @@ Both X and Y must be numbers or markers.  */)
       if (cmpy < 0 ? cmpr > 0 : cmpr < 0)
 	mpz_add (result, result, *ymp);
 
-      val = make_fixnum (result);
+      val = make_number (result);
       mpz_clear (result);
 
       if (xmp == &xm)
@@ -3324,7 +3324,7 @@ ash_lsh_impl (Lisp_Object value, Lisp_Object count, bool lsh)
 	mpz_tdiv_q_2exp (result, XBIGNUM (value)->value, - XFIXNUM (count));
       else
 	mpz_fdiv_q_2exp (result, XBIGNUM (value)->value, - XFIXNUM (count));
-      val = make_fixnum (result);
+      val = make_number (result);
       mpz_clear (result);
     }
   else
@@ -3348,7 +3348,7 @@ ash_lsh_impl (Lisp_Object value, Lisp_Object count, bool lsh)
       else /* ash */
 	mpz_fdiv_q_2exp (result, result, - XFIXNUM (count));
 
-      val = make_fixnum (result);
+      val = make_number (result);
       mpz_clear (result);
     }
 
@@ -3388,7 +3388,7 @@ Markers are converted to integers.  */)
       mpz_t num;
       mpz_init (num);
       mpz_add_ui (num, XBIGNUM (number)->value, 1);
-      number = make_fixnum (num);
+      number = make_number (num);
       mpz_clear (num);
     }
   else
@@ -3401,7 +3401,7 @@ Markers are converted to integers.  */)
 	  mpz_t num;
 	  mpz_init (num);
 	  mpz_set_intmax_slow (num, XFIXNUM (number) + 1);
-	  number = make_fixnum (num);
+	  number = make_number (num);
 	  mpz_clear (num);
 	}
     }
@@ -3423,7 +3423,7 @@ Markers are converted to integers.  */)
       mpz_t num;
       mpz_init (num);
       mpz_sub_ui (num, XBIGNUM (number)->value, 1);
-      number = make_fixnum (num);
+      number = make_number (num);
       mpz_clear (num);
     }
   else
@@ -3436,7 +3436,7 @@ Markers are converted to integers.  */)
 	  mpz_t num;
 	  mpz_init (num);
 	  mpz_set_intmax_slow (num, XFIXNUM (number) - 1);
-	  number = make_fixnum (num);
+	  number = make_number (num);
 	  mpz_clear (num);
 	}
     }
@@ -3453,7 +3453,7 @@ DEFUN ("lognot", Flognot, Slognot, 1, 1, 0,
       mpz_t value;
       mpz_init (value);
       mpz_com (value, XBIGNUM (number)->value);
-      number = make_fixnum (value);
+      number = make_number (value);
       mpz_clear (value);
     }
   else
@@ -4199,13 +4199,13 @@ syms_of_data (void)
   DEFVAR_LISP ("most-positive-fixnum", Vmost_positive_fixnum,
 	       doc: /* The largest value that is representable in a Lisp fixed-precision integer.
 This variable cannot be set; trying to do so will signal an error.  */);
-  Vmost_positive_fixnum = make_fixnum (0x7fffffff);
+  Vmost_positive_fixnum = make_fixnum (0x7fffffffL);
   make_symbol_constant (intern_c_string ("most-positive-fixnum"));
 
   DEFVAR_LISP ("most-negative-fixnum", Vmost_negative_fixnum,
 	       doc: /* The smallest value that is representable in a Lisp fixed-precision integer.
 This variable cannot be set; trying to do so will signal an error.  */);
-  Vmost_negative_fixnum = make_fixnum (-0x80000000);
+  Vmost_negative_fixnum = make_fixnum (-0x80000000L);
   make_symbol_constant (intern_c_string ("most-negative-fixnum"));
 
   DEFSYM (Qwatchers, "watchers");

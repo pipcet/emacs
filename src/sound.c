@@ -1029,7 +1029,7 @@ alsa_configure (struct sound_device *sd)
                     vol = pmin + (sd->volume * (pmax - pmin)) / 100;
 
                     for (chn = 0; chn <= SND_MIXER_SCHN_LAST; chn++)
-                      snd_mixer_selem_set_playback_volume (e, chn, vol);
+                      snd_mixer_selem_set_playback_volume (e, (snd_mixer_selem_channel_id_t)chn, vol);
                   }
               }
           snd_mixer_close (handle);
@@ -1121,7 +1121,7 @@ alsa_write (struct sound_device *sd, const char *buffer, ptrdiff_t nbytes)
   struct alsa_params *p = (struct alsa_params *) sd->data;
 
   /* The the third parameter to snd_pcm_writei is frames, not bytes. */
-  int fact = snd_pcm_format_size (sd->format, 1) * sd->channels;
+  int fact = snd_pcm_format_size ((snd_pcm_format_t)sd->format, 1) * sd->channels;
   ptrdiff_t nwritten = 0;
   int err;
 
