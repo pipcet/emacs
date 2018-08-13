@@ -3898,7 +3898,9 @@ extern void record_unwind_protect_nothing (void);
 extern void clear_unwind_protect (ptrdiff_t);
 extern void set_unwind_protect (ptrdiff_t, void (*) (Lisp_Object), Lisp_Object);
 extern void set_unwind_protect_ptr (ptrdiff_t, void (*) (void *), void *);
+#endif
 extern Lisp_Object unbind_to (ptrdiff_t, Lisp_Object);
+#if 0
 extern void rebind_for_thread_switch (void);
 extern void unbind_for_thread_switch (struct thread_state *);
 extern _Noreturn void error (const char *, ...) ATTRIBUTE_FORMAT_PRINTF (1, 2);
@@ -4588,6 +4590,8 @@ safe_free (ptrdiff_t sa_count)
 #define SAFE_FREE_UNBIND_TO(count, val) \
   safe_free_unbind_to (count, sa_count, val)
 
+#endif /* 0 */
+
 INLINE Lisp_Object
 safe_free_unbind_to (ptrdiff_t count, ptrdiff_t sa_count, Lisp_Object val)
 {
@@ -4598,26 +4602,29 @@ safe_free_unbind_to (ptrdiff_t count, ptrdiff_t sa_count, Lisp_Object val)
 /* Set BUF to point to an allocated array of NELT Lisp_Objects,
    immediately followed by EXTRA spare bytes.  */
 
-#define SAFE_ALLOCA_LISP_EXTRA(buf, nelt, extra)	       \
-  do {							       \
-    ptrdiff_t alloca_nbytes;				       \
-    if (INT_MULTIPLY_WRAPV (nelt, word_size, &alloca_nbytes)   \
-	|| INT_ADD_WRAPV (alloca_nbytes, extra, &alloca_nbytes) \
-	|| SIZE_MAX < alloca_nbytes)			       \
-      memory_full (SIZE_MAX);				       \
-    else if (alloca_nbytes <= sa_avail)			       \
-      (buf) = AVAIL_ALLOCA (alloca_nbytes);		       \
-    else						       \
-      {							       \
-	(buf) = xmalloc (alloca_nbytes);		       \
-	record_unwind_protect_array (buf, nelt);	       \
-      }							       \
+#define SAFE_ALLOCA_LISP_EXTRA(buf, nelt, extra)                   \
+  do {                                                             \
+    JSReturnValue* ptr;                                            \
+    ptrdiff_t alloca_nbytes;                                       \
+    if (INT_MULTIPLY_WRAPV (nelt, word_size, &alloca_nbytes)       \
+        || INT_ADD_WRAPV (alloca_nbytes, extra, &alloca_nbytes)    \
+        || SIZE_MAX < alloca_nbytes)                               \
+      memory_full (SIZE_MAX);                                      \
+    else if (alloca_nbytes <= sa_avail)                            \
+      (buf) = ptr = (typeof ptr)AVAIL_ALLOCA (alloca_nbytes);     \
+    else                                                           \
+      {                                                            \
+        ELisp_Value arg_;                                          \
+        (buf) = ptr = (typeof ptr)xmalloc (alloca_nbytes);         \
+        arg_ = make_save_memory (ptr, nelt);                       \
+        sa_must_free = true;                                       \
+        record_unwind_protect (free_save_value, arg_);             \
+      }                                                            \
   } while (false)
 
 /* Set BUF to point to an allocated array of NELT Lisp_Objects.  */
 
 #define SAFE_ALLOCA_LISP(buf, nelt) SAFE_ALLOCA_LISP_EXTRA (buf, nelt, 0)
-
 
 /* If USE_STACK_LISP_OBJECTS, define macros and functions that
    allocate some Lisp objects on the C stack.  As the storage is not
@@ -4643,8 +4650,6 @@ enum { defined_GC_CHECK_STRING_BYTES = true };
 #else
 enum { defined_GC_CHECK_STRING_BYTES = false };
 #endif
-
-#endif /* 0 */
 
 /* True for stack-based cons and string implementations, respectively.
    Use stack-based strings only if stack-based cons also works.

@@ -4900,7 +4900,6 @@ extern void record_unwind_protect_nothing (void);
 extern void clear_unwind_protect (ptrdiff_t);
 extern void set_unwind_protect (ptrdiff_t, void (*) (ELisp_Handle), ELisp_Handle);
 extern void set_unwind_protect_ptr (ptrdiff_t, void (*) (void *), void *);
-extern ELisp_Return_Value unbind_to (ptrdiff_t, ELisp_Handle);
 extern void rebind_for_thread_switch (void);
 extern void unbind_for_thread_switch (struct thread_state *);
 extern _Noreturn void error (const char *, ...) ATTRIBUTE_FORMAT_PRINTF (1, 2);
@@ -5542,13 +5541,6 @@ extern void *record_xmalloc (size_t) ATTRIBUTE_ALLOC_SIZE ((1));
 #define SAFE_FREE_UNBIND_TO(count, val) \
   safe_free_unbind_to (count, sa_count, LRH (val))
 
-INLINE ELisp_Return_Value
-safe_free_unbind_to (ptrdiff_t count, ptrdiff_t sa_count, ELisp_Handle val)
-{
-  eassert (count <= sa_count);
-  return unbind_to (count, val);
-}
-
 /* SAFE_FREE frees xmalloced memory and enables GC as needed.  */
 
 #define SAFE_FREE()			\
@@ -5558,58 +5550,6 @@ safe_free_unbind_to (ptrdiff_t count, ptrdiff_t sa_count, ELisp_Handle val)
       unbind_to (sa_count, LSH (Qnil));	\
     }					\
   } while (false)
-
-/* Set BUF to point to an allocated array of NELT Lisp_Objects,
-   immediately followed by EXTRA spare bytes.  */
-
-#define SAFE_ALLOCA_LISP_EXTRA(buf, nelt, extra)                   \
-  do {                                                             \
-    JSReturnValue* ptr;                                            \
-    ptrdiff_t alloca_nbytes;                                       \
-    if (INT_MULTIPLY_WRAPV (nelt, word_size, &alloca_nbytes)       \
-        || INT_ADD_WRAPV (alloca_nbytes, extra, &alloca_nbytes)    \
-        || SIZE_MAX < alloca_nbytes)                               \
-      memory_full (SIZE_MAX);                                      \
-    else if (alloca_nbytes <= sa_avail)                            \
-      (buf) = ptr = (typeof ptr)AVAIL_ALLOCA (alloca_nbytes);     \
-    else                                                           \
-      {                                                            \
-        ELisp_Value arg_;                                          \
-        (buf) = ptr = (typeof ptr)xmalloc (alloca_nbytes);         \
-        arg_ = make_save_memory (ptr, nelt);                       \
-        sa_must_free = true;                                       \
-        record_unwind_protect (free_save_value, arg_);             \
-      }                                                            \
-  } while (false)
-
-/* Set BUF to point to an allocated array of NELT Lisp_Objects.  */
-
-#define SAFE_ALLOCA_LISP(buf, nelt) SAFE_ALLOCA_LISP_EXTRA (buf, nelt, 0)
-
-
-/* If USE_STACK_LISP_OBJECTS, define macros that and functions that allocate
-   block-scoped conses and strings.  These objects are not
-   managed by the garbage collector, so they are dangerous: passing them
-   out of their scope (e.g., to user code) results in undefined behavior.
-   Conversely, they have better performance because GC is not involved.
-
-   This feature is experimental and requires careful debugging.
-   Build with CPPFLAGS='-DUSE_STACK_LISP_OBJECTS=0' to disable it.  */
-
-#if (!defined USE_STACK_LISP_OBJECTS \
-     && defined __GNUC__ && !defined __clang__ && ! GNUC_PREREQ (4, 3, 2))
-  /* Work around GCC bugs 36584 and 35271, which were fixed in GCC 4.3.2.  */
-# define USE_STACK_LISP_OBJECTS false
-#endif
-#ifndef USE_STACK_LISP_OBJECTS
-# define USE_STACK_LISP_OBJECTS true
-#endif
-
-#ifdef GC_CHECK_STRING_BYTES
-enum { defined_GC_CHECK_STRING_BYTES = true };
-#else
-enum { defined_GC_CHECK_STRING_BYTES = false };
-#endif
 
 /* Struct inside unions that are typically no larger and aligned enough.  */
 
