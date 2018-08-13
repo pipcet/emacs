@@ -1059,7 +1059,7 @@ unexpect_property_change (struct prop_location *location)
 static void
 wait_for_property_change_unwind (void *loc)
 {
-  struct prop_location *location = loc;
+  struct prop_location *location = (struct prop_location *)loc;
 
   unexpect_property_change (location);
   if (location == property_change_reply_object)
@@ -1740,7 +1740,7 @@ lisp_data_to_selection_data (struct x_display_info *dpyinfo,
   else if (SYMBOLP (obj))
     {
       void *data = xmalloc (sizeof (Atom) + 1);
-      Atom *x_atom_ptr = data;
+      Atom *x_atom_ptr = (Atom *)data;
       cs->data = (unsigned char *)data;
       cs->format = 32;
       cs->size = 1;
@@ -1751,7 +1751,7 @@ lisp_data_to_selection_data (struct x_display_info *dpyinfo,
   else if (RANGED_FIXNUMP (X_SHRT_MIN, obj, X_SHRT_MAX))
     {
       void *data = xmalloc (sizeof (short) + 1);
-      short *short_ptr = data;
+      short *short_ptr = (short *)data;
       cs->data = (unsigned char *)data;
       cs->format = 16;
       cs->size = 1;
@@ -1766,7 +1766,7 @@ lisp_data_to_selection_data (struct x_display_info *dpyinfo,
 		       && FIXNUMP (XCAR (XCDR (obj)))))))
     {
       void *data = xmalloc (sizeof (unsigned long) + 1);
-      unsigned long *x_long_ptr = data;
+      unsigned long *x_long_ptr = (unsigned long *)data;
       cs->data = (unsigned char *)data;
       cs->format = 32;
       cs->size = 1;
@@ -1793,7 +1793,7 @@ lisp_data_to_selection_data (struct x_display_info *dpyinfo,
 	    if (!SYMBOLP (AREF (obj, i)))
 	      signal_error ("All elements of selection vector must have same type", obj);
 
-	  cs->data = data = (unsigned char *)xnmalloc (size, sizeof *x_atoms);
+	  cs->data = (unsigned char *)(data = (unsigned char *)xnmalloc (size, sizeof *x_atoms));
 	  x_atoms = data;
 	  cs->format = 32;
 	  cs->size = size;
