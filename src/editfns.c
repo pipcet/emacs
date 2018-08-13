@@ -176,7 +176,7 @@ tzlookup (Lisp_Object zone, bool settz)
       else if (plain_integer || (CONSP (zone) && FIXNUMP (XCAR (zone))
 				 && CONSP (XCDR (zone))))
 	{
-	  Lisp_Object abbr;
+	  Lisp_Object abbr UNINIT;
 	  if (!plain_integer)
 	    {
 	      abbr = XCAR (XCDR (zone));
