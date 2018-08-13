@@ -2360,7 +2360,7 @@ itself. */)
       info = XCDR (info);
     }
   else if (TYPE_RANGED_FIXNUMP (gnutls_mac_algorithm_t, hash_method))
-    gma = XFIXNUM (hash_method);
+    gma = (typeof gma)XFIXNUM (hash_method);
   else
     info = hash_method;
 
@@ -2368,7 +2368,7 @@ itself. */)
     {
       Lisp_Object v = Fplist_get (info, QCmac_algorithm_id);
       if (TYPE_RANGED_FIXNUMP (gnutls_mac_algorithm_t, v))
-        gma = XFIXNUM (v);
+        gma = (typeof gma)XFIXNUM (v);
     }
 
   ptrdiff_t digest_length = gnutls_hmac_get_len (gma);

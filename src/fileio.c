@@ -3400,7 +3400,7 @@ verify (alignof (union read_non_regular) % GCALIGNMENT == 0);
 static Lisp_Object
 read_non_regular (Lisp_Object state)
 {
-  union read_non_regular *data = xmint_pointer (state);
+  union read_non_regular *data = (union read_non_regular *)xmint_pointer (state);
   int nbytes = emacs_read_quit (data->s.fd,
 				((char *) BEG_ADDR + PT_BYTE - BEG_BYTE
 				 + data->s.inserted),
