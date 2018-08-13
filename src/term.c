@@ -3705,9 +3705,9 @@ tty_menu_show (struct frame *f, int x, int y, int menuflags,
 
   /* We save and restore the current buffer because tty_menu_activate
      triggers redisplay, which switches buffers at will.  */
+  struct tty_pop_down_menu tpdm = { menu, current_buffer };
   record_unwind_protect_ptr (tty_pop_down_menu,
-			     &((struct tty_pop_down_menu)
-			       {menu, current_buffer}));
+			     &tpdm);
 
   specbind (Qoverriding_terminal_local_map,
 	    Fsymbol_value (Qtty_menu_navigation_map));

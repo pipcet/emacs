@@ -2853,15 +2853,17 @@ CHECK_INTEGER (Lisp_Object x)
     else								\
       CHECK_TYPE (FIXED_OR_FLOATP (x), Qnumber_or_marker_p, x);		\
   } while (false)
+#endif /* 0 */
 
 #define CHECK_NUMBER_COERCE_MARKER(x)					\
   do {									\
     if (MARKERP (x))							\
       XSETFASTINT (x, marker_position (x));				\
     else								\
-      CHECK_TYPE (NUMBERP (x), Qnumber_or_marker_p, x);			\
+      CHECK_TYPE (NUMBERP (x), LRH (Qnumber_or_marker_p), x);           \
   } while (false)
 
+#if 0
 #define CHECK_INTEGER_COERCE_MARKER(x)					\
   do {									\
     if (MARKERP (x))							\

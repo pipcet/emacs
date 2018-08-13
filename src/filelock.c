@@ -307,7 +307,7 @@ typedef struct
 static void
 fill_in_lock_file_name (char *lockfile, Lisp_Object fn)
 {
-  char *last_slash = memrchr (SSDATA (fn), '/', SBYTES (fn));
+  char *last_slash = (char *)memrchr (SSDATA (fn), '/', SBYTES (fn));
   char *base = last_slash + 1;
   ptrdiff_t dirlen = base - SSDATA (fn);
   memcpy (lockfile, SSDATA (fn), dirlen);
@@ -535,7 +535,7 @@ current_lock_owner (lock_info_type *owner, char *lfname)
 
   /* Parse USER@HOST.PID:BOOT_TIME.  If can't parse, return -1.  */
   /* The USER is everything before the last @.  */
-  owner->at = at = memrchr (owner->user, '@', lfinfolen);
+  owner->at = at = (char *)memrchr (owner->user, '@', lfinfolen);
   if (!at)
     return -1;
   owner->dot = dot = strrchr (at, '.');

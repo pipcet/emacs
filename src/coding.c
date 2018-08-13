@@ -7278,7 +7278,7 @@ produce_charset (struct coding_system *coding, int *charbuf, ptrdiff_t pos)
   do {								\
     ptrdiff_t units = c_min ((size) + MAX_CHARBUF_EXTRA_SIZE,	\
                              MAX_CHARBUF_SIZE);			\
-    coding->charbuf = SAFE_ALLOCA (units * sizeof (int));	\
+    coding->charbuf = (char *)SAFE_ALLOCA (units * sizeof (int));	\
     coding->charbuf_size = units;				\
   } while (0)
 
@@ -10042,7 +10042,7 @@ make_subsidiaries (Lisp_Object base)
   Lisp_Object subsidiaries;
   ptrdiff_t base_name_len = SBYTES (SYMBOL_NAME (base));
   USE_SAFE_ALLOCA;
-  char *buf = SAFE_ALLOCA (base_name_len + 6);
+  char *buf = (char *)SAFE_ALLOCA (base_name_len + 6);
   int i;
 
   memcpy (buf, SDATA (SYMBOL_NAME (base)), base_name_len);

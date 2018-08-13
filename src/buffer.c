@@ -3288,8 +3288,8 @@ static ptrdiff_t overlay_str_len;
 static int
 cmp_for_strings (const void *as1, const void *as2)
 {
-  struct sortstr const *s1 = as1;
-  struct sortstr const *s2 = as2;
+  struct sortstr const *s1 = (const struct sortstr *)as1;
+  struct sortstr const *s2 = (const struct sortstr *)as2;
   if (s1->size != s2->size)
     return s2->size < s1->size ? -1 : 1;
   if (s1->priority != s2->priority)
@@ -5073,7 +5073,7 @@ enlarge_buffer_text (struct buffer *b, ptrdiff_t delta)
       memory_full (nbytes);
     }
 
-  BUF_BEG_ADDR (b) = p;
+  BUF_BEG_ADDR (b) = (unsigned char *)p;
   unblock_input ();
 }
 

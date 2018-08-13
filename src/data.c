@@ -41,6 +41,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #else
 #include "mini-gmp.h"
 #endif
+
 EXTERN_C
 
 static void swap_in_symval_forwarding (Lisp_Object,
@@ -1780,7 +1781,7 @@ struct Lisp_Val_Fwd
 
 static struct Lisp_Buffer_Local_Value *
 make_blv (Lisp_Object symbol, bool forwarded,
-	  union Lisp_Val_Fwd valcontents)
+	  struct Lisp_Val_Fwd valcontents)
 {
   struct Lisp_Buffer_Local_Value *blv = xmalloc (sizeof *blv);
   Lisp_Object tem;
@@ -1823,7 +1824,7 @@ The function `default-value' gets the default value and `set-default' sets it.  
   (register Lisp_Object variable)
 {
   struct Lisp_Buffer_Local_Value *blv = NULL;
-  union Lisp_Val_Fwd valcontents;
+  struct Lisp_Val_Fwd valcontents;
   bool forwarded UNINIT;
 
   CHECK_SYMBOL (variable);
@@ -1889,7 +1890,7 @@ Instead, use `add-hook' and specify t for the LOCAL argument.  */)
 {
   Lisp_Object tem;
   bool forwarded UNINIT;
-  union Lisp_Val_Fwd valcontents;
+  struct Lisp_Val_Fwd valcontents;
   struct Lisp_Buffer_Local_Value *blv = NULL;
 
   MODIFY_ARG (&variable);
@@ -2446,8 +2447,8 @@ arithcompare (Lisp_Object num1, Lisp_Object num2,
   MODIFY_ARG(&num1);
   MODIFY_ARG(&num2);
 
-  CHECK_FIXNUM_COERCE_MARKER (num1);
-  CHECK_FIXNUM_COERCE_MARKER (num2);
+  CHECK_NUMBER_COERCE_MARKER (num1);
+  CHECK_NUMBER_COERCE_MARKER (num2);
 
   if (BIGNUMP (num1) || BIGNUMP (num2))
     return bignumcompare (num1, num2, comparison);
@@ -2837,7 +2838,7 @@ arith_driver (enum arithop code, ptrdiff_t nargs, Lisp_Object *args)
     {
       /* Using args[argnum] as argument to CHECK_NUMBER... */
       val = args[argnum];
-      CHECK_FIXNUM_COERCE_MARKER (val);
+      CHECK_NUMBER_COERCE_MARKER (val);
 
       if (FLOATP (val))
 	return unbind_to (count,
@@ -2989,7 +2990,7 @@ float_arith_driver (double accum, ptrdiff_t argnum, enum arithop code,
     {
       /* using args[argnum] as argument to CHECK_NUMBER_... */
       val = args[argnum];
-      CHECK_FIXNUM_COERCE_MARKER (val);
+      CHECK_NUMBER_COERCE_MARKER (val);
 
       if (FLOATP (val))
 	{
@@ -3082,8 +3083,8 @@ Both must be integers or markers.  */)
 {
   Lisp_Object val;
 
-  CHECK_FIXNUM_COERCE_MARKER (x);
-  CHECK_FIXNUM_COERCE_MARKER (y);
+  CHECK_NUMBER_COERCE_MARKER (x);
+  CHECK_NUMBER_COERCE_MARKER (y);
 
   /* Note that a bignum can never be 0, so we don't need to check that
      case.  */
@@ -3137,8 +3138,8 @@ Both X and Y must be numbers or markers.  */)
   Lisp_Object val;
   EMACS_INT i1, i2;
 
-  CHECK_FIXNUM_COERCE_MARKER (x);
-  CHECK_FIXNUM_COERCE_MARKER (y);
+  CHECK_NUMBER_COERCE_MARKER (x);
+  CHECK_NUMBER_COERCE_MARKER (y);
 
   /* Note that a bignum can never be 0, so we don't need to check that
      case.  */
@@ -3214,11 +3215,11 @@ minmax_driver (ptrdiff_t nargs, Lisp_Object *args,
 	       enum Arith_Comparison comparison)
 {
   Lisp_Object accum = args[0];
-  CHECK_FIXNUM_COERCE_MARKER (accum);
+  CHECK_NUMBER_COERCE_MARKER (accum);
   for (ptrdiff_t argnum = 1; argnum < nargs; argnum++)
     {
       Lisp_Object val = args[argnum];
-      CHECK_FIXNUM_COERCE_MARKER (val);
+      CHECK_NUMBER_COERCE_MARKER (val);
       if (!NILP (arithcompare (val, accum, comparison)))
 	accum = val;
       else if (FLOATP (val) && isnan (XFLOAT_DATA (val)))
@@ -3378,7 +3379,7 @@ DEFUN ("1+", Fadd1, Sadd1, 1, 1, 0,
 Markers are converted to integers.  */)
   (register Lisp_Object number)
 {
-  CHECK_FIXNUM_COERCE_MARKER (number);
+  CHECK_NUMBER_COERCE_MARKER (number);
 
   if (FLOATP (number))
     return (make_float (1.0 + XFLOAT_DATA (number)));
@@ -3413,7 +3414,7 @@ DEFUN ("1-", Fsub1, Ssub1, 1, 1, 0,
 Markers are converted to integers.  */)
   (register Lisp_Object number)
 {
-  CHECK_FIXNUM_COERCE_MARKER (number);
+  CHECK_NUMBER_COERCE_MARKER (number);
 
   if (FLOATP (number))
     return (make_float (-1.0 + XFLOAT_DATA (number)));

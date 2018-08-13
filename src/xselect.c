@@ -1741,7 +1741,7 @@ lisp_data_to_selection_data (struct x_display_info *dpyinfo,
     {
       void *data = xmalloc (sizeof (Atom) + 1);
       Atom *x_atom_ptr = data;
-      cs->data = data;
+      cs->data = (unsigned char *)data;
       cs->format = 32;
       cs->size = 1;
       cs->data[sizeof (Atom)] = 0;
@@ -1752,7 +1752,7 @@ lisp_data_to_selection_data (struct x_display_info *dpyinfo,
     {
       void *data = xmalloc (sizeof (short) + 1);
       short *short_ptr = data;
-      cs->data = data;
+      cs->data = (unsigned char *)data;
       cs->format = 16;
       cs->size = 1;
       cs->data[sizeof (short)] = 0;
@@ -1767,7 +1767,7 @@ lisp_data_to_selection_data (struct x_display_info *dpyinfo,
     {
       void *data = xmalloc (sizeof (unsigned long) + 1);
       unsigned long *x_long_ptr = data;
-      cs->data = data;
+      cs->data = (unsigned char *)data;
       cs->format = 32;
       cs->size = 1;
       cs->data[sizeof (unsigned long)] = 0;
@@ -1793,7 +1793,7 @@ lisp_data_to_selection_data (struct x_display_info *dpyinfo,
 	    if (!SYMBOLP (AREF (obj, i)))
 	      signal_error ("All elements of selection vector must have same type", obj);
 
-	  cs->data = data = xnmalloc (size, sizeof *x_atoms);
+	  cs->data = data = (unsigned char *)xnmalloc (size, sizeof *x_atoms);
 	  x_atoms = data;
 	  cs->format = 32;
 	  cs->size = size;
@@ -1822,7 +1822,7 @@ lisp_data_to_selection_data (struct x_display_info *dpyinfo,
 		  break;
 		}
 	    }
-	  cs->data = data = xnmalloc (size, data_size);
+	  cs->data = data = (unsigned char *)xnmalloc (size, data_size);
 	  x_atoms = (long unsigned int *)data;
 	  shorts = (short int *)data;
 	  cs->format = format;
