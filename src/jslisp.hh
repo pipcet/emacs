@@ -18,8 +18,8 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 
-#ifndef EMACS_LISP_H
-#define EMACS_LISP_H
+#ifndef EMACS_JSLISP_H
+#define EMACS_JSLISP_H
 
 #define DEBUG
 #include "js-config.h"
@@ -48,8 +48,6 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 //#define LSH(v) (v)
 #define LRH(v) ELisp_Handle (ELisp_Value (v))
 #define LSH(v) ELisp_Handle (ELisp_Value (v))
-
-#include "lisp.h.hh"
 
 extern _Noreturn void emacs_abort (void) NO_INLINE;
 extern bool js_init();
@@ -1421,6 +1419,8 @@ typedef Lisp_Value_Handle ELisp_Handle;
 typedef Lisp_Value_Heap ELisp_Heap_Value;
 typedef Lisp_Value_Heap ELisp_Struct_Value;
 typedef Lisp_Value_Stack ELisp_Value;
+
+#include "lisp.h.hh"
 
 //extern void jsprint(Lisp_Object *x);
 
@@ -5619,125 +5619,10 @@ union Aligned_Cons
   double d; intmax_t i; void *p;
 };
 
-/* True for stack-based cons and string implementations, respectively.
-   Use stack-based strings only if stack-based cons also works.
-   Otherwise, STACK_CONS would create heap-based cons cells that
-   could point to stack-based strings, which is a no-no.  */
-
-enum
-  {
-    USE_STACK_CONS = (USE_STACK_LISP_OBJECTS
-                      && alignof (union Aligned_Cons) % GCALIGNMENT == 0),
-  };
-
-/* Auxiliary macros used for auto allocation of Lisp objects.  Please
-   use these only in macros like AUTO_CONS that declare a local
-   variable whose lifetime will be clear to the programmer.  */
-#define AUTO_CONS_EXPR(a, b) \
-  (Fcons (a, b))
-
-/* Declare NAME as an auto Lisp cons or short list if possible, a
-   GC-based one otherwise.  This is in the sense of the C keyword
-   'auto'; i.e., the object has the lifetime of the containing block.
-   The resulting object should not be made visible to user Lisp code.  */
-
-#define AUTO_CONS(name, a, b) ELisp_Value name = AUTO_CONS_EXPR (a, b)
-#define AUTO_LIST1(name, a)						\
-  ELisp_Value name; name = (list1 (a))
-#define AUTO_LIST2(name, a, b)						\
-  ELisp_Value name; name = (list2 (a, b))
-#define AUTO_LIST3(name, a, b, c)					\
-  ELisp_Value name; name = (list3 (a, b, c))
-#define AUTO_LIST4(name, a, b, c, d)					\
-  ELisp_Value name; name                                                \
-      = (list4 (a, b, c, d))
-
-/* Declare NAME as an auto Lisp string if possible, a GC-based one if not.
-   Take its unibyte value from the null-terminated string STR,
-   an expression that should not have side effects.
-   STR's value is not necessarily copied.  The resulting Lisp string
-   should not be modified or made visible to user code.  */
-
-#define AUTO_STRING(name, str) \
-  AUTO_STRING_WITH_LEN (name, str, strlen (str))
-
-/* Declare NAME as an auto Lisp string if possible, a GC-based one if not.
-   Take its unibyte value from the null-terminated string STR with length LEN.
-   STR may have side effects and may contain null bytes.
-   STR's value is not necessarily copied.  The resulting Lisp string
-   should not be modified or made visible to user code.  */
-
-#define AUTO_STRING_WITH_LEN(name, str, len)				\
-  ELisp_Value name; name =                                              \
-     make_unibyte_string (str, len)
-
-/* Loop over conses of the list TAIL, signaling if a cycle is found,
-   and possibly quitting after each loop iteration.  In the loop body,
-   set TAIL to the current cons.  If the loop exits normally,
-   set TAIL to the terminating non-cons, typically nil.  The loop body
-   should not modify the list’s top level structure other than by
-   perhaps deleting the current cons.  */
-
-#define FOR_EACH_TAIL(tail) \
-  FOR_EACH_TAIL_INTERNAL (tail, circular_list (tail), true)
-
-/* Like FOR_EACH_TAIL (LIST), except do not signal or quit.
-   If the loop exits due to a cycle, TAIL’s value is undefined.  */
-
-#define FOR_EACH_TAIL_SAFE(tail) \
-  FOR_EACH_TAIL_INTERNAL (tail, (void) ((tail) = Qnil), false)
-
-/* Iterator intended for use only within FOR_EACH_TAIL_INTERNAL.  */
-struct for_each_tail_internal
-{
-  ELisp_Value tortoise; /* not a typo; this struct lives only on the stack. */
-  intptr_t c_max; intptr_t n;
-  unsigned short int q;
-};
-
-/* Like FOR_EACH_TAIL (LIST), except evaluate CYCLE if a cycle is
-   found, and check for quit if CHECK_QUIT.  This is an internal macro
-   intended for use only by the above macros.
-
-   Use Brent’s teleporting tortoise-hare algorithm.  See:
-   Brent RP. BIT. 1980;20(2):176-84. doi:10.1007/BF01933190
-   http://maths-people.anu.edu.au/~brent/pd/rpb051i.pdf
-
-   This macro uses maybe_quit because of an excess of caution.  The
-   call to maybe_quit should not be needed in practice, as a very long
-   list, whether circular or not, will cause Emacs to be so slow in
-   other uninterruptible areas (e.g., garbage collection) that there
-   is little point to calling maybe_quit here.  */
-
-#define FOR_EACH_TAIL_INTERNAL(tail, cycle, check_quit)			\
-  for (struct for_each_tail_internal li = { JSReturnValue(tail), 2, 0, 2 }; \
-       CONSP (tail);							\
-       ((tail) = XCDR (tail),						\
-        ((--li.q != 0							\
-          || ((check_quit) ? maybe_quit () : (void) 0, 0 < --li.n)	\
-          || (li.q = li.n = li.c_max <<= 1, li.n >>= USHRT_WIDTH,		\
-              li.tortoise = (tail), false))				\
-         && EQ (tail, li.tortoise))					\
-        ? (cycle) : (void) 0))
-
-/* Do a `for' loop over alist values.  */
-
-#define FOR_EACH_ALIST_VALUE(head_var, list_var, value_var)		\
-  for ((list_var) = (head_var);						\
-       (CONSP (list_var) && ((value_var) = XCDR (LRH ((XCAR (list_var)))), true)); \
-       (list_var) = XCDR (list_var))
-
-/* Check whether it's time for GC, and run it if so.  */
-
-INLINE void
-maybe_gc (void)
-{
-}
-
 #define XSETSCROLL_BAR(a,b) (a).xsetvector((struct Lisp_Vector *)b)
 
 INLINE_HEADER_END
 
 EXTERN_C_END
 
-#endif /* EMACS_LISP_H */
+#endif /* EMACS_JSLISP_H */

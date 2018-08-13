@@ -18,6 +18,10 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 
+#ifndef EMACS_JSLISP_H
+#include "jslisp.hh"
+#else
+
 #ifndef EMACS_LISP_H
 #define EMACS_LISP_H
 #if 0
@@ -39,7 +43,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 
 #include <intprops.h>
 #include <verify.h>
-#endif
+#endif /* 0 */
 
 INLINE_HEADER_BEGIN
 
@@ -4640,6 +4644,8 @@ enum { defined_GC_CHECK_STRING_BYTES = true };
 enum { defined_GC_CHECK_STRING_BYTES = false };
 #endif
 
+#endif /* 0 */
+
 /* True for stack-based cons and string implementations, respectively.
    Use stack-based strings only if stack-based cons also works.
    Otherwise, STACK_CONS would create heap-based cons cells that
@@ -4647,41 +4653,30 @@ enum { defined_GC_CHECK_STRING_BYTES = false };
 
 enum
   {
-    USE_STACK_CONS = USE_STACK_LISP_OBJECTS,
-    USE_STACK_STRING = (USE_STACK_CONS
-			&& !defined_GC_CHECK_STRING_BYTES)
+   USE_STACK_CONS = 0,
+   USE_STACK_STRING = 0
   };
 
 /* Auxiliary macros used for auto allocation of Lisp objects.  Please
    use these only in macros like AUTO_CONS that declare a local
    variable whose lifetime will be clear to the programmer.  */
-#define STACK_CONS(a, b) \
-  make_lisp_ptr (&((struct Lisp_Cons) {{{a, {b}}}}), Lisp_Cons)
-#define AUTO_CONS_EXPR(a, b) \
-  (USE_STACK_CONS ? STACK_CONS (a, b) : Fcons (a, b))
+#define AUTO_CONS_EXPR(a, b) (Fcons ((a), (b)))
 
 /* Declare NAME as an auto Lisp cons or short list if possible, a
    GC-based one otherwise.  This is in the sense of the C keyword
    'auto'; i.e., the object has the lifetime of the containing block.
    The resulting object should not be made visible to user Lisp code.  */
 
-#define AUTO_CONS(name, a, b) Lisp_Object name = AUTO_CONS_EXPR (a, b)
+#define AUTO_CONS(name, a, b) ELisp_Value name = AUTO_CONS_EXPR (a, b)
 #define AUTO_LIST1(name, a)						\
-  Lisp_Object name = (USE_STACK_CONS ? STACK_CONS (a, Qnil) : list1 (a))
+  ELisp_Value name; name = (list1 (a))
 #define AUTO_LIST2(name, a, b)						\
-  Lisp_Object name = (USE_STACK_CONS					\
-		      ? STACK_CONS (a, STACK_CONS (b, Qnil))		\
-		      : list2 (a, b))
+  ELisp_Value name; name = (list2 (a, b))
 #define AUTO_LIST3(name, a, b, c)					\
-  Lisp_Object name = (USE_STACK_CONS					\
-		      ? STACK_CONS (a, STACK_CONS (b, STACK_CONS (c, Qnil))) \
-		      : list3 (a, b, c))
+  ELisp_Value name; name = (list3 (a, b, c))
 #define AUTO_LIST4(name, a, b, c, d)					\
-    Lisp_Object name							\
-      = (USE_STACK_CONS							\
-	 ? STACK_CONS (a, STACK_CONS (b, STACK_CONS (c,			\
-						     STACK_CONS (d, Qnil)))) \
-	 : list4 (a, b, c, d))
+  ELisp_Value name; name                                                \
+      = (list4 (a, b, c, d))
 
 /* Declare NAME as an auto Lisp string if possible, a GC-based one if not.
    Take its unibyte value from the null-terminated string STR,
@@ -4701,12 +4696,7 @@ enum
    user code.  */
 
 #define AUTO_STRING_WITH_LEN(name, str, len)				\
-  Lisp_Object name =							\
-    (USE_STACK_STRING							\
-     ? (make_lisp_ptr							\
-	((&(struct Lisp_String) {{{len, -1, 0, (unsigned char *) (str)}}}), \
-	 Lisp_String))							\
-     : make_unibyte_string (str, len))
+  ELisp_Value name; name = make_unibyte_string (str, len)
 
 /* Loop over conses of the list TAIL, signaling if a cycle is found,
    and possibly quitting after each loop iteration.  In the loop body,
@@ -4727,8 +4717,8 @@ enum
 /* Iterator intended for use only within FOR_EACH_TAIL_INTERNAL.  */
 struct for_each_tail_internal
 {
-  Lisp_Object tortoise;
-  intptr_t max, n;
+  ELisp_Value tortoise; /* not a typo; this struct lives only on the stack. */
+  intptr_t c_max; intptr_t n;
   unsigned short int q;
 };
 
@@ -4747,39 +4737,29 @@ struct for_each_tail_internal
    is little point to calling maybe_quit here.  */
 
 #define FOR_EACH_TAIL_INTERNAL(tail, cycle, check_quit)			\
-  for (struct for_each_tail_internal li = { tail, 2, 0, 2 };		\
+  for (struct for_each_tail_internal li = { JSReturnValue(tail), 2, 0, 2 }; \
        CONSP (tail);							\
        ((tail) = XCDR (tail),						\
-	((--li.q != 0							\
-	  || ((check_quit) ? maybe_quit () : (void) 0, 0 < --li.n)	\
-	  || (li.q = li.n = li.max <<= 1, li.n >>= USHRT_WIDTH,		\
-	      li.tortoise = (tail), false))				\
-	 && EQ (tail, li.tortoise))					\
-	? (cycle) : (void) 0))
+        ((--li.q != 0							\
+          || ((check_quit) ? maybe_quit () : (void) 0, 0 < --li.n)	\
+          || (li.q = li.n = li.c_max <<= 1, li.n >>= USHRT_WIDTH,		\
+              li.tortoise = (tail), false))				\
+         && EQ (tail, li.tortoise))					\
+        ? (cycle) : (void) 0))
 
 /* Do a `for' loop over alist values.  */
 
 #define FOR_EACH_ALIST_VALUE(head_var, list_var, value_var)		\
   for ((list_var) = (head_var);						\
-       (CONSP (list_var) && ((value_var) = XCDR (XCAR (list_var)), true)); \
+       (CONSP (list_var) && ((value_var) = XCDR (LRH ((XCAR (list_var)))), true)); \
        (list_var) = XCDR (list_var))
-
-/* Check whether it's time for GC, and run it if so.  */
 
 INLINE void
 maybe_gc (void)
 {
-  if ((consing_since_gc > gc_cons_threshold
-       && consing_since_gc > gc_relative_threshold)
-      || (!NILP (Vmemory_full)
-	  && consing_since_gc > memory_full_cons_threshold))
-    Fgarbage_collect ();
 }
-#endif
 
 INLINE_HEADER_END
 
-#else
-#endif
-#include "jslisp.hh"
 #endif /* EMACS_LISP_H */
+#endif /* EMACS_JSLISP_H */
