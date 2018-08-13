@@ -3207,7 +3207,8 @@ build_overlay (Lisp_Object start, Lisp_Object end, Lisp_Object plist)
 {
   struct Lisp_Overlay *p = ALLOCATE_PSEUDOVECTOR (struct Lisp_Overlay, next,
 						  PVEC_OVERLAY);
-  Lisp_Object overlay = make_lisp_ptr (p, Lisp_Vectorlike);
+  Lisp_Object overlay;
+  XSETOVERLAY (overlay, p);
   OVERLAY_START (overlay) = start;
   OVERLAY_END (overlay) = end;
   set_overlay_plist (overlay, plist);
@@ -3227,7 +3228,9 @@ DEFUN ("make-marker", Fmake_marker, Smake_marker, 0, 0, 0,
   p->next = NULL;
   p->insertion_type = 0;
   p->need_adjustment = 0;
-  return make_lisp_ptr (p, Lisp_Vectorlike);
+  Lisp_Object marker;
+  XSETMARKER (marker, p);
+  return marker;
 }
 
 /* Return a newly allocated marker which points into BUF
@@ -3251,7 +3254,9 @@ build_marker (struct buffer *buf, ptrdiff_t charpos, ptrdiff_t bytepos)
   m->need_adjustment = 0;
   m->next = BUF_MARKERS (buf);
   BUF_MARKERS (buf) = m;
-  return make_lisp_ptr (m, Lisp_Vectorlike);
+  Lisp_Object marker;
+  XSETMARKER (marker, m);
+  return marker;
 }
 
 
@@ -3264,7 +3269,9 @@ make_bignum_str (const char *num, int base)
   mpz_init (b->value);
   int check = mpz_set_str (b->value, num, base);
   eassert (check == 0);
-  return make_lisp_ptr (b, Lisp_Vectorlike);
+  Lisp_Object bignum;
+  XSETBIGNUM (bignum, b);
+  return bignum;
 }
 
 /* Given an mpz_t, make a number.  This may return a bignum or a
@@ -3311,7 +3318,9 @@ make_number (mpz_t value)
      resulting API seemed possibly confusing.  */
   mpz_init_set (b->value, value);
 
-  return make_lisp_ptr (b, Lisp_Vectorlike);
+  Lisp_Object bignum;
+  XSETBIGNUM (bignum, b);
+  return bignum;
 }
 
 void
@@ -3511,7 +3520,9 @@ FUNCTION.  FUNCTION will be run once per finalizer object.  */)
   finalizer->function = function;
   finalizer->prev = finalizer->next = NULL;
   finalizer_insert (&finalizers, finalizer);
-  return make_lisp_ptr (finalizer, Lisp_Vectorlike);
+  Lisp_Object f;
+  XSETFINALIZER(f, finalizer);
+  return f;
 }
 
 
@@ -4011,22 +4022,6 @@ mem_delete_fixup (struct mem_node *x)
 static Lisp_Object
 live_string_holding (struct mem_node *m, void *p)
 {
-  if (m->type == MEM_TYPE_STRING)
-    {
-      struct string_block *b = m->start;
-      char *cp = p;
-      ptrdiff_t offset = cp - (char *) &b->strings[0];
-
-      /* P must point into a Lisp_String structure, and it
-	 must not be on the free-list.  */
-      if (0 <= offset && offset < STRING_BLOCK_SIZE * sizeof b->strings[0])
-	{
-	  cp = ptr_bounds_copy (cp, b);
-	  struct Lisp_String *s = p = cp -= offset % sizeof b->strings[0];
-	  if (s->u.s.data)
-	    return make_lisp_ptr (s, Lisp_String);
-	}
-    }
   return Qnil;
 }
 
@@ -4043,25 +4038,6 @@ live_string_p (struct mem_node *m, void *p)
 static Lisp_Object
 live_cons_holding (struct mem_node *m, void *p)
 {
-  if (m->type == MEM_TYPE_CONS)
-    {
-      struct cons_block *b = m->start;
-      char *cp = p;
-      ptrdiff_t offset = cp - (char *) &b->conses[0];
-
-      /* P must point into a Lisp_Cons, not be
-	 one of the unused cells in the current cons block,
-	 and not be on the free-list.  */
-      if (0 <= offset && offset < CONS_BLOCK_SIZE * sizeof b->conses[0]
-	  && (b != cons_block
-	      || offset / sizeof b->conses[0] < cons_block_index))
-	{
-	  cp = ptr_bounds_copy (cp, b);
-	  struct Lisp_Cons *s = p = cp -= offset % sizeof b->conses[0];
-	  if (!EQ (s->u.s.car, Vdead))
-	    return make_lisp_ptr (s, Lisp_Cons);
-	}
-    }
   return Qnil;
 }
 
@@ -4139,35 +4115,6 @@ live_float_p (struct mem_node *m, void *p)
 static Lisp_Object
 live_vector_holding (struct mem_node *m, void *p)
 {
-  struct Lisp_Vector *vp = p;
-
-  if (m->type == MEM_TYPE_VECTOR_BLOCK)
-    {
-      /* This memory node corresponds to a vector block.  */
-      struct vector_block *block = m->start;
-      struct Lisp_Vector *vector = (struct Lisp_Vector *) block->data;
-
-      /* P is in the block's allocation range.  Scan the block
-	 up to P and see whether P points to the start of some
-	 vector which is not on a free list.  FIXME: check whether
-	 some allocation patterns (probably a lot of short vectors)
-	 may cause a substantial overhead of this loop.  */
-      while (VECTOR_IN_BLOCK (vector, block) && vector <= vp)
-	{
-	  struct Lisp_Vector *next = ADVANCE (vector, vector_nbytes (vector));
-	  if (vp < next && !PSEUDOVECTOR_TYPEP (&vector->header, PVEC_FREE))
-	    return make_lisp_ptr (vector, Lisp_Vectorlike);
-	  vector = next;
-	}
-    }
-  else if (m->type == MEM_TYPE_VECTORLIKE)
-    {
-      /* This memory node corresponds to a large vector.  */
-      struct Lisp_Vector *vector = large_vector_vec (m->start);
-      struct Lisp_Vector *next = ADVANCE (vector, vector_nbytes (vector));
-      if (vector <= vp && vp < next)
-	return make_lisp_ptr (vector, Lisp_Vectorlike);
-    }
   return Qnil;
 }
 
@@ -4212,51 +4159,6 @@ live_buffer_p (struct mem_node *m, void *p)
 static void
 mark_maybe_object (Lisp_Object obj)
 {
-#if USE_VALGRIND
-  if (valgrind_p)
-    VALGRIND_MAKE_MEM_DEFINED (&obj, sizeof (obj));
-#endif
-
-  if (FIXNUMP (obj))
-    return;
-
-  void *po = XPNTR (obj);
-  struct mem_node *m = mem_find (po);
-
-  if (m != MEM_NIL)
-    {
-      bool mark_p = false;
-
-      switch (XTYPE (obj))
-	{
-	case Lisp_String:
-	  mark_p = EQ (obj, live_string_holding (m, po));
-	  break;
-
-	case Lisp_Cons:
-	  mark_p = EQ (obj, live_cons_holding (m, po));
-	  break;
-
-	case Lisp_Symbol:
-	  mark_p = EQ (obj, live_symbol_holding (m, po));
-	  break;
-
-	case Lisp_Float:
-	  mark_p = live_float_p (m, po);
-	  break;
-
-	case Lisp_Vectorlike:
-	  mark_p = (EQ (obj, live_vector_holding (m, po))
-		    || EQ (obj, live_buffer_holding (m, po)));
-	  break;
-
-	default:
-	  break;
-	}
-
-      if (mark_p)
-	mark_object (obj);
-    }
 }
 
 void
@@ -4288,70 +4190,6 @@ enum { HAVE_MODULES = false };
 static void
 mark_maybe_pointer (void *p)
 {
-  struct mem_node *m;
-
-#if USE_VALGRIND
-  if (valgrind_p)
-    VALGRIND_MAKE_MEM_DEFINED (&p, sizeof (p));
-#endif
-
-  if (sizeof (Lisp_Object) == sizeof (void *) || !HAVE_MODULES)
-    {
-      if (!maybe_lisp_pointer (p))
-        return;
-    }
-  else
-    {
-      /* For the wide-int case, also mark emacs_value tagged pointers,
-	 which can be generated by emacs-module.c's value_to_lisp.  */
-      p = (void *) ((uintptr_t) p & ~((1 << GCTYPEBITS) - 1));
-    }
-
-  m = mem_find (p);
-  if (m != MEM_NIL)
-    {
-      Lisp_Object obj = Qnil;
-
-      switch (m->type)
-	{
-	case MEM_TYPE_NON_LISP:
-	case MEM_TYPE_SPARE:
-	  /* Nothing to do; not a pointer to Lisp memory.  */
-	  break;
-
-	case MEM_TYPE_BUFFER:
-	  obj = live_buffer_holding (m, p);
-	  break;
-
-	case MEM_TYPE_CONS:
-	  obj = live_cons_holding (m, p);
-	  break;
-
-	case MEM_TYPE_STRING:
-	  obj = live_string_holding (m, p);
-	  break;
-
-	case MEM_TYPE_SYMBOL:
-	  obj = live_symbol_holding (m, p);
-	  break;
-
-	case MEM_TYPE_FLOAT:
-	  if (live_float_p (m, p))
-	    obj = make_lisp_ptr (p, Lisp_Float);
-	  break;
-
-	case MEM_TYPE_VECTORLIKE:
-	case MEM_TYPE_VECTOR_BLOCK:
-	  obj = live_vector_holding (m, p);
-	  break;
-
-	default:
-	  emacs_abort ();
-	}
-
-      if (!NILP (obj))
-	mark_object (obj);
-    }
 }
 
 
@@ -4711,7 +4549,9 @@ make_pure_bignum (struct Lisp_Bignum *value)
 
   mpz_roinit_n (b->value, pure_limbs, new_size);
 
-  return make_lisp_ptr (b, Lisp_Vectorlike);
+  Lisp_Object bignum;
+  XSETBIGNUM (bignum, b);
+  return bignum;
 }
 
 /* Return a vector with room for LEN Lisp_Objects allocated from

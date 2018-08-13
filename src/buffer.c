@@ -3003,9 +3003,9 @@ overlays_in (EMACS_INT beg, EMACS_INT end, bool extend,
 	    next = startpos;
 	  break;
 	}
-      endpos = OVERLAY_POSITION (oend);
+      endpos = OVERLAY_POSITION (overlay);
       /* Count an interval if it overlaps the range, is empty at the
-	 start of the range, or is empty at END provided END denotes the
+	 start of the range, or ins empty at END provided END denotes the
 	 end of the buffer.  */
       if ((beg < endpos && startpos < end)
 	  || (startpos == endpos

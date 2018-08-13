@@ -1844,6 +1844,9 @@ enum pvec_type
   PVEC_MUTEX,
   PVEC_CONDVAR,
   PVEC_MODULE_FUNCTION,
+  PVEC_MARKER,
+  PVEC_OVERLAY,
+  PVEC_FINALIZER,
 
   /* These should be last, check internal_equal to see why.  */
   PVEC_COMPILED,
