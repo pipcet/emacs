@@ -2015,7 +2015,10 @@ static void
 elisp_symbol_trace(JSTracer *trc, JSObject *obj)
 {
   union Lisp_Symbol_Flags flags;
-  flags.i = JS_GetReservedSlot(obj, 5).toInt32();
+  ELisp_Value v; v = JS_GetReservedSlot(obj, 5);
+  if (!v.isInt32())
+    return;
+  flags.i = v.toInt32();
 
   if (flags.s.redirect == SYMBOL_LOCALIZED)
     {
