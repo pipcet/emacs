@@ -2252,62 +2252,14 @@ Its value is void, and its function definition and property list are nil.  */)
 
   return val;
 }
-
-
 
-/***********************************************************************
-		       Marker (Misc) Allocation
- ***********************************************************************/
-
-/* Like union Lisp_Misc, but padded so that its size is a multiple of
-   the required alignment.  */
-
-union aligned_Lisp_Misc
-{
-  union Lisp_Misc m;
-  unsigned char c[(sizeof (union Lisp_Misc) + LISP_ALIGNMENT - 1)
-		  & -LISP_ALIGNMENT];
-};
-
-/* Allocation of markers and other objects that share that structure.
-   Works like allocation of conses.  */
-
-#define MARKER_BLOCK_SIZE \
-  ((1020 - sizeof (struct marker_block *)) / sizeof (union aligned_Lisp_Misc))
-
-struct marker_block
-{
-  /* Place `markers' first, to preserve alignment.  */
-  union aligned_Lisp_Misc markers[MARKER_BLOCK_SIZE];
-  struct marker_block *next;
-};
-
-static struct marker_block *marker_block;
-static int marker_block_index = MARKER_BLOCK_SIZE;
-
-/* Return a newly allocated Lisp_Misc object of specified TYPE.  */
-
-static Lisp_Object
-allocate_misc (enum Lisp_Misc_Type type)
-{
-  Lisp_Object val;
-  union Lisp_Misc *m = (union Lisp_Misc *)xzalloc(sizeof *m);
-
-  m->u_any.type = type;
-  XSETMISC (val, m);
-
-  return val;
-}
-
 ELisp_Return_Value
 make_misc_ptr (void *a)
 {
   Lisp_Object val;
-  union Lisp_Misc *m = (union Lisp_Misc *)xzalloc(sizeof *m);
-
-  m->u_any.type = Lisp_Misc_Ptr;
-  m->u_pointer.pointer = a;
-  XSETMISC (val, m);
+  struct Lisp_Misc_Ptr *p = ALLOCATE_PSEUDOVECTOR (struct Lisp_Misc_Ptr, pointer, PVEC_MISC_PTR);
+  p->pointer = a;
+  XSETVECTOR (val, (struct Lisp_Vector *)p);
 
   return val;
 }
@@ -2315,35 +2267,16 @@ make_misc_ptr (void *a)
 Lisp_Object
 make_save_ptr_ptr (void *a, void *b)
 {
-  Lisp_Object val = allocate_misc (Lisp_Misc_Save_Value);
-  struct Lisp_Save_Value *p = XSAVE_VALUE (val);
-  p->save_type = SAVE_TYPE_PTR_PTR;
-  p->data[0].pointer = a;
-  p->data[1].pointer = b;
-  return val;
 }
 
 Lisp_Object
 make_save_funcptr_ptr_obj (void (*a) (void), void *b, Lisp_Object c)
 {
-  Lisp_Object val = allocate_misc (Lisp_Misc_Save_Value);
-  struct Lisp_Save_Value *p = XSAVE_VALUE (val);
-  p->save_type = SAVE_TYPE_FUNCPTR_PTR_OBJ;
-  p->data[0].funcpointer = a;
-  p->data[1].pointer = b;
-  p->data[2].object = c;
-  return val;
 }
 
 Lisp_Object
 make_save_memory (Lisp_Object *a, ptrdiff_t n)
 {
-  Lisp_Object val = allocate_misc (Lisp_Misc_Save_Value);
-  struct Lisp_Save_Value *p = XSAVE_VALUE (val);
-  p->save_type = SAVE_TYPE_MEMORY;
-  p->data[0].pointer = a;
-  p->data[1].integer = n;
-  return val;
 }
 
 /* Free a Lisp_Save_Value object.  Do not use this function
@@ -2352,7 +2285,6 @@ make_save_memory (Lisp_Object *a, ptrdiff_t n)
 void
 free_save_value (Lisp_Object save)
 {
-  xfree (XSAVE_POINTER (save, 0));
 }
 
 /* Return a Lisp_Misc_Overlay object with specified START, END and PLIST.  */
@@ -2360,9 +2292,10 @@ free_save_value (Lisp_Object save)
 Lisp_Object
 build_overlay (Lisp_Object start, Lisp_Object end, Lisp_Object plist)
 {
-  register Lisp_Object overlay;
-
-  overlay = allocate_misc (Lisp_Misc_Overlay);
+  struct Lisp_Overlay *p = ALLOCATE_PSEUDOVECTOR (struct Lisp_Overlay, next,
+						  PVEC_OVERLAY);
+  Lisp_Object overlay;
+  XSETOVERLAY (overlay, p);
   OVERLAY_START (overlay) = start;
   OVERLAY_END (overlay) = end;
   set_overlay_plist (overlay, plist);
@@ -2375,10 +2308,9 @@ DEFUN ("make-marker", Fmake_marker, Smake_marker, 0, 0, 0,
   (void)
 {
   register Lisp_Object val;
-  register struct Lisp_Marker *p;
+  register struct Lisp_Marker *p = ALLOCATE_PSEUDOVECTOR (struct Lisp_Marker, buffer, PVEC_MARKER);
 
-  val = allocate_misc (Lisp_Misc_Marker);
-  p = XMARKER (val);
+  XSETMARKER (val, p);
   p->buffer = 0;
   p->bytepos = 0;
   p->charpos = 0;
@@ -2395,7 +2327,6 @@ Lisp_Object
 build_marker (struct buffer *buf, ptrdiff_t charpos, ptrdiff_t bytepos)
 {
   Lisp_Object obj;
-  struct Lisp_Marker *m;
 
   /* No dead buffers here.  */
   eassert (BUFFER_LIVE_P (buf));
@@ -2403,8 +2334,9 @@ build_marker (struct buffer *buf, ptrdiff_t charpos, ptrdiff_t bytepos)
   /* Every character is at least one byte.  */
   eassert (charpos <= bytepos);
 
-  obj = allocate_misc (Lisp_Misc_Marker);
-  m = XMARKER (obj);
+  struct Lisp_Marker *m = ALLOCATE_PSEUDOVECTOR (struct Lisp_Marker, buffer,
+                                                 PVEC_MARKER);;
+  XSETMARKER (obj, m);
   m->buffer = buf;
   m->charpos = charpos;
   m->bytepos = bytepos;
@@ -2441,7 +2373,6 @@ make_user_ptr (void (*finalizer) (void *), void *p)
 static void
 init_finalizer_list (struct Lisp_Finalizer *head)
 {
-  head->prev = head->next = head;
 }
 
 /* Insert FINALIZER before ELEMENT.  */
@@ -2450,35 +2381,16 @@ static void
 finalizer_insert (struct Lisp_Finalizer *element,
                   struct Lisp_Finalizer *finalizer)
 {
-  eassert (finalizer->prev == NULL);
-  eassert (finalizer->next == NULL);
-  finalizer->next = element;
-  finalizer->prev = element->prev;
-  finalizer->prev->next = finalizer;
-  element->prev = finalizer;
 }
 
 static void
 unchain_finalizer (struct Lisp_Finalizer *finalizer)
 {
-  if (finalizer->prev != NULL)
-    {
-      eassert (finalizer->next != NULL);
-      finalizer->prev->next = finalizer->next;
-      finalizer->next->prev = finalizer->prev;
-      finalizer->prev = finalizer->next = NULL;
-    }
 }
 
 static void
 mark_finalizer_list (struct Lisp_Finalizer *head)
 {
-  for (struct Lisp_Finalizer *finalizer = head->next;
-       finalizer != head;
-       finalizer = finalizer->next)
-    {
-      mark_object (finalizer->function);
-    }
 }
 
 /* Move doomed finalizers to list DEST from list SRC.  A doomed
@@ -2489,13 +2401,6 @@ static void
 queue_doomed_finalizers (struct Lisp_Finalizer *dest,
                          struct Lisp_Finalizer *src)
 {
-  struct Lisp_Finalizer *finalizer = src->next;
-  while (finalizer != src)
-    {
-      struct Lisp_Finalizer *next = finalizer->next;
-
-      finalizer = next;
-    }
 }
 
 static Lisp_Object
@@ -2508,31 +2413,11 @@ run_finalizer_handler (Lisp_Object args)
 static void
 run_finalizer_function (Lisp_Object function)
 {
-  ptrdiff_t count = SPECPDL_INDEX ();
-
-  specbind (Qinhibit_quit, Qt);
-  internal_condition_case_1 (call0, function, Qt, run_finalizer_handler);
-  unbind_to (count, Qnil);
 }
 
 static void
 run_finalizers (struct Lisp_Finalizer *finalizers)
 {
-  struct Lisp_Finalizer *finalizer;
-  Lisp_Object function;
-
-  while (finalizers->next != finalizers)
-    {
-      finalizer = finalizers->next;
-      eassert (finalizer->base.type == Lisp_Misc_Finalizer);
-      unchain_finalizer (finalizer);
-      function = finalizer->function;
-      if (!NILP (function))
-	{
-	  finalizer->function = Qnil;
-	  run_finalizer_function (function);
-	}
-    }
 }
 
 DEFUN ("make-finalizer", Fmake_finalizer, Smake_finalizer, 1, 1, 0,
@@ -2544,12 +2429,7 @@ count as reachable for the purpose of deciding whether to run
 FUNCTION.  FUNCTION will be run once per finalizer object.  */)
   (Lisp_Object function)
 {
-  Lisp_Object val = allocate_misc (Lisp_Misc_Finalizer);
-  struct Lisp_Finalizer *finalizer = XFINALIZER (val);
-  finalizer->function = function;
-  finalizer->prev = finalizer->next = NULL;
-  finalizer_insert (&finalizers, finalizer);
-  return val;
+  return Qnil;
 }
 
 
@@ -4030,7 +3910,6 @@ static size_t
 total_bytes_of_live_objects (void)
 {
   size_t tot = 0;
-  tot += total_markers * sizeof (union Lisp_Misc);
   tot += total_vector_slots * word_size;
   tot += total_intervals * sizeof (struct interval);
   return tot;

@@ -527,59 +527,6 @@ static JSClass marker_class = {
                                &marker_class_ops,
 };
 
-static void
-misc_finalize(JSFreeOp* cx, JSObject *obj)
-{
-  union Lisp_Misc *misc = (union Lisp_Misc *)JS_GetPrivate(obj);
-
-  if (!misc)
-    return;
-
-  if (misc->u_any.type == Lisp_Misc_Marker)
-    {
-      struct Lisp_Marker *marker = (struct Lisp_Marker *)misc;
-
-      unchain_marker (marker);
-    }
-
-  xfree(misc);
-}
-
-
-static JSClassOps misc_class_ops =
-{
-  NULL, NULL, NULL, NULL,
-  NULL, NULL, misc_finalize,
-};
-
-static JSClass misc_class = {
-                             "ELisp_Misc",
-                             JSCLASS_HAS_PRIVATE|JSCLASS_FOREGROUND_FINALIZE,
-                             &misc_class_ops,
-};
-
-static bool
-misc_construct(JSContext* cx, unsigned argc, JS::Value* vp)
-{
-  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
-  /*
-  struct Lisp_Misc_Any *misc_any = xmalloc (sizeof *misc_any);
-  misc_any->type = 0;
-  misc_any->gcmarkbit = 0;
-  misc_any_spacer = 0;
-
-  JS_SetPrivate(cx, obj, misc_any);
-  */
-
-  return true;
-}
-
-static void misc_init(JSContext* cx, JS::HandleObject global)
-{
-  JS_InitClass(cx, global, nullptr, &misc_class, misc_construct, 1,
-               nullptr, nullptr, nullptr, nullptr);
-}
-
 static bool
 Q_resolve(JSContext *cx, JS::HandleObject obj, JS::HandleId id, bool *resolvedp)
 {
@@ -1148,7 +1095,6 @@ js_gc_trace(JSTracer* tracer, void* data)
   TraceEdge(tracer, &elisp_string_class_proto, "string class proto");
   TraceEdge(tracer, &elisp_symbol_class_proto, "symbol class proto");
   TraceEdge(tracer, &elisp_vector_class_proto, "vector class proto");
-  TraceEdge(tracer, &elisp_misc_class_proto, "misc class proto");
 
   for (size_t i = 0; i < GLOBAL_OBJECTS; i++) {
     TraceEdge(tracer, &(((ELisp_Struct_Value *)&globals)+i)->v.v, "global");
@@ -1788,14 +1734,12 @@ void *elisp_cons_class_proto_backup;
 void *elisp_string_class_proto_backup;
 void *elisp_symbol_class_proto_backup;
 void *elisp_vector_class_proto_backup;
-void *elisp_misc_class_proto_backup;
 void *elisp_exception_class_proto_backup;
 
 JS::Heap<JSObject*> elisp_cons_class_proto __attribute__((init_priority(103)));
 JS::Heap<JSObject*> elisp_string_class_proto __attribute__((init_priority(103)));
 JS::Heap<JSObject*> elisp_symbol_class_proto __attribute__((init_priority(103)));
 JS::Heap<JSObject*> elisp_vector_class_proto __attribute__((init_priority(103)));
-JS::Heap<JSObject*> elisp_misc_class_proto __attribute__((init_priority(103)));
 
 class JSG2 {
 public:
@@ -1804,7 +1748,6 @@ public:
   memcpy(&elisp_string_class_proto, &elisp_string_class_proto_backup, sizeof elisp_cons_class_proto);
   memcpy(&elisp_symbol_class_proto, &elisp_symbol_class_proto_backup, sizeof elisp_cons_class_proto);
   memcpy(&elisp_vector_class_proto, &elisp_vector_class_proto_backup, sizeof elisp_cons_class_proto);
-  memcpy(&elisp_misc_class_proto, &elisp_misc_class_proto_backup, sizeof elisp_cons_class_proto);
   memcpy(&elisp_exception_class_proto, &elisp_exception_class_proto_backup, sizeof elisp_cons_class_proto);
     
   }
@@ -2155,6 +2098,8 @@ elisp_symbol()
   JS::RootedObject obj(cx, JS_NewObject(cx, &elisp_symbol_class));
 
   JS_SetReservedSlot(obj, 3, Qnil);
+  JS::RootedValue v(cx, JS::Int32Value(0));
+  JS_SetReservedSlot(obj, 5, v);
 
   return JS::ObjectValue(*obj);
 }
@@ -3007,90 +2952,6 @@ JSClass elisp_compiled_class = {
                             "ELisp_Compiled", JSCLASS_HAS_PRIVATE|JSCLASS_FOREGROUND_FINALIZE,
                             &elisp_compiled_ops,
 };
-static void
-elisp_misc_finalize(JSFreeOp* cx, JSObject *obj)
-{
-  //xfree(JS_GetPrivate(obj));
-}
-
-static void
-elisp_misc_trace(JSTracer *trc, JSObject *obj)
-{
-  struct Lisp_Misc_Any *s = (struct Lisp_Misc_Any *)JS_GetPrivate(obj);
-
-  if (!s) return;
-
-  TraceEdge(trc, &s->jsval, "vector element");
-  //fprintf(stderr, "tracing misc at %p\n", s);
-  switch (s->type) {
-  case Lisp_Misc_Marker: {
-    struct Lisp_Marker *m = (struct Lisp_Marker *)s;
-    if (m->buffer)
-      {
-        TraceEdge(trc, &((struct Lisp_Vector *)m->buffer)->header.jsval, "buffer");
-      }
-    break;
-  }
-  case Lisp_Misc_Overlay: {
-    struct Lisp_Overlay *o = (struct Lisp_Overlay *)s;
-
-    TraceEdge(trc, &o->start.v.v, "start");
-    TraceEdge(trc, &o->end.v.v, "end");
-    TraceEdge(trc, &o->plist.v.v, "plist");
-
-    break;
-  }
-  case Lisp_Misc_Save_Value: {
-    struct Lisp_Save_Value *v = (struct Lisp_Save_Value *)s;
-
-    switch (v->save_type) {
-    case SAVE_OBJECT:
-      TraceEdge(trc, &v->data[0].object.v.v, "saved object");
-      break;
-    case SAVE_TYPE_OBJ_OBJ:
-      TraceEdge(trc, &v->data[0].object.v.v, "saved object");
-      TraceEdge(trc, &v->data[1].object.v.v, "saved object");
-      break;
-    case SAVE_TYPE_OBJ_OBJ_OBJ:
-      TraceEdge(trc, &v->data[0].object.v.v, "saved object");
-      TraceEdge(trc, &v->data[1].object.v.v, "saved object");
-      TraceEdge(trc, &v->data[2].object.v.v, "saved object");
-      break;
-    case SAVE_TYPE_OBJ_OBJ_OBJ_OBJ:
-      TraceEdge(trc, &v->data[0].object.v.v, "saved object");
-      TraceEdge(trc, &v->data[1].object.v.v, "saved object");
-      TraceEdge(trc, &v->data[2].object.v.v, "saved object");
-      TraceEdge(trc, &v->data[3].object.v.v, "saved object");
-      break;
-    case SAVE_TYPE_PTR_OBJ:
-      TraceEdge(trc, &v->data[1].object.v.v, "saved object");
-      break;
-    case SAVE_TYPE_FUNCPTR_PTR_OBJ:
-      TraceEdge(trc, &v->data[2].object.v.v, "saved object");
-      break;
-    }
-  }
-  case Lisp_Misc_Finalizer:
-    ;
-  }
-}
-
-static JSClassOps elisp_misc_ops =
-{
-  NULL, NULL, NULL, NULL,
-  NULL, NULL, elisp_misc_finalize,
-  NULL, NULL, NULL, elisp_misc_trace,
-};
-
-JSClass elisp_misc_class = {
-                            "ELisp_Misc", JSCLASS_HAS_PRIVATE|JSCLASS_FOREGROUND_FINALIZE,
-                            &elisp_misc_ops,
-};
-static void
-elisp_miscany_finalize(JSFreeOp* cx, JSObject *obj)
-{
-  //xfree(JS_GetPrivate(obj));
-}
 
 static JSClassOps elisp_exception_ops =
   {
@@ -3103,16 +2964,6 @@ JSClass elisp_exception_class =
    &elisp_exception_ops
   };
 
-static JSClassOps elisp_miscany_ops =
-{
-  NULL, NULL, NULL, NULL,
-  NULL, NULL, elisp_miscany_finalize,
-};
-
-JSClass elisp_misc_any_class = {
-                            "ELisp_MiscAny", JSCLASS_HAS_PRIVATE|JSCLASS_FOREGROUND_FINALIZE,
-                            &elisp_miscany_ops,
-};
 static void
 elisp_vectorlike_finalize(JSFreeOp* cx, JSObject *obj)
 {
@@ -3130,20 +2981,6 @@ JSClass elisp_vectorlike_class = {
                             "ELisp_Vectorlike", JSCLASS_HAS_PRIVATE|JSCLASS_FOREGROUND_FINALIZE,
                             &elisp_vectorlike_ops,
 };
-
-static ELisp_Return_Value
-allocate_misc(int type)
-{
-  struct Lisp_Misc_Any *misc = (struct Lisp_Misc_Any *)xmalloc(sizeof Lisp_Misc);
-
-  JS::RootedObject obj(global_js_context, JS_NewObject(global_js_context, &marker_class));
-
-  JS_SetPrivate(obj, misc);
-
-  ELisp_Value ret;
-  ret.v.setObject(*obj);
-  return ret;
-}
 
 static bool
 elisp_string_toString(JSContext* cx, unsigned argc, JS::Value *vp)
@@ -3241,10 +3078,6 @@ elisp_classes_init(JSContext *cx, JS::HandleObject glob)
                nullptr, nullptr, nullptr, nullptr);
   JS_InitClass(cx, glob, nullptr, &elisp_compiled_class, nullptr, 0,
                nullptr, nullptr, nullptr, nullptr);
-  elisp_misc_class_proto = JS_InitClass(cx, glob, nullptr, &elisp_misc_class, nullptr, 0,
-               nullptr, nullptr, nullptr, nullptr);
-  JS_InitClass(cx, glob, nullptr, &elisp_misc_any_class, nullptr, 0,
-               nullptr, nullptr, nullptr, nullptr);
   JS_InitClass(cx, glob, nullptr, &elisp_vectorlike_class, nullptr, 0,
                nullptr, nullptr, nullptr, nullptr);
   elisp_exception_class_proto = JS_InitClass(cx, glob, nullptr, &elisp_exception_class, nullptr, 0, nullptr, nullptr, nullptr, nullptr);
@@ -3252,7 +3085,6 @@ elisp_classes_init(JSContext *cx, JS::HandleObject glob)
   memcpy(&elisp_string_class_proto_backup, &elisp_string_class_proto, sizeof elisp_cons_class_proto);
   memcpy(&elisp_symbol_class_proto_backup, &elisp_symbol_class_proto, sizeof elisp_cons_class_proto);
   memcpy(&elisp_vector_class_proto_backup, &elisp_vector_class_proto, sizeof elisp_cons_class_proto);
-  memcpy(&elisp_misc_class_proto_backup, &elisp_misc_class_proto, sizeof elisp_cons_class_proto);
   memcpy(&elisp_exception_class_proto_backup, &elisp_exception_class_proto, sizeof elisp_cons_class_proto);
 }
 

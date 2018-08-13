@@ -1192,7 +1192,7 @@ static void
 x_set_mouse_color_handler (Display *dpy, XErrorEvent *event,
 			   char *error_string, void *data)
 {
-  struct mouse_cursor_data *cursor_data = data;
+  struct mouse_cursor_data *cursor_data = (struct mouse_cursor_data *)data;
   int i;
 
   cursor_data->error_cursor = -1;

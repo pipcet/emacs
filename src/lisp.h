@@ -1,4 +1,3 @@
-#if 0
 /* Fundamental definitions for GNU Emacs Lisp interpreter. -*- coding: utf-8 -*-
 
 Copyright (C) 1985-1987, 1993-1995, 1997-2018 Free Software Foundation,
@@ -21,6 +20,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 
 #ifndef EMACS_LISP_H
 #define EMACS_LISP_H
+#if 0
 
 #include <alloca.h>
 #include <setjmp.h>
@@ -39,9 +39,11 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 
 #include <intprops.h>
 #include <verify.h>
+#endif
 
 INLINE_HEADER_BEGIN
 
+#if 0
 /* Define a TYPE constant ID as an externally visible name.  Use like this:
 
       DEFINE_GDB_SYMBOL_BEGIN (TYPE, ID)
@@ -4773,10 +4775,11 @@ maybe_gc (void)
 	  && consing_since_gc > memory_full_cons_threshold))
     Fgarbage_collect ();
 }
+#endif
 
 INLINE_HEADER_END
 
-#endif /* EMACS_LISP_H */
 #else
-#include "jslisp.hh"
 #endif
+#include "jslisp.hh"
+#endif /* EMACS_LISP_H */

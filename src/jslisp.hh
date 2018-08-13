@@ -99,8 +99,6 @@ extern JSClass elisp_vector_class;
 //extern JSClass elisp_process_class;
 //extern JSClass elisp_scroll_bar_class;
 //extern JSClass elisp_compiled_class;
-extern JS::Heap<JSObject*> elisp_misc_class_proto;
-extern JSClass elisp_misc_class;
 //extern JSClass elisp_misc_any_class;
 //extern JSClass elisp_vectorlike_class;
 
@@ -402,8 +400,7 @@ DEFINE_GDB_SYMBOL_END (VALMASK)
 #define lisp_h_EQ(x, y) (x).eq(y)
 #define lisp_h_FLOATP(x) (XTYPE (x) == Lisp_Float)
 #define lisp_h_FIXNUMP(x) ((XTYPE (x) & (Lisp_Int0 | ~Lisp_Int1)) == Lisp_Int0)
-#define lisp_h_MARKERP(x) (MISCP (x) && XMISCTYPE (x) == Lisp_Misc_Marker)
-#define lisp_h_MISCP(x) (XTYPE (x) == Lisp_Misc)
+#define lisp_h_MARKERP(x) (PSEUDOVECTORP (x, PVEC_MARKER))
 #define lisp_h_NILP(x) EQ (x, Qnil)
 #define lisp_h_SET_SYMBOL_VAL(sym, v) \
   (elisp_symbol_set_value (sym, v))
@@ -430,8 +427,7 @@ DEFINE_GDB_SYMBOL_END (VALMASK)
 #if DEFINE_KEY_OPS_AS_MACROS
 # define FLOATP(x) ((x).floatp())
 # define FIXNUMP(x) ((x).integerp())
-# define MARKERP(x) (MISCP (x) && XMISCTYPE (x) == Lisp_Misc_Marker)
-# define MISCP(x) ((x).miscp())
+# define MARKERP(x) (PSEUDOVECTORP (x, PVEC_MARKER))
 # define SET_SYMBOL_VAL(sym, v) lisp_h_SET_SYMBOL_VAL (sym, v)
 # define SYMBOL_CONSTANT_P(sym) lisp_h_SYMBOL_CONSTANT_P (sym)
 # define SYMBOL_TRAPPED_WRITE_P(sym) lisp_h_SYMBOL_TRAPPED_WRITE_P (sym)
@@ -470,10 +466,6 @@ enum Lisp_Type
   {
    Lisp_Symbol = 0,
 
-    /* Miscellaneous.  XMISC (object) points to a union Lisp_Misc,
-       whose first member indicates the subtype.  */
-    Lisp_Misc = 1,
-
     /* Integer.  XFIXNUM (obj) is the integer value.  */
     Lisp_Int0 = 2,
     Lisp_Int1 = USE_LSB_TAG ? 6 : 3,
@@ -493,26 +485,6 @@ enum Lisp_Type
 
    Lisp_Float = 7,
    Lisp_JSValue = 8,
-  };
-
-/* This is the set of data types that share a common structure.
-   The first member of the structure is a type code from this set.
-   The enum values are arbitrary, but we'll use large numbers to make it
-   more likely that we'll spot the error if a random word in memory is
-   mistakenly interpreted as a Lisp_Misc.  */
-enum Lisp_Misc_Type
-  {
-    Lisp_Misc_Free = 0x5eab,
-    Lisp_Misc_Marker,
-    Lisp_Misc_Overlay,
-    Lisp_Misc_Save_Value,
-    Lisp_Misc_Finalizer,
-    Lisp_Misc_Ptr,
-#ifdef HAVE_MODULES
-    Lisp_Misc_User_Ptr,
-#endif
-    /* This is not a type code.  It is for range checking.  */
-    Lisp_Misc_Limit
   };
 
 /* These are the types of forwarding objects used in the value slot
@@ -669,7 +641,6 @@ enum Lisp_Fwd_Type
 
 #define XALL                                                            \
   XCLASS(vector, elisp_vector_class, struct Lisp_Vector *);             \
-  XCLASS(misc, elisp_misc_class, union Lisp_Misc *);                    \
                                                                         \
   inline bool                                                           \
   symbolp ()                                                            \
@@ -716,8 +687,11 @@ enum Lisp_Fwd_Type
   inline EMACS_INT                                                      \
   xhash ()                                                              \
   {                                                                     \
-    if (V.isObject())                                                   \
-      return ((EMACS_INT)(JS_GetPrivate(&V.toObject()))) & 0x7fffffff;  \
+    if (V.isObject()) {                                                 \
+      const JSClass *clas = JS_GetClass(&V.toObject());                 \
+      if (clas == &elisp_vector_class)                                  \
+        return ((EMACS_INT)(JS_GetPrivate(&V.toObject()))) & 0x7fffffff; \
+    }                                                                   \
     return 0;                                                           \
     return reinterpret_cast<EMACS_INT>(&V.toObject());                  \
   }                                                                     \
@@ -749,8 +723,6 @@ enum Lisp_Fwd_Type
                                                                         \
         if (clasp == &elisp_cons_class)                                 \
           return Lisp_Cons;                                             \
-        else if (clasp == &elisp_misc_class)                            \
-          return Lisp_Misc;                                             \
         else if (clasp == &elisp_vector_class)                          \
           return Lisp_Vectorlike;                                       \
         else if (clasp == &elisp_symbol_class)                          \
@@ -1828,6 +1800,13 @@ enum pvec_type
   PVEC_NORMAL_VECTOR,
   PVEC_FREE,
   PVEC_BIGNUM,
+  PVEC_MARKER,
+  PVEC_OVERLAY,
+  PVEC_FINALIZER,
+  PVEC_MISC_PTR,
+#ifdef HAVE_MODULES
+  PVEC_USER_PTR,
+#endif
   PVEC_PROCESS,
   PVEC_FRAME,
   PVEC_WINDOW,
@@ -1844,9 +1823,6 @@ enum pvec_type
   PVEC_MUTEX,
   PVEC_CONDVAR,
   PVEC_MODULE_FUNCTION,
-  PVEC_MARKER,
-  PVEC_OVERLAY,
-  PVEC_FINALIZER,
 
   /* These should be last, check internal_equal to see why.  */
   PVEC_COMPILED,
@@ -1884,8 +1860,8 @@ enum More_Lisp_Bits
 
 /* Largest and smallest representable fixnum values.  These are the C
    values.  They are macros for use in static initializers.  */
-#define MOST_POSITIVE_FIXNUM (EMACS_INT_MAX >> INTTYPEBITS)
-#define MOST_NEGATIVE_FIXNUM (-1 - MOST_POSITIVE_FIXNUM)
+#define MOST_POSITIVE_FIXNUM 0x7fffffff
+#define MOST_NEGATIVE_FIXNUM -0x80000000
 
 #if USE_LSB_TAG
 
@@ -2034,8 +2010,7 @@ INLINE bool
 #define XSETSTRING(a, b) ((a).xsetstring (b))
 #define XSETSYMBOL(a, b) ((a).xsetsymbol (b))
 #define XSETFLOAT(a, b) ((a).xsetfloat (b))
-#define XSETMISC(a, b) ((a).xsetmisc (b))
-#define XSETMARKER(a, b) ((a).xsetmisc ((union Lisp_Misc *)(b)))
+#define XSETMARKER(a, b) ((a).xsetvector ((struct Lisp_Vector *)(b)))
 
 /* Pseudovector types.  */
 
@@ -3176,39 +3151,10 @@ SXHASH_REDUCE (EMACS_UINT x)
   return (x ^ x >> (EMACS_INT_WIDTH - FIXNUM_BITS)) & INTMASK;
 }
 
-/* These structures are used for various misc types.  */
-
-struct Lisp_Misc_Any		/* Supertype of all Misc types.  */
-{
-  JS::Heap<JS::Value> jsval;
-  ENUM_BF (Lisp_Misc_Type) type : 16;		/* = Lisp_Misc_??? */
-  unsigned spacer : 16;
-};
-
-INLINE bool
-(MISCP) (ELisp_Handle x)
-{
-  return lisp_h_MISCP (x);
-}
-
-
-INLINE struct Lisp_Misc_Any *
-XMISCANY (ELisp_Handle a)
-{
-  return (struct Lisp_Misc_Any *)a.xmisc();
-}
-
-INLINE enum Lisp_Misc_Type
-XMISCTYPE (ELisp_Handle a)
-{
-  return XMISCANY (a)->type;
-}
-
 struct Lisp_Misc_Ptr
 {
-    ENUM_BF (Lisp_Misc_Type) type : 16;	/* = Lisp_Misc_Ptr */
-    unsigned spacer : 16;
-    void *pointer;
+  struct vectorlike_header header;
+  void *pointer;
 };
 
 /* A mint_ptr object OBJ represents a C-language pointer P efficiently.
@@ -3228,9 +3174,9 @@ struct Lisp_Misc_Ptr
 
 struct Lisp_Marker
 {
-  JS::Heap<JS::Value> jsval;
-  ENUM_BF (Lisp_Misc_Type) type : 16;		/* = Lisp_Misc_Marker */
-  unsigned spacer : 14;
+  struct vectorlike_header header;
+  struct buffer *buffer;
+
   /* This flag is temporarily used in the functions
      decode/encode_coding_object to record that the marker position
      must be adjusted after the conversion.  */
@@ -3248,7 +3194,6 @@ struct Lisp_Marker
      - unchain_marker: to find the list from which to unchain.
      - Fkill_buffer: to only unchain the markers of current indirect buffer.
      */
-  struct buffer *buffer;
 
   /* The remaining fields are meaningless in a marker that
      does not point anywhere.  */
@@ -3282,13 +3227,11 @@ struct Lisp_Overlay
    I.e. 9words plus 2 bits, 3words of which are for external linked lists.
 */
   {
-    JS::Heap<JS::Value> jsval;
-    ENUM_BF (Lisp_Misc_Type) type : 16;	/* = Lisp_Misc_Overlay */
-    unsigned spacer : 16;
-    struct Lisp_Overlay *next;
+    struct vectorlike_header header;
     ELisp_Struct_Value start;
     ELisp_Struct_Value end;
     ELisp_Struct_Value plist;
+    struct Lisp_Overlay *next;
   };
 
 /* Number of bits needed to store one of the values
@@ -3361,84 +3304,6 @@ verify (((SAVE_UNUSED | SAVE_INTEGER | SAVE_FUNCPOINTER
 
 typedef void (*voidfuncptr) (void);
 
-struct Lisp_Save_Value
-  {
-    JS::Heap<JS::Value> jsval;
-    ENUM_BF (Lisp_Misc_Type) type : 16;	/* = Lisp_Misc_Save_Value */
-    unsigned spacer : 32 - (16 + SAVE_TYPE_BITS);
-
-    /* V->data may hold up to SAVE_VALUE_SLOTS entries.  The type of
-       V's data entries are determined by V->save_type.  E.g., if
-       V->save_type == SAVE_TYPE_PTR_OBJ, V->data[0] is a pointer,
-       V->data[1] is an integer, and V's other data entries are unused.
-
-       If V->save_type == SAVE_TYPE_MEMORY, V->data[0].pointer is the address of
-       a memory area containing V->data[1].integer potential Lisp_Objects.  */
-    ENUM_BF (Lisp_Save_Type) save_type : SAVE_TYPE_BITS;
-    union {
-      void *pointer;
-      voidfuncptr funcpointer;
-      ptrdiff_t integer;
-      ELisp_Struct_Value object;
-    } data[SAVE_VALUE_SLOTS];
-  };
-
-INLINE bool
-SAVE_VALUEP (ELisp_Handle x)
-{
-  return MISCP (x) && XMISCTYPE (x) == Lisp_Misc_Save_Value;
-}
-
-INLINE struct Lisp_Save_Value *
-XSAVE_VALUE (ELisp_Handle a)
-{
-  return (struct Lisp_Save_Value *)a.xmisc();
-}
-
-/* Return the type of V's Nth saved value.  */
-INLINE int
-save_type (struct Lisp_Save_Value *v, int n)
-{
-  eassert (0 <= n && n < SAVE_VALUE_SLOTS);
-  return (v->save_type >> (SAVE_SLOT_BITS * n) & ((1 << SAVE_SLOT_BITS) - 1));
-}
-
-/* Get and set the Nth saved pointer.  */
-
-INLINE void *
-XSAVE_POINTER (ELisp_Handle obj, int n)
-{
-  eassert (save_type (XSAVE_VALUE (obj), n) == SAVE_POINTER);
-  return XSAVE_VALUE (obj)->data[n].pointer;
-}
-INLINE void
-set_save_pointer (ELisp_Handle obj, int n, void *val)
-{
-  eassert (save_type (XSAVE_VALUE (obj), n) == SAVE_POINTER);
-  XSAVE_VALUE (obj)->data[n].pointer = val;
-}
-INLINE voidfuncptr
-XSAVE_FUNCPOINTER (ELisp_Handle obj, int n)
-{
-  eassert (save_type (XSAVE_VALUE (obj), n) == SAVE_FUNCPOINTER);
-  return XSAVE_VALUE (obj)->data[n].funcpointer;
-}
-
-/* Likewise for the saved integer.  */
-
-INLINE ptrdiff_t
-XSAVE_INTEGER (ELisp_Handle obj, int n)
-{
-  eassert (save_type (XSAVE_VALUE (obj), n) == SAVE_INTEGER);
-  return XSAVE_VALUE (obj)->data[n].integer;
-}
-INLINE void
-set_save_integer (ELisp_Handle obj, int n, ptrdiff_t val)
-{
-  eassert (save_type (XSAVE_VALUE (obj), n) == SAVE_INTEGER);
-  XSAVE_VALUE (obj)->data[n].integer = val;
-}
-
 /* Extract Nth saved object.  */
 
 extern ELisp_Return_Value make_misc_ptr (void *);
@@ -3452,39 +3317,22 @@ make_mint_ptr (void *a)
 INLINE bool
 mint_ptrp (ELisp_Handle x)
 {
-  return FIXNUMP (x) || (MISCP (x) && XMISCTYPE (x) == Lisp_Misc_Ptr);
+  return FIXNUMP (x) || (PSEUDOVECTORP (x, PVEC_MISC_PTR));
 }
 
 INLINE void *
 xmint_pointer (ELisp_Handle a)
 {
-  return ((struct Lisp_Misc_Ptr *)XMISCANY (a))->pointer;
-}
-
-INLINE ELisp_Return_Value
-XSAVE_OBJECT (ELisp_Handle obj, int n)
-{
-  eassert (save_type (XSAVE_VALUE (obj), n) == SAVE_OBJECT);
-  return XSAVE_VALUE (obj)->data[n].object;
+  return ((struct Lisp_Misc_Ptr *)XVECTOR (a))->pointer;
 }
 
 #ifdef HAVE_MODULES
-struct Lisp_User_Ptr
-{
-  JS::Heap<JS::Value> jsval;
-  ENUM_BF (Lisp_Misc_Type) type : 16;	     /* = Lisp_Misc_User_Ptr */
-  unsigned spacer : 16;
-
-  void (*finalizer) (void *);
-  void *p;
-};
 #endif
 
 /* A finalizer sentinel.  */
 struct Lisp_Finalizer
   {
-    JS::Heap<JS::Value> jsval;
-    struct Lisp_Misc_Any base;
+    struct vectorlike_header header;
 
     /* Circular list of all active weak references.  */
     struct Lisp_Finalizer *prev;
@@ -3499,84 +3347,41 @@ struct Lisp_Finalizer
 INLINE bool
 FINALIZERP (ELisp_Handle x)
 {
-  return MISCP (x) && XMISCTYPE (x) == Lisp_Misc_Finalizer;
+  return PSEUDOVECTORP (x, PVEC_FINALIZER);
 }
 
 INLINE struct Lisp_Finalizer *
 XFINALIZER (ELisp_Handle a)
 {
-  return (struct Lisp_Finalizer *)a.xmisc();
-}
-
-/* A miscellaneous object, when it's on the free list.  */
-struct Lisp_Free
-  {
-    JS::Heap<JS::Value> jsval;
-    ENUM_BF (Lisp_Misc_Type) type : 16;	/* = Lisp_Misc_Free */
-    unsigned spacer : 16;
-    union Lisp_Misc *chain;
-  };
-
-/* To get the type field of a union Lisp_Misc, use XMISCTYPE.
-   It uses one of these struct subtypes to get the type field.  */
-
-union Lisp_Misc
-  {
-    struct Lisp_Misc_Any u_any;	   /* Supertype of all Misc types.  */
-    struct Lisp_Free u_free;
-    struct Lisp_Marker u_marker;
-    struct Lisp_Overlay u_overlay;
-    struct Lisp_Save_Value u_save_value;
-    struct Lisp_Finalizer u_finalizer;
-    struct Lisp_Misc_Ptr u_pointer;
-#ifdef HAVE_MODULES
-    struct Lisp_User_Ptr u_user_ptr;
-#endif
-  };
-
-INLINE union Lisp_Misc *
-XMISC (ELisp_Handle a)
-{
-  return a.xmisc();
+  return (struct Lisp_Finalizer *)a.xvector();
 }
 
 INLINE struct Lisp_Marker *
 XMARKER (ELisp_Handle a)
 {
-  return (struct Lisp_Marker *)a.xmisc();
+  return (struct Lisp_Marker *)a.xvector();
 }
 
 INLINE bool
 OVERLAYP (ELisp_Handle x)
 {
-  return MISCP (x) && XMISCTYPE (x) == Lisp_Misc_Overlay;
+  return PSEUDOVECTORP (x, PVEC_OVERLAY);
 }
 
-#define XSETOVERLAY(a, b) (a).xsetmisc((struct Lisp_Misc *)(b))
+#define XSETOVERLAY(a, b) (a).xsetvector((struct Lisp_Vector *)(b))
 
 INLINE struct Lisp_Overlay *
 XOVERLAY (ELisp_Handle a)
 {
-  return (struct Lisp_Overlay *)a.xmisc();
+  return (struct Lisp_Overlay *)a.xvector();
 }
 
 #ifdef HAVE_MODULES
-INLINE bool
-USER_PTRP (ELisp_Handle x)
-{
-  return MISCP (x) && XMISCTYPE (x) == Lisp_Misc_User_Ptr;
-}
-
-INLINE struct Lisp_User_Ptr *
-XUSER_PTR (ELisp_Handle a)
-{
-  return (struct Lisp_User_Ptr *)a.xmisc();
-}
 #endif
 
 struct Lisp_Bignum
 {
-  union vectorlike_header header;
+  struct vectorlike_header header;
   mpz_t value;
 };
 
@@ -3590,7 +3395,7 @@ INLINE struct Lisp_Bignum *
 XBIGNUM (ELisp_Handle a)
 {
   eassert (BIGNUMP (a));
-  return (struct Lisp_Bignum *)a.xmisc();
+  return (struct Lisp_Bignum *)a.xvector();
 }
 
 INLINE bool
@@ -3610,7 +3415,7 @@ struct Lisp_Intfwd
     EMACS_INT *intvar;
   };
 
-/* Boolean forwarding pointer to an int variable.
+/* Boolean forwarding pointer to a bool variable.
    This is like Lisp_Intfwd except that the ostensible
    "value" of the symbol is t if the bool variable is true,
    nil if it is false.  */
