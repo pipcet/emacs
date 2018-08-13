@@ -2082,7 +2082,7 @@ struct rvoe_arg
 static void
 reset_var_on_error (void *ptr)
 {
-  struct rvoe_arg *p = ptr;
+  struct rvoe_arg *p = (struct rvoe_arg *)ptr;
   if (p->errorp)
     p->location.set(Qnil);
 }

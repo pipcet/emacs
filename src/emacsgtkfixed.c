@@ -169,8 +169,8 @@ emacs_fixed_init (EmacsFixed *fixed)
 GtkWidget *
 emacs_fixed_new (struct frame *f)
 {
-  EmacsFixed *fixed = g_object_new (emacs_fixed_get_type (), NULL);
-  EmacsFixedPrivate *priv = fixed->priv;
+  EmacsFixed *fixed = (EmacsFixed *)g_object_new (emacs_fixed_get_type (), NULL);
+  EmacsFixedPrivate *priv = (EmacsFixedPrivate *)fixed->priv;
   priv->f = f;
   return GTK_WIDGET (fixed);
 }

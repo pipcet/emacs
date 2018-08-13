@@ -352,7 +352,7 @@ See also `profiler-log-size' and `profiler-max-stack-depth'.  */)
     }
   else
     {
-      profiler_cpu_running = status;
+      profiler_cpu_running = (typeof profiler_cpu_running)status;
       if (! profiler_cpu_running)
 	error ("Unable to start profiler timer");
     }

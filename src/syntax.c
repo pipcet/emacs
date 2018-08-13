@@ -3272,7 +3272,7 @@ do { prev_from = from;				\
 
       if (SYNTAX_FLAGS_PREFIX (prev_from_syntax))
 	continue;
-      code = prev_from_syntax & 0xff;
+      code = (typeof code)(prev_from_syntax & 0xff);
       switch (code)
 	{
 	case Sescape:

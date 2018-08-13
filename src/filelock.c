@@ -301,7 +301,7 @@ typedef struct
    will be that of FNAME plus two more for the leading ".#", plus one
    for the null.  */
 #define MAKE_LOCK_NAME(lockname, fname) \
-  (lockname = SAFE_ALLOCA (SBYTES (fname) + 2 + 1), \
+  (lockname = (char *)SAFE_ALLOCA (SBYTES (fname) + 2 + 1),     \
    fill_in_lock_file_name (lockname, fname))
 
 static void

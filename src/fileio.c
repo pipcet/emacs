@@ -258,7 +258,7 @@ close_file_unwind (int fd)
 void
 fclose_unwind (void *arg)
 {
-  FILE *stream = arg;
+  FILE *stream = (FILE *)arg;
   fclose (stream);
 }
 

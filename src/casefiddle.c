@@ -113,7 +113,7 @@ case_character_impl (struct casing_str_buf *buf,
 
   /* Normalize flag so its one of CASE_UP, CASE_DOWN or CASE_CAPITALIZE.  */
   if (ctx->flag == CASE_CAPITALIZE)
-    flag = ctx->flag - was_inword;
+    flag = (enum case_action)(ctx->flag - was_inword);
   else if (ctx->flag != CASE_CAPITALIZE_UP)
     flag = ctx->flag;
   else if (!was_inword)

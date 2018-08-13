@@ -2727,7 +2727,7 @@ typedef struct tty_menu_struct
 static tty_menu * ATTRIBUTE_MALLOC
 tty_menu_create (void)
 {
-  return xzalloc (sizeof *tty_menu_create ());
+  return (tty_menu *)xzalloc (sizeof *tty_menu_create ());
 }
 
 /* Allocate some (more) memory for MENU ensuring that there is room for one
@@ -3420,7 +3420,7 @@ struct tty_pop_down_menu
 static void
 tty_pop_down_menu (void *arg)
 {
-  struct tty_pop_down_menu *data = arg;
+  struct tty_pop_down_menu *data = (struct tty_pop_down_menu *)arg;
 
   block_input ();
   tty_menu_destroy (data->menu);

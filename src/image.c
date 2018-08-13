@@ -8812,7 +8812,7 @@ imagemagick_load_image (struct frame *f, struct image *img,
       */
       int pixelwidth = CharPixel; /*??? TODO figure out*/
       MagickExportImagePixels (image_wand, 0, 0, width, height,
-			       exportdepth, pixelwidth, dataptr);
+			       exportdepth, (StorageType)pixelwidth, dataptr);
     }
   else
 #endif /* HAVE_MAGICKEXPORTIMAGEPIXELS */

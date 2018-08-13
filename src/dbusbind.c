@@ -945,7 +945,7 @@ xd_get_connection_references (DBusConnection *connection)
 static DBusConnection *
 xd_lisp_dbus_to_dbus (Lisp_Object bus)
 {
-  return xmint_pointer (bus);
+  return (DBusConnection *)xmint_pointer (bus);
 }
 
 /* Return D-Bus connection address.  BUS is either a Lisp symbol,

@@ -1860,8 +1860,8 @@ enum More_Lisp_Bits
 
 /* Largest and smallest representable fixnum values.  These are the C
    values.  They are macros for use in static initializers.  */
-#define MOST_POSITIVE_FIXNUM 0x7fffffff
-#define MOST_NEGATIVE_FIXNUM -0x80000000
+#define MOST_POSITIVE_FIXNUM 0x7fffffffL
+#define MOST_NEGATIVE_FIXNUM -0x80000000L
 
 #if USE_LSB_TAG
 
@@ -1890,7 +1890,7 @@ XFIXNUM (ELisp_Handle a)
 INLINE EMACS_UINT
 XUFIXNUM (ELisp_Handle a)
 {
-  return a.xint();
+  return (EMACS_UINT)a.xint();
 }
 
 INLINE EMACS_INT
@@ -1974,7 +1974,7 @@ INLINE ELisp_Return_Value
 make_natnum (EMACS_INT n)
 {
   ELisp_Value ret;
-  ret.v.v = JS::NumberValue(n);
+  ret.v.v.setInt32(n);
   return ret;
 }
 

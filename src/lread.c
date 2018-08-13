@@ -1079,7 +1079,7 @@ suffix_p (Lisp_Object string, const char *suffix)
 static void
 close_infile_unwind (void *arg)
 {
-  FILE *stream = arg;
+  FILE *stream = (FILE *)arg;
   eassert (infile == NULL || infile->stream == stream);
   infile = NULL;
   fclose (stream);
@@ -3688,7 +3688,7 @@ static void
 substitute_in_interval (INTERVAL interval, void *arg)
 {
   set_interval_plist (interval,
-		      substitute_object_recurse (arg, interval->plist));
+		      substitute_object_recurse ((struct subst *)arg, interval->plist));
 }
 
 

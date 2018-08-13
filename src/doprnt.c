@@ -161,7 +161,7 @@ doprnt (char *buffer, ptrdiff_t bufsize, const char *format,
   if (format_end == 0)
     format_end = format + strlen (format);
 
-  fmtcpy = (format_end - format < sizeof (fixed_buffer) - 1
+  fmtcpy = (char *)(format_end - format < sizeof (fixed_buffer) - 1
 	    ? fixed_buffer
 	    : SAFE_ALLOCA (format_end - format + 1));
 

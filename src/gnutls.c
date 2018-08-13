@@ -2450,7 +2450,7 @@ the number itself. */)
       info = XCDR (info);
     }
   else if (TYPE_RANGED_FIXNUMP (gnutls_digest_algorithm_t, digest_method))
-    gda = XFIXNUM (digest_method);
+    gda = (typeof gda)XFIXNUM (digest_method);
   else
     info = digest_method;
 
@@ -2458,7 +2458,7 @@ the number itself. */)
     {
       Lisp_Object v = Fplist_get (info, QCdigest_algorithm_id);
       if (TYPE_RANGED_FIXNUMP (gnutls_digest_algorithm_t, v))
-        gda = XFIXNUM (v);
+        gda = (typeof gda)XFIXNUM (v);
     }
 
   ptrdiff_t digest_length = gnutls_hash_get_len (gda);

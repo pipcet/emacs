@@ -1823,8 +1823,8 @@ lisp_data_to_selection_data (struct x_display_info *dpyinfo,
 		}
 	    }
 	  cs->data = data = xnmalloc (size, data_size);
-	  x_atoms = data;
-	  shorts = data;
+	  x_atoms = (long unsigned int *)data;
+	  shorts = (short int *)data;
 	  cs->format = format;
 	  cs->size = size;
 	  for (i = 0; i < size; i++)

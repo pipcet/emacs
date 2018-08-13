@@ -4083,7 +4083,7 @@ NFRAMES and BASE specify the activation frame to use, as in `backtrace-frame'.  
 {
   struct specbinding *frame = get_backtrace_frame (nframes, base);
   struct specbinding *prevframe
-    = get_backtrace_frame (make_number (XFIXNAT (nframes) - 1), base);
+    = get_backtrace_frame (make_fixnum (XFIXNAT (nframes) - 1), base);
   ptrdiff_t distance = specpdl_ptr - frame;
   Lisp_Object result = Qnil;
   eassert (distance >= 0);
