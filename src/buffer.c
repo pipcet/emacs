@@ -2803,6 +2803,7 @@ overlays_at (EMACS_INT pos, bool extend, ELisp_Pointer*vec_ptr,
     {
       ptrdiff_t startpos, endpos;
       Lisp_Object overlay;
+      Lisp_Object start, end;
 
       XSETOVERLAY (overlay, tail);
 
@@ -2853,7 +2854,7 @@ overlays_at (EMACS_INT pos, bool extend, ELisp_Pointer*vec_ptr,
     {
       ptrdiff_t startpos, endpos;
       Lisp_Object overlay;
-      ptrdiff_t start, end;
+      Lisp_Object start, end;
 
       XSETOVERLAY (overlay, tail);
 
@@ -2944,8 +2945,8 @@ overlays_in (EMACS_INT beg, EMACS_INT end, bool extend,
 
       XSETOVERLAY (overlay, tail);
 
-      ostart = OVERLAY_START (overlay);
-      oend = OVERLAY_END (overlay);
+      Lisp_Object ostart = OVERLAY_START (overlay);
+      Lisp_Object oend = OVERLAY_END (overlay);
       endpos = OVERLAY_POSITION (oend);
       if (endpos < beg)
 	{
@@ -2989,7 +2990,7 @@ overlays_in (EMACS_INT beg, EMACS_INT end, bool extend,
        tail; tail = tail->next)
     {
       ptrdiff_t startpos, endpos;
-      ptrdiff_t ostart, oend;
+      Lisp_Object ostart, oend;
       Lisp_Object overlay;
 
       XSETOVERLAY (overlay, tail);
