@@ -489,7 +489,7 @@ x_real_pos_and_offsets (struct frame *f,
                   && (xcb_get_property_value_length (prop)
 		      == 4 * sizeof (int32_t)))
                 {
-                  int32_t *fe = xcb_get_property_value (prop);
+                  int32_t *fe = (int32_t *)xcb_get_property_value (prop);
 
                   outer_x = -fe[0];
                   outer_y = -fe[2];

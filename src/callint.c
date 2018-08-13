@@ -421,7 +421,7 @@ invoke it.  If KEYS is omitted or nil, the return value of
       /* 'r' specifications ("point and mark as 2 numeric args")
 	 produce *two* arguments.  */
       nargs += 1 + (*tem == 'r');
-      tem = memchr (tem, '\n', string_len - (tem - string));
+      tem = (const char *)memchr (tem, '\n', string_len - (tem - string));
       if (!tem)
 	break;
     }
@@ -755,7 +755,7 @@ invoke it.  If KEYS is omitted or nil, the return value of
       if (NILP (visargs[i]) && STRINGP (args[i]))
 	visargs[i] = args.ref(i);
 
-      tem = memchr (tem, '\n', string_len - (tem - string));
+      tem = (const char *)memchr (tem, '\n', string_len - (tem - string));
       if (tem) tem++;
       else tem = string_end;
     }

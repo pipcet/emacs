@@ -1154,7 +1154,7 @@ struct next_popup_x_y
 static void
 menu_position_func (GtkMenu *menu, gint *x, gint *y, gboolean *push_in, gpointer user_data)
 {
-  struct next_popup_x_y *data = user_data;
+  struct next_popup_x_y *data = (struct next_popup_x_y *)user_data;
   GtkRequisition req;
   int max_x = -1;
   int max_y = -1;
@@ -1447,7 +1447,7 @@ create_and_show_popup_menu (struct frame *f, widget_value *first_wv,
 static void
 cleanup_widget_value_tree (void *arg)
 {
-  free_menubar_widget_value_tree (arg);
+  free_menubar_widget_value_tree ((widget_value *)arg);
 }
 
 Lisp_Object

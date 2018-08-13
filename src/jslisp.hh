@@ -3805,14 +3805,6 @@ CHECK_NUMBER_OR_FLOAT (ELisp_Handle x)
   CHECK_TYPE (NUMBERP (x), LSH (Qnumberp), x);
 }
 
-#define CHECK_FIXNUM_OR_FLOAT_COERCE_MARKER(x)				\
-  do {									\
-    if (MARKERP (x))							\
-      XSETFASTINT (x, marker_position (x));				\
-    else								\
-      CHECK_TYPE (NUMBERP (x), LSH (Qnumber_or_marker_p), x);           \
-  } while (false)
-
 #define CHECK_NUMBER_OR_FLOAT_COERCE_MARKER(x)				\
   do {									\
     if (MARKERP (x))							\

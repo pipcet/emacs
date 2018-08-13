@@ -29256,7 +29256,7 @@ get_window_cursor_type (struct window *w, struct glyph *glyph, int *width,
 	cursor_type = HOLLOW_BOX_CURSOR;
       else if (cursor_type == BAR_CURSOR && *width > 1)
 	--*width;
-      return cursor_type;
+      return (enum text_cursor_kinds)cursor_type;
     }
 
   /* Use normal cursor if not blinked off.  */
@@ -29291,7 +29291,7 @@ get_window_cursor_type (struct window *w, struct glyph *glyph, int *width,
 	      cursor_type = HOLLOW_BOX_CURSOR;
 	    }
       }
-      return cursor_type;
+      return (enum text_cursor_kinds)cursor_type;
     }
 
   /* Cursor is blinked off, so determine how to "toggle" it.  */
@@ -29718,7 +29718,7 @@ display_and_set_cursor (struct window *w, bool on,
     }
 
   FRAME_RIF (f)->draw_window_cursor (w, glyph_row, x, y,
-                                     new_cursor_type, new_cursor_width,
+                                     (enum text_cursor_kinds)new_cursor_type, new_cursor_width,
                                      on, active_cursor);
 }
 
@@ -31211,7 +31211,7 @@ note_mode_line_or_margin_highlight (Lisp_Object window, int x, int y,
 	  hlinfo->mouse_face_face_id = face_at_string_position (w, string,
 								charpos,
 								0, &ignore,
-								glyph->face_id,
+								(enum face_id)glyph->face_id,
 								true);
 	  show_mouse_face (hlinfo, DRAW_MOUSE_FACE);
 	  mouse_face_shown = true;
@@ -31603,7 +31603,7 @@ note_mouse_highlight (struct frame *f, int x, int y)
 	      hlinfo->mouse_face_window = window;
 	      hlinfo->mouse_face_face_id
 		= face_at_string_position (w, object, pos, 0, &ignore,
-					   glyph->face_id, true);
+					   (enum face_id)glyph->face_id, true);
 	      show_mouse_face (hlinfo, DRAW_MOUSE_FACE);
 	      cursor = No_Cursor;
 	    }

@@ -2104,7 +2104,7 @@ elisp_symbol()
   return JS::ObjectValue(*obj);
 }
 
-static ELisp_Return_Value
+ELisp_Return_Value
 elisp_symbol_function(ELisp_Handle symbol)
 {
   JSContext *cx = jsg.cx;
@@ -2112,7 +2112,7 @@ elisp_symbol_function(ELisp_Handle symbol)
   return JS_GetReservedSlot(obj, 2);
 }
 
-static void
+void
 elisp_symbol_set_function(ELisp_Handle symbol, ELisp_Handle plist)
 {
   JSContext *cx = jsg.cx;
@@ -2120,12 +2120,12 @@ elisp_symbol_set_function(ELisp_Handle symbol, ELisp_Handle plist)
   JS_SetReservedSlot(obj, 2, plist);
 }
 
-static Lisp_Buffer_Local_Value *
+Lisp_Buffer_Local_Value *
 elisp_symbol_blv(ELisp_Handle symbol)
 {
   JSContext *cx = jsg.cx;
   JS::RootedObject obj(cx, &symbol.toObject());
-  return JS_GetPrivate(obj);
+  return (Lisp_Buffer_Local_Value *)JS_GetPrivate(obj);
 }
 
 union Lisp_Fwd *
@@ -2133,10 +2133,10 @@ elisp_symbol_fwd(ELisp_Handle symbol)
 {
   JSContext *cx = jsg.cx;
   JS::RootedObject obj(cx, &symbol.toObject());
-  return JS_GetPrivate(obj);
+  return (union Lisp_Fwd *)JS_GetPrivate(obj);
 }
 
-static ELisp_Return_Value
+ELisp_Return_Value
 elisp_symbol_value(ELisp_Handle symbol)
 {
   JSContext *cx = jsg.cx;
@@ -2144,7 +2144,7 @@ elisp_symbol_value(ELisp_Handle symbol)
   return JS_GetReservedSlot(obj, 1);
 }
 
-static void
+void
 elisp_symbol_set_value(ELisp_Handle symbol, ELisp_Handle plist)
 {
   JSContext *cx = jsg.cx;
@@ -2152,7 +2152,7 @@ elisp_symbol_set_value(ELisp_Handle symbol, ELisp_Handle plist)
   JS_SetReservedSlot(obj, 1, plist);
 }
 
-static void
+void
 elisp_symbol_set_alias(ELisp_Handle symbol, ELisp_Handle plist)
 {
   JSContext *cx = jsg.cx;
@@ -2160,7 +2160,7 @@ elisp_symbol_set_alias(ELisp_Handle symbol, ELisp_Handle plist)
   JS_SetReservedSlot(obj, 1, plist);
 }
 
-static void
+void
 elisp_symbol_set_blv(ELisp_Handle symbol, struct Lisp_Buffer_Local_Value *blv)
 {
   JSContext *cx = jsg.cx;
@@ -2168,7 +2168,7 @@ elisp_symbol_set_blv(ELisp_Handle symbol, struct Lisp_Buffer_Local_Value *blv)
   JS_SetPrivate(obj, blv);
 }
 
-static void
+void
 elisp_symbol_set_fwd(ELisp_Handle symbol, union Lisp_Fwd *fwd)
 {
   JSContext *cx = jsg.cx;
@@ -2176,7 +2176,7 @@ elisp_symbol_set_fwd(ELisp_Handle symbol, union Lisp_Fwd *fwd)
   JS_SetPrivate(obj, fwd);
 }
 
-static ELisp_Return_Value
+ELisp_Return_Value
 elisp_symbol_plist(ELisp_Handle symbol)
 {
   JSContext *cx = jsg.cx;
@@ -2184,7 +2184,7 @@ elisp_symbol_plist(ELisp_Handle symbol)
   return JS_GetReservedSlot(obj, 3);
 }
 
-static void
+void
 elisp_symbol_set_plist(ELisp_Handle symbol, ELisp_Handle plist)
 {
   JSContext *cx = jsg.cx;
@@ -2192,7 +2192,7 @@ elisp_symbol_set_plist(ELisp_Handle symbol, ELisp_Handle plist)
   JS_SetReservedSlot(obj, 3, plist);
 }
 
-static ELisp_Return_Value
+ELisp_Return_Value
 elisp_symbol_name(ELisp_Handle symbol)
 {
   JSContext *cx = jsg.cx;
@@ -2200,7 +2200,7 @@ elisp_symbol_name(ELisp_Handle symbol)
   return JS_GetReservedSlot(obj, 0);
 }
 
-static void
+void
 elisp_symbol_set_name(ELisp_Handle symbol, ELisp_Handle plist)
 {
   JSContext *cx = jsg.cx;
@@ -2208,7 +2208,7 @@ elisp_symbol_set_name(ELisp_Handle symbol, ELisp_Handle plist)
   JS_SetReservedSlot(obj, 0, plist);
 }
 
-static ELisp_Return_Value
+ELisp_Return_Value
 elisp_symbol_next(ELisp_Handle symbol)
 {
   JSContext *cx = jsg.cx;
@@ -2216,7 +2216,7 @@ elisp_symbol_next(ELisp_Handle symbol)
   return JS_GetReservedSlot(obj, 4);
 }
 
-static void
+void
 elisp_symbol_set_next(ELisp_Handle symbol, ELisp_Handle plist)
 {
   JSContext *cx = jsg.cx;

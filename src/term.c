@@ -3524,6 +3524,7 @@ tty_menu_show (struct frame *f, int x, int y, int menuflags,
   int i, j, lines, maxlines;
   int maxwidth;
   ptrdiff_t specpdl_count;
+  struct tty_pop_down_menu tpdm = { menu, current_buffer };
 
   eassert (FRAME_TERMCAP_P (f));
 
@@ -3705,7 +3706,7 @@ tty_menu_show (struct frame *f, int x, int y, int menuflags,
 
   /* We save and restore the current buffer because tty_menu_activate
      triggers redisplay, which switches buffers at will.  */
-  struct tty_pop_down_menu tpdm = { menu, current_buffer };
+  tpdm = { menu, current_buffer };
   record_unwind_protect_ptr (tty_pop_down_menu,
 			     &tpdm);
 

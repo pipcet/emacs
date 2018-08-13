@@ -2081,7 +2081,7 @@ gnutls_symmetric (bool encrypting, Lisp_Object cipher,
       info = XCDR (info);
     }
   else if (TYPE_RANGED_FIXNUMP (gnutls_cipher_algorithm_t, cipher))
-    gca = XFIXNUM (cipher);
+    gca = (typeof gca)XFIXNUM (cipher);
   else
     info = cipher;
 
@@ -2089,7 +2089,7 @@ gnutls_symmetric (bool encrypting, Lisp_Object cipher,
     {
       Lisp_Object v = Fplist_get (info, QCcipher_id);
       if (TYPE_RANGED_FIXNUMP (gnutls_cipher_algorithm_t, v))
-        gca = XFIXNUM (v);
+        gca = (typeof gca)XFIXNUM (v);
     }
 
   ptrdiff_t key_size = gnutls_cipher_get_key_size (gca);

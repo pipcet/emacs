@@ -7622,7 +7622,7 @@ consume_chars (struct coding_system *coding, Lisp_Object translation_table,
   int *lookup_buf = NULL;
 
   if (! NILP (translation_table))
-    lookup_buf = alloca (sizeof (int) * max_lookup);
+    lookup_buf = (int *)alloca (sizeof (int) * max_lookup);
 
   eol_type = inhibit_eol_conversion ? Qunix : CODING_ID_EOL_TYPE (coding->id);
   if (VECTORP (eol_type))
@@ -10783,7 +10783,7 @@ init_coding_once (void)
   for (i = 0; i < coding_category_max; i++)
     {
       coding_categories[i].id = -1;
-      coding_priorities[i] = i;
+      coding_priorities[i] = (enum coding_category)i;
     }
 
   /* ISO2022 specific initialize routine.  */

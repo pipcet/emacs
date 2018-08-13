@@ -2328,7 +2328,7 @@ forw_comment (ptrdiff_t from, ptrdiff_t from_byte, ptrdiff_t stop,
   /* Enter the loop in the middle so that we find
      a 2-char comment ender if we start in the middle of it.  */
   syntax = prev_syntax;
-  code = syntax & 0xff;
+  code = (enum syntaxcode)(syntax & 0xff);
   if (syntax != 0 && from < stop) goto forw_incomment;
 
   while (1)
@@ -2348,7 +2348,7 @@ forw_comment (ptrdiff_t from, ptrdiff_t from_byte, ptrdiff_t stop,
 	}
       c = FETCH_CHAR_AS_MULTIBYTE (from_byte);
       syntax = SYNTAX_WITH_FLAGS (c);
-      code = syntax & 0xff;
+      code = (enum syntaxcode)(syntax & 0xff);
       if (code == Sendcomment
 	  && SYNTAX_FLAGS_COMMENT_STYLE (syntax, 0) == style
 	  && (SYNTAX_FLAGS_COMMENT_NESTED (syntax) ?

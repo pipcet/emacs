@@ -227,7 +227,7 @@ gethomedir (void)
   ptrdiff_t len = strlen (ptr);
   copy = xmalloc (len + 2);
   strcpy (copy + len, "/");
-  return memcpy (copy, ptr, len);
+  return (char *) memcpy (copy, ptr, len);
 }
 
 

@@ -556,7 +556,7 @@ struct map_keymap_struct
   void *data;
   } s;
 };
-verify (alignof (union map_keymap_struct) % GCALIGNMENT == 0);
+verify (alignof (struct map_keymap_struct) % GCALIGNMENT == 0);
 
 static void
 map_keymap_char_table_item (Lisp_Object args, Lisp_Object key, Lisp_Object val)
@@ -567,7 +567,7 @@ map_keymap_char_table_item (Lisp_Object args, Lisp_Object key, Lisp_Object val)
 	 it in place.  */
       if (CONSP (key))
 	key = Fcons (XCAR (key), XCDR (key));
-      union map_keymap_struct *md = xmint_pointer (args);
+      struct map_keymap_struct *md = (struct map_keymap_struct *)xmint_pointer (args);
       map_keymap_item (md->s.fun, md->s.args, key, val, md->s.data);
     }
 }
@@ -605,7 +605,7 @@ map_keymap_internal (Lisp_Object map,
 	}
       else if (CHAR_TABLE_P (binding))
 	{
-	  union map_keymap_struct mapdata = {{fun, args, data}};
+	  struct map_keymap_struct mapdata = {{fun, args, data}};
 	  map_char_table (map_keymap_char_table_item, Qnil, binding,
 			  make_mint_ptr (&mapdata));
 	}
@@ -1426,7 +1426,7 @@ current_minor_maps (ELisp_Pointer *modeptr, ELisp_Pointer *mapptr)
 				cmm_size * sizeof cmm_modes[0]);
 			free (cmm_modes);
 		      }
-		    cmm_modes = newmodes;
+		    cmm_modes = (ELisp_Struct_Value *)(void *)newmodes;
 		  }
 
 		newmaps = (ELisp_Struct_Value *)malloc (allocsize); // XXX rootme

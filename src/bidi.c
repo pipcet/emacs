@@ -1935,7 +1935,7 @@ bidi_resolve_explicit (struct bidi_it *bidi_it)
 
   current_level = bidi_it->level_stack[bidi_it->stack_idx].level; /* X1 */
   isolate_status = ISOLATE_STATUS (bidi_it, bidi_it->stack_idx);
-  override = OVERRIDE (bidi_it, bidi_it->stack_idx);
+  override = (bidi_dir_t) OVERRIDE (bidi_it, bidi_it->stack_idx);
   new_level = current_level;
 
   if (bidi_it->charpos >= (string_p ? bidi_it->string.schars : ZV))

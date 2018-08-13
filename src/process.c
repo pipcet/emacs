@@ -2538,7 +2538,7 @@ conv_sockaddr_to_lisp (struct sockaddr *sa, ptrdiff_t len)
         if (name_length > 0 && sockun->sun_path[0] != '\0')
           {
             const char *terminator
-              = memchr (sockun->sun_path, '\0', name_length);
+              = (const char *)memchr (sockun->sun_path, '\0', name_length);
 
             if (terminator)
               name_length = terminator - (const char *) sockun->sun_path;
@@ -4229,7 +4229,7 @@ network_interface_list (void)
   do
     {
       buf = xpalloc (buf, &buf_size, 1, INT_MAX, 1);
-      ifconf.ifc_buf = buf;
+      ifconf.ifc_buf = (char *)buf;
       ifconf.ifc_len = buf_size;
       if (ioctl (s, SIOCGIFCONF, &ifconf))
         {

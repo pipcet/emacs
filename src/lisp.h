@@ -2846,15 +2846,15 @@ CHECK_INTEGER (Lisp_Object x)
 {
   CHECK_TYPE (INTEGERP (x), Qnumberp, x);
 }
+#endif /* 0 */
 
 #define CHECK_FIXNUM_OR_FLOAT_COERCE_MARKER(x)				\
   do {									\
     if (MARKERP (x))							\
       XSETFASTINT (x, marker_position (x));				\
     else								\
-      CHECK_TYPE (FIXED_OR_FLOATP (x), Qnumber_or_marker_p, x);		\
+      CHECK_TYPE (FIXED_OR_FLOATP (x), LRH (Qnumber_or_marker_p), x);   \
   } while (false)
-#endif /* 0 */
 
 #define CHECK_NUMBER_COERCE_MARKER(x)					\
   do {									\
@@ -2864,15 +2864,15 @@ CHECK_INTEGER (Lisp_Object x)
       CHECK_TYPE (NUMBERP (x), LRH (Qnumber_or_marker_p), x);           \
   } while (false)
 
-#if 0
 #define CHECK_INTEGER_COERCE_MARKER(x)					\
   do {									\
     if (MARKERP (x))							\
       XSETFASTINT (x, marker_position (x));				\
     else								\
-      CHECK_TYPE (INTEGERP (x), Qnumber_or_marker_p, x);		\
+      CHECK_TYPE (INTEGERP (x), LRH (Qnumber_or_marker_p), x);		\
   } while (false)
 
+#if 0
 /* Since we can't assign directly to the CAR or CDR fields of a cons
    cell, use these when checking that those fields contain numbers.  */
 INLINE void

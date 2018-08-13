@@ -5166,7 +5166,7 @@ update_frame_tool_bar (struct frame *f)
 	       : 2);
 
 	  frame_size_history_add (f, Qupdate_frame_tool_bar, 0, 0, Qnil);
-	  adjust_frame_size (f, -1, -1, inhibit, 0, Qtool_bar_lines);
+	  adjust_frame_size (f, -1, -1, inhibit, 0, LRH (Qtool_bar_lines));
 	}
       f->tool_bar_resized = f->tool_bar_redisplayed;
     }

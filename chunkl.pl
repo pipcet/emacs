@@ -155,6 +155,7 @@ package EmacsCGrammar;
     XtActionHookId
     XtPointer
     GtkRange
+    GtkIconSize
     GdkEventButton
     Dimension
     gpointer

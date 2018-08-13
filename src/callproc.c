@@ -171,7 +171,7 @@ delete_temp_file (Lisp_Object name)
 static void
 call_process_kill (void *ptr)
 {
-  int *callproc_fd = ptr;
+  int *callproc_fd = (int *)ptr;
   int i;
   for (i = 0; i < CALLPROC_FDS; i++)
     if (0 <= callproc_fd[i])

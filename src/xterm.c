@@ -12451,8 +12451,8 @@ x_term_init (Lisp_Object display_name, char *xrm_option, char *resource_name)
 
         /* Work around GLib bug that outputs a faulty warning. See
            https://bugzilla.gnome.org/show_bug.cgi?id=563627.  */
-        id = g_log_set_handler ("GLib", G_LOG_LEVEL_WARNING | G_LOG_FLAG_FATAL
-                                  | G_LOG_FLAG_RECURSION, my_log_handler, NULL);
+        id = g_log_set_handler ("GLib", (GLogLevelFlags) (G_LOG_LEVEL_WARNING | G_LOG_FLAG_FATAL
+                                                          | G_LOG_FLAG_RECURSION), my_log_handler, NULL);
 
         /* NULL window -> events for all windows go to our function.
            Call before gtk_init so Gtk+ event filters comes after our.  */

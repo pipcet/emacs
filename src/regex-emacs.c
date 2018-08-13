@@ -173,7 +173,7 @@ ptrdiff_t emacs_re_safe_alloca = MAX_ALLOCA;
 
 /* Assumes a 'char *destination' variable.  */
 #define REGEX_REALLOCATE(source, osize, nsize)				\
-  (destination = SAFE_ALLOCA (nsize),					\
+  (destination = (char *)SAFE_ALLOCA (nsize),                           \
    memcpy (destination, source, osize))
 
 /* True if 'size1' is non-NULL and PTR is pointing anywhere inside

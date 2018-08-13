@@ -595,7 +595,7 @@ the same file name is found in the `doc-directory'.  */)
 
       buf[filled] = 0;
       char *end = buf + (filled < 512 ? filled : filled - 128);
-      p = memchr (buf, '\037', end - buf);
+      p = (char *)memchr (buf, '\037', end - buf);
       /* p points to ^_Ffunctionname\n or ^_Vvarname\n or ^_Sfilename\n.  */
       if (p)
 	{
@@ -788,7 +788,7 @@ Otherwise, return a new string.  */)
 	}
       else if (strp[0] == '\\' && strp[1] == '['
 	       && (close_bracket
-		   = memchr (strp + 2, ']',
+		   = (unsigned char *)memchr (strp + 2, ']',
 			     SDATA (str) + strbytes - (strp + 2))))
 	{
 	  bool follow_remap = 1;
