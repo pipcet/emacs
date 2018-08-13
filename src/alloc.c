@@ -33,6 +33,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #include "lisp.h"
 #include "dispextern.h"
 #include "intervals.h"
+#include "ptr-bounds.h"
 #include "puresize.h"
 #include "sheap.h"
 #include "systime.h"
@@ -2731,11 +2732,6 @@ live_misc_p (struct mem_node *m, void *p)
 {
 }
 
-void
-mark_maybe_objects (Lisp_Object *array, ptrdiff_t nelts)
-{
-}
-
 /* Return true if P might point to Lisp data that can be garbage
    collected, and false otherwise (i.e., false if it is easy to see
    that P cannot point to Lisp data that can be garbage collected).
@@ -2757,99 +2753,6 @@ static void ATTRIBUTE_NO_SANITIZE_ADDRESS
 mark_memory (void *start, void *end)
 {
 }
-
-#ifndef HAVE___BUILTIN_UNWIND_INIT
-
-# ifdef GC_SETJMP_WORKS
-static void
-test_setjmp (void)
-{
-}
-# else
-
-static bool setjmp_tested_p;
-static int longjmps_done;
-
-#  define SETJMP_WILL_LIKELY_WORK "\
-\n\
-Emacs garbage collector has been changed to use conservative stack\n\
-marking.  Emacs has determined that the method it uses to do the\n\
-marking will likely work on your system, but this isn't sure.\n\
-\n\
-If you are a system-programmer, or can get the help of a local wizard\n\
-who is, please take a look at the function mark_stack in alloc.c, and\n\
-verify that the methods used are appropriate for your system.\n\
-\n\
-Please mail the result to <emacs-devel@gnu.org>.\n\
-"
-
-#  define SETJMP_WILL_NOT_WORK "\
-\n\
-Emacs garbage collector has been changed to use conservative stack\n\
-marking.  Emacs has determined that the default method it uses to do the\n\
-marking will not work on your system.  We will need a system-dependent\n\
-solution for your system.\n\
-\n\
-Please take a look at the function mark_stack in alloc.c, and\n\
-try to find a way to make it work on your system.\n\
-\n\
-Note that you may get false negatives, depending on the compiler.\n\
-In particular, you need to use -O with GCC for this test.\n\
-\n\
-Please mail the result to <emacs-devel@gnu.org>.\n\
-"
-
-
-/* Perform a quick check if it looks like setjmp saves registers in a
-   jmp_buf.  Print a message to stderr saying so.  When this test
-   succeeds, this is _not_ a proof that setjmp is sufficient for
-   conservative stack marking.  Only the sources or a disassembly
-   can prove that.  */
-
-static void
-test_setjmp (void)
-{
-  if (setjmp_tested_p)
-    return;
-  setjmp_tested_p = true;
-  char buf[10];
-  register int x;
-  sys_jmp_buf jbuf;
-
-  /* Arrange for X to be put in a register.  */
-  sprintf (buf, "1");
-  x = strlen (buf);
-  x = 2 * x - 1;
-
-  sys_setjmp (jbuf);
-  if (longjmps_done == 1)
-    {
-      /* Came here after the longjmp at the end of the function.
-
-         If x == 1, the longjmp has restored the register to its
-         value before the setjmp, and we can hope that setjmp
-         saves all such registers in the jmp_buf, although that
-	 isn't sure.
-
-         For other values of X, either something really strange is
-         taking place, or the setjmp just didn't save the register.  */
-
-      if (x == 1)
-	fprintf (stderr, SETJMP_WILL_LIKELY_WORK);
-      else
-	{
-	  fprintf (stderr, SETJMP_WILL_NOT_WORK);
-	  exit (1);
-	}
-    }
-
-  ++longjmps_done;
-  x = 2;
-  if (longjmps_done == 1)
-    sys_longjmp (jbuf, 1);
-}
-# endif /* ! GC_SETJMP_WORKS */
-#endif /* ! HAVE___BUILTIN_UNWIND_INIT */
 
 
 
@@ -3201,38 +3104,6 @@ mem_insert_fixup (struct mem_node *x)
 }
 
 
-/*   (x)                   (y)
-     / \                   / \
-    a   (y)      ===>    (x)  c
-        / \              / \
-       b   c            a   b  */
-
-/* Delete node Z from the tree.  If Z is null or MEM_NIL, do nothing.  */
-
-/* Re-establish the red-black properties of the tree, after a
-   deletion.  */
-
-/* If P is a pointer into a live Lisp string object on the heap,
-   return the object.  Otherwise, return nil.  M is a pointer to the
-   mem_block for P.
-
-   This and other *_holding functions look for a pointer anywhere into
-   the object, not merely for a pointer to the start of the object,
-   because some compilers sometimes optimize away the latter.  See
-   Bug#28213.  */
-
-static Lisp_Object
-live_string_holding (struct mem_node *m, void *p)
-{
-  return Qnil;
-}
-
-static bool
-live_string_p (struct mem_node *m, void *p)
-{
-  return !NILP (live_string_holding (m, p));
-}
-
 /* If P is a pointer into a live Lisp cons object on the heap, return
    the object.  Otherwise, return nil.  M is a pointer to the
    mem_block for P.  */
@@ -3322,145 +3193,9 @@ live_buffer_p (struct mem_node *m, void *p)
   return !NILP (live_buffer_holding (m, p));
 }
 
-/* Mark OBJ if we can prove it's a Lisp_Object.  */
-
-static void
-mark_maybe_object (Lisp_Object obj)
-{
-}
-
-/* Return true if P might point to Lisp data that can be garbage
-   collected, and false otherwise (i.e., false if it is easy to see
-   that P cannot point to Lisp data that can be garbage collected).
-   Symbols are implemented via offsets not pointers, but the offsets
-   are also multiples of LISP_ALIGNMENT.  */
-
-static bool
-maybe_lisp_pointer (void *p)
-{
-  return (uintptr_t) p % LISP_ALIGNMENT == 0;
-}
-
 #ifndef HAVE_MODULES
 enum { HAVE_MODULES = false };
 #endif
-
-/* If P points to Lisp data, mark that as live if it isn't already
-   marked.  */
-
-/* Alignment of pointer values.  Use alignof, as it sometimes returns
-   a smaller alignment than GCC's __alignof__ and mark_memory might
-   miss objects if __alignof__ were used.  */
-#define GC_POINTER_ALIGNMENT alignof (void *)
-
-/* Mark Lisp objects referenced from the address range START+OFFSET..END
-   or END+OFFSET..START.  */
-
-#ifndef HAVE___BUILTIN_UNWIND_INIT
-
-# ifdef GC_SETJMP_WORKS
-static void
-test_setjmp (void)
-{
-}
-# else
-
-static bool setjmp_tested_p;
-static int longjmps_done;
-
-#  define SETJMP_WILL_LIKELY_WORK "\
-\n\
-Emacs garbage collector has been changed to use conservative stack\n\
-marking.  Emacs has determined that the method it uses to do the\n\
-marking will likely work on your system, but this isn't sure.\n\
-\n\
-If you are a system-programmer, or can get the help of a local wizard\n\
-who is, please take a look at the function mark_stack in alloc.c, and\n\
-verify that the methods used are appropriate for your system.\n\
-\n\
-Please mail the result to <emacs-devel@gnu.org>.\n\
-"
-
-#  define SETJMP_WILL_NOT_WORK "\
-\n\
-Emacs garbage collector has been changed to use conservative stack\n\
-marking.  Emacs has determined that the default method it uses to do the\n\
-marking will not work on your system.  We will need a system-dependent\n\
-solution for your system.\n\
-\n\
-Please take a look at the function mark_stack in alloc.c, and\n\
-try to find a way to make it work on your system.\n\
-\n\
-Note that you may get false negatives, depending on the compiler.\n\
-In particular, you need to use -O with GCC for this test.\n\
-\n\
-Please mail the result to <emacs-devel@gnu.org>.\n\
-"
-
-
-/* Perform a quick check if it looks like setjmp saves registers in a
-   jmp_buf.  Print a message to stderr saying so.  When this test
-   succeeds, this is _not_ a proof that setjmp is sufficient for
-   conservative stack marking.  Only the sources or a disassembly
-   can prove that.  */
-
-static void
-test_setjmp (void)
-{
-  if (setjmp_tested_p)
-    return;
-  setjmp_tested_p = true;
-  char buf[10];
-  register int x;
-  sys_jmp_buf jbuf;
-
-  /* Arrange for X to be put in a register.  */
-  sprintf (buf, "1");
-  x = strlen (buf);
-  x = 2 * x - 1;
-
-  sys_setjmp (jbuf);
-  if (longjmps_done == 1)
-    {
-      /* Came here after the longjmp at the end of the function.
-
-         If x == 1, the longjmp has restored the register to its
-         value before the setjmp, and we can hope that setjmp
-         saves all such registers in the jmp_buf, although that
-	 isn't sure.
-
-         For other values of X, either something really strange is
-         taking place, or the setjmp just didn't save the register.  */
-
-      if (x == 1)
-	fprintf (stderr, SETJMP_WILL_LIKELY_WORK);
-      else
-	{
-	  fprintf (stderr, SETJMP_WILL_NOT_WORK);
-	  exit (1);
-	}
-    }
-
-  ++longjmps_done;
-  x = 2;
-  if (longjmps_done == 1)
-    sys_longjmp (jbuf, 1);
-}
-# endif /* ! GC_SETJMP_WORKS */
-#endif /* ! HAVE___BUILTIN_UNWIND_INIT */
-
-/* The type of an object near the stack top, whose address can be used
-   as a stack scan limit.  */
-typedef union
-{
-  /* Align the stack top properly.  Even if !HAVE___BUILTIN_UNWIND_INIT,
-     jmp_buf may not be aligned enough on darwin-ppc64.  */
-  max_align_t o;
-#ifndef HAVE___BUILTIN_UNWIND_INIT
-  sys_jmp_buf j;
-  char c;
-#endif
-} stacktop_sentry;
 
 /* Force callee-saved registers and register windows onto the stack.
    Use the platform-defined __builtin_unwind_init if available,
@@ -3490,24 +3225,6 @@ typedef union
 # define NEAR_STACK_TOP(addr) ((void) (addr), __builtin_frame_address (0))
 #else
 # define NEAR_STACK_TOP(addr) (addr)
-#endif
-
-/* Set *P to the address of the top of the stack.  This must be a
-   macro, not a function, so that it is executed in the caller's
-   environment.  It is not inside a do-while so that its storage
-   survives the macro.  Callers should be declared NO_INLINE.  */
-#ifdef HAVE___BUILTIN_UNWIND_INIT
-# define SET_STACK_TOP_ADDRESS(p)	\
-   stacktop_sentry sentry;		\
-   __builtin_unwind_init ();		\
-   *(p) = NEAR_STACK_TOP (&sentry)
-#else
-# define SET_STACK_TOP_ADDRESS(p)		\
-   stacktop_sentry sentry;			\
-   __builtin_unwind_init ();			\
-   test_setjmp ();				\
-   sys_setjmp (sentry.j);			\
-   *(p) = NEAR_STACK_TOP (&sentry + (stack_bottom < &sentry.c))
 #endif
 
 /* Mark live Lisp objects on the C stack.
@@ -3752,7 +3469,6 @@ flush_stack_call_func (void (*func) (void *arg), void *arg)
 {
   void *end;
   struct thread_state *self = current_thread;
-  SET_STACK_TOP_ADDRESS (&end);
   self->stack_top = end;
   func (arg);
   eassert (current_thread == self);
@@ -4015,25 +3731,6 @@ compact_font_caches (void)
 
 #endif /* HAVE_WINDOW_SYSTEM */
 
-/* Remove (MARKER . DATA) entries with unmarked MARKER
-   from buffer undo LIST and return changed list.  */
-
-static Lisp_Object
-compact_undo_list (Lisp_Object list)
-{
-  Lisp_Object tail, *prev = &list;
-
-  for (tail = list; CONSP (tail); tail = XCDR (tail))
-    {
-      if (CONSP (XCAR (tail))
-	  && MARKERP (XCAR (XCAR (tail))))
-	*prev = XCDR (tail);
-      else
-	prev = & XCDR (tail);
-    }
-  return list;
-}
-
 DEFUN ("garbage-collect", Fgarbage_collect, Sgarbage_collect, 0, 0, "",
        doc: /* Reclaim storage for Lisp objects no longer needed.
 Garbage collection happens automatically if you cons more than
@@ -4052,31 +3749,7 @@ See Info node `(elisp)Garbage Collection'.  */
        attributes: noinline)
   (void)
 {
-  void *end;
-  SET_STACK_TOP_ADDRESS (&end);
   return Qnil;
-}
-
-/* Mark Lisp objects in glyph matrix MATRIX.  Currently the
-   only interesting objects referenced from glyphs are strings.  */
-
-static void
-mark_glyph_matrix (struct glyph_matrix *matrix)
-{
-  struct glyph_row *row = matrix->rows;
-  struct glyph_row *end = row + matrix->nrows;
-
-  for (; row < end; ++row)
-    if (row->enabled_p)
-      {
-	int area;
-	for (area = LEFT_MARGIN_AREA; area < LAST_AREA; ++area)
-	  {
-	    struct glyph *glyph = row->glyphs[area];
-	    struct glyph *end_glyph = glyph + row->used[area];
-
-	  }
-      }
 }
 
 enum { LAST_MARKED_SIZE = 1 << 9 }; /* Must be a power of 2.  */
@@ -4088,89 +3761,6 @@ static int last_marked_index;
    the call to abort will hit a breakpoint.
    Normally this is zero and the check never goes off.  */
 ptrdiff_t mark_object_loop_halt EXTERNALLY_VISIBLE;
-
-static void
-mark_vectorlike (struct Lisp_Vector *ptr)
-{
-  ptrdiff_t size = ptr->header.size;
-  ptrdiff_t i;
-
-  eassert (!VECTOR_MARKED_P (ptr));
-  VECTOR_MARK (ptr);		/* Else mark it.  */
-  if (size & PSEUDOVECTOR_FLAG)
-    size &= PSEUDOVECTOR_SIZE_MASK;
-
-  /* Note that this size is not the memory-footprint size, but only
-     the number of Lisp_Object fields that we should trace.
-     The distinction is used e.g. by Lisp_Process which places extra
-     non-Lisp_Object fields at the end of the structure...  */
-  for (i = 0; i < size; i++) /* ...and then mark its elements.  */
-    mark_object (ptr->contents[i]);
-}
-
-/* Determine type of generic Lisp_Object and mark it accordingly.
-
-   This function implements a straightforward depth-first marking
-   algorithm and so the recursion depth may be very high (a few
-   tens of thousands is not uncommon).  To minimize stack usage,
-   a few cold paths are moved out to NO_INLINE functions above.
-   In general, inlining them doesn't help you to gain more speed.  */
-
-void
-mark_object (Lisp_Object arg)
-{
-}
-/* Mark the Lisp pointers in the terminal objects.
-   Called by Fgarbage_collect.  */
-
-static void
-mark_terminals (void)
-{
-  struct terminal *t;
-  for (t = terminal_list; t; t = t->next_terminal)
-    {
-      eassert (t->name != NULL);
-#ifdef HAVE_WINDOW_SYSTEM
-      /* If a terminal object is reachable from a stacpro'ed object,
-	 it might have been marked already.  Make sure the image cache
-	 gets marked.  */
-      mark_image_cache (t->image_cache);
-#endif /* HAVE_WINDOW_SYSTEM */
-      if (!VECTOR_MARKED_P (t))
-	mark_vectorlike ((struct Lisp_Vector *)t);
-    }
-}
-
-
-
-/* Value is non-zero if OBJ will survive the current GC because it's
-   either marked or does not need to be marked to survive.  */
-
-bool
-survives_gc_p (Lisp_Object obj)
-{
-  bool survives_p;
-
-  switch (XTYPE (obj))
-    {
-    case_Lisp_Int:
-      survives_p = 1;
-      break;
-
-    case Lisp_Vectorlike:
-      survives_p = SUBRP (obj) || VECTOR_MARKED_P (XVECTOR (obj));
-      break;
-
-    case Lisp_Float:
-      survives_p = true;
-      break;
-
-    default:
-      emacs_abort ();
-    }
-
-  return survives_p;
-}
 
 DEFUN ("memory-info", Fmemory_info, Smemory_info, 0, 0, 0,
        doc: /* Return a list of (TOTAL-RAM FREE-RAM TOTAL-SWAP FREE-SWAP).
@@ -4272,58 +3862,6 @@ which_symbols (Lisp_Object obj, EMACS_INT find_max)
    return found;
 }
 
-#ifdef SUSPICIOUS_OBJECT_CHECKING
-
-static void *
-find_suspicious_object_in_range (void *begin, void *end)
-{
-  char *begin_a = begin;
-  char *end_a = end;
-  int i;
-
-  for (i = 0; i < ARRAYELTS (suspicious_objects); ++i)
-    {
-      char *suspicious_object = suspicious_objects[i];
-      if (begin_a <= suspicious_object && suspicious_object < end_a)
-	return suspicious_object;
-    }
-
-  return NULL;
-}
-
-static void
-note_suspicious_free (void *ptr)
-{
-  struct suspicious_free_record *rec;
-
-  rec = &suspicious_free_history[suspicious_free_history_index++];
-  if (suspicious_free_history_index ==
-      ARRAYELTS (suspicious_free_history))
-    {
-      suspicious_free_history_index = 0;
-    }
-
-  memset (rec, 0, sizeof (*rec));
-  rec->suspicious_object = ptr;
-  backtrace (&rec->backtrace[0], ARRAYELTS (rec->backtrace));
-}
-
-static void
-detect_suspicious_free (void *ptr)
-{
-  int i;
-
-  eassert (ptr != NULL);
-
-  for (i = 0; i < ARRAYELTS (suspicious_objects); ++i)
-    if (suspicious_objects[i] == ptr)
-      {
-        note_suspicious_free (ptr);
-        suspicious_objects[i] = NULL;
-      }
-}
-
-#endif /* SUSPICIOUS_OBJECT_CHECKING */
 
 DEFUN ("suspicious-object", Fsuspicious_object, Ssuspicious_object, 1, 1, 0,
        doc: /* Return OBJ, maybe marking it for extra scrutiny.
@@ -4332,15 +3870,6 @@ a stack trace when OBJ is freed in order to help track down
 garbage collection bugs.  Otherwise, do nothing and return OBJ.   */)
    (Lisp_Object obj)
 {
-#ifdef SUSPICIOUS_OBJECT_CHECKING
-  /* Right now, we care only about vectors.  */
-  if (VECTORLIKEP (obj))
-    {
-      suspicious_objects[suspicious_object_index++] = XVECTOR (obj);
-      if (suspicious_object_index == ARRAYELTS (suspicious_objects))
-	suspicious_object_index = 0;
-    }
-#endif
   return obj;
 }
 
@@ -4358,17 +3887,6 @@ die (const char *msg, const char *file, int line)
 
 #endif /* ENABLE_CHECKING */
 
-#if defined (ENABLE_CHECKING) && USE_STACK_LISP_OBJECTS
-
-/* Stress alloca with inconveniently sized requests and check
-   whether all allocated areas may be used for Lisp_Object.  */
-
-#else /* not ENABLE_CHECKING && USE_STACK_LISP_OBJECTS */
-
-#define verify_alloca() ((void) 0)
-
-#endif /* ENABLE_CHECKING && USE_STACK_LISP_OBJECTS */
-
 /* Initialization.  */
 
 void
@@ -4383,7 +3901,6 @@ init_alloc_once (void)
   purebeg = PUREBEG;
   pure_size = PURESIZE;
 
-  verify_alloca ();
   init_finalizer_list (&finalizers);
   init_finalizer_list (&doomed_finalizers);
 

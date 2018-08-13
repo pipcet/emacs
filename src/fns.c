@@ -4235,8 +4235,8 @@ sweep_weak_table (struct Lisp_Hash_Table *h, bool remove_entries_p)
       ptrdiff_t next;
       for (ptrdiff_t i = HASH_INDEX (h, bucket); 0 <= i; i = next)
 	{
-	  bool key_known_to_survive_p = survives_gc_p (HASH_KEY (h, i));
-	  bool value_known_to_survive_p = survives_gc_p (HASH_VALUE (h, i));
+	  bool key_known_to_survive_p = true;
+	  bool value_known_to_survive_p = true;
 	  bool remove_p;
 
 	  if (EQ (h->weak, Qkey))
@@ -4285,13 +4285,11 @@ sweep_weak_table (struct Lisp_Hash_Table *h, bool remove_entries_p)
 		  /* Make sure key and value survive.  */
 		  if (!key_known_to_survive_p)
 		    {
-		      mark_object (HASH_KEY (h, i));
 		      marked = 1;
 		    }
 
 		  if (!value_known_to_survive_p)
 		    {
-		      mark_object (HASH_VALUE (h, i));
 		      marked = 1;
 		    }
 		}
