@@ -1822,14 +1822,6 @@ elisp_cons_resolve(JSContext *cx, JS::HandleObject obj,
 static void
 elisp_cons_finalize(JSFreeOp* cx, JSObject *obj)
 {
-  struct Lisp_Cons *s = (struct Lisp_Cons *)JS_GetPrivate(obj);
-  if (!s)
-    return;
-
-  if (PURE_P (s))
-    return;
-
-  xfree(s);
 }
 
 static bool elisp_vector_call(JSContext *cx, unsigned argc, JS::Value *vp);
@@ -1837,15 +1829,6 @@ static bool elisp_vector_call(JSContext *cx, unsigned argc, JS::Value *vp);
 static void
 elisp_cons_trace(JSTracer *trc, JSObject *obj)
 {
-  struct Lisp_Cons *s = (struct Lisp_Cons *)JS_GetPrivate(obj);
-
-  if (!s) return;
-
-  //fprintf(stderr, "tracing cons at %p\n", s);
-
-  TraceEdge(trc, &s->jsval, "jsval");
-  TraceEdge(trc, &s->car.v.v, "car");
-  TraceEdge(trc, &s->u.cdr.v.v, "cdr");
 }
 
 static JSClassOps elisp_cons_ops =
