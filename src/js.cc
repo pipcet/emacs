@@ -1,7 +1,7 @@
 // shell g++ -ggdb -g3 -std=c++11 -I ../src/ -I ../js/dist/include/ ./js.cpp -L ../js/dist/bin/ -lz -lpthread -ldl -lmozjs-58a1 -Wl,--whole-archive ../js/mozglue/build/libmozglue.a -Wl,--no-whole-archive -pthread
 #include "config.h.hh"
 
-#define DEBUG
+//#define DEBUG
 #include "js-config.h"
 #include "jsapi.h"
 
@@ -28,11 +28,6 @@ typedef int64_t EMACS_INT;
 typedef uint64_t EMACS_UINT;
 
 extern JSClass elisp_exception_class;
-static JSClassOps cons_class_ops =
-  {
-   NULL, NULL, NULL, NULL,
-   NULL, NULL, NULL,
-  };
 
 static bool
 cons_get_property(JSContext *cx, JS::HandleObject obj, JS::HandleId id,
@@ -84,7 +79,7 @@ cons_construct(JSContext *cx, unsigned argc, JS::Value* vp)
 static void
 elisp_fixbuf_finalize(JSFreeOp* freeop, JSObject *obj)
 {
-  JS_freeop(freeop, (void *)JS_GetPrivate(obj));
+  //JS_freeop(freeop, (void *)JS_GetPrivate(obj));
 }
 
 static void
@@ -1221,7 +1216,8 @@ js_gc_trace(JSTracer* tracer, void* data)
 static void
 elisp_gc_callback_register(JSContext *cx)
 {
-  JS_AddExtraGCRootsTracer(cx, js_gc_trace, NULL);
+  fprintf(stderr, "registered: %d\n",
+          JS_AddExtraGCRootsTracer(cx, js_gc_trace, NULL));
 }
 
 static void
@@ -1283,8 +1279,8 @@ bool js_init()
         return false;
       elisp_classes_init(cx, glob);
       elisp_gc_callback_register(cx);
-      JS_InitClass(cx, glob, nullptr, &elisp_string_class, string_construct, 1,
-                   string_props, string_fns, nullptr, nullptr);
+      //JS_InitClass(cx, glob, nullptr, &elisp_string_class, string_construct, 1,
+      //             string_props, string_fns, nullptr, nullptr);
     }
 
   }
@@ -1764,86 +1760,27 @@ static bool
 elisp_cons_resolve(JSContext *cx, JS::HandleObject obj,
                      JS::HandleId id, bool *resolvedp)
 {
-  struct Lisp_Cons *s = (struct Lisp_Cons *)JS_GetPrivate(obj);
-
-  *resolvedp = false;
-  if (JSID_IS_STRING (id))
-    {
-      if (JS_FlatStringEqualsAscii (JSID_TO_FLAT_STRING (id), "car"))
-        {
-          JS::RootedValue val(cx, s->car);
-          JS_SetProperty (cx, obj, "car", val);
-          *resolvedp = true;
-
-          return true;
-        }
-      else if (JS_FlatStringEqualsAscii (JSID_TO_FLAT_STRING (id), "cdr"))
-        {
-          JS::RootedValue val(cx, s->u.cdr);
-          JS_SetProperty (cx, obj, "cdr", val);
-          *resolvedp = true;
-
-          return true;
-        }
-    }
-  else if (JSID_IS_INT(id))
-    {
-      if (JSID_TO_INT (id) == 0)
-        {
-          JS::RootedValue val(cx, s->car);
-          JS_SetPropertyById (cx, obj, id, val);
-          *resolvedp = true;
-
-          return true;
-        }
-      else
-        {
-          JS::RootedValue cdr(cx, s->u.cdr);
-          if (!cdr.isObject())
-            return true;
-
-          JS::RootedObject obj2(cx, &cdr.toObject());
-          JS::RootedValue val(cx);
-
-          if (!JS_GetElement(cx, obj2, JSID_TO_INT (id) - 1, &val))
-            return false;
-
-          JS_SetElement (cx, obj, JSID_TO_INT (id), val);
-          *resolvedp = true;
-
-          return true;
-        }
-    }
-
   *resolvedp = false;
   return true;
 }
+
+static bool elisp_vector_call(JSContext *cx, unsigned argc, JS::Value *vp);
 
 static void
 elisp_cons_finalize(JSFreeOp* cx, JSObject *obj)
 {
 }
 
-static bool elisp_vector_call(JSContext *cx, unsigned argc, JS::Value *vp);
-
-static void
-elisp_cons_trace(JSTracer *trc, JSObject *obj)
-{
-}
+/* Sigh. SpiderMonkey insists that objects without a finalizer
+   function can be freed right away, even if they're GC roots? I don't
+   get it at all. */
 
 static JSClassOps elisp_cons_ops =
 {
   NULL, NULL, NULL, NULL,
-  elisp_cons_resolve, NULL, elisp_cons_finalize,
-  elisp_vector_call, NULL, NULL, elisp_cons_trace
+  NULL, NULL, elisp_cons_finalize,
+  elisp_vector_call, NULL, NULL, NULL
 };
-
-JSClass elisp_cons_class =
-  {
-   "ELisp_Cons",
-   JSCLASS_HAS_RESERVED_SLOTS(2)|JSCLASS_FOREGROUND_FINALIZE,
-   &elisp_cons_ops,
-  };
 
 static bool
 elisp_symbol_function_getter(JSContext *cx, unsigned argc, JS::Value *vp)
@@ -2047,7 +1984,9 @@ elisp_symbol_trace(JSTracer *trc, JSObject *obj)
 static void
 elisp_symbol_finalize(JSFreeOp* cx, JSObject *obj)
 {
-  xfree(JS_GetPrivate(obj));
+  void *ptr = JS_GetPrivate(obj);
+  //if (ptr)
+  //  xfree(JS_GetPrivate(obj));
 }
 
 static JSClassOps elisp_symbol_ops =
@@ -2067,7 +2006,7 @@ static JSClassOps elisp_symbol_ops =
 
 JSClass elisp_symbol_class =
   {
-   "ELisp_Symbol", JSCLASS_HAS_PRIVATE|JSCLASS_HAS_RESERVED_SLOTS(6)|JSCLASS_FOREGROUND_FINALIZE,
+   "ELisp_Symbol", JSCLASS_HAS_PRIVATE|JSCLASS_HAS_RESERVED_SLOTS(16)|JSCLASS_FOREGROUND_FINALIZE,
    &elisp_symbol_ops,
   };
 
@@ -2346,7 +2285,7 @@ JSClass elisp_overlay_class = {
 static void
 elisp_buffer_finalize(JSFreeOp* cx, JSObject *obj)
 {
-  xfree(JS_GetPrivate(obj));
+  //xfree(JS_GetPrivate(obj));
 }
 
 
@@ -2386,8 +2325,8 @@ elisp_string_finalize(JSFreeOp* cx, JSObject *obj)
     {
       //xfree(str->data);
     }
-  if (!PURE_P (str))
-    xfree(str);
+  if (!PURE_P (str));
+    //xfree(str);
 }
 
 static bool elisp_string_call(JSContext *cx, unsigned argc, JS::Value *vp)
@@ -2434,6 +2373,7 @@ static JSClassOps elisp_string_ops =
 static void
 elisp_vector_finalize(JSFreeOp* cx, JSObject *obj)
 {
+  return;
   struct Lisp_Vector *s = (struct Lisp_Vector *)JS_GetPrivate(obj);
   if (PSEUDOVECTOR_TYPEP((struct vectorlike_header *)s, PVEC_BUFFER))
     {
@@ -2448,7 +2388,7 @@ elisp_vector_finalize(JSFreeOp* cx, JSObject *obj)
   else if (PSEUDOVECTOR_TYPEP((struct vectorlike_header *)s, PVEC_THREAD))
     return;
 
-  xfree(JS_GetPrivate(obj));
+  //xfree(JS_GetPrivate(obj));
 }
 
 #define FACE_CACHE_BUCKETS_SIZE 1001
@@ -2573,6 +2513,13 @@ static ELisp_Return_Value elisp_vector_call_inner(ELisp_Vector *lv, bool *succes
     *successp = false;
   return ret;
 }
+
+JSClass elisp_cons_class =
+  {
+   "ELisp_Cons",
+   JSCLASS_HAS_PRIVATE|JSCLASS_HAS_RESERVED_SLOTS(2)|JSCLASS_FOREGROUND_FINALIZE,
+   &elisp_cons_ops,
+  };
 
 static bool elisp_vector_call(JSContext *cx, unsigned argc, JS::Value *vp)
 {
@@ -2954,7 +2901,7 @@ JSClass elisp_exception_class =
 static void
 elisp_vectorlike_finalize(JSFreeOp* cx, JSObject *obj)
 {
-  xfree(JS_GetPrivate(obj));
+  //xfree(JS_GetPrivate(obj));
 }
 
 
