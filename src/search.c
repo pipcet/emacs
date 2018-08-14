@@ -796,7 +796,7 @@ find_newline (ptrdiff_t start, ptrdiff_t start_byte, ptrdiff_t end,
 	  for (cursor = base; cursor < 0; cursor = next)
 	    {
               /* The dumb loop.  */
-	      unsigned char *nl = memchr (lim_addr + cursor, '\n', - cursor);
+	      unsigned char *nl = (unsigned char *)memchr (lim_addr + cursor, '\n', - cursor);
 	      next = nl ? nl - lim_addr : 0;
 
               /* If we're using the newline cache, cache the fact that
@@ -904,7 +904,7 @@ find_newline (ptrdiff_t start, ptrdiff_t start_byte, ptrdiff_t end,
 
 	  for (cursor = base; 0 < cursor; cursor = prev)
             {
-	      unsigned char *nl = memrchr (ceiling_addr, '\n', cursor);
+	      unsigned char *nl = (unsigned char *)memrchr (ceiling_addr, '\n', cursor);
 	      prev = nl ? nl - ceiling_addr : -1;
 
               /* If we're looking for newlines, cache the fact that

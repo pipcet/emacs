@@ -152,7 +152,7 @@ static JSClass mbstring_class =
    &mbstring_class_ops,
   };
 
-bool js_fixbufp(ELisp_Handle s)
+bool elisp_fixbufp(ELisp_Handle s)
 {
   JSContext *cx = jsg.cx;
   if (!s.isObject())
@@ -164,7 +164,7 @@ bool js_fixbufp(ELisp_Handle s)
   return true;
 }
 
-bool js_mbstringp(ELisp_Handle s)
+bool elisp_mbstringp(ELisp_Handle s)
 {
   JSContext *cx = jsg.cx;
   if (!s.isObject())
@@ -183,7 +183,7 @@ JSClass elisp_string_class =
    &string_class_ops,
   };
 
-bool js_stringp(ELisp_Handle s)
+bool elisp_stringp(ELisp_Handle s)
 {
   JSContext *cx = jsg.cx;
   if (!s.isObject())
@@ -195,7 +195,7 @@ bool js_stringp(ELisp_Handle s)
   return true;
 }
 
-ELisp_Return_Value js_fixbuf(void *buf, ptrdiff_t size)
+ELisp_Return_Value elisp_fixbuf(void *buf, ptrdiff_t size)
 {
   JSContext *cx = jsg.cx;
   JS::RootedObject obj(cx, JS_NewObject(cx, &elisp_fixbuf_class));
@@ -206,7 +206,7 @@ ELisp_Return_Value js_fixbuf(void *buf, ptrdiff_t size)
   return JS::ObjectValue(*obj);
 }
 
-ELisp_Return_Value js_mbstring(ELisp_Handle fixbuf, ptrdiff_t size_byte, ptrdiff_t size)
+ELisp_Return_Value elisp_mbstring(ELisp_Handle fixbuf, ptrdiff_t size_byte, ptrdiff_t size)
 {
   JSContext *cx = jsg.cx;
   JS::RootedObject obj(cx, JS_NewObject(cx, &mbstring_class));
@@ -283,7 +283,7 @@ void elisp_cons_setcdr(ELisp_Handle cons, ELisp_Handle cdr)
   JS_SetReservedSlot(obj, 1, cdr.v.v);
 }
 
-ELisp_Return_Value js_string(ELisp_Handle mbstring, INTERVAL interval)
+ELisp_Return_Value elisp_string(ELisp_Handle mbstring, INTERVAL interval)
 {
   JSContext *cx = jsg.cx;
   JS::RootedObject obj(cx, JS_NewObject(cx, &elisp_string_class));
@@ -294,7 +294,7 @@ ELisp_Return_Value js_string(ELisp_Handle mbstring, INTERVAL interval)
   return JS::ObjectValue(*obj);
 }
 
-ELisp_Return_Value js_mbstring_fixbuf(ELisp_Handle s)
+ELisp_Return_Value elisp_mbstring_fixbuf(ELisp_Handle s)
 {
   JSContext *cx = jsg.cx;
   if (!s.isObject())
@@ -309,7 +309,7 @@ ELisp_Return_Value js_mbstring_fixbuf(ELisp_Handle s)
   return retv;
 }
 
-void *js_fixbuf_data(ELisp_Handle s)
+void *elisp_fixbuf_data(ELisp_Handle s)
 {
   JSContext *cx = jsg.cx;
   if (!s.isObject())
@@ -321,7 +321,7 @@ void *js_fixbuf_data(ELisp_Handle s)
   return JS_GetPrivate(obj);
 }
 
-void *js_mbstring_data(ELisp_Handle s)
+void *elisp_mbstring_data(ELisp_Handle s)
 {
   JSContext *cx = jsg.cx;
   if (!s.isObject())
@@ -333,7 +333,7 @@ void *js_mbstring_data(ELisp_Handle s)
   JS::RootedValue bytesv(cx, JS_GetReservedSlot (obj, 0));
   ELisp_Value v;
   v.v.v = bytesv;
-  return js_fixbuf_data(v);
+  return elisp_fixbuf_data(v);
 }
 
 _Noreturn void string_overflow(void)
@@ -341,7 +341,7 @@ _Noreturn void string_overflow(void)
   for(;;);
 }
 
-ptrdiff_t js_mbstring_size_byte(ELisp_Handle s)
+ptrdiff_t elisp_mbstring_size_byte(ELisp_Handle s)
 {
   JSContext *cx = jsg.cx;
   if (!s.isObject())
@@ -354,7 +354,7 @@ ptrdiff_t js_mbstring_size_byte(ELisp_Handle s)
   return bytesv.toInt32();
 }
 
-void js_mbstring_set_size_byte(ELisp_Handle s, ptrdiff_t size)
+void elisp_mbstring_set_size_byte(ELisp_Handle s, ptrdiff_t size)
 {
   JSContext *cx = jsg.cx;
   if (!s.isObject())
@@ -366,7 +366,7 @@ void js_mbstring_set_size_byte(ELisp_Handle s, ptrdiff_t size)
   JS_SetReservedSlot (obj, 1, JS::Int32Value(size));
 }
 
-ptrdiff_t js_mbstring_size(ELisp_Handle s)
+ptrdiff_t elisp_mbstring_size(ELisp_Handle s)
 {
   JSContext *cx = jsg.cx;
   if (!s.isObject())
@@ -379,7 +379,7 @@ ptrdiff_t js_mbstring_size(ELisp_Handle s)
   return bytesv.toInt32();
 }
 
-ELisp_Return_Value js_string_mbstring(ELisp_Handle s)
+ELisp_Return_Value elisp_string_mbstring(ELisp_Handle s)
 {
   JSContext* cx = jsg.cx;
   if (!s.isObject())
@@ -394,7 +394,7 @@ ELisp_Return_Value js_string_mbstring(ELisp_Handle s)
   return retv;
 }
 
-ptrdiff_t js_string_size_byte(ELisp_Handle s)
+ptrdiff_t elisp_string_size_byte(ELisp_Handle s)
 {
   JSContext *cx = jsg.cx;
   if (!s.isObject())
@@ -406,10 +406,10 @@ ptrdiff_t js_string_size_byte(ELisp_Handle s)
   JS::RootedValue mbstringv(cx, JS_GetReservedSlot (obj, 0));
   ELisp_Value mbstring;
   mbstring.v.v = mbstringv;
-  return js_mbstring_size_byte(mbstring);
+  return elisp_mbstring_size_byte(mbstring);
 }
 
-ptrdiff_t js_string_size(ELisp_Handle s)
+ptrdiff_t elisp_string_size(ELisp_Handle s)
 {
   JSContext *cx = jsg.cx;
   if (!s.isObject())
@@ -421,10 +421,10 @@ ptrdiff_t js_string_size(ELisp_Handle s)
   JS::RootedValue mbstringv(cx, JS_GetReservedSlot (obj, 0));
   ELisp_Value mbstring;
   mbstring.v.v = mbstringv;
-  return js_mbstring_size(mbstring);
+  return elisp_mbstring_size(mbstring);
 }
 
-void js_string_set_size_byte(ELisp_Handle s, ptrdiff_t size)
+void elisp_string_set_size_byte(ELisp_Handle s, ptrdiff_t size)
 {
   JSContext *cx = jsg.cx;
   if (!s.isObject())
@@ -436,10 +436,10 @@ void js_string_set_size_byte(ELisp_Handle s, ptrdiff_t size)
   JS::RootedValue mbstringv(cx, JS_GetReservedSlot (obj, 0));
   ELisp_Value mbstring;
   mbstring.v.v = mbstringv;
-  return js_mbstring_set_size_byte(mbstring, size);
+  return elisp_mbstring_set_size_byte(mbstring, size);
 }
 
-void *js_string_data(ELisp_Handle s)
+void *elisp_string_data(ELisp_Handle s)
 {
   JSContext *cx = jsg.cx;
   if (!s.isObject())
@@ -451,10 +451,10 @@ void *js_string_data(ELisp_Handle s)
   JS::RootedValue mbstringv(cx, JS_GetReservedSlot (obj, 0));
   ELisp_Value mbstring;
   mbstring.v.v = mbstringv;
-  return js_mbstring_data(mbstring);
+  return elisp_mbstring_data(mbstring);
 }
 
-void *js_string_intervals(ELisp_Handle s)
+void *elisp_string_intervals(ELisp_Handle s)
 {
   JSContext *cx = jsg.cx;
   if (!s.isObject())
@@ -466,7 +466,7 @@ void *js_string_intervals(ELisp_Handle s)
   return JS_GetPrivate(obj);
 }
 
-void js_set_string_intervals(ELisp_Handle s, void *intervals)
+void elisp_set_string_intervals(ELisp_Handle s, void *intervals)
 {
   JSContext *cx = jsg.cx;
   if (!s.isObject())
@@ -1073,7 +1073,7 @@ extern ELisp_Struct_Value being_printed[PRINT_CIRCLE];
 static JS::GCVector<JS::Value, 0, js::TempAllocPolicy> *js_promise_jobs;
 
 static void
-js_gc_trace(JSTracer* tracer, void* data)
+elisp_gc_trace(JSTracer* tracer, void* data)
 {
   fprintf(stderr, "that one's mine! And that one! And...\n");
 
@@ -1217,7 +1217,7 @@ static void
 elisp_gc_callback_register(JSContext *cx)
 {
   fprintf(stderr, "registered: %d\n",
-          JS_AddExtraGCRootsTracer(cx, js_gc_trace, NULL));
+          JS_AddExtraGCRootsTracer(cx, elisp_gc_trace, NULL));
 }
 
 static void
