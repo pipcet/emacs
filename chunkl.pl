@@ -188,6 +188,7 @@ package EmacsCGrammar;
     TiffSizeProc
     JDIMENSION
     TiffMapFileProc
+    TIFFUnmapFileProc
     GifFileType
     tiff_memory_source
     TIFFReadWriteProc
@@ -311,6 +312,7 @@ package EmacsCGrammar;
     RGB_PIXEL_COLOR
     HGDIOBJ
     HBITMAP
+    HKEY
     XpmAttributes
     png_byte
     png_bytep
@@ -505,6 +507,7 @@ package EmacsCGrammar;
     EmacsFixed
     GtkAllocation
     EmacsFixedClass
+    EmacsFixedPrivate
     XSizeHints
     XTextProperty
     guint
@@ -596,6 +599,7 @@ package EmacsCGrammar;
     PerlIO_funcs
     STDCHAR
     Off_t
+    int32_t
     uint32_t
     key_t
     Time_t
