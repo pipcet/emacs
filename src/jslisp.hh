@@ -21,7 +21,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #ifndef EMACS_JSLISP_H
 #define EMACS_JSLISP_H
 
-#define DEBUG
+//#define DEBUG
 #include "js-config.h"
 #include "jsapi.h"
 
@@ -407,8 +407,6 @@ DEFINE_GDB_SYMBOL_END (VALMASK)
 #define lisp_h_SYMBOL_VAL(sym) \
    (elisp_symbol_value (sym))
 #define lisp_h_SYMBOLP(x) (XTYPE (x) == Lisp_Symbol)
-#define lisp_h_XCAR(c) XCONS (c)->car
-#define lisp_h_XCDR(c) XCONS (c)->u.cdr
 #define lisp_h_XHASH(a) XUINT (a)
 #ifndef GC_CHECK_CONS_LIST
 # define lisp_h_check_cons_list() ((void) 0)
@@ -2058,22 +2056,6 @@ INLINE bool
 /* See the macros in intervals.h.  */
 
 typedef struct interval *INTERVAL;
-
-struct GCALIGNED Lisp_Cons
-  {
-    JS::Heap<JS::Value> jsval;
-    /* Car of this cons cell.  */
-    ELisp_Struct_Value car;
-
-    union
-    {
-      /* Cdr of this cons cell.  */
-      ELisp_Struct_Value cdr;
-
-      /* Used to chain conses on a free list.  */
-      struct Lisp_Cons *chain;
-    } u;
-  };
 
 INLINE bool
 NILP (ELisp_Handle x)
@@ -5513,14 +5495,6 @@ extern void *record_xmalloc (size_t) ATTRIBUTE_ALLOC_SIZE ((1));
       unbind_to (sa_count, LSH (Qnil));	\
     }					\
   } while (false)
-
-/* Struct inside unions that are typically no larger and aligned enough.  */
-
-union Aligned_Cons
-{
-  struct Lisp_Cons s;
-  double d; intmax_t i; void *p;
-};
 
 #define XSETSCROLL_BAR(a,b) (a).xsetvector((struct Lisp_Vector *)b)
 
