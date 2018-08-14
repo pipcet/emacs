@@ -313,9 +313,6 @@ truncate_undo_list (struct buffer *b)
   /* If the first element is an undo boundary, skip past it.  */
   if (CONSP (next) && NILP (XCAR (next)))
     {
-      /* Add in the space occupied by this element and its chain link.  */
-      size_so_far += sizeof (struct Lisp_Cons);
-
       /* Advance to next element.  */
       prev = next;
       next = XCDR (next);
@@ -333,10 +330,8 @@ truncate_undo_list (struct buffer *b)
       elt = XCAR (next);
 
       /* Add in the space occupied by this element and its chain link.  */
-      size_so_far += sizeof (struct Lisp_Cons);
       if (CONSP (elt))
 	{
-	  size_so_far += sizeof (struct Lisp_Cons);
 	  if (STRINGP (XCAR (elt)))
 	    size_so_far += 1;
 	}
@@ -388,10 +383,8 @@ truncate_undo_list (struct buffer *b)
 	}
 
       /* Add in the space occupied by this element and its chain link.  */
-      size_so_far += sizeof (struct Lisp_Cons);
       if (CONSP (elt))
 	{
-	  size_so_far += sizeof (struct Lisp_Cons);
 	  if (STRINGP (XCAR (elt)))
 	    size_so_far += 1;
 	}
