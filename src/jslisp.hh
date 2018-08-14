@@ -18,8 +18,8 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 
-#ifndef EMACS_JSLISP_H
-#define EMACS_JSLISP_H
+#if defined(JSLISP_HH_SECTION_1)
+#undef JSLISP_HH_SECTION_1
 
 //#define DEBUG
 #include "js-config.h"
@@ -1417,9 +1417,8 @@ typedef Lisp_Value_Handle ELisp_Handle;
 typedef Lisp_Value_Heap ELisp_Heap_Value;
 typedef Lisp_Value_Heap ELisp_Struct_Value;
 typedef Lisp_Value_Stack ELisp_Value;
-
-#include "lisp.h.hh"
-
+#elif defined (JSLISP_HH_SECTION_2)
+#undef JSLISP_HH_SECTION_2
 //extern void jsprint(Lisp_Object *x);
 
 class JSVector {
@@ -5502,4 +5501,4 @@ INLINE_HEADER_END
 
 EXTERN_C_END
 
-#endif /* EMACS_JSLISP_H */
+#endif /* JSLISP_HH_SECTION_N */
