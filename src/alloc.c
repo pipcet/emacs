@@ -1812,29 +1812,6 @@ DEFUN ("make-list", Fmake_list, Smake_list, 2, 2, 0,
 
 
 
-/***********************************************************************
-			   Vector Allocation
- ***********************************************************************/
-
-/* Sometimes a vector's contents are merely a pointer internally used
-   in vector allocation code.  On the rare platforms where a null
-   pointer cannot be tagged, represent it with a Lisp 0.
-   Usually you don't want to touch this.  */
-
-static struct Lisp_Vector *
-next_vector (struct Lisp_Vector *v)
-{
-  return (struct Lisp_Vector *)v->contents[0].xvector();
-}
-
-static void
-set_next_vector (struct Lisp_Vector *v, struct Lisp_Vector *p)
-{
-  ELisp_Value c;
-  c.xsetvector(p);
-  v->contents[0] = c;
-}
-
 /* This value is balanced well enough to avoid too much internal overhead
    for the most common cases; it's not required to be a power of two, but
    it's expected to be a mult-of-ROUNDUP_SIZE (see below).  */
