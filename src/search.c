@@ -1053,6 +1053,7 @@ search_command (Lisp_Object string, Lisp_Object bound, Lisp_Object noerror,
     }
   else
     {
+      MODIFY_ARG (&bound);
       CHECK_FIXNUM_COERCE_MARKER (bound);
       lim = XFIXNUM (bound);
       if (n > 0 ? lim < PT : lim > PT)
