@@ -1418,8 +1418,6 @@ typedef Lisp_Value_Heap ELisp_Heap_Value;
 typedef Lisp_Value_Heap ELisp_Struct_Value;
 typedef Lisp_Value_Stack ELisp_Value;
 
-#include "lisp.h.hh"
-
 //extern void jsprint(Lisp_Object *x);
 
 class JSVector {

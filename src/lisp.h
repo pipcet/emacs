@@ -18,8 +18,8 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 
-#ifndef EMACS_JSLISP_H
-#include "jslisp.hh"
+#ifndef EMACS_LISP_HH
+#include "lisp.hh"
 #else
 
 #ifndef EMACS_LISP_H
