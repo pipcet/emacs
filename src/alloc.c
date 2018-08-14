@@ -1730,7 +1730,7 @@ DEFUN ("cons", Fcons, Scons, 2, 2, 0,
        doc: /* Create a new cons, give it CAR and CDR as components, and return it.  */)
   (Lisp_Object car, Lisp_Object cdr)
 {
-  register Lisp_Object val;
+  Lisp_Object val;
 
   val.xsetcons();
 
@@ -3633,97 +3633,8 @@ total_bytes_of_live_objects (void)
 
 #ifdef HAVE_WINDOW_SYSTEM
 
-/* Remove unmarked font-spec and font-entity objects from ENTRY, which is
-   (DRIVER-TYPE NUM-FRAMES FONT-CACHE-DATA ...), and return changed entry.  */
-
-static Lisp_Object
-compact_font_cache_entry (Lisp_Object entry)
-{
-  Lisp_Object tail, *prev = &entry;
-
-  for (tail = entry; CONSP (tail); tail = XCDR (tail))
-    {
-      bool drop = 0;
-      Lisp_Object obj = XCAR (tail);
-
-      /* Consider OBJ if it is (font-spec . [font-entity font-entity ...]).  */
-      if (CONSP (obj) && GC_FONT_SPEC_P (XCAR (obj))
-	  && !VECTOR_MARKED_P (GC_XFONT_SPEC (XCAR (obj)))
-	  /* Don't use VECTORP here, as that calls ASIZE, which could
-	     hit assertion violation during GC.  */
-	  && (VECTORLIKEP (XCDR (obj))
-	      && ! (gc_asize (XCDR (obj)) & PSEUDOVECTOR_FLAG)))
-	{
-	  ptrdiff_t i, size = gc_asize (XCDR (obj));
-	  Lisp_Object obj_cdr = XCDR (obj);
-
-	  /* If font-spec is not marked, most likely all font-entities
-	     are not marked too.  But we must be sure that nothing is
-	     marked within OBJ before we really drop it.  */
-	  for (i = 0; i < size; i++)
-            {
-              Lisp_Object objlist;
-
-              if (VECTOR_MARKED_P (GC_XFONT_ENTITY (AREF (obj_cdr, i))))
-                break;
-
-              objlist = AREF (AREF (obj_cdr, i), FONT_OBJLIST_INDEX);
-              for (; CONSP (objlist); objlist = XCDR (objlist))
-                {
-                  Lisp_Object val = XCAR (objlist);
-                  struct font *font = GC_XFONT_OBJECT (val);
-
-                  if (!NILP (AREF (val, FONT_TYPE_INDEX))
-                      && VECTOR_MARKED_P(font))
-                    break;
-                }
-              if (CONSP (objlist))
-		{
-		  /* Found a marked font, bail out.  */
-		  break;
-		}
-            }
-
-	  if (i == size)
-	    {
-	      /* No marked fonts were found, so this entire font
-		 entity can be dropped.  */
-	      drop = 1;
-	    }
-	}
-      if (drop)
-	*prev = XCDR (tail);
-      else
-	prev = & XCDR (tail);
-    }
-  return entry;
-}
-
 /* Compact font caches on all terminals and mark
    everything which is still here after compaction.  */
-
-static void
-compact_font_caches (void)
-{
-  struct terminal *t;
-
-  for (t = terminal_list; t; t = t->next_terminal)
-    {
-      Lisp_Object cache = TERMINAL_FONT_CACHE (t);
-      /* Inhibit compacting the caches if the user so wishes.  Some of
-	 the users don't mind a larger memory footprint, but do mind
-	 slower redisplay.  */
-      if (!inhibit_compacting_font_caches
-	  && CONSP (cache))
-	{
-	  Lisp_Object entry;
-
-	  for (entry = XCDR (cache); CONSP (entry); entry = XCDR (entry))
-	    XSETCAR (entry, compact_font_cache_entry (XCAR (entry)));
-	}
-      mark_object (cache);
-    }
-}
 
 #else /* not HAVE_WINDOW_SYSTEM */
 
