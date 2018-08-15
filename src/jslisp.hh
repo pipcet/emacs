@@ -1844,16 +1844,6 @@ extern ELisp_Return_Value internal_condition_case_n
      ELisp_Handle, ELisp_Return_Value (*) (ELisp_Handle, ELisp_Vector_Handle));
 extern struct handler *push_handler (ELisp_Handle, enum handlertype);
 extern struct handler *push_handler_nosignal (ELisp_Handle, enum handlertype);
-extern void specbind (ELisp_Handle, ELisp_Handle);
-extern void record_unwind_protect (void (*) (ELisp_Handle), ELisp_Handle);
-extern void record_unwind_protect_ptr (void (*) (void *), void *);
-extern void record_unwind_protect_int (void (*) (int), int);
-extern void record_unwind_protect_void (void (*) (void));
-extern void record_unwind_protect_excursion (void);
-extern void record_unwind_protect_nothing (void);
-extern void clear_unwind_protect (ptrdiff_t);
-extern void set_unwind_protect (ptrdiff_t, void (*) (ELisp_Handle), ELisp_Handle);
-extern void set_unwind_protect_ptr (ptrdiff_t, void (*) (void *), void *);
 extern void rebind_for_thread_switch (void);
 extern void unbind_for_thread_switch (struct thread_state *);
 extern _Noreturn void error (const char *, ...) ATTRIBUTE_FORMAT_PRINTF (1, 2);
