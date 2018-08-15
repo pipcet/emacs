@@ -1754,19 +1754,6 @@ extern void check_cons_list (void);
 INLINE void (check_cons_list) (void) { lisp_h_check_cons_list (); }
 #endif
 
-/* Defined in lread.c.  */
-extern ELisp_Return_Value check_obarray (ELisp_Handle);
-extern ELisp_Return_Value intern_1 (const char *, ptrdiff_t);
-extern ELisp_Return_Value intern_c_string_1 (const char *, ptrdiff_t);
-extern ELisp_Return_Value intern_driver (ELisp_Handle, ELisp_Handle, ELisp_Handle);
-extern void init_symbol (ELisp_Handle, ELisp_Handle);
-extern ELisp_Return_Value oblookup (ELisp_Handle, const char *, ptrdiff_t, ptrdiff_t);
-INLINE void
-LOADHIST_ATTACH (ELisp_Handle x)
-{
-  if (initialized)
-    Vcurrent_load_list = Fcons (x, LSH (Vcurrent_load_list));
-}
 extern int openp (ELisp_Handle, ELisp_Handle, ELisp_Handle,
                   ELisp_Pointer, ELisp_Handle, bool);
 enum { S2N_IGNORE_TRAILING = 1, S2N_OVERFLOW_TO_FLOAT = 2 };
