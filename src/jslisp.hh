@@ -3715,14 +3715,6 @@ extern void get_backtrace (ELisp_Handle array);
 ELisp_Return_Value backtrace_top_function (void);
 extern bool let_shadows_buffer_binding_p (ELisp_Handle symbol);
 
-/* Defined in unexmacosx.c.  */
-#if defined DARWIN_OS && !defined CANNOT_DUMP
-extern void unexec_init_emacs_zone (void);
-extern void *unexec_malloc (size_t);
-extern void *unexec_realloc (void *, size_t);
-extern void unexec_free (void *);
-#endif
-
 INLINE bool
 MODULE_FUNCTIONP (ELisp_Handle o)
 {
@@ -3837,50 +3829,6 @@ extern void keys_of_casefiddle (void);
 
 extern void init_casetab_once (void);
 extern void syms_of_casetab (void);
-
-/* Defined in keyboard.c.  */
-
-extern ELisp_Heap_Value echo_message_buffer;
-extern struct kboard *echo_kboard;
-extern void cancel_echoing (void);
-extern bool input_pending;
-#ifdef HAVE_STACK_OVERFLOW_HANDLING
-extern sigjmp_buf return_to_command_loop;
-#endif
-extern ELisp_Return_Value menu_bar_items (ELisp_Handle);
-extern ELisp_Return_Value tool_bar_items (ELisp_Handle, int *);
-extern void discard_mouse_events (void);
-#ifdef USABLE_SIGIO
-void handle_input_available_signal (int);
-#endif
-extern ELisp_Heap_Value pending_funcalls;
-extern bool detect_input_pending (void);
-extern bool detect_input_pending_ignore_squeezables (void);
-extern bool detect_input_pending_run_timers (bool);
-extern void safe_run_hooks (ELisp_Handle);
-extern void cmd_error_internal (ELisp_Handle, const char *);
-extern ELisp_Return_Value command_loop_1 (void);
-extern ELisp_Return_Value read_menu_command (void);
-extern ELisp_Return_Value recursive_edit_1 (void);
-extern void record_auto_save (void);
-extern void force_auto_save_soon (void);
-extern void init_keyboard (void);
-extern void syms_of_keyboard (void);
-extern void keys_of_keyboard (void);
-
-/* Defined in indent.c.  */
-extern ptrdiff_t current_column (void);
-extern void invalidate_current_column (void);
-extern bool indented_beyond_p (ptrdiff_t, ptrdiff_t, EMACS_INT);
-extern void syms_of_indent (void);
-
-/* Defined in frame.c.  */
-extern void store_frame_param (struct frame *, ELisp_Handle, ELisp_Handle);
-extern void store_in_alist (ELisp_Pointer, ELisp_Handle, ELisp_Handle);
-extern ELisp_Return_Value do_switch_frame (ELisp_Handle, int, int, ELisp_Handle);
-extern ELisp_Return_Value get_frame_param (struct frame *, ELisp_Handle);
-extern void frames_discard_buffer (ELisp_Handle);
-extern void syms_of_frame (void);
 
 /* Defined in emacs.c.  */
 extern char **initial_argv;

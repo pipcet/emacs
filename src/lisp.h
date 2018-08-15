@@ -3947,6 +3947,8 @@ extern void get_backtrace (Lisp_Object array);
 Lisp_Object backtrace_top_function (void);
 extern bool let_shadows_buffer_binding_p (struct Lisp_Symbol *symbol);
 
+#endif /* 0 */
+
 /* Defined in unexmacosx.c.  */
 #if defined DARWIN_OS && !defined CANNOT_DUMP
 extern void unexec_init_emacs_zone (void);
@@ -3954,6 +3956,8 @@ extern void *unexec_malloc (size_t);
 extern void *unexec_realloc (void *, size_t);
 extern void unexec_free (void *);
 #endif
+
+#if 0
 
 #include "emacs-module.h"
 
@@ -4139,6 +4143,8 @@ extern void keys_of_casefiddle (void);
 extern void init_casetab_once (void);
 extern void syms_of_casetab (void);
 
+#endif /* 0 */
+
 /* Defined in keyboard.c.  */
 
 extern Lisp_Object echo_message_buffer;
@@ -4182,6 +4188,8 @@ extern Lisp_Object do_switch_frame (Lisp_Object, int, int, Lisp_Object);
 extern Lisp_Object get_frame_param (struct frame *, Lisp_Object);
 extern void frames_discard_buffer (Lisp_Object);
 extern void syms_of_frame (void);
+
+#if 0
 
 /* Defined in emacs.c.  */
 extern char **initial_argv;
