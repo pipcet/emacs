@@ -2448,6 +2448,7 @@ XUSER_PTR (Lisp_Object a)
   return XUNTAG (a, Lisp_Vectorlike, struct Lisp_User_Ptr);
 }
 #endif
+#endif
 
 struct Lisp_Bignum
 {
@@ -2464,8 +2465,7 @@ BIGNUMP (Lisp_Object x)
 INLINE struct Lisp_Bignum *
 XBIGNUM (Lisp_Object a)
 {
-  eassert (BIGNUMP (a));
-  return XUNTAG (a, Lisp_Vectorlike, struct Lisp_Bignum);
+  return (struct Lisp_Bignum *)a.xvector ();
 }
 
 INLINE bool
@@ -2473,7 +2473,6 @@ INTEGERP (Lisp_Object x)
 {
   return FIXNUMP (x) || BIGNUMP (x);
 }
-#endif
 
 /* Forwarding pointer to an int variable.
    This is allowed only in the value cell of a symbol,

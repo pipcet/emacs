@@ -911,25 +911,6 @@ struct Lisp_Bignum
   mpz_t value;
 };
 
-INLINE bool
-BIGNUMP (ELisp_Handle x)
-{
-  return PSEUDOVECTORP (x, PVEC_BIGNUM);
-}
-
-INLINE struct Lisp_Bignum *
-XBIGNUM (ELisp_Handle a)
-{
-  eassert (BIGNUMP (a));
-  return (struct Lisp_Bignum *)a.xvector();
-}
-
-INLINE bool
-INTEGERP (ELisp_Handle x)
-{
-  return FIXNUMP (x) || BIGNUMP (x);
-}
-
 
 INLINE bool
 (FLOATP) (ELisp_Handle x)
