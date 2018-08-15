@@ -3361,6 +3361,7 @@ set_string_intervals (Lisp_Object s, INTERVAL i)
 {
   XSTRING (s)->u.s.intervals = i;
 }
+#endif
 
 /* Set a Lisp slot in TABLE to VAL.  Most code should use this instead
    of setting slots directly.  */
@@ -3398,7 +3399,6 @@ set_sub_char_table_contents (Lisp_Object table, ptrdiff_t idx, Lisp_Object val)
   XSUB_CHAR_TABLE (table)->contents[idx] = val;
 }
 
-#endif
 /* Defined in data.c.  */
 extern _Noreturn void wrong_choice (Lisp_Object, Lisp_Object);
 extern void notify_variable_watchers (Lisp_Object, Lisp_Object,
@@ -3640,8 +3640,6 @@ extern void memory_warnings (void *, void (*warnfun) (const char *));
 extern void parse_str_as_multibyte (const unsigned char *, ptrdiff_t,
 				    ptrdiff_t *, ptrdiff_t *);
 
-#if 0
-
 /* Defined in alloc.c.  */
 extern void *my_heap_start (void);
 extern void check_pure_size (void);
@@ -3671,7 +3669,21 @@ extern Lisp_Object list4 (Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object);
 extern Lisp_Object list5 (Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object,
 			  Lisp_Object);
 enum constype {CONSTYPE_HEAP, CONSTYPE_PURE};
-extern Lisp_Object listn (enum constype, ptrdiff_t, Lisp_Object, ...);
+
+template<class... A>
+inline ELisp_Return_Value listn (enum constype ct, ptrdiff_t len, A...);
+
+template<class X, class... A>
+inline ELisp_Return_Value listn (enum constype ct, ptrdiff_t len, X arg0, A... args)
+{
+  return Fcons (arg0, LRH (listn(ct, len-1, args...)));
+}
+
+template<>
+inline ELisp_Return_Value listn (enum constype, ptrdiff_t)
+{
+  return Qnil;
+}
 
 extern Lisp_Object make_bignum_str (const char *num, int base);
 extern Lisp_Object make_number (mpz_t value);
@@ -3722,8 +3734,6 @@ list4i (EMACS_INT x, EMACS_INT y, EMACS_INT w, EMACS_INT h)
   return list4 (make_fixnum (x), make_fixnum (y),
 		make_fixnum (w), make_fixnum (h));
 }
-
-#endif
 
 extern Lisp_Object make_uninit_bool_vector (EMACS_INT);
 extern Lisp_Object bool_vector_fill (Lisp_Object, Lisp_Object);
