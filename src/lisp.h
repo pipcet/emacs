@@ -3752,6 +3752,8 @@ extern void check_cons_list (void);
 INLINE void (check_cons_list) (void) { lisp_h_check_cons_list (); }
 #endif
 
+#endif /* 0 */
+
 /* Defined in gmalloc.c.  */
 #if !defined DOUG_LEA_MALLOC && !defined HYBRID_MALLOC && !defined SYSTEM_MALLOC
 extern size_t __malloc_extra_blocks;
@@ -3810,6 +3812,8 @@ extern ptrdiff_t exprintf (char **, ptrdiff_t *, char const *, ptrdiff_t,
 extern ptrdiff_t evxprintf (char **, ptrdiff_t *, char const *, ptrdiff_t,
 			    char const *, va_list)
   ATTRIBUTE_FORMAT_PRINTF (5, 0);
+
+#if 0
 
 /* Defined in lread.c.  */
 extern Lisp_Object check_obarray (Lisp_Object);

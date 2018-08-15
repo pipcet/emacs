@@ -3320,65 +3320,6 @@ extern void check_cons_list (void);
 INLINE void (check_cons_list) (void) { lisp_h_check_cons_list (); }
 #endif
 
-/* Defined in gmalloc.c.  */
-#if !defined DOUG_LEA_MALLOC && !defined HYBRID_MALLOC && !defined SYSTEM_MALLOC
-extern size_t __malloc_extra_blocks;
-#endif
-#if !HAVE_DECL_ALIGNED_ALLOC
-extern void *aligned_alloc (size_t, size_t) ATTRIBUTE_MALLOC_SIZE ((2));
-#endif
-extern void malloc_enable_thread (void);
-
-#ifdef REL_ALLOC
-/* Defined in ralloc.c.  */
-extern void *r_alloc (void **, size_t) ATTRIBUTE_ALLOC_SIZE ((2));
-extern void r_alloc_free (void **);
-extern void *r_re_alloc (void **, size_t) ATTRIBUTE_ALLOC_SIZE ((2));
-extern void r_alloc_reset_variable (void **, void **);
-extern void r_alloc_inhibit_buffer_relocation (int);
-#endif
-
-/* Defined in chartab.c.  */
-extern ELisp_Return_Value copy_char_table (ELisp_Handle);
-extern ELisp_Return_Value char_table_ref_and_range (ELisp_Handle, int,
-                                             int *, int *);
-extern void char_table_set_range (ELisp_Handle, int, int, ELisp_Handle);
-extern void map_char_table (void (*) (ELisp_Handle, ELisp_Handle,
-                            ELisp_Handle),
-                            ELisp_Handle, ELisp_Handle, ELisp_Handle);
-extern void map_char_table_for_charset (void (*c_function) (ELisp_Handle, ELisp_Handle),
-                                        ELisp_Handle, ELisp_Handle,
-                                        ELisp_Handle, struct charset *,
-                                        unsigned, unsigned);
-extern ELisp_Return_Value uniprop_table (ELisp_Handle);
-extern void syms_of_chartab (void);
-
-/* Defined in print.c.  */
-extern ELisp_Heap_Value Vprin1_to_string_buffer;
-extern void debug_print (ELisp_Handle) EXTERNALLY_VISIBLE;
-extern void temp_output_buffer_setup (const char *);
-extern int print_level;
-extern void print_error_message (ELisp_Handle, ELisp_Handle, const char *,
-                                 ELisp_Handle);
-extern ELisp_Return_Value internal_with_output_to_temp_buffer
-        (const char *, ELisp_Return_Value (*) (ELisp_Handle), ELisp_Handle);
-#define FLOAT_TO_STRING_BUFSIZE 350
-extern int float_to_string (char *, double);
-extern void init_print_once (void);
-extern void syms_of_print (void);
-
-/* Defined in doprnt.c.  */
-extern ptrdiff_t doprnt (char *, ptrdiff_t, const char *, const char *,
-                         va_list);
-extern ptrdiff_t esprintf (char *, char const *, ...)
-  ATTRIBUTE_FORMAT_PRINTF (2, 3);
-extern ptrdiff_t exprintf (char **, ptrdiff_t *, char const *, ptrdiff_t,
-                           char const *, ...)
-  ATTRIBUTE_FORMAT_PRINTF (5, 6);
-extern ptrdiff_t evxprintf (char **, ptrdiff_t *, char const *, ptrdiff_t,
-                            char const *, va_list)
-  ATTRIBUTE_FORMAT_PRINTF (5, 0);
-
 /* Defined in lread.c.  */
 extern ELisp_Return_Value check_obarray (ELisp_Handle);
 extern ELisp_Return_Value intern_1 (const char *, ptrdiff_t);
