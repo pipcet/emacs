@@ -956,7 +956,7 @@ ftfont_list (struct frame *f, Lisp_Object spec)
 	      != FcResultMatch)
 	    continue;
 	  for (j = 0; j < ASIZE (chars); j++)
-	    if (TYPE_RANGED_FIXNUMP (FcChar32, AREF (chars, j))
+	    if (TYPE_RANGED_FIXNUMP (FcChar32, LRH (AREF (chars, j)))
 		&& FcCharSetHasChar (charset, XFIXNAT (AREF (chars, j))))
 	      break;
 	  if (j == ASIZE (chars))

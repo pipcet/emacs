@@ -8652,7 +8652,7 @@ imagemagick_load_image (struct frame *f, struct image *img,
      efficient.  */
   crop = image_spec_value (img->spec, QCcrop, NULL);
 
-  if (CONSP (crop) && TYPE_RANGED_FIXNUMP (size_t, XCAR (crop)))
+  if (CONSP (crop) && TYPE_RANGED_FIXNUMP (size_t, LRH (XCAR (crop))))
     {
       /* After some testing, it seems MagickCropImage is the fastest crop
          function in ImageMagick.  This crop function seems to do less copying
@@ -8661,15 +8661,15 @@ imagemagick_load_image (struct frame *f, struct image *img,
          imagemagick.  */
       size_t crop_width = XFIXNUM (XCAR (crop));
       crop = XCDR (crop);
-      if (CONSP (crop) && TYPE_RANGED_FIXNUMP (size_t, XCAR (crop)))
+      if (CONSP (crop) && TYPE_RANGED_FIXNUMP (size_t, LRH (XCAR (crop))))
 	{
 	  size_t crop_height = XFIXNUM (XCAR (crop));
 	  crop = XCDR (crop);
-	  if (CONSP (crop) && TYPE_RANGED_FIXNUMP (ssize_t, XCAR (crop)))
+	  if (CONSP (crop) && TYPE_RANGED_FIXNUMP (ssize_t, LRH (XCAR (crop))))
 	    {
 	      ssize_t crop_x = XFIXNUM (XCAR (crop));
 	      crop = XCDR (crop);
-	      if (CONSP (crop) && TYPE_RANGED_FIXNUMP (ssize_t, XCAR (crop)))
+	      if (CONSP (crop) && TYPE_RANGED_FIXNUMP (ssize_t, LRH (XCAR (crop))))
 		{
 		  ssize_t crop_y = XFIXNUM (XCAR (crop));
 		  MagickCropImage (image_wand, crop_width, crop_height,
