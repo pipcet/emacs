@@ -4206,13 +4206,13 @@ syms_of_data (void)
   set_symbol_function (Qwholenump, LRH (elisp_symbol_function (LRH (Qnatnump))));
 
   DEFVAR_LISP ("most-positive-fixnum", Vmost_positive_fixnum,
-	       doc: /* The largest value that is representable in a Lisp fixed-precision integer.
+	       doc: /* The greatest integer that is represented efficiently.
 This variable cannot be set; trying to do so will signal an error.  */);
   Vmost_positive_fixnum = make_fixnum (0x7fffffffL);
   make_symbol_constant (intern_c_string ("most-positive-fixnum"));
 
   DEFVAR_LISP ("most-negative-fixnum", Vmost_negative_fixnum,
-	       doc: /* The smallest value that is representable in a Lisp fixed-precision integer.
+	       doc: /* The least integer that is represented efficiently.
 This variable cannot be set; trying to do so will signal an error.  */);
   Vmost_negative_fixnum = make_fixnum (-0x80000000L);
   make_symbol_constant (intern_c_string ("most-negative-fixnum"));

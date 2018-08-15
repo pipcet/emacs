@@ -964,6 +964,7 @@ AS_IF([test $gl_gcc_warnings = no],
   nw="$nw -Wsync-nand"              # irrelevant here, and provokes ObjC warning
   nw="$nw -Wunsafe-loop-optimizations" # OK to suppress unsafe optimizations
   nw="$nw -Wbad-function-cast"      # These casts are no worse than others.
+  nw="$nw -Wabi"                    # Not useful, perceived as noise
 
   # Emacs doesn't care about shadowing; see
   # <https://lists.gnu.org/r/emacs-diffs/2011-11/msg00265.html>.
@@ -4294,17 +4295,16 @@ AC_SUBST(KRB5LIB)
 AC_SUBST(DESLIB)
 AC_SUBST(KRB4LIB)
 
-AC_ARG_WITH([mini-gmp],
-  [AS_HELP_STRING([--without-mini-gmp],
-		  [don't compile and use mini-gmp, a substitute for the
-		   GNU Multiple Precision (GMP) library; this is the
-		   default on systems with recent-enough GMP.])])
+AC_ARG_WITH([libgmp],
+  [AS_HELP_STRING([--without-libgmp],
+		  [don't use the GNU Multiple Precision (GMP) library;
+		   this is the default on systems lacking libgmp.])])
 GMP_LIB=
 GMP_OBJ=mini-gmp-emacs.o
 HAVE_GMP=no
-case $with_mini_gmp in
-  yes) ;;
-  no) HAVE_GMP=yes GMP_LIB=-lgmp;;
+case $with_libgmp in
+  no) ;;
+  yes) HAVE_GMP=yes GMP_LIB=-lgmp;;
   *) AC_CHECK_HEADERS([gmp.h],
        [OLIBS=$LIBS
 	AC_SEARCH_LIBS([__gmpz_roinit_n], [gmp])

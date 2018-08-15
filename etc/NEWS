@@ -27,7 +27,7 @@ When you add a new item, use the appropriate mark if you are sure it applies,
 ** Emacs now uses GMP, the GNU Multiple Precision library.
 By default, if 'configure' does not find a suitable libgmp, it
 arranges for the included mini-gmp library to be built and used.
-The new 'configure' option --with-mini-gmp uses mini-gmp even if a
+The new 'configure' option --without-libgmp uses mini-gmp even if a
 suitable libgmp is available.
 
 ** The new configure option '--with-json' adds support for JSON using
@@ -58,6 +58,11 @@ catch typos and support -fcheck-pointer-bounds.  The 'configure'
 option --enable-check-lisp-object-type is therefore no longer as
 useful and so is no longer enabled by default in developer builds,
 to reduce differences between developer and production builds.
+
+** Ibuffer
+
+---
+*** New toggle 'ibuffer-do-toggle-lock', bound to 'L'.
 
 ** Gnus
 
@@ -711,6 +716,13 @@ A symbol 'uuid' can be passed to thing-at-point and it returns the
 UUID at point.
 
 
+** Interactive automatic highlighting
+
++++
+*** 'highlight-regexp' can now highlight subexpressions.
+The now command accepts a prefix numeric argument to choose the
+subexpression.
+
 
 * New Modes and Packages in Emacs 27.1
 
@@ -826,9 +838,11 @@ is backwards-compatible with versions of Emacs in which the old function
 exists.  See the node "Displaying Buffers in Side Windows" in the ELisp
 manual for more details.
 
-** The 'garbage-collect' function no longer returns a 'misc' component
-because garbage collection no longer treats miscellaneous objects
-specially; they are now allocated like any other pseudovector.
+** garbage collection no longer treats miscellaneous objects specially;
+they are now allocated like any other pseudovector.  As a result, the
+'garbage-collect' and 'memory-use-count' functions no longer return a
+'misc' component, and the 'misc-objects-consed' variable has been
+removed.
 
 
 * Lisp Changes in Emacs 27.1

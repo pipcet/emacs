@@ -1240,9 +1240,16 @@ XFIXNUMPTR (Lisp_Object a)
 }
 
 INLINE Lisp_Object
-make_pointer_integer (void *p)
+make_pointer_integer_unsafe (void *p)
 {
   Lisp_Object a = TAG_PTR (Lisp_Int0, p);
+  return a;
+}
+
+INLINE Lisp_Object
+make_pointer_integer (void *p)
+{
+  Lisp_Object a = make_pointer_integer_unsafe (p);
   eassert (FIXNUMP (a) && XFIXNUMPTR (a) == p);
   return a;
 }
