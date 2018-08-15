@@ -1122,14 +1122,11 @@ XFIXNAT (Lisp_Object a)
 
 #endif /* ! USE_LSB_TAG */
 
-#if 0
-
 /* Extract A's value as an unsigned integer.  */
 INLINE EMACS_UINT
 XUFIXNUM (Lisp_Object a)
 {
-  EMACS_UINT i = XLI (a);
-  return USE_LSB_TAG ? i >> INTTYPEBITS : i & INTMASK;
+  return a.xuint();
 }
 
 /* Return A's (Lisp-integer sized) hash.  Happens to be like XUFIXNUM
@@ -1139,16 +1136,14 @@ XUFIXNUM (Lisp_Object a)
 INLINE EMACS_INT
 (XHASH) (Lisp_Object a)
 {
-  return lisp_h_XHASH (a);
+  return a.xhash();
 }
 
 /* Like make_fixnum (N), but may be faster.  N must be in nonnegative range.  */
 INLINE Lisp_Object
 make_fixed_natnum (EMACS_INT n)
 {
-  eassert (0 <= n && n <= MOST_POSITIVE_FIXNUM);
-  EMACS_INT int0 = Lisp_Int0;
-  return USE_LSB_TAG ? make_fixnum (n) : XIL (n + (int0 << VALBITS));
+  return make_fixnum (n);
 }
 
 /* Return true if X and Y are the same object.  */
@@ -1156,8 +1151,10 @@ make_fixed_natnum (EMACS_INT n)
 INLINE bool
 (EQ) (Lisp_Object x, Lisp_Object y)
 {
-  return lisp_h_EQ (x, y);
+  return x.eq(y);
 }
+
+#if 0
 
 /* True if the possibly-unsigned integer I doesn't fit in a Lisp fixnum.  */
 

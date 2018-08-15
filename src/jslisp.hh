@@ -861,40 +861,6 @@ enum More_Lisp_Bits
     PVEC_TYPE_MASK = 0x3f << PSEUDOVECTOR_AREA_BITS
   };
 
-/* Extract A's value as an unsigned integer.  */
-INLINE EMACS_UINT
-XUINT (ELisp_Handle a)
-{
-  return a.xuint();
-}
-
-/* Return A's (Lisp-integer sized) hash.  Happens to be like XUINT
-   right now, but XUINT should only be applied to objects we know are
-   integers.  */
-
-INLINE EMACS_INT
-XHASH (ELisp_Handle a)
-{
-  return a.xhash();
-}
-
-/* Like make_number (N), but may be faster.  N must be in nonnegative range.  */
-INLINE ELisp_Return_Value
-make_natnum (EMACS_INT n)
-{
-  ELisp_Value ret;
-  ret.v.v.setInt32(n);
-  return ret;
-}
-
-/* Return true if X and Y are the same object.  */
-
-INLINE bool
-EQ (ELisp_Handle x, ELisp_Handle y)
-{
-  return x.eq(y);
-}
-
 /* True if the possibly-unsigned integer I doesn't fit in a Lisp fixnum.  */
 
 #define FIXNUM_OVERFLOW_P(i) \
