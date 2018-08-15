@@ -78,9 +78,11 @@ INLINE_HEADER_BEGIN
 #define max(a, b) ((a) > (b) ? (a) : (b))
 #define min(a, b) ((a) < (b) ? (a) : (b))
 
+#endif
 /* Number of elements in an array.  */
 #define ARRAYELTS(arr) (sizeof (arr) / sizeof (arr)[0])
 
+#if 0
 /* Number of bits in a Lisp_Object tag.  */
 DEFINE_GDB_SYMBOL_BEGIN (int, GCTYPEBITS)
 #define GCTYPEBITS 3
