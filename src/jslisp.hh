@@ -2929,31 +2929,6 @@ extern _Noreturn void args_out_of_range (ELisp_Handle, ELisp_Handle);
 extern _Noreturn void args_out_of_range_3 (ELisp_Handle, ELisp_Handle,
                                            ELisp_Handle);
 extern _Noreturn void circular_list (ELisp_Handle);
-extern ELisp_Return_Value do_symval_forwarding (union Lisp_Fwd *);
-enum Set_Internal_Bind {
-  SET_INTERNAL_SET,
-  SET_INTERNAL_BIND,
-  SET_INTERNAL_UNBIND,
-  SET_INTERNAL_THREAD_SWITCH
-};
-extern void set_internal (ELisp_Handle, ELisp_Handle, ELisp_Handle,
-                          enum Set_Internal_Bind);
-extern void set_default_internal (ELisp_Handle, ELisp_Handle,
-                                  enum Set_Internal_Bind bindflag);
-
-extern void syms_of_data (void);
-extern void swap_in_global_binding (ELisp_Handle);
-
-/* Defined in cmds.c */
-extern void syms_of_cmds (void);
-extern void keys_of_cmds (void);
-
-/* Defined in coding.c.  */
-extern ELisp_Return_Value detect_coding_system (const unsigned char *, ptrdiff_t,
-                                         ptrdiff_t, bool, bool, ELisp_Handle);
-extern void init_coding (void);
-extern void init_coding_once (void);
-extern void syms_of_coding (void);
 
 /* Defined in character.c.  */
 extern ptrdiff_t chars_in_text (const unsigned char *, ptrdiff_t);

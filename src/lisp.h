@@ -3356,6 +3356,7 @@ extern _Noreturn void args_out_of_range_3 (Lisp_Object, Lisp_Object,
 					   Lisp_Object);
 extern _Noreturn void circular_list (Lisp_Object);
 extern Lisp_Object do_symval_forwarding (union Lisp_Fwd *);
+#endif /* 0 */
 enum Set_Internal_Bind {
   SET_INTERNAL_SET,
   SET_INTERNAL_BIND,
@@ -3368,7 +3369,7 @@ extern void set_default_internal (Lisp_Object, Lisp_Object,
                                   enum Set_Internal_Bind bindflag);
 
 extern void syms_of_data (void);
-extern void swap_in_global_binding (struct Lisp_Symbol *);
+extern void swap_in_global_binding (Lisp_Object);
 
 /* Defined in cmds.c */
 extern void syms_of_cmds (void);
@@ -3380,6 +3381,8 @@ extern Lisp_Object detect_coding_system (const unsigned char *, ptrdiff_t,
 extern void init_coding (void);
 extern void init_coding_once (void);
 extern void syms_of_coding (void);
+
+#if 0
 
 /* Defined in character.c.  */
 extern ptrdiff_t chars_in_text (const unsigned char *, ptrdiff_t);
