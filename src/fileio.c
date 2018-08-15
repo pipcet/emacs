@@ -3393,7 +3393,6 @@ union read_non_regular
     int fd;
     ptrdiff_t inserted, trytry;
   } s;
-  GCALIGNED
 };
 verify (alignof (union read_non_regular) % GCALIGNMENT == 0);
 

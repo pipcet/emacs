@@ -11,7 +11,6 @@
 #include "js/Conversions.h" // as of SpiderMonkey 38; previously in jsapi.h
 
 #include "lisp.h.hh"
-#include "jslisp.hh"
 #include "thread.h.hh"
 
 #include "frame.h.hh"

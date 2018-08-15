@@ -22,7 +22,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #define EMACS_LISP_H
 
 #include "jslisp-headers.hh"
-#include "jslisp-jsg.h"
+#include "jslisp-jsg.hh"
 
 #include <alloca.h>
 #include <setjmp.h>
