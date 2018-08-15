@@ -1689,6 +1689,12 @@ AREF (Lisp_Object array, ptrdiff_t idx)
   return XVECTOR (array)->contents[idx];
 }
 
+INLINE ELisp_Pointer
+aref_addr (Lisp_Object array, ptrdiff_t idx)
+{
+  return & XVECTOR (array)->contents[idx];
+}
+
 INLINE ptrdiff_t
 gc_asize (Lisp_Object array)
 {
