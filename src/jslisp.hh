@@ -1420,68 +1420,6 @@ INLINE int
    object you can put the pointer into a Lisp_Misc object instead; see
    Lisp_User_Ptr for an example.  */
 
-struct Lisp_Marker
-{
-  struct vectorlike_header header;
-  struct buffer *buffer;
-
-  /* This flag is temporarily used in the functions
-     decode/encode_coding_object to record that the marker position
-     must be adjusted after the conversion.  */
-  bool_bf need_adjustment : 1;
-  /* True means normal insertion at the marker's position
-     leaves the marker after the inserted text.  */
-  bool_bf insertion_type : 1;
-  /* This is the buffer that the marker points into, or 0 if it points nowhere.
-     Note: a chain of markers can contain markers pointing into different
-     buffers (the chain is per buffer_text rather than per buffer, so it's
-     shared between indirect buffers).  */
-  /* This is used for (other than NULL-checking):
-     - Fmarker_buffer
-     - Fset_marker: check eq(oldbuf, newbuf) to avoid unchain+rechain.
-     - unchain_marker: to find the list from which to unchain.
-     - Fkill_buffer: to only unchain the markers of current indirect buffer.
-     */
-
-  /* The remaining fields are meaningless in a marker that
-     does not point anywhere.  */
-
-  /* For markers that point somewhere,
-     this is used to chain of all the markers in a given buffer.  */
-  /* We could remove it and use an array in buffer_text instead.
-     That would also allow us to preserve it ordered.  */
-  struct Lisp_Marker *next;
-  /* This is the char position where the marker points.  */
-  ptrdiff_t charpos;
-  /* This is the byte position.
-     It's mostly used as a charpos<->bytepos cache (i.e. it's not directly
-     used to implement the functionality of markers, but rather to (ab)use
-     markers as a cache for char<->byte mappings).  */
-  ptrdiff_t bytepos;
-};
-
-/* START and END are markers in the overlay's buffer, and
-   PLIST is the overlay's property list.  */
-struct Lisp_Overlay
-/* An overlay's real data content is:
-   - plist
-   - buffer (really there are two buffer pointers, one per marker,
-     and both points to the same buffer)
-   - insertion type of both ends (per-marker fields)
-   - start & start byte (of start marker)
-   - end & end byte (of end marker)
-   - next (singly linked list of overlays)
-   - next fields of start and end markers (singly linked list of markers).
-   I.e. 9words plus 2 bits, 3words of which are for external linked lists.
-*/
-  {
-    struct vectorlike_header header;
-    ELisp_Struct_Value start;
-    ELisp_Struct_Value end;
-    ELisp_Struct_Value plist;
-    struct Lisp_Overlay *next;
-  };
-
 /* Number of bits needed to store one of the values
    SAVE_UNUSED..SAVE_OBJECT.  */
 enum { SAVE_SLOT_BITS = 3 };

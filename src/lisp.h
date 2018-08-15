@@ -2256,8 +2256,6 @@ SXHASH_REDUCE (EMACS_UINT x)
   return (x ^ x >> (EMACS_INT_WIDTH - FIXNUM_BITS)) & INTMASK;
 }
 
-#if 0
-
 struct Lisp_Marker
 {
   union vectorlike_header header;
@@ -2322,6 +2320,8 @@ struct Lisp_Overlay
     Lisp_Object plist;
     struct Lisp_Overlay *next;
   };
+
+#if 0
 
 struct Lisp_Misc_Ptr
   {
