@@ -1291,99 +1291,76 @@ CONSP (ELisp_Handle ARG(x))
   ELisp_Value x = ARG(x);
   return x.consp();
 }
-#if 0
 INLINE void
-CHECK_CONS (Lisp_Object x)
+CHECK_CONS (ELisp_Handle x)
 {
-  CHECK_TYPE (CONSP (x), Qconsp, x);
+  CHECK_TYPE (CONSP (x), LSH (Qconsp), x);
 }
 
-INLINE struct Lisp_Cons *
-(XCONS) (Lisp_Object a)
-{
-  return lisp_h_XCONS (a);
-}
-
-/* Take the car or cdr of something known to be a cons cell.  */
-/* The _addr functions shouldn't be used outside of the minimal set
-   of code that has to know what a cons cell looks like.  Other code not
-   part of the basic lisp implementation should assume that the car and cdr
-   fields are not accessible.  (What if we want to switch to
-   a copying collector someday?  Cached cons cell field addresses may be
-   invalidated at arbitrary points.)  */
-INLINE Lisp_Object *
-xcar_addr (Lisp_Object c)
-{
-  return &XCONS (c)->u.s.car;
-}
-INLINE Lisp_Object *
-xcdr_addr (Lisp_Object c)
-{
-  return &XCONS (c)->u.s.u.cdr;
-}
+extern ELisp_Return_Value elisp_cons_car (ELisp_Handle);
+extern ELisp_Return_Value elisp_cons_cdr (ELisp_Handle);
 
 /* Use these from normal code.  */
-
-INLINE Lisp_Object
-(XCAR) (Lisp_Object c)
+INLINE ELisp_Return_Value XCAR(ELisp_Handle v)
 {
-  return lisp_h_XCAR (c);
+  return elisp_cons_car (v);
+}
+INLINE ELisp_Return_Value XCDR(ELisp_Handle v)
+{
+  return elisp_cons_cdr (v);
 }
 
-INLINE Lisp_Object
-(XCDR) (Lisp_Object c)
-{
-  return lisp_h_XCDR (c);
-}
+extern void
+elisp_cons_setcar (ELisp_Handle c, ELisp_Handle n);
+extern void
+elisp_cons_setcdr (ELisp_Handle c, ELisp_Handle n);
 
 /* Use these to set the fields of a cons cell.
 
    Note that both arguments may refer to the same object, so 'n'
    should not be read after 'c' is first modified.  */
 INLINE void
-XSETCAR (Lisp_Object c, Lisp_Object n)
+XSETCAR (ELisp_Handle c, ELisp_Handle n)
 {
-  *xcar_addr (c) = n;
+  elisp_cons_setcar (c, n);
 }
 INLINE void
-XSETCDR (Lisp_Object c, Lisp_Object n)
+XSETCDR (ELisp_Handle c, ELisp_Handle n)
 {
-  *xcdr_addr (c) = n;
+  elisp_cons_setcdr (c, n);
 }
 
 /* Take the car or cdr of something whose type is not known.  */
-INLINE Lisp_Object
-CAR (Lisp_Object c)
+INLINE ELisp_Return_Value
+CAR (ELisp_Handle c)
 {
   if (CONSP (c))
     return XCAR (c);
   if (!NILP (c))
-    wrong_type_argument (Qlistp, c);
+    wrong_type_argument (LSH (Qlistp), c);
   return Qnil;
 }
-INLINE Lisp_Object
-CDR (Lisp_Object c)
+INLINE ELisp_Return_Value
+CDR (ELisp_Handle c)
 {
   if (CONSP (c))
     return XCDR (c);
   if (!NILP (c))
-    wrong_type_argument (Qlistp, c);
+    wrong_type_argument (LSH (Qlistp), c);
   return Qnil;
 }
 
 /* Take the car or cdr of something whose type is not known.  */
-INLINE Lisp_Object
-CAR_SAFE (Lisp_Object c)
+INLINE ELisp_Return_Value
+CAR_SAFE (ELisp_Handle c)
 {
-  return CONSP (c) ? XCAR (c) : Qnil;
+  return CONSP (c)? ELisp_Return_Value(XCAR (c)): ELisp_Return_Value(Qnil);
 }
-INLINE Lisp_Object
-CDR_SAFE (Lisp_Object c)
+INLINE ELisp_Return_Value
+CDR_SAFE (ELisp_Handle c)
 {
-  return CONSP (c) ? XCDR (c) : Qnil;
+  return CONSP (c)? ELisp_Return_Value(XCDR (c)): ELisp_Return_Value(Qnil);
 }
-
-#endif
 
 /* In a string or vector, the sign bit of the `size' is the gc mark bit.  */
 
