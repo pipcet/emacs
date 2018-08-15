@@ -905,12 +905,6 @@ xmint_pointer (ELisp_Handle a)
   return ((struct Lisp_Misc_Ptr *)XVECTOR (a))->pointer;
 }
 
-struct Lisp_Bignum
-{
-  struct vectorlike_header header;
-  mpz_t value;
-};
-
 
 INLINE bool
 (FLOATP) (ELisp_Handle x)
