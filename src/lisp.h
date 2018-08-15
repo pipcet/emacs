@@ -131,6 +131,7 @@ enum { EMACS_INT_WIDTH = LLONG_WIDTH, EMACS_UINT_WIDTH = ULLONG_WIDTH };
 # endif
 #endif
 
+#endif
 /* Number of bits to put in each character in the internal representation
    of bool vectors.  This should not vary across implementations.  */
 enum {  BOOL_VECTOR_BITS_PER_CHAR =
@@ -153,6 +154,7 @@ enum { BITS_PER_BITS_WORD = BOOL_VECTOR_BITS_PER_CHAR };
 #endif
 verify (BITS_WORD_MAX >> (BITS_PER_BITS_WORD - 1) == 1);
 
+#if 0
 /* printmax_t and uprintmax_t are types for printing large integers.
    These are the widest integers that are supported for printing.
    pMd etc. are conversions for printing them.
@@ -2707,7 +2709,6 @@ enum char_bits
        itself.  */
     CHARACTERBITS = 22
   };
-#if 0
 
 
 /* Data type checking.  */
@@ -2743,15 +2744,14 @@ RANGED_FIXNUMP (intmax_t lo, Lisp_Object x, intmax_t hi)
 
 #define TYPE_RANGED_FIXNUMP(type, x) \
   (FIXNUMP (x)			      \
-   && (TYPE_SIGNED (type) ? TYPE_MINIMUM (type) <= XFIXNUM (x) : 0 <= XFIXNUM (x)) \
-   && XFIXNUM (x) <= TYPE_MAXIMUM (type))
+   && (TYPE_SIGNED (type) ? TYPE_MINIMUM (type) <= XFIXNUM (LRH (x)) : 0 <= XFIXNUM (LRH ((x)))) \
+   && XFIXNUM (LRH (x)) <= TYPE_MAXIMUM (type))
 
 INLINE bool
 AUTOLOADP (Lisp_Object x)
 {
   return CONSP (x) && EQ (Qautoload, XCAR (x));
 }
-
 
 /* Test for specific pseudovector types.  */
 
@@ -2785,8 +2785,6 @@ CHECK_RECORD (Lisp_Object x)
   CHECK_TYPE (RECORDP (x), Qrecordp, x);
 }
 
-#endif /* 0 */
-
 /* Test for image (image . spec)  */
 INLINE bool
 IMAGEP (Lisp_Object x)
@@ -2819,8 +2817,6 @@ INLINE void
   lisp_h_CHECK_FIXNUM (x);
 }
 
-#if 0
-
 INLINE void
 CHECK_STRING_CAR (Lisp_Object x)
 {
@@ -2847,7 +2843,6 @@ CHECK_FIXNAT (Lisp_Object x)
   CHECK_TYPE (FIXNATP (x), Qwholenump, x);
 }
 
-#endif /* 0 */
 #define CHECK_RANGED_INTEGER(x, lo, hi)					\
   do {									\
     CHECK_FIXNUM (x);							\

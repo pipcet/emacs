@@ -86,28 +86,6 @@ enum { EMACS_INT_WIDTH = LLONG_WIDTH, EMACS_UINT_WIDTH = ULLONG_WIDTH };
 # endif
 #endif
 
-/* Number of bits to put in each character in the internal representation
-   of bool vectors.  This should not vary across implementations.  */
-enum {  BOOL_VECTOR_BITS_PER_CHAR =
-#define BOOL_VECTOR_BITS_PER_CHAR 8
-        BOOL_VECTOR_BITS_PER_CHAR
-};
-
-/* An unsigned integer type representing a fixed-length bit sequence,
-   suitable for bool vector words, GC mark bits, etc.  Normally it is size_t
-   for speed, but on weird platforms it is unsigned char and not all
-   its bits are used.  */
-#if BOOL_VECTOR_BITS_PER_CHAR == CHAR_BIT
-typedef size_t bits_word;
-# define BITS_WORD_MAX SIZE_MAX
-enum { BITS_PER_BITS_WORD = SIZE_WIDTH };
-#else
-typedef unsigned char bits_word;
-# define BITS_WORD_MAX ((1u << BOOL_VECTOR_BITS_PER_CHAR) - 1)
-enum { BITS_PER_BITS_WORD = BOOL_VECTOR_BITS_PER_CHAR };
-#endif
-verify (BITS_WORD_MAX >> (BITS_PER_BITS_WORD - 1) == 1);
-
 /* printmax_t and uprintmax_t are types for printing large integers.
    These are the widest integers that are supported for printing.
    pMd etc. are conversions for printing them.
@@ -459,19 +437,6 @@ union Lisp_Symbol_Flags
    OFFSET should be the offset in bytes from 'lispsym' to the symbol.  */
 #define TAG_SYMOFFSET(offset) TAG_PTR (Lisp_Symbol, offset)
 
-/* XLI_BUILTIN_LISPSYM (iQwhatever) is equivalent to
-   XLI (builtin_lisp_symbol (Qwhatever)),
-   except the former expands to an integer constant expression.  */
-#define XLI_BUILTIN_LISPSYM(iname) TAG_SYMOFFSET ((iname) * sizeof *lispsym)
-
-/* By default, define macros for Qt, etc., as this leads to a bit
-   better performance in the core Emacs interpreter.  A plugin can
-   define DEFINE_NON_NIL_Q_SYMBOL_MACROS to be false, to be portable to
-   other Emacs instances that assign different values to Qt, etc.  */
-#ifndef DEFINE_NON_NIL_Q_SYMBOL_MACROS
-# define DEFINE_NON_NIL_Q_SYMBOL_MACROS true
-#endif
-
 INLINE bool
 SYMBOLP (ELisp_Handle x)
 {
@@ -684,87 +649,6 @@ xmint_pointer (ELisp_Handle a)
   return ((struct Lisp_Misc_Ptr *)XVECTOR (a))->pointer;
 }
 
-
-INLINE bool
-(FLOATP) (ELisp_Handle x)
-{
-  return lisp_h_FLOATP (x);
-}
-
-/* Data type checking.  */
-
-INLINE bool
-NUMBERP (ELisp_Handle x)
-{
-  return INTEGERP (x) || FLOATP (x);
-}
-INLINE bool
-FIXED_OR_FLOATP (ELisp_Handle x)
-{
-  return FIXNUMP (x) || FLOATP (x);
-}
-INLINE bool
-FIXNATP (ELisp_Handle x)
-{
-  return FIXNUMP (x) && 0 <= XFIXNUM (x);
-}
-
-INLINE bool
-NATNUMP (ELisp_Handle x)
-{
-  return FIXNUMP (x) && 0 <= XFIXNUM (x);
-}
-
-INLINE bool
-RANGED_FIXNUMP (intmax_t lo, ELisp_Handle x, intmax_t hi)
-{
-  return FIXNUMP (x) && lo <= XFIXNUM (x) && XFIXNUM (x) <= hi;
-}
-
-#define TYPE_RANGED_FIXNUMP(type, x) \
-  (FIXNUMP (LRH (ELisp_Return_Value (x)))                              \
-   && (TYPE_SIGNED (type) ? TYPE_MINIMUM (type) <= XFIXNUM (LRH (ELisp_Return_Value (x))) : 0 <= XFIXNUM (LRH (ELisp_Return_Value (x)))) \
-   && XFIXNUM (LRH (ELisp_Return_Value (x))) <= TYPE_MAXIMUM (type))
-
-INLINE bool
-AUTOLOADP (ELisp_Handle x)
-{
-  return CONSP (x) && EQ (LSH (Qautoload), LRH (XCAR (x)));
-}
-
-
-/* Test for specific pseudovector types.  */
-
-INLINE bool
-WINDOW_CONFIGURATIONP (ELisp_Handle a)
-{
-  return PSEUDOVECTORP (a, PVEC_WINDOW_CONFIGURATION);
-}
-
-INLINE bool
-COMPILEDP (ELisp_Handle a)
-{
-  return PSEUDOVECTORP (a, PVEC_COMPILED);
-}
-
-INLINE bool
-FRAMEP (ELisp_Handle a)
-{
-  return PSEUDOVECTORP (a, PVEC_FRAME);
-}
-
-INLINE bool
-RECORDP (ELisp_Handle a)
-{
-  return PSEUDOVECTORP (a, PVEC_RECORD);
-}
-
-INLINE void
-CHECK_RECORD (ELisp_Handle x)
-{
-  CHECK_TYPE (RECORDP (x), LSH (Qrecordp), x);
-}
-
 INLINE void
 CHECK_NUMBER (ELisp_Handle x)
 {
@@ -775,38 +659,6 @@ INLINE void
 (CHECK_FIXNUM_OR_FLOAT) (ELisp_Handle x)
 {
   CHECK_TYPE (FIXED_OR_FLOATP (x), LSH (Qnumberp), x);
-}
-
-INLINE void
-(CHECK_FIXNAT) (ELisp_Handle x)
-{
-  CHECK_TYPE (FIXNATP (x), LSH (Qwholenump), x);
-}
-
-INLINE void
-CHECK_STRING_CAR (ELisp_Handle x)
-{
-  CHECK_TYPE (STRINGP (LRH (XCAR (x))), LSH (Qstringp), LRH (XCAR (x)));
-}
-/* This is a bit special because we always need size afterwards.  */
-INLINE ptrdiff_t
-CHECK_VECTOR_OR_STRING (ELisp_Handle x)
-{
-  if (VECTORP (x))
-    return ASIZE (x);
-  if (STRINGP (x))
-    return SCHARS (x);
-  wrong_type_argument (LSH (Qarrayp), x);
-}
-INLINE void
-CHECK_ARRAY (ELisp_Handle x, ELisp_Handle predicate)
-{
-  CHECK_TYPE (ARRAYP (x), predicate, x);
-}
-INLINE void
-CHECK_NATNUM (ELisp_Handle x)
-{
-  CHECK_TYPE (NATNUMP (x), LSH (Qwholenump), x);
 }
 
 template<typename... As>
@@ -823,12 +675,6 @@ CALLN(ELisp_Return_Value (*f) (ELisp_Vector_Handle), As... args)
 
   return ret;
 }
-
-
-extern ELisp_Heap_Value Vascii_downcase_table;
-extern ELisp_Heap_Value Vascii_canon_table;
-struct window;
-struct frame;
 
 INLINE_HEADER_END
 
