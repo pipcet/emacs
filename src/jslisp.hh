@@ -803,59 +803,6 @@ struct Lisp_Subr
 /* Save and restore the instruction and environment pointers,
    without affecting the signal mask.  */
 
-#ifdef HAVE__SETJMP
-struct sys_jmp_buf_struct;
-
-struct sys_jmp_buf_struct {
-  jmp_buf jmpbuf;
-  void *stack;
-};
-
-typedef struct sys_jmp_buf_struct sys_jmp_buf[1];
-
-extern void
-unwind_js (struct sys_jmp_buf_struct *jmpbuf);
-
-extern sys_jmp_buf *catchall_jmpbuf;
-extern sys_jmp_buf *catchall_real_jmpbuf;
-extern int catchall_real_value;
-
-# define sys_setjmp(j) ({                                               \
-      volatile int sz = 16;                                             \
-      j[0].stack = alloca(sz);                                          \
-      _setjmp (j[0].jmpbuf);                                            \
-    })
-
-# define sys_longjmp(j, v) ({                                           \
-      if (catchall_jmpbuf && (*catchall_jmpbuf)[0].stack < j[0].stack)  \
-        {                                                               \
-          catchall_real_jmpbuf = &j;                                    \
-          catchall_real_value = v;                                      \
-          unwind_js(*catchall_jmpbuf);                                  \
-          _longjmp ((*catchall_jmpbuf)[0].jmpbuf, v);                   \
-        }                                                               \
-      else                                                              \
-        {                                                               \
-          unwind_js(j);                                                 \
-          _longjmp (j[0].jmpbuf, v);                                    \
-        }                                                               \
-    })
-
-#elif defined HAVE_SIGSETJMP
-typedef struct {
-  sigjmp_buf jmpbuf;
-  void *stack;
-} sys_jmp_buf[1];
-
-# define sys_setjmp(j) ({ asm volatile("mov %%rsp,%0" : "=a" (j.stack)); sigsetjmp (j.jmpbuf, 0); })
-# define sys_longjmp(j, v) ({ unwind_js(j.stack); siglongjmp (j, v); })
-#else
-/* A platform that uses neither _longjmp nor siglongjmp; assume
-   longjmp does not affect the sigmask.  */
-typedef jmp_buf sys_jmp_buf;
-# define sys_setjmp(j) setjmp (j)
-# define sys_longjmp(j, v) longjmp (j, v)
-#endif
 
 #include "thread.h.hh"
 
@@ -1204,60 +1151,6 @@ extern void defvar_kboard (struct Lisp_Kboard_Objfwd *, const char *, int);
    NOTE: The specbinding union is defined here, because SPECPDL_INDEX is
    used all over the place, needs to be fast, and needs to know the size of
    union specbinding.  But only eval.c should access it.  */
-
-enum specbind_tag {
-  SPECPDL_UNWIND,		/* An unwind_protect function on Lisp_Object.  */
-  SPECPDL_UNWIND_ARRAY,		/* An unwind_protect function on Lisp_Object.  */
-  SPECPDL_UNWIND_PTR,		/* Likewise, on void *.  */
-  SPECPDL_UNWIND_INT,		/* Likewise, on int.  */
-  SPECPDL_UNWIND_VOID,		/* Likewise, with no arg.  */
-  SPECPDL_UNWIND_EXCURSION,	/* Likewise, on an execursion.  */
-  SPECPDL_BACKTRACE,		/* An element of the backtrace.  */
-  SPECPDL_LET,			/* A plain and simple dynamic let-binding.  */
-  /* Tags greater than SPECPDL_LET must be "subkinds" of LET.  */
-  SPECPDL_LET_LOCAL,		/* A buffer-local let-binding.  */
-  SPECPDL_LET_DEFAULT		/* A global binding for a localized var.  */
-};
-
-struct specbinding
-  {
-    ENUM_BF (specbind_tag) kind : CHAR_BIT;
-    struct {
-      void (*func) (ELisp_Handle);
-      ELisp_Struct_Value arg;
-    } unwind;
-    struct {
-      ELisp_Vector vector;
-    } unwind_array;
-    struct {
-      void (*func) (void *);
-      void *arg;
-    } unwind_ptr;
-    struct {
-      void (*func) (int);
-      int arg;
-    } unwind_int;
-    struct {
-      ELisp_Struct_Value marker;
-      ELisp_Struct_Value window;
-    } unwind_excursion;
-    struct {
-      void (*func) (void);
-    } unwind_void;
-    struct {
-      /* `where' is not used in the case of SPECPDL_LET.  */
-      ELisp_Struct_Value symbol; ELisp_Struct_Value old_value; ELisp_Struct_Value where;
-      /* Normally this is unused; but it is set to the symbol's
-         current value when a thread is swapped out.  */
-      ELisp_Struct_Value saved_value;
-    } let;
-    struct {
-      bool_bf debug_on_exit : 1;
-      ELisp_Struct_Value function;
-      ELisp_Pointer args;
-      ptrdiff_t nargs;
-    } bt;
-  };
 
 struct specbinding_stack
   {
@@ -1624,52 +1517,6 @@ extern void mark_specpdl (struct specbinding *first, struct specbinding *ptr);
 extern void get_backtrace (ELisp_Handle array);
 ELisp_Return_Value backtrace_top_function (void);
 extern bool let_shadows_buffer_binding_p (ELisp_Handle symbol);
-
-#define USE_SAFE_ALLOCA			\
-  ptrdiff_t sa_avail = MAX_ALLOCA;	\
-  ptrdiff_t sa_count = SPECPDL_INDEX (); bool sa_must_free = false
-
-#define AVAIL_ALLOCA(size) (sa_avail -= (size), alloca (size))
-
-/* SAFE_ALLOCA allocates a simple buffer.  */
-
-#define SAFE_ALLOCA(size) ((size) <= sa_avail				\
-                           ? AVAIL_ALLOCA (size)			\
-                           : (sa_must_free = true, record_xmalloc (size)))
-
-/* SAFE_NALLOCA sets BUF to a newly allocated array of MULTIPLIER *
-   NITEMS items, each of the same type as *BUF.  MULTIPLIER must
-   positive.  The code is tuned for MULTIPLIER being a constant.  */
-
-#define SAFE_NALLOCA(buf, multiplier, nitems)			 \
-  do {								 \
-    if ((nitems) <= sa_avail / sizeof *(buf) / (multiplier))	 \
-      (buf) = (typeof (buf))AVAIL_ALLOCA (sizeof *(buf) * (multiplier) * (nitems)); \
-    else							 \
-      {								 \
-        (buf) = (typeof (buf))xnmalloc (nitems, sizeof *(buf) * (multiplier)); \
-        sa_must_free = true;					 \
-        record_unwind_protect_ptr (xfree, buf);			 \
-      }								 \
-  } while (false)
-
-/* SAFE_ALLOCA_STRING allocates a C copy of a Lisp string.  */
-
-#define SAFE_ALLOCA_STRING(ptr, string)			\
-  do {							\
-    (ptr) = (typeof (ptr))SAFE_ALLOCA (SBYTES (string) + 1);    \
-    memcpy (ptr, SDATA (string), SBYTES (string) + 1);	\
-  } while (false)
-
-/* SAFE_FREE frees xmalloced memory and enables GC as needed.  */
-
-#define SAFE_FREE()			\
-  do {					\
-    if (sa_must_free) {			\
-      sa_must_free = false;		\
-      unbind_to (sa_count, LSH (Qnil));	\
-    }					\
-  } while (false)
 
 INLINE_HEADER_END
 

@@ -1967,19 +1967,55 @@ verify (offsetof (struct Lisp_Sub_Char_Table, contents)
 	== (offsetof (struct Lisp_Vector, contents)
 	    + SUB_CHAR_TABLE_OFFSET * sizeof (Lisp_Object)));
 
-#if 0
-
 /* Save and restore the instruction and environment pointers,
    without affecting the signal mask.  */
 
 #ifdef HAVE__SETJMP
-typedef jmp_buf sys_jmp_buf;
-# define sys_setjmp(j) _setjmp (j)
-# define sys_longjmp(j, v) _longjmp (j, v)
+struct sys_jmp_buf_struct;
+
+struct sys_jmp_buf_struct {
+  jmp_buf jmpbuf;
+  void *stack;
+};
+
+typedef struct sys_jmp_buf_struct sys_jmp_buf[1];
+
+extern void
+unwind_js (struct sys_jmp_buf_struct *jmpbuf);
+
+extern sys_jmp_buf *catchall_jmpbuf;
+extern sys_jmp_buf *catchall_real_jmpbuf;
+extern int catchall_real_value;
+
+# define sys_setjmp(j) ({                                               \
+      volatile int sz = 16;                                             \
+      j[0].stack = alloca(sz);                                          \
+      _setjmp (j[0].jmpbuf);                                            \
+    })
+
+# define sys_longjmp(j, v) ({                                           \
+      if (catchall_jmpbuf && (*catchall_jmpbuf)[0].stack < j[0].stack)  \
+        {                                                               \
+          catchall_real_jmpbuf = &j;                                    \
+          catchall_real_value = v;                                      \
+          unwind_js(*catchall_jmpbuf);                                  \
+          _longjmp ((*catchall_jmpbuf)[0].jmpbuf, v);                   \
+        }                                                               \
+      else                                                              \
+        {                                                               \
+          unwind_js(j);                                                 \
+          _longjmp (j[0].jmpbuf, v);                                    \
+        }                                                               \
+    })
+
 #elif defined HAVE_SIGSETJMP
-typedef sigjmp_buf sys_jmp_buf;
-# define sys_setjmp(j) sigsetjmp (j, 0)
-# define sys_longjmp(j, v) siglongjmp (j, v)
+typedef struct {
+  sigjmp_buf jmpbuf;
+  void *stack;
+} sys_jmp_buf[1];
+
+# define sys_setjmp(j) ({ asm volatile("mov %%rsp,%0" : "=a" (j.stack)); sigsetjmp (j.jmpbuf, 0); })
+# define sys_longjmp(j, v) ({ unwind_js(j.stack); siglongjmp (j, v); })
 #else
 /* A platform that uses neither _longjmp nor siglongjmp; assume
    longjmp does not affect the sigmask.  */
@@ -1989,7 +2025,7 @@ typedef jmp_buf sys_jmp_buf;
 #endif
 
 #include "thread.h"
-
+#if 0
 /***********************************************************************
 			       Symbols
  ***********************************************************************/
@@ -3036,6 +3072,7 @@ extern void defvar_kboard (struct Lisp_Kboard_Objfwd *, const char *, int);
    used all over the place, needs to be fast, and needs to know the size of
    union specbinding.  But only eval.c should access it.  */
 
+#endif
 enum specbind_tag {
   SPECPDL_UNWIND,		/* An unwind_protect function on Lisp_Object.  */
   SPECPDL_UNWIND_ARRAY,		/* Likewise, on an array that needs freeing.
@@ -3051,55 +3088,47 @@ enum specbind_tag {
   SPECPDL_LET_DEFAULT		/* A global binding for a localized var.  */
 };
 
-union specbinding
+struct specbinding
   {
-    /* Aligning similar members consistently might help efficiency slightly
-       (Bug#31996#25).  */
     ENUM_BF (specbind_tag) kind : CHAR_BIT;
     struct {
-      ENUM_BF (specbind_tag) kind : CHAR_BIT;
-      void (*func) (Lisp_Object);
-      Lisp_Object arg;
+      void (*func) (ELisp_Handle);
+      ELisp_Struct_Value arg;
     } unwind;
     struct {
-      ENUM_BF (specbind_tag) kind : CHAR_BIT;
-      ptrdiff_t nelts;
-      Lisp_Object *array;
+      ELisp_Vector vector;
     } unwind_array;
     struct {
-      ENUM_BF (specbind_tag) kind : CHAR_BIT;
       void (*func) (void *);
       void *arg;
     } unwind_ptr;
     struct {
-      ENUM_BF (specbind_tag) kind : CHAR_BIT;
       void (*func) (int);
       int arg;
     } unwind_int;
     struct {
-      ENUM_BF (specbind_tag) kind : CHAR_BIT;
-      Lisp_Object marker, window;
+      ELisp_Struct_Value marker;
+      ELisp_Struct_Value window;
     } unwind_excursion;
     struct {
-      ENUM_BF (specbind_tag) kind : CHAR_BIT;
       void (*func) (void);
     } unwind_void;
     struct {
-      ENUM_BF (specbind_tag) kind : CHAR_BIT;
       /* `where' is not used in the case of SPECPDL_LET.  */
-      Lisp_Object symbol, old_value, where;
+      ELisp_Struct_Value symbol; ELisp_Struct_Value old_value; ELisp_Struct_Value where;
       /* Normally this is unused; but it is set to the symbol's
-	 current value when a thread is swapped out.  */
-      Lisp_Object saved_value;
+         current value when a thread is swapped out.  */
+      ELisp_Struct_Value saved_value;
     } let;
     struct {
-      ENUM_BF (specbind_tag) kind : CHAR_BIT;
       bool_bf debug_on_exit : 1;
-      Lisp_Object function;
-      Lisp_Object *args;
+      ELisp_Struct_Value function;
+      ELisp_Pointer args;
       ptrdiff_t nargs;
     } bt;
   };
+
+#if 0
 
 /* These 3 are defined as macros in thread.h.  */
 /* extern union specbinding *specpdl; */
@@ -4567,8 +4596,6 @@ enum MAX_ALLOCA { MAX_ALLOCA = 16 * 1024 };
 
 extern void *record_xmalloc (size_t) ATTRIBUTE_ALLOC_SIZE ((1));
 
-#if 0
-
 #define USE_SAFE_ALLOCA			\
   ptrdiff_t sa_avail = MAX_ALLOCA;	\
   ptrdiff_t sa_count = SPECPDL_INDEX ()
@@ -4604,6 +4631,7 @@ extern void *record_xmalloc (size_t) ATTRIBUTE_ALLOC_SIZE ((1));
     memcpy (ptr, SDATA (string), SBYTES (string) + 1);	\
   } while (false)
 
+
 /* Free xmalloced memory and enable GC as needed.  */
 
 #define SAFE_FREE() safe_free (sa_count)
@@ -4622,12 +4650,10 @@ safe_free (ptrdiff_t sa_count)
       else
 	{
 	  eassert (specpdl_ptr->kind == SPECPDL_UNWIND_ARRAY);
-	  xfree (specpdl_ptr->unwind_array.array);
+	  // XXX xfree (specpdl_ptr->unwind_array.vector.ptr);
 	}
     }
 }
-
-#endif /* 0 */
 
 /* Pop the specpdl stack back to COUNT, and return VAL.
    Prefer this to { SAFE_FREE (); unbind_to (COUNT, VAL); }
