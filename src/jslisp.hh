@@ -2930,68 +2930,6 @@ extern _Noreturn void args_out_of_range_3 (ELisp_Handle, ELisp_Handle,
                                            ELisp_Handle);
 extern _Noreturn void circular_list (ELisp_Handle);
 
-/* Defined in character.c.  */
-extern ptrdiff_t chars_in_text (const unsigned char *, ptrdiff_t);
-extern ptrdiff_t multibyte_chars_in_text (const unsigned char *, ptrdiff_t);
-extern void syms_of_character (void);
-
-/* Defined in charset.c.  */
-extern void init_charset (void);
-extern void init_charset_once (void);
-extern void syms_of_charset (void);
-/* Structure forward declarations.  */
-struct charset;
-
-/* Defined in syntax.c.  */
-extern void init_syntax_once (void);
-extern void syms_of_syntax (void);
-
-/* Defined in fns.c.  */
-enum { NEXT_ALMOST_PRIME_LIMIT = 11 };
-extern EMACS_INT next_almost_prime (EMACS_INT) ATTRIBUTE_CONST;
-extern ELisp_Return_Value larger_vector (ELisp_Handle, ptrdiff_t, ptrdiff_t);
-extern void sweep_weak_hash_tables (void);
-extern char *extract_data_from_object (ELisp_Handle, ptrdiff_t *, ptrdiff_t *);
-EMACS_UINT hash_string (char const *, ptrdiff_t);
-EMACS_UINT sxhash (ELisp_Handle, int);
-ELisp_Return_Value make_hash_table (struct hash_table_test *, EMACS_INT, float, float,
-                             ELisp_Handle, bool);
-ptrdiff_t hash_lookup (struct Lisp_Hash_Table *, ELisp_Handle, EMACS_UINT *);
-ptrdiff_t hash_put (struct Lisp_Hash_Table *, ELisp_Handle, ELisp_Handle,
-                    EMACS_UINT);
-void hash_remove_from_table (struct Lisp_Hash_Table *, ELisp_Handle);
-extern struct hash_table_test hashtest_eq; extern struct hash_table_test hashtest_eql; extern struct hash_table_test hashtest_equal;
-extern void validate_subarray (ELisp_Handle, ELisp_Handle, ELisp_Handle,
-                               ptrdiff_t, ptrdiff_t *, ptrdiff_t *);
-extern ELisp_Return_Value substring_both (ELisp_Handle, ptrdiff_t, ptrdiff_t,
-                                   ptrdiff_t, ptrdiff_t);
-extern ELisp_Return_Value merge (ELisp_Handle, ELisp_Handle, ELisp_Handle);
-extern ELisp_Return_Value do_yes_or_no_p (ELisp_Handle);
-extern ELisp_Return_Value concat2 (ELisp_Handle, ELisp_Handle);
-extern ELisp_Return_Value concat3 (ELisp_Handle, ELisp_Handle, ELisp_Handle);
-extern bool equal_no_quit (ELisp_Handle, ELisp_Handle);
-extern ELisp_Return_Value nconc2 (ELisp_Handle, ELisp_Handle);
-extern ELisp_Return_Value assq_no_quit (ELisp_Handle, ELisp_Handle);
-extern ELisp_Return_Value assoc_no_quit (ELisp_Handle, ELisp_Handle);
-extern void clear_string_char_byte_cache (void);
-extern ptrdiff_t string_char_to_byte (ELisp_Handle, ptrdiff_t);
-extern ptrdiff_t string_byte_to_char (ELisp_Handle, ptrdiff_t);
-extern ELisp_Return_Value string_to_multibyte (ELisp_Handle);
-extern ELisp_Return_Value string_make_unibyte (ELisp_Handle);
-extern void syms_of_fns (void);
-
-/* Defined in floatfns.c.  */
-extern void syms_of_floatfns (void);
-extern ELisp_Return_Value fmod_float (ELisp_Handle x, ELisp_Handle y);
-
-/* Defined in fringe.c.  */
-extern void syms_of_fringe (void);
-extern void init_fringe (void);
-#ifdef HAVE_WINDOW_SYSTEM
-extern void mark_fringe_data (void);
-extern void init_fringe_once (void);
-#endif /* HAVE_WINDOW_SYSTEM */
-
 /* Defined in alloc.c.  */
 extern void *my_heap_start (void);
 extern void check_pure_size (void);

@@ -3382,8 +3382,6 @@ extern void init_coding (void);
 extern void init_coding_once (void);
 extern void syms_of_coding (void);
 
-#if 0
-
 /* Defined in character.c.  */
 extern ptrdiff_t chars_in_text (const unsigned char *, ptrdiff_t);
 extern ptrdiff_t multibyte_chars_in_text (const unsigned char *, ptrdiff_t);
@@ -3448,8 +3446,6 @@ extern void init_fringe (void);
 extern void mark_fringe_data (void);
 extern void init_fringe_once (void);
 #endif /* HAVE_WINDOW_SYSTEM */
-
-#endif
 
 /* Defined in image.c.  */
 extern int x_bitmap_mask (struct frame *, ptrdiff_t);
