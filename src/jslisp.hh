@@ -1259,67 +1259,6 @@ list4i (EMACS_INT x, EMACS_INT y, EMACS_INT w, EMACS_INT h)
                 LRH (make_fixnum (w)), LRH (make_fixnum (h)));
 }
 
-extern struct Lisp_Vector *allocate_pseudovector (int, int, int,
-                                                  enum pvec_type);
-
-/* Allocate partially initialized pseudovector where all Lisp_Object
-   slots are set to Qnil but the rest (if any) is left uninitialized.  */
-
-#define ALLOCATE_PSEUDOVECTOR(type, field, tag)			       \
-  ((type *) allocate_pseudovector (VECSIZE (type),		       \
-                                   PSEUDOVECSIZE (type, field),	       \
-                                   PSEUDOVECSIZE (type, field), tag))
-
-/* Allocate fully initialized pseudovector where all Lisp_Object
-   slots are set to Qnil and the rest (if any) is zeroed.  */
-
-#define ALLOCATE_ZEROED_PSEUDOVECTOR(type, field, tag)		       \
-  ((type *) allocate_pseudovector (VECSIZE (type),		       \
-                                   PSEUDOVECSIZE (type, field),	       \
-                                   VECSIZE (type), tag))
-
-extern bool gc_in_progress;
-extern ELisp_Return_Value make_float (double);
-extern void display_malloc_warning (void);
-extern ptrdiff_t inhibit_garbage_collection (void);
-extern ELisp_Return_Value make_save_int_int_int (ptrdiff_t, ptrdiff_t, ptrdiff_t);
-extern ELisp_Return_Value make_save_obj_obj_obj_obj (ELisp_Handle, ELisp_Handle,
-                                              ELisp_Handle, ELisp_Handle);
-extern ELisp_Return_Value make_save_ptr (void *);
-extern ELisp_Return_Value make_save_ptr_int (void *, ptrdiff_t);
-extern ELisp_Return_Value make_save_ptr_ptr (void *, void *);
-extern ELisp_Return_Value make_save_funcptr_ptr_obj (void (*) (void), void *,
-                                              ELisp_Handle);
-extern ELisp_Return_Value make_save_memory (ELisp_Pointer, ptrdiff_t);
-extern void free_save_value (ELisp_Handle);
-extern ELisp_Return_Value build_overlay (ELisp_Handle, ELisp_Handle, ELisp_Handle);
-extern void free_marker (ELisp_Handle);
-extern void free_cons (struct Lisp_Cons *);
-extern void init_alloc_once (void);
-extern void init_alloc (void);
-extern void syms_of_alloc (void);
-extern struct buffer * allocate_buffer (void);
-extern int valid_lisp_object_p (ELisp_Handle);
-#ifdef GC_CHECK_CONS_LIST
-extern void check_cons_list (void);
-#else
-INLINE void (check_cons_list) (void) { lisp_h_check_cons_list (); }
-#endif
-
-INLINE _Noreturn void
-xsignal (ELisp_Handle error_symbol, ELisp_Handle data)
-{
-  Fsignal (error_symbol, data);
-}
-extern _Noreturn void xsignal0 (ELisp_Handle);
-extern _Noreturn void xsignal1 (ELisp_Handle, ELisp_Handle);
-extern _Noreturn void xsignal2 (ELisp_Handle, ELisp_Handle, ELisp_Handle);
-extern _Noreturn void xsignal3 (ELisp_Handle, ELisp_Handle, ELisp_Handle,
-                                ELisp_Handle);
-extern _Noreturn void signal_error (const char *, ELisp_Handle);
-extern bool FUNCTIONP (ELisp_Handle);
-extern ELisp_Return_Value funcall_subr (struct Lisp_Subr *subr, ELisp_Vector_Handle arg_vector);
-
 INLINE_HEADER_END
 
 #endif /* JSLISP_HH_SECTION_N */

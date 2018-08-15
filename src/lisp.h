@@ -3806,8 +3806,6 @@ make_uninit_sub_char_table (int depth, int min_char)
   return v;
 }
 
-#if 0
-
 extern struct Lisp_Vector *allocate_pseudovector (int, int, int,
 						  enum pvec_type);
 
@@ -3837,14 +3835,14 @@ extern void init_alloc_once (void);
 extern void init_alloc (void);
 extern void syms_of_alloc (void);
 extern struct buffer * allocate_buffer (void);
-extern int valid_lisp_object_p (Lisp_Object);
+
+extern int valid_lisp_object_p (ELisp_Handle);
+
 #ifdef GC_CHECK_CONS_LIST
 extern void check_cons_list (void);
 #else
 INLINE void (check_cons_list) (void) { lisp_h_check_cons_list (); }
 #endif
-
-#endif /* 0 */
 
 /* Defined in gmalloc.c.  */
 #if !defined DOUG_LEA_MALLOC && !defined HYBRID_MALLOC && !defined SYSTEM_MALLOC
@@ -3961,7 +3959,6 @@ extern Lisp_Object run_hook_with_args (ptrdiff_t nargs, Lisp_Object *args,
 				       Lisp_Object (*funcall)
 				       (ptrdiff_t nargs, Lisp_Object *args));
 extern Lisp_Object quit (void);
-#if 0
 INLINE _Noreturn void
 xsignal (Lisp_Object error_symbol, Lisp_Object data)
 {
@@ -3975,7 +3972,6 @@ extern _Noreturn void xsignal3 (Lisp_Object, Lisp_Object, Lisp_Object,
 extern _Noreturn void signal_error (const char *, Lisp_Object);
 extern bool FUNCTIONP (Lisp_Object);
 extern Lisp_Object funcall_subr (struct Lisp_Subr *subr, ptrdiff_t numargs, Lisp_Object *arg_vector);
-#endif
 extern Lisp_Object eval_sub (Lisp_Object form);
 extern Lisp_Object apply1 (Lisp_Object, Lisp_Object);
 extern Lisp_Object call0 (Lisp_Object);
