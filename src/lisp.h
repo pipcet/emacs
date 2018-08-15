@@ -3186,31 +3186,26 @@ rarely_quit (unsigned short int count)
 extern Lisp_Object Vascii_downcase_table;
 extern Lisp_Object Vascii_canon_table;
 
-#if 0
 /* Call staticpro (&var) to protect static variable `var'.  */
 
-void staticpro_1 (Lisp_Object *);
+void staticpro_1 (ELisp_Pointer);
 
 INLINE void
-staticpro (Lisp_Object *ptr, Lisp_Object initial_value)
+staticpro (ELisp_Pointer ptr, ELisp_Handle initial_value)
 {
-  eassume (*ptr == Qnil);
-#if 4 < __GNUC__
-  if (__builtin_constant_p(initial_value == Qnil) &&
-      initial_value == Qnil)
-    ;
-  else
-#endif
-    *ptr = initial_value;
+  ELisp_Value v; v = ptr.ref(0);
+  if (! v.v.v.isUndefined() && ! NILP (v))
+    while (1);
+  ptr.set(initial_value);
 
   staticpro_1 (ptr);
 }
-
 
 /* Forward declarations for prototypes.  */
 struct window;
 struct frame;
 
+#if 0
 /* Copy COUNT Lisp_Objects from ARGS to contents of V starting from OFFSET.  */
 
 INLINE void
