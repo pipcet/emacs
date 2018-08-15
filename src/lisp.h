@@ -3157,6 +3157,7 @@ struct handler
   int poll_suppress_count;
   int interrupt_input_blocked;
 };
+#endif /* 0 */
 
 extern Lisp_Object memory_signal_data;
 
@@ -3176,7 +3177,6 @@ rarely_quit (unsigned short int count)
   if (! count)
     maybe_quit ();
 }
-#endif /* 0 */
 
 extern Lisp_Object Vascii_downcase_table;
 extern Lisp_Object Vascii_canon_table;

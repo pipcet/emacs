@@ -3954,25 +3954,6 @@ struct handler
   int poll_suppress_count;
   int interrupt_input_blocked;
 };
-
-extern ELisp_Heap_Value memory_signal_data;
-
-extern void maybe_quit (void);
-
-/* True if ought to quit now.  */
-
-#define QUITP (!NILP (Vquit_flag) && NILP (Vinhibit_quit))
-
-/* Process a quit rarely, based on a counter COUNT, for efficiency.
-   "Rarely" means once per USHRT_MAX + 1 times; this is somewhat
-   arbitrary, but efficient.  */
-
-INLINE void
-rarely_quit (unsigned short int count)
-{
-  if (! count)
-    maybe_quit ();
-}
 
 extern ELisp_Heap_Value Vascii_downcase_table;
 extern ELisp_Heap_Value Vascii_canon_table;
