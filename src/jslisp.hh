@@ -1035,46 +1035,6 @@ enum
       = (FLT_RADIX == 2 && FLT_MANT_DIG == 24
          && FLT_MIN_EXP == -125 && FLT_MAX_EXP == 128)
   };
-
-/* A character, declared with the following typedef, is a member
-   of some character set associated with the current buffer.  */
-#ifndef _UCHAR_T  /* Protect against something in ctab.h on AIX.  */
-#define _UCHAR_T
-typedef unsigned char UCHAR;
-#endif
-
-/* Meanings of slots in a Lisp_Compiled:  */
-
-enum Lisp_Compiled
-  {
-    COMPILED_ARGLIST = 0,
-    COMPILED_BYTECODE = 1,
-    COMPILED_CONSTANTS = 2,
-    COMPILED_STACK_DEPTH = 3,
-    COMPILED_DOC_STRING = 4,
-    COMPILED_INTERACTIVE = 5
-  };
-
-/* Flag bits in a character.  These also get used in termhooks.h.
-   Richard Stallman <rms@gnu.ai.mit.edu> thinks that MULE
-   (MUlti-Lingual Emacs) might need 22 bits for the character value
-   itself, so we probably shouldn't use any bits lower than 0x0400000.  */
-enum char_bits
-  {
-    CHAR_ALT = 0x0400000,
-    CHAR_SUPER = 0x0800000,
-    CHAR_HYPER = 0x1000000,
-    CHAR_SHIFT = 0x2000000,
-    CHAR_CTL = 0x4000000,
-    CHAR_META = 0x8000000,
-
-    CHAR_MODIFIER_MASK =
-      CHAR_ALT | CHAR_SUPER | CHAR_HYPER | CHAR_SHIFT | CHAR_CTL | CHAR_META,
-
-    /* Actually, the current Emacs uses 22 bits for the character value
-       itself.  */
-    CHARACTERBITS = 22
-  };
 
 /* Data type checking.  */
 
