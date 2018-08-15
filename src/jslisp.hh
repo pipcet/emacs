@@ -2143,12 +2143,12 @@ CDR_SAFE (ELisp_Handle c)
 
 /* In a string or vector, the sign bit of the `size' is the gc mark bit.  */
 
-extern bool js_stringp(ELisp_Handle x);
+extern bool elisp_stringp(ELisp_Handle x);
 
 INLINE bool
 STRINGP (ELisp_Handle x)
 {
-  return js_stringp(x);
+  return elisp_stringp(x);
 }
 
 INLINE void
@@ -2157,20 +2157,20 @@ CHECK_STRING (ELisp_Handle x)
   CHECK_TYPE (STRINGP (x), LSH (Qstringp), x);
 }
 
-extern ELisp_Return_Value js_fixbuf(void *buf, ptrdiff_t size);
-extern ELisp_Return_Value js_mbstring(ELisp_Handle fixbuf, ptrdiff_t size_byte, ptrdiff_t size);
-extern ELisp_Return_Value js_string(ELisp_Handle mbstring, INTERVAL);
+extern ELisp_Return_Value elisp_fixbuf(void *buf, ptrdiff_t size);
+extern ELisp_Return_Value elisp_mbstring(ELisp_Handle fixbuf, ptrdiff_t size_byte, ptrdiff_t size);
+extern ELisp_Return_Value elisp_string(ELisp_Handle mbstring, INTERVAL);
 
-extern ptrdiff_t js_string_size(ELisp_Handle x);
-extern ptrdiff_t js_string_size_byte(ELisp_Handle x);
-extern void js_string_set_size(ELisp_Handle x, ptrdiff_t);
-extern void js_string_set_size_byte(ELisp_Handle x, ptrdiff_t);
+extern ptrdiff_t elisp_string_size(ELisp_Handle x);
+extern ptrdiff_t elisp_string_size_byte(ELisp_Handle x);
+extern void elisp_string_set_size(ELisp_Handle x, ptrdiff_t);
+extern void elisp_string_set_size_byte(ELisp_Handle x, ptrdiff_t);
 
 /* True if STR is a multibyte string.  */
 INLINE bool
 STRING_MULTIBYTE (ELisp_Handle str)
 {
-  return 0 <= js_string_size_byte (str);
+  return 0 <= elisp_string_size_byte (str);
 }
 
 /* An upper bound on the number of bytes in a Lisp string, not
@@ -2192,35 +2192,35 @@ STRING_MULTIBYTE (ELisp_Handle str)
 /* Mark STR as a unibyte string.  */
 #define STRING_SET_UNIBYTE(STR)				\
   do {							\
-    if (js_string_size(STR) == 0)                       \
+    if (elisp_string_size(STR) == 0)                       \
       (STR) = empty_unibyte_string;			\
     else						\
-      js_string_set_size_byte(STR, -1);                 \
+      elisp_string_set_size_byte(STR, -1);                 \
   } while (false)
 
 /* Mark STR as a multibyte string.  Assure that STR contains only
    ASCII characters in advance.  */
 #define STRING_SET_MULTIBYTE(STR)                               \
   do {                                                          \
-      if (js_string_size(STR) == 0)                             \
+      if (elisp_string_size(STR) == 0)                             \
         (STR) = empty_multibyte_string;                         \
       else                                                      \
-        js_string_set_size_byte(STR, js_string_size(STR));	\
+        elisp_string_set_size_byte(STR, elisp_string_size(STR));	\
   } while (false)
 
 /* Convenience functions for dealing with Lisp strings.  */
 
-extern void *js_string_data(ELisp_Handle);
+extern void *elisp_string_data(ELisp_Handle);
 INLINE unsigned char *
 SDATA (ELisp_Handle string)
 {
-  return (unsigned char *)js_string_data (string);
+  return (unsigned char *)elisp_string_data (string);
 }
 INLINE char *
 SSDATA (ELisp_Handle string)
 {
   /* Avoid "differ in sign" warnings.  */
-  return (char *)js_string_data (string);
+  return (char *)elisp_string_data (string);
 }
 INLINE unsigned char
 SREF (ELisp_Handle string, ptrdiff_t index)
@@ -2235,21 +2235,21 @@ SSET (ELisp_Handle string, ptrdiff_t index, unsigned char c_new)
 INLINE ptrdiff_t
 SCHARS (ELisp_Handle string)
 {
-  ptrdiff_t nchars = js_string_size (string);
+  ptrdiff_t nchars = elisp_string_size (string);
   eassume (0 <= nchars);
   return nchars;
 }
 
-extern ptrdiff_t js_string_bytes(ELisp_Handle);
-extern ptrdiff_t js_string_chars(ELisp_Handle);
+extern ptrdiff_t elisp_string_bytes(ELisp_Handle);
+extern ptrdiff_t elisp_string_chars(ELisp_Handle);
 
 INLINE ptrdiff_t
 SBYTES (ELisp_Handle string)
 {
-  ptrdiff_t size_byte = js_string_size_byte(string);
+  ptrdiff_t size_byte = elisp_string_size_byte(string);
   if (size_byte < 0)
-    return js_string_size(string);
-  return js_string_size_byte(string);
+    return elisp_string_size(string);
+  return elisp_string_size_byte(string);
 }
 INLINE void
 STRING_SET_CHARS (ELisp_Handle string, ptrdiff_t newsize)
@@ -4226,21 +4226,21 @@ set_overlay_plist (ELisp_Handle overlay, ELisp_Handle plist)
 
 /* Get text properties of S.  */
 
-extern void *js_string_intervals (ELisp_Handle s);
+extern void *elisp_string_intervals (ELisp_Handle s);
 
 INLINE INTERVAL
 string_intervals (ELisp_Handle s)
 {
-  return (INTERVAL) js_string_intervals (s);
+  return (INTERVAL) elisp_string_intervals (s);
 }
 
 /* Set text properties of S to I.  */
 
-extern void js_set_string_intervals (ELisp_Handle s, void *i);
+extern void elisp_set_string_intervals (ELisp_Handle s, void *i);
 INLINE void
 set_string_intervals (ELisp_Handle s, INTERVAL i)
 {
-  js_set_string_intervals (s, (void *) i);
+  elisp_set_string_intervals (s, (void *) i);
 }
 
 /* Set a Lisp slot in TABLE to VAL.  Most code should use this instead

@@ -192,6 +192,7 @@ static int readbyte_from_string (int, Lisp_Object);
    These macros correctly read/unread multibyte characters.  */
 
 #define READCHAR readchar (readcharfun, NULL)
+//#define READCHAR ({ int c = readchar (readcharfun, NULL); printf("%c", c); c; })
 #define UNREAD(c) unreadchar (readcharfun, c)
 
 /* Same as READCHAR but set *MULTIBYTE to the multibyteness of the source.  */

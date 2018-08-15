@@ -1668,9 +1668,9 @@ make_uninit_multibyte_string (EMACS_INT nchars, EMACS_INT nbytes)
 {
   void *buf = xmalloc(nbytes + 1);
   memset(buf, 0, nbytes + 1);
-  Lisp_Object fixbuf = js_fixbuf(buf, nbytes + 1);
-  Lisp_Object mbstring = js_mbstring(fixbuf, nbytes, nchars);
-  Lisp_Object string = js_string(mbstring, NULL);
+  Lisp_Object fixbuf = elisp_fixbuf(buf, nbytes + 1);
+  Lisp_Object mbstring = elisp_mbstring(fixbuf, nbytes, nchars);
+  Lisp_Object string = elisp_string(mbstring, NULL);
 
   return string;
 }
@@ -1812,29 +1812,6 @@ DEFUN ("make-list", Fmake_list, Smake_list, 2, 2, 0,
 
 
 
-/***********************************************************************
-			   Vector Allocation
- ***********************************************************************/
-
-/* Sometimes a vector's contents are merely a pointer internally used
-   in vector allocation code.  On the rare platforms where a null
-   pointer cannot be tagged, represent it with a Lisp 0.
-   Usually you don't want to touch this.  */
-
-static struct Lisp_Vector *
-next_vector (struct Lisp_Vector *v)
-{
-  return (struct Lisp_Vector *)v->contents[0].xvector();
-}
-
-static void
-set_next_vector (struct Lisp_Vector *v, struct Lisp_Vector *p)
-{
-  ELisp_Value c;
-  c.xsetvector(p);
-  v->contents[0] = c;
-}
-
 /* This value is balanced well enough to avoid too much internal overhead
    for the most common cases; it's not required to be a power of two, but
    it's expected to be a mult-of-ROUNDUP_SIZE (see below).  */
@@ -3559,9 +3536,9 @@ make_pure_string (const char *data,
   memcpy (newbuf, data, nbytes);
   newbuf[nbytes] = '\0';
 
-  Lisp_Object fixbuf = js_fixbuf(newbuf, nbytes + 1);
-  Lisp_Object mbstring = js_mbstring(fixbuf, multibyte ? nbytes : -1, nchars);
-  Lisp_Object string = js_string(mbstring, NULL);
+  Lisp_Object fixbuf = elisp_fixbuf(newbuf, nbytes + 1);
+  Lisp_Object mbstring = elisp_mbstring(fixbuf, multibyte ? nbytes : -1, nchars);
+  Lisp_Object string = elisp_string(mbstring, NULL);
 
   return string;
 }
@@ -3572,9 +3549,9 @@ make_pure_string (const char *data,
 Lisp_Object
 make_pure_c_string (const char *data, ptrdiff_t nchars)
 {
-  Lisp_Object fixbuf = js_fixbuf((char *)data, nchars + 1);
-  Lisp_Object mbstring = js_mbstring(fixbuf, -1, nchars);
-  Lisp_Object string = js_string(mbstring, NULL);
+  Lisp_Object fixbuf = elisp_fixbuf((char *)data, nchars + 1);
+  Lisp_Object mbstring = elisp_mbstring(fixbuf, -1, nchars);
+  Lisp_Object string = elisp_string(mbstring, NULL);
 
   return string;
 }
