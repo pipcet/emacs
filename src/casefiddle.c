@@ -132,9 +132,9 @@ case_character_impl (struct casing_str_buf *buf,
         {
           if (SBYTES (prop) <= sizeof buf->data)
 	    {
-	      buf->len_chars = js_string_size (prop);
+	      buf->len_chars = elisp_string_size (prop);
 	      buf->len_bytes = SBYTES (prop);
-	      memcpy (buf->data, js_string_data (prop), buf->len_bytes);
+	      memcpy (buf->data, elisp_string_data (prop), buf->len_bytes);
 	      return 1;
 	    }
         }

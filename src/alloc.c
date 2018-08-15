@@ -1668,9 +1668,9 @@ make_uninit_multibyte_string (EMACS_INT nchars, EMACS_INT nbytes)
 {
   void *buf = xmalloc(nbytes + 1);
   memset(buf, 0, nbytes + 1);
-  Lisp_Object fixbuf = js_fixbuf(buf, nbytes + 1);
-  Lisp_Object mbstring = js_mbstring(fixbuf, nbytes, nchars);
-  Lisp_Object string = js_string(mbstring, NULL);
+  Lisp_Object fixbuf = elisp_fixbuf(buf, nbytes + 1);
+  Lisp_Object mbstring = elisp_mbstring(fixbuf, nbytes, nchars);
+  Lisp_Object string = elisp_string(mbstring, NULL);
 
   return string;
 }
@@ -3536,9 +3536,9 @@ make_pure_string (const char *data,
   memcpy (newbuf, data, nbytes);
   newbuf[nbytes] = '\0';
 
-  Lisp_Object fixbuf = js_fixbuf(newbuf, nbytes + 1);
-  Lisp_Object mbstring = js_mbstring(fixbuf, multibyte ? nbytes : -1, nchars);
-  Lisp_Object string = js_string(mbstring, NULL);
+  Lisp_Object fixbuf = elisp_fixbuf(newbuf, nbytes + 1);
+  Lisp_Object mbstring = elisp_mbstring(fixbuf, multibyte ? nbytes : -1, nchars);
+  Lisp_Object string = elisp_string(mbstring, NULL);
 
   return string;
 }
@@ -3549,9 +3549,9 @@ make_pure_string (const char *data,
 Lisp_Object
 make_pure_c_string (const char *data, ptrdiff_t nchars)
 {
-  Lisp_Object fixbuf = js_fixbuf((char *)data, nchars + 1);
-  Lisp_Object mbstring = js_mbstring(fixbuf, -1, nchars);
-  Lisp_Object string = js_string(mbstring, NULL);
+  Lisp_Object fixbuf = elisp_fixbuf((char *)data, nchars + 1);
+  Lisp_Object mbstring = elisp_mbstring(fixbuf, -1, nchars);
+  Lisp_Object string = elisp_string(mbstring, NULL);
 
   return string;
 }
