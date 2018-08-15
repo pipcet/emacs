@@ -311,7 +311,6 @@ DEFINE_GDB_SYMBOL_END (VALMASK)
 #define lisp_h_SYMBOL_VAL(sym) \
    (elisp_symbol_value (sym))
 #define lisp_h_SYMBOLP(x) (XTYPE (x) == Lisp_Symbol)
-#define lisp_h_XHASH(a) XUINT (a)
 #ifndef GC_CHECK_CONS_LIST
 # define lisp_h_check_cons_list() ((void) 0)
 #endif
