@@ -3449,6 +3449,8 @@ extern void mark_fringe_data (void);
 extern void init_fringe_once (void);
 #endif /* HAVE_WINDOW_SYSTEM */
 
+#endif
+
 /* Defined in image.c.  */
 extern int x_bitmap_mask (struct frame *, ptrdiff_t);
 extern void reset_image_types (void);
@@ -3517,7 +3519,7 @@ extern Lisp_Object sit_for (Lisp_Object, bool, int);
 
 /* Defined in xdisp.c.  */
 extern bool noninteractive_need_newline;
-extern Lisp_Object echo_area_buffer[2];
+extern ELisp_Struct_Value echo_area_buffer[2];
 extern void add_to_log (char const *, ...);
 extern void vadd_to_log (char const *, va_list);
 extern void check_message_stack (void);
@@ -3556,6 +3558,8 @@ extern void memory_warnings (void *, void (*warnfun) (const char *));
 /* Defined in character.c.  */
 extern void parse_str_as_multibyte (const unsigned char *, ptrdiff_t,
 				    ptrdiff_t *, ptrdiff_t *);
+
+#if 0
 
 /* Defined in alloc.c.  */
 extern void *my_heap_start (void);
