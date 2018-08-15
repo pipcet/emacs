@@ -52,7 +52,6 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 
 INLINE_HEADER_BEGIN
 
-#if 0
 /* Define a TYPE constant ID as an externally visible name.  Use like this:
 
       DEFINE_GDB_SYMBOL_BEGIN (TYPE, ID)
@@ -77,8 +76,11 @@ INLINE_HEADER_BEGIN
 #undef max
 #define max(a, b) ((a) > (b) ? (a) : (b))
 #define min(a, b) ((a) < (b) ? (a) : (b))
+#undef c_min
+#undef c_max
+#define c_max(a, b) ((a) > (b) ? (a) : (b))
+#define c_min(a, b) ((a) < (b) ? (a) : (b))
 
-#endif
 /* Number of elements in an array.  */
 #define ARRAYELTS(arr) (sizeof (arr) / sizeof (arr)[0])
 
@@ -609,8 +611,6 @@ extern void char_table_set (Lisp_Object, int, Lisp_Object);
 /* Defined in data.c.  */
 extern _Noreturn void wrong_type_argument (Lisp_Object, Lisp_Object);
 
-#if 0
-
 #ifdef CANNOT_DUMP
 enum { might_dump = false };
 #elif defined DOUG_LEA_MALLOC
@@ -623,6 +623,8 @@ extern bool initialized;
 
 /* Defined in floatfns.c.  */
 extern double extract_float (Lisp_Object);
+
+#if 0
 
 
 /* Low-level conversion and type checking.  */
@@ -665,8 +667,6 @@ INLINE enum Lisp_Type
   return a.xtype();
 }
 
-#if 0
-
 INLINE void
 (CHECK_TYPE) (int ok, Lisp_Object predicate, Lisp_Object x)
 {
@@ -703,6 +703,36 @@ enum symbol_trapped_write
   SYMBOL_TRAPPED_WRITE = 2
 };
 
+union Lisp_Symbol_Flags
+{
+  struct
+  {
+    /* Indicates where the value can be found:
+       0 : it's a plain var, the value is in the `value' field.
+       1 : it's a varalias, the value is really in the `alias' symbol.
+       2 : it's a localized var, the value is in the `blv' object.
+       3 : it's a forwarding variable, the value is in `forward'.  */
+    ENUM_BF (symbol_redirect) redirect : 3;
+
+    /* 0 : normal case, just set the value
+       1 : constant, cannot set, e.g. nil, t, :keywords.
+       2 : trap the write, call watcher functions.  */
+    ENUM_BF (symbol_trapped_write) trapped_write : 2;
+
+    /* Interned state of the symbol.  This is an enumerator from
+       enum symbol_interned.  */
+    unsigned interned : 2;
+
+    /* True means that this variable has been explicitly declared
+       special (with `defvar' etc), and shouldn't be lexically bound.  */
+    bool_bf declared_special : 1;
+
+    /* True if pointed to from purespace and hence can't be GC'd.  */
+    bool_bf pinned : 1;
+  } s;
+  int32_t i;
+};
+
 struct Lisp_Symbol
 {
   union
@@ -735,32 +765,29 @@ struct Lisp_Symbol
       bool_bf pinned : 1;
 
       /* The symbol's name, as a Lisp string.  */
-      Lisp_Object name;
+      ELisp_Struct_Value name;
 
       /* Value of the symbol or Qunbound if unbound.  Which alternative of the
 	 union is used depends on the `redirect' field above.  */
-      union {
-	Lisp_Object value;
+      struct {
+	ELisp_Struct_Value value;
 	struct Lisp_Symbol *alias;
 	struct Lisp_Buffer_Local_Value *blv;
 	union Lisp_Fwd *fwd;
       } val;
 
       /* Function value of the symbol or Qnil if not fboundp.  */
-      Lisp_Object function;
+      ELisp_Struct_Value function;
 
       /* The symbol's property list.  */
-      Lisp_Object plist;
+      ELisp_Struct_Value plist;
 
       /* Next symbol in obarray bucket, if the symbol is interned.  */
       struct Lisp_Symbol *next;
     } s;
-    GCALIGNED_UNION
   } u;
 };
 verify (alignof (struct Lisp_Symbol) % GCALIGNMENT == 0);
-
-#endif /* 0 */
 
 /* Declare a Lisp-callable function.  The MAXARGS parameter has the same
    meaning as in the DEFUN macro, and is used to construct a prototype.  */

@@ -269,117 +269,9 @@ enum Lisp_Fwd_Type
 #include "jslisp-vectors.hh"
 #elif defined (JSLISP_HH_SECTION_3)
 #undef JSLISP_HH_SECTION_3
-/* Forward declarations.  */
-
-/* Defined in this file.  */
-INLINE void set_sub_char_table_contents (ELisp_Handle, ptrdiff_t,
-                                              ELisp_Handle);
-
-/* Defined in chartab.c.  */
-extern ELisp_Return_Value char_table_ref (ELisp_Handle, int);
-extern void char_table_set (ELisp_Handle, int, ELisp_Handle);
-
-#ifdef CANNOT_DUMP
-enum { smight_dump = false };
-#elif defined DOUG_LEA_MALLOC
-/* Defined in emacs.c.  */
-extern bool might_dump;
-#endif
-/* True means Emacs has already been initialized.
-   Used during startup to detect startup of dumped Emacs.  */
-extern bool initialized;
-
-/* Defined in floatfns.c.  */
-extern double extract_float (ELisp_Handle);
-
-
 #elif defined (JSLISP_HH_SECTION_4)
 #undef JSLISP_HH_SECTION_4
 /* Interned state of a symbol.  */
-
-enum symbol_interned
-{
-  SYMBOL_UNINTERNED = 0,
-  SYMBOL_INTERNED = 1,
-  SYMBOL_INTERNED_IN_INITIAL_OBARRAY = 2
-};
-
-enum symbol_redirect
-{
-  SYMBOL_PLAINVAL  = 4,
-  SYMBOL_VARALIAS  = 1,
-  SYMBOL_LOCALIZED = 2,
-  SYMBOL_FORWARDED = 3
-};
-
-enum symbol_trapped_write
-{
-  SYMBOL_UNTRAPPED_WRITE = 0,
-  SYMBOL_NOWRITE = 1,
-  SYMBOL_TRAPPED_WRITE = 2
-};
-
-union Lisp_Symbol_Flags
-{
-  struct
-  {
-    /* Indicates where the value can be found:
-       0 : it's a plain var, the value is in the `value' field.
-       1 : it's a varalias, the value is really in the `alias' symbol.
-       2 : it's a localized var, the value is in the `blv' object.
-       3 : it's a forwarding variable, the value is in `forward'.  */
-    ENUM_BF (symbol_redirect) redirect : 3;
-
-    /* 0 : normal case, just set the value
-       1 : constant, cannot set, e.g. nil, t, :keywords.
-       2 : trap the write, call watcher functions.  */
-    ENUM_BF (symbol_trapped_write) trapped_write : 2;
-
-    /* Interned state of the symbol.  This is an enumerator from
-       enum symbol_interned.  */
-    unsigned interned : 2;
-
-    /* True means that this variable has been explicitly declared
-       special (with `defvar' etc), and shouldn't be lexically bound.  */
-    bool_bf declared_special : 1;
-
-    /* True if pointed to from purespace and hence can't be GC'd.  */
-    bool_bf pinned : 1;
-  } s;
-  int32_t i;
-};
-
-#define EXFUN(fnname, maxargs) \
-  extern ELisp_Return_Value fnname DEFUN_ARGS_ ## maxargs
-
-#define DEFUN_ARGS_MANY		(ELisp_Vector_Handle)
-#define DEFUN_ARGS_UNEVALLED	(ELisp_Handle)
-#define DEFUN_ARGS_0	(void)
-#define DEFUN_ARGS_1	(ELisp_Handle)
-#define DEFUN_ARGS_2	(ELisp_Handle, ELisp_Handle)
-#define DEFUN_ARGS_3	(ELisp_Handle, ELisp_Handle, ELisp_Handle)
-#define DEFUN_ARGS_4	(ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle)
-#define DEFUN_ARGS_5	(ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle, \
-                         ELisp_Handle)
-#define DEFUN_ARGS_6	(ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle, \
-                         ELisp_Handle, ELisp_Handle)
-#define DEFUN_ARGS_7	(ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle, \
-                         ELisp_Handle, ELisp_Handle, ELisp_Handle)
-#define DEFUN_ARGS_8	(ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle, \
-                         ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle)
-
-#define TAG_PTR(tag, ptr) \
-  (USE_LSB_TAG \
-   ? (intptr_t) (ptr) + (tag) \
-   : (EMACS_INT) (((EMACS_UINT) (tag) << VALBITS) + (uintptr_t) (ptr)))
-
-#define DEFINE_LISP_SYMBOL(name) \
-  DEFINE_GDB_SYMBOL_BEGIN (ELisp_Struct_Value, name) \
-  DEFINE_GDB_SYMBOL_END (LISPSYM_INITIALLY (name))
-
-#define SYMBOL_INDEX(sym) i##sym
-
-#define TAG_SYMOFFSET(offset) TAG_PTR (Lisp_Symbol, offset)
 
 extern ELisp_Return_Value elisp_symbol_value(ELisp_Handle a);
 extern void elisp_symbol_set_value(ELisp_Handle a, ELisp_Handle b);
@@ -431,8 +323,6 @@ XSYMBOL_NEXT_SET (ELisp_Handle a, ELisp_Handle b)
 {
   elisp_symbol_set_next(a, b);
 }
-
-extern const int chartab_size[4];
 
 #include "thread.h.hh"
 
