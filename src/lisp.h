@@ -2653,7 +2653,7 @@ XFLOAT_DATA (Lisp_Object f)
    all the features of C11 Annex F (and does not require C11 at all,
    for that matter).  */
 
-#define IEEE_FLOATING_POINT (FLT_RADIX == 2 && FLT_MANT_DIG == 24 \
+#define IEEE_FLOATING_POINT (0 && FLT_RADIX == 2 && FLT_MANT_DIG == 24 \
 			     && FLT_MIN_EXP == -125 && FLT_MAX_EXP == 128)
 
 /* A character, declared with the following typedef, is a member
