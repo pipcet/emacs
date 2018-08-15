@@ -2604,7 +2604,7 @@ get_lisp_to_sockaddr_size (Lisp_Object address, int *familyp)
       return sizeof (struct sockaddr_un);
     }
 #endif
-  else if (CONSP (address) && TYPE_RANGED_FIXNUMP (int, XCAR (address))
+  else if (CONSP (address) && TYPE_RANGED_FIXNUMP (int, LRH (XCAR (address)))
 	   && VECTORP (XCDR (address)))
     {
       struct sockaddr *sa;

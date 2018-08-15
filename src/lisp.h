@@ -4734,9 +4734,6 @@ safe_free_unbind_to (ptrdiff_t count, ptrdiff_t sa_count, Lisp_Object val)
       {                                                            \
         ELisp_Value arg_;                                          \
         (buf) = ptr = (typeof ptr)xmalloc (alloca_nbytes);         \
-        arg_ = make_save_memory (ptr, nelt);                       \
-        sa_must_free = true;                                       \
-        record_unwind_protect (free_save_value, arg_);             \
       }                                                            \
   } while (false)
 
