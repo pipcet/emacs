@@ -2321,8 +2321,6 @@ struct Lisp_Overlay
     struct Lisp_Overlay *next;
   };
 
-#if 0
-
 struct Lisp_Misc_Ptr
   {
     union vectorlike_header header;
@@ -2330,6 +2328,8 @@ struct Lisp_Misc_Ptr
   };
 
 extern Lisp_Object make_misc_ptr (void *);
+
+#if 0
 
 /* A mint_ptr object OBJ represents a C-language pointer P efficiently.
    Preferably (and typically), OBJ is a Lisp integer I such that
