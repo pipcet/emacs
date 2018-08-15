@@ -4796,5 +4796,11 @@ INLINE_HEADER_END
 
 #define JSLISP_HH_SECTION_2
 #include "jslisp.hh"
+#define JSLISP_HH_SECTION_3
+#include "jslisp.hh"
+#define JSLISP_HH_SECTION_4
+#include "jslisp.hh"
+#define JSLISP_HH_SECTION_5
+#include "jslisp.hh"
 
 #endif /* EMACS_LISP_H */

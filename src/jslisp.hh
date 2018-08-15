@@ -1495,6 +1495,9 @@ public:
 #define ELisp_Array(symbol, n) ELisp_Value symbol ## _arr[(n)] = { }; struct ELisp_Vector symbol = { (n), symbol ## _arr }
 #define ELisp_Array_Imm(symbol, ...) ELisp_Struct_Value symbol ## _arr[] = { __VA_ARGS__ }; struct ELisp_Vector symbol = { ARRAYELTS(symbol ## _arr), symbol ## _arr }
 
+
+#elif defined (JSLISP_HH_SECTION_3)
+#undef JSLISP_HH_SECTION_3
 /* Forward declarations.  */
 
 /* Defined in this file.  */
@@ -1519,6 +1522,8 @@ extern bool initialized;
 extern double extract_float (ELisp_Handle);
 
 
+#elif defined (JSLISP_HH_SECTION_4)
+#undef JSLISP_HH_SECTION_4
 /* Interned state of a symbol.  */
 
 enum symbol_interned
