@@ -1417,6 +1417,10 @@ typedef Lisp_Value_Handle ELisp_Handle;
 typedef Lisp_Value_Heap ELisp_Heap_Value;
 typedef Lisp_Value_Heap ELisp_Struct_Value;
 typedef Lisp_Value_Stack ELisp_Value;
+struct ELisp_Vector { ptrdiff_t n; ELisp_Pointer vec;};
+
+typedef struct ELisp_Vector ELisp_Vector_Handle;
+
 #elif defined (JSLISP_HH_SECTION_2)
 #undef JSLISP_HH_SECTION_2
 //extern void jsprint(Lisp_Object *x);
@@ -1489,10 +1493,6 @@ public:
 };
 
 EXTERN_C
-struct ELisp_Vector { ptrdiff_t n; ELisp_Pointer vec;};
-
-typedef struct ELisp_Vector ELisp_Vector_Handle;
-
 #define ELisp_Array(symbol, n) ELisp_Value symbol ## _arr[(n)] = { }; struct ELisp_Vector symbol = { (n), symbol ## _arr }
 #define ELisp_Array_Imm(symbol, ...) ELisp_Struct_Value symbol ## _arr[] = { __VA_ARGS__ }; struct ELisp_Vector symbol = { ARRAYELTS(symbol ## _arr), symbol ## _arr }
 
@@ -1505,10 +1505,6 @@ INLINE void set_sub_char_table_contents (ELisp_Handle, ptrdiff_t,
 /* Defined in chartab.c.  */
 extern ELisp_Return_Value char_table_ref (ELisp_Handle, int);
 extern void char_table_set (ELisp_Handle, int, ELisp_Handle);
-
-/* Defined in data.c.  */
-extern _Noreturn void wrong_type_argument (ELisp_Handle, ELisp_Handle);
-
 
 #ifdef CANNOT_DUMP
 enum { smight_dump = false };
@@ -1648,10 +1644,6 @@ lispsym_initially (ELisp_Struct_Value *sym)
   return v;
 }
 
-/* LISPSYM_INITIALLY (Qfoo) is equivalent to Qfoo except it is
-   designed for use as an initializer, even for a constant initializer.  */
-#define LISPSYM_INITIALLY(name) lispsym_initially(&lispsym[i##name])
-
 /* By default, define macros for Qt, etc., as this leads to a bit
    better performance in the core Emacs interpreter.  A plugin can
    define DEFINE_NON_NIL_Q_SYMBOL_MACROS to be false, to be portable to
@@ -1659,22 +1651,6 @@ lispsym_initially (ELisp_Struct_Value *sym)
 #ifndef DEFINE_NON_NIL_Q_SYMBOL_MACROS
 # define DEFINE_NON_NIL_Q_SYMBOL_MACROS true
 #endif
-
-extern ELisp_Struct_Value lispsym[1221];
-
-INLINE ELisp_Return_Value
-make_lisp_symbol (ELisp_Handle sym)
-{
-  return sym;
-}
-
-INLINE ELisp_Return_Value
-builtin_lisp_symbol (int index)
-{
-  return lispsym[index];
-}
-
-#include "globals.h.hh"
 
 /* Header of vector-like objects.  This documents the layout constraints on
    vectors and pseudovectors (objects of PVEC_xxx subtype).  It also prevents
@@ -2054,8 +2030,6 @@ INLINE bool
 
 /* See the macros in intervals.h.  */
 
-typedef struct interval *INTERVAL;
-
 INLINE bool
 NILP (ELisp_Handle x)
 {
@@ -2139,127 +2113,6 @@ INLINE ELisp_Return_Value
 CDR_SAFE (ELisp_Handle c)
 {
   return CONSP (c)? ELisp_Return_Value(XCDR (c)): ELisp_Return_Value(Qnil);
-}
-
-/* In a string or vector, the sign bit of the `size' is the gc mark bit.  */
-
-extern bool elisp_stringp(ELisp_Handle x);
-
-INLINE bool
-STRINGP (ELisp_Handle x)
-{
-  return elisp_stringp(x);
-}
-
-INLINE void
-CHECK_STRING (ELisp_Handle x)
-{
-  CHECK_TYPE (STRINGP (x), LSH (Qstringp), x);
-}
-
-extern ELisp_Return_Value elisp_fixbuf(void *buf, ptrdiff_t size);
-extern ELisp_Return_Value elisp_mbstring(ELisp_Handle fixbuf, ptrdiff_t size_byte, ptrdiff_t size);
-extern ELisp_Return_Value elisp_string(ELisp_Handle mbstring, INTERVAL);
-
-extern ptrdiff_t elisp_string_size(ELisp_Handle x);
-extern ptrdiff_t elisp_string_size_byte(ELisp_Handle x);
-extern void elisp_string_set_size(ELisp_Handle x, ptrdiff_t);
-extern void elisp_string_set_size_byte(ELisp_Handle x, ptrdiff_t);
-
-/* True if STR is a multibyte string.  */
-INLINE bool
-STRING_MULTIBYTE (ELisp_Handle str)
-{
-  return 0 <= elisp_string_size_byte (str);
-}
-
-/* An upper bound on the number of bytes in a Lisp string, not
-   counting the terminating null.  This a tight enough bound to
-   prevent integer overflow errors that would otherwise occur during
-   string size calculations.  A string cannot contain more bytes than
-   a fixnum can represent, nor can it be so long that C pointer
-   arithmetic stops working on the string plus its terminating null.
-   Although the actual size limit (see STRING_BYTES_MAX in alloc.c)
-   may be a bit smaller than STRING_BYTES_BOUND, calculating it here
-   would expose alloc.c internal details that we'd rather keep
-   private.
-
-   This is a macro for use in static initializers.  The cast to
-   ptrdiff_t ensures that the macro is signed.  */
-#define STRING_BYTES_BOUND  \
-  ((ptrdiff_t) c_min (MOST_POSITIVE_FIXNUM, c_min (SIZE_MAX, PTRDIFF_MAX) - 1))
-
-/* Mark STR as a unibyte string.  */
-#define STRING_SET_UNIBYTE(STR)				\
-  do {							\
-    if (elisp_string_size(STR) == 0)                       \
-      (STR) = empty_unibyte_string;			\
-    else						\
-      elisp_string_set_size_byte(STR, -1);                 \
-  } while (false)
-
-/* Mark STR as a multibyte string.  Assure that STR contains only
-   ASCII characters in advance.  */
-#define STRING_SET_MULTIBYTE(STR)                               \
-  do {                                                          \
-      if (elisp_string_size(STR) == 0)                             \
-        (STR) = empty_multibyte_string;                         \
-      else                                                      \
-        elisp_string_set_size_byte(STR, elisp_string_size(STR));	\
-  } while (false)
-
-/* Convenience functions for dealing with Lisp strings.  */
-
-extern void *elisp_string_data(ELisp_Handle);
-INLINE unsigned char *
-SDATA (ELisp_Handle string)
-{
-  return (unsigned char *)elisp_string_data (string);
-}
-INLINE char *
-SSDATA (ELisp_Handle string)
-{
-  /* Avoid "differ in sign" warnings.  */
-  return (char *)elisp_string_data (string);
-}
-INLINE unsigned char
-SREF (ELisp_Handle string, ptrdiff_t index)
-{
-  return SDATA (string)[index];
-}
-INLINE void
-SSET (ELisp_Handle string, ptrdiff_t index, unsigned char c_new)
-{
-  SDATA (string)[index] = c_new;
-}
-INLINE ptrdiff_t
-SCHARS (ELisp_Handle string)
-{
-  ptrdiff_t nchars = elisp_string_size (string);
-  eassume (0 <= nchars);
-  return nchars;
-}
-
-extern ptrdiff_t elisp_string_bytes(ELisp_Handle);
-extern ptrdiff_t elisp_string_chars(ELisp_Handle);
-
-INLINE ptrdiff_t
-SBYTES (ELisp_Handle string)
-{
-  ptrdiff_t size_byte = elisp_string_size_byte(string);
-  if (size_byte < 0)
-    return elisp_string_size(string);
-  return elisp_string_size_byte(string);
-}
-INLINE void
-STRING_SET_CHARS (ELisp_Handle string, ptrdiff_t newsize)
-{
-  /* This function cannot change the size of data allocated for the
-     string when it was created.  */
-  eassert (STRING_MULTIBYTE (string)
-           ? 0 <= newsize && newsize <= SBYTES (string)
-           : newsize == SCHARS (string));
-  // XXX XSTRING (string)->size = newsize;
 }
 
 /* A regular vector is just a header plus an array of Lisp_Objects.  */
@@ -5424,30 +5277,6 @@ extern void *xpalloc (void *, ptrdiff_t *, ptrdiff_t, ptrdiff_t, ptrdiff_t);
 extern char *xstrdup (const char *) ATTRIBUTE_MALLOC;
 extern char *xlispstrdup (ELisp_Handle) ATTRIBUTE_MALLOC;
 extern void dupstring (char **, char const *);
-
-/* Make DEST a copy of STRING's data.  Return a pointer to DEST's terminating
-   null byte.  This is like stpcpy, except the source is a Lisp string.  */
-
-INLINE char *
-lispstpcpy (char *dest, ELisp_Handle string)
-{
-  ptrdiff_t len = SBYTES (string);
-  memcpy (dest, SDATA (string), len + 1);
-  return dest + len;
-}
-
-/* Return a fixnum or float, depending on whether the integer VAL fits
-   in a Lisp fixnum.  */
-
-#define make_fixnum_or_float(val) \
-   (FIXNUM_OVERFLOW_P (val) ? make_float (val) : make_fixnum (val))
-
-/* SAFE_ALLOCA normally allocates memory on the stack, but if size is
-   larger than MAX_ALLOCA, use xmalloc to avoid overflowing the stack.  */
-
-enum MAX_ALLOCA { MAX_ALLOCA = 16 * 1024 };
-
-extern void *record_xmalloc (size_t) ATTRIBUTE_ALLOC_SIZE ((1));
 
 #define USE_SAFE_ALLOCA			\
   ptrdiff_t sa_avail = MAX_ALLOCA;	\

@@ -24,8 +24,6 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #define JSLISP_HH_SECTION_1
 #include "jslisp.hh"
 
-#if 0
-
 #include <alloca.h>
 #include <setjmp.h>
 #include <stdalign.h>
@@ -43,8 +41,6 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 
 #include <intprops.h>
 #include <verify.h>
-
-#endif /* 0 */
 
 INLINE_HEADER_BEGIN
 
@@ -592,9 +588,12 @@ INLINE void set_sub_char_table_contents (Lisp_Object, ptrdiff_t,
 extern Lisp_Object char_table_ref (Lisp_Object, int);
 extern void char_table_set (Lisp_Object, int, Lisp_Object);
 
+#endif /* 0 */
+
 /* Defined in data.c.  */
 extern _Noreturn void wrong_type_argument (Lisp_Object, Lisp_Object);
 
+#if 0
 
 #ifdef CANNOT_DUMP
 enum { might_dump = false };
@@ -747,30 +746,32 @@ struct Lisp_Symbol
 };
 verify (alignof (struct Lisp_Symbol) % GCALIGNMENT == 0);
 
+#endif /* 0 */
+
 /* Declare a Lisp-callable function.  The MAXARGS parameter has the same
    meaning as in the DEFUN macro, and is used to construct a prototype.  */
 /* We can use the same trick as in the DEFUN macro to generate the
    appropriate prototype.  */
 #define EXFUN(fnname, maxargs) \
-  extern Lisp_Object fnname DEFUN_ARGS_ ## maxargs
+  extern ELisp_Return_Value fnname DEFUN_ARGS_ ## maxargs
 
 /* Note that the weird token-substitution semantics of ANSI C makes
    this work for MANY and UNEVALLED.  */
-#define DEFUN_ARGS_MANY		(ptrdiff_t, Lisp_Object *)
-#define DEFUN_ARGS_UNEVALLED	(Lisp_Object)
+#define DEFUN_ARGS_MANY		(ELisp_Vector_Handle)
+#define DEFUN_ARGS_UNEVALLED	(ELisp_Handle)
 #define DEFUN_ARGS_0	(void)
-#define DEFUN_ARGS_1	(Lisp_Object)
-#define DEFUN_ARGS_2	(Lisp_Object, Lisp_Object)
-#define DEFUN_ARGS_3	(Lisp_Object, Lisp_Object, Lisp_Object)
-#define DEFUN_ARGS_4	(Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object)
-#define DEFUN_ARGS_5	(Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, \
-			 Lisp_Object)
-#define DEFUN_ARGS_6	(Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, \
-			 Lisp_Object, Lisp_Object)
-#define DEFUN_ARGS_7	(Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, \
-			 Lisp_Object, Lisp_Object, Lisp_Object)
-#define DEFUN_ARGS_8	(Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object, \
-			 Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object)
+#define DEFUN_ARGS_1	(ELisp_Handle)
+#define DEFUN_ARGS_2	(ELisp_Handle, ELisp_Handle)
+#define DEFUN_ARGS_3	(ELisp_Handle, ELisp_Handle, ELisp_Handle)
+#define DEFUN_ARGS_4	(ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle)
+#define DEFUN_ARGS_5	(ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle, \
+                         ELisp_Handle)
+#define DEFUN_ARGS_6	(ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle, \
+                         ELisp_Handle, ELisp_Handle)
+#define DEFUN_ARGS_7	(ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle, \
+                         ELisp_Handle, ELisp_Handle, ELisp_Handle)
+#define DEFUN_ARGS_8	(ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle, \
+                         ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle)
 
 /* untagged_ptr represents a pointer before tagging, and Lisp_Word_tag
    contains a possibly-shifted tag to be added to an untagged_ptr to
@@ -795,12 +796,13 @@ typedef EMACS_UINT Lisp_Word_tag;
 
 /* An initializer for a Lisp_Object that contains TAG along with PTR.  */
 #define TAG_PTR(tag, ptr) \
-  LISP_INITIALLY ((Lisp_Word) ((untagged_ptr) (ptr) + LISP_WORD_TAG (tag)))
+  (USE_LSB_TAG \
+   ? (intptr_t) (ptr) + (tag) \
+   : (EMACS_INT) (((EMACS_UINT) (tag) << VALBITS) + (uintptr_t) (ptr)))
 
 /* LISPSYM_INITIALLY (Qfoo) is equivalent to Qfoo except it is
    designed for use as an initializer, even for a constant initializer.  */
-#define LISPSYM_INITIALLY(name) \
-  TAG_PTR (Lisp_Symbol, (char *) (intptr_t) ((i##name) * sizeof *lispsym))
+#define LISPSYM_INITIALLY(name) lispsym_initially(&lispsym[i##name])
 
 /* Declare extern constants for Lisp symbols.  These can be helpful
    when using a debugger like GDB, on older platforms where the debug
@@ -810,7 +812,7 @@ typedef EMACS_UINT Lisp_Word_tag;
 # define DEFINE_LISP_SYMBOL(name)
 #else
 # define DEFINE_LISP_SYMBOL(name) \
-   DEFINE_GDB_SYMBOL_BEGIN (Lisp_Object, name) \
+   DEFINE_GDB_SYMBOL_BEGIN (ELisp_Struct_Value, name) \
    DEFINE_GDB_SYMBOL_END (LISPSYM_INITIALLY (name))
 #endif
 
@@ -826,7 +828,23 @@ typedef EMACS_UINT Lisp_Word_tag;
 # define DEFINE_NON_NIL_Q_SYMBOL_MACROS true
 #endif
 
+extern ELisp_Struct_Value lispsym[1221];
+
+INLINE ELisp_Return_Value
+make_lisp_symbol (ELisp_Handle sym)
+{
+  return sym;
+}
+
+INLINE ELisp_Return_Value
+builtin_lisp_symbol (int index)
+{
+  return lispsym[index];
+}
+
 #include "globals.h"
+
+#if 0
 
 /* Header of vector-like objects.  This documents the layout constraints on
    vectors and pseudovectors (objects of PVEC_xxx subtype).  It also prevents
@@ -1204,9 +1222,13 @@ make_pointer_integer (void *p)
   return a;
 }
 
+#endif /* 0 */
+
 /* See the macros in intervals.h.  */
 
 typedef struct interval *INTERVAL;
+
+#if 0
 
 struct Lisp_Cons
 {
@@ -1334,49 +1356,38 @@ CDR_SAFE (Lisp_Object c)
   return CONSP (c) ? XCDR (c) : Qnil;
 }
 
-/* In a string or vector, the sign bit of u.s.size is the gc mark bit.  */
+#endif
 
-struct Lisp_String
-{
-  union
-  {
-    struct
-    {
-      ptrdiff_t size;
-      ptrdiff_t size_byte;
-      INTERVAL intervals;	/* Text properties in this string.  */
-      unsigned char *data;
-    } s;
-    struct Lisp_String *next;
-    GCALIGNED_UNION
-  } u;
-};
-verify (alignof (struct Lisp_String) % GCALIGNMENT == 0);
+/* In a string or vector, the sign bit of the `size' is the gc mark bit.  */
+
+extern bool elisp_stringp(ELisp_Handle x);
 
 INLINE bool
-STRINGP (Lisp_Object x)
+STRINGP (ELisp_Handle x)
 {
-  return XTYPE (x) == Lisp_String;
+  return elisp_stringp(x);
 }
 
 INLINE void
-CHECK_STRING (Lisp_Object x)
+CHECK_STRING (ELisp_Handle x)
 {
-  CHECK_TYPE (STRINGP (x), Qstringp, x);
+  CHECK_TYPE (STRINGP (x), LSH (Qstringp), x);
 }
 
-INLINE struct Lisp_String *
-XSTRING (Lisp_Object a)
-{
-  eassert (STRINGP (a));
-  return XUNTAG (a, Lisp_String, struct Lisp_String);
-}
+extern ELisp_Return_Value elisp_fixbuf(void *buf, ptrdiff_t size);
+extern ELisp_Return_Value elisp_mbstring(ELisp_Handle fixbuf, ptrdiff_t size_byte, ptrdiff_t size);
+extern ELisp_Return_Value elisp_string(ELisp_Handle mbstring, INTERVAL);
+
+extern ptrdiff_t elisp_string_size(ELisp_Handle x);
+extern ptrdiff_t elisp_string_size_byte(ELisp_Handle x);
+extern void elisp_string_set_size(ELisp_Handle x, ptrdiff_t);
+extern void elisp_string_set_size_byte(ELisp_Handle x, ptrdiff_t);
 
 /* True if STR is a multibyte string.  */
 INLINE bool
-STRING_MULTIBYTE (Lisp_Object str)
+STRING_MULTIBYTE (ELisp_Handle str)
 {
-  return 0 <= XSTRING (str)->u.s.size_byte;
+  return 0 <= elisp_string_size_byte (str);
 }
 
 /* An upper bound on the number of bytes in a Lisp string, not
@@ -1393,88 +1404,82 @@ STRING_MULTIBYTE (Lisp_Object str)
    This is a macro for use in static initializers.  The cast to
    ptrdiff_t ensures that the macro is signed.  */
 #define STRING_BYTES_BOUND  \
-  ((ptrdiff_t) min (MOST_POSITIVE_FIXNUM, min (SIZE_MAX, PTRDIFF_MAX) - 1))
+  ((ptrdiff_t) c_min (MOST_POSITIVE_FIXNUM, c_min (SIZE_MAX, PTRDIFF_MAX) - 1))
 
 /* Mark STR as a unibyte string.  */
 #define STRING_SET_UNIBYTE(STR)				\
   do {							\
-    if (XSTRING (STR)->u.s.size == 0)			\
+    if (elisp_string_size(STR) == 0)                       \
       (STR) = empty_unibyte_string;			\
     else						\
-      XSTRING (STR)->u.s.size_byte = -1;		\
+      elisp_string_set_size_byte(STR, -1);                 \
   } while (false)
 
 /* Mark STR as a multibyte string.  Assure that STR contains only
    ASCII characters in advance.  */
-#define STRING_SET_MULTIBYTE(STR)			\
-  do {							\
-    if (XSTRING (STR)->u.s.size == 0)			\
-      (STR) = empty_multibyte_string;			\
-    else						\
-      XSTRING (STR)->u.s.size_byte = XSTRING (STR)->u.s.size; \
+#define STRING_SET_MULTIBYTE(STR)                               \
+  do {                                                          \
+      if (elisp_string_size(STR) == 0)                             \
+        (STR) = empty_multibyte_string;                         \
+      else                                                      \
+        elisp_string_set_size_byte(STR, elisp_string_size(STR));	\
   } while (false)
 
 /* Convenience functions for dealing with Lisp strings.  */
 
+extern void *elisp_string_data(ELisp_Handle);
 INLINE unsigned char *
-SDATA (Lisp_Object string)
+SDATA (ELisp_Handle string)
 {
-  return XSTRING (string)->u.s.data;
+  return (unsigned char *)elisp_string_data (string);
 }
 INLINE char *
-SSDATA (Lisp_Object string)
+SSDATA (ELisp_Handle string)
 {
   /* Avoid "differ in sign" warnings.  */
-  return (char *) SDATA (string);
+  return (char *)elisp_string_data (string);
 }
 INLINE unsigned char
-SREF (Lisp_Object string, ptrdiff_t index)
+SREF (ELisp_Handle string, ptrdiff_t index)
 {
   return SDATA (string)[index];
 }
 INLINE void
-SSET (Lisp_Object string, ptrdiff_t index, unsigned char new)
+SSET (ELisp_Handle string, ptrdiff_t index, unsigned char c_new)
 {
-  SDATA (string)[index] = new;
+  SDATA (string)[index] = c_new;
 }
 INLINE ptrdiff_t
-SCHARS (Lisp_Object string)
+SCHARS (ELisp_Handle string)
 {
-  ptrdiff_t nchars = XSTRING (string)->u.s.size;
+  ptrdiff_t nchars = elisp_string_size (string);
   eassume (0 <= nchars);
   return nchars;
 }
 
-#ifdef GC_CHECK_STRING_BYTES
-extern ptrdiff_t string_bytes (struct Lisp_String *);
-#endif
-INLINE ptrdiff_t
-STRING_BYTES (struct Lisp_String *s)
-{
-#ifdef GC_CHECK_STRING_BYTES
-  ptrdiff_t nbytes = string_bytes (s);
-#else
-  ptrdiff_t nbytes = s->u.s.size_byte < 0 ? s->u.s.size : s->u.s.size_byte;
-#endif
-  eassume (0 <= nbytes);
-  return nbytes;
-}
+extern ptrdiff_t elisp_string_bytes(ELisp_Handle);
+extern ptrdiff_t elisp_string_chars(ELisp_Handle);
 
 INLINE ptrdiff_t
-SBYTES (Lisp_Object string)
+SBYTES (ELisp_Handle string)
 {
-  return STRING_BYTES (XSTRING (string));
+  ptrdiff_t size_byte = elisp_string_size_byte(string);
+  if (size_byte < 0)
+    return elisp_string_size(string);
+  return elisp_string_size_byte(string);
 }
 INLINE void
-STRING_SET_CHARS (Lisp_Object string, ptrdiff_t newsize)
+STRING_SET_CHARS (ELisp_Handle string, ptrdiff_t newsize)
 {
   /* This function cannot change the size of data allocated for the
      string when it was created.  */
   eassert (STRING_MULTIBYTE (string)
-	   ? 0 <= newsize && newsize <= SBYTES (string)
-	   : newsize == SCHARS (string));
-  XSTRING (string)->u.s.size = newsize;
+           ? 0 <= newsize && newsize <= SBYTES (string)
+           : newsize == SCHARS (string));
+  // XXX XSTRING (string)->size = newsize;
 }
+
+#if 0
 
 /* A regular vector is just a header plus an array of Lisp_Objects.  */
 
@@ -4485,7 +4490,6 @@ extern void dupstring (char **, char const *);
 
 #endif /* 0 */
 
-#if 0
 /* Make DEST a copy of STRING's data.  Return a pointer to DEST's terminating
    null byte.  This is like stpcpy, except the source is a Lisp string.  */
 
@@ -4496,7 +4500,6 @@ lispstpcpy (char *dest, Lisp_Object string)
   memcpy (dest, SDATA (string), len + 1);
   return dest + len;
 }
-#endif /* 0 */
 
 extern void xputenv (const char *);
 
@@ -4518,7 +4521,6 @@ extern void init_system_name (void);
    because 'abs' is reserved by the C standard.  */
 #define eabs(x)         ((x) < 0 ? -(x) : (x))
 
-#if 0
 /* Return a fixnum or float, depending on whether the integer VAL fits
    in a Lisp fixnum.  */
 
@@ -4531,6 +4533,8 @@ extern void init_system_name (void);
 enum MAX_ALLOCA { MAX_ALLOCA = 16 * 1024 };
 
 extern void *record_xmalloc (size_t) ATTRIBUTE_ALLOC_SIZE ((1));
+
+#if 0
 
 #define USE_SAFE_ALLOCA			\
   ptrdiff_t sa_avail = MAX_ALLOCA;	\
