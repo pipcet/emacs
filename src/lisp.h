@@ -906,13 +906,13 @@ struct vectorlike_header
   };
 verify (alignof (union vectorlike_header) % GCALIGNMENT == 0);
 
-#if 0
-
 INLINE bool
 (SYMBOLP) (Lisp_Object x)
 {
   return lisp_h_SYMBOLP (x);
 }
+
+#if 0
 
 INLINE struct Lisp_Symbol * ATTRIBUTE_NO_SANITIZE_UNDEFINED
 (XSYMBOL) (Lisp_Object a)
@@ -959,6 +959,8 @@ builtin_lisp_symbol (int index)
   return make_lisp_symbol (&lispsym[index]);
 }
 
+#endif
+
 INLINE void
 (CHECK_SYMBOL) (Lisp_Object x)
 {
@@ -970,8 +972,6 @@ INLINE void
 DEFINE_GDB_SYMBOL_BEGIN (ptrdiff_t, ARRAY_MARK_FLAG)
 # define ARRAY_MARK_FLAG PTRDIFF_MIN
 DEFINE_GDB_SYMBOL_END (ARRAY_MARK_FLAG)
-
-#endif
 
 /* In the size word of a struct Lisp_Vector, this bit means it's really
    some other vector-like object.  */
@@ -1216,6 +1216,8 @@ INLINE bool
 #define XSETTHREAD(a, b) (XSETPSEUDOVECTOR (a, b, PVEC_THREAD))
 #define XSETMUTEX(a, b) (XSETPSEUDOVECTOR (a, b, PVEC_MUTEX))
 #define XSETCONDVAR(a, b) (XSETPSEUDOVECTOR (a, b, PVEC_CONDVAR))
+#define XSETBIGNUM(a, b) (XSETPSEUDOVECTOR (a, b, PVEC_BIGNUM))
+#define XSETMARKER(a, b) (XSETPSEUDOVECTOR (a, b, PVEC_MARKER))
 
 /* Efficiently convert a pointer to a Lisp object and back.  The
    pointer is represented as a Lisp integer, so the garbage collector
@@ -2116,11 +2118,11 @@ INLINE int
   return lisp_h_SYMBOL_CONSTANT_P (sym);
 }
 
+#endif /* 0 */
+
 /* Placeholder for make-docfile to process.  The actual symbol
    definition is done by lread.c's defsym.  */
 #define DEFSYM(sym, name) /* empty */
-
-#endif /* 0 */
 
 
 /***********************************************************************

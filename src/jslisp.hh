@@ -381,12 +381,6 @@ union Lisp_Symbol_Flags
 
 #define TAG_SYMOFFSET(offset) TAG_PTR (Lisp_Symbol, offset)
 
-INLINE bool
-SYMBOLP (ELisp_Handle x)
-{
-  return x.symbolp();
-}
-
 extern ELisp_Return_Value elisp_symbol_value(ELisp_Handle a);
 extern void elisp_symbol_set_value(ELisp_Handle a, ELisp_Handle b);
 
@@ -438,23 +432,11 @@ XSYMBOL_NEXT_SET (ELisp_Handle a, ELisp_Handle b)
   elisp_symbol_set_next(a, b);
 }
 
-INLINE void
-CHECK_SYMBOL (ELisp_Handle x)
-{
-  lisp_h_CHECK_SYMBOL (x);
-}
-
-DEFINE_GDB_SYMBOL_BEGIN (ptrdiff_t, ARRAY_MARK_FLAG)
-# define ARRAY_MARK_FLAG PTRDIFF_MIN
-DEFINE_GDB_SYMBOL_END (ARRAY_MARK_FLAG)
-
 extern const int chartab_size[4];
 
 #include "thread.h.hh"
 
 #include "jslisp-symbol-accessors.hh"
-
-#define DEFSYM(sym, name) /* empty */
 
 template<typename... As>
 ELisp_Return_Value
