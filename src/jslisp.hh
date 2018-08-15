@@ -22,15 +22,6 @@
 
 INLINE_HEADER_BEGIN
 
-/* Define a TYPE constant ID as an externally visible name.  Use like this:
-
-      DEFINE_GDB_SYMBOL_BEGIN (TYPE, ID)
-      # define ID (some integer preprocessor expression of type TYPE)
-      DEFINE_GDB_SYMBOL_END (ID)
-
-   This hack is for the benefit of compilers that do not make macro
-   definitions or enums visible to the debugger.  It's used for symbols
-   that .gdbinit needs.  */
 
 #define DECLARE_GDB_SYM(type, id) type const id EXTERNALLY_VISIBLE
 #ifdef MAIN_PROGRAM
@@ -134,11 +125,6 @@ typedef EMACS_UINT uprintmax_t;
 # define pMu pI"u"
 #endif
 
-/* Use pD to format ptrdiff_t values, which suffice for indexes into
-   buffers and strings.  Emacs never allocates objects larger than
-   PTRDIFF_MAX bytes, as they cause problems with pointer subtraction.
-   In C99, pD can always be "t"; configure it here for the sake of
-   pre-C99 libraries such as glibc 2.0 and Solaris 8.  */
 #if PTRDIFF_MAX == INT_MAX
 # define pD ""
 #elif PTRDIFF_MAX == LONG_MAX
@@ -149,30 +135,6 @@ typedef EMACS_UINT uprintmax_t;
 # define pD "t"
 #endif
 
-/* Extra internal type checking?  */
-
-/* Define Emacs versions of <assert.h>'s 'assert (COND)' and <verify.h>'s
-   'assume (COND)'.  COND should be free of side effects, as it may or
-   may not be evaluated.
-
-   'eassert (COND)' checks COND at runtime if ENABLE_CHECKING is
-   defined and suppress_checking is false, and does nothing otherwise.
-   Emacs dies if COND is checked and is false.  The suppress_checking
-   variable is initialized to 0 in alloc.c.  Set it to 1 using a
-   debugger to temporarily disable aborting on detected internal
-   inconsistencies or error conditions.
-
-   In some cases, a good compiler may be able to optimize away the
-   eassert macro even if ENABLE_CHECKING is true, e.g., if XSTRING (x)
-   uses eassert to test STRINGP (x), but a particular use of XSTRING
-   is invoked only after testing that STRINGP (x) is true, making the
-   test redundant.
-
-   eassume is like eassert except that it also causes the compiler to
-   assume that COND is true afterwards, regardless of whether runtime
-   checking is enabled.  This can improve performance in some cases,
-   though it can degrade performance in others.  It's often suboptimal
-   for COND to call external functions or access volatile storage.  */
 
 #ifndef ENABLE_CHECKING
 # define eassert(cond) ((void) (false && (cond))) /* Check COND compiles.  */
@@ -194,25 +156,6 @@ extern bool suppress_checking EXTERNALLY_VISIBLE;
     ? (void) 0							\
     : die (# cond, __FILE__, __LINE__))
 #endif /* ENABLE_CHECKING */
-
-
-/* Use the configure flag --enable-check-lisp-object-type to make
-   Lisp_Object use a struct type instead of the default int.  The flag
-   causes CHECK_LISP_OBJECT_TYPE to be defined.  */
-
-/***** Select the tagging scheme.  *****/
-/* The following option controls the tagging scheme:
-   - USE_LSB_TAG means that we can assume the least 3 bits of pointers are
-     always 0, and we can thus use them to hold tag bits, without
-     restricting our addressing space.
-
-   If ! USE_LSB_TAG, then use the top 3 bits for tagging, thus
-   restricting our possible address range.
-
-   USE_LSB_TAG not only requires the least 3 bits of pointers returned by
-   malloc to be 0 but also needs to be able to impose a mult-of-8 alignment
-   on the few static Lisp_Objects used: lispsym, all the defsubr, and
-   the two special buffers buffer_defaults and buffer_local_symbols.  */
 
 enum Lisp_Bits
   {
@@ -265,33 +208,6 @@ DEFINE_GDB_SYMBOL_END (VALMASK)
 # define GCALIGNED /* empty */
 #endif
 
-/* Some operations are so commonly executed that they are implemented
-   as macros, not functions, because otherwise runtime performance would
-   suffer too much when compiling with GCC without optimization.
-   There's no need to inline everything, just the operations that
-   would otherwise cause a serious performance problem.
-
-   For each such operation OP, define a macro lisp_h_OP that contains
-   the operation's implementation.  That way, OP can be implemented
-   via a macro definition like this:
-
-     #define OP(x) lisp_h_OP (x)
-
-   and/or via a function definition like this:
-
-     Lisp_Object (OP) (Lisp_Object x) { return lisp_h_OP (x); }
-
-   without worrying about the implementations diverging, since
-   lisp_h_OP defines the actual implementation.  The lisp_h_OP macros
-   are intended to be private to this include file, and should not be
-   used elsewhere.
-
-   FIXME: Remove the lisp_h_OP macros, and define just the inline OP
-   functions, once "gcc -Og" (new to GCC 4.8) works well enough for
-   Emacs developers.  Maybe in the year 2020.  See Bug#11935.
-
-   Commentary for these macros can be found near their corresponding
-   functions, below.  */
 
 #define lisp_h_CHECK_NUMBER(x) CHECK_TYPE (NUMBERP (x), LSH (Qintegerp), x)
 #define lisp_h_CHECK_FIXNUM(x) CHECK_TYPE (FIXNUMP (x), LSH (Qfixnump), x)
@@ -397,63 +313,6 @@ enum Lisp_Fwd_Type
     Lisp_Fwd_Kboard_Obj		/* Fwd to a Lisp_Object field of kboards.  */
   };
 
-/* If you want to define a new Lisp data type, here are some
-   instructions.  See the thread at
-   https://lists.gnu.org/archive/html/emacs-devel/2012-10/msg00561.html
-   for more info.
-
-   First, there are already a couple of Lisp types that can be used if
-   your new type does not need to be exposed to Lisp programs nor
-   displayed to users.  These are Lisp_Save_Value, a Lisp_Misc
-   subtype; and PVEC_OTHER, a kind of vectorlike object.  The former
-   is suitable for temporarily stashing away pointers and integers in
-   a Lisp object.  The latter is useful for vector-like Lisp objects
-   that need to be used as part of other objects, but which are never
-   shown to users or Lisp code (search for PVEC_OTHER in xterm.c for
-   an example).
-
-   These two types don't look pretty when printed, so they are
-   unsuitable for Lisp objects that can be exposed to users.
-
-   To define a new data type, add one more Lisp_Misc subtype or one
-   more pseudovector subtype.  Pseudovectors are more suitable for
-   objects with several slots that need to support fast random access,
-   while Lisp_Misc types are for everything else.  A pseudovector object
-   provides one or more slots for Lisp objects, followed by struct
-   members that are accessible only from C.  A Lisp_Misc object is a
-   wrapper for a C struct that can contain anything you like.
-
-   Explicit freeing is discouraged for Lisp objects in general.  But if
-   you really need to exploit this, use Lisp_Misc (check free_misc in
-   alloc.c to see why).  There is no way to free a vectorlike object.
-
-   To add a new pseudovector type, extend the pvec_type enumeration;
-   to add a new Lisp_Misc, extend the Lisp_Misc_Type enumeration.
-
-   For a Lisp_Misc, you will also need to add your entry to union
-   Lisp_Misc, but make sure the first word has the same structure as
-   the others, starting with a 16-bit member of the Lisp_Misc_Type
-   enumeration and a 1-bit GC markbit.  Also make sure the overall
-   size of the union is not increased by your addition.  The latter
-   requirement is to keep Lisp_Misc objects small enough, so they
-   are handled faster: since all Lisp_Misc types use the same space,
-   enlarging any of them will affect all the rest.  If you really
-   need a larger object, it is best to use Lisp_Vectorlike instead.
-
-   For a new pseudovector, it's highly desirable to limit the size
-   of your data type by VBLOCK_BYTES_MAX bytes (defined in alloc.c).
-   Otherwise you will need to change sweep_vectors (also in alloc.c).
-
-   Then you will need to add switch branches in print.c (in
-   print_object, to print your object, and possibly also in
-   print_preprocess) and to alloc.c, to mark your object (in
-   mark_object) and to free it (in gc_sweep).  The latter is also the
-   right place to call any code specific to your data type that needs
-   to run when the object is recycled -- e.g., free any additional
-   resources allocated for it that are not Lisp objects.  You can even
-   make a pointer to the function that frees the resources a slot in
-   your object -- this way, the same object could be used to represent
-   several disparate C structures.  */
 
 #if defined (USE_TOOLKIT_SCROLL_BARS) && !defined (USE_GTK)
   /* Last value of whole for horizontal scrollbars.  */
@@ -1003,32 +862,6 @@ XFLOATINT (ELisp_Handle n)
 {
   return FLOATP (n) ? XFLOAT_DATA (n) : XFIXNUM (n);
 }
-
-
-/* Define a built-in function for calling from Lisp.
- `lname' should be the name to give the function in Lisp,
-    as a null-terminated C string.
- `fnname' should be the name of the function in C.
-    By convention, it starts with F.
- `sname' should be the name for the C constant structure
-    that records information on this function for internal use.
-    By convention, it should be the same as `fnname' but with S instead of F.
-    It's too bad that C macros can't compute this from `fnname'.
- `minargs' should be a number, the minimum number of arguments allowed.
- `maxargs' should be a number, the maximum number of arguments allowed,
-    or else MANY or UNEVALLED.
-    MANY means pass a vector of evaluated arguments,
-         in the form of an integer number-of-arguments
-         followed by the address of a vector of Lisp_Objects
-         which contains the argument values.
-    UNEVALLED means pass the list of unevaluated arguments
- `intspec' says how interactive arguments are to be fetched.
-    If the string starts with a `(', `intspec' is evaluated and the resulting
-    list is the list of arguments.
-    If it's a string that doesn't start with `(', the value should follow
-    the one of the doc string for `interactive'.
-    A null string means call interactively with no arguments.
- `doc' is documentation for the user.  */
 
 /* This version of DEFUN declares a function prototype with the right
    arguments, so we can catch errors with maxargs at compile-time.  */
