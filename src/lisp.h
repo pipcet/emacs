@@ -3650,6 +3650,8 @@ list4i (EMACS_INT x, EMACS_INT y, EMACS_INT w, EMACS_INT h)
 		make_fixnum (w), make_fixnum (h));
 }
 
+#endif
+
 extern Lisp_Object make_uninit_bool_vector (EMACS_INT);
 extern Lisp_Object bool_vector_fill (Lisp_Object, Lisp_Object);
 extern _Noreturn void string_overflow (void);
@@ -3730,6 +3732,8 @@ make_uninit_sub_char_table (int depth, int min_char)
   XSUB_CHAR_TABLE (v)->min_char = min_char;
   return v;
 }
+
+#if 0
 
 extern struct Lisp_Vector *allocate_pseudovector (int, int, int,
 						  enum pvec_type);
