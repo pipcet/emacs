@@ -3586,7 +3586,7 @@ enum char_bits
 INLINE bool
 NUMBERP (ELisp_Handle x)
 {
-  return FIXNUMP (x) || FLOATP (x);
+  return INTEGERP (x) || FLOATP (x);
 }
 INLINE bool
 FIXED_OR_FLOATP (ELisp_Handle x)
