@@ -4325,24 +4325,6 @@ extern void syms_of_profiler (void);
 extern char *emacs_root_dir (void);
 #endif /* DOS_NT */
 
-/* Defined in lastfile.c.  */
-extern char my_edata[];
-extern char my_endbss[];
-extern char *my_endbss_static;
-
-extern void *xmalloc (size_t) ATTRIBUTE_MALLOC_SIZE ((1));
-extern void *xzalloc (size_t) ATTRIBUTE_MALLOC_SIZE ((1));
-extern void *xrealloc (void *, size_t) ATTRIBUTE_ALLOC_SIZE ((2));
-extern void xfree (void *);
-extern void *xnmalloc (ptrdiff_t, ptrdiff_t) ATTRIBUTE_MALLOC_SIZE ((1,2));
-extern void *xnrealloc (void *, ptrdiff_t, ptrdiff_t)
-  ATTRIBUTE_ALLOC_SIZE ((2,3));
-extern void *xpalloc (void *, ptrdiff_t *, ptrdiff_t, ptrdiff_t, ptrdiff_t);
-
-extern char *xstrdup (const char *) ATTRIBUTE_MALLOC;
-extern char *xlispstrdup (ELisp_Handle) ATTRIBUTE_MALLOC;
-extern void dupstring (char **, char const *);
-
 #define USE_SAFE_ALLOCA			\
   ptrdiff_t sa_avail = MAX_ALLOCA;	\
   ptrdiff_t sa_count = SPECPDL_INDEX (); bool sa_must_free = false
