@@ -4006,7 +4006,7 @@ x_set_frame_parameters (struct frame *f, Lisp_Object alist)
 	}
       else if (CONSP (left) && EQ (XCAR (left), Qplus)
 	       && CONSP (XCDR (left))
-	       && TYPE_RANGED_FIXNUMP (int, XCAR (XCDR (left))))
+	       && TYPE_RANGED_FIXNUMP (int, LRH (XCAR (XCDR (left)))))
 	leftpos = XFIXNUM (XCAR (XCDR (left)));
       else if (FLOATP (left))
 	leftpos = frame_float (f, left, FRAME_FLOAT_LEFT, &parent_done,
@@ -4029,7 +4029,7 @@ x_set_frame_parameters (struct frame *f, Lisp_Object alist)
 	}
       else if (CONSP (top) && EQ (XCAR (top), Qplus)
 	       && CONSP (XCDR (top))
-	       && TYPE_RANGED_FIXNUMP (int, XCAR (XCDR (top))))
+	       && TYPE_RANGED_FIXNUMP (int, LRH (XCAR (XCDR (top)))))
 	toppos = XFIXNUM (XCAR (XCDR (top)));
       else if (FLOATP (top))
 	toppos = frame_float (f, top, FRAME_FLOAT_TOP, &parent_done,
@@ -5423,7 +5423,7 @@ x_figure_window_size (struct frame *f, Lisp_Object parms, bool toolbar_p, int *x
 	}
       else if (CONSP (top) && EQ (XCAR (top), Qplus)
 	       && CONSP (XCDR (top))
-	       && TYPE_RANGED_FIXNUMP (int, XCAR (XCDR (top))))
+	       && TYPE_RANGED_FIXNUMP (int, LRH (XCAR (XCDR (top)))))
 	{
 	  f->top_pos = XFIXNUM (XCAR (XCDR (top)));
 	}
@@ -5454,7 +5454,7 @@ x_figure_window_size (struct frame *f, Lisp_Object parms, bool toolbar_p, int *x
 	}
       else if (CONSP (left) && EQ (XCAR (left), Qplus)
 	       && CONSP (XCDR (left))
-	       && TYPE_RANGED_FIXNUMP (int, XCAR (XCDR (left))))
+	       && TYPE_RANGED_FIXNUMP (int, LRH (XCAR (XCDR (left)))))
 	{
 	  f->left_pos = XFIXNUM (XCAR (XCDR (left)));
 	}

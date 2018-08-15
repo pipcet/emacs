@@ -1219,6 +1219,7 @@ INLINE bool
 #define XSETBIGNUM(a, b) (XSETPSEUDOVECTOR (a, b, PVEC_BIGNUM))
 #define XSETMARKER(a, b) (XSETPSEUDOVECTOR (a, b, PVEC_MARKER))
 #define XSETOVERLAY(a, b) (XSETPSEUDOVECTOR (a, b, PVEC_OVERLAY))
+#define XSETSCROLL_BAR(a, b) (XSETPSEUDOVECTOR (a, b, PVEC_WINDOW))
 
 /* Efficiently convert a pointer to a Lisp object and back.  The
    pointer is represented as a Lisp integer, so the garbage collector

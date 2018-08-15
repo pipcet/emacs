@@ -10817,8 +10817,8 @@ The `posn-' functions access elements of such lists.  */)
   /* We allow X of -1, for the newline in a R2L line that overflowed
      into the left fringe.  */
   if (XFIXNUM (x) != -1)
-    CHECK_NATNUM (x);
-  CHECK_NATNUM (y);
+    CHECK_FIXNAT (x);
+  CHECK_FIXNAT (y);
 
   if (NILP (frame_or_window))
     frame_or_window = selected_window;
