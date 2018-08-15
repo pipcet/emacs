@@ -1990,7 +1990,7 @@ programs.  */)
     error ("Length of vector REGISTERS is not 8");
 
   for (i = 0; i < 8; i++)
-    ccl.reg[i] = (TYPE_RANGED_FIXNUMP (int, AREF (reg, i))
+    ccl.reg[i] = (TYPE_RANGED_FIXNUMP (int, LRH (AREF (reg, i)))
 		  ? XFIXNUM (AREF (reg, i))
 		  : 0);
 
@@ -2059,7 +2059,7 @@ usage: (ccl-execute-on-string CCL-PROGRAM STATUS STRING &optional CONTINUE UNIBY
     {
       if (NILP (AREF (status, i)))
 	ASET (status, i, make_fixnum (0));
-      if (TYPE_RANGED_FIXNUMP (int, AREF (status, i)))
+      if (TYPE_RANGED_FIXNUMP (int, LRH (AREF (status, i))))
 	ccl.reg[i] = XFIXNUM (AREF (status, i));
     }
   if (FIXNUMP (AREF (status, i)))

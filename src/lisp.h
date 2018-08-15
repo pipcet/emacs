@@ -2744,8 +2744,8 @@ RANGED_FIXNUMP (intmax_t lo, Lisp_Object x, intmax_t hi)
 
 #define TYPE_RANGED_FIXNUMP(type, x) \
   (FIXNUMP (x)			      \
-   && (TYPE_SIGNED (type) ? TYPE_MINIMUM (type) <= XFIXNUM (LRH (x)) : 0 <= XFIXNUM (LRH ((x)))) \
-   && XFIXNUM (LRH (x)) <= TYPE_MAXIMUM (type))
+   && (TYPE_SIGNED (type) ? TYPE_MINIMUM (type) <= XFIXNUM (x) : 0 <= XFIXNUM (x)) \
+   && XFIXNUM (x) <= TYPE_MAXIMUM (type))
 
 INLINE bool
 AUTOLOADP (Lisp_Object x)
