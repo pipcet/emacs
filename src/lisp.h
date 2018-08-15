@@ -3324,6 +3324,7 @@ set_sub_char_table_contents (Lisp_Object table, ptrdiff_t idx, Lisp_Object val)
   XSUB_CHAR_TABLE (table)->contents[idx] = val;
 }
 
+#endif
 /* Defined in data.c.  */
 extern _Noreturn void wrong_choice (Lisp_Object, Lisp_Object);
 extern void notify_variable_watchers (Lisp_Object, Lisp_Object,
@@ -3356,8 +3357,8 @@ extern Lisp_Object uintbig_to_lisp (uintmax_t);
    is not a valid representation or is out of range for TYPE.  */
 #define CONS_TO_INTEGER(cons, type, var)				\
  (TYPE_SIGNED (type)							\
-  ? ((var) = cons_to_signed (cons, TYPE_MINIMUM (type), TYPE_MAXIMUM (type))) \
-  : ((var) = cons_to_unsigned (cons, TYPE_MAXIMUM (type))))
+  ? ((var) = cons_to_signed (LRH (ELisp_Return_Value(cons)), TYPE_MINIMUM (type), TYPE_MAXIMUM (type))) \
+  : ((var) = cons_to_unsigned (LRH (ELisp_Return_Value (cons)), TYPE_MAXIMUM (type))))
 extern intmax_t cons_to_signed (Lisp_Object, intmax_t, intmax_t);
 extern uintmax_t cons_to_unsigned (Lisp_Object, uintmax_t);
 
@@ -3367,7 +3368,6 @@ extern _Noreturn void args_out_of_range_3 (Lisp_Object, Lisp_Object,
 					   Lisp_Object);
 extern _Noreturn void circular_list (Lisp_Object);
 extern Lisp_Object do_symval_forwarding (union Lisp_Fwd *);
-#endif /* 0 */
 enum Set_Internal_Bind {
   SET_INTERNAL_SET,
   SET_INTERNAL_BIND,

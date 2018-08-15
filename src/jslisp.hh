@@ -1464,49 +1464,6 @@ set_sub_char_table_contents (ELisp_Handle table, ptrdiff_t idx, ELisp_Handle val
   XSUB_CHAR_TABLE (table)->contents[idx] = val;
 }
 
-/* Defined in data.c.  */
-extern _Noreturn void wrong_choice (ELisp_Handle, ELisp_Handle);
-extern void notify_variable_watchers (ELisp_Handle, ELisp_Handle,
-                                      ELisp_Handle, ELisp_Handle);
-extern ELisp_Return_Value indirect_function (ELisp_Handle);
-extern ELisp_Return_Value find_symbol_value (ELisp_Handle);
-enum Arith_Comparison {
-  ARITH_EQUAL,
-  ARITH_NOTEQUAL,
-  ARITH_LESS,
-  ARITH_GRTR,
-  ARITH_LESS_OR_EQUAL,
-  ARITH_GRTR_OR_EQUAL
-};
-extern ELisp_Return_Value arithcompare (ELisp_Handle num1, ELisp_Handle num2,
-                                 enum Arith_Comparison comparison);
-
-/* Convert the integer I to an Emacs representation, either the integer
-   itself, or a cons of two or three integers, or if all else fails a float.
-   I should not have side effects.  */
-#define INTEGER_TO_CONS(i)					    \
-  (! FIXNUM_OVERFLOW_P (i)					    \
-   ? make_fixnum (i)						    \
-   : EXPR_SIGNED (i) ? intbig_to_lisp (i) : uintbig_to_lisp (i))
-extern ELisp_Return_Value intbig_to_lisp (intmax_t);
-extern ELisp_Return_Value uintbig_to_lisp (uintmax_t);
-
-/* Convert the Emacs representation CONS back to an integer of type
-   TYPE, storing the result the variable VAR.  Signal an error if CONS
-   is not a valid representation or is out of range for TYPE.  */
-#define CONS_TO_INTEGER(cons, type, var)				\
- (TYPE_SIGNED (type)							\
-  ? ((var) = cons_to_signed (LRH (ELisp_Return_Value(cons)), TYPE_MINIMUM (type), TYPE_MAXIMUM (type))) \
-  : ((var) = cons_to_unsigned (LRH (ELisp_Return_Value (cons)), TYPE_MAXIMUM (type))))
-extern intmax_t cons_to_signed (ELisp_Handle, intmax_t, intmax_t);
-extern uintmax_t cons_to_unsigned (ELisp_Handle, uintmax_t);
-
-extern ELisp_Return_Value indirect_variable (ELisp_Handle);
-extern _Noreturn void args_out_of_range (ELisp_Handle, ELisp_Handle);
-extern _Noreturn void args_out_of_range_3 (ELisp_Handle, ELisp_Handle,
-                                           ELisp_Handle);
-extern _Noreturn void circular_list (ELisp_Handle);
-
 /* Defined in alloc.c.  */
 extern void *my_heap_start (void);
 extern void check_pure_size (void);
