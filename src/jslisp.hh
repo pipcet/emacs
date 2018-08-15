@@ -697,32 +697,6 @@ INLINE bool
   return lisp_h_FLOATP (x);
 }
 
-INLINE double
-XFLOAT (ELisp_Handle a)
-{
-  return a.xfloat();
-}
-
-INLINE double
-XFLOAT_DATA (ELisp_Handle f)
-{
-  return XFLOAT (f);
-}
-
-/* Most hosts nowadays use IEEE floating point, so they use IEC 60559
-   representations, have infinities and NaNs, and do not trap on
-   exceptions.  Define IEEE_FLOATING_POINT if this host is one of the
-   typical ones.  The C11 macro __STDC_IEC_559__ is close to what is
-   wanted here, but is not quite right because Emacs does not require
-   all the features of C11 Annex F (and does not require C11 at all,
-   for that matter).  */
-enum
-  {
-    IEEE_FLOATING_POINT
-      = (FLT_RADIX == 2 && FLT_MANT_DIG == 24
-         && FLT_MIN_EXP == -125 && FLT_MAX_EXP == 128)
-  };
-
 /* Data type checking.  */
 
 INLINE bool
@@ -839,28 +813,6 @@ INLINE void
 CHECK_NATNUM (ELisp_Handle x)
 {
   CHECK_TYPE (NATNUMP (x), LSH (Qwholenump), x);
-}
-
-#define CHECK_TYPE_RANGED_INTEGER(type, x) \
-  do {									\
-    if (TYPE_SIGNED (type))						\
-      CHECK_RANGED_INTEGER (x, TYPE_MINIMUM (type), TYPE_MAXIMUM (type)); \
-    else								\
-      CHECK_RANGED_INTEGER (x, 0, TYPE_MAXIMUM (type));			\
-  } while (false)
-
-#define CHECK_FIXNUM_COERCE_MARKER(x)					\
-  do {									\
-    if (MARKERP ((x)))							\
-      XSETFASTINT (x, marker_position (x));				\
-    else								\
-      CHECK_TYPE (FIXNUMP (x), LSH (Qinteger_or_marker_p), x);		\
-  } while (false)
-
-INLINE double
-XFLOATINT (ELisp_Handle n)
-{
-  return FLOATP (n) ? XFLOAT_DATA (n) : XFIXNUM (n);
 }
 
 template<typename... As>

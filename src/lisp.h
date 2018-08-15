@@ -2645,17 +2645,18 @@ INLINE bool
   return lisp_h_FLOATP (x);
 }
 
-INLINE struct Lisp_Float *
+#endif
+
+INLINE double
 XFLOAT (Lisp_Object a)
 {
-  eassert (FLOATP (a));
-  return XUNTAG (a, Lisp_Float, struct Lisp_Float);
+  return a.xfloat();
 }
 
 INLINE double
 XFLOAT_DATA (Lisp_Object f)
 {
-  return XFLOAT (f)->u.data;
+  return f.xfloat();
 }
 
 /* Most hosts nowadays use IEEE floating point, so they use IEC 60559
@@ -2668,8 +2669,6 @@ XFLOAT_DATA (Lisp_Object f)
 
 #define IEEE_FLOATING_POINT (FLT_RADIX == 2 && FLT_MANT_DIG == 24 \
 			     && FLT_MIN_EXP == -125 && FLT_MAX_EXP == 128)
-
-#endif
 
 /* A character, declared with the following typedef, is a member
    of some character set associated with the current buffer.  */
@@ -2862,7 +2861,6 @@ CHECK_FIXNAT (Lisp_Object x)
                            : (lo))),                                    \
 	 LRH (make_fixnum (c_min (hi, MOST_POSITIVE_FIXNUM))));         \
   } while (false)
-#if 0
 #define CHECK_TYPE_RANGED_INTEGER(type, x) \
   do {									\
     if (TYPE_SIGNED (type))						\
@@ -2876,7 +2874,7 @@ CHECK_FIXNAT (Lisp_Object x)
     if (MARKERP ((x)))							\
       XSETFASTINT (x, marker_position (x));				\
     else								\
-      CHECK_TYPE (FIXNUMP (x), Qinteger_or_marker_p, x);		\
+      CHECK_TYPE (FIXNUMP (x), LSH (Qinteger_or_marker_p), x);		\
   } while (false)
 
 INLINE double
@@ -2887,6 +2885,7 @@ XFLOATINT (Lisp_Object n)
   return FLOATP (n) ? XFLOAT_DATA (n) : XFIXNUM (n);
 }
 
+#if 0
 INLINE void
 CHECK_FIXNUM_OR_FLOAT (Lisp_Object x)
 {
@@ -3460,7 +3459,7 @@ extern Lisp_Object uintbig_to_lisp (uintmax_t);
 extern intmax_t cons_to_signed (Lisp_Object, intmax_t, intmax_t);
 extern uintmax_t cons_to_unsigned (Lisp_Object, uintmax_t);
 
-extern struct Lisp_Symbol *indirect_variable (struct Lisp_Symbol *);
+extern struct Lisp_Symbol *indirect_variable (Lisp_Object);
 extern _Noreturn void args_out_of_range (Lisp_Object, Lisp_Object);
 extern _Noreturn void args_out_of_range_3 (Lisp_Object, Lisp_Object,
 					   Lisp_Object);
