@@ -4291,6 +4291,8 @@ extern Lisp_Object get_doc_string (Lisp_Object, bool, bool);
 extern void syms_of_doc (void);
 extern int read_bytecode_char (bool);
 
+#endif /* 0 */
+
 /* Defined in bytecode.c.  */
 extern void syms_of_bytecode (void);
 extern Lisp_Object exec_byte_code (Lisp_Object, Lisp_Object, Lisp_Object,
@@ -4435,8 +4437,6 @@ extern void syms_of_w32cygwinx (void);
 extern Lisp_Object Vface_alternative_font_family_alist;
 extern Lisp_Object Vface_alternative_font_registry_alist;
 extern void syms_of_xfaces (void);
-
-#endif /* 0 */
 
 #ifdef HAVE_X_WINDOWS
 /* Defined in xfns.c.  */
