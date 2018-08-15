@@ -1754,48 +1754,6 @@ extern void check_cons_list (void);
 INLINE void (check_cons_list) (void) { lisp_h_check_cons_list (); }
 #endif
 
-extern int openp (ELisp_Handle, ELisp_Handle, ELisp_Handle,
-                  ELisp_Pointer, ELisp_Handle, bool);
-enum { S2N_IGNORE_TRAILING = 1, S2N_OVERFLOW_TO_FLOAT = 2 };
-extern ELisp_Return_Value string_to_number (char const *, int, int);
-extern void map_obarray (ELisp_Handle, void (*) (ELisp_Handle, ELisp_Handle),
-                         ELisp_Handle);
-extern void dir_warning (const char *, ELisp_Handle);
-extern void init_obarray (void);
-extern void init_lread (void);
-extern void syms_of_lread (void);
-
-INLINE ELisp_Return_Value
-intern (const char *str)
-{
-  return intern_1 (str, strlen (str));
-}
-
-INLINE ELisp_Return_Value
-intern_c_string (const char *str)
-{
-  return intern_c_string_1 (str, strlen (str));
-}
-
-/* Defined in eval.c.  */
-extern ELisp_Heap_Value Vautoload_queue;
-extern ELisp_Heap_Value Vrun_hooks;
-extern ELisp_Heap_Value Vsignaling_function;
-extern ELisp_Heap_Value inhibit_lisp_code;
-
-/* To run a normal hook, use the appropriate function from the list below.
-   The calling convention:
-
-   if (!NILP (Vrun_hooks))
-     call1 (Vrun_hooks, Qmy_funny_hook);
-
-   should no longer be used.  */
-extern void run_hook (ELisp_Handle);
-extern void run_hook_with_args_2 (ELisp_Handle, ELisp_Handle, ELisp_Handle);
-extern ELisp_Return_Value run_hook_with_args (ELisp_Vector_Handle args,
-                                       ELisp_Return_Value (*funcall)
-                                       (ELisp_Vector_Handle args));
-extern ELisp_Return_Value quit (void);
 INLINE _Noreturn void
 xsignal (ELisp_Handle error_symbol, ELisp_Handle data)
 {
