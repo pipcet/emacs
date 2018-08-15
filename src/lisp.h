@@ -1277,19 +1277,21 @@ struct Lisp_Cons
   } u;
 };
 verify (alignof (struct Lisp_Cons) % GCALIGNMENT == 0);
-
+#endif /* 0 */
 INLINE bool
-(NILP) (Lisp_Object x)
+NILP (ELisp_Handle x)
 {
-  return lisp_h_NILP (x);
+  //return x.nilp();
+  return x.eq(Qnil);
 }
 
 INLINE bool
-(CONSP) (Lisp_Object x)
+CONSP (ELisp_Handle ARG(x))
 {
-  return lisp_h_CONSP (x);
+  ELisp_Value x = ARG(x);
+  return x.consp();
 }
-
+#if 0
 INLINE void
 CHECK_CONS (Lisp_Object x)
 {

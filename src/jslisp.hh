@@ -1110,27 +1110,6 @@ INLINE bool
 #define XSETCONDVAR(a, b) (XSETPSEUDOVECTOR (a, b, PVEC_CONDVAR))
 #define XSETBIGNUM(a, b) (XSETPSEUDOVECTOR (a, b, PVEC_BIGNUM))
 
-/* Efficiently convert a pointer to a Lisp object and back.  The
-   pointer is represented as a Lisp integer, so the garbage collector
-   does not know about it.  The pointer should not have both Lisp_Int1
-   bits set, which makes this conversion inherently unportable.  */
-
-/* See the macros in intervals.h.  */
-
-INLINE bool
-NILP (ELisp_Handle x)
-{
-  //return x.nilp();
-  return x.eq(Qnil);
-}
-
-INLINE bool
-CONSP (ELisp_Handle ARG(x))
-{
-  ELisp_Value x = ARG(x);
-  return x.consp();
-}
-
 INLINE void
 CHECK_CONS (ELisp_Handle x)
 {
