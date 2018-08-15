@@ -3163,6 +3163,7 @@ SPECPDL_INDEX (void)
    Members are volatile if their values need to survive _longjmp when
    a 'struct handler' is a local variable.  */
 
+#endif /* 0 */
 enum handlertype { CATCHER, CONDITION_CASE, CATCHER_ALL };
 
 struct handler
@@ -3183,13 +3184,13 @@ struct handler
 
   /* Most global vars are reset to their value via the specpdl mechanism,
      but a few others are handled by storing their value here.  */
+  void *jmp_stack;
   sys_jmp_buf jmp;
   EMACS_INT f_lisp_eval_depth;
   ptrdiff_t pdlcount;
   int poll_suppress_count;
   int interrupt_input_blocked;
 };
-#endif /* 0 */
 
 extern Lisp_Object memory_signal_data;
 
@@ -3951,10 +3952,8 @@ extern Lisp_Object internal_condition_case_n
     (Lisp_Object (*) (ptrdiff_t, Lisp_Object *), ptrdiff_t, Lisp_Object *,
      Lisp_Object, Lisp_Object (*) (Lisp_Object, ptrdiff_t, Lisp_Object *));
 extern Lisp_Object internal_catch_all (Lisp_Object (*) (void *), void *, Lisp_Object (*) (Lisp_Object));
-#if 0
 extern struct handler *push_handler (Lisp_Object, enum handlertype);
 extern struct handler *push_handler_nosignal (Lisp_Object, enum handlertype);
-#endif
 extern void specbind (Lisp_Object, Lisp_Object);
 extern void record_unwind_protect (void (*) (Lisp_Object), Lisp_Object);
 extern void record_unwind_protect_array (Lisp_Object *, ptrdiff_t);

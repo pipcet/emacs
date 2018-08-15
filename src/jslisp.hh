@@ -1201,55 +1201,6 @@ struct specbinding_stack
 
 #define SPECPDL_INDEX() (specpdl_ptr - specpdl)
 
-/* This structure helps implement the `catch/throw' and `condition-case/signal'
-   control structures.  A struct handler contains all the information needed to
-   restore the state of the interpreter after a non-local jump.
-
-   handler structures are chained together in a doubly linked list; the `next'
-   member points to the next outer catchtag and the `nextfree' member points in
-   the other direction to the next inner element (which is typically the next
-   free element since we mostly use it on the deepest handler).
-
-   A call like (throw TAG VAL) searches for a catchtag whose `tag_or_ch'
-   member is TAG, and then unbinds to it.  The `val' member is used to
-   hold VAL while the stack is unwound; `val' is returned as the value
-   of the catch form.  If there is a handler of type CATCHER_ALL, it will
-   be treated as a handler for all invocations of `throw'; in this case
-   `val' will be set to (TAG . VAL).
-
-   All the other members are concerned with restoring the interpreter
-   state.
-
-   Members are volatile if their values need to survive _longjmp when
-   a 'struct handler' is a local variable.  */
-
-enum handlertype { CATCHER, CONDITION_CASE, CATCHER_ALL };
-
-struct handler
-{
-  enum handlertype type;
-  ELisp_Struct_Value tag_or_ch;
-  ELisp_Struct_Value val;
-  struct handler *next;
-  struct handler *nextfree;
-
-  /* The bytecode interpreter can have several handlers active at the same
-     time, so when we longjmp to one of them, it needs to know which handler
-     this was and what was the corresponding internal state.  This is stored
-     here, and when we longjmp we make sure that handlerlist points to the
-     proper handler.  */
-  ELisp_Pointer bytecode_top;
-  int bytecode_dest;
-
-  /* Most global vars are reset to their value via the specpdl mechanism,
-     but a few others are handled by storing their value here.  */
-  void *jmp_stack;
-  sys_jmp_buf jmp;
-  EMACS_INT f_lisp_eval_depth;
-  ptrdiff_t pdlcount;
-  int poll_suppress_count;
-  int interrupt_input_blocked;
-};
 
 extern ELisp_Heap_Value Vascii_downcase_table;
 extern ELisp_Heap_Value Vascii_canon_table;
@@ -1488,8 +1439,6 @@ extern _Noreturn void xsignal3 (ELisp_Handle, ELisp_Handle, ELisp_Handle,
 extern _Noreturn void signal_error (const char *, ELisp_Handle);
 extern bool FUNCTIONP (ELisp_Handle);
 extern ELisp_Return_Value funcall_subr (struct Lisp_Subr *subr, ELisp_Vector_Handle arg_vector);
-extern struct handler *push_handler (ELisp_Handle, enum handlertype);
-extern struct handler *push_handler_nosignal (ELisp_Handle, enum handlertype);
 
 INLINE_HEADER_END
 
