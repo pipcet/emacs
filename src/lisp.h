@@ -4271,6 +4271,8 @@ extern void init_callproc (void);
 extern void set_initial_environment (void);
 extern void syms_of_callproc (void);
 
+#endif /* 0 */
+
 /* Defined in doc.c.  */
 enum text_quoting_style
   {
@@ -4288,8 +4290,6 @@ extern Lisp_Object read_doc_string (Lisp_Object);
 extern Lisp_Object get_doc_string (Lisp_Object, bool, bool);
 extern void syms_of_doc (void);
 extern int read_bytecode_char (bool);
-
-#endif /* 0 */
 
 /* Defined in bytecode.c.  */
 extern void syms_of_bytecode (void);

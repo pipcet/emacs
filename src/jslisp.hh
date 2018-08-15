@@ -3712,24 +3712,6 @@ extern void init_callproc (void);
 extern void set_initial_environment (void);
 extern void syms_of_callproc (void);
 
-/* Defined in doc.c.  */
-enum text_quoting_style
-  {
-    /* Use curved single quotes ‘like this’.  */
-    CURVE_QUOTING_STYLE,
-
-    /* Use grave accent and apostrophe  `like this'.  */
-    GRAVE_QUOTING_STYLE,
-
-    /* Use apostrophes 'like this'.  */
-    STRAIGHT_QUOTING_STYLE
-  };
-extern enum text_quoting_style text_quoting_style (void);
-extern ELisp_Return_Value read_doc_string (ELisp_Handle);
-extern ELisp_Return_Value get_doc_string (ELisp_Handle, bool, bool);
-extern void syms_of_doc (void);
-extern int read_bytecode_char (bool);
-
 #define USE_SAFE_ALLOCA			\
   ptrdiff_t sa_avail = MAX_ALLOCA;	\
   ptrdiff_t sa_count = SPECPDL_INDEX (); bool sa_must_free = false
