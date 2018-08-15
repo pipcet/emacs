@@ -1490,33 +1490,6 @@ extern bool FUNCTIONP (ELisp_Handle);
 extern ELisp_Return_Value funcall_subr (struct Lisp_Subr *subr, ELisp_Vector_Handle arg_vector);
 extern struct handler *push_handler (ELisp_Handle, enum handlertype);
 extern struct handler *push_handler_nosignal (ELisp_Handle, enum handlertype);
-extern void rebind_for_thread_switch (void);
-extern void unbind_for_thread_switch (struct thread_state *);
-extern _Noreturn void error (const char *, ...) ATTRIBUTE_FORMAT_PRINTF (1, 2);
-extern _Noreturn void verror (const char *, va_list)
-  ATTRIBUTE_FORMAT_PRINTF (1, 0);
-extern ELisp_Return_Value vformat_string (const char *, va_list)
-  ATTRIBUTE_FORMAT_PRINTF (1, 0);
-extern void un_autoload (ELisp_Handle);
-extern ELisp_Return_Value call_debugger (ELisp_Handle arg);
-extern void init_eval_once (void);
-/*
-template<class... A>
-extern ELisp_Return_Value safe_call (ptrdiff_t, ELisp_Handle, A...);
-template<class X, class... A>
-extern ELisp_Return_Value safe_call (ptrdiff_t, ELisp_Handle, X, A...);
-*/
-extern ELisp_Return_Value safe_call (ptrdiff_t, ELisp_Handle, ...);
-extern ELisp_Return_Value safe_call1 (ELisp_Handle, ELisp_Handle);
-extern ELisp_Return_Value safe_call2 (ELisp_Handle, ELisp_Handle, ELisp_Handle);
-extern void init_eval (void);
-extern void syms_of_eval (void);
-extern void prog_ignore (ELisp_Handle);
-extern ptrdiff_t record_in_backtrace (ELisp_Handle, ELisp_Pointer, ptrdiff_t);
-extern void mark_specpdl (struct specbinding *first, struct specbinding *ptr);
-extern void get_backtrace (ELisp_Handle array);
-ELisp_Return_Value backtrace_top_function (void);
-extern bool let_shadows_buffer_binding_p (ELisp_Handle symbol);
 
 INLINE_HEADER_END
 
