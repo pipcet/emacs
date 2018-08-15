@@ -1412,12 +1412,6 @@ mint_ptrp (ELisp_Handle x)
   return FIXNUMP (x) || (PSEUDOVECTORP (x, PVEC_MISC_PTR));
 }
 
-struct Lisp_Misc_Ptr
-  {
-    union vectorlike_header header;
-    void *pointer;
-  };
-
 INLINE void *
 xmint_pointer (ELisp_Handle a)
 {
