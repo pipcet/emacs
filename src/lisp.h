@@ -2753,6 +2753,8 @@ CHECK_RECORD (Lisp_Object x)
   CHECK_TYPE (RECORDP (x), Qrecordp, x);
 }
 
+#endif /* 0 */
+
 /* Test for image (image . spec)  */
 INLINE bool
 IMAGEP (Lisp_Object x)
@@ -2778,8 +2780,6 @@ CHECK_LIST_END (Lisp_Object x, Lisp_Object y)
 {
   CHECK_TYPE (NILP (x), Qlistp, y);
 }
-
-#endif /* 0 */
 
 INLINE void
 (CHECK_FIXNUM) (Lisp_Object x)

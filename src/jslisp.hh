@@ -1243,32 +1243,6 @@ CHECK_RECORD (ELisp_Handle x)
   CHECK_TYPE (RECORDP (x), LSH (Qrecordp), x);
 }
 
-/* Test for image (image . spec)  */
-INLINE bool
-IMAGEP (ELisp_Handle x)
-{
-  return CONSP (x) && EQ (LRH (XCAR (x)), LSH (Qimage));
-}
-
-/* Array types.  */
-INLINE bool
-ARRAYP (ELisp_Handle x)
-{
-  return VECTORP (x) || STRINGP (x) || CHAR_TABLE_P (x) || BOOL_VECTOR_P (x);
-}
-
-INLINE void
-CHECK_LIST (ELisp_Handle x)
-{
-  CHECK_TYPE (CONSP (x) || NILP (x), LSH (Qlistp), x);
-}
-
-INLINE void
-CHECK_LIST_END (ELisp_Handle x, ELisp_Handle y)
-{
-  CHECK_TYPE (NILP (x), LSH (Qlistp), y);
-}
-
 INLINE void
 CHECK_NUMBER (ELisp_Handle x)
 {
