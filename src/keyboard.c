@@ -3321,8 +3321,8 @@ record_char (Lisp_Object c)
 	  if (SYMBOLP (dribblee))
 	    {
 	      putc_unlocked ('<', dribble);
-	      fwrite_unlocked (SDATA (SYMBOL_NAME (dribblee)), sizeof (char),
-			       SBYTES (SYMBOL_NAME (dribblee)),
+	      fwrite_unlocked (SDATA (LRH (SYMBOL_NAME (dribblee))), sizeof (char),
+			       SBYTES (LRH (SYMBOL_NAME (dribblee))),
 			       dribble);
 	      putc_unlocked ('>', dribble);
 	    }
@@ -6328,8 +6328,8 @@ parse_modifiers (Lisp_Object symbol)
       Lisp_Object unmodified;
       Lisp_Object mask;
 
-      unmodified = Fintern (make_string (SSDATA (SYMBOL_NAME (symbol)) + end,
-					 SBYTES (SYMBOL_NAME (symbol)) - end),
+      unmodified = Fintern (make_string (SSDATA (LRH (SYMBOL_NAME (symbol))) + end,
+					 SBYTES (LRH (SYMBOL_NAME (symbol))) - end),
 			    Qnil);
 
       if (modifiers & ~INTMASK)
@@ -6395,9 +6395,9 @@ apply_modifiers (int modifiers, Lisp_Object base)
     {
       /* We have to create the symbol ourselves.  */
       new_symbol = apply_modifiers_uncached (modifiers,
-					     SSDATA (SYMBOL_NAME (base)),
-					     SCHARS (SYMBOL_NAME (base)),
-					     SBYTES (SYMBOL_NAME (base)));
+					     SSDATA (LRH (SYMBOL_NAME (base))),
+					     SCHARS (LRH (SYMBOL_NAME (base))),
+					     SBYTES (LRH (SYMBOL_NAME (base))));
 
       /* Add the new symbol to the base's cache.  */
       entry = Fcons (idx, new_symbol);
