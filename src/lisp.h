@@ -1035,6 +1035,7 @@ enum More_Lisp_Bits
     PSEUDOVECTOR_AREA_BITS = PSEUDOVECTOR_SIZE_BITS + PSEUDOVECTOR_REST_BITS,
     PVEC_TYPE_MASK = 0x3f << PSEUDOVECTOR_AREA_BITS
   };
+#endif
 
 /* These functions extract various sorts of values from a Lisp_Object.
    For example, if tem is a Lisp_Object whose type is Lisp_Cons,
@@ -1043,29 +1044,29 @@ enum More_Lisp_Bits
 
 /* Largest and smallest representable fixnum values.  These are the C
    values.  They are macros for use in static initializers.  */
-#define MOST_POSITIVE_FIXNUM (EMACS_INT_MAX >> INTTYPEBITS)
-#define MOST_NEGATIVE_FIXNUM (-1 - MOST_POSITIVE_FIXNUM)
+#define MOST_POSITIVE_FIXNUM (0x7fffffffL)
+#define MOST_NEGATIVE_FIXNUM (-0x80000000L)
 
 #if USE_LSB_TAG
 
 INLINE Lisp_Object
 (make_fixnum) (EMACS_INT n)
 {
-  return lisp_h_make_fixnum (n);
+  ELisp_Value ret;
+  ret.v.v.setInt32(n);
+  return ret;
 }
 
 INLINE EMACS_INT
 (XFIXNUM) (Lisp_Object a)
 {
-  return lisp_h_XFIXNUM (a);
+  return a.xint();
 }
 
 INLINE EMACS_INT
 (XFIXNAT) (Lisp_Object a)
 {
-  EMACS_INT n = lisp_h_XFIXNAT (a);
-  eassume (0 <= n);
-  return n;
+  return a.xint();
 }
 
 #else /* ! USE_LSB_TAG */
@@ -1120,6 +1121,8 @@ XFIXNAT (Lisp_Object a)
 }
 
 #endif /* ! USE_LSB_TAG */
+
+#if 0
 
 /* Extract A's value as an unsigned integer.  */
 INLINE EMACS_UINT
