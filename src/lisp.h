@@ -4109,8 +4109,6 @@ extern ptrdiff_t find_before_next_newline (ptrdiff_t, ptrdiff_t,
 extern void syms_of_search (void);
 extern void clear_regexp_cache (void);
 
-#if 0
-
 /* Defined in minibuf.c.  */
 
 extern Lisp_Object Vminibuffer_list;
@@ -4132,8 +4130,6 @@ extern void keys_of_casefiddle (void);
 
 extern void init_casetab_once (void);
 extern void syms_of_casetab (void);
-
-#endif /* 0 */
 
 /* Defined in keyboard.c.  */
 
@@ -4178,8 +4174,6 @@ extern Lisp_Object do_switch_frame (Lisp_Object, int, int, Lisp_Object);
 extern Lisp_Object get_frame_param (struct frame *, Lisp_Object);
 extern void frames_discard_buffer (Lisp_Object);
 extern void syms_of_frame (void);
-
-#if 0
 
 /* Defined in emacs.c.  */
 extern char **initial_argv;
@@ -4270,8 +4264,6 @@ extern void init_callproc_1 (void);
 extern void init_callproc (void);
 extern void set_initial_environment (void);
 extern void syms_of_callproc (void);
-
-#endif /* 0 */
 
 /* Defined in doc.c.  */
 enum text_quoting_style
