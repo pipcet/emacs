@@ -466,7 +466,7 @@ INTERVAL elisp_string_intervals(ELisp_Handle s)
   return JS_GetPrivate(obj);
 }
 
-void elisp_set_string_intervals(ELisp_Handle s, INTERVAL intervals)
+void elisp_string_set_intervals(ELisp_Handle s, INTERVAL intervals)
 {
   JSContext *cx = jsg.cx;
   if (!s.isObject())

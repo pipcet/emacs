@@ -4027,8 +4027,8 @@ extern Lisp_Object internal_condition_case (Lisp_Object (*) (void), Lisp_Object,
 extern Lisp_Object internal_condition_case_1 (Lisp_Object (*) (Lisp_Object), Lisp_Object, Lisp_Object, Lisp_Object (*) (Lisp_Object));
 extern Lisp_Object internal_condition_case_2 (Lisp_Object (*) (Lisp_Object, Lisp_Object), Lisp_Object, Lisp_Object, Lisp_Object, Lisp_Object (*) (Lisp_Object));
 extern Lisp_Object internal_condition_case_n
-    (Lisp_Object (*) (ptrdiff_t, Lisp_Object *), ptrdiff_t, Lisp_Object *,
-     Lisp_Object, Lisp_Object (*) (Lisp_Object, ptrdiff_t, Lisp_Object *));
+    (Lisp_Object (*) (ELisp_Vector_Handle), ptrdiff_t, Lisp_Object *,
+     Lisp_Object, Lisp_Object (*) (Lisp_Object, ELisp_Vector_Handle));
 extern Lisp_Object internal_catch_all (Lisp_Object (*) (void *), void *, Lisp_Object (*) (Lisp_Object));
 extern struct handler *push_handler (Lisp_Object, enum handlertype);
 extern struct handler *push_handler_nosignal (Lisp_Object, enum handlertype);

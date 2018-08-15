@@ -273,21 +273,6 @@ enum Lisp_Fwd_Type
 #undef JSLISP_HH_SECTION_4
 /* Interned state of a symbol.  */
 
-extern ELisp_Return_Value elisp_symbol_value(ELisp_Handle a);
-extern void elisp_symbol_set_value(ELisp_Handle a, ELisp_Handle b);
-
-extern ELisp_Return_Value elisp_symbol_function(ELisp_Handle a);
-extern void elisp_symbol_set_function(ELisp_Handle a, ELisp_Handle b);
-
-extern ELisp_Return_Value elisp_symbol_plist(ELisp_Handle a);
-extern void elisp_symbol_set_plist(ELisp_Handle a, ELisp_Handle b);
-
-extern ELisp_Return_Value elisp_symbol_name(ELisp_Handle a);
-extern void elisp_symbol_set_name(ELisp_Handle a, ELisp_Handle b);
-
-extern ELisp_Return_Value elisp_symbol_next(ELisp_Handle a);
-extern void elisp_symbol_set_next(ELisp_Handle a, ELisp_Handle b);
-
 INLINE ELisp_Return_Value
 XSYMBOL_PLIST (ELisp_Handle a)
 {
