@@ -2320,30 +2320,6 @@ extern void get_backtrace (ELisp_Handle array);
 ELisp_Return_Value backtrace_top_function (void);
 extern bool let_shadows_buffer_binding_p (ELisp_Handle symbol);
 
-INLINE bool
-MODULE_FUNCTIONP (ELisp_Handle o)
-{
-  return PSEUDOVECTORP (o, PVEC_MODULE_FUNCTION);
-}
-
-INLINE struct Lisp_Module_Function *
-XMODULE_FUNCTION (ELisp_Handle o)
-{
-  return (struct Lisp_Module_Function *)o.xvector();
-}
-
-#ifdef HAVE_MODULES
-/* Defined in alloc.c.  */
-extern ELisp_Return_Value make_user_ptr (void (*finalizer) (void *), void *p);
-
-/* Defined in emacs-module.c.  */
-extern ELisp_Return_Value funcall_module (ELisp_Handle, ELisp_Vector_Handle);
-extern ELisp_Return_Value module_function_arity (const struct Lisp_Module_Function *);
-extern void mark_modules (void);
-extern void init_module_assertions (bool);
-extern void syms_of_module (void);
-#endif
-
 #define USE_SAFE_ALLOCA			\
   ptrdiff_t sa_avail = MAX_ALLOCA;	\
   ptrdiff_t sa_count = SPECPDL_INDEX (); bool sa_must_free = false

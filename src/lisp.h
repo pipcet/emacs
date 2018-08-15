@@ -3998,6 +3998,8 @@ struct Lisp_Module_Function
   void *data;
 };
 
+#endif /* 0 */
+
 INLINE bool
 MODULE_FUNCTIONP (Lisp_Object o)
 {
@@ -4007,8 +4009,7 @@ MODULE_FUNCTIONP (Lisp_Object o)
 INLINE struct Lisp_Module_Function *
 XMODULE_FUNCTION (Lisp_Object o)
 {
-  eassert (MODULE_FUNCTIONP (o));
-  return XUNTAG (o, Lisp_Vectorlike, struct Lisp_Module_Function);
+  return (struct Lisp_Module_Function *)o.xvector ();
 }
 
 #ifdef HAVE_MODULES
@@ -4022,8 +4023,6 @@ extern void mark_modules (void);
 extern void init_module_assertions (bool);
 extern void syms_of_module (void);
 #endif
-
-#endif /* 0 */
 
 /* Defined in thread.c.  */
 extern void mark_threads (void);
