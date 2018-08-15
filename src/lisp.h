@@ -3205,14 +3205,14 @@ staticpro (ELisp_Pointer ptr, ELisp_Handle initial_value)
 struct window;
 struct frame;
 
-#if 0
 /* Copy COUNT Lisp_Objects from ARGS to contents of V starting from OFFSET.  */
 
 INLINE void
-vcopy (Lisp_Object v, ptrdiff_t offset, Lisp_Object *args, ptrdiff_t count)
+vcopy (ELisp_Handle v, ELisp_Vector_Handle args, ptrdiff_t count)
 {
-  eassert (0 <= offset && 0 <= count && offset + count <= ASIZE (v));
-  memcpy (XVECTOR (v)->contents + offset, args, count * sizeof *args);
+  eassert (0 <= args.n && 0 <= count && args.n + count <= ASIZE (v));
+  for (ptrdiff_t i = 0; i < count; i++)
+    XVECTOR (v)->contents[args.n+i] = args.vec.ref(i);
 }
 
 /* Functions to modify hash tables.  */
@@ -3232,6 +3232,7 @@ set_hash_value_slot (struct Lisp_Hash_Table *h, ptrdiff_t idx, Lisp_Object val)
 /* Use these functions to set Lisp_Object
    or pointer slots of struct Lisp_Symbol.  */
 
+#if 0
 INLINE void
 set_symbol_function (Lisp_Object sym, Lisp_Object function)
 {

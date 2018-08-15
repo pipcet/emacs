@@ -1479,35 +1479,10 @@ struct handler
 
 extern ELisp_Heap_Value Vascii_downcase_table;
 extern ELisp_Heap_Value Vascii_canon_table;
-
-
-/* Forward declarations for prototypes.  */
 struct window;
 struct frame;
 
 /* Copy COUNT Lisp_Objects from ARGS to contents of V starting from OFFSET.  */
-
-INLINE void
-vcopy (ELisp_Handle v, ELisp_Vector_Handle args, ptrdiff_t count)
-{
-  eassert (0 <= args.n && 0 <= count && args.n + count <= ASIZE (v));
-  for (ptrdiff_t i = 0; i < count; i++)
-    XVECTOR (v)->contents[args.n+i] = args.vec.ref(i);
-}
-
-/* Functions to modify hash tables.  */
-
-INLINE void
-set_hash_key_slot (struct Lisp_Hash_Table *h, ptrdiff_t idx, ELisp_Handle val)
-{
-  gc_aset (LSH (h->key_and_value), 2 * idx, val);
-}
-
-INLINE void
-set_hash_value_slot (struct Lisp_Hash_Table *h, ptrdiff_t idx, ELisp_Handle val)
-{
-  gc_aset (LSH (h->key_and_value), 2 * idx + 1, val);
-}
 
 INLINE void
 set_symbol_function (ELisp_Handle sym, ELisp_Handle function)
