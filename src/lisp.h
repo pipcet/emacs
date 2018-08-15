@@ -3459,7 +3459,7 @@ extern Lisp_Object uintbig_to_lisp (uintmax_t);
 extern intmax_t cons_to_signed (Lisp_Object, intmax_t, intmax_t);
 extern uintmax_t cons_to_unsigned (Lisp_Object, uintmax_t);
 
-extern struct Lisp_Symbol *indirect_variable (Lisp_Object);
+extern Lisp_Object indirect_variable (Lisp_Object);
 extern _Noreturn void args_out_of_range (Lisp_Object, Lisp_Object);
 extern _Noreturn void args_out_of_range_3 (Lisp_Object, Lisp_Object,
 					   Lisp_Object);
