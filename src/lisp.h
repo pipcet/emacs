@@ -3301,32 +3301,47 @@ set_hash_value_slot (struct Lisp_Hash_Table *h, ptrdiff_t idx, Lisp_Object val)
   gc_aset (h->key_and_value, 2 * idx + 1, val);
 }
 
+extern ELisp_Return_Value elisp_symbol_value(ELisp_Handle a);
+extern void elisp_symbol_set_value(ELisp_Handle a, ELisp_Handle b);
+
+extern ELisp_Return_Value elisp_symbol_function(ELisp_Handle a);
+extern void elisp_symbol_set_function(ELisp_Handle a, ELisp_Handle b);
+
+extern ELisp_Return_Value elisp_symbol_plist(ELisp_Handle a);
+extern void elisp_symbol_set_plist(ELisp_Handle a, ELisp_Handle b);
+
+extern ELisp_Return_Value elisp_symbol_name(ELisp_Handle a);
+extern void elisp_symbol_set_name(ELisp_Handle a, ELisp_Handle b);
+
+extern ELisp_Return_Value elisp_symbol_next(ELisp_Handle a);
+extern void elisp_symbol_set_next(ELisp_Handle a, ELisp_Handle b);
 /* Use these functions to set Lisp_Object
    or pointer slots of struct Lisp_Symbol.  */
 
-#if 0
 INLINE void
-set_symbol_function (Lisp_Object sym, Lisp_Object function)
+set_symbol_function (ELisp_Handle sym, ELisp_Handle function)
 {
-  XSYMBOL (sym)->u.s.function = function;
+  elisp_symbol_set_function (sym, function);
 }
 
 INLINE void
-set_symbol_plist (Lisp_Object sym, Lisp_Object plist)
+set_symbol_plist (ELisp_Handle sym, ELisp_Handle plist)
 {
-  XSYMBOL (sym)->u.s.plist = plist;
+  elisp_symbol_set_plist (sym, plist);
 }
 
 INLINE void
-set_symbol_next (Lisp_Object sym, struct Lisp_Symbol *next)
+set_symbol_name (ELisp_Handle sym, ELisp_Handle plist)
 {
-  XSYMBOL (sym)->u.s.next = next;
+  elisp_symbol_set_name (sym, plist);
 }
+
+extern void elisp_symbol_make_constant (Lisp_Object sym);
 
 INLINE void
 make_symbol_constant (Lisp_Object sym)
 {
-  XSYMBOL (sym)->u.s.trapped_write = SYMBOL_NOWRITE;
+  elisp_symbol_make_constant (sym);
 }
 
 /* Buffer-local variable access functions.  */
@@ -3348,20 +3363,23 @@ set_overlay_plist (Lisp_Object overlay, Lisp_Object plist)
 
 /* Get text properties of S.  */
 
+extern INTERVAL elisp_string_intervals (Lisp_Object);
+
 INLINE INTERVAL
 string_intervals (Lisp_Object s)
 {
-  return XSTRING (s)->u.s.intervals;
+  return (INTERVAL) elisp_string_intervals (s);
 }
 
 /* Set text properties of S to I.  */
 
+extern void elisp_string_set_intervals (Lisp_Object, INTERVAL);
+
 INLINE void
 set_string_intervals (Lisp_Object s, INTERVAL i)
 {
-  XSTRING (s)->u.s.intervals = i;
+  elisp_string_set_intervals (s, i);
 }
-#endif
 
 /* Set a Lisp slot in TABLE to VAL.  Most code should use this instead
    of setting slots directly.  */

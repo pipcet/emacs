@@ -454,7 +454,7 @@ void *elisp_string_data(ELisp_Handle s)
   return elisp_mbstring_data(mbstring);
 }
 
-void *elisp_string_intervals(ELisp_Handle s)
+INTERVAL elisp_string_intervals(ELisp_Handle s)
 {
   JSContext *cx = jsg.cx;
   if (!s.isObject())
@@ -466,7 +466,7 @@ void *elisp_string_intervals(ELisp_Handle s)
   return JS_GetPrivate(obj);
 }
 
-void elisp_set_string_intervals(ELisp_Handle s, void *intervals)
+void elisp_set_string_intervals(ELisp_Handle s, INTERVAL intervals)
 {
   JSContext *cx = jsg.cx;
   if (!s.isObject())
