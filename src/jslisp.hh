@@ -861,30 +861,6 @@ enum More_Lisp_Bits
     PVEC_TYPE_MASK = 0x3f << PSEUDOVECTOR_AREA_BITS
   };
 
-/* True if the possibly-unsigned integer I doesn't fit in a Lisp fixnum.  */
-
-#define FIXNUM_OVERFLOW_P(i) \
-  (! ((0 <= (i) || MOST_NEGATIVE_FIXNUM <= (i)) && (i) <= MOST_POSITIVE_FIXNUM))
-
-INLINE ptrdiff_t
-clip_to_bounds (ptrdiff_t lower, EMACS_INT num, ptrdiff_t upper)
-{
-  return num < lower ? lower : num <= upper ? num : upper;
-}
-
-INLINE bool
-(FIXNUMP) (ELisp_Handle x)
-{
-  return x.integerp();
-}
-
-#define XSETINT(a, b) ((a).xsetint (b))
-#define XSETFASTINT(a, b) ((a).xsetint (b))
-#define XSETCONS(a, b) ((a).xsetcons (b))
-#define XSETVECTOR(a, b) ((a).xsetvector ((struct Lisp_Vector *)b))
-#define XSETSTRING(a, b) ((a).xsetstring (b))
-#define XSETSYMBOL(a, b) ((a).xsetsymbol (b))
-#define XSETFLOAT(a, b) ((a).xsetfloat (b))
 #define XSETMARKER(a, b) ((a).xsetvector ((struct Lisp_Vector *)(b)))
 #define XSETSCROLL_BAR(a,b) (a).xsetvector((struct Lisp_Vector *)b)
 

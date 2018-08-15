@@ -1154,8 +1154,6 @@ INLINE bool
   return x.eq(y);
 }
 
-#if 0
-
 /* True if the possibly-unsigned integer I doesn't fit in a Lisp fixnum.  */
 
 #define FIXNUM_OVERFLOW_P(i) \
@@ -1167,29 +1165,21 @@ clip_to_bounds (ptrdiff_t lower, EMACS_INT num, ptrdiff_t upper)
   return num < lower ? lower : num <= upper ? num : upper;
 }
 
-/* Construct a Lisp_Object from a value or address.  */
-
-INLINE Lisp_Object
-make_lisp_ptr (void *ptr, enum Lisp_Type type)
-{
-  Lisp_Object a = TAG_PTR (type, ptr);
-  eassert (XTYPE (a) == type && XUNTAG (a, type, char) == ptr);
-  return a;
-}
-
 INLINE bool
 (FIXNUMP) (Lisp_Object x)
 {
-  return lisp_h_FIXNUMP (x);
+  return x.integerp ();
 }
 
-#define XSETINT(a, b) ((a) = make_fixnum (b))
-#define XSETFASTINT(a, b) ((a) = make_fixed_natnum (b))
-#define XSETCONS(a, b) ((a) = make_lisp_ptr (b, Lisp_Cons))
-#define XSETVECTOR(a, b) ((a) = make_lisp_ptr (b, Lisp_Vectorlike))
-#define XSETSTRING(a, b) ((a) = make_lisp_ptr (b, Lisp_String))
-#define XSETSYMBOL(a, b) ((a) = make_lisp_symbol (b))
-#define XSETFLOAT(a, b) ((a) = make_lisp_ptr (b, Lisp_Float))
+#define XSETINT(a, b) ((a).xsetint (b))
+#define XSETFASTINT(a, b) ((a).xsetint (b))
+#define XSETCONS(a, b) ((a).xsetcons (b))
+#define XSETVECTOR(a, b) ((a).xsetvector ((struct Lisp_Vector *)b))
+#define XSETSTRING(a, b) ((a).xsetstring (b))
+#define XSETSYMBOL(a, b) ((a).xsetsymbol (b))
+#define XSETFLOAT(a, b) ((a).xsetfloat (b))
+
+#if 0
 
 /* Pseudovector types.  */
 
