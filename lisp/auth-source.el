@@ -84,7 +84,7 @@ expiring.  Overrides `password-cache-expiry' through a
 let-binding."
   :version "24.1"
   :group 'auth-source
-  :type '(choice (const :tag "Never" nil)
+  :type '(choice (const :tag "Forever" nil)
                  (const :tag "All Day" 86400)
                  (const :tag "2 Hours" 7200)
                  (const :tag "30 Minutes" 1800)
