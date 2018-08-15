@@ -1590,8 +1590,6 @@ enum
   };
 verify (header_size == sizeof (union vectorlike_header));
 
-#if 0
-
 /* The number of data words and bytes in a bool vector with SIZE bits.  */
 
 INLINE EMACS_INT
@@ -1621,10 +1619,9 @@ CHECK_BOOL_VECTOR (Lisp_Object x)
 }
 
 INLINE struct Lisp_Bool_Vector *
-XBOOL_VECTOR (Lisp_Object a)
+XBOOL_VECTOR (ELisp_Handle a)
 {
-  eassert (BOOL_VECTOR_P (a));
-  return XUNTAG (a, Lisp_Vectorlike, struct Lisp_Bool_Vector);
+  return (Lisp_Bool_Vector *)a.xvector ();
 }
 
 INLINE EMACS_INT
@@ -1678,8 +1675,6 @@ bool_vector_set (Lisp_Object a, EMACS_INT i, bool b)
   else
     *addr &= ~ (1 << (i % BOOL_VECTOR_BITS_PER_CHAR));
 }
-
-#endif
 
 /* Conveniences for dealing with Lisp arrays.  */
 
