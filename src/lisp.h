@@ -1192,14 +1192,10 @@ INLINE bool
 		       | ((restsize) << PSEUDOVECTOR_SIZE_BITS) \
 		       | (lispsize)))
 
-#if 0
-
 /* The cast to union vectorlike_header * avoids aliasing issues.  */
 #define XSETPSEUDOVECTOR(a, b, code) \
   XSETTYPED_PSEUDOVECTOR (a, b,					\
-			  (XUNTAG (a, Lisp_Vectorlike,		\
-				   union vectorlike_header)	\
-			   ->size),				\
+                          XVECTOR (a)->header.size,             \
 			  code)
 #define XSETTYPED_PSEUDOVECTOR(a, b, size, code)			\
   (XSETVECTOR (a, b),							\
@@ -1225,6 +1221,8 @@ INLINE bool
    pointer is represented as a Lisp integer, so the garbage collector
    does not know about it.  The pointer should not have both Lisp_Int1
    bits set, which makes this conversion inherently unportable.  */
+
+#if 0
 
 INLINE void *
 XFIXNUMPTR (Lisp_Object a)

@@ -43,11 +43,6 @@ DEFINE_GDB_SYMBOL_BEGIN (int, GCTYPEBITS)
 #define GCTYPEBITS 3
 DEFINE_GDB_SYMBOL_END (GCTYPEBITS)
 
-/* EMACS_INT - signed integer wide enough to hold an Emacs value
-   EMACS_INT_WIDTH - width in bits of EMACS_INT
-   EMACS_INT_MAX - maximum value of EMACS_INT; can be used in #if
-   pI - printf length modifier for EMACS_INT
-   EMACS_UINT - unsigned variant of EMACS_INT */
 #ifndef EMACS_INT_MAX
 # if INTPTR_MAX <= 0
 #  error "INTPTR_MAX misconfigured"
@@ -68,11 +63,6 @@ typedef long long int EMACS_INT;
 typedef unsigned long long int EMACS_UINT;
 enum { EMACS_INT_WIDTH = LLONG_WIDTH, EMACS_UINT_WIDTH = ULLONG_WIDTH };
 #  define EMACS_INT_MAX LLONG_MAX
-/* MinGW supports %lld only if __USE_MINGW_ANSI_STDIO is non-zero,
-   which is arranged by config.h, and (for mingw.org) if GCC is 6.0 or
-   later and the runtime version is 5.0.0 or later.  Otherwise,
-   printf-like functions are declared with __ms_printf__ attribute,
-   which will cause a warning for %lld etc.  */
 #  if defined __MINGW32__						\
   && (!defined __USE_MINGW_ANSI_STDIO					\
       || (!defined MINGW_W64						\
@@ -86,11 +76,6 @@ enum { EMACS_INT_WIDTH = LLONG_WIDTH, EMACS_UINT_WIDTH = ULLONG_WIDTH };
 # endif
 #endif
 
-/* printmax_t and uprintmax_t are types for printing large integers.
-   These are the widest integers that are supported for printing.
-   pMd etc. are conversions for printing them.
-   On C99 hosts, there's no problem, as even the widest integers work.
-   Fall back on EMACS_INT on pre-C99 hosts.  */
 #ifdef PRIdMAX
 typedef intmax_t printmax_t;
 typedef uintmax_t uprintmax_t;
@@ -155,17 +140,8 @@ enum Lisp_Bits
 # error "GCALIGNMENT and GCTYPEBITS are inconsistent"
 #endif
 
-/* The maximum value that can be stored in a EMACS_INT, assuming all
-   bits other than the type bits contribute to a nonnegative signed value.
-   This can be used in #if, e.g., '#if USE_LSB_TAG' below expands to an
-   expression involving VAL_MAX.  */
 #define VAL_MAX (EMACS_INT_MAX >> (GCTYPEBITS - 1))
 
-/* Whether the least-significant bits of an EMACS_INT contain the tag.
-   On hosts where pointers-as-ints do not exceed VAL_MAX / 2, USE_LSB_TAG is:
-    a. unnecessary, because the top bits of an EMACS_INT are unused, and
-    b. slower, because it typically requires extra masking.
-   So, USE_LSB_TAG is true only on hosts where it might be useful.  */
 DEFINE_GDB_SYMBOL_BEGIN (bool, USE_LSB_TAG)
 #define USE_LSB_TAG (VAL_MAX / 2 < INTPTR_MAX)
 DEFINE_GDB_SYMBOL_END (USE_LSB_TAG)
@@ -211,9 +187,6 @@ DEFINE_GDB_SYMBOL_END (VALMASK)
 #if USE_LSB_TAG
 #endif
 
-/* When compiling via gcc -O0, define the key operations as macros, as
-   Emacs is too slow otherwise.  To disable this optimization, compile
-   with -DINLINING=false.  */
 # define DEFINE_KEY_OPS_AS_MACROS true
 
 #define CHECK_TYPE(ok, predicate, x) lisp_h_CHECK_TYPE (ok, predicate, x)
@@ -232,20 +205,9 @@ DEFINE_GDB_SYMBOL_END (VALMASK)
 #endif
 
 
-/* Define the fundamental Lisp data structures.  */
-
-/* This is the set of Lisp data types.  If you want to define a new
-   data type, read the comments after Lisp_Fwd_Type definition
-   below.  */
-
-/* Lisp integers use 2 tags, to give them one extra bit, thus
-   extending their range from, e.g., -2^28..2^28-1 to -2^29..2^29-1.  */
 #define INTMASK 0xffffffff
 #define case_Lisp_Int case Lisp_Int0: case Lisp_Int1
 
-/* Idea stolen from GDB.  Pedantic GCC complains about enum bitfields,
-   MSVC doesn't support them, and xlc and Oracle Studio c99 complain
-   vociferously about them.  */
 #if (defined __STRICT_ANSI__ || defined _MSC_VER || defined __IBMC__ \
      || (defined __SUNPRO_C && __STDC__))
 #define ENUM_BF(TYPE) unsigned int
@@ -387,15 +349,9 @@ union Lisp_Symbol_Flags
   int32_t i;
 };
 
-/* Declare a Lisp-callable function.  The MAXARGS parameter has the same
-   meaning as in the DEFUN macro, and is used to construct a prototype.  */
-/* We can use the same trick as in the DEFUN macro to generate the
-   appropriate prototype.  */
 #define EXFUN(fnname, maxargs) \
   extern ELisp_Return_Value fnname DEFUN_ARGS_ ## maxargs
 
-/* Note that the weird token-substitution semantics of ANSI C makes
-   this work for MANY and UNEVALLED.  */
 #define DEFUN_ARGS_MANY		(ELisp_Vector_Handle)
 #define DEFUN_ARGS_UNEVALLED	(ELisp_Handle)
 #define DEFUN_ARGS_0	(void)
@@ -412,29 +368,17 @@ union Lisp_Symbol_Flags
 #define DEFUN_ARGS_8	(ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle, \
                          ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle)
 
-/* Yield a signed integer that contains TAG along with PTR.
-
-   Sign-extend pointers when USE_LSB_TAG (this simplifies emacs-module.c),
-   and zero-extend otherwise (that’s a bit faster here).
-   Sign extension matters only when EMACS_INT is wider than a pointer.  */
 #define TAG_PTR(tag, ptr) \
   (USE_LSB_TAG \
    ? (intptr_t) (ptr) + (tag) \
    : (EMACS_INT) (((EMACS_UINT) (tag) << VALBITS) + (uintptr_t) (ptr)))
 
-/* Declare extern constants for Lisp symbols.  These can be helpful
-   when using a debugger like GDB, on older platforms where the debug
-   format does not represent C macros.  */
 #define DEFINE_LISP_SYMBOL(name) \
   DEFINE_GDB_SYMBOL_BEGIN (ELisp_Struct_Value, name) \
   DEFINE_GDB_SYMBOL_END (LISPSYM_INITIALLY (name))
 
-/* The index of the C-defined Lisp symbol SYM.
-   This can be used in a static initializer.  */
 #define SYMBOL_INDEX(sym) i##sym
 
-/* Yield an integer that contains a symbol tag along with OFFSET.
-   OFFSET should be the offset in bytes from 'lispsym' to the symbol.  */
 #define TAG_SYMOFFSET(offset) TAG_PTR (Lisp_Symbol, offset)
 
 INLINE bool
@@ -500,56 +444,16 @@ CHECK_SYMBOL (ELisp_Handle x)
   lisp_h_CHECK_SYMBOL (x);
 }
 
-/* In the size word of a vector, this bit means the vector has been marked.  */
-
 DEFINE_GDB_SYMBOL_BEGIN (ptrdiff_t, ARRAY_MARK_FLAG)
 # define ARRAY_MARK_FLAG PTRDIFF_MIN
 DEFINE_GDB_SYMBOL_END (ARRAY_MARK_FLAG)
 
-#define XSETMARKER(a, b) ((a).xsetvector ((struct Lisp_Vector *)(b)))
-#define XSETOVERLAY(a, b) ((a).xsetvector ((struct Lisp_Vector *)(b)))
-#define XSETSCROLL_BAR(a,b) (a).xsetvector((struct Lisp_Vector *)b)
-
-/* The cast to struct vectorlike_header * avoids aliasing issues.  */
-#define XSETPSEUDOVECTOR(a, b, code) \
-  XSETTYPED_PSEUDOVECTOR (a, b,					\
-                          (((struct vectorlike_header *)	\
-                            (a).xvector())                      \
-                           ->size),				\
-                          code)
-#define XSETTYPED_PSEUDOVECTOR(a, b, size, code)			\
-  (XSETVECTOR (a, b),							\
-   eassert ((size & (PSEUDOVECTOR_FLAG | PVEC_TYPE_MASK))		\
-            == (PSEUDOVECTOR_FLAG | (code << PSEUDOVECTOR_AREA_BITS))))
-
-#define XSETWINDOW_CONFIGURATION(a, b) \
-  (XSETPSEUDOVECTOR (a, b, PVEC_WINDOW_CONFIGURATION))
-#define XSETPROCESS(a, b) (XSETPSEUDOVECTOR (a, b, PVEC_PROCESS))
-#define XSETWINDOW(a, b) (XSETPSEUDOVECTOR (a, b, PVEC_WINDOW))
-#define XSETTERMINAL(a, b) (XSETPSEUDOVECTOR (a, b, PVEC_TERMINAL))
-#define XSETSUBR(a, b) (XSETPSEUDOVECTOR (a, b, PVEC_SUBR))
-#define XSETCOMPILED(a, b) (XSETPSEUDOVECTOR (a, b, PVEC_COMPILED))
-#define XSETBUFFER(a, b) (XSETPSEUDOVECTOR (a, b, PVEC_BUFFER))
-#define XSETCHAR_TABLE(a, b) (XSETPSEUDOVECTOR (a, b, PVEC_CHAR_TABLE))
-#define XSETBOOL_VECTOR(a, b) (XSETPSEUDOVECTOR (a, b, PVEC_BOOL_VECTOR))
-#define XSETSUB_CHAR_TABLE(a, b) (XSETPSEUDOVECTOR (a, b, PVEC_SUB_CHAR_TABLE))
-#define XSETTHREAD(a, b) (XSETPSEUDOVECTOR (a, b, PVEC_THREAD))
-#define XSETMUTEX(a, b) (XSETPSEUDOVECTOR (a, b, PVEC_MUTEX))
-#define XSETCONDVAR(a, b) (XSETPSEUDOVECTOR (a, b, PVEC_CONDVAR))
-#define XSETBIGNUM(a, b) (XSETPSEUDOVECTOR (a, b, PVEC_BIGNUM))
-
 extern const int chartab_size[4];
-
-/* Save and restore the instruction and environment pointers,
-   without affecting the signal mask.  */
-
 
 #include "thread.h.hh"
 
 #include "jslisp-symbol-accessors.hh"
 
-/* Placeholder for make-docfile to process.  The actual symbol
-   definition is done by lread.c's defsym.  */
 #define DEFSYM(sym, name) /* empty */
 
 template<typename... As>
