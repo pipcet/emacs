@@ -4000,6 +4000,8 @@ extern void init_module_assertions (bool);
 extern void syms_of_module (void);
 #endif
 
+#endif /* 0 */
+
 /* Defined in thread.c.  */
 extern void mark_threads (void);
 
@@ -4068,8 +4070,6 @@ extern bool file_directory_p (Lisp_Object);
 extern bool file_accessible_directory_p (Lisp_Object);
 extern void init_fileio (void);
 extern void syms_of_fileio (void);
-
-#endif /* 0 */
 
 /* Defined in search.c.  */
 extern void shrink_regexp_cache (void);
