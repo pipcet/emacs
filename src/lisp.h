@@ -1182,8 +1182,6 @@ INLINE bool
 #define XSETSYMBOL(a, b) ((a).xsetsymbol (b))
 #define XSETFLOAT(a, b) ((a).xsetfloat (b))
 
-#if 0
-
 /* Pseudovector types.  */
 
 #define XSETPVECTYPE(v, code)						\
@@ -1193,6 +1191,8 @@ INLINE bool
 		       | ((code) << PSEUDOVECTOR_AREA_BITS)	\
 		       | ((restsize) << PSEUDOVECTOR_SIZE_BITS) \
 		       | (lispsize)))
+
+#if 0
 
 /* The cast to union vectorlike_header * avoids aliasing issues.  */
 #define XSETPSEUDOVECTOR(a, b, code) \
@@ -1848,8 +1848,6 @@ struct Lisp_Sub_Char_Table
     Lisp_Object contents[FLEXIBLE_ARRAY_MEMBER];
   };
 
-#if 0
-
 INLINE bool
 SUB_CHAR_TABLE_P (Lisp_Object a)
 {
@@ -1859,9 +1857,10 @@ SUB_CHAR_TABLE_P (Lisp_Object a)
 INLINE struct Lisp_Sub_Char_Table *
 XSUB_CHAR_TABLE (Lisp_Object a)
 {
-  eassert (SUB_CHAR_TABLE_P (a));
-  return XUNTAG (a, Lisp_Vectorlike, struct Lisp_Sub_Char_Table);
+  return (struct Lisp_Sub_Char_Table *)a.xvector ();
 }
+
+#if 0
 
 INLINE Lisp_Object
 CHAR_TABLE_REF_ASCII (Lisp_Object ct, ptrdiff_t idx)

@@ -691,16 +691,6 @@ DEFINE_GDB_SYMBOL_END (ARRAY_MARK_FLAG)
 #define XSETMARKER(a, b) ((a).xsetvector ((struct Lisp_Vector *)(b)))
 #define XSETSCROLL_BAR(a,b) (a).xsetvector((struct Lisp_Vector *)b)
 
-/* Pseudovector types.  */
-
-#define XSETPVECTYPE(v, code)						\
-  ((v)->header.size |= PSEUDOVECTOR_FLAG | ((code) << PSEUDOVECTOR_AREA_BITS))
-#define XSETPVECTYPESIZE(v, code, lispsize, restsize)		\
-  ((v)->header.size = (PSEUDOVECTOR_FLAG			\
-                       | ((code) << PSEUDOVECTOR_AREA_BITS)	\
-                       | ((restsize) << PSEUDOVECTOR_SIZE_BITS) \
-                       | (lispsize)))
-
 /* The cast to struct vectorlike_header * avoids aliasing issues.  */
 #define XSETPSEUDOVECTOR(a, b, code) \
   XSETTYPED_PSEUDOVECTOR (a, b,					\
@@ -743,18 +733,6 @@ DEFINE_GDB_SYMBOL_END (ARRAY_MARK_FLAG)
 #define ASCII_CHAR_P(c) UNSIGNED_CMP (c, <, 0x80)
 
 extern const int chartab_size[4];
-
-INLINE bool
-SUB_CHAR_TABLE_P (ELisp_Handle a)
-{
-  return PSEUDOVECTORP (a, PVEC_SUB_CHAR_TABLE);
-}
-
-INLINE struct Lisp_Sub_Char_Table *
-XSUB_CHAR_TABLE (ELisp_Handle a)
-{
-  return (struct Lisp_Sub_Char_Table *)a.xvector();
-}
 
 INLINE ELisp_Return_Value
 CHAR_TABLE_REF_ASCII (ELisp_Handle ct, ptrdiff_t idx)
