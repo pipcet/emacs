@@ -654,18 +654,16 @@ INLINE Lisp_Object
   return lisp_h_XPL (p);
 }
 
+#endif /* 0 */
 /* Extract A's type.  */
 
 INLINE enum Lisp_Type
 (XTYPE) (Lisp_Object a)
 {
-#if USE_LSB_TAG
-  return lisp_h_XTYPE (a);
-#else
-  EMACS_UINT i = XLI (a);
-  return USE_LSB_TAG ? i & ~VALMASK : i >> VALBITS;
-#endif
+  return a.xtype();
 }
+
+#if 0
 
 INLINE void
 (CHECK_TYPE) (int ok, Lisp_Object predicate, Lisp_Object x)

@@ -472,12 +472,6 @@ union Lisp_Symbol_Flags
 # define DEFINE_NON_NIL_Q_SYMBOL_MACROS true
 #endif
 
-INLINE enum Lisp_Type
-XTYPE (ELisp_Handle a)
-{
-  return a.xtype();
-}
-
 INLINE bool
 SYMBOLP (ELisp_Handle x)
 {
