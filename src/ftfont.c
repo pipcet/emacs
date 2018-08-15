@@ -850,7 +850,7 @@ ftfont_list (struct frame *f, Lisp_Object spec)
 	}
     }
   adstyle = AREF (spec, FONT_ADSTYLE_INDEX);
-  if (! NILP (adstyle) && SBYTES (SYMBOL_NAME (adstyle)) == 0)
+  if (! NILP (adstyle) && SBYTES (LRH (SYMBOL_NAME (adstyle))) == 0)
     adstyle = Qnil;
   objset = FcObjectSetBuild (FC_FOUNDRY, FC_FAMILY, FC_WEIGHT, FC_SLANT,
 			     FC_WIDTH, FC_PIXEL_SIZE, FC_SPACING, FC_SCALABLE,
@@ -968,12 +968,12 @@ ftfont_list (struct frame *f, Lisp_Object spec)
 
 	  if (! NILP (adstyle)
 	      && (NILP (this_adstyle)
-		  || xstrcasecmp (SSDATA (SYMBOL_NAME (adstyle)),
-				  SSDATA (SYMBOL_NAME (this_adstyle))) != 0))
+		  || xstrcasecmp (SSDATA (LRH (SYMBOL_NAME (adstyle))),
+				  SSDATA (LRH (SYMBOL_NAME (this_adstyle)))) != 0))
 	    continue;
 	  if (langname
 	      && ! NILP (this_adstyle)
-	      && xstrcasecmp (langname, SSDATA (SYMBOL_NAME (this_adstyle))))
+	      && xstrcasecmp (langname, SSDATA (LRH (SYMBOL_NAME (this_adstyle)))))
 	    continue;
 	}
       entity = ftfont_pattern_entity (fontset->fonts[i],
