@@ -2114,6 +2114,9 @@ struct hash_table_test
   EMACS_UINT (*hashfn) (struct hash_table_test *t, Lisp_Object);
 };
 
+#endif /* 0 */
+
+#if 0
 struct Lisp_Hash_Table
 {
   /* This is for Lisp; the hash table code does not refer to it.  */
@@ -2252,6 +2255,10 @@ SXHASH_REDUCE (EMACS_UINT x)
 {
   return (x ^ x >> (EMACS_INT_WIDTH - FIXNUM_BITS)) & INTMASK;
 }
+
+#endif
+
+#if 0
 
 struct Lisp_Marker
 {
@@ -2879,7 +2886,6 @@ CHECK_INTEGER (Lisp_Object x)
       CHECK_TYPE (INTEGERP (x), LRH (Qnumber_or_marker_p), x);		\
   } while (false)
 
-#if 0
 /* Since we can't assign directly to the CAR or CDR fields of a cons
    cell, use these when checking that those fields contain numbers.  */
 INLINE void
@@ -2897,6 +2903,7 @@ CHECK_FIXNUM_CDR (ELisp_Handle x)
   CHECK_FIXNUM (tmp);
   XSETCDR (x, tmp);
 }
+#if 0
 
 /* Define a built-in function for calling from Lisp.
  `lname' should be the name to give the function in Lisp,

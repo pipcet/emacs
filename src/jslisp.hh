@@ -2387,59 +2387,12 @@ CHECK_NATNUM (ELisp_Handle x)
       CHECK_TYPE (FIXNUMP (x), LSH (Qinteger_or_marker_p), x);		\
   } while (false)
 
-INLINE void
-CHECK_FIXNUM_CAR (ELisp_Handle x)
-{
-  ELisp_Value tmp = XCAR (x);
-  CHECK_FIXNUM (tmp);
-  XSETCAR (x, tmp);
-}
-
-INLINE void
-CHECK_FIXNUM_CDR (ELisp_Handle x)
-{
-  ELisp_Value tmp = XCDR (x);
-  CHECK_FIXNUM (tmp);
-  XSETCDR (x, tmp);
-}
-
 INLINE double
 XFLOATINT (ELisp_Handle n)
 {
   return FLOATP (n) ? XFLOAT_DATA (n) : XFIXNUM (n);
 }
 
-INLINE void
-CHECK_NUMBER_OR_FLOAT (ELisp_Handle x)
-{
-  CHECK_TYPE (NUMBERP (x), LSH (Qnumberp), x);
-}
-
-#define CHECK_NUMBER_OR_FLOAT_COERCE_MARKER(x)				\
-  do {									\
-    if (MARKERP (x))							\
-      XSETFASTINT (x, marker_position (x));				\
-    else								\
-      CHECK_TYPE (NUMBERP (x), LSH (Qnumber_or_marker_p), x);           \
-  } while (false)
-
-/* Since we can't assign directly to the CAR or CDR fields of a cons
-   cell, use these when checking that those fields contain numbers.  */
-INLINE void
-CHECK_NUMBER_CAR (ELisp_Handle x)
-{
-  ELisp_Value tmp = XCAR (x);
-  CHECK_NUMBER (tmp);
-  XSETCAR (x, tmp);
-}
-
-INLINE void
-CHECK_NUMBER_CDR (ELisp_Handle x)
-{
-  ELisp_Value tmp = XCDR (x);
-  CHECK_NUMBER (tmp);
-  XSETCDR (x, tmp);
-}
 
 /* Define a built-in function for calling from Lisp.
  `lname' should be the name to give the function in Lisp,
