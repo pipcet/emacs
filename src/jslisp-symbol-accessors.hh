@@ -70,29 +70,6 @@ SET_SYMBOL_FWD (ELisp_Handle sym, union Lisp_Fwd *v)
   elisp_symbol_set_fwd (sym, v);
 }
 
-INLINE ELisp_Return_Value
-SYMBOL_NAME (ELisp_Handle sym)
-{
-  return XSYMBOL_NAME (sym);
-}
-
-extern unsigned elisp_symbol_interned(ELisp_Handle);
-/* Value is true if SYM is an interned symbol.  */
-
-INLINE bool
-SYMBOL_INTERNED_P (ELisp_Handle sym)
-{
-  return elisp_symbol_interned(sym) != SYMBOL_UNINTERNED;
-}
-
-/* Value is true if SYM is interned in initial_obarray.  */
-
-INLINE bool
-SYMBOL_INTERNED_IN_INITIAL_OBARRAY_P (ELisp_Handle sym)
-{
-  return elisp_symbol_interned(sym) == SYMBOL_INTERNED_IN_INITIAL_OBARRAY;
-}
-
 extern void
 elisp_symbol_set_interned(ELisp_Handle, unsigned);
 
@@ -137,32 +114,36 @@ SET_SYMBOL_PINNED (ELisp_Handle sym, bool pinned)
   elisp_symbol_set_pinned(sym, pinned);
 }
 
-extern int
-elisp_symbol_trapped_write_value(ELisp_Handle symbol);
-
 /* Value is non-zero if symbol cannot be changed through a simple set,
    i.e. it's a constant (e.g. nil, t, :keywords), or it has some
    watching functions.  */
 
-INLINE int
-(SYMBOL_TRAPPED_WRITE_P) (ELisp_Handle sym)
+INLINE ELisp_Return_Value
+XSYMBOL_PLIST (ELisp_Handle a)
 {
-  return lisp_h_SYMBOL_TRAPPED_WRITE_P (sym);
+  return elisp_symbol_plist (a);
 }
 
-INLINE int
-(SYMBOL_TRAPPED_WRITE_VALUE) (ELisp_Handle sym)
+INLINE void
+XSYMBOL_PLIST_SET (ELisp_Handle a, ELisp_Handle b)
 {
-  return elisp_symbol_trapped_write_value(sym);
+  elisp_symbol_set_plist(a, b);
 }
 
-/* Value is non-zero if symbol cannot be changed at all, i.e. it's a
-   constant (e.g. nil, t, :keywords).  Code that actually wants to
-   write to SYM, should also check whether there are any watching
-   functions.  */
-
-INLINE int
-(SYMBOL_CONSTANT_P) (ELisp_Handle sym)
+INLINE void
+XSYMBOL_NAME_SET (ELisp_Handle a, ELisp_Handle b)
 {
-  return lisp_h_SYMBOL_CONSTANT_P (sym);
+  elisp_symbol_set_name(a, b);
+}
+
+INLINE ELisp_Return_Value
+XSYMBOL_NEXT (ELisp_Handle a)
+{
+  return elisp_symbol_next (a);
+}
+
+INLINE void
+XSYMBOL_NEXT_SET (ELisp_Handle a, ELisp_Handle b)
+{
+  elisp_symbol_set_next(a, b);
 }

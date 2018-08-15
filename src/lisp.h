@@ -21,16 +21,8 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #ifndef EMACS_LISP_H
 #define EMACS_LISP_H
 
-#define JSLISP_HH_SECTION_1
-#include "jslisp.hh"
-#define JSLISP_HH_SECTION_1B
-#include "jslisp.hh"
-#define JSLISP_HH_SECTION_1C
-#include "jslisp.hh"
-#define JSLISP_HH_SECTION_1D
-#include "jslisp.hh"
-#define JSLISP_HH_SECTION_1E
-#include "jslisp.hh"
+#include "jslisp-headers.hh"
+#include "jslisp-jsg.h"
 
 #include <alloca.h>
 #include <setjmp.h>
@@ -84,7 +76,6 @@ INLINE_HEADER_BEGIN
 /* Number of elements in an array.  */
 #define ARRAYELTS(arr) (sizeof (arr) / sizeof (arr)[0])
 
-#if 0
 /* Number of bits in a Lisp_Object tag.  */
 DEFINE_GDB_SYMBOL_BEGIN (int, GCTYPEBITS)
 #define GCTYPEBITS 3
@@ -133,7 +124,6 @@ enum { EMACS_INT_WIDTH = LLONG_WIDTH, EMACS_UINT_WIDTH = ULLONG_WIDTH };
 # endif
 #endif
 
-#endif
 /* Number of bits to put in each character in the internal representation
    of bool vectors.  This should not vary across implementations.  */
 enum {  BOOL_VECTOR_BITS_PER_CHAR =
@@ -156,7 +146,6 @@ enum { BITS_PER_BITS_WORD = BOOL_VECTOR_BITS_PER_CHAR };
 #endif
 verify (BITS_WORD_MAX >> (BITS_PER_BITS_WORD - 1) == 1);
 
-#if 0
 /* printmax_t and uprintmax_t are types for printing large integers.
    These are the widest integers that are supported for printing.
    pMd etc. are conversions for printing them.
@@ -298,9 +287,6 @@ error !;
    for older versions of GCC (through at least 4.9).  */
 #if USE_LSB_TAG
 # define GCALIGNMENT 8
-# if GCALIGNMENT != 1 << GCTYPEBITS
-#  error "GCALIGNMENT and GCTYPEBITS are inconsistent"
-# endif
 #else
 # define GCALIGNMENT 1
 #endif
@@ -375,8 +361,8 @@ typedef EMACS_INT Lisp_Word;
 # endif
 #endif
 
-#define lisp_h_CHECK_FIXNUM(x) CHECK_TYPE (FIXNUMP (x), Qfixnump, x)
-#define lisp_h_CHECK_SYMBOL(x) CHECK_TYPE (SYMBOLP (x), Qsymbolp, x)
+#define lisp_h_CHECK_FIXNUM(x) CHECK_TYPE (FIXNUMP (x), LSH (Qfixnump), x)
+#define lisp_h_CHECK_SYMBOL(x) CHECK_TYPE (SYMBOLP (x), LSH (Qsymbolp), x)
 #define lisp_h_CHECK_TYPE(ok, predicate, x) \
    ((ok) ? (void) 0 : wrong_type_argument (predicate, x))
 #define lisp_h_CONSP(x) (XTYPE (x) == Lisp_Cons)
@@ -385,24 +371,20 @@ typedef EMACS_INT Lisp_Word;
 #define lisp_h_FIXNUMP(x) ((XTYPE (x) & (Lisp_Int0 | ~Lisp_Int1)) == Lisp_Int0)
 #define lisp_h_NILP(x) EQ (x, Qnil)
 #define lisp_h_SET_SYMBOL_VAL(sym, v) \
-   (eassert ((sym)->u.s.redirect == SYMBOL_PLAINVAL), \
-    (sym)->u.s.val.value = (v))
+  (eassert ((sym)->u.s.redirect == SYMBOL_PLAINVAL),    \
+   (sym)->u.s.val.value = (v))
 #define lisp_h_SYMBOL_CONSTANT_P(sym) \
-   (XSYMBOL (sym)->u.s.trapped_write == SYMBOL_NOWRITE)
-#define lisp_h_SYMBOL_TRAPPED_WRITE_P(sym) (XSYMBOL (sym)->u.s.trapped_write)
+  (elisp_symbol_trapped_write_value (sym) == SYMBOL_NOWRITE)
+#define lisp_h_SYMBOL_TRAPPED_WRITE_P(sym) (elisp_symbol_trapped_write_value (sym))
 #define lisp_h_SYMBOL_VAL(sym) \
    (eassert ((sym)->u.s.redirect == SYMBOL_PLAINVAL), (sym)->u.s.val.value)
 #define lisp_h_SYMBOLP(x) (XTYPE (x) == Lisp_Symbol)
-#endif
 #define lisp_h_VECTORLIKEP(x) (XTYPE (x) == Lisp_Vectorlike)
-#if 0
 #define lisp_h_XCAR(c) XCONS (c)->u.s.car
 #define lisp_h_XCDR(c) XCONS (c)->u.s.u.cdr
 #define lisp_h_XCONS(a) \
    (eassert (CONSP (a)), XUNTAG (a, Lisp_Cons, struct Lisp_Cons))
-#endif
 #define lisp_h_XHASH(a) XUFIXNUM (a)
-#if 0
 #ifndef GC_CHECK_CONS_LIST
 # define lisp_h_check_cons_list() ((void) 0)
 #endif
@@ -482,7 +464,7 @@ typedef EMACS_INT Lisp_Word;
 
 /* Lisp integers use 2 tags, to give them one extra bit, thus
    extending their range from, e.g., -2^28..2^28-1 to -2^29..2^29-1.  */
-#define INTMASK (EMACS_INT_MAX >> (INTTYPEBITS - 1))
+#define INTMASK 0xffffffffL
 #define case_Lisp_Int case Lisp_Int0: case Lisp_Int1
 
 /* Idea stolen from GDB.  Pedantic GCC complains about enum bitfields,
@@ -519,7 +501,8 @@ enum Lisp_Type
     /* Cons.  XCONS (object) points to a struct Lisp_Cons.  */
     Lisp_Cons = USE_LSB_TAG ? 3 : 6,
 
-    Lisp_Float = 7
+    Lisp_Float = 7,
+    Lisp_JSValue = 8,
   };
 
 /* These are the types of forwarding objects used in the value slot
@@ -533,6 +516,8 @@ enum Lisp_Fwd_Type
     Lisp_Fwd_Buffer_Obj,	/* Fwd to a Lisp_Object field of buffers.  */
     Lisp_Fwd_Kboard_Obj		/* Fwd to a Lisp_Object field of kboards.  */
   };
+
+#include "jslisp-objects.hh"
 
 /* If you want to define a new Lisp data type, here are some
    instructions.
@@ -585,6 +570,7 @@ enum Lisp_Fwd_Type
    LISP_INITIALLY (W) initializes a Lisp object with a tagged value
    that is a Lisp_Word W.  It can be used in a static initializer.  */
 
+#if 0
 #ifdef CHECK_LISP_OBJECT_TYPE
 typedef struct Lisp_Object { Lisp_Word i; } Lisp_Object;
 # define LISP_INITIALLY(w) {w}
@@ -595,7 +581,7 @@ typedef Lisp_Word Lisp_Object;
 # define LISP_INITIALLY(w) (w)
 enum CHECK_LISP_OBJECT_TYPE { CHECK_LISP_OBJECT_TYPE = false };
 #endif
-#endif /* 0 */
+#endif
 
 
 /* Forward declarations.  */
@@ -624,8 +610,6 @@ extern bool initialized;
 /* Defined in floatfns.c.  */
 extern double extract_float (Lisp_Object);
 
-#if 0
-
 
 /* Low-level conversion and type checking.  */
 
@@ -634,6 +618,7 @@ extern double extract_float (Lisp_Object);
    if pointers differ in width from EMACS_INT; otherwise they are
    no-ops.  */
 
+#if 0
 INLINE EMACS_INT
 (XLI) (Lisp_Object o)
 {
@@ -657,8 +642,8 @@ INLINE Lisp_Object
 {
   return lisp_h_XPL (p);
 }
+#endif
 
-#endif /* 0 */
 /* Extract A's type.  */
 
 INLINE enum Lisp_Type
@@ -885,6 +870,14 @@ lispsym_initially (ELisp_Struct_Value *sym)
 #endif
 
 extern ELisp_Struct_Value lispsym[1221];
+
+extern unsigned elisp_symbol_trapped_write_value(ELisp_Handle symbol);
+
+INLINE int
+(SYMBOL_TRAPPED_WRITE_VALUE) (ELisp_Handle sym)
+{
+  return elisp_symbol_trapped_write_value(sym);
+}
 
 INLINE ELisp_Return_Value
 make_lisp_symbol (ELisp_Handle sym)
@@ -1282,8 +1275,6 @@ make_pointer_integer (void *p)
 
 typedef struct interval *INTERVAL;
 
-#if 0
-
 struct Lisp_Cons
 {
   union
@@ -1306,7 +1297,6 @@ struct Lisp_Cons
   } u;
 };
 verify (alignof (struct Lisp_Cons) % GCALIGNMENT == 0);
-#endif /* 0 */
 INLINE bool
 NILP (ELisp_Handle x)
 {
@@ -2047,7 +2037,6 @@ typedef jmp_buf sys_jmp_buf;
 #endif
 
 #include "thread.h"
-#if 0
 /***********************************************************************
 			       Symbols
  ***********************************************************************/
@@ -2104,18 +2093,27 @@ SET_SYMBOL_FWD (struct Lisp_Symbol *sym, union Lisp_Fwd *v)
   sym->u.s.val.fwd = v;
 }
 
+extern ELisp_Return_Value elisp_symbol_name (ELisp_Handle);
+
+INLINE ELisp_Return_Value
+XSYMBOL_NAME (ELisp_Handle a)
+{
+  return elisp_symbol_name (a);
+}
+
 INLINE Lisp_Object
 SYMBOL_NAME (Lisp_Object sym)
 {
-  return XSYMBOL (sym)->u.s.name;
+  return XSYMBOL_NAME (sym);
 }
 
+extern unsigned elisp_symbol_interned(ELisp_Handle);
 /* Value is true if SYM is an interned symbol.  */
 
 INLINE bool
 SYMBOL_INTERNED_P (Lisp_Object sym)
 {
-  return XSYMBOL (sym)->u.s.interned != SYMBOL_UNINTERNED;
+  return elisp_symbol_interned(sym) != SYMBOL_UNINTERNED;
 }
 
 /* Value is true if SYM is interned in initial_obarray.  */
@@ -2123,7 +2121,7 @@ SYMBOL_INTERNED_P (Lisp_Object sym)
 INLINE bool
 SYMBOL_INTERNED_IN_INITIAL_OBARRAY_P (Lisp_Object sym)
 {
-  return XSYMBOL (sym)->u.s.interned == SYMBOL_INTERNED_IN_INITIAL_OBARRAY;
+  return elisp_symbol_interned(sym) == SYMBOL_INTERNED_IN_INITIAL_OBARRAY;
 }
 
 /* Value is non-zero if symbol cannot be changed through a simple set,
@@ -2146,8 +2144,6 @@ INLINE int
 {
   return lisp_h_SYMBOL_CONSTANT_P (sym);
 }
-
-#endif /* 0 */
 
 /* Placeholder for make-docfile to process.  The actual symbol
    definition is done by lread.c's defsym.  */
@@ -2641,7 +2637,6 @@ XBUFFER_OBJFWD (union Lisp_Fwd *a)
   eassert (BUFFER_OBJFWDP (a));
   return &a->u_buffer_objfwd;
 }
-#if 0
 
 /* Lisp floating point type.  */
 struct Lisp_Float
@@ -2658,8 +2653,6 @@ INLINE bool
 {
   return lisp_h_FLOATP (x);
 }
-
-#endif
 
 INLINE double
 XFLOAT (Lisp_Object a)
@@ -4467,7 +4460,9 @@ extern EMACS_INT get_random (void);
 extern void seed_random (void *, ptrdiff_t);
 extern void init_random (void);
 extern void emacs_backtrace (int);
+#if 0
 extern _Noreturn void emacs_abort (void) NO_INLINE;
+#endif
 extern int emacs_open (const char *, int, int);
 extern int emacs_pipe (int[2]);
 extern int emacs_close (int);
@@ -4909,13 +4904,8 @@ maybe_gc (void)
 
 INLINE_HEADER_END
 
-#define JSLISP_HH_SECTION_2
-#include "jslisp.hh"
-#define JSLISP_HH_SECTION_3
-#include "jslisp.hh"
-#define JSLISP_HH_SECTION_4
-#include "jslisp.hh"
-#define JSLISP_HH_SECTION_5
-#include "jslisp.hh"
+#include "jslisp-vectors.hh"
+#include "jslisp-symbol-accessors.hh"
+#include "jslisp-calln.hh"
 
 #endif /* EMACS_LISP_H */

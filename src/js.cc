@@ -2150,7 +2150,7 @@ elisp_symbol_set_next(ELisp_Handle symbol, ELisp_Handle plist)
   JS_SetReservedSlot(obj, 4, plist);
 }
 
-int
+unsigned
 elisp_symbol_trapped_write_value(ELisp_Handle symbol)
 {
   JSContext *cx = jsg.cx;
