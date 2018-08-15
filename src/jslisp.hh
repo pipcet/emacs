@@ -687,38 +687,6 @@ union Lisp_Symbol_Flags
 # define DEFINE_NON_NIL_Q_SYMBOL_MACROS true
 #endif
 
-/* Header of vector-like objects.  This documents the layout constraints on
-   vectors and pseudovectors (objects of PVEC_xxx subtype).  It also prevents
-   compilers from being fooled by Emacs's type punning: XSETPSEUDOVECTOR
-   and PSEUDOVECTORP cast their pointers to struct vectorlike_header *,
-   because when two such pointers potentially alias, a compiler won't
-   incorrectly reorder loads and stores to their size fields.  See
-   Bug#8546.  */
-struct vectorlike_header
-  {
-    JS::Heap<JS::Value> jsval;
-    /* The only field contains various pieces of information:
-       - The MSB (ARRAY_MARK_FLAG) holds the gcmarkbit.
-       - The next bit (PSEUDOVECTOR_FLAG) indicates whether this is a plain
-         vector (0) or a pseudovector (1).
-       - If PSEUDOVECTOR_FLAG is 0, the rest holds the size (number
-         of slots) of the vector.
-       - If PSEUDOVECTOR_FLAG is 1, the rest is subdivided into three fields:
-         - a) pseudovector subtype held in PVEC_TYPE_MASK field;
-         - b) number of Lisp_Objects slots at the beginning of the object
-           held in PSEUDOVECTOR_SIZE_MASK field.  These objects are always
-           traced by the GC;
-         - c) size of the rest fields held in PSEUDOVECTOR_REST_MASK and
-           measured in word_size units.  Rest fields may also include
-           Lisp_Objects, but these objects usually needs some special treatment
-           during GC.
-         There are some exceptions.  For PVEC_FREE, b) is always zero.  For
-         PVEC_BOOL_VECTOR and PVEC_SUBR, both b) and c) are always zero.
-         Current layout limits the pseudovectors to 63 PVEC_xxx subtypes,
-         4095 Lisp_Objects in GC-ed area and 4095 word-sized other slots.  */
-    ptrdiff_t size;
-  };
-
 INLINE enum Lisp_Type
 XTYPE (ELisp_Handle a)
 {
@@ -794,73 +762,6 @@ DEFINE_GDB_SYMBOL_BEGIN (ptrdiff_t, ARRAY_MARK_FLAG)
 # define ARRAY_MARK_FLAG PTRDIFF_MIN
 DEFINE_GDB_SYMBOL_END (ARRAY_MARK_FLAG)
 
-/* In the size word of a struct Lisp_Vector, this bit means it's really
-   some other vector-like object.  */
-DEFINE_GDB_SYMBOL_BEGIN (ptrdiff_t, PSEUDOVECTOR_FLAG)
-# define PSEUDOVECTOR_FLAG (PTRDIFF_MAX - PTRDIFF_MAX / 2)
-DEFINE_GDB_SYMBOL_END (PSEUDOVECTOR_FLAG)
-
-/* In a pseudovector, the size field actually contains a word with one
-   PSEUDOVECTOR_FLAG bit set, and one of the following values extracted
-   with PVEC_TYPE_MASK to indicate the actual type.  */
-enum pvec_type
-{
-  PVEC_NORMAL_VECTOR,
-  PVEC_FREE,
-  PVEC_BIGNUM,
-  PVEC_MARKER,
-  PVEC_OVERLAY,
-  PVEC_FINALIZER,
-  PVEC_MISC_PTR,
-#ifdef HAVE_MODULES
-  PVEC_USER_PTR,
-#endif
-  PVEC_PROCESS,
-  PVEC_FRAME,
-  PVEC_WINDOW,
-  PVEC_BOOL_VECTOR,
-  PVEC_BUFFER,
-  PVEC_HASH_TABLE,
-  PVEC_TERMINAL,
-  PVEC_WINDOW_CONFIGURATION,
-  PVEC_SUBR,
-  PVEC_OTHER,            /* Should never be visible to Elisp code.  */
-  PVEC_XWIDGET,
-  PVEC_XWIDGET_VIEW,
-  PVEC_THREAD,
-  PVEC_MUTEX,
-  PVEC_CONDVAR,
-  PVEC_MODULE_FUNCTION,
-
-  /* These should be last, check internal_equal to see why.  */
-  PVEC_COMPILED,
-  PVEC_CHAR_TABLE,
-  PVEC_SUB_CHAR_TABLE,
-  PVEC_RECORD,
-  PVEC_FONT /* Should be last because it's used for range checking.  */
-};
-
-enum More_Lisp_Bits
-  {
-    /* For convenience, we also store the number of elements in these bits.
-       Note that this size is not necessarily the memory-footprint size, but
-       only the number of Lisp_Object fields (that need to be traced by GC).
-       The distinction is used, e.g., by Lisp_Process, which places extra
-       non-Lisp_Object fields at the end of the structure.  */
-    PSEUDOVECTOR_SIZE_BITS = 12,
-    PSEUDOVECTOR_SIZE_MASK = (1 << PSEUDOVECTOR_SIZE_BITS) - 1,
-
-    /* To calculate the memory footprint of the pseudovector, it's useful
-       to store the size of non-Lisp area in word_size units here.  */
-    PSEUDOVECTOR_REST_BITS = 12,
-    PSEUDOVECTOR_REST_MASK = (((1 << PSEUDOVECTOR_REST_BITS) - 1)
-                              << PSEUDOVECTOR_SIZE_BITS),
-
-    /* Used to extract pseudovector subtype information.  */
-    PSEUDOVECTOR_AREA_BITS = PSEUDOVECTOR_SIZE_BITS + PSEUDOVECTOR_REST_BITS,
-    PVEC_TYPE_MASK = 0x3f << PSEUDOVECTOR_AREA_BITS
-  };
-
 #define XSETMARKER(a, b) ((a).xsetvector ((struct Lisp_Vector *)(b)))
 #define XSETSCROLL_BAR(a,b) (a).xsetvector((struct Lisp_Vector *)b)
 
@@ -902,87 +803,14 @@ enum More_Lisp_Bits
 #define XSETCONDVAR(a, b) (XSETPSEUDOVECTOR (a, b, PVEC_CONDVAR))
 #define XSETBIGNUM(a, b) (XSETPSEUDOVECTOR (a, b, PVEC_BIGNUM))
 
+/* Header of vector-like objects.  This documents the layout constraints on
+   vectors and pseudovectors (objects of PVEC_xxx subtype).  It also prevents
+   compilers from being fooled by Emacs's type punning: XSETPSEUDOVECTOR
+   and PSEUDOVECTORP cast their pointers to struct vectorlike_header *,
+   because when two such pointers potentially alias, a compiler won't
+   incorrectly reorder loads and stores to their size fields.  See
+   Bug#8546.  */
 /* A regular vector is just a header plus an array of Lisp_Objects.  */
-
-struct Lisp_Vector
-  {
-    struct vectorlike_header header;
-    ELisp_Struct_Value contents[FLEXIBLE_ARRAY_MEMBER];
-  };
-
-INLINE bool
-(VECTORLIKEP) (ELisp_Handle x)
-{
-  return x.vectorp();
-}
-
-INLINE struct Lisp_Vector *
-XVECTOR (ELisp_Handle a)
-{
-  return a.xvector();
-}
-
-INLINE ptrdiff_t
-ASIZE (ELisp_Handle array)
-{
-  ptrdiff_t size = XVECTOR (array)->header.size;
-  eassume (0 <= size);
-  return size;
-}
-
-INLINE ptrdiff_t
-PVSIZE (ELisp_Handle pv)
-{
-  return ASIZE (pv) & PSEUDOVECTOR_SIZE_MASK;
-}
-
-INLINE bool
-VECTORP (ELisp_Handle x)
-{
-  return x.vectorp() && !(x.xvector()->header.size & PSEUDOVECTOR_FLAG);
-}
-
-INLINE void
-CHECK_VECTOR (ELisp_Handle x)
-{
-  CHECK_TYPE (VECTORP (x), LSH (Qvectorp), x);
-}
-
-
-/* A pseudovector is like a vector, but has other non-Lisp components.  */
-
-INLINE enum pvec_type
-PSEUDOVECTOR_TYPE (struct Lisp_Vector *v)
-{
-  ptrdiff_t size = v->header.size;
-  return (size & PSEUDOVECTOR_FLAG
-          ? (enum pvec_type)((size & PVEC_TYPE_MASK) >> PSEUDOVECTOR_AREA_BITS)
-          : PVEC_NORMAL_VECTOR);
-}
-
-/* Can't be used with PVEC_NORMAL_VECTOR.  */
-INLINE bool
-PSEUDOVECTOR_TYPEP (struct vectorlike_header *a, enum pvec_type code)
-{
-  /* We don't use PSEUDOVECTOR_TYPE here so as to avoid a shift
-   * operation when `code' is known.  */
-  return ((a->size & (PSEUDOVECTOR_FLAG | PVEC_TYPE_MASK))
-          == (PSEUDOVECTOR_FLAG | (code << PSEUDOVECTOR_AREA_BITS)));
-}
-
-/* True if A is a pseudovector whose code is CODE.  */
-INLINE bool
-PSEUDOVECTORP (ELisp_Handle a, int code)
-{
-  if (! VECTORLIKEP (a))
-    return false;
-  else
-    {
-      /* Converting to struct vectorlike_header * avoids aliasing issues.  */
-      struct vectorlike_header *h = (struct vectorlike_header *)a.xvector();
-      return PSEUDOVECTOR_TYPEP (h, (enum pvec_type)code);
-    }
-}
 
 /* A boolvector is a kind of vectorlike, with contents like a string.  */
 
@@ -1094,43 +922,6 @@ bool_vector_set (ELisp_Handle a, EMACS_INT i, bool b)
     *addr |= 1 << (i % BOOL_VECTOR_BITS_PER_CHAR);
   else
     *addr &= ~ (1 << (i % BOOL_VECTOR_BITS_PER_CHAR));
-}
-
-/* Conveniences for dealing with Lisp arrays.  */
-
-INLINE ELisp_Return_Value
-AREF (ELisp_Handle array, ptrdiff_t idx)
-{
-  return XVECTOR (array)->contents[idx];
-}
-
-INLINE ELisp_Struct_Value *
-aref_addr (ELisp_Handle array, ptrdiff_t idx)
-{
-  return & XVECTOR (array)->contents[idx];
-}
-
-INLINE ptrdiff_t
-gc_asize (ELisp_Handle array)
-{
-  /* Like ASIZE, but also can be used in the garbage collector.  */
-  return XVECTOR (array)->header.size & ~ARRAY_MARK_FLAG;
-}
-
-INLINE void
-ASET (ELisp_Handle array, ptrdiff_t idx, ELisp_Handle val)
-{
-  eassert (0 <= idx && idx < ASIZE (array));
-  XVECTOR (array)->contents[idx] = val;
-}
-
-INLINE void
-gc_aset (ELisp_Handle array, ptrdiff_t idx, ELisp_Handle val)
-{
-  /* Like ASET, but also can be used in the garbage collector:
-     sweep_weak_table calls set_hash_key etc. while the table is marked.  */
-  eassert (0 <= idx && idx < gc_asize (array));
-  XVECTOR (array)->contents[idx] = val;
 }
 
 /* True, since Qnil's representation is zero.  Every place in the code
@@ -1614,170 +1405,6 @@ INLINE int
                              Hash Tables
  ***********************************************************************/
 
-/* The structure of a Lisp hash table.  */
-
-struct hash_table_test
-{
-  /* Name of the function used to compare keys.  */
-  ELisp_Struct_Value name;
-
-  /* User-supplied hash function, or nil.  */
-  ELisp_Struct_Value user_hash_function;
-
-  /* User-supplied key comparison function, or nil.  */
-  ELisp_Struct_Value user_cmp_function;
-
-  /* C function to compare two keys.  */
-  bool (*cmpfn) (struct hash_table_test *t, ELisp_Handle, ELisp_Handle);
-
-  /* C function to compute hash code.  */
-  EMACS_UINT (*hashfn) (struct hash_table_test *t, ELisp_Handle);
-};
-
-struct Lisp_Hash_Table
-{
-  /* This is for Lisp; the hash table code does not refer to it.  */
-  struct vectorlike_header header;
-
-  /* Nil if table is non-weak.  Otherwise a symbol describing the
-     weakness of the table.  */
-  ELisp_Struct_Value weak;
-
-  /* Vector of hash codes.  If hash[I] is nil, this means that the
-     I-th entry is unused.  */
-  ELisp_Struct_Value hash;
-
-  /* Vector used to chain entries.  If entry I is free, next[I] is the
-     entry number of the next free item.  If entry I is non-free,
-     next[I] is the index of the next entry in the collision chain,
-     or -1 if there is such entry.  */
-  ELisp_Struct_Value next;
-
-  /* Bucket vector.  An entry of -1 indicates no item is present,
-     and a nonnegative entry is the index of the first item in
-     a collision chain.  This vector's size can be larger than the
-     hash table size to reduce collisions.  */
-  ELisp_Struct_Value index;
-
-  /* Vector of keys and values.  The key of item I is found at index
-     2 * I, the value is found at index 2 * I + 1.
-     This is gc_marked specially if the table is weak.  */
-  ELisp_Struct_Value key_and_value;
-
-  /* Only the fields above are traced normally by the GC.  The ones below
-     `count' are special and are either ignored by the GC or traced in
-     a special way (e.g. because of weakness).  */
-
-  /* Number of key/value entries in the table.  */
-  ptrdiff_t count;
-
-  /* Index of first free entry in free list, or -1 if none.  */
-  ptrdiff_t next_free;
-
-  /* True if the table can be purecopied.  The table cannot be
-     changed afterwards.  */
-  bool pure;
-
-  /* Resize hash table when number of entries / table size is >= this
-     ratio.  */
-  float rehash_threshold;
-
-  /* Used when the table is resized.  If equal to a negative integer,
-     the user rehash-size is the integer -REHASH_SIZE, and the new
-     size is the old size plus -REHASH_SIZE.  If positive, the user
-     rehash-size is the floating-point value REHASH_SIZE + 1, and the
-     new size is the old size times REHASH_SIZE + 1.  */
-  float rehash_size;
-
-  /* The comparison and hash functions.  */
-  struct hash_table_test test;
-
-  /* Next weak hash table if this is a weak hash table.  The head
-     of the list is in weak_hash_tables.  */
-  struct Lisp_Hash_Table *next_weak;
-};
-
-
-INLINE bool
-HASH_TABLE_P (ELisp_Handle a)
-{
-  return PSEUDOVECTORP (a, PVEC_HASH_TABLE);
-}
-
-INLINE struct Lisp_Hash_Table *
-XHASH_TABLE (ELisp_Handle a)
-{
-  return (struct Lisp_Hash_Table *)a.xvector();
-}
-
-#define XSET_HASH_TABLE(VAR, PTR) \
-     (XSETPSEUDOVECTOR (VAR, PTR, PVEC_HASH_TABLE))
-
-/* Value is the key part of entry IDX in hash table H.  */
-INLINE ELisp_Return_Value
-HASH_KEY (struct Lisp_Hash_Table *h, ptrdiff_t idx)
-{
-  return AREF (LSH (h->key_and_value), 2 * idx);
-}
-
-/* Value is the value part of entry IDX in hash table H.  */
-INLINE ELisp_Return_Value
-HASH_VALUE (struct Lisp_Hash_Table *h, ptrdiff_t idx)
-{
-  return AREF (LSH (h->key_and_value), 2 * idx + 1);
-}
-
-/* Value is the hash code computed for entry IDX in hash table H.  */
-INLINE ELisp_Return_Value
-HASH_HASH (struct Lisp_Hash_Table *h, ptrdiff_t idx)
-{
-  return AREF (LSH (h->hash), idx);
-}
-
-/* Value is the size of hash table H.  */
-INLINE ptrdiff_t
-HASH_TABLE_SIZE (struct Lisp_Hash_Table *h)
-{
-  return ASIZE (LSH (h->next));
-}
-
-/* Default size for hash tables if not specified.  */
-
-enum DEFAULT_HASH_SIZE { DEFAULT_HASH_SIZE = 65 };
-
-/* Default threshold specifying when to resize a hash table.  The
-   value gives the ratio of current entries in the hash table and the
-   size of the hash table.  */
-
-static float const DEFAULT_REHASH_THRESHOLD = 0.8125;
-
-/* Default factor by which to increase the size of a hash table, minus 1.  */
-
-static float const DEFAULT_REHASH_SIZE = 1.5 - 1;
-
-/* Combine two integers X and Y for hashing.  The result might not fit
-   into a Lisp integer.  */
-
-INLINE EMACS_UINT
-sxhash_combine (EMACS_UINT x, EMACS_UINT y)
-{
-  return (x << 4) + (x >> (EMACS_INT_WIDTH - 4)) + y;
-}
-
-/* Hash X, returning a value that fits into a fixnum.  */
-
-INLINE EMACS_UINT
-SXHASH_REDUCE (EMACS_UINT x)
-{
-  return (x ^ x >> (EMACS_INT_WIDTH - FIXNUM_BITS)) & INTMASK;
-}
-
-struct Lisp_Misc_Ptr
-{
-  struct vectorlike_header header;
-  void *pointer;
-};
-
 /* A mint_ptr object OBJ represents a C-language pointer P efficiently.
    Preferably (and typically), OBJ is a Lisp integer I such that
    XFIXNUMPTR (I) == P, as this represents P within a single Lisp value
@@ -1940,6 +1567,12 @@ mint_ptrp (ELisp_Handle x)
 {
   return FIXNUMP (x) || (PSEUDOVECTORP (x, PVEC_MISC_PTR));
 }
+
+struct Lisp_Misc_Ptr
+  {
+    union vectorlike_header header;
+    void *pointer;
+  };
 
 INLINE void *
 xmint_pointer (ELisp_Handle a)
@@ -2325,12 +1958,6 @@ INLINE void
 CHECK_NUMBER (ELisp_Handle x)
 {
   lisp_h_CHECK_NUMBER (x);
-}
-
-INLINE void
-(CHECK_FIXNUM) (ELisp_Handle x)
-{
-  lisp_h_CHECK_FIXNUM (x);
 }
 
 INLINE void

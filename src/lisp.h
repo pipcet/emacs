@@ -389,7 +389,9 @@ typedef EMACS_INT Lisp_Word;
 #define lisp_h_SYMBOL_VAL(sym) \
    (eassert ((sym)->u.s.redirect == SYMBOL_PLAINVAL), (sym)->u.s.val.value)
 #define lisp_h_SYMBOLP(x) (XTYPE (x) == Lisp_Symbol)
+#endif
 #define lisp_h_VECTORLIKEP(x) (XTYPE (x) == Lisp_Vectorlike)
+#if 0
 #define lisp_h_XCAR(c) XCONS (c)->u.s.car
 #define lisp_h_XCDR(c) XCONS (c)->u.s.u.cdr
 #define lisp_h_XCONS(a) \
@@ -869,8 +871,6 @@ builtin_lisp_symbol (int index)
 
 #include "globals.h"
 
-#if 0
-
 /* Header of vector-like objects.  This documents the layout constraints on
    vectors and pseudovectors (objects of PVEC_xxx subtype).  It also prevents
    compilers from being fooled by Emacs's type punning: XSETPSEUDOVECTOR
@@ -878,8 +878,9 @@ builtin_lisp_symbol (int index)
    because when two such pointers potentially alias, a compiler won't
    incorrectly reorder loads and stores to their size fields.  See
    Bug#8546.  */
-union vectorlike_header
+struct vectorlike_header
   {
+    JS::Heap<JS::Value> jsval;
     /* The main member contains various pieces of information:
        - The MSB (ARRAY_MARK_FLAG) holds the gcmarkbit.
        - The next bit (PSEUDOVECTOR_FLAG) indicates whether this is a plain
@@ -900,11 +901,10 @@ union vectorlike_header
 	 Current layout limits the pseudovectors to 63 PVEC_xxx subtypes,
 	 4095 Lisp_Objects in GC-ed area and 4095 word-sized other slots.  */
     ptrdiff_t size;
-    /* Align the union so that there is no padding after it.  */
-    Lisp_Object align;
-    GCALIGNED_UNION
   };
 verify (alignof (union vectorlike_header) % GCALIGNMENT == 0);
+
+#if 0
 
 INLINE bool
 (SYMBOLP) (Lisp_Object x)
@@ -968,6 +968,8 @@ INLINE void
 DEFINE_GDB_SYMBOL_BEGIN (ptrdiff_t, ARRAY_MARK_FLAG)
 # define ARRAY_MARK_FLAG PTRDIFF_MIN
 DEFINE_GDB_SYMBOL_END (ARRAY_MARK_FLAG)
+
+#endif
 
 /* In the size word of a struct Lisp_Vector, this bit means it's really
    some other vector-like object.  */
@@ -1035,7 +1037,6 @@ enum More_Lisp_Bits
     PSEUDOVECTOR_AREA_BITS = PSEUDOVECTOR_SIZE_BITS + PSEUDOVECTOR_REST_BITS,
     PVEC_TYPE_MASK = 0x3f << PSEUDOVECTOR_AREA_BITS
   };
-#endif
 
 /* These functions extract various sorts of values from a Lisp_Object.
    For example, if tem is a Lisp_Object whose type is Lisp_Cons,
@@ -1480,8 +1481,6 @@ STRING_SET_CHARS (ELisp_Handle string, ptrdiff_t newsize)
   // XXX XSTRING (string)->size = newsize;
 }
 
-#if 0
-
 /* A regular vector is just a header plus an array of Lisp_Objects.  */
 
 struct Lisp_Vector
@@ -1493,14 +1492,13 @@ struct Lisp_Vector
 INLINE bool
 (VECTORLIKEP) (Lisp_Object x)
 {
-  return lisp_h_VECTORLIKEP (x);
+  return x.vectorp ();
 }
 
 INLINE struct Lisp_Vector *
 XVECTOR (Lisp_Object a)
 {
-  eassert (VECTORLIKEP (a));
-  return XUNTAG (a, Lisp_Vectorlike, struct Lisp_Vector);
+  return a.xvector ();
 }
 
 INLINE ptrdiff_t
@@ -1560,11 +1558,12 @@ PSEUDOVECTORP (Lisp_Object a, int code)
   else
     {
       /* Converting to union vectorlike_header * avoids aliasing issues.  */
-      return PSEUDOVECTOR_TYPEP (XUNTAG (a, Lisp_Vectorlike,
-					 union vectorlike_header),
-				 code);
+      struct vectorlike_header *h = (struct vectorlike_header *)a.xvector();
+      return PSEUDOVECTOR_TYPEP (h, (enum pvec_type)code);
     }
 }
+
+#if 0
 
 /* A boolvector is a kind of vectorlike, with contents like a string.  */
 
@@ -1680,6 +1679,8 @@ bool_vector_set (Lisp_Object a, EMACS_INT i, bool b)
     *addr &= ~ (1 << (i % BOOL_VECTOR_BITS_PER_CHAR));
 }
 
+#endif
+
 /* Conveniences for dealing with Lisp arrays.  */
 
 INLINE Lisp_Object
@@ -1688,17 +1689,11 @@ AREF (Lisp_Object array, ptrdiff_t idx)
   return XVECTOR (array)->contents[idx];
 }
 
-INLINE Lisp_Object *
-aref_addr (Lisp_Object array, ptrdiff_t idx)
-{
-  return & XVECTOR (array)->contents[idx];
-}
-
 INLINE ptrdiff_t
 gc_asize (Lisp_Object array)
 {
   /* Like ASIZE, but also can be used in the garbage collector.  */
-  return XVECTOR (array)->header.size & ~ARRAY_MARK_FLAG;
+  return XVECTOR (array)->header.size;
 }
 
 INLINE void
@@ -1716,6 +1711,8 @@ gc_aset (Lisp_Object array, ptrdiff_t idx, Lisp_Object val)
   eassert (0 <= idx && idx < gc_asize (array));
   XVECTOR (array)->contents[idx] = val;
 }
+
+#if 0
 
 /* True, since Qnil's representation is zero.  Every place in the code
    that assumes Qnil is zero should verify (NIL_IS_ZERO), to make it easy
@@ -2089,6 +2086,8 @@ INLINE int
    definition is done by lread.c's defsym.  */
 #define DEFSYM(sym, name) /* empty */
 
+#endif /* 0 */
+
 
 /***********************************************************************
 			     Hash Tables
@@ -2114,9 +2113,6 @@ struct hash_table_test
   EMACS_UINT (*hashfn) (struct hash_table_test *t, Lisp_Object);
 };
 
-#endif /* 0 */
-
-#if 0
 struct Lisp_Hash_Table
 {
   /* This is for Lisp; the hash table code does not refer to it.  */
@@ -2141,6 +2137,11 @@ struct Lisp_Hash_Table
      a collision chain.  This vector's size can be larger than the
      hash table size to reduce collisions.  */
   Lisp_Object index;
+
+  /* Vector of keys and values.  The key of item I is found at index
+     2 * I, the value is found at index 2 * I + 1.
+     This is gc_marked specially if the table is weak.  */
+  Lisp_Object key_and_value;
 
   /* Only the fields above are traced normally by the GC.  The ones below
      `count' are special and are either ignored by the GC or traced in
@@ -2167,11 +2168,6 @@ struct Lisp_Hash_Table
      new size is the old size times REHASH_SIZE + 1.  */
   float rehash_size;
 
-  /* Vector of keys and values.  The key of item I is found at index
-     2 * I, the value is found at index 2 * I + 1.
-     This is gc_marked specially if the table is weak.  */
-  Lisp_Object key_and_value;
-
   /* The comparison and hash functions.  */
   struct hash_table_test test;
 
@@ -2179,7 +2175,6 @@ struct Lisp_Hash_Table
      of the list is in weak_hash_tables.  */
   struct Lisp_Hash_Table *next_weak;
 };
-
 
 INLINE bool
 HASH_TABLE_P (Lisp_Object a)
@@ -2190,8 +2185,7 @@ HASH_TABLE_P (Lisp_Object a)
 INLINE struct Lisp_Hash_Table *
 XHASH_TABLE (Lisp_Object a)
 {
-  eassert (HASH_TABLE_P (a));
-  return XUNTAG (a, Lisp_Vectorlike, struct Lisp_Hash_Table);
+  return (struct Lisp_Hash_Table *)a.xvector ();
 }
 
 #define XSET_HASH_TABLE(VAR, PTR) \
@@ -2255,8 +2249,6 @@ SXHASH_REDUCE (EMACS_UINT x)
 {
   return (x ^ x >> (EMACS_INT_WIDTH - FIXNUM_BITS)) & INTMASK;
 }
-
-#endif
 
 #if 0
 
@@ -2774,11 +2766,15 @@ CHECK_LIST_END (Lisp_Object x, Lisp_Object y)
   CHECK_TYPE (NILP (x), Qlistp, y);
 }
 
+#endif /* 0 */
+
 INLINE void
 (CHECK_FIXNUM) (Lisp_Object x)
 {
   lisp_h_CHECK_FIXNUM (x);
 }
+
+#if 0
 
 INLINE void
 CHECK_STRING_CAR (Lisp_Object x)
