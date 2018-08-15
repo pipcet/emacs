@@ -2813,6 +2813,7 @@ CHECK_FIXNAT (Lisp_Object x)
   CHECK_TYPE (FIXNATP (x), Qwholenump, x);
 }
 
+#endif /* 0 */
 #define CHECK_RANGED_INTEGER(x, lo, hi)					\
   do {									\
     CHECK_FIXNUM (x);							\
@@ -2822,8 +2823,9 @@ CHECK_FIXNAT (Lisp_Object x)
 	 make_fixnum ((lo) < 0 && (lo) < MOST_NEGATIVE_FIXNUM		\
 		      ? MOST_NEGATIVE_FIXNUM				\
 		      : (lo)),						\
-	 make_fixnum (min (hi, MOST_POSITIVE_FIXNUM)));			\
+	 make_fixnum (c_min (hi, MOST_POSITIVE_FIXNUM)));               \
   } while (false)
+#if 0
 #define CHECK_TYPE_RANGED_INTEGER(type, x) \
   do {									\
     if (TYPE_SIGNED (type))						\

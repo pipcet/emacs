@@ -3573,17 +3573,6 @@ CHECK_NATNUM (ELisp_Handle x)
   CHECK_TYPE (NATNUMP (x), LSH (Qwholenump), x);
 }
 
-#define CHECK_RANGED_INTEGER(x, lo, hi)					\
-  do {									\
-    CHECK_NUMBER (x);							\
-    if (! ((lo) <= XFIXNUM (x) && XFIXNUM (x) <= (hi)))			\
-      args_out_of_range_3						\
-        (x,								\
-         LRH (make_fixnum ((lo) < 0 && (lo) < MOST_NEGATIVE_FIXNUM     \
-                      ? MOST_NEGATIVE_FIXNUM				\
-                           : (lo))),                                    \
-         LRH (make_fixnum (c_min (hi, MOST_POSITIVE_FIXNUM))));         \
-  } while (false)
 #define CHECK_TYPE_RANGED_INTEGER(type, x) \
   do {									\
     if (TYPE_SIGNED (type))						\
