@@ -812,34 +812,6 @@ DEFINE_GDB_SYMBOL_END (ARRAY_MARK_FLAG)
    Bug#8546.  */
 /* A regular vector is just a header plus an array of Lisp_Objects.  */
 
-/* A boolvector is a kind of vectorlike, with contents like a string.  */
-
-struct Lisp_Bool_Vector
-  {
-    /* HEADER.SIZE is the vector's size field.  It doesn't have the real size,
-       just the subtype information.  */
-    struct vectorlike_header header;
-    /* This is the size in bits.  */
-    EMACS_INT size;
-    /* The actual bits, packed into bytes.
-       Zeros fill out the last word if needed.
-       The bits are in little-endian order in the bytes, and
-       the bytes are in little-endian order in the words.  */
-    bits_word data[FLEXIBLE_ARRAY_MEMBER];
-  };
-
-/* Some handy constants for calculating sizes
-   and offsets, mostly of vectorlike objects.   */
-
-enum
-  {
-    header_size = offsetof (struct Lisp_Vector, contents),
-    bool_header_size = offsetof (struct Lisp_Bool_Vector, data),
-    word_size = sizeof (ELisp_Return_Value)
-  };
-
-/* The number of data words and bytes in a bool vector with SIZE bits.  */
-
 INLINE EMACS_INT
 bool_vector_words (EMACS_INT size)
 {
@@ -924,35 +896,6 @@ bool_vector_set (ELisp_Handle a, EMACS_INT i, bool b)
     *addr &= ~ (1 << (i % BOOL_VECTOR_BITS_PER_CHAR));
 }
 
-/* True, since Qnil's representation is zero.  Every place in the code
-   that assumes Qnil is zero should verify (NIL_IS_ZERO), to make it easy
-   to find such assumptions later if we change Qnil to be nonzero.  */
-enum { NIL_IS_ZERO = XLI_BUILTIN_LISPSYM (iQnil) == 0 };
-
-/* Clear the object addressed by P, with size NBYTES, so that all its
-   bytes are zero and all its Lisp values are nil.  */
-INLINE void
-memclear (void *p, ptrdiff_t nbytes)
-{
-  eassert (0 <= nbytes);
-  verify (NIL_IS_ZERO);
-  /* Since Qnil is zero, memset suffices.  */
-  memset (p, 0, nbytes);
-}
-
-/* If a struct is made to look like a vector, this macro returns the length
-   of the shortest vector that would hold that struct.  */
-
-#define VECSIZE(type)						\
-  ((sizeof (type) - header_size + word_size - 1) / word_size)
-
-/* Like VECSIZE, but used when the pseudo-vector has non-Lisp_Object fields
-   at the end and we need to compute the number of Lisp_Object fields (the
-   ones that the GC needs to trace).  */
-
-#define PSEUDOVECSIZE(type, nonlispfield)			\
-  ((offsetof (type, nonlispfield) - header_size) / word_size)
-
 /* Compute A OP B, using the unsigned comparison operator OP.  A and B
    should be integer expressions.  This is not the same as
    mathematical comparison; for example, UNSIGNED_CMP (0, <, -1)
@@ -966,90 +909,7 @@ memclear (void *p, ptrdiff_t nbytes)
 /* True iff C is an ASCII character.  */
 #define ASCII_CHAR_P(c) UNSIGNED_CMP (c, <, 0x80)
 
-/* A char-table is a kind of vectorlike, with contents are like a
-   vector but with a few other slots.  For some purposes, it makes
-   sense to handle a char-table with type struct Lisp_Vector.  An
-   element of a char table can be any Lisp objects, but if it is a sub
-   char-table, we treat it a table that contains information of a
-   specific range of characters.  A sub char-table is like a vector but
-   with two integer fields between the header and Lisp data, which means
-   that it has to be marked with some precautions (see mark_char_table
-   in alloc.c).  A sub char-table appears only in an element of a char-table,
-   and there's no way to access it directly from Emacs Lisp program.  */
-
-enum CHARTAB_SIZE_BITS
-  {
-    CHARTAB_SIZE_BITS_0 = 6,
-    CHARTAB_SIZE_BITS_1 = 4,
-    CHARTAB_SIZE_BITS_2 = 5,
-    CHARTAB_SIZE_BITS_3 = 7
-  };
-
 extern const int chartab_size[4];
-
-struct Lisp_Char_Table
-  {
-    /* HEADER.SIZE is the vector's size field, which also holds the
-       pseudovector type information.  It holds the size, too.
-       The size counts the defalt, parent, purpose, ascii,
-       contents, and extras slots.  */
-    struct vectorlike_header header;
-
-    /* This holds a default value,
-       which is used whenever the value for a specific character is nil.  */
-    ELisp_Struct_Value defalt;
-
-    /* This points to another char table, which we inherit from when the
-       value for a specific character is nil.  The `defalt' slot takes
-       precedence over this.  */
-    ELisp_Struct_Value parent;
-
-    /* This is a symbol which says what kind of use this char-table is
-       meant for.  */
-    ELisp_Struct_Value purpose;
-
-    /* The bottom sub char-table for characters of the range 0..127.  It
-       is nil if none of ASCII character has a specific value.  */
-    ELisp_Struct_Value ascii;
-
-    ELisp_Struct_Value contents[(1 << CHARTAB_SIZE_BITS_0)];
-
-    /* These hold additional data.  It is a vector.  */
-    ELisp_Struct_Value extras[FLEXIBLE_ARRAY_MEMBER];
-  };
-
-INLINE bool
-CHAR_TABLE_P (ELisp_Handle a)
-{
-  return PSEUDOVECTORP (a, PVEC_CHAR_TABLE);
-}
-
-INLINE struct Lisp_Char_Table *
-XCHAR_TABLE (ELisp_Handle a)
-{
-  return (struct Lisp_Char_Table *)a.xvector();
-}
-
-struct Lisp_Sub_Char_Table
-  {
-    /* HEADER.SIZE is the vector's size field, which also holds the
-       pseudovector type information.  It holds the size, too.  */
-    struct vectorlike_header header;
-
-    /* Depth of this sub char-table.  It should be 1, 2, or 3.  A sub
-       char-table of depth 1 contains 16 elements, and each element
-       covers 4096 (128*32) characters.  A sub char-table of depth 2
-       contains 32 elements, and each element covers 128 characters.  A
-       sub char-table of depth 3 contains 128 elements, and each element
-       is for one character.  */
-    int depth;
-
-    /* Minimum character covered by the sub char-table.  */
-    int min_char;
-
-    /* Use set_sub_char_table_contents to set this.  */
-    ELisp_Struct_Value contents[FLEXIBLE_ARRAY_MEMBER];
-  };
 
 INLINE bool
 SUB_CHAR_TABLE_P (ELisp_Handle a)
@@ -1128,45 +988,6 @@ struct Lisp_Subr
     const char *intspec;
     EMACS_INT doc;
   };
-
-INLINE bool
-SUBRP (ELisp_Handle a)
-{
-  return PSEUDOVECTORP (a, PVEC_SUBR);
-}
-
-INLINE struct Lisp_Subr *
-XSUBR (ELisp_Handle a)
-{
-  return (struct Lisp_Subr *)a.xvector();
-}
-
-enum char_table_specials
-  {
-    /* This is the number of slots that every char table must have.  This
-       counts the ordinary slots and the top, defalt, parent, and purpose
-       slots.  */
-    CHAR_TABLE_STANDARD_SLOTS = PSEUDOVECSIZE (struct Lisp_Char_Table, extras),
-
-    /* This is an index of first Lisp_Object field in Lisp_Sub_Char_Table
-       when the latter is treated as an ordinary Lisp_Vector.  */
-    SUB_CHAR_TABLE_OFFSET = PSEUDOVECSIZE (struct Lisp_Sub_Char_Table, contents)
-  };
-
-/* Return the number of "extra" slots in the char table CT.  */
-
-INLINE int
-CHAR_TABLE_EXTRA_SLOTS (struct Lisp_Char_Table *ct)
-{
-  return ((ct->header.size & PSEUDOVECTOR_SIZE_MASK)
-          - CHAR_TABLE_STANDARD_SLOTS);
-}
-
-/* Make sure that sub char-table contents slot is where we think it is.  */
-verify (offsetof (struct Lisp_Sub_Char_Table, contents)
-        == (offsetof (struct Lisp_Vector, contents)
-            + SUB_CHAR_TABLE_OFFSET * sizeof (Lisp_Object)));
-
 
 /* Save and restore the instruction and environment pointers,
    without affecting the signal mask.  */

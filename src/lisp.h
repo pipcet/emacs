@@ -1563,8 +1563,6 @@ PSEUDOVECTORP (Lisp_Object a, int code)
     }
 }
 
-#if 0
-
 /* A boolvector is a kind of vectorlike, with contents like a string.  */
 
 struct Lisp_Bool_Vector
@@ -1588,9 +1586,11 @@ enum
   {
     header_size = offsetof (struct Lisp_Vector, contents),
     bool_header_size = offsetof (struct Lisp_Bool_Vector, data),
-    word_size = sizeof (Lisp_Object)
+    word_size = sizeof (ELisp_Struct_Value)
   };
 verify (header_size == sizeof (union vectorlike_header));
+
+#if 0
 
 /* The number of data words and bytes in a bool vector with SIZE bits.  */
 
@@ -1718,8 +1718,6 @@ gc_aset (Lisp_Object array, ptrdiff_t idx, Lisp_Object val)
   XVECTOR (array)->contents[idx] = val;
 }
 
-#if 0
-
 /* True, since Qnil's representation is zero.  Every place in the code
    that assumes Qnil is zero should verify (NIL_IS_ZERO), to make it easy
    to find such assumptions later if we change Qnil to be nonzero.
@@ -1751,6 +1749,8 @@ memclear (void *p, ptrdiff_t nbytes)
 #define PSEUDOVECSIZE(type, nonlispfield)			\
   ((offsetof (type, nonlispfield) - header_size) / word_size)
 
+#if 0
+
 /* Compute A OP B, using the unsigned comparison operator OP.  A and B
    should be integer expressions.  This is not the same as
    mathematical comparison; for example, UNSIGNED_CMP (0, <, -1)
@@ -1763,6 +1763,8 @@ memclear (void *p, ptrdiff_t nbytes)
 
 /* True iff C is an ASCII character.  */
 #define ASCII_CHAR_P(c) UNSIGNED_CMP (c, <, 0x80)
+
+#endif
 
 /* A char-table is a kind of vectorlike, with contents are like a
    vector but with a few other slots.  For some purposes, it makes
@@ -1823,10 +1825,9 @@ CHAR_TABLE_P (Lisp_Object a)
 }
 
 INLINE struct Lisp_Char_Table *
-XCHAR_TABLE (Lisp_Object a)
+XCHAR_TABLE (ELisp_Handle a)
 {
-  eassert (CHAR_TABLE_P (a));
-  return XUNTAG (a, Lisp_Vectorlike, struct Lisp_Char_Table);
+  return (struct Lisp_Char_Table *)a.xvector ();
 }
 
 struct Lisp_Sub_Char_Table
@@ -1849,6 +1850,8 @@ struct Lisp_Sub_Char_Table
     /* Use set_sub_char_table_contents to set this.  */
     Lisp_Object contents[FLEXIBLE_ARRAY_MEMBER];
   };
+
+#if 0
 
 INLINE bool
 SUB_CHAR_TABLE_P (Lisp_Object a)
@@ -1928,6 +1931,8 @@ struct Lisp_Subr
     EMACS_INT doc;
   };
 
+#endif
+
 INLINE bool
 SUBRP (Lisp_Object a)
 {
@@ -1937,8 +1942,7 @@ SUBRP (Lisp_Object a)
 INLINE struct Lisp_Subr *
 XSUBR (Lisp_Object a)
 {
-  eassert (SUBRP (a));
-  return XUNTAG (a, Lisp_Vectorlike, struct Lisp_Subr);
+  return (struct Lisp_Subr *)a.xvector ();
 }
 
 enum char_table_specials
@@ -1967,6 +1971,7 @@ verify (offsetof (struct Lisp_Sub_Char_Table, contents)
 	== (offsetof (struct Lisp_Vector, contents)
 	    + SUB_CHAR_TABLE_OFFSET * sizeof (Lisp_Object)));
 
+#if 0
 
 /* Save and restore the instruction and environment pointers,
    without affecting the signal mask.  */
