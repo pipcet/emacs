@@ -2382,6 +2382,8 @@ struct Lisp_User_Ptr
 };
 #endif
 
+#endif
+
 /* A finalizer sentinel.  */
 struct Lisp_Finalizer
   {
@@ -2406,8 +2408,7 @@ FINALIZERP (Lisp_Object x)
 INLINE struct Lisp_Finalizer *
 XFINALIZER (Lisp_Object a)
 {
-  eassert (FINALIZERP (a));
-  return XUNTAG (a, Lisp_Vectorlike, struct Lisp_Finalizer);
+  return (struct Lisp_Finalizer *)a.xvector ();
 }
 
 INLINE bool
@@ -2419,8 +2420,7 @@ MARKERP (Lisp_Object x)
 INLINE struct Lisp_Marker *
 XMARKER (Lisp_Object a)
 {
-  eassert (MARKERP (a));
-  return XUNTAG (a, Lisp_Vectorlike, struct Lisp_Marker);
+  return (struct Lisp_Marker *)a.xvector ();
 }
 
 INLINE bool
@@ -2432,9 +2432,10 @@ OVERLAYP (Lisp_Object x)
 INLINE struct Lisp_Overlay *
 XOVERLAY (Lisp_Object a)
 {
-  eassert (OVERLAYP (a));
-  return XUNTAG (a, Lisp_Vectorlike, struct Lisp_Overlay);
+  return (struct Lisp_Overlay *)a.xvector ();
 }
+
+#if 0
 
 #ifdef HAVE_MODULES
 INLINE bool
@@ -2475,7 +2476,7 @@ INTEGERP (Lisp_Object x)
 {
   return FIXNUMP (x) || BIGNUMP (x);
 }
-
+#endif
 
 /* Forwarding pointer to an int variable.
    This is allowed only in the value cell of a symbol,
@@ -2595,6 +2596,7 @@ XBUFFER_OBJFWD (union Lisp_Fwd *a)
   eassert (BUFFER_OBJFWDP (a));
   return &a->u_buffer_objfwd;
 }
+#if 0
 
 /* Lisp floating point type.  */
 struct Lisp_Float

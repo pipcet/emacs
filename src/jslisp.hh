@@ -327,7 +327,6 @@ DEFINE_GDB_SYMBOL_END (VALMASK)
 #if DEFINE_KEY_OPS_AS_MACROS
 # define FLOATP(x) ((x).floatp())
 # define FIXNUMP(x) ((x).integerp())
-# define MARKERP(x) (PSEUDOVECTORP (x, PVEC_MARKER))
 # define SET_SYMBOL_VAL(sym, v) lisp_h_SET_SYMBOL_VAL (sym, v)
 # define SYMBOL_CONSTANT_P(sym) lisp_h_SYMBOL_CONSTANT_P (sym)
 # define SYMBOL_TRAPPED_WRITE_P(sym) lisp_h_SYMBOL_TRAPPED_WRITE_P (sym)
@@ -1239,59 +1238,6 @@ xmint_pointer (ELisp_Handle a)
   return ((struct Lisp_Misc_Ptr *)XVECTOR (a))->pointer;
 }
 
-#ifdef HAVE_MODULES
-#endif
-
-/* A finalizer sentinel.  */
-struct Lisp_Finalizer
-  {
-    struct vectorlike_header header;
-
-    /* Circular list of all active weak references.  */
-    struct Lisp_Finalizer *prev;
-    struct Lisp_Finalizer *next;
-
-    /* Call FUNCTION when the finalizer becomes unreachable, even if
-       FUNCTION contains a reference to the finalizer; i.e., call
-       FUNCTION when it is reachable _only_ through finalizers.  */
-    ELisp_Struct_Value function;
-  };
-
-INLINE bool
-FINALIZERP (ELisp_Handle x)
-{
-  return PSEUDOVECTORP (x, PVEC_FINALIZER);
-}
-
-INLINE struct Lisp_Finalizer *
-XFINALIZER (ELisp_Handle a)
-{
-  return (struct Lisp_Finalizer *)a.xvector();
-}
-
-INLINE struct Lisp_Marker *
-XMARKER (ELisp_Handle a)
-{
-  return (struct Lisp_Marker *)a.xvector();
-}
-
-INLINE bool
-OVERLAYP (ELisp_Handle x)
-{
-  return PSEUDOVECTORP (x, PVEC_OVERLAY);
-}
-
-#define XSETOVERLAY(a, b) (a).xsetvector((struct Lisp_Vector *)(b))
-
-INLINE struct Lisp_Overlay *
-XOVERLAY (ELisp_Handle a)
-{
-  return (struct Lisp_Overlay *)a.xvector();
-}
-
-#ifdef HAVE_MODULES
-#endif
-
 struct Lisp_Bignum
 {
   struct vectorlike_header header;
@@ -1317,129 +1263,6 @@ INTEGERP (ELisp_Handle x)
   return FIXNUMP (x) || BIGNUMP (x);
 }
 
-
-/* Forwarding pointer to an int variable.
-   This is allowed only in the value cell of a symbol,
-   and it means that the symbol's value really lives in the
-   specified int variable.  */
-struct Lisp_Intfwd
-  {
-    enum Lisp_Fwd_Type type;	/* = Lisp_Fwd_Int */
-    EMACS_INT *intvar;
-  };
-
-/* Boolean forwarding pointer to a bool variable.
-   This is like Lisp_Intfwd except that the ostensible
-   "value" of the symbol is t if the bool variable is true,
-   nil if it is false.  */
-struct Lisp_Boolfwd
-  {
-    enum Lisp_Fwd_Type type;	/* = Lisp_Fwd_Bool */
-    bool *boolvar;
-  };
-
-/* Forwarding pointer to a Lisp_Object variable.
-   This is allowed only in the value cell of a symbol,
-   and it means that the symbol's value really lives in the
-   specified variable.  */
-struct Lisp_Objfwd
-  {
-    enum Lisp_Fwd_Type type;	/* = Lisp_Fwd_Obj */
-    ELisp_Pointer objvar;
-  };
-
-/* Like Lisp_Objfwd except that value lives in a slot in the
-   current buffer.  Value is byte index of slot within buffer.  */
-struct Lisp_Buffer_Objfwd
-  {
-    enum Lisp_Fwd_Type type;	/* = Lisp_Fwd_Buffer_Obj */
-    int offset;
-    /* One of Qnil, Qintegerp, Qsymbolp, Qstringp, Qfloatp or Qnumberp.  */
-    ELisp_Struct_Value predicate;
-  };
-
-/* struct Lisp_Buffer_Local_Value is used in a symbol value cell when
-   the symbol has buffer-local bindings.  (Exception:
-   some buffer-local variables are built-in, with their values stored
-   in the buffer structure itself.  They are handled differently,
-   using struct Lisp_Buffer_Objfwd.)
-
-   The `realvalue' slot holds the variable's current value, or a
-   forwarding pointer to where that value is kept.  This value is the
-   one that corresponds to the loaded binding.  To read or set the
-   variable, you must first make sure the right binding is loaded;
-   then you can access the value in (or through) `realvalue'.
-
-   `buffer' and `frame' are the buffer and frame for which the loaded
-   binding was found.  If those have changed, to make sure the right
-   binding is loaded it is necessary to find which binding goes with
-   the current buffer and selected frame, then load it.  To load it,
-   first unload the previous binding, then copy the value of the new
-   binding into `realvalue' (or through it).  Also update
-   LOADED-BINDING to point to the newly loaded binding.
-
-   `local_if_set' indicates that merely setting the variable creates a
-   local binding for the current buffer.  Otherwise the latter, setting
-   the variable does not do that; only make-local-variable does that.  */
-
-struct Lisp_Buffer_Local_Value
-  {
-    /* True means that merely setting the variable creates a local
-       binding for the current buffer.  */
-    bool_bf local_if_set : 1;
-    /* True means that the binding now loaded was found.
-       Presumably equivalent to (defcell!=valcell).  */
-    bool_bf found : 1;
-    /* If non-NULL, a forwarding to the C var where it should also be set.  */
-    union Lisp_Fwd *fwd;	/* Should never be (Buffer|Kboard)_Objfwd.  */
-    /* The buffer or frame for which the loaded binding was found.  */
-    ELisp_Struct_Value where;
-    /* A cons cell that holds the default value.  It has the form
-       (SYMBOL . DEFAULT-VALUE).  */
-    ELisp_Struct_Value defcell;
-    /* The cons cell from `where's parameter alist.
-       It always has the form (SYMBOL . VALUE)
-       Note that if `forward' is non-nil, VALUE may be out of date.
-       Also if the currently loaded binding is the default binding, then
-       this is `eq'ual to defcell.  */
-    ELisp_Struct_Value valcell;
-  };
-
-/* Like Lisp_Objfwd except that value lives in a slot in the
-   current kboard.  */
-struct Lisp_Kboard_Objfwd
-  {
-    enum Lisp_Fwd_Type type;	/* = Lisp_Fwd_Kboard_Obj */
-    int offset;
-  };
-
-union Lisp_Fwd
-  {
-    struct Lisp_Intfwd u_intfwd;
-    struct Lisp_Boolfwd u_boolfwd;
-    struct Lisp_Objfwd u_objfwd;
-    struct Lisp_Buffer_Objfwd u_buffer_objfwd;
-    struct Lisp_Kboard_Objfwd u_kboard_objfwd;
-  };
-
-INLINE enum Lisp_Fwd_Type
-XFWDTYPE (union Lisp_Fwd *a)
-{
-  return a->u_intfwd.type;
-}
-
-INLINE bool
-BUFFER_OBJFWDP (union Lisp_Fwd *a)
-{
-  return XFWDTYPE (a) == Lisp_Fwd_Buffer_Obj;
-}
-
-INLINE struct Lisp_Buffer_Objfwd *
-XBUFFER_OBJFWD (union Lisp_Fwd *a)
-{
-  eassert (BUFFER_OBJFWDP (a));
-  return &a->u_buffer_objfwd;
-}
 
 INLINE bool
 (FLOATP) (ELisp_Handle x)
