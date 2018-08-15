@@ -2820,10 +2820,10 @@ CHECK_FIXNAT (Lisp_Object x)
     if (! ((lo) <= XFIXNUM (x) && XFIXNUM (x) <= (hi)))			\
       args_out_of_range_3						\
 	(x,								\
-	 make_fixnum ((lo) < 0 && (lo) < MOST_NEGATIVE_FIXNUM		\
-		      ? MOST_NEGATIVE_FIXNUM				\
-		      : (lo)),						\
-	 make_fixnum (c_min (hi, MOST_POSITIVE_FIXNUM)));               \
+	 LRH (make_fixnum ((lo) < 0 && (lo) < MOST_NEGATIVE_FIXNUM      \
+                           ? MOST_NEGATIVE_FIXNUM                       \
+                           : (lo))),                                    \
+	 LRH (make_fixnum (c_min (hi, MOST_POSITIVE_FIXNUM))));         \
   } while (false)
 #if 0
 #define CHECK_TYPE_RANGED_INTEGER(type, x) \
