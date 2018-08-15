@@ -689,6 +689,7 @@ DEFINE_GDB_SYMBOL_BEGIN (ptrdiff_t, ARRAY_MARK_FLAG)
 DEFINE_GDB_SYMBOL_END (ARRAY_MARK_FLAG)
 
 #define XSETMARKER(a, b) ((a).xsetvector ((struct Lisp_Vector *)(b)))
+#define XSETOVERLAY(a, b) ((a).xsetvector ((struct Lisp_Vector *)(b)))
 #define XSETSCROLL_BAR(a,b) (a).xsetvector((struct Lisp_Vector *)b)
 
 /* The cast to struct vectorlike_header * avoids aliasing issues.  */
@@ -1079,127 +1080,6 @@ CALLN(ELisp_Return_Value (*f) (ELisp_Vector_Handle), As... args)
 
   return ret;
 }
-
-extern void defvar_lisp (struct Lisp_Objfwd *, const char *, ELisp_Pointer);
-extern void defvar_lisp_nopro (struct Lisp_Objfwd *, const char *, ELisp_Pointer);
-extern void defvar_bool (struct Lisp_Boolfwd *, const char *, bool *);
-extern void defvar_int (struct Lisp_Intfwd *, const char *, EMACS_INT *);
-extern void defvar_kboard (struct Lisp_Kboard_Objfwd *, const char *, int);
-
-/* Macros we use to define forwarded Lisp variables.
-   These are used in the syms_of_FILENAME functions.
-
-   An ordinary (not in buffer_defaults, per-buffer, or per-keyboard)
-   lisp variable is actually a field in `struct emacs_globals'.  The
-   field's name begins with "f_", which is a convention enforced by
-   these macros.  Each such global has a corresponding #define in
-   globals.h; the plain name should be used in the code.
-
-   E.g., the global "cons_cells_consed" is declared as "int
-   f_cons_cells_consed" in globals.h, but there is a define:
-
-      #define cons_cells_consed globals.f_cons_cells_consed
-
-   All C code uses the `cons_cells_consed' name.  This is all done
-   this way to support indirection for multi-threaded Emacs.  */
-
-#define DEFVAR_LISP(lname, vname, doc)		\
-  do {						\
-    static struct Lisp_Objfwd o_fwd;		\
-    defvar_lisp (&o_fwd, lname, &globals.f_ ## vname);		\
-  } while (false)
-#define DEFVAR_LISP_NOPRO(lname, vname, doc)	\
-  do {						\
-    static struct Lisp_Objfwd o_fwd;		\
-    defvar_lisp_nopro (&o_fwd, lname, &globals.f_ ## vname);	\
-  } while (false)
-#define DEFVAR_BOOL(lname, vname, doc)		\
-  do {						\
-    static struct Lisp_Boolfwd b_fwd;		\
-    defvar_bool (&b_fwd, lname, &globals.f_ ## vname);		\
-  } while (false)
-#define DEFVAR_INT(lname, vname, doc)		\
-  do {						\
-    static struct Lisp_Intfwd i_fwd;		\
-    defvar_int (&i_fwd, lname, &globals.f_ ## vname);		\
-  } while (false)
-
-#define DEFVAR_KBOARD(lname, vname, doc)			\
-  do {								\
-    static struct Lisp_Kboard_Objfwd ko_fwd;			\
-    defvar_kboard (&ko_fwd, lname, offsetof (KBOARD, vname ## _)); \
-  } while (false)
-
-
-/* Elisp uses several stacks:
-   - the C stack.
-   - the bytecode stack: used internally by the bytecode interpreter.
-     Allocated from the C stack.
-   - The specpdl stack: keeps track of active unwind-protect and
-     dynamic-let-bindings.  Allocated from the `specpdl' array, a manually
-     managed stack.
-   - The handler stack: keeps track of active catch tags and condition-case
-     handlers.  Allocated in a manually managed stack implemented by a
-     doubly-linked list allocated via xmalloc and never freed.  */
-
-/* Structure for recording Lisp call stack for backtrace purposes.  */
-
-/* The special binding stack holds the outer values of variables while
-   they are bound by a function application or a let form, stores the
-   code to be executed for unwind-protect forms.
-
-   NOTE: The specbinding union is defined here, because SPECPDL_INDEX is
-   used all over the place, needs to be fast, and needs to know the size of
-   union specbinding.  But only eval.c should access it.  */
-
-struct specbinding_stack
-  {
-    ENUM_BF (specbind_tag) kind : CHAR_BIT;
-    struct {
-      void (*func) (ELisp_Handle);
-      ELisp_Value arg;
-    } unwind;
-    struct {
-      ENUM_BF (specbind_tag) kind : CHAR_BIT;
-      ELisp_Vector vector;
-    } unwind_array;
-    struct {
-      void (*func) (void *);
-      void *arg;
-    } unwind_ptr;
-    struct {
-      void (*func) (int);
-      int arg;
-    } unwind_int;
-    struct {
-      ENUM_BF (specbind_tag) kind : CHAR_BIT;
-      ELisp_Struct_Value marker;
-      ELisp_Struct_Value window;
-    } unwind_excursion;
-    struct {
-      void (*func) (void);
-    } unwind_void;
-    struct {
-      /* `where' is not used in the case of SPECPDL_LET.  */
-      ELisp_Value symbol; ELisp_Value old_value; ELisp_Value where;
-      /* Normally this is unused; but it is set to the symbol's
-         current value when a thread is swapped out.  */
-      ELisp_Value saved_value;
-    } let;
-    struct {
-      bool_bf debug_on_exit : 1;
-      ELisp_Value function;
-      ELisp_Pointer args;
-      ptrdiff_t nargs;
-    } bt;
-  };
-
-/* These 3 are defined as macros in thread.h.  */
-/* extern union specbinding *specpdl; */
-/* extern union specbinding *specpdl_ptr; */
-/* extern ptrdiff_t specpdl_size; */
-
-#define SPECPDL_INDEX() (specpdl_ptr - specpdl)
 
 
 extern ELisp_Heap_Value Vascii_downcase_table;

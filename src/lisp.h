@@ -3002,6 +3002,7 @@ enum maxargs
    CALLN is overkill for simple usages like 'Finsert (1, &text);'.  */
 #define CALLN(f, ...) CALLMANY (f, ((Lisp_Object []) {__VA_ARGS__}))
 
+#endif
 extern void defvar_lisp (struct Lisp_Objfwd *, const char *, Lisp_Object *);
 extern void defvar_lisp_nopro (struct Lisp_Objfwd *, const char *, Lisp_Object *);
 extern void defvar_bool (struct Lisp_Boolfwd *, const char *, bool *);
@@ -3052,6 +3053,7 @@ extern void defvar_kboard (struct Lisp_Kboard_Objfwd *, const char *, int);
     defvar_kboard (&ko_fwd, lname, offsetof (KBOARD, vname ## _)); \
   } while (false)
 
+#if 0
 
 /* Elisp uses multiple stacks:
    - The C stack.
@@ -3128,7 +3130,47 @@ struct specbinding
     } bt;
   };
 
-#if 0
+struct specbinding_stack
+  {
+    ENUM_BF (specbind_tag) kind : CHAR_BIT;
+    struct {
+      void (*func) (ELisp_Handle);
+      ELisp_Value arg;
+    } unwind;
+    struct {
+      ENUM_BF (specbind_tag) kind : CHAR_BIT;
+      ELisp_Vector vector;
+    } unwind_array;
+    struct {
+      void (*func) (void *);
+      void *arg;
+    } unwind_ptr;
+    struct {
+      void (*func) (int);
+      int arg;
+    } unwind_int;
+    struct {
+      ENUM_BF (specbind_tag) kind : CHAR_BIT;
+      ELisp_Struct_Value marker;
+      ELisp_Struct_Value window;
+    } unwind_excursion;
+    struct {
+      void (*func) (void);
+    } unwind_void;
+    struct {
+      /* `where' is not used in the case of SPECPDL_LET.  */
+      ELisp_Value symbol; ELisp_Value old_value; ELisp_Value where;
+      /* Normally this is unused; but it is set to the symbol's
+         current value when a thread is swapped out.  */
+      ELisp_Value saved_value;
+    } let;
+    struct {
+      bool_bf debug_on_exit : 1;
+      ELisp_Value function;
+      ELisp_Pointer args;
+      ptrdiff_t nargs;
+    } bt;
+  };
 
 /* These 3 are defined as macros in thread.h.  */
 /* extern union specbinding *specpdl; */
@@ -3140,6 +3182,8 @@ SPECPDL_INDEX (void)
 {
   return specpdl_ptr - specpdl;
 }
+
+#if 0
 
 /* This structure helps implement the `catch/throw' and `condition-case/signal'
    control structures.  A struct handler contains all the information needed to
