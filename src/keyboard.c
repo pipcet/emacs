@@ -3306,10 +3306,10 @@ record_char (Lisp_Object c)
       block_input ();
       if (INTEGERP (c))
 	{
-	  if (XUINT (c) < 0x100)
-	    putc_unlocked (XUINT (c), dribble);
+	  if (XFIXNAT (c) < 0x100)
+	    putc_unlocked (XFIXNAT (c), dribble);
 	  else
-	    fprintf (dribble, " 0x%"pI"x", XUINT (c));
+	    fprintf (dribble, " 0x%"pI"x", XFIXNAT (c));
 	}
       else
 	{
