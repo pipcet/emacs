@@ -1,57 +1,6 @@
-/* Fundamental definitions for GNU Emacs Lisp interpreter. -*- coding: utf-8 -*-
-
-Copyright (C) 1985-1987, 1993-1995, 1997-2017 Free Software Foundation,
-Inc.
-
-This file is part of GNU Emacs.
-
-GNU Emacs is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or (at
-your option) any later version.
-
-GNU Emacs is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
-
 #if defined(JSLISP_HH_SECTION_1)
 #undef JSLISP_HH_SECTION_1
-
-//#define DEBUG
-#include "js-config.h"
-#include "jsapi.h"
-
-#include "js/Class.h"
-#include "js/Initialization.h"
-#include "js/RootingAPI.h"
-#include "js/Conversions.h" // as of SpiderMonkey 38; previously in jsapi.h
-
-#ifdef HAVE_GMP
-#include <gmp.h>
-#else
-#include "mini-gmp.h"
-#endif
-
-#define EXTERN_C extern "C" {
-#define EXTERN_C_END };
-
-#define ARG(x) (x ## _arg)
-#define MODIFY_ARG(x) do { } while (0)
-#define L(v) ELisp_Value (v)
-#define LVH(v) ELisp_Handle (v)
-#define LHH(v) (v)
-//#define LRH(v) (v)
-//#define LSH(v) (v)
-#define LRH(v) ELisp_Handle (ELisp_Value (v))
-#define LSH(v) ELisp_Handle (ELisp_Value (v))
-
-extern _Noreturn void emacs_abort (void) NO_INLINE;
-extern bool js_init();
-
+#include "jslisp-headers.hh"
 #elif defined(JSLISP_HH_SECTION_1B)
 #undef JSLISP_HH_SECTION_1B
 #include "jslisp-jsg.hh"
