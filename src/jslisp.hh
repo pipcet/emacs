@@ -4840,44 +4840,6 @@ extern bool file_accessible_directory_p (ELisp_Handle);
 extern void init_fileio (void);
 extern void syms_of_fileio (void);
 
-/* Defined in search.c.  */
-extern void shrink_regexp_cache (void);
-extern void restore_search_regs (void);
-extern void update_search_regs (ptrdiff_t oldstart,
-                                ptrdiff_t oldend, ptrdiff_t newend);
-extern void record_unwind_save_match_data (void);
-struct re_registers;
-extern ptrdiff_t fast_string_match_internal (ELisp_Handle, ELisp_Handle,
-                                             ELisp_Handle);
-
-INLINE ptrdiff_t
-fast_string_match (ELisp_Handle regexp, ELisp_Handle string)
-{
-  return fast_string_match_internal (regexp, string, LSH (Qnil));
-}
-
-INLINE ptrdiff_t
-fast_string_match_ignore_case (ELisp_Handle regexp, ELisp_Handle string)
-{
-  return fast_string_match_internal (regexp, string, LSH (Vascii_canon_table));
-}
-
-extern ptrdiff_t fast_c_string_match_ignore_case (ELisp_Handle, const char *,
-                                                  ptrdiff_t);
-extern ptrdiff_t fast_looking_at (ELisp_Handle, ptrdiff_t, ptrdiff_t,
-                                  ptrdiff_t, ptrdiff_t, ELisp_Handle);
-extern ptrdiff_t find_newline (ptrdiff_t, ptrdiff_t, ptrdiff_t, ptrdiff_t,
-                               ptrdiff_t, ptrdiff_t *, ptrdiff_t *, bool);
-extern ptrdiff_t scan_newline (ptrdiff_t, ptrdiff_t, ptrdiff_t, ptrdiff_t,
-                               ptrdiff_t, bool);
-extern ptrdiff_t scan_newline_from_point (ptrdiff_t, ptrdiff_t *, ptrdiff_t *);
-extern ptrdiff_t find_newline_no_quit (ptrdiff_t, ptrdiff_t,
-                                       ptrdiff_t, ptrdiff_t *);
-extern ptrdiff_t find_before_next_newline (ptrdiff_t, ptrdiff_t,
-                                           ptrdiff_t, ptrdiff_t *);
-extern void syms_of_search (void);
-extern void clear_regexp_cache (void);
-
 /* Defined in minibuf.c.  */
 
 extern ELisp_Heap_Value Vminibuffer_list;

@@ -3176,10 +3176,12 @@ rarely_quit (unsigned short int count)
   if (! count)
     maybe_quit ();
 }
+#endif /* 0 */
 
 extern Lisp_Object Vascii_downcase_table;
 extern Lisp_Object Vascii_canon_table;
 
+#if 0
 /* Call staticpro (&var) to protect static variable `var'.  */
 
 void staticpro_1 (Lisp_Object *);
@@ -4075,6 +4077,8 @@ extern bool file_accessible_directory_p (Lisp_Object);
 extern void init_fileio (void);
 extern void syms_of_fileio (void);
 
+#endif /* 0 */
+
 /* Defined in search.c.  */
 extern void shrink_regexp_cache (void);
 extern void restore_search_regs (void);
@@ -4096,6 +4100,7 @@ fast_string_match_ignore_case (Lisp_Object regexp, Lisp_Object string)
   return fast_string_match_internal (regexp, string, Vascii_canon_table);
 }
 
+
 extern ptrdiff_t fast_c_string_match_ignore_case (Lisp_Object, const char *,
 						  ptrdiff_t);
 extern ptrdiff_t fast_looking_at (Lisp_Object, ptrdiff_t, ptrdiff_t,
@@ -4111,6 +4116,8 @@ extern ptrdiff_t find_before_next_newline (ptrdiff_t, ptrdiff_t,
 					   ptrdiff_t, ptrdiff_t *);
 extern void syms_of_search (void);
 extern void clear_regexp_cache (void);
+
+#if 0
 
 /* Defined in minibuf.c.  */
 
