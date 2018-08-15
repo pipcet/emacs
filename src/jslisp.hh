@@ -863,42 +863,6 @@ XFLOATINT (ELisp_Handle n)
   return FLOATP (n) ? XFLOAT_DATA (n) : XFIXNUM (n);
 }
 
-/* This version of DEFUN declares a function prototype with the right
-   arguments, so we can catch errors with maxargs at compile-time.  */
-#ifdef _MSC_VER
-#define DEFUN(lname, fnname, sname, minargs, maxargs, intspec, doc)	\
-   ELisp_Return_Value fnname DEFUN_ARGS_ ## maxargs ;				\
-   struct Lisp_Subr alignas (GCALIGNMENT) sname =		\
-   { { (PVEC_SUBR << PSEUDOVECTOR_AREA_BITS)				\
-       | (sizeof (struct Lisp_Subr) / sizeof (EMACS_INT)) },		\
-      { (ELisp_Return_Value (__cdecl *)(void))fnname },                        \
-       minargs, maxargs, lname, intspec, 0};				\
-   ELisp_Return_Value fnname
-#else  /* not _MSC_VER */
-#define DEFUN(lname, fnname, sname, minargs, maxargs, intspec, doc)	\
-   struct Lisp_Subr alignas (GCALIGNMENT) sname =		\
-     { { {}, PVEC_SUBR << PSEUDOVECTOR_AREA_BITS },                    \
-       { .a ## maxargs = fnname },					\
-       minargs, maxargs, lname, intspec, 0};				\
-   ELisp_Return_Value fnname
-#endif
-
-/* defsubr (Sname);
-   is how we define the symbol for function `name' at start-up time.  */
-extern void defsubr (struct Lisp_Subr *);
-
-enum maxargs
-  {
-    MANY = -2,
-    UNEVALLED = -1
-  };
-
-#define LV(n,v) ((struct ELisp_Vector){ (n), (v) })
-#define LV0 LV(0, (JSReturnValue *)0)
-
-/* Call a function F that accepts many args, passing it ARRAY's elements.  */
-#define CALLMANY(f, array) (f) (LV (ARRAYELTS (array), array))
-
 template<typename... As>
 ELisp_Return_Value
 CALLN(ELisp_Return_Value (*f) (ELisp_Vector_Handle), As... args)

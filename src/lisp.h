@@ -2947,7 +2947,6 @@ CHECK_FIXNUM_CDR (ELisp_Handle x)
   CHECK_FIXNUM (tmp);
   XSETCDR (x, tmp);
 }
-#if 0
 
 /* Define a built-in function for calling from Lisp.
  `lname' should be the name to give the function in Lisp,
@@ -2976,12 +2975,23 @@ CHECK_FIXNUM_CDR (ELisp_Handle x)
 
 /* This version of DEFUN declares a function prototype with the right
    arguments, so we can catch errors with maxargs at compile-time.  */
+#ifdef _MSC_VER
 #define DEFUN(lname, fnname, sname, minargs, maxargs, intspec, doc)	\
-   static struct Lisp_Subr sname =				\
-     { { PVEC_SUBR << PSEUDOVECTOR_AREA_BITS },				\
+   ELisp_Return_Value fnname DEFUN_ARGS_ ## maxargs ;				\
+   struct Lisp_Subr alignas (GCALIGNMENT) sname =		\
+   { { (PVEC_SUBR << PSEUDOVECTOR_AREA_BITS)				\
+       | (sizeof (struct Lisp_Subr) / sizeof (EMACS_INT)) },		\
+      { (ELisp_Return_Value (__cdecl *)(void))fnname },                        \
+       minargs, maxargs, lname, intspec, 0};				\
+   ELisp_Return_Value fnname
+#else  /* not _MSC_VER */
+#define DEFUN(lname, fnname, sname, minargs, maxargs, intspec, doc)	\
+   struct Lisp_Subr alignas (GCALIGNMENT) sname =		\
+     { { {}, PVEC_SUBR << PSEUDOVECTOR_AREA_BITS },                    \
        { .a ## maxargs = fnname },					\
        minargs, maxargs, lname, intspec, 0};				\
-   Lisp_Object fnname
+   ELisp_Return_Value fnname
+#endif
 
 /* defsubr (Sname);
    is how we define the symbol for function `name' at start-up time.  */
@@ -2993,16 +3003,12 @@ enum maxargs
     UNEVALLED = -1
   };
 
+#define LV(n,v) ((struct ELisp_Vector){ (n), (v) })
+#define LV0 LV(0, (JSReturnValue *)0)
+
 /* Call a function F that accepts many args, passing it ARRAY's elements.  */
-#define CALLMANY(f, array) (f) (ARRAYELTS (array), array)
+#define CALLMANY(f, array) (f) (LV (ARRAYELTS (array), array))
 
-/* Call a function F that accepts many args, passing it the remaining args,
-   E.g., 'return CALLN (Fformat, fmt, text);' is less error-prone than
-   '{ Lisp_Object a[2]; a[0] = fmt; a[1] = text; return Fformat (2, a); }'.
-   CALLN is overkill for simple usages like 'Finsert (1, &text);'.  */
-#define CALLN(f, ...) CALLMANY (f, ((Lisp_Object []) {__VA_ARGS__}))
-
-#endif
 extern void defvar_lisp (struct Lisp_Objfwd *, const char *, Lisp_Object *);
 extern void defvar_lisp_nopro (struct Lisp_Objfwd *, const char *, Lisp_Object *);
 extern void defvar_bool (struct Lisp_Boolfwd *, const char *, bool *);
