@@ -23,6 +23,14 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 
 #define JSLISP_HH_SECTION_1
 #include "jslisp.hh"
+#define JSLISP_HH_SECTION_1B
+#include "jslisp.hh"
+#define JSLISP_HH_SECTION_1C
+#include "jslisp.hh"
+#define JSLISP_HH_SECTION_1D
+#include "jslisp.hh"
+#define JSLISP_HH_SECTION_1E
+#include "jslisp.hh"
 
 #include <alloca.h>
 #include <setjmp.h>

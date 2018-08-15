@@ -52,6 +52,8 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 extern _Noreturn void emacs_abort (void) NO_INLINE;
 extern bool js_init();
 
+#elif defined(JSLISP_HH_SECTION_1B)
+#undef JSLISP_HH_SECTION_1B
 extern JSContext* global_js_context;
 
 class JSG {
@@ -99,6 +101,9 @@ extern JSClass elisp_vector_class;
 //extern JSClass elisp_compiled_class;
 //extern JSClass elisp_misc_any_class;
 //extern JSClass elisp_vectorlike_class;
+
+#elif defined(JSLISP_HH_SECTION_1C)
+#undef JSLISP_HH_SECTION_1C
 
 #include <alloca.h>
 #include <setjmp.h>
@@ -557,6 +562,9 @@ enum Lisp_Fwd_Type
   /* Last value of whole for horizontal scrollbars.  */
   int whole;
 #endif
+
+#elif defined(JSLISP_HH_SECTION_1D)
+#undef JSLISP_HH_SECTION_1D
 
 #define FORWARDED_COMMON                                \
   operator JS::Value() const                            \
@@ -1973,6 +1981,7 @@ INLINE bool
 #define XSETSYMBOL(a, b) ((a).xsetsymbol (b))
 #define XSETFLOAT(a, b) ((a).xsetfloat (b))
 #define XSETMARKER(a, b) ((a).xsetvector ((struct Lisp_Vector *)(b)))
+#define XSETSCROLL_BAR(a,b) (a).xsetvector((struct Lisp_Vector *)b)
 
 /* Pseudovector types.  */
 
@@ -5240,8 +5249,6 @@ extern void dupstring (char **, char const *);
       unbind_to (sa_count, LSH (Qnil));	\
     }					\
   } while (false)
-
-#define XSETSCROLL_BAR(a,b) (a).xsetvector((struct Lisp_Vector *)b)
 
 INLINE_HEADER_END
 
