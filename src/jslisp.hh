@@ -1492,7 +1492,6 @@ public:
   }
 };
 
-EXTERN_C
 #define ELisp_Array(symbol, n) ELisp_Value symbol ## _arr[(n)] = { }; struct ELisp_Vector symbol = { (n), symbol ## _arr }
 #define ELisp_Array_Imm(symbol, ...) ELisp_Struct_Value symbol ## _arr[] = { __VA_ARGS__ }; struct ELisp_Vector symbol = { ARRAYELTS(symbol ## _arr), symbol ## _arr }
 
@@ -1628,21 +1627,6 @@ union Lisp_Symbol_Flags
    XLI (builtin_lisp_symbol (Qwhatever)),
    except the former expands to an integer constant expression.  */
 #define XLI_BUILTIN_LISPSYM(iname) TAG_SYMOFFSET ((iname) * sizeof *lispsym)
-
-extern ELisp_Return_Value elisp_symbol();
-
-INLINE ELisp_Return_Value
-lispsym_initially (ELisp_Struct_Value *sym)
-{
-  ELisp_Value v;
-  v = *sym;
-  if (v.v.v.isUndefined())
-    {
-      v = elisp_symbol();
-      *sym = v;
-    }
-  return v;
-}
 
 /* By default, define macros for Qt, etc., as this leads to a bit
    better performance in the core Emacs interpreter.  A plugin can
@@ -3725,7 +3709,6 @@ enum maxargs
 
 /* Call a function F that accepts many args, passing it ARRAY's elements.  */
 #define CALLMANY(f, array) (f) (LV (ARRAYELTS (array), array))
-EXTERN_C_END
 
 template<typename... As>
 ELisp_Return_Value
@@ -3742,7 +3725,6 @@ CALLN(ELisp_Return_Value (*f) (ELisp_Vector_Handle), As... args)
   return ret;
 }
 
-EXTERN_C
 extern void defvar_lisp (struct Lisp_Objfwd *, const char *, ELisp_Pointer);
 extern void defvar_lisp_nopro (struct Lisp_Objfwd *, const char *, ELisp_Pointer);
 extern void defvar_bool (struct Lisp_Boolfwd *, const char *, bool *);
@@ -4393,7 +4375,6 @@ extern ELisp_Return_Value list4 (ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp
 extern ELisp_Return_Value list5 (ELisp_Handle, ELisp_Handle, ELisp_Handle, ELisp_Handle,
                           ELisp_Handle);
 enum constype {CONSTYPE_HEAP, CONSTYPE_PURE};
-EXTERN_C_END
 
 extern ELisp_Return_Value make_bignum_str (const char *num, int base);
 extern ELisp_Return_Value make_number (mpz_t value);
@@ -4417,7 +4398,6 @@ inline ELisp_Return_Value listn (enum constype, ptrdiff_t)
 
 /* Build a frequently used 2/3/4-integer lists.  */
 
-EXTERN_C
 INLINE ELisp_Return_Value
 list2i (EMACS_INT x, EMACS_INT y)
 {
@@ -5327,7 +5307,5 @@ extern void dupstring (char **, char const *);
 #define XSETSCROLL_BAR(a,b) (a).xsetvector((struct Lisp_Vector *)b)
 
 INLINE_HEADER_END
-
-EXTERN_C_END
 
 #endif /* JSLISP_HH_SECTION_N */

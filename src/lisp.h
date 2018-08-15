@@ -800,6 +800,21 @@ typedef EMACS_UINT Lisp_Word_tag;
    ? (intptr_t) (ptr) + (tag) \
    : (EMACS_INT) (((EMACS_UINT) (tag) << VALBITS) + (uintptr_t) (ptr)))
 
+extern ELisp_Return_Value elisp_symbol();
+
+INLINE ELisp_Return_Value
+lispsym_initially (ELisp_Struct_Value *sym)
+{
+  ELisp_Value v;
+  v = *sym;
+  if (v.v.v.isUndefined())
+    {
+      v = elisp_symbol();
+      *sym = v;
+    }
+  return v;
+}
+
 /* LISPSYM_INITIALLY (Qfoo) is equivalent to Qfoo except it is
    designed for use as an initializer, even for a constant initializer.  */
 #define LISPSYM_INITIALLY(name) lispsym_initially(&lispsym[i##name])

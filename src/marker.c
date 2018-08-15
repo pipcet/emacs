@@ -441,7 +441,6 @@ Returns nil if MARKER points into a dead buffer.  */)
   return Qnil;
 }
 
-EXTERN_C
 DEFUN ("marker-position", Fmarker_position, Smarker_position, 1, 1, 0,
        doc: /* Return the position of MARKER, or nil if it points nowhere.  */)
   (Lisp_Object marker)
@@ -454,7 +453,6 @@ DEFUN ("marker-position", Fmarker_position, Smarker_position, 1, 1, 0,
 }
 
 /* Change M so it points to B at CHARPOS and BYTEPOS.  */
-EXTERN_C_END
 
 static void
 attach_marker (struct Lisp_Marker *m, struct buffer *b,
@@ -799,7 +797,6 @@ verify_bytepos (ptrdiff_t charpos)
 
 #endif /* MARKER_DEBUG */
 
-EXTERN_C
 void
 syms_of_marker (void)
 {
@@ -811,5 +808,3 @@ syms_of_marker (void)
   defsubr (&Sset_marker_insertion_type);
   defsubr (&Sbuffer_has_markers_at);
 }
-
-EXTERN_C_END

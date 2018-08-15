@@ -42,11 +42,8 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #include "mini-gmp.h"
 #endif
 
-EXTERN_C
-
 static void swap_in_symval_forwarding (Lisp_Object,
 				       struct Lisp_Buffer_Local_Value *);
-EXTERN_C_END
 
 static bool
 BOOLFWDP (union Lisp_Fwd *a)
@@ -1205,8 +1202,6 @@ swap_in_global_binding (Lisp_Object sym)
    Return the value forwarded one step past the buffer-local stage.
    This could be another forwarding pointer.  */
 
-EXTERN_C
-EXTERN_C_END
 static void
 swap_in_symval_forwarding (Lisp_Object sym, struct Lisp_Buffer_Local_Value *blv)
 {
@@ -2199,7 +2194,6 @@ function chain of symbols.  */)
 
 /* Extract and set vector and string elements.  */
 
-EXTERN_C
 DEFUN ("aref", Faref, Saref, 2, 2, 0,
        doc: /* Return the element of ARRAY at index IDX.
 ARRAY may be a vector, a string, a char-table, a bool-vector, a record,
@@ -2597,7 +2591,6 @@ usage: (>= NUMBER-OR-MARKER &rest NUMBERS-OR-MARKERS)  */)
 {
   return arithcompare_driver (nargs, args, ARITH_GRTR_OR_EQUAL);
 }
-EXTERN_C_END
 
 DEFUN ("/=", Fneq, Sneq, 2, 2, 0,
        doc: /* Return t if first arg is not equal to second arg.  Both must be numbers or markers.  */)
