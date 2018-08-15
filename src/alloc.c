@@ -1438,7 +1438,7 @@ a multibyte string even if INIT is an ASCII character.  */)
   int c;
   EMACS_INT nbytes;
 
-  CHECK_NATNUM (length);
+  CHECK_FIXNAT (length);
   CHECK_CHARACTER (init);
 
   c = XFIXNUM (init);
@@ -1532,7 +1532,7 @@ LENGTH must be a number.  INIT matters only in whether it is t or nil.  */)
 {
   Lisp_Object val;
 
-  CHECK_NATNUM (length);
+  CHECK_FIXNAT (length);
   val = make_uninit_bool_vector (XFIXNUM (length));
   return bool_vector_fill (val, init);
 }
@@ -1798,7 +1798,7 @@ DEFUN ("make-list", Fmake_list, Smake_list, 2, 2, 0,
   (Lisp_Object length, Lisp_Object init)
 {
   Lisp_Object val = Qnil;
-  CHECK_NATNUM (length);
+  CHECK_FIXNAT (length);
 
   for (EMACS_INT size = XFIXNUM (length); 0 < size; size--)
     {
@@ -2090,7 +2090,7 @@ symbol or a type descriptor.  SLOTS is the number of non-type slots,
 each initialized to INIT.  */)
   (Lisp_Object type, Lisp_Object slots, Lisp_Object init)
 {
-  CHECK_NATNUM (slots);
+  CHECK_FIXNAT (slots);
   EMACS_INT size = XFIXNUM (slots) + 1;
   struct Lisp_Vector *p = allocate_record (size);
   p->contents[0] = type;
@@ -2124,7 +2124,7 @@ DEFUN ("make-vector", Fmake_vector, Smake_vector, 2, 2, 0,
 See also the function `vector'.  */)
   (Lisp_Object length, Lisp_Object init)
 {
-  CHECK_NATNUM (length);
+  CHECK_FIXNAT (length);
   struct Lisp_Vector *p = allocate_vector (XFIXNUM (length));
   for (ptrdiff_t i = 0; i < XFIXNUM (length); i++)
     p->contents[i] = init;
