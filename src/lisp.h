@@ -4448,6 +4448,8 @@ extern Lisp_Object Vface_alternative_font_family_alist;
 extern Lisp_Object Vface_alternative_font_registry_alist;
 extern void syms_of_xfaces (void);
 
+#endif /* 0 */
+
 #ifdef HAVE_X_WINDOWS
 /* Defined in xfns.c.  */
 extern void syms_of_xfns (void);
@@ -4501,8 +4503,6 @@ extern void syms_of_profiler (void);
 /* Defined in msdos.c, w32.c.  */
 extern char *emacs_root_dir (void);
 #endif /* DOS_NT */
-
-#endif /* 0 */
 
 /* Defined in lastfile.c.  */
 extern char my_edata[];

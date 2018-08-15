@@ -4271,60 +4271,6 @@ extern ELisp_Heap_Value Vface_alternative_font_family_alist;
 extern ELisp_Heap_Value Vface_alternative_font_registry_alist;
 extern void syms_of_xfaces (void);
 
-#ifdef HAVE_X_WINDOWS
-/* Defined in xfns.c.  */
-extern void syms_of_xfns (void);
-
-/* Defined in xsmfns.c.  */
-extern void syms_of_xsmfns (void);
-
-/* Defined in xselect.c.  */
-extern void syms_of_xselect (void);
-
-/* Defined in xterm.c.  */
-extern void init_xterm (void);
-extern void syms_of_xterm (void);
-#endif /* HAVE_X_WINDOWS */
-
-#ifdef HAVE_WINDOW_SYSTEM
-/* Defined in xterm.c, nsterm.m, w32term.c.  */
-extern char *x_get_keysym_name (int);
-#endif /* HAVE_WINDOW_SYSTEM */
-
-#ifdef HAVE_LIBXML2
-/* Defined in xml.c.  */
-extern void syms_of_xml (void);
-extern void xml_cleanup_parser (void);
-#endif
-
-#ifdef HAVE_LCMS2
-/* Defined in lcms.c.  */
-extern void syms_of_lcms2 (void);
-#endif
-
-#ifdef HAVE_ZLIB
-/* Defined in decompress.c.  */
-extern void syms_of_decompress (void);
-#endif
-
-#ifdef HAVE_DBUS
-/* Defined in dbusbind.c.  */
-void init_dbusbind (void);
-void syms_of_dbusbind (void);
-#endif
-
-
-/* Defined in profiler.c.  */
-extern bool profiler_memory_running;
-extern void malloc_probe (size_t);
-extern void syms_of_profiler (void);
-
-
-#ifdef DOS_NT
-/* Defined in msdos.c, w32.c.  */
-extern char *emacs_root_dir (void);
-#endif /* DOS_NT */
-
 #define USE_SAFE_ALLOCA			\
   ptrdiff_t sa_avail = MAX_ALLOCA;	\
   ptrdiff_t sa_count = SPECPDL_INDEX (); bool sa_must_free = false
