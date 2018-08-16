@@ -1526,7 +1526,11 @@ XVECTOR (Lisp_Object a)
 INLINE ptrdiff_t
 ASIZE (Lisp_Object array)
 {
-  ptrdiff_t size = XVECTOR (array)->header.size;
+  ELisp_Value sizev = array.get_property("length");
+  ptrdiff_t size = sizev.toInt32();
+  ELisp_Value hisizev = array.get_property("length_hi");
+  ptrdiff_t hisize = hisizev.toInt32();
+  size += (hisize << 32);
   eassume (0 <= size);
   return size;
 }
@@ -1703,7 +1707,7 @@ bool_vector_set (Lisp_Object a, EMACS_INT i, bool b)
 INLINE Lisp_Object
 AREF (Lisp_Object array, ptrdiff_t idx)
 {
-  return XVECTOR (array)->contents[idx];
+  return array.get_element(idx);
 }
 
 INLINE ELisp_Pointer
@@ -1723,7 +1727,7 @@ INLINE void
 ASET (Lisp_Object array, ptrdiff_t idx, Lisp_Object val)
 {
   eassert (0 <= idx && idx < ASIZE (array));
-  XVECTOR (array)->contents[idx] = val;
+  array.set_element(idx, val);
 }
 
 INLINE void

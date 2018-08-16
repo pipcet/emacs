@@ -32,17 +32,25 @@ extern EMACS_INT js_hash_object (JS::HandleObject obj);
   void setInt32(int32_t x) { v.setInt32(x); }           \
   void setDouble(double x) { v.setDouble(x); }
 
-#define FORWARDED_RO                            \
-  FORWARDED_COMMON                              \
+#define FORWARDED_RO                                 \
+  FORWARDED_COMMON                                   \
   void setNull() { emacs_abort(); }                  \
   void setObject(JSObject &obj) { emacs_abort(); }   \
   void setInt32(int32_t x) { emacs_abort(); }        \
   void setDouble(double x) { emacs_abort(); }        \
-  void set(JSReturnValue v)                     \
-  {                                             \
+  void set(JSReturnValue v)                          \
+  {                                                  \
     emacs_abort();                                   \
   }
 
+#define ARRAY_PROPS                                        \
+  ELisp_Return_Value get_element (int32_t index);          \
+  void set_element (int32_t index, ELisp_Handle el);       \
+  ELisp_Return_Value get_property (const char *prop);      \
+  void set_property (const char *prop, ELisp_Handle el);   \
+  ELisp_Return_Value operator[](int32_t index) {           \
+    return get_element(index);                             \
+  }
 
 #define XCLASS(name, clas, c_class)                                     \
   inline void xset ## name (c_class x)                                  \
@@ -210,7 +218,12 @@ class Lisp_Value_Heap;
 class Lisp_Value_Stack;
 class Lisp_Value_Handle;
 
+typedef Lisp_Value_Handle ELisp_Handle;
+typedef Lisp_Value_Heap ELisp_Heap_Value;
+typedef Lisp_Value_Heap ELisp_Struct_Value;
+typedef Lisp_Value_Stack ELisp_Value;
 typedef JSReturnValue ELisp_Return_Value;
+
 extern ELisp_Return_Value elisp_cons (void);
 
 class JSReturnValue {
@@ -509,6 +522,7 @@ public:
   XALL
 #undef V
 };
+
 class Lisp_Value_Handle {
 public:
   JSHandleValue v;
@@ -534,6 +548,7 @@ public:
   FORWARDED
 #define V v
   XALL
+  ARRAY_PROPS
 #undef V
 };
 
