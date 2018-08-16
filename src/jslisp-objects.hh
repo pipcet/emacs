@@ -127,6 +127,16 @@
       const JSClass *clas = JS_GetClass(&V.toObject());                 \
       if (clas == &elisp_vector_class)                                  \
         return ((EMACS_INT)(JS_GetPrivate(&V.toObject()))) & 0x7fffffff; \
+      if (clas == &elisp_string_class)                                  \
+        {                                                               \
+          JS::RootedObject obj(jsg.cx, &V.toObject());                  \
+          JS::RootedValue v(jsg.cx);                                    \
+          v = JS_GetReservedSlot (obj, 0);                              \
+          obj = &v.toObject();                                          \
+          v = JS_GetReservedSlot (obj, 0);                              \
+          obj = &v.toObject();                                          \
+          return ((EMACS_INT) JS_GetPrivate (obj)) & 0x7fffffff;        \
+        }                                                               \
     }                                                                   \
     return 0;                                                           \
     return reinterpret_cast<EMACS_INT>(&V.toObject());                  \

@@ -1110,6 +1110,7 @@ this connection to those buses.  */)
   DBusError derror;
   Lisp_Object val;
   ptrdiff_t refcount;
+  ELisp_Struct_Value *token = xmalloc (sizeof *token);
 
   MODIFY_ARG(&bus);
   /* Check parameter.  */
@@ -1168,13 +1169,12 @@ this connection to those buses.  */)
 
       /* Add the watch functions.  We pass also the bus as data, in
 	 order to distinguish between the buses in xd_remove_watch.  */
+      *token = bus;
       if (!dbus_connection_set_watch_functions (connection,
 						xd_add_watch,
 						xd_remove_watch,
 						xd_toggle_watch,
-						SYMBOLP (bus)
-						? (void *) 0
-						: (void *) 0,
+						token,
 						NULL))
 	XD_SIGNAL1 (build_string ("Cannot add watch functions"));
 
@@ -1643,11 +1643,16 @@ xd_read_queued_messages (int fd, void *data)
 
   /* Find bus related to fd.  */
   if (data != NULL)
-    while (!NILP (busp))
-      {
-	key = CAR_SAFE (CAR_SAFE (busp));
-	busp = CDR_SAFE (busp);
-      }
+    {
+      ELisp_Struct_Value *token = (ELisp_Struct_Value *)data;
+      while (!NILP (busp))
+        {
+          key = CAR_SAFE (CAR_SAFE (busp));
+          if (EQ (key, *token))
+            bus = key;
+          busp = CDR_SAFE (busp);
+        }
+    }
 
   if (NILP (bus))
     return;
