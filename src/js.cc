@@ -35,7 +35,7 @@ cons_get_property(JSContext *cx, JS::HandleObject obj, JS::HandleId id,
   if (!JSID_IS_INT(id))
     return false;
 
-  vp.set(JS_GetReservedSlot(obj, JSID_TO_INT(id) ? 1 : 0));
+  vp.set(JS_GetReservedSlot(obj, JSID_TO_INT(id) ? 2 : 1));
 
   return true;
 }
@@ -140,14 +140,14 @@ static JSPropertySpec string_props[] = {
 static JSClass elisp_fixbuf_class =
   {
    "Fixbuf",
-   JSCLASS_HAS_PRIVATE | JSCLASS_HAS_RESERVED_SLOTS(1) | JSCLASS_FOREGROUND_FINALIZE,
+   JSCLASS_HAS_PRIVATE | JSCLASS_HAS_RESERVED_SLOTS(2) | JSCLASS_FOREGROUND_FINALIZE,
    &elisp_fixbuf_class_ops,
   };
 
 static JSClass mbstring_class =
   {
    "mbstring",
-   JSCLASS_HAS_RESERVED_SLOTS(3) | JSCLASS_FOREGROUND_FINALIZE,
+   JSCLASS_HAS_RESERVED_SLOTS(4) | JSCLASS_FOREGROUND_FINALIZE,
    &mbstring_class_ops,
   };
 
@@ -178,7 +178,7 @@ bool elisp_mbstringp(ELisp_Handle s)
 JSClass elisp_string_class =
   {
    "ELisp_String",
-   JSCLASS_HAS_PRIVATE | JSCLASS_HAS_RESERVED_SLOTS(1) | JSCLASS_FOREGROUND_FINALIZE,
+   JSCLASS_HAS_PRIVATE | JSCLASS_HAS_RESERVED_SLOTS(2) | JSCLASS_FOREGROUND_FINALIZE,
    &string_class_ops,
   };
 
@@ -200,7 +200,7 @@ ELisp_Return_Value elisp_fixbuf(void *buf, ptrdiff_t size)
   JS::RootedObject obj(cx, JS_NewObject(cx, &elisp_fixbuf_class));
 
   JS_SetPrivate(obj, buf);
-  JS_SetReservedSlot(obj, 0, JS::Int32Value(size));
+  JS_SetReservedSlot(obj, 1, JS::Int32Value(size));
 
   return JS::ObjectValue(*obj);
 }
@@ -210,9 +210,9 @@ ELisp_Return_Value elisp_mbstring(ELisp_Handle fixbuf, ptrdiff_t size_byte, ptrd
   JSContext *cx = jsg.cx;
   JS::RootedObject obj(cx, JS_NewObject(cx, &mbstring_class));
 
-  JS_SetReservedSlot(obj, 0, fixbuf);
-  JS_SetReservedSlot(obj, 1, JS::Int32Value(size_byte));
-  JS_SetReservedSlot(obj, 2, JS::Int32Value(size));
+  JS_SetReservedSlot(obj, 1, fixbuf);
+  JS_SetReservedSlot(obj, 2, JS::Int32Value(size_byte));
+  JS_SetReservedSlot(obj, 3, JS::Int32Value(size));
 
   return JS::ObjectValue(*obj);
 }
@@ -222,8 +222,8 @@ ELisp_Return_Value elisp_cons(void)
   JSContext *cx = jsg.cx;
   JS::RootedObject obj(cx, JS_NewObject(cx, &elisp_cons_class));
 
-  JS_SetReservedSlot(obj, 0, JS::ObjectValue(*obj));
   JS_SetReservedSlot(obj, 1, JS::ObjectValue(*obj));
+  JS_SetReservedSlot(obj, 2, JS::ObjectValue(*obj));
 
   return JS::ObjectValue(*obj);
 }
@@ -238,7 +238,7 @@ ELisp_Return_Value elisp_cons_car(ELisp_Handle cons)
     for(;;);
 
   ELisp_Value ret;
-  ret.v.v = JS_GetReservedSlot(obj, 0);
+  ret.v.v = JS_GetReservedSlot(obj, 1);
 
   return ret;
 }
@@ -253,7 +253,7 @@ ELisp_Return_Value elisp_cons_cdr(ELisp_Handle cons)
     for(;;);
 
   ELisp_Value ret;
-  ret.v.v = JS_GetReservedSlot(obj, 1);
+  ret.v.v = JS_GetReservedSlot(obj, 2);
 
   return ret;
 }
@@ -267,7 +267,7 @@ void elisp_cons_setcar(ELisp_Handle cons, ELisp_Handle car)
   if (JS_GetClass(obj) != &elisp_cons_class)
     for(;;);
 
-  JS_SetReservedSlot(obj, 0, car.v.v);
+  JS_SetReservedSlot(obj, 1, car.v.v);
 }
 
 void elisp_cons_setcdr(ELisp_Handle cons, ELisp_Handle cdr)
@@ -279,7 +279,7 @@ void elisp_cons_setcdr(ELisp_Handle cons, ELisp_Handle cdr)
   if (JS_GetClass(obj) != &elisp_cons_class)
     for(;;);
 
-  JS_SetReservedSlot(obj, 1, cdr.v.v);
+  JS_SetReservedSlot(obj, 2, cdr.v.v);
 }
 
 ELisp_Return_Value elisp_string(ELisp_Handle mbstring, INTERVAL interval)
@@ -288,7 +288,7 @@ ELisp_Return_Value elisp_string(ELisp_Handle mbstring, INTERVAL interval)
   JS::RootedObject obj(cx, JS_NewObject(cx, &elisp_string_class));
 
   JS_SetPrivate(obj, interval);
-  JS_SetReservedSlot(obj, 0, mbstring);
+  JS_SetReservedSlot(obj, 1, mbstring);
 
   return JS::ObjectValue(*obj);
 }
@@ -302,7 +302,7 @@ ELisp_Return_Value elisp_mbstring_fixbuf(ELisp_Handle s)
   if (JS_GetClass(obj) != &mbstring_class)
     for (;;);
 
-  JS::RootedValue bytesv(cx, JS_GetReservedSlot (obj, 0));
+  JS::RootedValue bytesv(cx, JS_GetReservedSlot (obj, 1));
   ELisp_Value retv;
   retv.v.v = bytesv;
   return retv;
@@ -329,7 +329,7 @@ void *elisp_mbstring_data(ELisp_Handle s)
   if (JS_GetClass(obj) != &mbstring_class)
     for (;;);
 
-  JS::RootedValue bytesv(cx, JS_GetReservedSlot (obj, 0));
+  JS::RootedValue bytesv(cx, JS_GetReservedSlot (obj, 1));
   ELisp_Value v;
   v.v.v = bytesv;
   return elisp_fixbuf_data(v);
@@ -349,7 +349,7 @@ ptrdiff_t elisp_mbstring_size_byte(ELisp_Handle s)
   if (JS_GetClass(obj) != &mbstring_class)
     for (;;);
 
-  JS::RootedValue bytesv(cx, JS_GetReservedSlot (obj, 1));
+  JS::RootedValue bytesv(cx, JS_GetReservedSlot (obj, 2));
   return bytesv.toInt32();
 }
 
@@ -362,7 +362,7 @@ void elisp_mbstring_set_size_byte(ELisp_Handle s, ptrdiff_t size)
   if (JS_GetClass(obj) != &mbstring_class)
     for (;;);
 
-  JS_SetReservedSlot (obj, 1, JS::Int32Value(size));
+  JS_SetReservedSlot (obj, 2, JS::Int32Value(size));
 }
 
 ptrdiff_t elisp_mbstring_size(ELisp_Handle s)
@@ -374,7 +374,7 @@ ptrdiff_t elisp_mbstring_size(ELisp_Handle s)
   if (JS_GetClass(obj) != &mbstring_class)
     for (;;);
 
-  JS::RootedValue bytesv(cx, JS_GetReservedSlot (obj, 2));
+  JS::RootedValue bytesv(cx, JS_GetReservedSlot (obj, 3));
   return bytesv.toInt32();
 }
 
@@ -387,7 +387,7 @@ ELisp_Return_Value elisp_string_mbstring(ELisp_Handle s)
   if (JS_GetClass(obj) != &elisp_string_class)
     for (;;);
 
-  JS::RootedValue bytesv(cx, JS_GetReservedSlot (obj, 0));
+  JS::RootedValue bytesv(cx, JS_GetReservedSlot (obj, 1));
   ELisp_Value retv;
   retv.v.v = bytesv;
   return retv;
@@ -402,7 +402,7 @@ ptrdiff_t elisp_string_size_byte(ELisp_Handle s)
   if (JS_GetClass(obj) != &elisp_string_class)
     for (;;);
 
-  JS::RootedValue mbstringv(cx, JS_GetReservedSlot (obj, 0));
+  JS::RootedValue mbstringv(cx, JS_GetReservedSlot (obj, 1));
   ELisp_Value mbstring;
   mbstring.v.v = mbstringv;
   return elisp_mbstring_size_byte(mbstring);
@@ -417,7 +417,7 @@ ptrdiff_t elisp_string_size(ELisp_Handle s)
   if (JS_GetClass(obj) != &elisp_string_class)
     for (;;);
 
-  JS::RootedValue mbstringv(cx, JS_GetReservedSlot (obj, 0));
+  JS::RootedValue mbstringv(cx, JS_GetReservedSlot (obj, 1));
   ELisp_Value mbstring;
   mbstring.v.v = mbstringv;
   return elisp_mbstring_size(mbstring);
@@ -432,7 +432,7 @@ void elisp_string_set_size_byte(ELisp_Handle s, ptrdiff_t size)
   if (JS_GetClass(obj) != &elisp_string_class)
     for (;;);
 
-  JS::RootedValue mbstringv(cx, JS_GetReservedSlot (obj, 0));
+  JS::RootedValue mbstringv(cx, JS_GetReservedSlot (obj, 1));
   ELisp_Value mbstring;
   mbstring.v.v = mbstringv;
   return elisp_mbstring_set_size_byte(mbstring, size);
@@ -447,7 +447,7 @@ void *elisp_string_data(ELisp_Handle s)
   if (JS_GetClass(obj) != &elisp_string_class)
     for (;;);
 
-  JS::RootedValue mbstringv(cx, JS_GetReservedSlot (obj, 0));
+  JS::RootedValue mbstringv(cx, JS_GetReservedSlot (obj, 1));
   ELisp_Value mbstring;
   mbstring.v.v = mbstringv;
   return elisp_mbstring_data(mbstring);
@@ -496,8 +496,8 @@ string_construct(JSContext *cx, unsigned argc, JS::Value *vp)
 
   JS_SetPrivate(obj, bytes);
 
-  JS_SetReservedSlot(obj, 1, JS::NumberValue(strlen(bytes)));
-  JS_SetReservedSlot(obj, 2, JS::NumberValue(1));
+  JS_SetReservedSlot(obj, 2, JS::NumberValue(strlen(bytes)));
+  JS_SetReservedSlot(obj, 3, JS::NumberValue(1));
 
   args.rval().setObject(*obj);
 
@@ -518,7 +518,7 @@ static JSClassOps marker_class_ops = {
 
 static JSClass marker_class = {
                                "ELisp_Marker",
-                               JSCLASS_HAS_PRIVATE|JSCLASS_HAS_RESERVED_SLOTS(5)|JSCLASS_FOREGROUND_FINALIZE,
+                               JSCLASS_HAS_PRIVATE|JSCLASS_HAS_RESERVED_SLOTS(6)|JSCLASS_FOREGROUND_FINALIZE,
                                &marker_class_ops,
 };
 
@@ -553,7 +553,7 @@ Q_resolve(JSContext *cx, JS::HandleObject obj, JS::HandleId id, bool *resolvedp)
 #endif
 
       ELisp_Value obarray;
-      obarray.v.v = JS_GetReservedSlot(obj, 0);
+      obarray.v.v = JS_GetReservedSlot(obj, 1);
       ELisp_Value tem;
 
       tem = oblookup (obarray, bytes, strlen (bytes), strlen (bytes));
@@ -590,7 +590,7 @@ static const JSClassOps Q_classOps =
 
 static const JSClass Q_class =
   {
-   "EmacsSymbols", JSCLASS_HAS_RESERVED_SLOTS(1),
+   "EmacsSymbols", JSCLASS_HAS_RESERVED_SLOTS(2),
    &Q_classOps,
   };
 
@@ -615,7 +615,7 @@ static bool Q_call(JSContext *cx, unsigned argc, JS::Value *vp)
         return false;
 
       ELisp_Value obarray;
-      obarray.v.v = JS_GetReservedSlot(obj, 0);
+      obarray.v.v = JS_GetReservedSlot(obj, 1);
       ELisp_Value tem;
 
       tem = oblookup (obarray, bytes, strlen (bytes), strlen (bytes));
@@ -664,7 +664,7 @@ F_resolve(JSContext *cx, JS::HandleObject obj, JS::HandleId id, bool *resolvedp)
 #endif
 
       ELisp_Value obarray;
-      obarray.v.v = JS_GetReservedSlot(obj, 0);
+      obarray.v.v = JS_GetReservedSlot(obj, 1);
       ELisp_Value tem;
 
       tem = oblookup (obarray, bytes, strlen (bytes), strlen (bytes));
@@ -692,7 +692,7 @@ static const JSClassOps F_classOps =
 
 static const JSClass F_class =
   {
-   "EmacsFunctions", JSCLASS_HAS_RESERVED_SLOTS(1),
+   "EmacsFunctions", JSCLASS_HAS_RESERVED_SLOTS(2),
    &F_classOps,
   };
 
@@ -717,7 +717,7 @@ static bool F_call(JSContext *cx, unsigned argc, JS::Value *vp)
         return false;
 
       ELisp_Value obarray;
-      obarray.v.v = JS_GetReservedSlot(obj, 0);
+      obarray.v.v = JS_GetReservedSlot(obj, 1);
       ELisp_Value tem;
 
       tem = oblookup (obarray, bytes, strlen (bytes), strlen (bytes));
@@ -768,7 +768,7 @@ V_resolve(JSContext *cx, JS::HandleObject obj, JS::HandleId id, bool *resolvedp)
 #endif
 
       ELisp_Value obarray;
-      obarray.v.v = JS_GetReservedSlot(obj, 0);
+      obarray.v.v = JS_GetReservedSlot(obj, 1);
       ELisp_Value tem;
 
       tem = oblookup (obarray, bytes, strlen (bytes), strlen (bytes));
@@ -796,7 +796,7 @@ static const JSClassOps V_classOps =
 
 static const JSClass V_class =
   {
-   "EmacsVariables", JSCLASS_HAS_RESERVED_SLOTS(1),
+   "EmacsVariables", JSCLASS_HAS_RESERVED_SLOTS(2),
    &V_classOps,
   };
 
@@ -821,7 +821,7 @@ static bool V_call(JSContext *cx, unsigned argc, JS::Value *vp)
         return false;
 
       ELisp_Value obarray;
-      obarray.v.v = JS_GetReservedSlot(obj, 0);
+      obarray.v.v = JS_GetReservedSlot(obj, 1);
       ELisp_Value tem;
 
       tem = oblookup (obarray, bytes, strlen (bytes), strlen (bytes));
@@ -873,7 +873,7 @@ global_resolve(JSContext* cx, JS::HandleObject obj, JS::HandleId id, bool* resol
         {
           JS::RootedValue q(cx);
           JS::RootedObject qobj(cx, JS_NewObject(cx, &Q_class));
-          JS_SetReservedSlot(qobj, 0, Vobarray);
+          JS_SetReservedSlot(qobj, 1, Vobarray);
           q = JS::ObjectValue(*qobj);
           JS_SetProperty(cx, obj, bytes, q);
           JS_free(cx, bytes);
@@ -884,7 +884,7 @@ global_resolve(JSContext* cx, JS::HandleObject obj, JS::HandleId id, bool* resol
         {
           JS::RootedValue q(cx);
           JS::RootedObject qobj(cx, JS_NewObject(cx, &F_class));
-          JS_SetReservedSlot(qobj, 0, Vobarray);
+          JS_SetReservedSlot(qobj, 1, Vobarray);
           q = JS::ObjectValue(*qobj);
           JS_SetProperty(cx, obj, bytes, q);
           JS_free(cx, bytes);
@@ -895,7 +895,7 @@ global_resolve(JSContext* cx, JS::HandleObject obj, JS::HandleId id, bool* resol
         {
           JS::RootedValue q(cx);
           JS::RootedObject qobj(cx, JS_NewObject(cx, &V_class));
-          JS_SetReservedSlot(qobj, 0, Vobarray);
+          JS_SetReservedSlot(qobj, 1, Vobarray);
           q = JS::ObjectValue(*qobj);
           JS_SetProperty(cx, obj, bytes, q);
           JS_free(cx, bytes);
@@ -1898,7 +1898,7 @@ elisp_symbol_resolve(JSContext *cx, JS::HandleObject obj,
         }
       else if (JS_FlatStringEqualsAscii (JSID_TO_FLAT_STRING (id), "plist"))
         {
-          JS::RootedValue val(cx, JS_GetReservedSlot(obj, 3));
+          JS::RootedValue val(cx, JS_GetReservedSlot(obj, 4));
           JS_SetProperty (cx, obj, "plist", val);
           *resolvedp = true;
 
@@ -1951,7 +1951,7 @@ static void
 elisp_symbol_trace(JSTracer *trc, JSObject *obj)
 {
   union Lisp_Symbol_Flags flags;
-  ELisp_Value v; v = JS_GetReservedSlot(obj, 5);
+  ELisp_Value v; v = JS_GetReservedSlot(obj, 6);
   if (!v.isInt32())
     return;
   flags.i = v.toInt32();
@@ -2022,9 +2022,9 @@ elisp_symbol()
   JSContext *cx = jsg.cx;
   JS::RootedObject obj(cx, JS_NewObject(cx, &elisp_symbol_class));
 
-  JS_SetReservedSlot(obj, 3, Qnil);
+  JS_SetReservedSlot(obj, 4, Qnil);
   JS::RootedValue v(cx, JS::Int32Value(0));
-  JS_SetReservedSlot(obj, 5, v);
+  JS_SetReservedSlot(obj, 6, v);
 
   return JS::ObjectValue(*obj);
 }
@@ -2034,7 +2034,7 @@ elisp_symbol_function(ELisp_Handle symbol)
 {
   JSContext *cx = jsg.cx;
   JS::RootedObject obj(cx, &symbol.toObject());
-  return JS_GetReservedSlot(obj, 2);
+  return JS_GetReservedSlot(obj, 3);
 }
 
 void
@@ -2042,7 +2042,7 @@ elisp_symbol_set_function(ELisp_Handle symbol, ELisp_Handle plist)
 {
   JSContext *cx = jsg.cx;
   JS::RootedObject obj(cx, &symbol.toObject());
-  JS_SetReservedSlot(obj, 2, plist);
+  JS_SetReservedSlot(obj, 3, plist);
 }
 
 Lisp_Buffer_Local_Value *
@@ -2066,7 +2066,7 @@ elisp_symbol_value(ELisp_Handle symbol)
 {
   JSContext *cx = jsg.cx;
   JS::RootedObject obj(cx, &symbol.toObject());
-  return JS_GetReservedSlot(obj, 1);
+  return JS_GetReservedSlot(obj, 2);
 }
 
 void
@@ -2074,7 +2074,7 @@ elisp_symbol_set_value(ELisp_Handle symbol, ELisp_Handle plist)
 {
   JSContext *cx = jsg.cx;
   JS::RootedObject obj(cx, &symbol.toObject());
-  JS_SetReservedSlot(obj, 1, plist);
+  JS_SetReservedSlot(obj, 2, plist);
 }
 
 void
@@ -2082,7 +2082,7 @@ elisp_symbol_set_alias(ELisp_Handle symbol, ELisp_Handle plist)
 {
   JSContext *cx = jsg.cx;
   JS::RootedObject obj(cx, &symbol.toObject());
-  JS_SetReservedSlot(obj, 1, plist);
+  JS_SetReservedSlot(obj, 2, plist);
 }
 
 void
@@ -2106,7 +2106,7 @@ elisp_symbol_plist(ELisp_Handle symbol)
 {
   JSContext *cx = jsg.cx;
   JS::RootedObject obj(cx, &symbol.toObject());
-  return JS_GetReservedSlot(obj, 3);
+  return JS_GetReservedSlot(obj, 4);
 }
 
 void
@@ -2114,7 +2114,7 @@ elisp_symbol_set_plist(ELisp_Handle symbol, ELisp_Handle plist)
 {
   JSContext *cx = jsg.cx;
   JS::RootedObject obj(cx, &symbol.toObject());
-  JS_SetReservedSlot(obj, 3, plist);
+  JS_SetReservedSlot(obj, 4, plist);
 }
 
 ELisp_Return_Value
@@ -2122,7 +2122,7 @@ elisp_symbol_name(ELisp_Handle symbol)
 {
   JSContext *cx = jsg.cx;
   JS::RootedObject obj(cx, &symbol.toObject());
-  return JS_GetReservedSlot(obj, 0);
+  return JS_GetReservedSlot(obj, 1);
 }
 
 void
@@ -2130,7 +2130,7 @@ elisp_symbol_set_name(ELisp_Handle symbol, ELisp_Handle plist)
 {
   JSContext *cx = jsg.cx;
   JS::RootedObject obj(cx, &symbol.toObject());
-  JS_SetReservedSlot(obj, 0, plist);
+  JS_SetReservedSlot(obj, 1, plist);
 }
 
 ELisp_Return_Value
@@ -2138,7 +2138,7 @@ elisp_symbol_next(ELisp_Handle symbol)
 {
   JSContext *cx = jsg.cx;
   JS::RootedObject obj(cx, &symbol.toObject());
-  return JS_GetReservedSlot(obj, 4);
+  return JS_GetReservedSlot(obj, 5);
 }
 
 void
@@ -2146,7 +2146,7 @@ elisp_symbol_set_next(ELisp_Handle symbol, ELisp_Handle plist)
 {
   JSContext *cx = jsg.cx;
   JS::RootedObject obj(cx, &symbol.toObject());
-  JS_SetReservedSlot(obj, 4, plist);
+  JS_SetReservedSlot(obj, 5, plist);
 }
 
 unsigned
@@ -2155,7 +2155,7 @@ elisp_symbol_trapped_write_value(ELisp_Handle symbol)
   JSContext *cx = jsg.cx;
   JS::RootedObject obj(cx, &symbol.toObject());
   union Lisp_Symbol_Flags flags;
-  flags.i = JS_GetReservedSlot(obj, 5).toInt32();
+  flags.i = JS_GetReservedSlot(obj, 6).toInt32();
   return flags.s.trapped_write;
 }
 
@@ -2165,7 +2165,7 @@ elisp_symbol_redirect(ELisp_Handle symbol)
   JSContext *cx = jsg.cx;
   JS::RootedObject obj(cx, &symbol.toObject());
   union Lisp_Symbol_Flags flags;
-  flags.i = JS_GetReservedSlot(obj, 5).toInt32();
+  flags.i = JS_GetReservedSlot(obj, 6).toInt32();
   return flags.s.redirect;
 }
 
@@ -2175,10 +2175,10 @@ elisp_symbol_set_declared_special (ELisp_Handle symbol, bool declared_special)
   JSContext *cx = jsg.cx;
   JS::RootedObject obj(cx, &symbol.toObject());
   union Lisp_Symbol_Flags flags;
-  flags.i = JS_GetReservedSlot(obj, 5).toInt32();
+  flags.i = JS_GetReservedSlot(obj, 6).toInt32();
   flags.s.declared_special = declared_special;
   ELisp_Value v; v.v.v = JS::Int32Value(flags.i);
-  JS_SetReservedSlot(obj, 5, v);
+  JS_SetReservedSlot(obj, 6, v);
 }
 
 bool
@@ -2187,7 +2187,7 @@ elisp_symbol_declared_special_p(ELisp_Handle symbol)
   JSContext *cx = jsg.cx;
   JS::RootedObject obj(cx, &symbol.toObject());
   union Lisp_Symbol_Flags flags;
-  flags.i = JS_GetReservedSlot(obj, 5).toInt32();
+  flags.i = JS_GetReservedSlot(obj, 6).toInt32();
   return flags.s.declared_special;
 }
 
@@ -2197,10 +2197,10 @@ elisp_symbol_set_trapped_write(ELisp_Handle symbol, enum symbol_trapped_write tr
   JSContext *cx = jsg.cx;
   JS::RootedObject obj(cx, &symbol.toObject());
   union Lisp_Symbol_Flags flags;
-  flags.i = JS_GetReservedSlot(obj, 5).toInt32();
+  flags.i = JS_GetReservedSlot(obj, 6).toInt32();
   flags.s.trapped_write = trapped_write;
   ELisp_Value v; v.v.v = JS::Int32Value(flags.i);
-  JS_SetReservedSlot(obj, 5, v);
+  JS_SetReservedSlot(obj, 6, v);
 }
 
 void
@@ -2209,10 +2209,10 @@ elisp_symbol_set_pinned(ELisp_Handle symbol, bool pinned)
   JSContext *cx = jsg.cx;
   JS::RootedObject obj(cx, &symbol.toObject());
   union Lisp_Symbol_Flags flags;
-  flags.i = JS_GetReservedSlot(obj, 5).toInt32();
+  flags.i = JS_GetReservedSlot(obj, 6).toInt32();
   flags.s.pinned = pinned;
   ELisp_Value v; v.v.v = JS::Int32Value(flags.i);
-  JS_SetReservedSlot(obj, 5, v);
+  JS_SetReservedSlot(obj, 6, v);
 }
 
 void
@@ -2227,7 +2227,7 @@ elisp_symbol_interned(ELisp_Handle symbol)
   JSContext *cx = jsg.cx;
   JS::RootedObject obj(cx, &symbol.toObject());
   union Lisp_Symbol_Flags flags;
-  flags.i = JS_GetReservedSlot(obj, 5).toInt32();
+  flags.i = JS_GetReservedSlot(obj, 6).toInt32();
   return flags.s.interned;
 }
 
@@ -2237,10 +2237,10 @@ elisp_symbol_set_interned(ELisp_Handle symbol, unsigned interned)
   JSContext *cx = jsg.cx;
   JS::RootedObject obj(cx, &symbol.toObject());
   union Lisp_Symbol_Flags flags;
-  flags.i = JS_GetReservedSlot(obj, 5).toInt32();
+  flags.i = JS_GetReservedSlot(obj, 6).toInt32();
   flags.s.interned = interned;
   ELisp_Value v; v.v.v = JS::Int32Value(flags.i);
-  JS_SetReservedSlot(obj, 5, v);
+  JS_SetReservedSlot(obj, 6, v);
 }
 
 void
@@ -2249,10 +2249,10 @@ elisp_symbol_set_redirect(ELisp_Handle symbol, enum symbol_redirect x)
   JSContext *cx = jsg.cx;
   JS::RootedObject obj(cx, &symbol.toObject());
   union Lisp_Symbol_Flags flags;
-  flags.i = JS_GetReservedSlot(obj, 5).toInt32();
+  flags.i = JS_GetReservedSlot(obj, 6).toInt32();
   flags.s.redirect = x;
   ELisp_Value v; v.v.v = JS::Int32Value(flags.i);
-  JS_SetReservedSlot(obj, 5, v);
+  JS_SetReservedSlot(obj, 6, v);
 }
 
 static JSClassOps elisp_marker_ops =
@@ -2516,7 +2516,7 @@ static ELisp_Return_Value elisp_vector_call_inner(ELisp_Vector *lv, bool *succes
 JSClass elisp_cons_class =
   {
    "ELisp_Cons",
-   JSCLASS_HAS_PRIVATE|JSCLASS_HAS_RESERVED_SLOTS(2)|JSCLASS_FOREGROUND_FINALIZE,
+   JSCLASS_HAS_PRIVATE|JSCLASS_HAS_RESERVED_SLOTS(3)|JSCLASS_FOREGROUND_FINALIZE,
    &elisp_cons_ops,
   };
 
@@ -3053,4 +3053,23 @@ syms_of_js (void)
 void js::ReportOutOfMemory(JSContext* cx)
 {
   while (1);
+}
+
+EMACS_INT js_hash_object (JS::HandleObject obj)
+{
+  JSContext *cx = jsg.cx;
+
+  do
+    {
+      JS::RootedValue vh(jsg.cx);
+      vh = JS_GetReservedSlot (obj, 0);
+      if (vh.isInt32())
+        {
+          //fprintf(stderr, "hash is %x\n", vh.toInt32());
+          return vh.toInt32();
+        }
+      vh.setInt32(get_random() & 0x7fffffff);
+      JS_SetReservedSlot (obj, 0, vh);
+    }
+  while(1);
 }

@@ -1,3 +1,5 @@
+extern EMACS_INT js_hash_object (JS::HandleObject obj);
+
 #define FORWARDED_COMMON                                \
   operator JS::Value() const                            \
   {                                                     \
@@ -54,7 +56,8 @@
       V.set(val);                                                       \
     else {                                                              \
       JS::RootedObject proto(jsg.cx, clas ## _proto);                   \
-      JSObject *obj = JS_NewObjectWithGivenProto(jsg.cx, &clas, proto); \
+      JS::RootedObject obj(jsg.cx, JS_NewObjectWithGivenProto(jsg.cx, &clas, proto)); \
+      js_hash_object (obj);                                             \
       JS_SetPrivate(obj, x);                                            \
       V.setObject(*obj); /* XXX check error */                          \
       JS::RootedValue val2(jsg.cx, JS::Value(V));                       \
@@ -123,23 +126,12 @@
   inline EMACS_INT                                                      \
   xhash ()                                                              \
   {                                                                     \
-    if (V.isObject()) {                                                 \
-      const JSClass *clas = JS_GetClass(&V.toObject());                 \
-      if (clas == &elisp_vector_class)                                  \
-        return ((EMACS_INT)(JS_GetPrivate(&V.toObject()))) & 0x7fffffff; \
-      if (clas == &elisp_string_class)                                  \
-        {                                                               \
-          JS::RootedObject obj(jsg.cx, &V.toObject());                  \
-          JS::RootedValue v(jsg.cx);                                    \
-          v = JS_GetReservedSlot (obj, 0);                              \
-          obj = &v.toObject();                                          \
-          v = JS_GetReservedSlot (obj, 0);                              \
-          obj = &v.toObject();                                          \
-          return ((EMACS_INT) JS_GetPrivate (obj)) & 0x7fffffff;        \
-        }                                                               \
-    }                                                                   \
+    if (V.isObject())                                                   \
+      {                                                                 \
+        JS::RootedObject obj(jsg.cx, &V.toObject());                    \
+        return js_hash_object(obj);                                     \
+      }                                                                 \
     return 0;                                                           \
-    return reinterpret_cast<EMACS_INT>(&V.toObject());                  \
   }                                                                     \
                                                                         \
   inline void                                                           \
