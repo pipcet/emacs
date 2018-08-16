@@ -532,7 +532,7 @@ adjust_glyph_matrix (struct window *w, struct glyph_matrix *matrix, int x, int y
 	     desired matrices.  When Emacs starts, it may already be
 	     building desired matrices when this function runs.  */
 	  if (window_width < 0)
-	    window_width = window_box_width (w, -1);
+	    window_width = window_box_width (w, (enum glyph_row_area) -1);
 
 	  /* Optimize the case that only the height has changed (C-x 2,
 	     upper window).  Invalidate all rows that are no longer part
@@ -3277,7 +3277,7 @@ redraw_overlapped_rows (struct window *w, int yb)
 	{
 	  enum glyph_row_area area;
 
-	  for (area = LEFT_MARGIN_AREA; area < LAST_AREA; area = area + 1)
+	  for (area = LEFT_MARGIN_AREA; area < LAST_AREA; area = (enum glyph_row_area) (area + 1))
 	    {
 	      output_cursor_to (w, i, 0, row->y,
 				area == TEXT_AREA ? row->x : 0);

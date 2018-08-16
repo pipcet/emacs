@@ -483,7 +483,7 @@ bidi_pop_embedding_level (struct bidi_it *bidi_it)
       st = bidi_it->level_stack[bidi_it->stack_idx];
       if (isolate_status)
 	{
-	  bidi_dir_t sos = ((st.flags >> 3) & 1);
+	  bidi_dir_t sos = (bidi_dir_t) ((st.flags >> 3) & 1);
 	  /* PREV is used in W1 for resolving WEAK_NSM.  By the time
 	     we get to an NSM, we must have gotten past at least one
 	     character: the PDI that ends the isolate from which we
@@ -492,9 +492,9 @@ bidi_pop_embedding_level (struct bidi_it *bidi_it)
 	     UNKNOWN_BT to be able to catch any blunders in this
 	     logic.  */
 	  bidi_it->prev.orig_type = bidi_it->prev.type = UNKNOWN_BT;
-	  bidi_it->last_strong.type = st.last_strong_type;
-	  bidi_it->prev_for_neutral.type = st.prev_for_neutral_type;
-	  bidi_it->next_for_neutral.type = st.next_for_neutral_type;
+	  bidi_it->last_strong.type = (bidi_type_t) st.last_strong_type;
+	  bidi_it->prev_for_neutral.type = (bidi_type_t) st.prev_for_neutral_type;
+	  bidi_it->next_for_neutral.type = (bidi_type_t) st.next_for_neutral_type;
 	  bidi_it->next_for_neutral.charpos = st.next_for_neutral_pos;
 	  bidi_it->sos = (sos == 0 ? L2R : R2L);
 	}
@@ -883,7 +883,7 @@ bidi_cache_find (ptrdiff_t charpos, bool resolved_only, struct bidi_it *bidi_it)
 	     and if not, they don't want the cached state.  */
 	  || bidi_cache[i].resolved_level >= 0))
     {
-      bidi_dir_t current_scan_dir = bidi_it->scan_dir;
+      bidi_dir_t current_scan_dir = (bidi_dir_t) bidi_it->scan_dir;
 
       bidi_copy_it (bidi_it, &bidi_cache[i]);
       bidi_cache_last_idx = i;
@@ -1019,7 +1019,7 @@ bidi_shelve_cache (void)
 void
 bidi_unshelve_cache (void *databuf, bool just_free)
 {
-  unsigned char *p = databuf;
+  unsigned char *p = (unsigned char *) databuf;
 
   if (!p)
     {
@@ -2125,7 +2125,8 @@ bidi_resolve_explicit (struct bidi_it *bidi_it)
       bidi_it->resolved_level = new_level;
       /* Unicode 8.0 correction.  */
       {
-	bidi_dir_t stack_override = OVERRIDE (bidi_it, bidi_it->stack_idx);
+	bidi_dir_t stack_override =
+          (bidi_dir_t) OVERRIDE (bidi_it, bidi_it->stack_idx);
 	if (stack_override == L2R)
 	  bidi_it->type_after_wn = STRONG_L;
 	else if (stack_override == R2L)
@@ -2175,7 +2176,7 @@ bidi_resolve_weak (struct bidi_it *bidi_it)
        ? bidi_it->string.schars : ZV);
 
   type = bidi_it->type;
-  override = OVERRIDE (bidi_it, bidi_it->stack_idx);
+  override = (bidi_dir_t) OVERRIDE (bidi_it, bidi_it->stack_idx);
 
   eassert (!(type == UNKNOWN_BT
 	     || type == LRE

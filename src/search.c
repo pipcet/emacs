@@ -196,7 +196,7 @@ clear_regexp_cache (void)
 static void
 unfreeze_pattern (void *arg)
 {
-  struct regexp_cache *searchbuf = arg;
+  struct regexp_cache *searchbuf = (struct regexp_cache *) arg;
   searchbuf->busy = false;
 }
 
@@ -3271,7 +3271,8 @@ find_newline1 (ptrdiff_t start, ptrdiff_t start_byte, ptrdiff_t end,
 	  for (cursor = base; cursor < 0; cursor = next)
 	    {
               /* The dumb loop.  */
-	      unsigned char *nl = memchr (lim_addr + cursor, '\n', - cursor);
+	      unsigned char *nl = (unsigned char *)
+                memchr (lim_addr + cursor, '\n', - cursor);
 	      next = nl ? nl - lim_addr : 0;
 
               if (! nl)

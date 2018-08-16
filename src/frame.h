@@ -1163,7 +1163,7 @@ default_pixels_per_inch_y (void)
    something which executes the statement once.  */
 
 #define FOR_EACH_FRAME(list_var, frame_var)                       \
-  for ((list_var) = (eassume (CONSP (LSH (Vframe_list))), Vframe_list); \
+  for ((list_var) = (eassume (CONSP (LSH (Vframe_list))), LSH (Vframe_list)); \
        (CONSP (list_var)                                          \
 	&& (frame_var = XCAR (list_var), true));                  \
        list_var = XCDR (list_var))

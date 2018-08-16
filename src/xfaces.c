@@ -2797,7 +2797,7 @@ FRAME 0 means change the face on all frames, and change the default
   Lisp_Object old_value = Qnil;
   /* Set one of enum font_property_index (> 0) if ATTR is one of
      font-related attributes other than QCfont and QCfontset.  */
-  enum font_property_index prop_index = 0;
+  enum font_property_index prop_index = (enum font_property_index) 0;
   struct frame *f;
 
   CHECK_SYMBOL (face);

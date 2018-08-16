@@ -351,6 +351,7 @@ package EmacsCGrammar;
     LRESULT
     CRITICAL_SECTION
     GdkGeometry
+    GdkGravity
     XMenu
     XtPointer
     GtkWidget

@@ -550,7 +550,7 @@ calculate_glyph_code_table (struct terminal *t)
   while (true)
     {
       int fd = fileno (t->display_info.tty->output);
-      struct unimapdesc unimapdesc = { entry_ct, entries };
+      struct unimapdesc unimapdesc = { (unsigned short) entry_ct, entries };
       if (ioctl (fd, GIO_UNIMAP, &unimapdesc) == 0)
 	{
 	  glyphtab = Fmake_char_table (Qnil, make_fixnum (-1));

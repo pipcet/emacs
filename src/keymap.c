@@ -1839,7 +1839,8 @@ static void
 accessible_keymaps_1 (Lisp_Object key, Lisp_Object cmd, Lisp_Object args, void *data)
 /* Use void * data to be compatible with map_keymap_function_t.  */
 {
-  struct accessible_keymaps_data *d = data; /* Cast! */
+  struct accessible_keymaps_data *d = (struct accessible_keymaps_data *)
+    data;
   Lisp_Object maps = d->maps;
   Lisp_Object tail = d->tail;
   Lisp_Object thisseq = d->thisseq;
@@ -2429,7 +2430,7 @@ where_is_internal (Lisp_Object definition, Lisp_Object keymaps,
       if (NILP (where_is_cache))
 	{
 	  /* We need to create the cache.  */
-	  where_is_cache = Fmake_hash_table (LV (0, NULL));
+	  where_is_cache = Fmake_hash_table (LV0);
 	  where_is_cache_keymaps = Qt;
 	}
       else
@@ -2696,7 +2697,7 @@ The optional 5th arg NO-REMAP alters how command remapping is handled:
 static void
 where_is_internal_1 (Lisp_Object key, Lisp_Object binding, Lisp_Object args, void *data)
 {
-  struct where_is_internal_data *d = data; /* Cast! */
+  struct where_is_internal_data *d = (struct where_is_internal_data *) data;
   Lisp_Object definition = d->definition;
   bool noindirect = d->noindirect;
   Lisp_Object this = d->this;
@@ -3125,7 +3126,8 @@ struct describe_map_elt
 static int
 describe_map_compare (const void *aa, const void *bb)
 {
-  const struct describe_map_elt *a = aa, *b = bb;
+  const struct describe_map_elt *a = (const struct describe_map_elt *) aa;
+  const struct describe_map_elt *b = (const struct describe_map_elt *) bb;
   if (FIXNUMP (a->event) && FIXNUMP (b->event))
     return ((XFIXNUM (a->event) > XFIXNUM (b->event))
 	    - (XFIXNUM (a->event) < XFIXNUM (b->event)));

@@ -462,7 +462,7 @@ INTERVAL elisp_string_intervals(ELisp_Handle s)
   if (JS_GetClass(obj) != &elisp_string_class)
     for (;;);
 
-  return JS_GetPrivate(obj);
+  return (INTERVAL) JS_GetPrivate(obj);
 }
 
 void elisp_string_set_intervals(ELisp_Handle s, INTERVAL intervals)

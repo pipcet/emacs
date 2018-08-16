@@ -173,7 +173,7 @@ ptrdiff_t emacs_re_safe_alloca = MAX_ALLOCA;
 
 /* Assumes a 'char *destination' variable.  */
 #define REGEX_REALLOCATE(source, osize, nsize)				\
-  (destination = (char *)SAFE_ALLOCA (nsize),                           \
+  (destination = (char *) SAFE_ALLOCA (nsize),                          \
    memcpy (destination, source, osize))
 
 /* True if 'size1' is non-NULL and PTR is pointing anywhere inside
@@ -1511,13 +1511,13 @@ re_wctype_parse (const unsigned char **strp, unsigned limit)
   const char *beg = (const char *)*strp, *it;
 
   if (limit < 4 || beg[0] != '[' || beg[1] != ':')
-    return -1;
+    return (re_wctype_t) -1;
 
   beg += 2;  /* skip opening "[:" */
   limit -= 3;  /* opening "[:" and half of closing ":]"; --limit handles rest */
   for (it = beg; it[0] != ':' || it[1] != ']'; ++it)
     if (!--limit)
-      return -1;
+      return (re_wctype_t) -1;
 
   *strp = (const unsigned char *)(it + 2);
 
@@ -3657,7 +3657,7 @@ mutually_exclusive_p (struct re_pattern_buffer *bufp, re_char *p1,
   eassert (p1 >= bufp->buffer && p1 < pend
 	   && p2 >= bufp->buffer && p2 <= pend);
 
-  op2 = p2 == pend ? succeed : *p2;
+  op2 = (re_opcode_t) (p2 == pend ? succeed : *p2);
 
   switch (op2)
     {

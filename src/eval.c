@@ -1621,7 +1621,7 @@ push_handler_nosignal (Lisp_Object tag_ch_val, enum handlertype handlertype)
   struct handler *CACHEABLE c = handlerlist->nextfree;
   if (!c)
     {
-      c = malloc (sizeof *c);
+      c = (struct handler *) malloc (sizeof *c);
       if (!c)
 	return c;
       if (profiler_memory_running)

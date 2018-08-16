@@ -2181,7 +2181,7 @@ emacs_mule_char (struct coding_system *coding, const unsigned char *src,
 
 #define DECODE_EMACS_MULE_21_COMPOSITION()				\
   do {									\
-    enum composition_method method = c - 0xF2;				\
+    enum composition_method method = (enum composition_method) (c - 0xF2); \
     int nbytes, nchars;							\
     									\
     ONE_MORE_BYTE (c);							\
@@ -3446,12 +3446,12 @@ finish_composition (int *charbuf, struct composition_status *cmp_status)
 
 /* Store a composition rule RULE in charbuf, and update cmp_status.  */
 
-#define STORE_COMPOSITION_RULE(rule)	\
-  do {					\
-    *charbuf++ = -2;			\
-    *charbuf++ = rule;			\
-    cmp_status->length += 2;		\
-    cmp_status->state = cmp_status->state - 1;  \
+#define STORE_COMPOSITION_RULE(rule)                                    \
+  do {                                                                  \
+    *charbuf++ = -2;                                                    \
+    *charbuf++ = rule;                                                  \
+    cmp_status->length += 2;                                            \
+    cmp_status->state = (enum composition_state) (cmp_status->state - 1); \
   } while (0)
 
 /* Store a composed char or a component char C in charbuf, and update
@@ -3468,7 +3468,7 @@ finish_composition (int *charbuf, struct composition_status *cmp_status)
     if (cmp_status->method == COMPOSITION_WITH_RULE			\
 	|| (cmp_status->method == COMPOSITION_WITH_RULE_ALTCHARS	\
 	    && cmp_status->state == COMPOSING_COMPONENT_CHAR))		\
-      cmp_status->state = cmp_status->state + 1;                        \
+      cmp_status->state = (enum composition_state) (cmp_status->state + 1); \
   } while (0)
 
 
@@ -8618,7 +8618,7 @@ detect_coding_system (const unsigned char *src,
   detect_info.checked = detect_info.found = detect_info.rejected = 0;
 
   /* At first, detect text-format if necessary.  */
-  base_category = XFIXNUM (CODING_ATTR_CATEGORY (attrs));
+  base_category = (enum coding_category) XFIXNUM (LRH (CODING_ATTR_CATEGORY (attrs)));
   if (base_category == coding_category_undecided)
     {
       enum coding_category category UNINIT;

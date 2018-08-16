@@ -284,7 +284,7 @@ get_current_dir_name_or_unreachable (void)
       char *buf = malloc (pwdlen + 1);
       if (!buf)
         return NULL;
-      return memcpy (buf, pwd, pwdlen + 1);
+      return (char *) memcpy (buf, pwd, pwdlen + 1);
     }
   else
     {
@@ -304,7 +304,7 @@ get_current_dir_name_or_unreachable (void)
               return NULL;
             }
 	  buf_size = buf_size <= bufsize_max / 2 ? 2 * buf_size : bufsize_max;
-          buf = realloc (buf, buf_size);
+          buf = (char *) realloc (buf, buf_size);
           if (!buf)
             return NULL;
         }
@@ -2267,7 +2267,7 @@ seed_random (void *seed, ptrdiff_t seed_size)
 {
   random_seed arg = 0;
   unsigned char *argp = (unsigned char *) &arg;
-  unsigned char *seedp = seed;
+  unsigned char *seedp = (unsigned char *) seed;
   for (ptrdiff_t i = 0; i < seed_size; i++)
     argp[i % sizeof arg] ^= seedp[i];
   set_random_seed (arg);
@@ -2403,17 +2403,17 @@ emacs_backtrace (int backtrace_limit)
       /* Work around 'backtrace' bug; see Bug#19959 and glibc bug#18084.  */
       if (bounded_limit < 0)
 	{
-	  backtrace (buffer, 1);
+	  backtrace ((void **) buffer, 1);
 	  return;
 	}
 
-      npointers = backtrace (buffer, bounded_limit + 1);
+      npointers = backtrace ((void **)buffer, bounded_limit + 1);
     }
 
   if (npointers)
     {
       emacs_write (STDERR_FILENO, "\nBacktrace:\n", 12);
-      backtrace_symbols_fd (buffer, npointers, STDERR_FILENO);
+      backtrace_symbols_fd ((void **) buffer, npointers, STDERR_FILENO);
       if (bounded_limit < npointers)
 	emacs_write (STDERR_FILENO, "...\n", 4);
     }
@@ -2658,21 +2658,21 @@ emacs_full_write (int fd, char const *buf, ptrdiff_t nbyte,
 ptrdiff_t
 emacs_write (int fd, void const *buf, ptrdiff_t nbyte)
 {
-  return emacs_full_write (fd, buf, nbyte, 0);
+  return emacs_full_write (fd, (const char *) buf, nbyte, 0);
 }
 
 /* Like emacs_write, but also process pending signals.  */
 ptrdiff_t
 emacs_write_sig (int fd, void const *buf, ptrdiff_t nbyte)
 {
-  return emacs_full_write (fd, buf, nbyte, -1);
+  return emacs_full_write (fd, (const char *) buf, nbyte, -1);
 }
 
 /* Like emacs_write, but also process quits and pending signals.  */
 ptrdiff_t
 emacs_write_quit (int fd, void const *buf, ptrdiff_t nbyte)
 {
-  return emacs_full_write (fd, buf, nbyte, 1);
+  return emacs_full_write (fd, (const char *) buf, nbyte, 1);
 }
 
 /* Write a diagnostic to standard error that contains MESSAGE and a

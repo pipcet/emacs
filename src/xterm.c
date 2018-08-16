@@ -4635,7 +4635,8 @@ x_detect_focus_change (struct x_display_info *dpyinfo, struct frame *frame,
     case ClientMessage:
       if (event->xclient.message_type == dpyinfo->Xatom_XEMBED)
 	{
-	  enum xembed_message msg = event->xclient.data.l[1];
+	  enum xembed_message msg =
+            (enum xembed_message) event->xclient.data.l[1];
 	  x_focus_changed ((msg == XEMBED_FOCUS_IN ? FocusIn : FocusOut),
 			   FOCUS_EXPLICIT, dpyinfo, frame, bufp);
 	}
@@ -5217,7 +5218,7 @@ XTmouse_position (struct frame **fp, int insist, Lisp_Object *bar_window,
 	    dpyinfo->last_mouse_glyph_frame = f1;
 
 	    *bar_window = Qnil;
-	    *part = 0;
+	    *part = (enum scroll_bar_part) 0;
 	    *fp = f1;
             ELisp_Value tem;
             XSETINT (tem, win_x);
@@ -5513,7 +5514,7 @@ x_scroll_bar_to_input_event (const XEvent *event,
     XtLastTimestampProcessed (FRAME_X_DISPLAY (XFRAME (w->frame)));
 #endif
   ievent->code = 0;
-  ievent->part = ev->data.l[2];
+  ievent->part = (enum scroll_bar_part) ev->data.l[2];
   ievent->x = make_fixnum (ev->data.l[3]);
   ievent->y = make_fixnum (ev->data.l[4]);
   ievent->modifiers = 0;
@@ -5548,7 +5549,7 @@ x_horizontal_scroll_bar_to_input_event (const XEvent *event,
     XtLastTimestampProcessed (FRAME_X_DISPLAY (XFRAME (w->frame)));
 #endif
   ievent->code = 0;
-  ievent->part = ev->data.l[2];
+  ievent->part = (enum scroll_bar_part) ev->data.l[2];
   ievent->x = make_fixnum (ev->data.l[3]);
   ievent->y = make_fixnum (ev->data.l[4]);
   ievent->modifiers = 0;
@@ -5656,10 +5657,11 @@ xg_scroll_callback (GtkRange     *range,
                     gpointer      user_data)
 {
   int whole = 0, portion = 0;
-  struct scroll_bar *bar = user_data;
+  struct scroll_bar *bar = (struct scroll_bar *) user_data;
   enum scroll_bar_part part = scroll_bar_nowhere;
   GtkAdjustment *adj = GTK_ADJUSTMENT (gtk_range_get_adjustment (range));
-  struct frame *f = g_object_get_data (G_OBJECT (range), XG_FRAME_DATA);
+  struct frame *f =
+    (struct frame *)g_object_get_data (G_OBJECT (range), XG_FRAME_DATA);
 
   if (xg_ignore_gtk_scrollbar) return false;
 
@@ -5729,7 +5731,7 @@ xg_end_scroll_callback (GtkWidget *widget,
                         GdkEventButton *event,
                         gpointer user_data)
 {
-  struct scroll_bar *bar = user_data;
+  struct scroll_bar *bar = (struct scroll_bar *) user_data;
   bar->dragging = -1;
   if (WINDOWP (window_being_scrolled))
     {
@@ -7883,7 +7885,8 @@ handle_one_xevent (struct x_display_info *dpyinfo,
 	/* XEmbed messages from the embedder (if any).  */
         if (event->xclient.message_type == dpyinfo->Xatom_XEMBED)
           {
-	    enum xembed_message msg = event->xclient.data.l[1];
+	    enum xembed_message msg =
+              (enum xembed_message) event->xclient.data.l[1];
 	    if (msg == XEMBED_FOCUS_IN || msg == XEMBED_FOCUS_OUT)
 	      x_detect_focus_change (dpyinfo, any, event, &inev.ie);
 
@@ -10696,7 +10699,7 @@ get_current_wm_state (struct frame *f,
       int actual_bytes = xcb_get_property_value_length (prop);
       eassume (0 <= actual_bytes);
       actual_size = actual_bytes / sizeof *reply_data;
-      reply_data = xcb_get_property_value (prop);
+      reply_data = (xcb_atom_t *) xcb_get_property_value (prop);
     }
   else
     {

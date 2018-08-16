@@ -2808,7 +2808,7 @@ init_iterator (struct it *it, struct window *w,
   /* Perhaps remap BASE_FACE_ID to a user-specified alternative.  */
   if (! NILP (Vface_remapping_alist))
     remapped_base_face_id
-      = lookup_basic_face (w, XFRAME (w->frame), base_face_id);
+      = lookup_basic_face (w, XFRAME (w->frame), (enum face_id) base_face_id);
 
   /* Use one of the mode line rows of W's desired matrix if
      appropriate.  */
@@ -3142,7 +3142,7 @@ start_display (struct it *it, struct window *w, struct text_pos pos)
 		  && it->c != '\n')
 		{
 		  set_iterator_to_next (it, true);
-		  move_it_in_display_line_to (it, -1, -1, 0);
+		  move_it_in_display_line_to (it, -1, -1, (enum move_operation_enum) 0);
 		}
 
 	      it->continuation_lines_width += it->current_x;
@@ -4069,7 +4069,8 @@ handle_face_prop (struct it *it)
 					     IT_STRING_CHARPOS (*it),
 					     bufpos,
 					     &next_stop,
-					     base_face_id, false);
+                                             (enum face_id) base_face_id,
+                                             false);
 
       /* Is this a start of a run of characters with box?  Caveat:
 	 this can be called for a freshly allocated iterator; face_id
@@ -4216,7 +4217,7 @@ face_before_or_after_it_pos (struct it *it, bool before_p)
 					 charpos,
 					 bufpos,
 					 &next_check_charpos,
-					 base_face_id, false);
+					 (enum face_id) base_face_id, false);
 
       /* Correct the face for charsets different from ASCII.  Do it
 	 for the multibyte case only.  The face returned above is
@@ -5764,8 +5765,8 @@ next_overlay_string (struct it *it)
 static int
 compare_overlay_entries (const void *e1, const void *e2)
 {
-  struct overlay_entry const *entry1 = e1;
-  struct overlay_entry const *entry2 = e2;
+  struct overlay_entry const *entry1 = (struct overlay_entry const *) e1;
+  struct overlay_entry const *entry2 = (struct overlay_entry const *) e2;
   int result;
 
   if (entry1->after_string_p != entry2->after_string_p)
@@ -7414,7 +7415,9 @@ get_next_display_element (struct it *it)
 			  next_face_id
 			    = face_at_string_position (it->w, base_string,
 						       CHARPOS (pos), 0,
-						       &ignore, face_id, false);
+						       &ignore,
+                                                       (enum face_id) face_id,
+                                                       false);
 			  it->end_of_box_run_p
 			    = (FACE_FROM_ID (it->f, next_face_id)->box
 			       == FACE_NO_BOX);
@@ -9405,7 +9408,8 @@ move_it_to (struct it *it, ptrdiff_t to_charpos, int to_x, int to_y, int to_vpos
 		  break;
 		}
 	      else
-		skip = move_it_in_display_line_to (it, -1, -1, 0);
+		skip = move_it_in_display_line_to (it, -1, -1,
+                                                   (enum move_operation_enum) 0);
 	    }
 	  else
 	    {
@@ -9417,7 +9421,7 @@ move_it_to (struct it *it, ptrdiff_t to_charpos, int to_x, int to_y, int to_vpos
 		  break;
 		}
 
-	      skip = move_it_in_display_line_to (it, to_charpos, to_x, op);
+	      skip = move_it_in_display_line_to (it, to_charpos, to_x, (enum move_operation_enum) op);
 
 	      if (skip == MOVE_POS_MATCH_OR_ZV || it->vpos == to_vpos)
 		{

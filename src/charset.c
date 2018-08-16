@@ -2225,7 +2225,10 @@ struct charset_sort_data
 static int
 charset_compare (const void *d1, const void *d2)
 {
-  const struct charset_sort_data *data1 = d1, *data2 = d2;
+  const struct charset_sort_data *data1 =
+    (struct charset_sort_data const *)d1;
+  const struct charset_sort_data *data2 =
+    (struct charset_sort_data const *)d2;
   if (data1->priority != data2->priority)
     return data1->priority < data2->priority ? -1 : 1;
   return 0;

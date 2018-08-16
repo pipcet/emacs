@@ -505,7 +505,8 @@ menu_highlight_callback (GtkWidget *widget, gpointer call_data)
   xg_menu_item_cb_data *cb_data;
   Lisp_Object help;
 
-  cb_data = g_object_get_data (G_OBJECT (widget), XG_ITEM_DATA);
+  cb_data = (xg_menu_item_cb_data *)
+    g_object_get_data (G_OBJECT (widget), XG_ITEM_DATA);
   if (! cb_data) return;
 
   help = call_data ? cb_data->help : Qnil;
@@ -547,7 +548,7 @@ static bool xg_crazy_callback_abort;
 static void
 menubar_selection_callback (GtkWidget *widget, gpointer client_data)
 {
-  xg_menu_item_cb_data *cb_data = client_data;
+  xg_menu_item_cb_data *cb_data = (xg_menu_item_cb_data *) client_data;
 
   if (xg_crazy_callback_abort)
     return;
@@ -1218,7 +1219,7 @@ menu_position_func (GtkMenu *menu, gint *x, gint *y, gboolean *push_in, gpointer
 static void
 popup_selection_callback (GtkWidget *widget, gpointer client_data)
 {
-  xg_menu_item_cb_data *cb_data = client_data;
+  xg_menu_item_cb_data *cb_data = (xg_menu_item_cb_data *) client_data;
 
   if (xg_crazy_callback_abort) return;
   if (cb_data) menu_item_selection = (ELisp_Struct_Value *)cb_data->call_data; // XXX rootme

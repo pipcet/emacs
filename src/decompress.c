@@ -74,7 +74,7 @@ struct decompress_unwind_data
 static void
 unwind_decompress (void *ddata)
 {
-  struct decompress_unwind_data *data = ddata;
+  struct decompress_unwind_data *data = (struct decompress_unwind_data *)ddata;
   inflateEnd (data->stream);
 
   /* Delete any uncompressed data already inserted on error, but

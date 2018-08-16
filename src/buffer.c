@@ -3155,8 +3155,8 @@ struct sortvec
 static int
 compare_overlays (const void *v1, const void *v2)
 {
-  const struct sortvec *s1 = v1;
-  const struct sortvec *s2 = v2;
+  const struct sortvec *s1 = (const struct sortvec *) v1;
+  const struct sortvec *s2 = (const struct sortvec *) v2;
   /* Return 1 if s1 should take precedence, -1 if v2 should take precedence,
      and 0 if they're equal.  */
   if (s1->priority != s2->priority)
@@ -5045,7 +5045,7 @@ alloc_buffer_text (struct buffer *b, ptrdiff_t nbytes)
       memory_full (nbytes);
     }
 
-  b->text->beg = p;
+  b->text->beg = (unsigned char *) p;
   unblock_input ();
 }
 

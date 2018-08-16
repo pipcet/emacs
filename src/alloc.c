@@ -967,7 +967,7 @@ xstrdup (const char *s)
   ptrdiff_t size;
   eassert (s);
   size = strlen (s) + 1;
-  return memcpy (xmalloc (size), s, size);
+  return (char *) memcpy (xmalloc (size), s, size);
 }
 
 /* Like above, but duplicates Lisp string to C string.  */
@@ -976,7 +976,7 @@ char *
 xlispstrdup (Lisp_Object string)
 {
   ptrdiff_t size = SBYTES (string) + 1;
-  return memcpy (xmalloc (size), SSDATA (string), size);
+  return (char *) memcpy (xmalloc (size), SSDATA (string), size);
 }
 
 /* Assign to *PTR a copy of STRING, freeing any storage *PTR formerly

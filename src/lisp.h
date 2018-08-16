@@ -291,7 +291,7 @@ error !;
 # define GCALIGNMENT 1
 #endif
 
-#define GCALIGNED_UNION char alignas (GCALIGNMENT) gcaligned;
+#define GCALIGNED_UNION char gcaligned;
 
 /* Lisp_Word is a scalar word suitable for holding a tagged pointer or
    integer.  Usually it is a pointer to a deliberately-incomplete type
@@ -597,6 +597,7 @@ extern void char_table_set (Lisp_Object, int, Lisp_Object);
 /* Defined in data.c.  */
 extern _Noreturn void wrong_type_argument (Lisp_Object, Lisp_Object);
 
+
 #ifdef CANNOT_DUMP
 enum { might_dump = false };
 #elif defined DOUG_LEA_MALLOC
@@ -896,7 +897,7 @@ builtin_lisp_symbol (int index)
 /* Header of vector-like objects.  This documents the layout constraints on
    vectors and pseudovectors (objects of PVEC_xxx subtype).  It also prevents
    compilers from being fooled by Emacs's type punning: XSETPSEUDOVECTOR
-   and PSEUDOVECTORP cast their pointers to union vectorlike_header *,
+   and PSEUDOVECTORP cast their pointers to struct vectorlike_header *,
    because when two such pointers potentially alias, a compiler won't
    incorrectly reorder loads and stores to their size fields.  See
    Bug#8546.  */
@@ -924,7 +925,7 @@ struct vectorlike_header
 	 4095 Lisp_Objects in GC-ed area and 4095 word-sized other slots.  */
     ptrdiff_t size;
   };
-verify (alignof (union vectorlike_header) % GCALIGNMENT == 0);
+verify (alignof (struct vectorlike_header) % GCALIGNMENT == 0);
 
 INLINE bool
 (SYMBOLP) (Lisp_Object x)
@@ -1212,7 +1213,7 @@ INLINE bool
 		       | ((restsize) << PSEUDOVECTOR_SIZE_BITS) \
 		       | (lispsize)))
 
-/* The cast to union vectorlike_header * avoids aliasing issues.  */
+/* The cast to struct vectorlike_header * avoids aliasing issues.  */
 #define XSETPSEUDOVECTOR(a, b, code) \
   XSETTYPED_PSEUDOVECTOR (a, b,					\
                           XVECTOR (a)->header.size,             \
@@ -1506,7 +1507,7 @@ STRING_SET_CHARS (ELisp_Handle string, ptrdiff_t newsize)
 
 struct Lisp_Vector
   {
-    union vectorlike_header header;
+    struct vectorlike_header header;
     Lisp_Object contents[FLEXIBLE_ARRAY_MEMBER];
   };
 
@@ -1555,14 +1556,14 @@ INLINE enum pvec_type
 PSEUDOVECTOR_TYPE (struct Lisp_Vector *v)
 {
   ptrdiff_t size = v->header.size;
-  return (size & PSEUDOVECTOR_FLAG
+  return (enum pvec_type) (size & PSEUDOVECTOR_FLAG
           ? (size & PVEC_TYPE_MASK) >> PSEUDOVECTOR_AREA_BITS
           : PVEC_NORMAL_VECTOR);
 }
 
 /* Can't be used with PVEC_NORMAL_VECTOR.  */
 INLINE bool
-PSEUDOVECTOR_TYPEP (union vectorlike_header *a, enum pvec_type code)
+PSEUDOVECTOR_TYPEP (struct vectorlike_header *a, enum pvec_type code)
 {
   /* We don't use PSEUDOVECTOR_TYPE here so as to avoid a shift
    * operation when `code' is known.  */
@@ -1578,7 +1579,7 @@ PSEUDOVECTORP (Lisp_Object a, int code)
     return false;
   else
     {
-      /* Converting to union vectorlike_header * avoids aliasing issues.  */
+      /* Converting to struct vectorlike_header * avoids aliasing issues.  */
       struct vectorlike_header *h = (struct vectorlike_header *)a.xvector();
       return PSEUDOVECTOR_TYPEP (h, (enum pvec_type)code);
     }
@@ -1590,7 +1591,7 @@ struct Lisp_Bool_Vector
   {
     /* HEADER.SIZE is the vector's size field.  It doesn't have the real size,
        just the subtype information.  */
-    union vectorlike_header header;
+    struct vectorlike_header header;
     /* This is the size in bits.  */
     EMACS_INT size;
     /* The actual bits, packed into bytes.
@@ -1609,7 +1610,7 @@ enum
     bool_header_size = offsetof (struct Lisp_Bool_Vector, data),
     word_size = sizeof (ELisp_Struct_Value)
   };
-verify (header_size == sizeof (union vectorlike_header));
+verify (header_size == sizeof (struct vectorlike_header));
 
 /* The number of data words and bytes in a bool vector with SIZE bits.  */
 
@@ -1805,7 +1806,7 @@ struct Lisp_Char_Table
        pseudovector type information.  It holds the size, too.
        The size counts the defalt, parent, purpose, ascii,
        contents, and extras slots.  */
-    union vectorlike_header header;
+    struct vectorlike_header header;
 
     /* This holds a default value,
        which is used whenever the value for a specific character is nil.  */
@@ -1846,7 +1847,7 @@ struct Lisp_Sub_Char_Table
   {
     /* HEADER.SIZE is the vector's size field, which also holds the
        pseudovector type information.  It holds the size, too.  */
-    union vectorlike_header header;
+    struct vectorlike_header header;
 
     /* Depth of this sub char-table.  It should be 1, 2, or 3.  A sub
        char-table of depth 1 contains 16 elements, and each element
@@ -2177,7 +2178,7 @@ struct hash_table_test
 struct Lisp_Hash_Table
 {
   /* This is for Lisp; the hash table code does not refer to it.  */
-  union vectorlike_header header;
+  struct vectorlike_header header;
 
   /* Nil if table is non-weak.  Otherwise a symbol describing the
      weakness of the table.  */
@@ -2313,7 +2314,7 @@ SXHASH_REDUCE (EMACS_UINT x)
 
 struct Lisp_Marker
 {
-  union vectorlike_header header;
+  struct vectorlike_header header;
 
   /* This is the buffer that the marker points into, or 0 if it points nowhere.
      Note: a chain of markers can contain markers pointing into different
@@ -2369,7 +2370,7 @@ struct Lisp_Overlay
    I.e. 9words plus 2 bits, 3words of which are for external linked lists.
 */
   {
-    union vectorlike_header header;
+    struct vectorlike_header header;
     Lisp_Object start;
     Lisp_Object end;
     Lisp_Object plist;
@@ -2378,7 +2379,7 @@ struct Lisp_Overlay
 
 struct Lisp_Misc_Ptr
   {
-    union vectorlike_header header;
+    struct vectorlike_header header;
     void *pointer;
   };
 
@@ -2420,7 +2421,7 @@ xmint_pointer (Lisp_Object a)
 #ifdef HAVE_MODULES
 struct Lisp_User_Ptr
 {
-  union vectorlike_header header;
+  struct vectorlike_header header;
   void (*finalizer) (void *);
   void *p;
 };
@@ -2429,7 +2430,7 @@ struct Lisp_User_Ptr
 /* A finalizer sentinel.  */
 struct Lisp_Finalizer
   {
-    union vectorlike_header header;
+    struct vectorlike_header header;
 
     /* Call FUNCTION when the finalizer becomes unreachable, even if
        FUNCTION contains a reference to the finalizer; i.e., call
@@ -2497,7 +2498,7 @@ XUSER_PTR (Lisp_Object a)
 
 struct Lisp_Bignum
 {
-  union vectorlike_header header;
+  struct vectorlike_header header;
   mpz_t value;
 };
 
@@ -3075,7 +3076,7 @@ extern void defvar_kboard (struct Lisp_Kboard_Objfwd *, const char *, int);
 
    NOTE: The specbinding union is defined here, because SPECPDL_INDEX is
    used all over the place, needs to be fast, and needs to know the size of
-   union specbinding.  But only eval.c should access it.  */
+   struct specbinding.  But only eval.c should access it.  */
 
 #endif
 enum specbind_tag {
@@ -3176,8 +3177,8 @@ struct specbinding_stack
   };
 
 /* These 3 are defined as macros in thread.h.  */
-/* extern union specbinding *specpdl; */
-/* extern union specbinding *specpdl_ptr; */
+/* extern struct specbinding *specpdl; */
+/* extern struct specbinding *specpdl_ptr; */
 /* extern ptrdiff_t specpdl_size; */
 
 INLINE ptrdiff_t
@@ -3313,7 +3314,6 @@ extern void elisp_symbol_set_function(ELisp_Handle a, ELisp_Handle b);
 extern ELisp_Return_Value elisp_symbol_plist(ELisp_Handle a);
 extern void elisp_symbol_set_plist(ELisp_Handle a, ELisp_Handle b);
 
-extern ELisp_Return_Value elisp_symbol_name(ELisp_Handle a);
 extern void elisp_symbol_set_name(ELisp_Handle a, ELisp_Handle b);
 
 extern ELisp_Return_Value elisp_symbol_next(ELisp_Handle a);
@@ -4054,7 +4054,7 @@ extern void init_eval (void);
 extern void syms_of_eval (void);
 extern void prog_ignore (Lisp_Object);
 extern ptrdiff_t record_in_backtrace (Lisp_Object, Lisp_Object *, ptrdiff_t);
-extern void mark_specpdl (union specbinding *first, union specbinding *ptr);
+extern void mark_specpdl (struct specbinding *first, struct specbinding *ptr);
 extern void get_backtrace (Lisp_Object array);
 Lisp_Object backtrace_top_function (void);
 extern bool let_shadows_buffer_binding_p (Lisp_Object);
@@ -4084,7 +4084,7 @@ typedef emacs_value (*emacs_subr) (emacs_env *, ptrdiff_t,
 
 struct Lisp_Module_Function
 {
-  union vectorlike_header header;
+  struct vectorlike_header header;
 
   /* Fields traced by GC; these must come first.  */
   Lisp_Object documentation;
@@ -4126,7 +4126,7 @@ extern void mark_threads (void);
 
 /* Defined in editfns.c.  */
 extern void insert1 (Lisp_Object);
-extern void save_excursion_save (union specbinding *);
+extern void save_excursion_save (struct specbinding *);
 extern void save_excursion_restore (Lisp_Object, Lisp_Object);
 extern Lisp_Object save_restriction_save (void);
 extern void save_restriction_restore (Lisp_Object);
@@ -4684,20 +4684,20 @@ extern void *record_xmalloc (size_t) ATTRIBUTE_ALLOC_SIZE ((1));
 #define SAFE_NALLOCA(buf, multiplier, nitems)			 \
   do {								 \
     if ((nitems) <= sa_avail / sizeof *(buf) / (multiplier))	 \
-      (buf) = AVAIL_ALLOCA (sizeof *(buf) * (multiplier) * (nitems)); \
+      (buf) = (typeof (buf)) AVAIL_ALLOCA (sizeof *(buf) * (multiplier) * (nitems)); \
     else							 \
       {								 \
-	(buf) = xnmalloc (nitems, sizeof *(buf) * (multiplier)); \
+	(buf) = (typeof (buf)) xnmalloc (nitems, sizeof *(buf) * (multiplier)); \
 	record_unwind_protect_ptr (xfree, buf);			 \
       }								 \
   } while (false)
 
 /* SAFE_ALLOCA_STRING allocates a C copy of a Lisp string.  */
 
-#define SAFE_ALLOCA_STRING(ptr, string)			\
-  do {							\
-    (ptr) = SAFE_ALLOCA (SBYTES (string) + 1);		\
-    memcpy (ptr, SDATA (string), SBYTES (string) + 1);	\
+#define SAFE_ALLOCA_STRING(ptr, string)                         \
+  do {                                                          \
+    (ptr) = (typeof (ptr)) SAFE_ALLOCA (SBYTES (string) + 1);   \
+    memcpy (ptr, SDATA (string), SBYTES (string) + 1);          \
   } while (false)
 
 
