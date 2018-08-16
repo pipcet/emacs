@@ -2952,7 +2952,7 @@ arith_driver (enum arithop code, ptrdiff_t nargs, Lisp_Object *args)
 	    {
 	      mpz_t tem;
 	      mpz_init (tem);
-	      mpz_set_uintmax_slow (tem, XUFIXNUM (val));
+	      mpz_set_intmax (tem, XFIXNUM (val));
 	      mpz_and (accum, accum, tem);
 	      mpz_clear (tem);
 	    }
@@ -2964,7 +2964,7 @@ arith_driver (enum arithop code, ptrdiff_t nargs, Lisp_Object *args)
 	    {
 	      mpz_t tem;
 	      mpz_init (tem);
-	      mpz_set_uintmax_slow (tem, XUFIXNUM (val));
+	      mpz_set_intmax (tem, XFIXNUM (val));
 	      mpz_ior (accum, accum, tem);
 	      mpz_clear (tem);
 	    }
@@ -2976,7 +2976,7 @@ arith_driver (enum arithop code, ptrdiff_t nargs, Lisp_Object *args)
 	    {
 	      mpz_t tem;
 	      mpz_init (tem);
-	      mpz_set_uintmax_slow (tem, XUFIXNUM (val));
+	      mpz_set_intmax (tem, XFIXNUM (val));
 	      mpz_xor (accum, accum, tem);
 	      mpz_clear (tem);
 	    }
@@ -3329,8 +3329,6 @@ ash_lsh_impl (Lisp_Object value, Lisp_Object count, bool lsh)
       mpz_init (result);
       if (XFIXNUM (count) >= 0)
 	mpz_mul_2exp (result, XBIGNUM (value)->value, XFIXNUM (count));
-      else if (lsh)
-	mpz_tdiv_q_2exp (result, XBIGNUM (value)->value, - XFIXNUM (count));
       else
 	mpz_fdiv_q_2exp (result, XBIGNUM (value)->value, - XFIXNUM (count));
       val = make_number (result);
@@ -3347,14 +3345,7 @@ ash_lsh_impl (Lisp_Object value, Lisp_Object count, bool lsh)
 
       if (XFIXNUM (count) >= 0)
 	mpz_mul_2exp (result, result, XFIXNUM (count));
-      else if (lsh)
-	{
-	  if (mpz_sgn (result) > 0)
-	    mpz_fdiv_q_2exp (result, result, - XFIXNUM (count));
-	  else
-	    mpz_fdiv_q_2exp (result, result, - XFIXNUM (count));
-	}
-      else /* ash */
+      else
 	mpz_fdiv_q_2exp (result, result, - XFIXNUM (count));
 
       val = make_number (result);

@@ -4,4 +4,3 @@
   (while (not (car c))
     (sit-for 1.0))
   (cdr c))
-

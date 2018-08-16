@@ -56,15 +56,15 @@ DEFUN ("identity", Fidentity, Sidentity, 1, 1, 0,
 }
 
 DEFUN ("random", Frandom, Srandom, 0, 1, 0,
-       doc: /* Return a pseudo-random number.
-All integers representable in Lisp, i.e. between `most-negative-fixnum'
+       doc: /* Return a pseudo-random fixnum.
+All integers representable as fixnums, i.e. between `most-negative-fixnum'
 and `most-positive-fixnum', inclusive, are equally likely.
 
-With positive integer LIMIT, return random number in interval [0,LIMIT).
-With argument t, set the random number seed from the system's entropy
-pool if available, otherwise from less-random volatile data such as the time.
-With a string argument, set the seed based on the string's contents.
-Other values of LIMIT are ignored.
+With positive fixnum integer LIMIT, return random number in interval
+[0,LIMIT).  With argument t, set the random number seed from the
+system's entropy pool if available, otherwise from less-random
+volatile data such as the time.  With a string argument, set the seed
+based on the string's contents.  Other values of LIMIT are ignored.
 
 See Info node `(elisp)Random Numbers' for more details.  */)
   (Lisp_Object limit)
