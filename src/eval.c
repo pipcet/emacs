@@ -3013,7 +3013,7 @@ usage: (funcall FUNCTION &rest ARGUMENTS)  */)
             while (argnum < numargs)
               {
                 Lisp_Object arg = args[argnum+1];
-                vals[argnum++] = eval_sub (arg);
+                vals[argnum++] = arg;
               }
             while (argnum < numargs)
               vals.sref(argnum++, Qnil);
