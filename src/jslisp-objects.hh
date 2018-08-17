@@ -555,6 +555,7 @@ public:
 #undef V
 };
 
+#if 1
 class ELisp_Pointer {
 public:
   enum {
@@ -814,6 +815,19 @@ public:
     emacs_abort();
   }
 };
+typedef ELisp_Pointer ELisp_Pointer_Value;
+typedef ELisp_Pointer ELisp_Pointer_Struct_Value;
+typedef ELisp_Pointer ELisp_Pointer_Handle;
+typedef ELisp_Pointer ELisp_Pointer_Return_Value;
+#else
+class ELisp_Pointer_Value {
+  ELisp_Value val;
+  ssize_t off;
+};
+
+class ELisp_Pointer_Handle {
+};
+#endif
 
 /* All the conversion functions. */
 

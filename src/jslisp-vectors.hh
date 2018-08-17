@@ -1,5 +1,6 @@
 //extern void jsprint(Lisp_Object *x);
 
+#if 1
 class JSVector {
 public:
   JS::AutoValueVector vec;
@@ -44,6 +45,37 @@ public:
     n = n2;
   }
 };
+#else
+class ELisp_Dynvector {
+public:
+  ELisp_Value val;
+
+  ELisp_Dynvector() : val(elisp_array(0)) {}
+
+  ELisp_Dynvector(size_t n2) : val(elisp_array(n2)) {}
+
+  operator ELisp_Pointer()
+  {
+    return ELisp_Pointer(val);
+  }
+
+  JSReturnValue sref(size_t i, JSReturnValue v)
+  {
+    val.set_element(i, v.v);
+    return JSReturnValue(v.v);
+  }
+
+  JSReturnValue ref(size_t i)
+  {
+    return JSReturnValue(val.get_element(i));
+  }
+
+  JSReturnValue resize(size_t n2)
+  {
+    elisp_array_resize(val, n2);
+  }
+};
+#endif
 
 template<size_t n0>
 class JSArray {

@@ -397,6 +397,10 @@ package EmacsCGrammar;
     U32TYPE
 
     ELisp_Pointer
+    ELisp_Pointer_Value
+    ELisp_Pointer_Handle
+    ELisp_Pointer_Struct_Value
+    ELisp_Pointer_Return_Value
     ELisp_Return_Value
     ELisp_Value
     ELisp_Struct_Value
@@ -2999,82 +3003,82 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[# AUTO-0080 #]]:
 [[# contains Stmt#decl]]
 [[#decl matches (__type__)Lisp_Object *Symbol#symbol;]]
-[[#decl <- (__type__)ELisp_Pointer #symbol;]]
+[[#decl <- (__type__)ELisp_Pointer_Struct_Value #symbol;]]
 
 [[# AUTO-0083 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#body contains Stmt#decl]]
 [[#decl matches (__type__)Lisp_Object const*Symbol#symbol;]]
-[[#decl <- (__type__)ELisp_Pointer #symbol;]]
+[[#decl <- (__type__)ELisp_Pointer_Value #symbol;]]
 
 [[# AUTO-0085 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#body contains Stmt#decl]]
 [[#decl matches (__type__)Lisp_Object *Symbol#symbol = ((__type__)Lisp_Object *)Expr#rhs;]]
-[[#decl <- (__type__)ELisp_Pointer #symbol = ((__type__)ELisp_Pointer)#rhs;]]
+[[#decl <- (__type__)ELisp_Pointer_Value #symbol = ((__type__)ELisp_Pointer_Return_Value)#rhs;]]
 
 [[# AUTO-0086 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#body contains Stmt#decl]]
 [[#decl matches (__type__)Lisp_Object const *Symbol#symbol = ((__type__)Lisp_Object *)Expr#rhs;]]
-[[#decl <- (__type__)ELisp_Pointer #symbol = ((__type__)ELisp_Pointer)#rhs;]]
+[[#decl <- (__type__)ELisp_Pointer_Value #symbol = ((__type__)ELisp_Pointer_Return_Value)#rhs;]]
 
 [[# AUTO-0090 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#body contains Expr#cast]]
 [[#cast matches ((__type__)Lisp_Object *)Expr#expr]]
-[[#cast <- ((__type__)ELisp_Pointer)#expr]]
+[[#cast <- ((__type__)ELisp_Pointer_Return_Value)#expr]]
 
 [[# AUTO-0093 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#body contains Stmt#arg]]
 [[#arg matches (__type__)Lisp_Object *Symbol#symbol;]]
-[[#arg <- (__type__)ELisp_Pointer #symbol;]]
+[[#arg <- (__type__)ELisp_Pointer_Value #symbol;]]
 
 [[# AUTO-0095 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#args contains Arg#arg]]
 [[#arg matches (__type__)Lisp_Object *Symbol#symbol]]
-[[#arg <- (__type__)ELisp_Pointer #symbol]]
+[[#arg <- (__type__)ELisp_Pointer_Handle #symbol]]
 
 [[# AUTO-0096 #]]:
 [[# FunTypeD #funtype]]
 [[#funtype#args contains Arg#arg]]
 [[#arg matches (__type__)Lisp_Object *Symbol#symbol]]
-[[#arg <- (__type__)ELisp_Pointer #symbol]]
+[[#arg <- (__type__)ELisp_Pointer_Handle #symbol]]
 
 [[# AUTO-0097 #]]:
 [[# FunTypeD #funtype]]
 [[#funtype#args contains Arg#arg]]
 [[#arg matches Type#type *]]
 [[#type matches (__type__)Lisp_Object]]
-[[#arg <- (__type__)ELisp_Pointer]]
+[[#arg <- (__type__)ELisp_Pointer_Handle]]
 
 [[# AUTO-0098 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#args contains Arg#arg]]
 [[#arg matches Type#type *]]
 [[#type matches (__type__)Lisp_Object]]
-[[#arg <- (__type__)ELisp_Pointer]]
+[[#arg <- (__type__)ELisp_Pointer_Handle]]
 
 [[# AUTO-0099 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#args contains Arg#arg]]
 [[#arg matches Type#type **]]
 [[#type matches (__type__)Lisp_Object]]
-[[#arg <- (__type__)ELisp_Pointer *]]
+[[#arg <- (__type__)ELisp_Pointer_Handle *]]
 
 [[# AUTO-0100 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#body contains Stmt#decl]]
 [[#decl matches (__type__)Lisp_Object *Symbol#symbol = Expr#rhs;]]
-[[#decl <- (__type__)ELisp_Pointer #symbol = #rhs;]]
+[[#decl <- (__type__)ELisp_Pointer_Value #symbol = #rhs;]]
 
 [[# AUTO-0101 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#body contains Stmt#decl]]
 [[#decl matches (__type__)Lisp_Object *Symbol#symbol;]]
-[[#decl <- (__type__)ELisp_Pointer #symbol;]]
+[[#decl <- (__type__)ELisp_Pointer_Value #symbol;]]
 
 [[# AUTO-0065 #]]:
 [[# FunctionDefinition #fundef]]
@@ -3255,25 +3259,25 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 
 [[# AUTO-03002 #]]:
 [[# contains Stmt#stmt]]
-[[#stmt matches (__type__)ELisp_Pointer Symbol#symbol;]]
+[[#stmt matches (__type__)ELisp_Pointer_Value Symbol#symbol;]]
 [[# contains Symbol#symbolb]]
 [[#symbolb matches #symbol]]
-[[# set Type#symbolb#type: (__type__)ELisp_Pointer]]
+[[# set Type#symbolb#type: (__type__)ELisp_Pointer_Value]]
 
 [[# AUTO-030021 #]]:
 [[# contains Stmt#stmt]]
-[[#stmt matches (__type__)ELisp_Pointer Symbol#symbol = Expr#rhs;]]
+[[#stmt matches (__type__)ELisp_Pointer_Value Symbol#symbol = Expr#rhs;]]
 [[# contains Symbol#symbolb]]
 [[#symbolb matches #symbol]]
-[[# set Type#symbolb#type: (__type__)ELisp_Pointer]]
+[[# set Type#symbolb#type: (__type__)ELisp_Pointer_Value]]
 
 [[# AUTO-03003 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#args contains Arg#arg]]
-[[#arg matches (__type__)ELisp_Pointer Symbol#symbol]]
+[[#arg matches (__type__)ELisp_Pointer_Handle Symbol#symbol]]
 [[#fundef contains Symbol#symbolb]]
 [[#symbolb matches #symbol]]
-[[# set Type#symbolb#type: (__type__)ELisp_Pointer]]
+[[# set Type#symbolb#type: (__type__)ELisp_Pointer_Value]]
 
 [[# AUTO-03004 #]]:
 [[# contains Stmt#stmt]]
@@ -3334,7 +3338,7 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[# contains Expr#expr]]
 [[#expr matches Expr#a = Expr#b]]
 [[#a matches *Expr#ptr]]
-[[#ptr#type matches (__type__)ELisp_Pointer]]
+[[#ptr#type matches (__type__)ELisp_Pointer_Value]]
 [[#expr <- #ptr.set(#b)]]
 
 [[# AUTO-0307 #]]:
@@ -3353,25 +3357,25 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#a nomatch Expr# = Expr#]]
 [[#b nomatch Expr# = Expr#]]
 [[#a matches Expr#ptr[Expr#index] ]]
-[[#ptr#type matches (__type__)ELisp_Pointer]]
+[[#ptr#type matches (__type__)ELisp_Pointer_Value]]
 [[#expr <- #ptr.sref(#index, #b)]]
 
 [[# AUTO-0309 #]]:
 [[# contains Expr#expr]]
 [[#expr matches Expr#ptr[Expr#index] ]]
-[[#ptr#type matches (__type__)ELisp_Pointer]]
+[[#ptr#type matches (__type__)ELisp_Pointer_Value]]
 [[#expr <- #ptr.ref(#index)]]
 
 [[# AUTO-0310 #]]:
 [[# contains Expr#expr]]
 [[#expr matches Expr#ptr.vec[Expr#index] ]]
-[[#ptr#type matches (__type__)ELisp_Pointer]]
+[[#ptr#type matches (__type__)ELisp_Pointer_Value]]
 [[#expr <- #ptr.ref(#index)]]
 
 [[# AUTO-03108 #]]:
 [[# contains Expr#expr]]
 [[#expr matches *Expr#ptr ]]
-[[#ptr#type matches (__type__)ELisp_Pointer]]
+[[#ptr#type matches (__type__)ELisp_Pointer_Value]]
 [[#expr <- #ptr.ref(0)]]
 
 [[# AUTO-0311 #]]:
@@ -3604,10 +3608,10 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[# AUTO-0750 #]]:
 [[# contains Stmt#decl]]
 [[#decl matches Type#type Symbol#symbol;]]
-[[#type matches (__type__)ELisp_Pointer]]
+[[#type matches (__type__)ELisp_Pointer_Value]]
 [[# contains Expr#expr]]
 [[#expr matches SAFE_ALLOCA_LISP(#symbol, Expr#size)]]
-[[#type <- (__type__)ELisp_Dynvector]]
+[[#type <- (__type__)ELisp_Array]]
 [[#expr <- #symbol.resize(#size)]]
 
 [[# AUTO-0799-FLUSH #]]:
