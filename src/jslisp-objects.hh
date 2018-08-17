@@ -522,6 +522,7 @@ public:
   FORWARDED
 #define V v.v
   XALL
+  ARRAY_PROPS
 #undef V
 };
 
