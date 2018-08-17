@@ -3366,6 +3366,15 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#ptr#type matches (__type__)ELisp_Pointer_Value]]
 [[#expr <- #ptr.sref(#index, #b)]]
 
+[[# AUTO-03085 #]]:
+[[# contains Expr#expr]]
+[[#expr matches Expr#a = Expr#b]]
+[[#a nomatch Expr# = Expr#]]
+[[#b nomatch Expr# = Expr#]]
+[[#a matches Expr#ptr[Expr#index] ]]
+[[#ptr#type matches (__type__)ELisp_Pointer_Handle]]
+[[#expr <- #ptr.sref(#index, #b)]]
+
 [[# AUTO-0309 #]]:
 [[# contains Expr#expr]]
 [[#expr matches Expr#ptr[Expr#index] ]]

@@ -3406,6 +3406,44 @@ void ELisp_Handle::set_element(int32_t index, ELisp_Handle el)
     }
 }
 
+ELisp_Return_Value ELisp_Value::get_element(int32_t index)
+{
+  ELisp_Value el;
+  JS::RootedObject obj(jsg.cx, &this->toObject());
+  JS::AutoValueArray<1> vp(jsg.cx);
+  vp[0].setInt32(index);
+  if (!JS_CallFunctionName(jsg.cx, obj, "get", vp, &el.v.v))
+    {
+      /* FIXME */;
+    }
+  return el;
+
+  if (false)
+    {
+      if (!JS_GetElement(jsg.cx, obj, index, &el.v.v))
+        /* FIXME */;
+    }
+  else
+    {
+      struct Lisp_Vector *v = (struct Lisp_Vector *)JS_GetPrivate(obj);
+      return v->contents[index];
+    }
+  return el;
+}
+
+void ELisp_Value::set_element(int32_t index, ELisp_Handle el)
+{
+  JS::RootedValue dummy(jsg.cx);
+  JS::RootedObject obj(jsg.cx, &this->toObject());
+  JS::AutoValueArray<2> vp(jsg.cx);
+  vp[0].setInt32(index);
+  vp[1].set(el.v.v);
+  if (!JS_CallFunctionName(jsg.cx, obj, "set", vp, &dummy))
+    {
+      /* FIXME */;
+    }
+}
+
 ELisp_Return_Value ELisp_Handle::get_property(const char *prop)
 {
   ELisp_Value el;
@@ -3422,3 +3460,18 @@ void ELisp_Handle::set_property(const char *prop, ELisp_Handle el)
     /* FIXME */;
 }
 
+ELisp_Return_Value ELisp_Value::get_property(const char *prop)
+{
+  ELisp_Value el;
+  JS::RootedObject obj(jsg.cx, &this->toObject());
+  if (!JS_GetProperty(jsg.cx, obj, prop, &el.v.v))
+    /* FIXME */;
+  return el;
+}
+
+void ELisp_Value::set_property(const char *prop, ELisp_Handle el)
+{
+  JS::RootedObject obj(jsg.cx, &this->toObject());
+  if (!JS_SetProperty(jsg.cx, obj, prop, el.v.v))
+    /* FIXME */;
+}
