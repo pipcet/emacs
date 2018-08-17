@@ -24456,7 +24456,7 @@ static char lots_of_dashes[] = "------------------------------------------------
 
 static const char *
 decode_mode_spec (struct window *w, register int c, int field_width,
-		  Lisp_Object *string)
+		  Lisp_Object *string) /*1*/
 {
   Lisp_Object obj;
   struct frame *f = XFRAME (WINDOW_FRAME (w));

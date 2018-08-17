@@ -2529,7 +2529,7 @@ candidate_window_p (Lisp_Object window, Lisp_Object owindow,
    MINIBUF, and ALL_FRAMES.  */
 
 static void
-decode_next_window_args (Lisp_Object *window, Lisp_Object *minibuf, Lisp_Object *all_frames)
+decode_next_window_args (Lisp_Object *window, Lisp_Object *minibuf, Lisp_Object *all_frames) /*1*/
 {
   struct window *w = decode_live_window (*window);
 

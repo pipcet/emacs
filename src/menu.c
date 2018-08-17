@@ -441,7 +441,7 @@ single_menu_item (Lisp_Object key, Lisp_Object item, Lisp_Object dummy, void *sk
    and generate menu panes for them in menu_items.  */
 
 static void
-keymap_panes (Lisp_Object *keymaps, ptrdiff_t nmaps)
+keymap_panes (Lisp_Object *keymaps, ptrdiff_t nmaps) /*1*/
 {
   ptrdiff_t mapno;
 

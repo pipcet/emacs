@@ -5109,7 +5109,7 @@ update_frame_line (struct frame *f, int vpos, bool updating_menu_p)
    if the coordinates point to an empty area of the display.  */
 
 Lisp_Object
-buffer_posn_from_coords (struct window *w, int *x, int *y, struct display_pos *pos, Lisp_Object *object, int *dx, int *dy, int *width, int *height)
+buffer_posn_from_coords (struct window *w, int *x, int *y, struct display_pos *pos, Lisp_Object *object, int *dx, int *dy, int *width, int *height) /*1*/
 {
   struct it it;
   Lisp_Object old_current_buffer = Fcurrent_buffer ();
@@ -5284,7 +5284,7 @@ buffer_posn_from_coords (struct window *w, int *x, int *y, struct display_pos *p
 Lisp_Object
 mode_line_string (struct window *w, enum window_part part,
 		  int *x, int *y, ptrdiff_t *charpos, Lisp_Object *object,
-		  int *dx, int *dy, int *width, int *height)
+		  int *dx, int *dy, int *width, int *height) /*1*/
 {
   struct glyph_row *row;
   struct glyph *glyph, *end;
@@ -5353,7 +5353,7 @@ mode_line_string (struct window *w, enum window_part part,
 Lisp_Object
 marginal_area_string (struct window *w, enum window_part part,
 		      int *x, int *y, ptrdiff_t *charpos, Lisp_Object *object,
-		      int *dx, int *dy, int *width, int *height)
+		      int *dx, int *dy, int *width, int *height) /*1*/
 {
   struct glyph_row *row = w->current_matrix->rows;
   struct glyph *glyph, *end;

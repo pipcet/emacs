@@ -1207,7 +1207,7 @@ uniprop_get_decoder (Lisp_Object table)
    characters as elements.  */
 
 static Lisp_Object
-uniprop_encode_value_character (Lisp_Object table, Lisp_Object value)
+uniprop_encode_value_character (Lisp_Object table, Lisp_Object value) /*11*/
 {
   if (! NILP (value) && ! CHARACTERP (value))
     wrong_type_argument (Qintegerp, value);
@@ -1219,9 +1219,9 @@ uniprop_encode_value_character (Lisp_Object table, Lisp_Object value)
    compression.  */
 
 static Lisp_Object
-uniprop_encode_value_run_length (Lisp_Object table, Lisp_Object value)
+uniprop_encode_value_run_length (Lisp_Object table, Lisp_Object value) /*11*/
 {
-  ELisp_Pointer value_table = XVECTOR (XCHAR_TABLE (table)->extras[4])->contents;
+  Lisp_Object *value_table = XVECTOR (XCHAR_TABLE (table)->extras[4])->contents;
   int i, size = ASIZE (XCHAR_TABLE (table)->extras[4]);
 
   for (i = 0; i < size; i++)
@@ -1237,9 +1237,9 @@ uniprop_encode_value_run_length (Lisp_Object table, Lisp_Object value)
    compression and contains numbers as elements.  */
 
 static Lisp_Object
-uniprop_encode_value_numeric (Lisp_Object table, Lisp_Object value)
+uniprop_encode_value_numeric (Lisp_Object table, Lisp_Object value) /*11*/
 {
-  ELisp_Pointer value_table = XVECTOR (XCHAR_TABLE (table)->extras[4])->contents;
+  Lisp_Object *value_table = XVECTOR (XCHAR_TABLE (table)->extras[4])->contents;
   int i, size = ASIZE (XCHAR_TABLE (table)->extras[4]);
 
   CHECK_FIXNUM (value);

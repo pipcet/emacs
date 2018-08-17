@@ -3073,7 +3073,7 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[# FunctionDefinition #fundef]]
 [[#fundef#body contains Stmt#decl]]
 [[#decl matches (__type__)Lisp_Object *Symbol#symbol = Expr#rhs;]]
-[[#decl <- (__type__)ELisp_Pointer_Value #symbol = #rhs;]]
+[[#decl <- (__type__)ELisp_Pointer_Value #symbol; #symbol = #rhs;]]
 
 [[# AUTO-0101 #]]:
 [[# FunctionDefinition #fundef]]
@@ -3342,6 +3342,13 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#ptr#type matches (__type__)ELisp_Pointer_Value]]
 [[#expr <- #ptr.set(#b)]]
 
+[[# AUTO-03065 #]]:
+[[# contains Expr#expr]]
+[[#expr matches Expr#a = Expr#b]]
+[[#a matches *Expr#ptr]]
+[[#ptr#type matches (__type__)ELisp_Pointer_Handle]]
+[[#expr <- #ptr.set(#b)]]
+
 [[# AUTO-0307 #]]:
 [[# contains Expr#expr]]
 [[#expr matches &Expr#ptr[Expr#index] ]]
@@ -3376,16 +3383,34 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#ptr#type matches (__type__)ELisp_Pointer_Value]]
 [[#expr <- #ptr.ref(#index)]]
 
+[[# AUTO-03095 #]]:
+[[# contains Expr#expr]]
+[[#expr matches Expr#ptr[Expr#index] ]]
+[[#ptr#type matches (__type__)ELisp_Pointer_Handle]]
+[[#expr <- #ptr.ref(#index)]]
+
 [[# AUTO-0310 #]]:
 [[# contains Expr#expr]]
 [[#expr matches Expr#ptr.vec[Expr#index] ]]
 [[#ptr#type matches (__type__)ELisp_Pointer_Value]]
 [[#expr <- #ptr.ref(#index)]]
 
+[[# AUTO-03105 #]]:
+[[# contains Expr#expr]]
+[[#expr matches Expr#ptr.vec[Expr#index] ]]
+[[#ptr#type matches (__type__)ELisp_Pointer_Handle]]
+[[#expr <- #ptr.ref(#index)]]
+
 [[# AUTO-03108 #]]:
 [[# contains Expr#expr]]
 [[#expr matches *Expr#ptr ]]
 [[#ptr#type matches (__type__)ELisp_Pointer_Value]]
+[[#expr <- #ptr.ref(0)]]
+
+[[# AUTO-03109 #]]:
+[[# contains Expr#expr]]
+[[#expr matches *Expr#ptr ]]
+[[#ptr#type matches (__type__)ELisp_Pointer_Handle]]
 [[#expr <- #ptr.ref(0)]]
 
 [[# AUTO-0311 #]]:

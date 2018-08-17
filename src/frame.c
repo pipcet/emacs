@@ -2803,7 +2803,7 @@ frames_discard_buffer (Lisp_Object buffer)
    If the alist already has an element for PROP, we change it.  */
 
 void
-store_in_alist (Lisp_Object *alistptr, Lisp_Object prop, Lisp_Object val)
+store_in_alist (Lisp_Object *alistptr, Lisp_Object prop, Lisp_Object val) /*1*/
 {
   register Lisp_Object tem;
 
