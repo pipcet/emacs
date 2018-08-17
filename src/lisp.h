@@ -1716,10 +1716,10 @@ AREF (Lisp_Object array, ptrdiff_t idx)
   return array.get_element(idx);
 }
 
-INLINE ELisp_Pointer_Return_Value
+INLINE ELisp_Return_Value
 aref_addr (Lisp_Object array, ptrdiff_t idx)
 {
-  return & XVECTOR (array)->contents[idx];
+  return elisp_pointer_ovl(& XVECTOR (array)->contents[idx], -1);
 }
 
 INLINE ptrdiff_t
@@ -3043,12 +3043,12 @@ extern void defvar_kboard (struct Lisp_Kboard_Objfwd *, const char *, int);
 #define DEFVAR_LISP(lname, vname, doc)		\
   do {						\
     static struct Lisp_Objfwd o_fwd;		\
-    defvar_lisp (&o_fwd, lname, &globals.f_ ## vname);		\
+    defvar_lisp (&o_fwd, lname, LRH (elisp_pointer_ovl(&globals.f_ ## vname, -1))); \
   } while (false)
 #define DEFVAR_LISP_NOPRO(lname, vname, doc)	\
   do {						\
     static struct Lisp_Objfwd o_fwd;		\
-    defvar_lisp_nopro (&o_fwd, lname, &globals.f_ ## vname);	\
+    defvar_lisp_nopro (&o_fwd, lname, LRH (elisp_pointer_ovl(&globals.f_ ## vname, -1))); \
   } while (false)
 #define DEFVAR_BOOL(lname, vname, doc)		\
   do {						\
@@ -3139,7 +3139,7 @@ struct specbinding
     struct {
       bool_bf debug_on_exit : 1;
       ELisp_Struct_Value function;
-      ELisp_Pointer_Struct_Value args;
+      ELisp_Struct_Value args;
       ptrdiff_t nargs;
     } bt;
   };
@@ -3181,7 +3181,7 @@ struct specbinding_stack
     struct {
       bool_bf debug_on_exit : 1;
       ELisp_Value function;
-      ELisp_Pointer_Struct_Value args;
+      ELisp_Struct_Value args;
       ptrdiff_t nargs;
     } bt;
   };
@@ -3274,15 +3274,15 @@ extern Lisp_Object Vascii_canon_table;
 
 /* Call staticpro (&var) to protect static variable `var'.  */
 
-void staticpro_1 (ELisp_Pointer_Handle);
+void staticpro_1 (Lisp_Object);
 
 INLINE void
-staticpro (ELisp_Pointer_Handle ptr, Lisp_Object initial_value)
+staticpro (Lisp_Object *ptr, Lisp_Object initial_value)
 {
-  ELisp_Value v; v = ptr.get_element(0);
+  Lisp_Object v; v = *ptr;
   if (! v.v.v.isUndefined() && ! NILP (v))
     while (1);
-  ptr.set(initial_value);
+  *ptr = initial_value;
 
   staticpro_1 (ptr);
 }

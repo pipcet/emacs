@@ -1130,7 +1130,7 @@ free_frame_menubar (struct frame *f)
 #if defined (USE_X_TOOLKIT) || defined (USE_GTK)
 
 /* The item selected in the popup menu.  */
-ELisp_Pointer_Struct_Value menu_item_selection;
+Lisp_Object *menu_item_selection;
 
 #ifdef USE_GTK
 

@@ -30795,7 +30795,7 @@ on_hot_spot_p (Lisp_Object hot_spot, int x, int y)
       if (VECTORP (XCDR (hot_spot)))
 	{
 	  struct Lisp_Vector *v = XVECTOR (XCDR (hot_spot));
-	  ELisp_Pointer_Value poly = v->contents;
+	  Lisp_Object *poly = v->contents;
 	  ptrdiff_t n = v->header.size;
 	  ptrdiff_t i;
 	  bool inside = false;
