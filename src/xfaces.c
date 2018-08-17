@@ -262,12 +262,12 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #include <c-ctype.h>
 
 
-inline void smemcpy(ELisp_Pointer_Value a, ELisp_Pointer_Value b, size_t n)
+inline void smemcpy(ELisp_Pointer_Handle a, ELisp_Pointer_Handle b, size_t n)
 {
   for (size_t i = 0; i < n / sizeof(ELisp_Struct_Value); i++)
     {
       Lisp_Object tem = b[i];
-      a[i] = tem;
+      a.sref (i, tem);
     }
 }
 

@@ -3278,7 +3278,7 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#arg matches (__type__)ELisp_Pointer_Handle Symbol#symbol]]
 [[#fundef contains Symbol#symbolb]]
 [[#symbolb matches #symbol]]
-[[# set Type#symbolb#type: (__type__)ELisp_Pointer_Value]]
+[[# set Type#symbolb#type: (__type__)ELisp_Pointer_Handle]]
 
 [[# AUTO-03004 #]]:
 [[# contains Stmt#stmt]]
