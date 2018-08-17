@@ -1312,11 +1312,6 @@ use Digest::MD5 qw(md5_hex);
 my %value_keep;
 my %value_strings;
 
-my $grammar = Marpa::R2::Scanless::G->new({
-    source => \$EmacsCGrammar::dsl,
-    bless_package => "C",
-                                          });
-
 my %grammars_by_token;
 my %memo;
 
