@@ -891,7 +891,7 @@ RetType ::= Type
 
 Attrs ::= Empty | Attr Attrs
 
-Attr ::= restrict | '__THROW' | '_Restrict_' | '__restrict' | extern | 'inline' | 'INLINE' | 'NO_INLINE' | '_Noreturn' | static | 'ATTRIBUTE_UNUSED' | 'const' | 'auto' | register | 'ATTRIBUTE_CONST' | 'ATTRIBUTE_UNUSED' | 'EXTERNALLY_VISIBLE' | alignas Expr | const | signed | unsigned | short | long | volatile | auto | 'asm' PExpr | '__cdecl' | '_cdecl' | 'UNINIT' | 'ATTRIBUTE_NO_SANITIZE_ADDRESS' | '__MALLOC_HOOK_VOLATILE' | 'weak_function' | 'CACHEABLE' | 'ALIGN_STACK' | 'CALLBACK' | 'WINAPI' | 'ATTRIBUTE_MALLOC' | 'GCALIGNED' | 'WINDOW_SYSTEM_RETURN' | macro PArgExprs rank => -3 | 'ATTRIBUTE_MAY_ALIAS' | '__attribute__' '(' '(' ArgExprs ')' ')' | 'EMACS_NOEXCEPT'
+Attr ::= restrict | '__THROW' | '_Restrict_' | '__restrict' | extern | 'inline' | 'INLINE' | 'NO_INLINE' | '_Noreturn' | static | 'ATTRIBUTE_UNUSED' | 'const' | 'auto' | register | 'ATTRIBUTE_CONST' | 'ATTRIBUTE_UNUSED' | 'EXTERNALLY_VISIBLE' | alignas Expr | const | signed | unsigned | short | long | volatile | auto | 'asm' PExpr | '__cdecl' | '_cdecl' | 'UNINIT' | 'ATTRIBUTE_NO_SANITIZE_ADDRESS' | '__MALLOC_HOOK_VOLATILE' | 'weak_function' | 'CACHEABLE' | 'ALIGN_STACK' | 'CALLBACK' | 'WINAPI' | 'ATTRIBUTE_MALLOC' | 'GCALIGNED' | 'WINDOW_SYSTEM_RETURN' | macro PArgExprs rank => -3 | 'ATTRIBUTE_MAY_ALIAS' | '__attribute__' '(' '(' ArgExprs ')' ')' | 'EMACS_NOEXCEPT' | 'ATTRIBUTE_NO_SANITIZE_UNDEFINED'
 
 PArgExprs ::= '(' ArgExprs ')'
 ArgExprs ::= Empty | ArgExpr | ArgExpr ',' ArgExprs
@@ -3001,15 +3001,21 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#vec <- #vector.vec]]
 
 [[# AUTO-0080 #]]:
-[[# contains Stmt#decl]]
-[[#decl matches (__type__)Lisp_Object *Symbol#symbol;]]
-[[#decl <- (__type__)ELisp_Pointer_Struct_Value #symbol;]]
-
-[[# AUTO-0083 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#body contains Stmt#decl]]
 [[#decl matches (__type__)Lisp_Object const*Symbol#symbol;]]
 [[#decl <- (__type__)ELisp_Pointer_Value #symbol;]]
+
+[[# AUTO-0081 #]]:
+[[# FunctionDefinition #fundef]]
+[[#fundef#body contains Stmt#decl]]
+[[#decl matches (__type__)Lisp_Object *Symbol#symbol;]]
+[[#decl <- (__type__)ELisp_Pointer_Value #symbol;]]
+
+[[# AUTO-0083 #]]:
+[[# contains Stmt#decl]]
+[[#decl matches (__type__)Lisp_Object *Symbol#symbol;]]
+[[#decl <- (__type__)ELisp_Pointer_Struct_Value #symbol;]]
 
 [[# AUTO-0085 #]]:
 [[# FunctionDefinition #fundef]]
@@ -3611,7 +3617,7 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#type matches (__type__)ELisp_Pointer_Value]]
 [[# contains Expr#expr]]
 [[#expr matches SAFE_ALLOCA_LISP(#symbol, Expr#size)]]
-[[#type <- (__type__)ELisp_Array]]
+[[#type <- (__type__)ELisp_Dynvector]]
 [[#expr <- #symbol.resize(#size)]]
 
 [[# AUTO-0799-FLUSH #]]:

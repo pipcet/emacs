@@ -726,6 +726,7 @@ set_frame_menubar (struct frame *f, bool first_time, bool deep_p)
       ptrdiff_t specpdl_count = SPECPDL_INDEX ();
       int previous_menu_items_used = f->menu_bar_items_used;
       Lisp_Object *previous_items;
+      USE_SAFE_ALLOCA;
       SAFE_ALLOCA_LISP (previous_items, previous_menu_items_used);
       int subitems;
 
@@ -1129,7 +1130,7 @@ free_frame_menubar (struct frame *f)
 #if defined (USE_X_TOOLKIT) || defined (USE_GTK)
 
 /* The item selected in the popup menu.  */
-static ELisp_Pointer menu_item_selection;
+ELisp_Pointer_Struct_Value menu_item_selection;
 
 #ifdef USE_GTK
 

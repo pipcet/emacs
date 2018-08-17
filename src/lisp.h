@@ -827,9 +827,9 @@ typedef EMACS_UINT Lisp_Word_tag;
    ? (intptr_t) (ptr) + (tag) \
    : (EMACS_INT) (((EMACS_UINT) (tag) << VALBITS) + (uintptr_t) (ptr)))
 
-extern ELisp_Return_Value elisp_symbol();
+extern Lisp_Object elisp_symbol();
 
-INLINE ELisp_Return_Value
+INLINE Lisp_Object
 lispsym_initially (ELisp_Struct_Value *sym)
 {
   ELisp_Value v;
@@ -872,21 +872,21 @@ lispsym_initially (ELisp_Struct_Value *sym)
 
 extern ELisp_Struct_Value lispsym[1221];
 
-extern unsigned elisp_symbol_trapped_write_value(ELisp_Handle symbol);
+extern unsigned elisp_symbol_trapped_write_value(Lisp_Object symbol);
 
 INLINE int
-(SYMBOL_TRAPPED_WRITE_VALUE) (ELisp_Handle sym)
+(SYMBOL_TRAPPED_WRITE_VALUE) (Lisp_Object sym)
 {
   return elisp_symbol_trapped_write_value(sym);
 }
 
-INLINE ELisp_Return_Value
-make_lisp_symbol (ELisp_Handle sym)
+INLINE Lisp_Object
+make_lisp_symbol (Lisp_Object sym)
 {
   return sym;
 }
 
-INLINE ELisp_Return_Value
+INLINE Lisp_Object
 builtin_lisp_symbol (int index)
 {
   return lispsym[index];
@@ -1298,61 +1298,62 @@ struct Lisp_Cons
   } u;
 };
 verify (alignof (struct Lisp_Cons) % GCALIGNMENT == 0);
+
 INLINE bool
-NILP (ELisp_Handle x)
+NILP (Lisp_Object x)
 {
   //return x.nilp();
   return x.eq(Qnil);
 }
 
 INLINE bool
-CONSP (ELisp_Handle ARG(x))
+CONSP (Lisp_Object x)
 {
-  ELisp_Value x = ARG(x);
   return x.consp();
 }
 INLINE void
-CHECK_CONS (ELisp_Handle x)
+CHECK_CONS (Lisp_Object x)
 {
   CHECK_TYPE (CONSP (x), LSH (Qconsp), x);
 }
 
-extern ELisp_Return_Value elisp_cons_car (ELisp_Handle);
-extern ELisp_Return_Value elisp_cons_cdr (ELisp_Handle);
+extern Lisp_Object elisp_cons_car (Lisp_Object);
+extern Lisp_Object elisp_cons_cdr (Lisp_Object);
 
 /* Use these from normal code.  */
-INLINE ELisp_Return_Value XCAR(ELisp_Handle v)
+INLINE Lisp_Object XCAR(Lisp_Object v)
 {
   return elisp_cons_car (v);
 }
-INLINE ELisp_Return_Value XCDR(ELisp_Handle v)
+
+INLINE Lisp_Object XCDR(Lisp_Object v)
 {
   return elisp_cons_cdr (v);
 }
 
 extern void
-elisp_cons_setcar (ELisp_Handle c, ELisp_Handle n);
+elisp_cons_setcar (Lisp_Object c, Lisp_Object n);
 extern void
-elisp_cons_setcdr (ELisp_Handle c, ELisp_Handle n);
+elisp_cons_setcdr (Lisp_Object c, Lisp_Object n);
 
 /* Use these to set the fields of a cons cell.
 
    Note that both arguments may refer to the same object, so 'n'
    should not be read after 'c' is first modified.  */
 INLINE void
-XSETCAR (ELisp_Handle c, ELisp_Handle n)
+XSETCAR (Lisp_Object c, Lisp_Object n)
 {
   elisp_cons_setcar (c, n);
 }
 INLINE void
-XSETCDR (ELisp_Handle c, ELisp_Handle n)
+XSETCDR (Lisp_Object c, Lisp_Object n)
 {
   elisp_cons_setcdr (c, n);
 }
 
 /* Take the car or cdr of something whose type is not known.  */
-INLINE ELisp_Return_Value
-CAR (ELisp_Handle c)
+INLINE Lisp_Object
+CAR (Lisp_Object c)
 {
   if (CONSP (c))
     return XCAR (c);
@@ -1360,8 +1361,8 @@ CAR (ELisp_Handle c)
     wrong_type_argument (LSH (Qlistp), c);
   return Qnil;
 }
-INLINE ELisp_Return_Value
-CDR (ELisp_Handle c)
+INLINE Lisp_Object
+CDR (Lisp_Object c)
 {
   if (CONSP (c))
     return XCDR (c);
@@ -1371,45 +1372,45 @@ CDR (ELisp_Handle c)
 }
 
 /* Take the car or cdr of something whose type is not known.  */
-INLINE ELisp_Return_Value
-CAR_SAFE (ELisp_Handle c)
+INLINE Lisp_Object
+CAR_SAFE (Lisp_Object c)
 {
   return CONSP (c)? ELisp_Return_Value(XCAR (c)): ELisp_Return_Value(Qnil);
 }
-INLINE ELisp_Return_Value
-CDR_SAFE (ELisp_Handle c)
+INLINE Lisp_Object
+CDR_SAFE (Lisp_Object c)
 {
   return CONSP (c)? ELisp_Return_Value(XCDR (c)): ELisp_Return_Value(Qnil);
 }
 
 /* In a string or vector, the sign bit of the `size' is the gc mark bit.  */
 
-extern bool elisp_stringp(ELisp_Handle x);
+extern bool elisp_stringp(Lisp_Object x);
 
 INLINE bool
-STRINGP (ELisp_Handle x)
+STRINGP (Lisp_Object x)
 {
   return elisp_stringp(x);
 }
 
 INLINE void
-CHECK_STRING (ELisp_Handle x)
+CHECK_STRING (Lisp_Object x)
 {
   CHECK_TYPE (STRINGP (x), LSH (Qstringp), x);
 }
 
-extern ELisp_Return_Value elisp_fixbuf(void *buf, ptrdiff_t size);
-extern ELisp_Return_Value elisp_mbstring(ELisp_Handle fixbuf, ptrdiff_t size_byte, ptrdiff_t size);
-extern ELisp_Return_Value elisp_string(ELisp_Handle mbstring, INTERVAL);
+extern Lisp_Object elisp_fixbuf(void *buf, ptrdiff_t size);
+extern Lisp_Object elisp_mbstring(Lisp_Object fixbuf, ptrdiff_t size_byte, ptrdiff_t size);
+extern Lisp_Object elisp_string(Lisp_Object mbstring, INTERVAL);
 
-extern ptrdiff_t elisp_string_size(ELisp_Handle x);
-extern ptrdiff_t elisp_string_size_byte(ELisp_Handle x);
-extern void elisp_string_set_size(ELisp_Handle x, ptrdiff_t);
-extern void elisp_string_set_size_byte(ELisp_Handle x, ptrdiff_t);
+extern ptrdiff_t elisp_string_size(Lisp_Object x);
+extern ptrdiff_t elisp_string_size_byte(Lisp_Object x);
+extern void elisp_string_set_size(Lisp_Object x, ptrdiff_t);
+extern void elisp_string_set_size_byte(Lisp_Object x, ptrdiff_t);
 
 /* True if STR is a multibyte string.  */
 INLINE bool
-STRING_MULTIBYTE (ELisp_Handle str)
+STRING_MULTIBYTE (Lisp_Object str)
 {
   return 0 <= elisp_string_size_byte (str);
 }
@@ -1451,41 +1452,46 @@ STRING_MULTIBYTE (ELisp_Handle str)
 
 /* Convenience functions for dealing with Lisp strings.  */
 
-extern void *elisp_string_data(ELisp_Handle);
+extern void *elisp_string_data(Lisp_Object);
+
 INLINE unsigned char *
-SDATA (ELisp_Handle string)
+SDATA (Lisp_Object string)
 {
   return (unsigned char *)elisp_string_data (string);
 }
+
 INLINE char *
-SSDATA (ELisp_Handle string)
+SSDATA (Lisp_Object string)
 {
   /* Avoid "differ in sign" warnings.  */
   return (char *)elisp_string_data (string);
 }
+
 INLINE unsigned char
-SREF (ELisp_Handle string, ptrdiff_t index)
+SREF (Lisp_Object string, ptrdiff_t index)
 {
   return SDATA (string)[index];
 }
+
 INLINE void
-SSET (ELisp_Handle string, ptrdiff_t index, unsigned char c_new)
+SSET (Lisp_Object string, ptrdiff_t index, unsigned char c_new)
 {
   SDATA (string)[index] = c_new;
 }
+
 INLINE ptrdiff_t
-SCHARS (ELisp_Handle string)
+SCHARS (Lisp_Object string)
 {
   ptrdiff_t nchars = elisp_string_size (string);
   eassume (0 <= nchars);
   return nchars;
 }
 
-extern ptrdiff_t elisp_string_bytes(ELisp_Handle);
-extern ptrdiff_t elisp_string_chars(ELisp_Handle);
+extern ptrdiff_t elisp_string_bytes(Lisp_Object);
+extern ptrdiff_t elisp_string_chars(Lisp_Object);
 
 INLINE ptrdiff_t
-SBYTES (ELisp_Handle string)
+SBYTES (Lisp_Object string)
 {
   ptrdiff_t size_byte = elisp_string_size_byte(string);
   if (size_byte < 0)
@@ -1493,7 +1499,7 @@ SBYTES (ELisp_Handle string)
   return elisp_string_size_byte(string);
 }
 INLINE void
-STRING_SET_CHARS (ELisp_Handle string, ptrdiff_t newsize)
+STRING_SET_CHARS (Lisp_Object string, ptrdiff_t newsize)
 {
   /* This function cannot change the size of data allocated for the
      string when it was created.  */
@@ -1645,9 +1651,9 @@ CHECK_BOOL_VECTOR (Lisp_Object x)
 }
 
 INLINE struct Lisp_Bool_Vector *
-XBOOL_VECTOR (ELisp_Handle a)
+XBOOL_VECTOR (Lisp_Object a)
 {
-  return (Lisp_Bool_Vector *)a.xvector ();
+  return (struct Lisp_Bool_Vector *)a.xvector ();
 }
 
 INLINE EMACS_INT
@@ -1710,7 +1716,7 @@ AREF (Lisp_Object array, ptrdiff_t idx)
   return array.get_element(idx);
 }
 
-INLINE ELisp_Pointer
+INLINE ELisp_Pointer_Return_Value
 aref_addr (Lisp_Object array, ptrdiff_t idx)
 {
   return & XVECTOR (array)->contents[idx];
@@ -1842,7 +1848,7 @@ CHAR_TABLE_P (Lisp_Object a)
 }
 
 INLINE struct Lisp_Char_Table *
-XCHAR_TABLE (ELisp_Handle a)
+XCHAR_TABLE (Lisp_Object a)
 {
   return (struct Lisp_Char_Table *)a.xvector ();
 }
@@ -2098,10 +2104,10 @@ SET_SYMBOL_FWD (struct Lisp_Symbol *sym, union Lisp_Fwd *v)
   sym->u.s.val.fwd = v;
 }
 
-extern ELisp_Return_Value elisp_symbol_name (ELisp_Handle);
+extern Lisp_Object elisp_symbol_name (Lisp_Object);
 
-INLINE ELisp_Return_Value
-XSYMBOL_NAME (ELisp_Handle a)
+INLINE Lisp_Object
+XSYMBOL_NAME (Lisp_Object a)
 {
   return elisp_symbol_name (a);
 }
@@ -2112,7 +2118,7 @@ SYMBOL_NAME (Lisp_Object sym)
   return XSYMBOL_NAME (sym);
 }
 
-extern unsigned elisp_symbol_interned(ELisp_Handle);
+extern unsigned elisp_symbol_interned(Lisp_Object);
 /* Value is true if SYM is an interned symbol.  */
 
 INLINE bool
@@ -2935,7 +2941,7 @@ CHECK_INTEGER (Lisp_Object x)
 /* Since we can't assign directly to the CAR or CDR fields of a cons
    cell, use these when checking that those fields contain numbers.  */
 INLINE void
-CHECK_FIXNUM_CAR (ELisp_Handle x)
+CHECK_FIXNUM_CAR (Lisp_Object x)
 {
   Lisp_Object tmp = XCAR (x);
   CHECK_FIXNUM (tmp);
@@ -2943,7 +2949,7 @@ CHECK_FIXNUM_CAR (ELisp_Handle x)
 }
 
 INLINE void
-CHECK_FIXNUM_CDR (ELisp_Handle x)
+CHECK_FIXNUM_CDR (Lisp_Object x)
 {
   Lisp_Object tmp = XCDR (x);
   CHECK_FIXNUM (tmp);
@@ -3133,7 +3139,7 @@ struct specbinding
     struct {
       bool_bf debug_on_exit : 1;
       ELisp_Struct_Value function;
-      ELisp_Pointer args;
+      ELisp_Pointer_Struct_Value args;
       ptrdiff_t nargs;
     } bt;
   };
@@ -3175,7 +3181,7 @@ struct specbinding_stack
     struct {
       bool_bf debug_on_exit : 1;
       ELisp_Value function;
-      ELisp_Pointer args;
+      ELisp_Pointer_Struct_Value args;
       ptrdiff_t nargs;
     } bt;
   };
@@ -3268,10 +3274,10 @@ extern Lisp_Object Vascii_canon_table;
 
 /* Call staticpro (&var) to protect static variable `var'.  */
 
-void staticpro_1 (ELisp_Pointer);
+void staticpro_1 (ELisp_Pointer_Handle);
 
 INLINE void
-staticpro (ELisp_Pointer ptr, ELisp_Handle initial_value)
+staticpro (ELisp_Pointer_Handle ptr, Lisp_Object initial_value)
 {
   ELisp_Value v; v = ptr.ref(0);
   if (! v.v.v.isUndefined() && ! NILP (v))
@@ -3288,7 +3294,7 @@ struct frame;
 /* Copy COUNT Lisp_Objects from ARGS to contents of V starting from OFFSET.  */
 
 INLINE void
-vcopy (ELisp_Handle v, ELisp_Vector_Handle args, ptrdiff_t count)
+vcopy (Lisp_Object v, ELisp_Vector_Handle args, ptrdiff_t count)
 {
   eassert (0 <= args.n && 0 <= count && args.n + count <= ASIZE (v));
   for (ptrdiff_t i = 0; i < count; i++)
@@ -3309,36 +3315,36 @@ set_hash_value_slot (struct Lisp_Hash_Table *h, ptrdiff_t idx, Lisp_Object val)
   gc_aset (h->key_and_value, 2 * idx + 1, val);
 }
 
-extern ELisp_Return_Value elisp_symbol_value(ELisp_Handle a);
-extern void elisp_symbol_set_value(ELisp_Handle a, ELisp_Handle b);
+extern Lisp_Object elisp_symbol_value(Lisp_Object a);
+extern void elisp_symbol_set_value(Lisp_Object a, Lisp_Object b);
 
-extern ELisp_Return_Value elisp_symbol_function(ELisp_Handle a);
-extern void elisp_symbol_set_function(ELisp_Handle a, ELisp_Handle b);
+extern Lisp_Object elisp_symbol_function(Lisp_Object a);
+extern void elisp_symbol_set_function(Lisp_Object a, Lisp_Object b);
 
-extern ELisp_Return_Value elisp_symbol_plist(ELisp_Handle a);
-extern void elisp_symbol_set_plist(ELisp_Handle a, ELisp_Handle b);
+extern Lisp_Object elisp_symbol_plist(Lisp_Object a);
+extern void elisp_symbol_set_plist(Lisp_Object a, Lisp_Object b);
 
-extern void elisp_symbol_set_name(ELisp_Handle a, ELisp_Handle b);
+extern void elisp_symbol_set_name(Lisp_Object a, Lisp_Object b);
 
-extern ELisp_Return_Value elisp_symbol_next(ELisp_Handle a);
-extern void elisp_symbol_set_next(ELisp_Handle a, ELisp_Handle b);
+extern Lisp_Object elisp_symbol_next(Lisp_Object a);
+extern void elisp_symbol_set_next(Lisp_Object a, Lisp_Object b);
 /* Use these functions to set Lisp_Object
    or pointer slots of struct Lisp_Symbol.  */
 
 INLINE void
-set_symbol_function (ELisp_Handle sym, ELisp_Handle function)
+set_symbol_function (Lisp_Object sym, Lisp_Object function)
 {
   elisp_symbol_set_function (sym, function);
 }
 
 INLINE void
-set_symbol_plist (ELisp_Handle sym, ELisp_Handle plist)
+set_symbol_plist (Lisp_Object sym, Lisp_Object plist)
 {
   elisp_symbol_set_plist (sym, plist);
 }
 
 INLINE void
-set_symbol_name (ELisp_Handle sym, ELisp_Handle plist)
+set_symbol_name (Lisp_Object sym, Lisp_Object plist)
 {
   elisp_symbol_set_name (sym, plist);
 }
@@ -3871,7 +3877,12 @@ extern void init_alloc (void);
 extern void syms_of_alloc (void);
 extern struct buffer * allocate_buffer (void);
 
-extern int valid_lisp_object_p (ELisp_Handle);
+/* DUMMY CHUNK */
+
+extern int valid_lisp_object_p (Lisp_Object);
+
+extern bool dummy;
+/* DUMMY CHUNK */
 
 #ifdef GC_CHECK_CONS_LIST
 extern void check_cons_list (void);

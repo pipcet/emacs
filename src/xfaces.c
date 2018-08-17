@@ -262,7 +262,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #include <c-ctype.h>
 
 
-inline void smemcpy(ELisp_Pointer a, ELisp_Pointer b, size_t n)
+inline void smemcpy(ELisp_Pointer_Value a, ELisp_Pointer_Value b, size_t n)
 {
   for (size_t i = 0; i < n / sizeof(ELisp_Struct_Value); i++)
     {
@@ -3198,7 +3198,7 @@ FRAME 0 means change the face on all frames, and change the default
                 {
                   if (! FONT_OBJECT_P (value))
                     {
-                      ELisp_Pointer attrs = XVECTOR (lface)->contents;
+                      ELisp_Pointer_Value attrs = XVECTOR (lface)->contents;
                       Lisp_Object font_object;
 
                       font_object = font_load_for_lface (f1, attrs, value);
@@ -4830,7 +4830,7 @@ x_supports_face_attributes_p (struct frame *f,
 			      Lisp_Object attrs[LFACE_VECTOR_SIZE],
 			      struct face *def_face)
 {
-  ELisp_Pointer def_attrs = def_face->lface;
+  ELisp_Pointer_Value def_attrs = def_face->lface;
 
   /* Check that other specified attributes are different that the default
      face.  */
@@ -4941,7 +4941,7 @@ tty_supports_face_attributes_p (struct frame *f,
   XColor fg_tty_color, fg_std_color;
   XColor bg_tty_color, bg_std_color;
   unsigned test_caps = 0;
-  ELisp_Pointer def_attrs = def_face->lface;
+  ELisp_Pointer_Value def_attrs = def_face->lface;
 
   /* First check some easy-to-check stuff; ttys support none of the
      following attributes, so we can just return false if any are requested

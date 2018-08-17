@@ -473,7 +473,7 @@ static struct fringe_bitmap standard_bitmaps[] =
 #define MAX_STANDARD_FRINGE_BITMAPS ARRAYELTS (standard_bitmaps)
 
 static struct fringe_bitmap **fringe_bitmaps;
-static ELisp_Pointer fringe_faces;
+ELisp_Pointer_Struct_Value fringe_faces;
 static int max_fringe_bitmaps;
 
 int max_used_fringe_bitmap = MAX_STANDARD_FRINGE_BITMAPS;

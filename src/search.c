@@ -2962,7 +2962,11 @@ Return value is undefined if the last search failed.  */)
       /* If we couldn't fit all value elements into REUSE,
 	 cons up the rest of them and add them to the end of REUSE.  */
       if (i < len)
-	XSETCDR (prev, Flist (LV (len - i, ELisp_Pointer (data) + i)));
+        {
+          ELisp_Pointer d = data;
+          d = d + i;
+          XSETCDR (prev, Flist (LV (len - i, d)));
+        }
     }
 
   SAFE_FREE ();

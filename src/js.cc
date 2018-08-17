@@ -51,6 +51,7 @@ void *elisp_cons_class_proto_backup;
 void *elisp_string_class_proto_backup;
 void *elisp_symbol_class_proto_backup;
 void *elisp_vector_class_proto_backup;
+void *elisp_pointer_class_proto_backup;
 void *elisp_array_class_proto_backup;
 void *elisp_exception_class_proto_backup;
 
@@ -58,6 +59,7 @@ JS::Heap<JSObject*> elisp_cons_class_proto __attribute__((init_priority(103)));
 JS::Heap<JSObject*> elisp_string_class_proto __attribute__((init_priority(103)));
 JS::Heap<JSObject*> elisp_symbol_class_proto __attribute__((init_priority(103)));
 JS::Heap<JSObject*> elisp_vector_class_proto __attribute__((init_priority(103)));
+JS::Heap<JSObject*> elisp_pointer_class_proto __attribute__((init_priority(103)));
 JS::Heap<JSObject*> elisp_array_class_proto __attribute__((init_priority(103)));
 
 static bool
@@ -1162,6 +1164,7 @@ elisp_gc_trace(JSTracer* tracer, void* data)
   TraceEdge(tracer, &elisp_string_class_proto, "string class proto");
   TraceEdge(tracer, &elisp_symbol_class_proto, "symbol class proto");
   TraceEdge(tracer, &elisp_vector_class_proto, "vector class proto");
+  TraceEdge(tracer, &elisp_pointer_class_proto, "pointer class proto");
   TraceEdge(tracer, &elisp_array_class_proto, "array class proto");
 
   for (size_t i = 0; i < GLOBAL_OBJECTS; i++) {
@@ -2611,6 +2614,86 @@ static bool elisp_vector_call(JSContext *cx, unsigned argc, JS::Value *vp)
   return success;
 }
 
+static bool
+elisp_pointer_length_getter(JSContext *cx, unsigned argc, JS::Value *vp)
+{
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  ELisp_Value v;
+  v.v.v = args.thisv();
+  args.rval().setInt32(XVECTOR (v)->header.size);
+  return true;
+}
+
+static bool
+elisp_pointer_base_getter(JSContext *cx, unsigned argc, JS::Value *vp)
+{
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  JS::RootedObject obj(cx, &args.thisv().toObject());
+  ELisp_Value base;
+  base.v.v = JS_GetReservedSlot(obj, 1);
+  args.rval().set(base.v.v);
+  return true;
+}
+
+static const JSPropertySpec elisp_pointer_props[] =
+  {
+   JS_PSG("length", elisp_pointer_length_getter, 0),
+   JS_PSG("base", elisp_pointer_base_getter, 0),
+   JS_PS_END
+  };
+
+static bool
+elisp_pointer_get(JSContext *cx, unsigned argc, JS::Value *vp)
+{
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  JS::RootedObject obj(cx, &args.thisv().toObject());
+  ELisp_Value base;
+  base.v.v = JS_GetReservedSlot(obj, 1);
+  ELisp_Value off;
+  JS_GetProperty(cx, obj, "off", &off.v.v);
+  args.rval().set(base.get_element(args[0].toInt32() + off.toInt32()));
+  return true;
+}
+
+static bool
+elisp_pointer_set(JSContext *cx, unsigned argc, JS::Value *vp)
+{
+  JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  JS::RootedObject obj(cx, &args.thisv().toObject());
+  ELisp_Value base;
+  base.v.v = JS_GetReservedSlot(obj, 1);
+  ELisp_Value off;
+  JS_GetProperty(cx, obj, "off", &off.v.v);
+  ELisp_Value v;
+  v.v.v = args[1];
+  base.set_element(args[0].toInt32() + off.toInt32(), v);
+  return true;
+}
+
+static JSFunctionSpec elisp_pointer_fns[] =
+  {
+   JS_FN("get", elisp_pointer_get, 1, 0),
+   JS_FN("set", elisp_pointer_set, 2, 0),
+   JS_FS_END
+  };
+
+JSClass elisp_pointer_class =
+  {
+   "ELisp_Pointer", JSCLASS_HAS_RESERVED_SLOTS(2)|JSCLASS_FOREGROUND_FINALIZE,
+  };
+
+ELisp_Return_Value elisp_pointer (ELisp_Handle base, int32_t off)
+{
+  JSContext *cx = jsg.cx;
+  JS::RootedObject proto(cx, elisp_array_class_proto);
+  JS::RootedObject obj(cx, JS_NewObjectWithGivenProto(cx, &elisp_pointer_class, proto));
+  JS_SetReservedSlot(obj, 1, base.v.v);
+  ELisp_Value v;
+  v.v.v.setInt32(off);
+  JS_SetProperty(cx, obj, "off", v.v.v);
+  return JS::ObjectValue(*obj);
+}
+
 static JSClassOps elisp_vector_ops =
 {
   NULL, NULL, NULL, NULL,
@@ -2751,7 +2834,7 @@ ELisp_Return_Value elisp_array (int32_t length)
 
 JSClass elisp_array_class =
   {
-   "ELisp_Array", JSCLASS_HAS_PRIVATE|JSCLASS_FOREGROUND_FINALIZE,
+   "ELisp_Array", JSCLASS_HAS_RESERVED_SLOTS(1)|JSCLASS_FOREGROUND_FINALIZE,
    &elisp_array_ops,
   };
 
@@ -3160,6 +3243,9 @@ elisp_classes_init(JSContext *cx, JS::HandleObject glob)
   elisp_array_class_proto =
     JS_InitClass(cx, glob, nullptr, &elisp_array_class, nullptr, 0,
                  nullptr, elisp_array_fns, nullptr, nullptr);
+  elisp_pointer_class_proto =
+    JS_InitClass(cx, glob, nullptr, &elisp_pointer_class, nullptr, 0,
+                 elisp_pointer_props, elisp_pointer_fns, nullptr, nullptr);
   elisp_symbol_class_proto =
     JS_InitClass(cx, glob, nullptr, &elisp_symbol_class, nullptr, 0,
                  nullptr, nullptr, nullptr, nullptr);
@@ -3226,6 +3312,7 @@ elisp_classes_init(JSContext *cx, JS::HandleObject glob)
   memcpy(&elisp_vector_class_proto_backup, &elisp_vector_class_proto, sizeof elisp_cons_class_proto);
   memcpy(&elisp_exception_class_proto_backup, &elisp_exception_class_proto, sizeof elisp_cons_class_proto);
   memcpy(&elisp_array_class_proto_backup, &elisp_array_class_proto, sizeof elisp_cons_class_proto);
+  memcpy(&elisp_pointer_class_proto_backup, &elisp_pointer_class_proto, sizeof elisp_cons_class_proto);
 }
 
 void jsprint(JS::Value v)
@@ -3334,3 +3421,4 @@ void ELisp_Handle::set_property(const char *prop, ELisp_Handle el)
   if (!JS_SetProperty(jsg.cx, obj, prop, el.v.v))
     /* FIXME */;
 }
+

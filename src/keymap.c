@@ -1356,7 +1356,7 @@ static ptrdiff_t cmm_size = 0;
    list, let the key sequence be read, and hope some other piece of
    code signals the error.  */
 ptrdiff_t
-current_minor_maps (ELisp_Pointer *modeptr, ELisp_Pointer *mapptr)
+current_minor_maps (ELisp_Pointer_Value *modeptr, ELisp_Pointer_Value *mapptr)
 {
   ptrdiff_t i = 0;
   int list_number = 0;
