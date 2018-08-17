@@ -225,6 +225,8 @@ typedef Lisp_Value_Stack ELisp_Value;
 typedef JSReturnValue ELisp_Return_Value;
 
 extern ELisp_Return_Value elisp_cons (void);
+extern ELisp_Return_Value elisp_array (int32_t);
+extern void elisp_array_resize (ELisp_Handle, int32_t);
 
 class JSReturnValue {
 public:
