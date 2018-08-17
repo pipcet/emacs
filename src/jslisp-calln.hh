@@ -6,7 +6,7 @@ CALLN(ELisp_Return_Value (*f) (ELisp_Vector_Handle), As... args)
   ELisp_Dynvector d;
   d.resize(ARRAYELTS (arr));
   for (size_t i = 0; i < ARRAYELTS(arr); i++)
-    d.sref(i, arr[i]);
+    d.set_element(i, arr[i]);
   ELisp_Vector v = LV (ARRAYELTS (arr), d);
   auto ret = f (v);
 

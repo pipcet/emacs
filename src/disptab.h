@@ -69,19 +69,19 @@ extern struct Lisp_Char_Table *buffer_display_table (void);
    return nonzero if the GLYPH code G should be output as a single
    character with code G.  Return zero if G has a string in the table.  */
 #define GLYPH_SIMPLE_P(base,len,g) \
-  (GLYPH_FACE (g) != DEFAULT_FACE_ID || GLYPH_CHAR (g) >= (len) || !STRINGP (LSH (base.ref(GLYPH_CHAR (g)))))
+  (GLYPH_FACE (g) != DEFAULT_FACE_ID || GLYPH_CHAR (g) >= (len) || !STRINGP (LSH (base.get_element(GLYPH_CHAR (g)))))
 
 /* Given BASE and LEN returned by the two previous macros,
    return nonzero if GLYPH code G is aliased to a different code.  */
 #define GLYPH_ALIAS_P(base,len,g) \
-  (GLYPH_FACE (g) == DEFAULT_FACE_ID && GLYPH_CHAR (g) < (len) && FIXNUMP (LSH (base.ref(GLYPH_CHAR (g)))))
+  (GLYPH_FACE (g) == DEFAULT_FACE_ID && GLYPH_CHAR (g) < (len) && FIXNUMP (LSH (base.get_element(GLYPH_CHAR (g)))))
 
 /* Follow all aliases for G in the glyph table given by (BASE,
    LENGTH), and set G to the final glyph.  */
 #define GLYPH_FOLLOW_ALIASES(base, length, g)			\
   do {								\
     while (GLYPH_ALIAS_P ((base), (length), (g)))		\
-      SET_GLYPH_CHAR ((g), XFIXNUM (LSH ((base).ref(GLYPH_CHAR (g)))));	\
+      SET_GLYPH_CHAR ((g), XFIXNUM (LSH ((base).get_element(GLYPH_CHAR (g)))));	\
     if (!GLYPH_CHAR_VALID_P (g))				\
       SET_GLYPH_CHAR (g, ' ');					\
   } while (false)
@@ -89,7 +89,7 @@ extern struct Lisp_Char_Table *buffer_display_table (void);
 /* Assuming that GLYPH_SIMPLE_P (BASE, LEN, G) is 0,
    return the length and the address of the character-sequence
    used for outputting GLYPH G.  */
-#define GLYPH_LENGTH(base,g)   SCHARS (LSH (base.ref(GLYPH_CHAR (g))))
+#define GLYPH_LENGTH(base,g)   SCHARS (LSH (base.get_element(GLYPH_CHAR (g))))
 #define GLYPH_STRING(base,g)   SDATA (base(GLYPH_CHAR (g)))
 
 /* GLYPH for a space character.  */

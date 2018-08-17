@@ -702,7 +702,7 @@ public:
     asm volatile("ud2");
     emacs_abort();
   }
-  JSReturnValue sref(ptrdiff_t off, JSReturnValue x)
+  JSReturnValue set_element(ptrdiff_t off, JSReturnValue x)
   {
     switch (type) {
     case UNSAFE:
@@ -715,7 +715,7 @@ public:
     asm volatile("ud2");
     emacs_abort();
   }
-  JSReturnValue ref(ptrdiff_t off)
+  JSReturnValue get_element(ptrdiff_t off)
   {
     switch (type) {
     case UNSAFE:

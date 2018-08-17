@@ -6561,7 +6561,7 @@ modify_event_symbol (ptrdiff_t symbol_num, int modifiers, Lisp_Object symbol_kin
 	}
 
       if (CONSP (*symbol_table))
-        *symbol_table = Fcons (Fcons (symbol_int, value), symbol_table.ref(0));
+        *symbol_table = Fcons (Fcons (symbol_int, value), symbol_table.get_element(0));
       else
 	ASET (*symbol_table, symbol_num, value);
 
@@ -9042,8 +9042,8 @@ read_key_sequence (Lisp_Object *keybuf, Lisp_Object prompt,
 
   starting_buffer = current_buffer;
   first_unbound = READ_KEY_ELTS + 1;
-  Lisp_Object first_event = mock_input > 0 ? keybuf.ref(0) : LSH (Qnil);
-  Lisp_Object second_event = mock_input > 1 ? keybuf.ref(1) : LSH (Qnil);
+  Lisp_Object first_event = mock_input > 0 ? keybuf.get_element(0) : LSH (Qnil);
+  Lisp_Object second_event = mock_input > 1 ? keybuf.get_element(1) : LSH (Qnil);
 
   /* Build our list of keymaps.
      If we recognize a function key and replace its escape sequence in

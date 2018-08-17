@@ -3253,10 +3253,10 @@ describe_map (Lisp_Object map, Lisp_Object prefix,
 	  /* The same keymap might be in the structure twice, if we're
 	     using an inherited keymap.  So skip anything we've already
 	     encountered.  */
-	  tem = Fassq (tail, seen.ref(0));
+	  tem = Fassq (tail, seen.get_element(0));
 	  if (CONSP (tem) && !NILP (Fequal (XCAR (tem), prefix)))
 	    break;
-	  seen.set(Fcons (Fcons (tail, prefix), seen.ref(0)));
+	  seen.set(Fcons (Fcons (tail, prefix), seen.get_element(0)));
 	}
     }
 

@@ -2908,9 +2908,9 @@ Return value is undefined if the last search failed.  */)
 	    {
               ELisp_Value tem;
               XSETFASTINT (tem, start);
-              data.sref(2 * i, tem);
+              data.set_element(2 * i, tem);
               XSETFASTINT (tem, search_regs.end[i]);
-              data.sref(2 * i + 1, tem);
+              data.set_element(2 * i + 1, tem);
 	    }
 	  else if (BUFFERP (last_thing_searched))
 	    {

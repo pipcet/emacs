@@ -999,9 +999,9 @@ font_expand_wildcards (Lisp_Object *field, int n)
   if (! NILP (tmp[n - 1]) && j < XLFD_REGISTRY_INDEX)
     return -1;
   memclear (field + j, (XLFD_LAST_INDEX - j) * word_size);
-  if (FIXNUMP (field.ref(XLFD_ENCODING_INDEX)))
-    field.sref(XLFD_ENCODING_INDEX,
-               Fintern (Fnumber_to_string (field.ref(XLFD_ENCODING_INDEX)), Qnil));
+  if (FIXNUMP (field.get_element(XLFD_ENCODING_INDEX)))
+    field.set_element(XLFD_ENCODING_INDEX,
+               Fintern (Fnumber_to_string (field.get_element(XLFD_ENCODING_INDEX)), Qnil));
   return 0;
 }
 

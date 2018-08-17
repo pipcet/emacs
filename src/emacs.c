@@ -2294,7 +2294,7 @@ fixup_locale (void)
 static void
 synchronize_locale (int category, Lisp_Object *plocale, Lisp_Object desired_locale)
 {
-  if (! EQ (plocale.ref(0), desired_locale))
+  if (! EQ (plocale.get_element(0), desired_locale))
     {
       *plocale = desired_locale;
 #ifdef WINDOWSNT

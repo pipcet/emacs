@@ -1868,17 +1868,17 @@ format is the same as above.  */)
       if (!NILP (elt)
 	  && EQ (FONTSET_BASE (elt), fontset)
 	  && EQ (FONTSET_FRAME (elt), frame))
-	realized[0].sref(j++, elt);
+	realized[0].set_element(j++, elt);
     }
-  realized[0].sref(j, Qnil);
+  realized[0].set_element(j, Qnil);
 
-  for (i = j = 0; ! NILP (realized[0].ref(i)); i++)
+  for (i = j = 0; ! NILP (realized[0].get_element(i)); i++)
     {
-      elt = FONTSET_DEFAULT (realized[0].ref(i));
+      elt = FONTSET_DEFAULT (realized[0].get_element(i));
       if (! NILP (elt))
-	realized[1].sref(j++, elt);
+	realized[1].set_element(j++, elt);
     }
-  realized[1].sref(j, Qnil);
+  realized[1].set_element(j, Qnil);
 
   tables[0] = Fmake_char_table (Qfontset_info, Qnil);
   fontsets[0] = fontset;
@@ -1918,12 +1918,12 @@ format is the same as above.  */)
 	      alist = Fnreverse (alist);
 
 	      /* Then store opened font names to cdr of each elements.  */
-	      for (i = 0; ! NILP (realized[k].ref(i)); i++)
+	      for (i = 0; ! NILP (realized[k].get_element(i)); i++)
 		{
 		  if (c <= MAX_5_BYTE_CHAR)
-		    val = FONTSET_REF (realized[k].ref(i), c);
+		    val = FONTSET_REF (realized[k].get_element(i), c);
 		  else
-		    val = FONTSET_FALLBACK (realized[k].ref(i));
+		    val = FONTSET_FALLBACK (realized[k].get_element(i));
 		  if (! CONSP (val) || ! VECTORP (XCDR (val)))
 		    continue;
 		  /* VAL: (int . [[FACE-ID FONT-DEF FONT-OBJECT int] ... ])  */

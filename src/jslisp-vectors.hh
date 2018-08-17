@@ -29,13 +29,13 @@ public:
     return (JSReturnValue *)vec.vec.begin();
   }
 
-  JSReturnValue sref(size_t i, JSReturnValue v)
+  JSReturnValue set_element(size_t i, JSReturnValue v)
   {
     vec.vec[i].set(v.v);
     return JSReturnValue(v.v);
   }
 
-  JSReturnValue ref(size_t i)
+  JSReturnValue get_element(size_t i)
   {
     return JSReturnValue(vec.vec[i]);
   }
@@ -59,13 +59,13 @@ public:
     return ELisp_Pointer(val);
   }
 
-  JSReturnValue sref(size_t i, JSReturnValue v)
+  JSReturnValue set_element(size_t i, JSReturnValue v)
   {
     val.set_element(i, v.v);
     return JSReturnValue(v.v);
   }
 
-  JSReturnValue ref(size_t i)
+  JSReturnValue get_element(size_t i)
   {
     return JSReturnValue(val.get_element(i));
   }

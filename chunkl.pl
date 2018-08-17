@@ -3366,7 +3366,7 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#b nomatch Expr# = Expr#]]
 [[#a matches Expr#ptr[Expr#index] ]]
 [[#ptr#type matches (__type__)ELisp_Pointer_Value]]
-[[#expr <- #ptr.sref(#index, #b)]]
+[[#expr <- #ptr.set_element(#index, #b)]]
 
 [[# AUTO-03085 #]]:
 [[# contains Expr#expr]]
@@ -3375,43 +3375,43 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#b nomatch Expr# = Expr#]]
 [[#a matches Expr#ptr[Expr#index] ]]
 [[#ptr#type matches (__type__)ELisp_Pointer_Handle]]
-[[#expr <- #ptr.sref(#index, #b)]]
+[[#expr <- #ptr.set_element(#index, #b)]]
 
 [[# AUTO-0309 #]]:
 [[# contains Expr#expr]]
 [[#expr matches Expr#ptr[Expr#index] ]]
 [[#ptr#type matches (__type__)ELisp_Pointer_Value]]
-[[#expr <- #ptr.ref(#index)]]
+[[#expr <- #ptr.get_element(#index)]]
 
 [[# AUTO-03095 #]]:
 [[# contains Expr#expr]]
 [[#expr matches Expr#ptr[Expr#index] ]]
 [[#ptr#type matches (__type__)ELisp_Pointer_Handle]]
-[[#expr <- #ptr.ref(#index)]]
+[[#expr <- #ptr.get_element(#index)]]
 
 [[# AUTO-0310 #]]:
 [[# contains Expr#expr]]
 [[#expr matches Expr#ptr.vec[Expr#index] ]]
 [[#ptr#type matches (__type__)ELisp_Pointer_Value]]
-[[#expr <- #ptr.ref(#index)]]
+[[#expr <- #ptr.get_element(#index)]]
 
 [[# AUTO-03105 #]]:
 [[# contains Expr#expr]]
 [[#expr matches Expr#ptr.vec[Expr#index] ]]
 [[#ptr#type matches (__type__)ELisp_Pointer_Handle]]
-[[#expr <- #ptr.ref(#index)]]
+[[#expr <- #ptr.get_element(#index)]]
 
 [[# AUTO-03108 #]]:
 [[# contains Expr#expr]]
 [[#expr matches *Expr#ptr ]]
 [[#ptr#type matches (__type__)ELisp_Pointer_Value]]
-[[#expr <- #ptr.ref(0)]]
+[[#expr <- #ptr.get_element(0)]]
 
 [[# AUTO-03109 #]]:
 [[# contains Expr#expr]]
 [[#expr matches *Expr#ptr ]]
 [[#ptr#type matches (__type__)ELisp_Pointer_Handle]]
-[[#expr <- #ptr.ref(0)]]
+[[#expr <- #ptr.get_element(0)]]
 
 [[# AUTO-0311 #]]:
 [[# contains Expr#expr]]
@@ -3426,12 +3426,12 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[# contains Expr#expr]]
 [[#expr matches Expr#a = Expr#b]]
 [[#a matches Expr#ptr.vec[Expr#index] ]]
-[[#expr <- #ptr.vec.sref(#index, #b)]]
+[[#expr <- #ptr.vec.set_element(#index, #b)]]
 
 [[# AUTO-0314-REPEAT #]]:
 [[# contains Expr#expr]]
 [[#expr matches Expr#ptr.vec[Expr#index] ]]
-[[#expr <- #ptr.vec.ref(#index)]]
+[[#expr <- #ptr.vec.get_element(#index)]]
 
 [[# AUTO-0315-REPEAT #]]:
 [[# contains Expr#expr]]
@@ -3439,12 +3439,12 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#a nomatch Expr# = Expr#]]
 [[#b nomatch Expr# = Expr#]]
 [[#a matches Expr#ptr.vec[Expr#index] ]]
-[[#expr <- #ptr.vec.sref(#index, #b)]]
+[[#expr <- #ptr.vec.set_element(#index, #b)]]
 
 [[# AUTO-0316-REPEAT #]]:
 [[# contains Expr#expr]]
 [[#expr matches Expr#ptr.vec[Expr#index] ]]
-[[#expr <- #ptr.vec.ref(#index)]]
+[[#expr <- #ptr.vec.get_element(#index)]]
 
 [[# XXXAUTO-0248 #]]:
 [[# FunctionDefinition #fundef]]
@@ -3819,7 +3819,7 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#symbol check "#symbol" !~ /XSET/]] ||
 [[#symbol check "#symbol" =~ /XSETC[AD]R/]] ||
 [[#n check #n > 0]]
-[[#argexpr matches Symbol#symbolb.vec.ref(ArgExprs#)]]
+[[#argexpr matches Symbol#symbolb.vec.get_element(ArgExprs#)]]
 [[#symbol check $main::accepts->{#symbol}[#n] eq "Lisp_Object"]]
 [[#argexpr free]]
 [[#argexpr <- LRH(#argexpr)]]

@@ -1409,7 +1409,7 @@ internal_lisp_condition_case (Lisp_Object var, Lisp_Object bodyform,
 	  for (struct handler *h = handlerlist->next; h != oldhandlerlist;
 	       h = h->next)
 	    chosen_clause++;
-	  handler_body = XCDR (((Lisp_Object *)chosen_clause).ref(0));
+	  handler_body = XCDR (((Lisp_Object *)chosen_clause).get_element(0));
 	  handlerlist = oldhandlerlist;
 
 	  if (NILP (var))
@@ -2385,7 +2385,7 @@ eval_sub (Lisp_Object form)
 	      vals[argnum++] = eval_sub (arg);
 	    }
           while (argnum < XFIXNUM (numargs))
-            vals.sref(argnum++, Qnil);
+            vals.set_element(argnum++, Qnil);
 
           set_backtrace_args (specpdl + count, vals, argnum);
 
@@ -2490,7 +2490,7 @@ eval_sub (Lisp_Object form)
                 vals[argnum++] = eval_sub (arg);
               }
             while (argnum < XFIXNUM (numargs))
-              vals.sref(argnum++, Qnil);
+              vals.set_element(argnum++, Qnil);
 
             set_backtrace_args (specpdl + count, vals, argnum);
 
@@ -3016,7 +3016,7 @@ usage: (funcall FUNCTION &rest ARGUMENTS)  */)
                 vals[argnum++] = arg;
               }
             while (argnum < numargs)
-              vals.sref(argnum++, Qnil);
+              vals.set_element(argnum++, Qnil);
 
             set_backtrace_args (specpdl + count, vals, argnum);
 
@@ -3900,7 +3900,7 @@ backtrace_frame_apply (Lisp_Object function, struct specbinding *pdl)
     flags = Fcons (QCdebug_on_exit, Fcons (Qt, Qnil));
 
   if (backtrace_nargs (pdl) == UNEVALLED)
-    return call4 (function, Qnil, backtrace_function (pdl), backtrace_args (pdl).ref(0), flags);
+    return call4 (function, Qnil, backtrace_function (pdl), backtrace_args (pdl).get_element(0), flags);
   else
     {
       Lisp_Object tem = Flist (LV (backtrace_nargs (pdl), backtrace_args (pdl)));

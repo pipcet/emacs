@@ -23634,10 +23634,10 @@ display_mode_element (struct it *it, int depth, int field_width, int precision,
 		       to avoid an infloop in redisplay due to the error.  */
                     ELisp_Dynvector args;
                     args.resize(4);
-                    args.sref(0, make_fixnum (0));
-                    args.sref(1, Flength (elt));
-                    args.sref(2, props);
-                    args.sref(3, elt);
+                    args.set_element(0, make_fixnum (0));
+                    args.set_element(1, Flength (elt));
+                    args.set_element(2, props);
+                    args.set_element(3, elt);
 		    internal_condition_case_n (safe_set_text_properties,
                                                LV (4, args),
 					       Qt, safe_eval_handler);

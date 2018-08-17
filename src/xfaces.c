@@ -267,7 +267,7 @@ inline void smemcpy(ELisp_Pointer_Handle a, ELisp_Pointer_Handle b, size_t n) /*
   for (size_t i = 0; i < n / sizeof(ELisp_Struct_Value); i++)
     {
       Lisp_Object tem = b[i];
-      a.sref (i, tem);
+      a.set_element (i, tem);
     }
 }
 
@@ -1382,8 +1382,8 @@ compare_fonts_by_sort_order (const void *v1, const void *v2)
 {
   Lisp_Object *p1 = (ELisp_Struct_Value *)(void *)v1;
   Lisp_Object *p2 = (ELisp_Struct_Value *)(void *)v2;
-  Lisp_Object font1 = p1.ref(0);
-  Lisp_Object font2 = p2.ref(0);
+  Lisp_Object font1 = p1.get_element(0);
+  Lisp_Object font2 = p2.get_element(0);
   int i;
 
   for (i = 0; i < FONT_SIZE_INDEX; i++)

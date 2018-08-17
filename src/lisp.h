@@ -3279,7 +3279,7 @@ void staticpro_1 (ELisp_Pointer_Handle);
 INLINE void
 staticpro (ELisp_Pointer_Handle ptr, Lisp_Object initial_value)
 {
-  ELisp_Value v; v = ptr.ref(0);
+  ELisp_Value v; v = ptr.get_element(0);
   if (! v.v.v.isUndefined() && ! NILP (v))
     while (1);
   ptr.set(initial_value);
@@ -3298,7 +3298,7 @@ vcopy (Lisp_Object v, ELisp_Vector_Handle args, ptrdiff_t count)
 {
   eassert (0 <= args.n && 0 <= count && args.n + count <= ASIZE (v));
   for (ptrdiff_t i = 0; i < count; i++)
-    XVECTOR (v)->contents[args.n+i] = args.vec.ref(i);
+    XVECTOR (v)->contents[args.n+i] = args.vec.get_element(i);
 }
 
 /* Functions to modify hash tables.  */

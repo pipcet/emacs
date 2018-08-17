@@ -6206,7 +6206,7 @@ write_queue_pop (struct Lisp_Process *p, Lisp_Object *obj,
 
   *len = XFIXNUM (XCDR (offset_length));
   offset = XFIXNUM (XCAR (offset_length));
-  *buf = SSDATA (obj.ref(0)) + offset;
+  *buf = SSDATA (obj.get_element(0)) + offset;
 
   return 1;
 }

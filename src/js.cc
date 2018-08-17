@@ -1575,11 +1575,11 @@ DEFUN ("jsmethod", Fjsmethod, Sjsmethod, 2, MANY, 0,
      (ELisp_Vector_Handle args)
 {
   JSContext* cx = jsg.cx;
-  ELisp_Value thisv = args.vec.ref(0);
+  ELisp_Value thisv = args.vec.get_element(0);
   if (!thisv.isObject())
     return Qnil;
   JS::RootedObject obj(cx, &thisv.toObject());
-  ELisp_Value namev = args.vec.ref(1);
+  ELisp_Value namev = args.vec.get_element(1);
   ELisp_Value methv;
   CHECK_STRING (namev);
   if (!JS_GetProperty(cx, obj, (const char *)SDATA (namev), &methv.v.v))
@@ -1588,7 +1588,7 @@ DEFUN ("jsmethod", Fjsmethod, Sjsmethod, 2, MANY, 0,
   ELisp_Dynvector rargs;
   rargs.resize(nargs);
   for (size_t i = 0; i < nargs; i++)
-    rargs.sref(i, args.vec.ref(i + 2));
+    rargs.set_element(i, args.vec.get_element(i + 2));
   ELisp_Value rval;
   catchall_real_jmpbuf = NULL;
 
@@ -2002,9 +2002,9 @@ static bool elisp_symbol_call(JSContext *cx, unsigned argc, JS::Value *vp)
   fun.v.v = args.calleev();
   ELisp_Dynvector argv;
   argv.resize (args.length() + 1);
-  argv.sref(0, fun);
+  argv.set_element(0, fun);
   for (ptrdiff_t i = 0; i < args.length(); i++)
-    argv.sref(i+1, args[i]);
+    argv.set_element(i+1, args[i]);
   fprintf(stderr, "calling 2\n");
   ret = Ffuncall (LV (args.length() + 1, argv));
   fprintf(stderr, "called\n");
@@ -2406,9 +2406,9 @@ static bool elisp_string_call(JSContext *cx, unsigned argc, JS::Value *vp)
   fun.v.v = args.calleev();
   ELisp_Dynvector argv;
   argv.resize (args.length() + 1);
-  argv.sref(0, fun);
+  argv.set_element(0, fun);
   for (ptrdiff_t i = 0; i < args.length(); i++)
-    argv.sref(i+1, args[i]);
+    argv.set_element(i+1, args[i]);
   fprintf(stderr, "calling 3\n");
   ret = Ffuncall (LV (args.length() + 1, argv));
   fprintf(stderr, "called\n");
@@ -2599,9 +2599,9 @@ static bool elisp_vector_call(JSContext *cx, unsigned argc, JS::Value *vp)
   fun.v.v = args.calleev();
   ELisp_Dynvector argv;
   argv.resize (args.length() + 1);
-  argv.sref(0, fun);
+  argv.set_element(0, fun);
   for (ptrdiff_t i = 0; i < args.length(); i++)
-    argv.sref(i+1, args[i]);
+    argv.set_element(i+1, args[i]);
   auto lv = LV (args.length() + 1, argv);
   bool success;
   maybe_quit ();
