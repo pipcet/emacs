@@ -846,6 +846,7 @@ package EmacsCGrammar;
     MFLTGlyphString
     png_color_16
     InputFunc
+    HFONT
     );
 %EmacsCGrammar::types;
 for my $type (@EmacsCGrammar::types) {
@@ -887,7 +888,7 @@ RetType ::= Type
 
 Attrs ::= Empty | Attr Attrs
 
-Attr ::= restrict | '__THROW' | '_Restrict_' | '__restrict' | extern | 'inline' | 'INLINE' | 'NO_INLINE' | '_Noreturn' | static | 'ATTRIBUTE_UNUSED' | 'const' | 'auto' | register | 'ATTRIBUTE_CONST' | 'ATTRIBUTE_UNUSED' | 'EXTERNALLY_VISIBLE' | alignas Expr | const | signed | unsigned | short | long | volatile | auto | 'asm' PExpr | '__cdecl' | '_cdecl' | 'UNINIT' | 'ATTRIBUTE_NO_SANITIZE_ADDRESS' | '__MALLOC_HOOK_VOLATILE' | 'weak_function' | 'CACHEABLE' | 'ALIGN_STACK' | 'CALLBACK' | 'WINAPI' | 'ATTRIBUTE_MALLOC' | 'GCALIGNED' | 'WINDOW_SYSTEM_RETURN' | macro PArgExprs rank => -3 | 'ATTRIBUTE_MAY_ALIAS' | '__attribute__' '(' '(' ArgExprs ')' ')' | 'EMACS_NOEXCEPT' | 'ATTRIBUTE_NO_SANITIZE_UNDEFINED'
+Attr ::= restrict | '__THROW' | '_Restrict_' | '__restrict' | extern | 'inline' | 'INLINE' | 'NO_INLINE' | '_Noreturn' | static | 'ATTRIBUTE_UNUSED' | 'const' | 'auto' | register | 'ATTRIBUTE_CONST' | 'ATTRIBUTE_UNUSED' | 'EXTERNALLY_VISIBLE' | alignas Expr | const | signed | unsigned | short | long | volatile | auto | 'asm' PExpr | '__cdecl' | '_cdecl' | 'UNINIT' | 'ATTRIBUTE_NO_SANITIZE_ADDRESS' | '__MALLOC_HOOK_VOLATILE' | 'weak_function' | 'CACHEABLE' | 'ALIGN_STACK' | 'CALLBACK' | 'WINAPI' | 'ATTRIBUTE_MALLOC' | 'GCALIGNED' | 'WINDOW_SYSTEM_RETURN' | macro PArgExprs rank => -3 | 'ATTRIBUTE_MAY_ALIAS' | '__attribute__' '(' '(' ArgExprs ')' ')' | 'EMACS_NOEXCEPT' | 'ATTRIBUTE_NO_SANITIZE_UNDEFINED' | 'ATTRIBUTE_WARN_UNUSED_RESULT'
 
 PArgExprs ::= '(' ArgExprs ')'
 ArgExprs ::= Empty | ArgExpr | ArgExpr ',' ArgExprs

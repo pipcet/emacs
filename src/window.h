@@ -25,9 +25,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 EXTERN_C
 INLINE_HEADER_BEGIN
 
-/* Windows are allocated as if they were vectors, but then the
-Lisp data type is changed to Lisp_Window.  They are garbage
-collected along with the vectors.
+/* Windows are pseudovectors.
 
 All windows in use are arranged into a tree, with pointers up and down.
 
