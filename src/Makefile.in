@@ -386,15 +386,19 @@ ALL_OBJC_CFLAGS = $(EMACS_CFLAGS) \
 
 chunkls =  atimer.h.chunkl blockinput.h.chunkl buffer.h.chunkl buildobj.h.chunkl category.h.chunkl ccl.h.chunkl character.h.chunkl charset.h.chunkl cm.h.chunkl coding.h.chunkl commands.h.chunkl composite.h.chunkl config.h.chunkl conf_post.h.chunkl cygw32.h.chunkl dispextern.h.chunkl disptab.h.chunkl dosfns.h.chunkl dynlib.h.chunkl emacsgtkfixed.h.chunkl emacs-icon.h.chunkl emacs-module.h.chunkl epaths.h.chunkl font.h.chunkl fontset.h.chunkl frame.h.chunkl ftfont.h.chunkl getpagesize.h.chunkl globals.h.chunkl gnutls.h.chunkl gtkutil.h.chunkl indent.h.chunkl intervals.h.chunkl keyboard.h.chunkl keymap.h.chunkl lisp.h.chunkl macfont.h.chunkl macros.h.chunkl menu.h.chunkl module-env-25.h.chunkl module-env-26.h.chunkl msdos.h.chunkl nsgui.h.chunkl nsterm.h.chunkl process.h.chunkl ptr-bounds.h.chunkl puresize.h.chunkl regex-emacs.h.chunkl region-cache.h.chunkl sheap.h.chunkl syntax.h.chunkl sysselect.h.chunkl syssignal.h.chunkl sysstdio.h.chunkl systhread.h.chunkl systime.h.chunkl systty.h.chunkl syswait.h.chunkl termchar.h.chunkl termhooks.h.chunkl termopts.h.chunkl thread.h.chunkl tparam.h.chunkl unexec.h.chunkl w32common.h.chunkl w32font.h.chunkl w32gui.h.chunkl w32.h.chunkl w32heap.h.chunkl w32inevt.h.chunkl w32select.h.chunkl w32term.h.chunkl widget.h.chunkl widgetprv.h.chunkl window.h.chunkl xgselect.h.chunkl xsettings.h.chunkl xterm.h.chunkl xwidget.h.chunkl dispnew.c.chunkl frame.c.chunkl scroll.c.chunkl xdisp.c.chunkl menu.c.chunkl xmenu.c.chunkl window.c.chunkl charset.c.chunkl coding.c.chunkl category.c.chunkl ccl.c.chunkl character.c.chunkl chartab.c.chunkl bidi.c.chunkl cm.c.chunkl term.c.chunkl terminal.c.chunkl xfaces.c.chunkl xterm.c.chunkl xfns.c.chunkl xselect.c.chunkl xrdb.c.chunkl xsmfns.c.chunkl xsettings.c.chunkl gtkutil.c.chunkl emacsgtkfixed.c.chunkl dbusbind.c.chunkl emacs.c.chunkl keyboard.c.chunkl macros.c.chunkl keymap.c.chunkl sysdep.c.chunkl buffer.c.chunkl filelock.c.chunkl insdel.c.chunkl marker.c.chunkl minibuf.c.chunkl fileio.c.chunkl dired.c.chunkl cmds.c.chunkl casetab.c.chunkl casefiddle.c.chunkl indent.c.chunkl search.c.chunkl regex-emacs.c.chunkl undo.c.chunkl alloc.c.chunkl data.c.chunkl doc.c.chunkl editfns.c.chunkl callint.c.chunkl eval.c.chunkl floatfns.c.chunkl fns.c.chunkl font.c.chunkl print.c.chunkl lread.c.chunkl syntax.c.chunkl bytecode.c.chunkl process.c.chunkl gnutls.c.chunkl callproc.c.chunkl region-cache.c.chunkl sound.c.chunkl atimer.c.chunkl doprnt.c.chunkl intervals.c.chunkl textprop.c.chunkl composite.c.chunkl xml.c.chunkl lcms.c.chunkl inotify.c.chunkl profiler.c.chunkl decompress.c.chunkl thread.c.chunkl systhread.c.chunkl fontset.c.chunkl fringe.c.chunkl image.c.chunkl xgselect.c.chunkl protos.h.chunkl
 
-chunkl.all: $(chunkls)
-	sort $(chunkls) > chunkl.all
+all.chunkl: $(chunkls)
+	sort $(chunkls) > all.chunkl
 
-%.c.cc: %.c | chunkl.all
+%.c.cc: %.c | all.chunkl
 	perl $(top_srcdir)/chunkl.pl $*.c < $< > $@
-%.h.hh: %.h | chunkl.all
+%.h.hh: %.h | all.chunkl
 	perl $(top_srcdir)/chunkl.pl $*.h < $< > $@
 %.h.chunkl: %.h
-	perl $(top_srcdir)/chunkl.pl $*.h --header < $< > $@
+	if rm $@.remake 2> /dev/null; then \
+		perl $(top_srcdir)/chunkl.pl $*.h --header --nomd5 < $< > $@; \
+	else \
+		perl $(top_srcdir)/chunkl.pl $*.h --header < $< > $@; \
+	fi
 %.c.chunkl: %.c
 	perl $(top_srcdir)/chunkl.pl $*.c --header < $< > $@
 %.cc.o: %.cc

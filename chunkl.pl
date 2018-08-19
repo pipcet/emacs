@@ -887,7 +887,7 @@ RetType ::= Type
 
 Attrs ::= Empty | Attr Attrs
 
-Attr ::= restrict | '__THROW' | '_Restrict_' | '__restrict' | extern | 'inline' | 'INLINE' | 'NO_INLINE' | '_Noreturn' | static | 'ATTRIBUTE_UNUSED' | 'const' | 'auto' | register | 'ATTRIBUTE_CONST' | 'ATTRIBUTE_UNUSED' | 'EXTERNALLY_VISIBLE' | alignas Expr | const | signed | unsigned | short | long | volatile | auto | 'asm' PExpr | '__cdecl' | '_cdecl' | 'UNINIT' | 'ATTRIBUTE_NO_SANITIZE_ADDRESS' | '__MALLOC_HOOK_VOLATILE' | 'weak_function' | 'CACHEABLE' | 'ALIGN_STACK' | 'CALLBACK' | 'WINAPI' | 'ATTRIBUTE_MALLOC' | 'GCALIGNED' | 'WINDOW_SYSTEM_RETURN' | macro PArgExprs rank => -3 | 'ATTRIBUTE_MAY_ALIAS' | '__attribute__' '(' '(' ArgExprs ')' ')' | 'EMACS_NOEXCEPT'
+Attr ::= restrict | '__THROW' | '_Restrict_' | '__restrict' | extern | 'inline' | 'INLINE' | 'NO_INLINE' | '_Noreturn' | static | 'ATTRIBUTE_UNUSED' | 'const' | 'auto' | register | 'ATTRIBUTE_CONST' | 'ATTRIBUTE_UNUSED' | 'EXTERNALLY_VISIBLE' | alignas Expr | const | signed | unsigned | short | long | volatile | auto | 'asm' PExpr | '__cdecl' | '_cdecl' | 'UNINIT' | 'ATTRIBUTE_NO_SANITIZE_ADDRESS' | '__MALLOC_HOOK_VOLATILE' | 'weak_function' | 'CACHEABLE' | 'ALIGN_STACK' | 'CALLBACK' | 'WINAPI' | 'ATTRIBUTE_MALLOC' | 'GCALIGNED' | 'WINDOW_SYSTEM_RETURN' | macro PArgExprs rank => -3 | 'ATTRIBUTE_MAY_ALIAS' | '__attribute__' '(' '(' ArgExprs ')' ')' | 'EMACS_NOEXCEPT' | 'ATTRIBUTE_NO_SANITIZE_UNDEFINED'
 
 PArgExprs ::= '(' ArgExprs ')'
 ArgExprs ::= Empty | ArgExpr | ArgExpr ',' ArgExprs
@@ -895,9 +895,6 @@ ArgExpr ::= Expr
 
 PArgs ::= '(' Args ')'
 Args ::= Empty | Arg | Arg ',' Args | Args ',' '...'
-
-# Args = "ptrdiff_t $ownsym, Lisp_Object *$symbol" -> "Lisp_Handle_Vector $symbol"
-# Args = ["ptrdiff_t $ownsym, Lisp_Object *$symbol", "Args"]
 
 BBody ::= '{' Stmts '}'
 
@@ -1307,11 +1304,6 @@ use Digest::MD5 qw(md5_hex);
 
 my %value_keep;
 my %value_strings;
-
-my $grammar = Marpa::R2::Scanless::G->new({
-    source => \$EmacsCGrammar::dsl,
-    bless_package => "C",
-                                          });
 
 my %grammars_by_token;
 my %memo;
@@ -2042,7 +2034,7 @@ sub step {
 
             $fork->step($pc+1);
 
-            next;
+            last;
         } elsif ($str =~ /^nomatch +(.*?)$/) {
             my $fork = $self;
             my $pattern = $1;
@@ -2061,7 +2053,7 @@ sub step {
 
             $fork->step($pc+1);
 
-            next;
+            last;
         } elsif ($str =~ /^contains +(.*?)$/) {
             my @comps = split("#", $1);
             die if (@comps <= 1);
@@ -2079,14 +2071,17 @@ sub step {
             }
 
             my @nodes = $val->nodes($type);
+            my $succ;
 
             for my $node (@nodes) {
                 if ($node->type eq $type and
                     $parsed->match($node->ctree, $self)) {
+                    $succ = 1;
                     $self->step($pc + 1);
                 }
             }
 
+            last if $succ;
             next;
         } elsif ($str =~ /^has +(.*?)$/) {
             my @comps = split("#", $1);
@@ -2105,14 +2100,17 @@ sub step {
             }
 
             my @nodes = (@{$val->ctree->{children}});
+            my $succ;
 
             for my $node (@nodes) {
                 if ($node->type eq $type and
                     $parsed->match($node->ctree, $self)) {
+                    $succ = 1;
                     $self->step($pc + 1);
                 }
             }
 
+            last if $succ;
             next;
         } elsif ($str =~ /^ *element (.*?): (.*?)$/) {
             my ($index, $pattern) = ($1, $2);
@@ -2150,6 +2148,7 @@ sub step {
             };
 
             my $nodes = $val->ctree;
+            my $succ;
             for (my $i = 0; $nodes; $i++, $nodes = $cdr->($nodes)) {
                 my $node = $car->($nodes);
                 next unless $node;
@@ -2161,10 +2160,12 @@ sub step {
                             next;
                         }
                     }
+                    $succ = 1;
                     $self->step($pc + 1);
                 }
             }
 
+            last if $succ;
             next;
         } elsif ($str =~ /^ *count (.*?)$/) {
             my ($count) = ($1);
@@ -2201,7 +2202,7 @@ sub step {
             }
             $self->step($pc + 1);
 
-            next;
+            last;
         } elsif ($str =~ /^includes +(.*?): (.*?)$/) {
             my ($runvar, $expr) = ($1, $2);
             my $ctype;
@@ -2237,6 +2238,7 @@ sub step {
                 push @l2, $car->($tree);
             }
 
+            my $succ;
             if (@l1 <= @l2) {
               outer:
                 for (my $i = 0; $i <= @l2 - @l1; $i++) {
@@ -2245,11 +2247,13 @@ sub step {
                     }
                     $self->set($runvar, (
                                    EmacsCTree->new_from_rawtree(bless([$l2[$i]{start}, ($l2[$i+$#l1]{start}-$l2[$i]{start}) + $l2[$i+$#l1]{length}, undef], "C::Dummy"))));
+                    $succ = 1;
                     $self->step($pc + 1);
                     next;
                 }
             }
 
+            last if $succ;
             next;
         } elsif ($str =~ /^ *<- ?(.*?)$/) {
             my @format;
@@ -2284,7 +2288,7 @@ sub step {
             $self->{replcb}->($repl);
             $self->step($pc + 1);
 
-            next;
+            last;
         } elsif ($str =~ /^ *<<- *(.*)$/) {
             my @format;
             eval {
@@ -2320,7 +2324,7 @@ sub step {
             $self->{replcb}->($repl);
             $self->step($pc + 1);
 
-            next;
+            last;
         } elsif ($str =~ /^ *pre-chunk (.*)$/) {
             my @format = $self->parse_format($1);
             next if !@format;
@@ -2343,8 +2347,9 @@ sub step {
             $str =~ s/ ?; ?/;/g;
 
             $self->{cb}->{prechunk}->($str);
+            $self->step($pc + 1);
 
-            next;
+            last;
         } elsif ($str =~ /^ *set(-or)? ([^#]*?)(#.*?): (.*)$/) {
             my ($or, $type, $var, $val) = ($1, $2, $3, $4);
             my $parsed;
@@ -2363,7 +2368,7 @@ sub step {
 
             $self->step($pc + 1);
 
-            next;
+            last;
         } elsif ($str =~ /^ *equate(-or)? ([^#]*?)(#.*?): (.*)$/) {
             my ($or, $type, $var, $var2) = ($1, $2, $3, $4);
 
@@ -2371,7 +2376,7 @@ sub step {
 
             $self->step($pc + 1);
 
-            next;
+            last;
         } elsif ($str =~ /^ *unique: ([^#]*?)(#.*?)$/) {
             my ($type, $var) = ($1, $2);
             my $counter;
@@ -2404,10 +2409,11 @@ sub step {
 
             $self->step($pc + 1);
 
-            next;
+            last;
         } elsif ($str =~ /^ *free/) {
             if ($self->{cb}->{free}->($val)) {
                 $self->step($pc + 1);
+                last;
             }
         } elsif ($str =~ /^ *dump/) {
             $Data::Dumper::Sortkeys = 1;
@@ -2415,17 +2421,17 @@ sub step {
             warn Dumper($val) if $val->debug =~ /LHH.*x/;
             $self->step($pc + 1);
 
-            next;
+            last;
         } elsif ($str =~ /^ *debug/) {
             warn $val->debug;
             $self->step($pc + 1);
 
-            next;
+            last;
         } elsif ($str =~ /^ *flush/) {
             $self->{cb}->{flush}->();
             $self->step($pc + 1);
 
-            next;
+            last;
         } elsif ($str =~ /^ *print (.*?)$/) {
             my @format = $self->parse_format($1);
             next if !@format;
@@ -2450,7 +2456,7 @@ sub step {
             $self->print($str . "\n");
 
             $self->step($pc + 1);
-            next;
+            last;
         } elsif ($str =~ /^ *check (.*?)$/) {
             my @format = $self->parse_format($1);
             next if !@format;
@@ -2476,6 +2482,7 @@ sub step {
             if (eval($str)) {
                 # warn "yes";
                 $self->step($pc + 1);
+                last;
             } else {
                 # warn "no";
             }
@@ -2494,7 +2501,7 @@ sub step {
 
             $self->step($pc + 1);
 
-            next;
+            last;
         } elsif ($str =~ /^(.*?) ([a-zA-Z]*(#[a-zA-Z]*)+)$/ &&
                  $self->{defns}->{$1}) {
             my $defn = $self->{defns}->{$1};
@@ -2787,6 +2794,11 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#attr matches UNINIT]] ||
 [[#attr matches auto]]
 [[#attr <-]]
+
+[[# AUTO-0006-0001#]]:
+[[# contains Type#type]]
+[[#type matches union specbinding]]
+[[#type <- struct specbinding]]
 
 [[# AUTO-0007-0001 #]]:
 [[# contains Symbol#symbol]]
@@ -3872,7 +3884,7 @@ my $global_defns;
 sub read_globals {
     my ($cu) = @_;
     my $global_text = "";
-    for my $path ("chunkl.all") {
+    for my $path ("all.chunkl") {
         $global_text .= read_file($path);
     }
 
@@ -3964,6 +3976,12 @@ sub perform_replacements {
     return $chunk;
 }
 
+sub line_count {
+    my ($str) = @_;
+    $str =~ s/[^\n]//g;
+    return length($str);
+}
+
 my $cu;
 
 $cu = $ARGV[0] if ($ARGV[0]);
@@ -3982,9 +4000,11 @@ use File::Slurp qw(read_file write_file);
 my @md5s;
 
 my $gstarttime = time;
+my $line = 1;
 for my $chunk (@chunks) {
     my $counter = 10;
     my $md5 = md5_hex($chunk);
+    my $lline = line_count($chunk);
     push @md5s, $md5;
     my $dir;
     if ($defns == $defns_main) {
@@ -3994,6 +4014,7 @@ for my $chunk (@chunks) {
     }
     if (!$nomd5 && ($dir ne "") && -e "chunkl-cache/$dir/$md5") {
         print read_file("chunkl-cache/$dir/$md5");
+        $line += $lline;
         next;
     }
     $chunk =~ s/^(\#[ \t]*include[ \t]+)TERM_HEADER.*$/$1\"gtkutil.h.hh\"/mg;
@@ -4051,14 +4072,22 @@ for my $chunk (@chunks) {
 
         $chunk = perform_replacements($chunk, @repl);
     };
-    warn "$cu:\n" . $@ if $@;
+    if ($@) {
+        warn "$cu:\n" . $@ if $@;
+        mkdir("chunkl-cache/warnings");
+        write_file("chunkl-cache/warnings/$md5", "$@");
+    }
 
     if ($defns == $defns_header) {
         mkdir("chunkl-cache/header");
         write_file("chunkl-cache/header/$md5", "$output\n");
         print "$output";
+        $line += $lline;
         next;
     }
+
+    $chunk = "#line $line \"$cu\"\n" . $chunk;
+    $line += $lline;
 
     my %prechunks;
     for my $prechunk (@prechunks) {
@@ -4071,8 +4100,9 @@ for my $chunk (@chunks) {
 
     print $chunk;
 
+
     mkdir("chunkl-cache/$dir");
-    write_file("chunkl-cache/$dir/$md5", $chunk) if $cu && !$nomd5;
+    write_file("chunkl-cache/$dir/$md5", $chunk) if $cu;
 }
 
 if ($cu) {
