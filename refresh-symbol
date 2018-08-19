@@ -1,0 +1,9 @@
+for WORD; do
+    pushd src/chunkl-cache/main
+    grep -l "$WORD" * | while read; do
+         rm "$REPLY";
+         rm ../header/"$REPLY";
+    done
+    popd
+    grep -l "$WORD" src/*.h.hh src/*.h.chunkl src/*.c.cc src/chunkl.all | xargs rm
+done
