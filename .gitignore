@@ -297,3 +297,4 @@ chunkl.all
 /lwlib/Makefile
 /nextstep/Makefile
 /Makefile
+/src/all.chunkl
