@@ -875,13 +875,13 @@ extern ELisp_Struct_Value lispsym[1221];
 extern unsigned elisp_symbol_trapped_write_value(ELisp_Handle symbol);
 
 INLINE int
-(SYMBOL_TRAPPED_WRITE_VALUE) (ELisp_Handle sym)
+(SYMBOL_TRAPPED_WRITE_VALUE) (Lisp_Object sym)
 {
   return elisp_symbol_trapped_write_value(sym);
 }
 
 INLINE ELisp_Return_Value
-make_lisp_symbol (ELisp_Handle sym)
+make_lisp_symbol (Lisp_Object sym)
 {
   return sym;
 }
@@ -1298,6 +1298,7 @@ struct Lisp_Cons
   } u;
 };
 verify (alignof (struct Lisp_Cons) % GCALIGNMENT == 0);
+
 INLINE bool
 NILP (ELisp_Handle x)
 {
@@ -1452,29 +1453,34 @@ STRING_MULTIBYTE (ELisp_Handle str)
 /* Convenience functions for dealing with Lisp strings.  */
 
 extern void *elisp_string_data(ELisp_Handle);
+
 INLINE unsigned char *
-SDATA (ELisp_Handle string)
+SDATA (Lisp_Object string)
 {
   return (unsigned char *)elisp_string_data (string);
 }
+
 INLINE char *
-SSDATA (ELisp_Handle string)
+SSDATA (Lisp_Object string)
 {
   /* Avoid "differ in sign" warnings.  */
   return (char *)elisp_string_data (string);
 }
+
 INLINE unsigned char
-SREF (ELisp_Handle string, ptrdiff_t index)
+SREF (Lisp_Object string, ptrdiff_t index)
 {
   return SDATA (string)[index];
 }
+
 INLINE void
-SSET (ELisp_Handle string, ptrdiff_t index, unsigned char c_new)
+SSET (Lisp_Object string, ptrdiff_t index, unsigned char c_new)
 {
   SDATA (string)[index] = c_new;
 }
+
 INLINE ptrdiff_t
-SCHARS (ELisp_Handle string)
+SCHARS (Lisp_Object string)
 {
   ptrdiff_t nchars = elisp_string_size (string);
   eassume (0 <= nchars);
@@ -1485,7 +1491,7 @@ extern ptrdiff_t elisp_string_bytes(ELisp_Handle);
 extern ptrdiff_t elisp_string_chars(ELisp_Handle);
 
 INLINE ptrdiff_t
-SBYTES (ELisp_Handle string)
+SBYTES (Lisp_Object string)
 {
   ptrdiff_t size_byte = elisp_string_size_byte(string);
   if (size_byte < 0)
@@ -1493,7 +1499,7 @@ SBYTES (ELisp_Handle string)
   return elisp_string_size_byte(string);
 }
 INLINE void
-STRING_SET_CHARS (ELisp_Handle string, ptrdiff_t newsize)
+STRING_SET_CHARS (Lisp_Object string, ptrdiff_t newsize)
 {
   /* This function cannot change the size of data allocated for the
      string when it was created.  */
@@ -2098,9 +2104,9 @@ SET_SYMBOL_FWD (struct Lisp_Symbol *sym, union Lisp_Fwd *v)
   sym->u.s.val.fwd = v;
 }
 
-extern ELisp_Return_Value elisp_symbol_name (ELisp_Handle);
+extern Lisp_Object elisp_symbol_name (Lisp_Object);
 
-INLINE ELisp_Return_Value
+INLINE Lisp_Object
 XSYMBOL_NAME (ELisp_Handle a)
 {
   return elisp_symbol_name (a);
@@ -3326,19 +3332,19 @@ extern void elisp_symbol_set_next(ELisp_Handle a, ELisp_Handle b);
    or pointer slots of struct Lisp_Symbol.  */
 
 INLINE void
-set_symbol_function (ELisp_Handle sym, ELisp_Handle function)
+set_symbol_function (Lisp_Object sym, Lisp_Object function)
 {
   elisp_symbol_set_function (sym, function);
 }
 
 INLINE void
-set_symbol_plist (ELisp_Handle sym, ELisp_Handle plist)
+set_symbol_plist (Lisp_Object sym, Lisp_Object plist)
 {
   elisp_symbol_set_plist (sym, plist);
 }
 
 INLINE void
-set_symbol_name (ELisp_Handle sym, ELisp_Handle plist)
+set_symbol_name (Lisp_Object sym, Lisp_Object plist)
 {
   elisp_symbol_set_name (sym, plist);
 }

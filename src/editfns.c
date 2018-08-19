@@ -4316,7 +4316,7 @@ styled_format (ptrdiff_t nargs, Lisp_Object *args, bool message)
      which is true if any of the inputs is one.  */
   bool multibyte = multibyte_format;
   for (ptrdiff_t i = 1; !multibyte && i < nargs; i++)
-    if (STRINGP (args[i]) && STRING_MULTIBYTE (args[i]))
+    if (STRINGP (args[i]) && STRING_MULTIBYTE (args[i])) /*1*/
       multibyte = true;
 
   int quoting_style = message ? text_quoting_style () : -1;

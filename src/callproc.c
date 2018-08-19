@@ -460,7 +460,7 @@ call_process (ptrdiff_t nargs, Lisp_Object *args, int filefd,
       argument_coding.dst_multibyte = 0;
       for (i = 4; i < nargs; i++)
 	{
-	  argument_coding.src_multibyte = STRING_MULTIBYTE (args[i]);
+	  argument_coding.src_multibyte = STRING_MULTIBYTE (args[i]);/*1*/
 	  if (CODING_REQUIRE_ENCODING (&argument_coding))
 	    /* We must encode this argument.  */
 	    args[i] = encode_coding_string (&argument_coding, args[i], 1);

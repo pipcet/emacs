@@ -300,8 +300,10 @@ package EmacsCGrammar;
     FT_UInt
     FcResult
     FT_Face
+    FT_Vector
     OTF_GSUB_GPOS
     MFLTGlyphString
+    MFLTGlyphAdjustment
     MFLTFont
     MFLTOtfSpec
     OTF
@@ -4007,6 +4009,7 @@ for my $chunk (@chunks) {
     my $md5 = md5_hex($chunk);
     my $lline = line_count($chunk);
     push @md5s, $md5;
+    #print "#line $line \"$cu\"\n";
     my $dir;
     if ($defns == $defns_main) {
         $dir = "main";
@@ -4074,7 +4077,7 @@ for my $chunk (@chunks) {
         $chunk = perform_replacements($chunk, @repl);
     };
     if ($@) {
-        warn "$cu:\n" . $@ if $@;
+        warn "$cu, $line lines in:\n" . $@ if $@;
         mkdir("chunkl-cache/warnings");
         write_file("chunkl-cache/warnings/$md5", "$@");
     }
@@ -4087,7 +4090,6 @@ for my $chunk (@chunks) {
         next;
     }
 
-    $chunk = "#line $line \"$cu\"\n" . $chunk;
     $line += $lline;
 
     my %prechunks;
