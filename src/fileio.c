@@ -5272,9 +5272,9 @@ a_write (int desc, Lisp_Object string, ptrdiff_t pos,
   ptrdiff_t nextpos;
   ptrdiff_t lastpos = pos + nchars;
 
-  while (NILP (annot.get_element(0)) || CONSP (annot.get_element(0)))
+  while (NILP (annot.ref(0)) || CONSP (annot.ref(0)))
     {
-      tem = Fcar_safe (Fcar (annot.get_element(0)));
+      tem = Fcar_safe (Fcar (annot.ref(0)));
       nextpos = pos - 1;
       if (FIXNUMP (tem))
 	nextpos = XFIXNAT (tem);
@@ -5292,13 +5292,13 @@ a_write (int desc, Lisp_Object string, ptrdiff_t pos,
 	  pos = nextpos;
 	}
       /* Output the annotation.  */
-      tem = Fcdr (Fcar (annot.get_element(0)));
+      tem = Fcdr (Fcar (annot.ref(0)));
       if (STRINGP (tem))
 	{
 	  if (!e_write (desc, tem, 0, SCHARS (tem), coding))
 	    return 0;
 	}
-      annot.set( Fcdr (annot.get_element(0)));
+      annot.set( Fcdr (annot.ref(0)));
     }
   return 1;
 }

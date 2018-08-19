@@ -2412,7 +2412,7 @@ add_window_to_list (struct window *w, void *user_data)
   Lisp_Object *list = (ELisp_Value *)user_data;
   Lisp_Object window;
   XSETWINDOW (window, w);
-  *list = Fcons (window, list.get_element(0));
+  *list = Fcons (window, list.ref(0));
   return true;
 }
 
@@ -2529,7 +2529,7 @@ candidate_window_p (Lisp_Object window, Lisp_Object owindow,
    MINIBUF, and ALL_FRAMES.  */
 
 static void
-decode_next_window_args (Lisp_Object *window, Lisp_Object *minibuf, Lisp_Object *all_frames) /*1*/
+decode_next_window_args (Lisp_Object *window, Lisp_Object *minibuf, Lisp_Object *all_frames)
 {
   struct window *w = decode_live_window (*window);
 
@@ -2538,9 +2538,9 @@ decode_next_window_args (Lisp_Object *window, Lisp_Object *minibuf, Lisp_Object 
   *window = tem;
   /* MINIBUF nil may or may not include minibuffers.  Decide if it
      does.  */
-  if (NILP (minibuf.get_element(0)))
+  if (NILP (minibuf.ref(0)))
     minibuf.set(minibuf_level ? ELisp_Return_Value(minibuf_window) : Qlambda);
-  else if (!EQ (minibuf.get_element(0), Qt))
+  else if (!EQ (minibuf.ref(0), Qt))
     minibuf.set(Qlambda);
 
   /* Now *MINIBUF can be t => count all minibuffer windows, `lambda'
@@ -2548,17 +2548,17 @@ decode_next_window_args (Lisp_Object *window, Lisp_Object *minibuf, Lisp_Object 
      active one) to count.  */
 
   /* ALL_FRAMES nil doesn't specify which frames to include.  */
-  if (NILP (all_frames.get_element(0)))
+  if (NILP (all_frames.ref(0)))
     all_frames.set((!EQ (*minibuf, Qlambda)
 	 ? ELisp_Return_Value(FRAME_MINIBUF_WINDOW (XFRAME (w->frame)))
                     : Qnil));
-  else if (EQ (all_frames.get_element(0), Qvisible))
+  else if (EQ (all_frames.ref(0), Qvisible))
     ;
-  else if (EQ (all_frames.get_element(0), make_fixnum (0)))
+  else if (EQ (all_frames.ref(0), make_fixnum (0)))
     ;
-  else if (FRAMEP (all_frames.get_element(0)))
+  else if (FRAMEP (all_frames.ref(0)))
     ;
-  else if (!EQ (all_frames.get_element(0), Qt))
+  else if (!EQ (all_frames.ref(0), Qt))
     all_frames.set(Qnil);
 }
 

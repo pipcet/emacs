@@ -397,10 +397,6 @@ package EmacsCGrammar;
     U32TYPE
 
     ELisp_Pointer
-    ELisp_Pointer_Value
-    ELisp_Pointer_Handle
-    ELisp_Pointer_Struct_Value
-    ELisp_Pointer_Return_Value
     ELisp_Return_Value
     ELisp_Value
     ELisp_Struct_Value
@@ -891,7 +887,7 @@ RetType ::= Type
 
 Attrs ::= Empty | Attr Attrs
 
-Attr ::= restrict | '__THROW' | '_Restrict_' | '__restrict' | extern | 'inline' | 'INLINE' | 'NO_INLINE' | '_Noreturn' | static | 'ATTRIBUTE_UNUSED' | 'const' | 'auto' | register | 'ATTRIBUTE_CONST' | 'ATTRIBUTE_UNUSED' | 'EXTERNALLY_VISIBLE' | alignas Expr | const | signed | unsigned | short | long | volatile | auto | 'asm' PExpr | '__cdecl' | '_cdecl' | 'UNINIT' | 'ATTRIBUTE_NO_SANITIZE_ADDRESS' | '__MALLOC_HOOK_VOLATILE' | 'weak_function' | 'CACHEABLE' | 'ALIGN_STACK' | 'CALLBACK' | 'WINAPI' | 'ATTRIBUTE_MALLOC' | 'GCALIGNED' | 'WINDOW_SYSTEM_RETURN' | macro PArgExprs rank => -3 | 'ATTRIBUTE_MAY_ALIAS' | '__attribute__' '(' '(' ArgExprs ')' ')' | 'EMACS_NOEXCEPT' | 'ATTRIBUTE_NO_SANITIZE_UNDEFINED'
+Attr ::= restrict | '__THROW' | '_Restrict_' | '__restrict' | extern | 'inline' | 'INLINE' | 'NO_INLINE' | '_Noreturn' | static | 'ATTRIBUTE_UNUSED' | 'const' | 'auto' | register | 'ATTRIBUTE_CONST' | 'ATTRIBUTE_UNUSED' | 'EXTERNALLY_VISIBLE' | alignas Expr | const | signed | unsigned | short | long | volatile | auto | 'asm' PExpr | '__cdecl' | '_cdecl' | 'UNINIT' | 'ATTRIBUTE_NO_SANITIZE_ADDRESS' | '__MALLOC_HOOK_VOLATILE' | 'weak_function' | 'CACHEABLE' | 'ALIGN_STACK' | 'CALLBACK' | 'WINAPI' | 'ATTRIBUTE_MALLOC' | 'GCALIGNED' | 'WINDOW_SYSTEM_RETURN' | macro PArgExprs rank => -3 | 'ATTRIBUTE_MAY_ALIAS' | '__attribute__' '(' '(' ArgExprs ')' ')' | 'EMACS_NOEXCEPT'
 
 PArgExprs ::= '(' ArgExprs ')'
 ArgExprs ::= Empty | ArgExpr | ArgExpr ',' ArgExprs
@@ -1311,6 +1307,11 @@ use Digest::MD5 qw(md5_hex);
 
 my %value_keep;
 my %value_strings;
+
+my $grammar = Marpa::R2::Scanless::G->new({
+    source => \$EmacsCGrammar::dsl,
+    bless_package => "C",
+                                          });
 
 my %grammars_by_token;
 my %memo;
@@ -2685,10 +2686,7 @@ my $defns_header = Parser::parse_defns(<<'EOF', 0);
 [[#fundef#args element Expr#n: Arg#arg]]
 [[#arg matches (__type__)Lisp_Object]] ||
 [[#arg matches (__type__)Lisp_Object Symbol#]] ||
-[[#arg matches register (__type__)Lisp_Object Symbol#]] ||
-[[#arg matches (__type__)Lisp_Object *]] ||
-[[#arg matches (__type__)Lisp_Object *Symbol#]] ||
-[[#arg matches register (__type__)Lisp_Object *Symbol#]]
+[[#arg matches register (__type__)Lisp_Object Symbol#]]
 [[# print $accepts{#fundef#symbol}[#n] = "Lisp_Object"; #CU;]]
 
 [[# AUTO-07450 #]]:
@@ -2721,12 +2719,6 @@ my $defns_header = Parser::parse_defns(<<'EOF', 0);
 [[#stmt matches EXFUN(Symbol#symbol, Expr#n);]]
 [[#n check "#n" =~ /^[0-9]+$/]]
 [[#symbol print for my $i (0 .. (#n-1)) { $accepts{#symbol}[$i] = "Lisp_Object"; } $returns{#symbol} = "Lisp_Object"; #CU; ]]
-
-[[# AUTO-0960 #]]:
-[[# contains TLS#stmt]]
-[[#stmt matches EXFUN(Symbol#symbol, Expr#n);]]
-[[#n check "#n" =~ /MANY/]]
-[[#symbol print $accepts{#symbol}[0] = "Lisp_Object"; $returns{#symbol} = "Lisp_Object"; #CU; ]]
 EOF
 
 my $defns_main = Parser::parse_defns(<<'EOF', 0);
@@ -3005,90 +2997,84 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#vec <- #vector.vec]]
 
 [[# AUTO-0080 #]]:
+[[# contains Stmt#decl]]
+[[#decl matches (__type__)Lisp_Object *Symbol#symbol;]]
+[[#decl <- (__type__)ELisp_Pointer #symbol;]]
+
+[[# AUTO-0083 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#body contains Stmt#decl]]
 [[#decl matches (__type__)Lisp_Object const*Symbol#symbol;]]
-[[#decl <- (__type__)ELisp_Value #symbol;]]
-
-[[# AUTO-0081 #]]:
-[[# FunctionDefinition #fundef]]
-[[#fundef#body contains Stmt#decl]]
-[[#decl matches (__type__)Lisp_Object *Symbol#symbol;]]
-[[#decl <- (__type__)ELisp_Value #symbol;]]
-
-[[# AUTO-0083 #]]:
-[[# contains Stmt#decl]]
-[[#decl matches (__type__)Lisp_Object *Symbol#symbol;]]
-[[#decl <- (__type__)ELisp_Struct_Value #symbol;]]
+[[#decl <- (__type__)ELisp_Pointer #symbol;]]
 
 [[# AUTO-0085 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#body contains Stmt#decl]]
 [[#decl matches (__type__)Lisp_Object *Symbol#symbol = ((__type__)Lisp_Object *)Expr#rhs;]]
-[[#decl <- (__type__)ELisp_Value #symbol = elisp_pointer_ovl(#rhs, -1);]]
+[[#decl <- (__type__)ELisp_Pointer #symbol = ((__type__)ELisp_Pointer)#rhs;]]
 
 [[# AUTO-0086 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#body contains Stmt#decl]]
 [[#decl matches (__type__)Lisp_Object const *Symbol#symbol = ((__type__)Lisp_Object *)Expr#rhs;]]
-[[#decl <- (__type__)ELisp_Value #symbol = elisp_pointer_ovl(#rhs, -1);]]
+[[#decl <- (__type__)ELisp_Pointer #symbol = ((__type__)ELisp_Pointer)#rhs;]]
 
 [[# AUTO-0090 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#body contains Expr#cast]]
 [[#cast matches ((__type__)Lisp_Object *)Expr#expr]]
-[[#cast <- elisp_pointer_ovl(#rhs, -1)]]
+[[#cast <- ((__type__)ELisp_Pointer)#expr]]
 
 [[# AUTO-0093 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#body contains Stmt#arg]]
 [[#arg matches (__type__)Lisp_Object *Symbol#symbol;]]
-[[#arg <- (__type__)ELisp_Value #symbol;]]
+[[#arg <- (__type__)ELisp_Pointer #symbol;]]
 
 [[# AUTO-0095 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#args contains Arg#arg]]
 [[#arg matches (__type__)Lisp_Object *Symbol#symbol]]
-[[#arg <- (__type__)ELisp_Handle #symbol]]
+[[#arg <- (__type__)ELisp_Pointer #symbol]]
 
 [[# AUTO-0096 #]]:
 [[# FunTypeD #funtype]]
 [[#funtype#args contains Arg#arg]]
 [[#arg matches (__type__)Lisp_Object *Symbol#symbol]]
-[[#arg <- (__type__)ELisp_Handle #symbol]]
+[[#arg <- (__type__)ELisp_Pointer #symbol]]
 
 [[# AUTO-0097 #]]:
 [[# FunTypeD #funtype]]
 [[#funtype#args contains Arg#arg]]
 [[#arg matches Type#type *]]
 [[#type matches (__type__)Lisp_Object]]
-[[#arg <- (__type__)ELisp_Handle]]
+[[#arg <- (__type__)ELisp_Pointer]]
 
 [[# AUTO-0098 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#args contains Arg#arg]]
 [[#arg matches Type#type *]]
 [[#type matches (__type__)Lisp_Object]]
-[[#arg <- (__type__)ELisp_Handle]]
+[[#arg <- (__type__)ELisp_Pointer]]
 
 [[# AUTO-0099 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#args contains Arg#arg]]
 [[#arg matches Type#type **]]
 [[#type matches (__type__)Lisp_Object]]
-[[#arg <- (__type__)ELisp_Handle *]]
+[[#arg <- (__type__)ELisp_Pointer *]]
 
 [[# AUTO-0100 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#body contains Stmt#decl]]
 [[#decl matches (__type__)Lisp_Object *Symbol#symbol = Expr#rhs;]]
-[[#decl <- (__type__)ELisp_Value #symbol; #symbol = elisp_pointer_ovl(#rhs, -1);]]
+[[#decl <- (__type__)ELisp_Pointer #symbol = #rhs;]]
 
 [[# AUTO-0101 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#body contains Stmt#decl]]
 [[#decl matches (__type__)Lisp_Object *Symbol#symbol;]]
-[[#decl <- (__type__)ELisp_Value #symbol;]]
+[[#decl <- (__type__)ELisp_Pointer #symbol;]]
 
 [[# AUTO-0065 #]]:
 [[# FunctionDefinition #fundef]]
@@ -3269,25 +3255,25 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 
 [[# AUTO-03002 #]]:
 [[# contains Stmt#stmt]]
-[[#stmt matches (__type__)ELisp_Value Symbol#symbol;]]
+[[#stmt matches (__type__)ELisp_Pointer Symbol#symbol;]]
 [[# contains Symbol#symbolb]]
 [[#symbolb matches #symbol]]
-[[# set Type#symbolb#type: (__type__)ELisp_Value]]
+[[# set Type#symbolb#type: (__type__)ELisp_Pointer]]
 
 [[# AUTO-030021 #]]:
 [[# contains Stmt#stmt]]
-[[#stmt matches (__type__)ELisp_Value Symbol#symbol = Expr#rhs;]]
+[[#stmt matches (__type__)ELisp_Pointer Symbol#symbol = Expr#rhs;]]
 [[# contains Symbol#symbolb]]
 [[#symbolb matches #symbol]]
-[[# set Type#symbolb#type: (__type__)ELisp_Value]]
+[[# set Type#symbolb#type: (__type__)ELisp_Pointer]]
 
 [[# AUTO-03003 #]]:
 [[# FunctionDefinition #fundef]]
 [[#fundef#args contains Arg#arg]]
-[[#arg matches (__type__)ELisp_Handle Symbol#symbol]]
+[[#arg matches (__type__)ELisp_Pointer Symbol#symbol]]
 [[#fundef contains Symbol#symbolb]]
 [[#symbolb matches #symbol]]
-[[# set Type#symbolb#type: (__type__)ELisp_Handle]]
+[[# set Type#symbolb#type: (__type__)ELisp_Pointer]]
 
 [[# AUTO-03004 #]]:
 [[# contains Stmt#stmt]]
@@ -3348,15 +3334,8 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[# contains Expr#expr]]
 [[#expr matches Expr#a = Expr#b]]
 [[#a matches *Expr#ptr]]
-[[#ptr#type matches (__type__)ELisp_Value]]
-[[#expr <- #ptr.set_element(0, #b)]]
-
-[[# AUTO-03065 #]]:
-[[# contains Expr#expr]]
-[[#expr matches Expr#a = Expr#b]]
-[[#a matches *Expr#ptr]]
-[[#ptr#type matches (__type__)ELisp_Handle]]
-[[#expr <- #ptr.set_element(0, #b)]]
+[[#ptr#type matches (__type__)ELisp_Pointer]]
+[[#expr <- #ptr.set(#b)]]
 
 [[# AUTO-0307 #]]:
 [[# contains Expr#expr]]
@@ -3374,65 +3353,26 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#a nomatch Expr# = Expr#]]
 [[#b nomatch Expr# = Expr#]]
 [[#a matches Expr#ptr[Expr#index] ]]
-[[#ptr#type matches (__type__)ELisp_Value]]
-[[#expr <- #ptr.set_element(#index, #b)]]
-
-[[# AUTO-03085 #]]:
-[[# contains Expr#expr]]
-[[#expr matches Expr#a = Expr#b]]
-[[#a nomatch Expr# = Expr#]]
-[[#b nomatch Expr# = Expr#]]
-[[#a matches Expr#ptr[Expr#index] ]]
-[[#ptr#type matches (__type__)ELisp_Handle]]
-[[#expr <- #ptr.set_element(#index, #b)]]
+[[#ptr#type matches (__type__)ELisp_Pointer]]
+[[#expr <- #ptr.sref(#index, #b)]]
 
 [[# AUTO-0309 #]]:
 [[# contains Expr#expr]]
 [[#expr matches Expr#ptr[Expr#index] ]]
-[[#ptr#type matches (__type__)ELisp_Value]]
-[[#expr <- #ptr.get_element(#index)]]
-
-[[# AUTO-03095 #]]:
-[[# contains Expr#expr]]
-[[#expr matches Expr#ptr[Expr#index] ]]
-[[#ptr#type matches (__type__)ELisp_Handle]]
-[[#expr <- #ptr.get_element(#index)]]
+[[#ptr#type matches (__type__)ELisp_Pointer]]
+[[#expr <- #ptr.ref(#index)]]
 
 [[# AUTO-0310 #]]:
 [[# contains Expr#expr]]
 [[#expr matches Expr#ptr.vec[Expr#index] ]]
-[[#ptr#type matches (__type__)ELisp_Value]]
-[[#expr <- #ptr.get_element(#index)]]
-
-[[# AUTO-03105 #]]:
-[[# contains Expr#expr]]
-[[#expr matches Expr#ptr.vec[Expr#index] ]]
-[[#ptr#type matches (__type__)ELisp_Handle]]
-[[#expr <- #ptr.get_element(#index)]]
+[[#ptr#type matches (__type__)ELisp_Pointer]]
+[[#expr <- #ptr.ref(#index)]]
 
 [[# AUTO-03108 #]]:
 [[# contains Expr#expr]]
 [[#expr matches *Expr#ptr ]]
-[[#ptr#type matches (__type__)ELisp_Value]]
-[[#expr <- #ptr.get_element(0)]]
-
-[[# AUTO-031085 #]]:
-[[# contains Expr#expr]]
-[[#expr matches &Expr#ptr ]]
-[[#ptr#type matches (__type__)ELisp_Value]]
-[[#expr <- elisp_pointer_values(&#ptr, 1)]]
-
-[[# AUTO-031086 #]]:
-[[# contains Expr#expr]]
-[[#expr matches &Expr#ptr ]]
-[[#ptr#type matches (__type__)ELisp_Struct_Value]]
-[[#expr <- elisp_pointer_struct_values(&#ptr, 1)]]
-
-[[# AUTO-03109 #]]:
-[[# contains Expr#expr]]
-[[#expr matches *Expr#ptr ]]
-[[#ptr#type matches (__type__)ELisp_Handle]]
-[[#expr <- #ptr.get_element(0)]]
+[[#ptr#type matches (__type__)ELisp_Pointer]]
+[[#expr <- #ptr.ref(0)]]
 
 [[# AUTO-0311 #]]:
 [[# contains Expr#expr]]
@@ -3440,19 +3380,19 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#expr matches sizeof(*#ptr)]] ||
 [[#expr matches sizeof #ptr[0])]] ||
 [[#expr matches sizeof(*#ptr[0])]]
-[[#ptr#type matches (__type__)ELisp_Value]]
+[[#ptr#type matches (__type__)ELisp_Pointer]]
 [[#expr <- sizeof((__type__)ELisp_Struct_Value)]]
 
 [[# AUTO-0312-REPEAT #]]:
 [[# contains Expr#expr]]
 [[#expr matches Expr#a = Expr#b]]
 [[#a matches Expr#ptr.vec[Expr#index] ]]
-[[#expr <- #ptr.vec.set_element(#index, #b)]]
+[[#expr <- #ptr.vec.sref(#index, #b)]]
 
 [[# AUTO-0314-REPEAT #]]:
 [[# contains Expr#expr]]
 [[#expr matches Expr#ptr.vec[Expr#index] ]]
-[[#expr <- #ptr.vec.get_element(#index)]]
+[[#expr <- #ptr.vec.ref(#index)]]
 
 [[# AUTO-0315-REPEAT #]]:
 [[# contains Expr#expr]]
@@ -3460,12 +3400,12 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#a nomatch Expr# = Expr#]]
 [[#b nomatch Expr# = Expr#]]
 [[#a matches Expr#ptr.vec[Expr#index] ]]
-[[#expr <- #ptr.vec.set_element(#index, #b)]]
+[[#expr <- #ptr.vec.sref(#index, #b)]]
 
 [[# AUTO-0316-REPEAT #]]:
 [[# contains Expr#expr]]
 [[#expr matches Expr#ptr.vec[Expr#index] ]]
-[[#expr <- #ptr.vec.get_element(#index)]]
+[[#expr <- #ptr.vec.ref(#index)]]
 
 [[# XXXAUTO-0248 #]]:
 [[# FunctionDefinition #fundef]]
@@ -3664,11 +3604,11 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[# AUTO-0750 #]]:
 [[# contains Stmt#decl]]
 [[#decl matches Type#type Symbol#symbol;]]
-[[#type matches (__type__)ELisp_Value]]
+[[#type matches (__type__)ELisp_Pointer]]
 [[# contains Expr#expr]]
 [[#expr matches SAFE_ALLOCA_LISP(#symbol, Expr#size)]]
 [[#type <- (__type__)ELisp_Dynvector]]
-[[#expr <- #symbol = elisp_array(#size)]]
+[[#expr <- #symbol.resize(#size)]]
 
 [[# AUTO-0799-FLUSH #]]:
 
@@ -3840,7 +3780,7 @@ my $defns_main = Parser::parse_defns(<<'EOF', 0);
 [[#symbol check "#symbol" !~ /XSET/]] ||
 [[#symbol check "#symbol" =~ /XSETC[AD]R/]] ||
 [[#n check #n > 0]]
-[[#argexpr matches Symbol#symbolb.vec.get_element(ArgExprs#)]]
+[[#argexpr matches Symbol#symbolb.vec.ref(ArgExprs#)]]
 [[#symbol check $main::accepts->{#symbol}[#n] eq "Lisp_Object"]]
 [[#argexpr free]]
 [[#argexpr <- LRH(#argexpr)]]
@@ -4132,7 +4072,7 @@ for my $chunk (@chunks) {
     print $chunk;
 
     mkdir("chunkl-cache/$dir");
-    write_file("chunkl-cache/$dir/$md5", $chunk) if $cu;
+    write_file("chunkl-cache/$dir/$md5", $chunk) if $cu && !$nomd5;
 }
 
 if ($cu) {

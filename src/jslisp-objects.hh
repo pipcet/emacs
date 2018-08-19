@@ -50,10 +50,6 @@ extern EMACS_INT js_hash_object (JS::HandleObject obj);
   void set_property (const char *prop, ELisp_Handle el);   \
   ELisp_Return_Value operator[](int32_t index) {           \
     return get_element(index);                             \
-  }                                                        \
-  ELisp_Return_Value operator=(int);                       \
-  bool operator==(int) {                                   \
-    return get_property("length").v.toInt32() != 0;        \
   }
 
 #define XCLASS(name, clas, c_class)                                     \
@@ -229,8 +225,6 @@ typedef Lisp_Value_Stack ELisp_Value;
 typedef JSReturnValue ELisp_Return_Value;
 
 extern ELisp_Return_Value elisp_cons (void);
-extern ELisp_Return_Value elisp_array (int32_t);
-extern void elisp_array_resize (ELisp_Handle, int32_t);
 
 class JSReturnValue {
 public:
@@ -409,7 +403,6 @@ public:
 #undef V
 };
 
-class ELisp_Pointer;
 class Lisp_Value_Heap {
 public:
   JSHeapValue v;
@@ -425,9 +418,6 @@ public:
   inline Lisp_Value_Heap(Lisp_Value_Handle const);
   //Lisp_Value(Lisp_Value &&) = delete;
 
-  Lisp_Value_Heap(ELisp_Struct_Value *);
-  Lisp_Value_Heap(ELisp_Pointer);
-  Lisp_Value_Heap(ELisp_Value *);
   operator JSReturnValue() {
     return v;
   }
@@ -530,11 +520,7 @@ public:
   FORWARDED
 #define V v.v
   XALL
-  ARRAY_PROPS
 #undef V
-  Lisp_Value_Stack(ELisp_Struct_Value *);
-  Lisp_Value_Stack(ELisp_Pointer);
-  Lisp_Value_Stack(ELisp_Value *);
 };
 
 class Lisp_Value_Handle {
@@ -566,7 +552,6 @@ public:
 #undef V
 };
 
-#if 1
 class ELisp_Pointer {
 public:
   enum {
@@ -713,7 +698,7 @@ public:
     asm volatile("ud2");
     emacs_abort();
   }
-  JSReturnValue set_element(ptrdiff_t off, JSReturnValue x)
+  JSReturnValue sref(ptrdiff_t off, JSReturnValue x)
   {
     switch (type) {
     case UNSAFE:
@@ -726,7 +711,7 @@ public:
     asm volatile("ud2");
     emacs_abort();
   }
-  JSReturnValue get_element(ptrdiff_t off)
+  JSReturnValue ref(ptrdiff_t off)
   {
     switch (type) {
     case UNSAFE:
@@ -826,19 +811,6 @@ public:
     emacs_abort();
   }
 };
-typedef ELisp_Pointer ELisp_Pointer_Value;
-typedef ELisp_Pointer ELisp_Pointer_Struct_Value;
-typedef ELisp_Pointer ELisp_Pointer_Handle;
-typedef ELisp_Pointer ELisp_Pointer_Return_Value;
-#else
-class ELisp_Pointer_Value {
-  ELisp_Value val;
-  ssize_t off;
-};
-
-class ELisp_Pointer_Handle {
-};
-#endif
 
 /* All the conversion functions. */
 
@@ -905,10 +877,3 @@ typedef Lisp_Value_Stack ELisp_Value;
 struct ELisp_Vector { ptrdiff_t n; ELisp_Pointer vec;};
 
 typedef struct ELisp_Vector ELisp_Vector_Handle;
-
-extern ELisp_Return_Value elisp_pointer_values(ELisp_Value *, ssize_t);
-extern ELisp_Return_Value elisp_pointer_struct_values(ELisp_Struct_Value *, ssize_t);
-extern ELisp_Return_Value elisp_pointer_ovl(int, ssize_t);
-extern ELisp_Return_Value elisp_pointer_ovl(ELisp_Value *, ssize_t);
-extern ELisp_Return_Value elisp_pointer_ovl(ELisp_Struct_Value *, ssize_t);
-extern ELisp_Return_Value elisp_pointer_ovl(ELisp_Return_Value *, ssize_t);

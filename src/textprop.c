@@ -137,8 +137,8 @@ validate_interval_range (Lisp_Object object, Lisp_Object *begin,
   ptrdiff_t searchpos;
 
   CHECK_STRING_OR_BUFFER (object);
-  ELisp_Value b = begin.get_element(0);
-  ELisp_Value e = end.get_element(0);
+  ELisp_Value b = begin.ref(0);
+  ELisp_Value e = end.ref(0);
   CHECK_FIXNUM_COERCE_MARKER (b);
   CHECK_FIXNUM_COERCE_MARKER (e);
   begin.set(b);
@@ -146,14 +146,14 @@ validate_interval_range (Lisp_Object object, Lisp_Object *begin,
 
   /* If we are asked for a point, but from a subr which operates
      on a range, then return nothing.  */
-  if (EQ (begin.get_element(0), end.get_element(0)) && begin != end)
+  if (EQ (begin.ref(0), end.ref(0)) && begin != end)
     return NULL;
 
-  if (XFIXNUM (begin.get_element(0)) > XFIXNUM (end.get_element(0)))
+  if (XFIXNUM (begin.ref(0)) > XFIXNUM (end.ref(0)))
     {
       Lisp_Object n;
-      n = begin.get_element(0);
-      begin.set(end.get_element(0));
+      n = begin.ref(0);
+      begin.set(end.ref(0));
       end.set(n);
     }
 

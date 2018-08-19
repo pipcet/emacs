@@ -5422,25 +5422,5 @@ This function is called from lisp/Makefile and leim/Makefile."
     (setq file (concat (substring file 1 2) ":" (substring file 2))))
   file)
 
-(defun random-nonnegative-fixnum ()
-  (logand most-positive-fixnum (random)))
-
-(defun random (limit)
-  (cond
-   ((or (null limit)
-         (fixnump limit)
-        (stringp limit))
-    random-fixnum limit)
-   ((floatp limit)
-    (* (random (lsh 1 64)) (expt .5 64)))
-   ((bignump limit)
-    (let* ((step (1+ most-positive-fixnum))
-           (val 0)
-           (lim 1))
-      (while (progn (setq val (+ val (* lim (random-nonnegative-fixnum))))
-                    (setq lim (* lim step))
-                    (setq rem (% val limit))
-                    (> (- val rem) (- step limit))))
-      rem))))
 
 ;;; subr.el ends here

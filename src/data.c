@@ -1000,7 +1000,7 @@ do_symval_forwarding (register union Lisp_Fwd *valcontents)
       return (*XBOOLFWD (valcontents)->boolvar ? Qt : Qnil);
 
     case Lisp_Fwd_Obj:
-      return XOBJFWD (valcontents)->objvar.get_element(0);
+      return XOBJFWD (valcontents)->objvar.ref(0);
 
     case Lisp_Fwd_Buffer_Obj:
       return per_buffer_value (current_buffer,

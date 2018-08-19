@@ -23634,10 +23634,10 @@ display_mode_element (struct it *it, int depth, int field_width, int precision,
 		       to avoid an infloop in redisplay due to the error.  */
                     ELisp_Dynvector args;
                     args.resize(4);
-                    args.set_element(0, make_fixnum (0));
-                    args.set_element(1, Flength (elt));
-                    args.set_element(2, props);
-                    args.set_element(3, elt);
+                    args.sref(0, make_fixnum (0));
+                    args.sref(1, Flength (elt));
+                    args.sref(2, props);
+                    args.sref(3, elt);
 		    internal_condition_case_n (safe_set_text_properties,
                                                LV (4, args),
 					       Qt, safe_eval_handler);
@@ -24456,7 +24456,7 @@ static char lots_of_dashes[] = "------------------------------------------------
 
 static const char *
 decode_mode_spec (struct window *w, register int c, int field_width,
-		  Lisp_Object *string) /*1*/
+		  Lisp_Object *string)
 {
   Lisp_Object obj;
   struct frame *f = XFRAME (WINDOW_FRAME (w));
@@ -30795,7 +30795,7 @@ on_hot_spot_p (Lisp_Object hot_spot, int x, int y)
       if (VECTORP (XCDR (hot_spot)))
 	{
 	  struct Lisp_Vector *v = XVECTOR (XCDR (hot_spot));
-	  Lisp_Object *poly = v->contents;
+	  ELisp_Pointer poly = v->contents;
 	  ptrdiff_t n = v->header.size;
 	  ptrdiff_t i;
 	  bool inside = false;

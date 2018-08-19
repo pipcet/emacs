@@ -300,7 +300,7 @@ enum byte_code_op
 
 /* Pop a value off the execution stack.  */
 
-#define POP ({ ELisp_Return_Value ret = top.get_element(0); top = top - 1; ret; })
+#define POP ({ ELisp_Return_Value ret = top.ref(0); top = top - 1; ret; })
 
 /* Discard n values from the execution stack.  */
 
@@ -309,8 +309,8 @@ enum byte_code_op
 /* Get the value which is at the top of the execution stack, but don't
    pop it.  */
 
-#define TOP (top.get_element(0))
-#define SETTOP(x) (vres = (x), top.set_element(0, vres))
+#define TOP (top.ref(0))
+#define SETTOP(x) (vres = (x), top.sref(0, vres))
 
 DEFUN ("byte-code", Fbyte_code, Sbyte_code, 3, 3, 0,
        doc: /* Function used internally in byte-compiled code.
@@ -398,7 +398,7 @@ exec_byte_code (Lisp_Object bytestr, Lisp_Object vector, Lisp_Object maxdepth,
 			make_fixnum (nargs)));
       ptrdiff_t pushedargs = min (nonrest, nargs);
       for (ptrdiff_t i = 0; i < pushedargs; i++, args++)
-	PUSH (args.get_element(0));
+	PUSH (args.ref(0));
       if (nonrest < nargs)
 	PUSH (Flist (LV (nargs - nonrest, args)));
       else

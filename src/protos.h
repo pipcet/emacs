@@ -17,7 +17,6 @@ struct foo *XTHREAD(Lisp_Object);
 struct foo *XHASH(Lisp_Object);
 struct foo *XSUB_CHAR_TABLE(Lisp_Object);
 struct foo *XCHAR_TABLE(Lisp_Object);
-struct foo *XBOOL_VECTOR(Lisp_Object);
 int XINT (Lisp_Object);
 int XFASTINT (Lisp_Object);
 int XFIXNUM (Lisp_Object);

@@ -440,7 +440,7 @@ invoke it.  If KEYS is omitted or nil, the return value of
   signed char *varies = (signed char *) alloca(nargs);
 
   for (size_t i = 0; i < nargs * 2; i++)
-    args.set_element(i, Qnil);
+    args.sref(i, Qnil);
   for (size_t i = 0; i < nargs; i++)
     varies[i] = 0;
 
@@ -505,7 +505,7 @@ invoke it.  If KEYS is omitted or nil, the return value of
 	  visargs[i] = Fcompleting_read (callint_message,
 					 Vobarray, Qcommandp,
 					 Qt, Qnil, Qnil, Qnil, Qnil);
-	  args[i] = Fintern (visargs.get_element(i), Qnil);
+	  args[i] = Fintern (visargs.ref(i), Qnil);
 	  break;
 
 	case 'd':		/* Value of point.  Does not do I/O.  */
@@ -686,7 +686,7 @@ invoke it.  If KEYS is omitted or nil, the return value of
 	case 'S':		/* Any symbol.  */
 	  visargs[i] = Fread_string (callint_message,
 				     Qnil, Qnil, Qnil, Qnil);
-	  args[i] = Fintern (visargs.get_element(i), Qnil);
+	  args[i] = Fintern (visargs.ref(i), Qnil);
 	  break;
 
 	case 'v':		/* Variable name: symbol that is
@@ -753,7 +753,7 @@ invoke it.  If KEYS is omitted or nil, the return value of
 	arg_from_tty = true;
 
       if (NILP (visargs[i]) && STRINGP (args[i]))
-	visargs[i] = args.get_element(i);
+	visargs[i] = args.ref(i);
 
       tem = (const char *)memchr (tem, '\n', string_len - (tem - string));
       if (tem) tem++;
@@ -774,7 +774,7 @@ invoke it.  If KEYS is omitted or nil, the return value of
       for (ptrdiff_t i = 2; i < nargs; i++)
 	visargs[i] = (varies[i] > 0
 		      ? list1 (intern (callint_argfuns[varies[i]]))
-		      : quotify_arg (args.get_element(i)));
+		      : quotify_arg (args.ref(i)));
       call4 (intern ("add-to-history"), intern ("command-history"),
              Flist (LV (nargs - 1, visargs + 1)), Qnil, Qt);
     }

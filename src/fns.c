@@ -1941,7 +1941,7 @@ merge_vectors (Lisp_Object pred,
     {
       if (inorder (pred, a[0], b[0]))
 	{
-          ELisp_Value tmp = (a++).get_element(0);
+          ELisp_Value tmp = (a++).ref(0);
 	  (dest++).set(tmp);
 	  if (a == alim)
 	    {
@@ -1952,7 +1952,7 @@ merge_vectors (Lisp_Object pred,
 	}
       else
 	{
-          ELisp_Value tmp = (b++).get_element(0);
+          ELisp_Value tmp = (b++).ref(0);
 	  (dest++).set(tmp);
 	  if (b == blim)
 	    {

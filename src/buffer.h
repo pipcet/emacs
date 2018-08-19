@@ -1177,13 +1177,13 @@ record_unwind_current_buffer (void)
   do {									\
     ptrdiff_t maxlen = 40;						\
     SAFE_ALLOCA_LISP (overlays, maxlen);					\
-    (noverlays) = overlays_at (posn, false, LRH(elisp_pointer_ovl(&(overlays), -1)), &maxlen, \
+    (noverlays) = overlays_at (posn, false, &(overlays), &maxlen,	\
 			       nextp, NULL, chrq);			\
     if ((noverlays) > maxlen)						\
       {									\
 	maxlen = noverlays;						\
 	SAFE_ALLOCA_LISP (overlays, maxlen);				\
-	(noverlays) = overlays_at (posn, false, LRH(elisp_pointer_ovl(&(overlays), -1)), &maxlen, \
+	(noverlays) = overlays_at (posn, false, &(overlays), &maxlen,	\
 				   nextp, NULL, chrq);			\
       }									\
   } while (false)

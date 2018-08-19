@@ -2908,9 +2908,9 @@ Return value is undefined if the last search failed.  */)
 	    {
               ELisp_Value tem;
               XSETFASTINT (tem, start);
-              data.set_element(2 * i, tem);
+              data.sref(2 * i, tem);
               XSETFASTINT (tem, search_regs.end[i]);
-              data.set_element(2 * i + 1, tem);
+              data.sref(2 * i + 1, tem);
 	    }
 	  else if (BUFFERP (last_thing_searched))
 	    {
@@ -2962,11 +2962,7 @@ Return value is undefined if the last search failed.  */)
       /* If we couldn't fit all value elements into REUSE,
 	 cons up the rest of them and add them to the end of REUSE.  */
       if (i < len)
-        {
-          ELisp_Pointer d = data;
-          d = d + i;
-          XSETCDR (prev, Flist (LV (len - i, d)));
-        }
+	XSETCDR (prev, Flist (LV (len - i, ELisp_Pointer (data) + i)));
     }
 
   SAFE_FREE ();

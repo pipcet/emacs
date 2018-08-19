@@ -262,12 +262,12 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #include <c-ctype.h>
 
 
-inline void smemcpy(ELisp_Pointer_Handle a, ELisp_Pointer_Handle b, size_t n) /*1*/
+inline void smemcpy(ELisp_Pointer a, ELisp_Pointer b, size_t n)
 {
   for (size_t i = 0; i < n / sizeof(ELisp_Struct_Value); i++)
     {
       Lisp_Object tem = b[i];
-      a.set_element (i, tem);
+      a[i] = tem;
     }
 }
 
@@ -1382,8 +1382,8 @@ compare_fonts_by_sort_order (const void *v1, const void *v2)
 {
   Lisp_Object *p1 = (ELisp_Struct_Value *)(void *)v1;
   Lisp_Object *p2 = (ELisp_Struct_Value *)(void *)v2;
-  Lisp_Object font1 = p1.get_element(0);
-  Lisp_Object font2 = p2.get_element(0);
+  Lisp_Object font1 = p1.ref(0);
+  Lisp_Object font2 = p2.ref(0);
   int i;
 
   for (i = 0; i < FONT_SIZE_INDEX; i++)
@@ -2099,7 +2099,7 @@ merge_face_heights (Lisp_Object from, Lisp_Object to, Lisp_Object invalid)
 static void
 merge_face_vectors (struct window *w,
                     struct frame *f, Lisp_Object *from, Lisp_Object *to,
-		    struct named_merge_point *named_merge_points) /*1*/
+		    struct named_merge_point *named_merge_points)
 {
   int i;
   Lisp_Object font = Qnil;
@@ -2180,7 +2180,7 @@ merge_face_vectors (struct window *w,
 static bool
 merge_named_face (struct window *w,
                   struct frame *f, Lisp_Object face_name, Lisp_Object *to,
-		  struct named_merge_point *named_merge_points) /*1*/
+		  struct named_merge_point *named_merge_points)
 {
   struct named_merge_point named_merge_point;
 
@@ -2349,7 +2349,7 @@ filter_face_ref (Lisp_Object face_ref,
 static bool
 merge_face_ref (struct window *w,
                 struct frame *f, Lisp_Object face_ref, Lisp_Object *to,
-		bool err_msgs, struct named_merge_point *named_merge_points) /*1*/
+		bool err_msgs, struct named_merge_point *named_merge_points)
 {
   bool ok = true;		/* Succeed without an error? */
   Lisp_Object filtered_face_ref;
@@ -3198,7 +3198,7 @@ FRAME 0 means change the face on all frames, and change the default
                 {
                   if (! FONT_OBJECT_P (value))
                     {
-                      ELisp_Pointer_Value attrs = XVECTOR (lface)->contents;
+                      ELisp_Pointer attrs = XVECTOR (lface)->contents;
                       Lisp_Object font_object;
 
                       font_object = font_load_for_lface (f1, attrs, value);
@@ -3997,7 +3997,7 @@ face_attr_equal_p (Lisp_Object v1, Lisp_Object v2)
    is called quite often.  */
 
 static bool
-lface_equal_p (Lisp_Object *v1, Lisp_Object *v2) /*1*/
+lface_equal_p (Lisp_Object *v1, Lisp_Object *v2)
 {
   int i;
   bool equal_p = true;
@@ -4083,9 +4083,8 @@ hash_string_case_insensitive (Lisp_Object string)
 /* Return a hash code for face attribute vector V.  */
 
 static unsigned
-lface_hash (Lisp_Object *v) /*1*/
+lface_hash (Lisp_Object *v)
 {
-  /* 1 */
   return (hash_string_case_insensitive (v[LFACE_FAMILY_INDEX])
 	  ^ hash_string_case_insensitive (v[LFACE_FOUNDRY_INDEX])
 	  ^ hash_string_case_insensitive (v[LFACE_FOREGROUND_INDEX])
@@ -4135,7 +4134,7 @@ lface_same_font_attributes_p (Lisp_Object lface1[LFACE_VECTOR_SIZE], Lisp_Object
    vector ATTR.  */
 
 static struct face *
-make_realized_face (Lisp_Object *attr) /*1*/
+make_realized_face (Lisp_Object *attr)
 {
   enum { off = offsetof (struct face, id) };
   struct face *face = xmalloc (sizeof *face);
@@ -4516,7 +4515,7 @@ uncache_face (struct face_cache *c, struct face *face)
    realize a new one.  */
 
 static int
-lookup_face (struct frame *f, Lisp_Object *attr) /*1*/
+lookup_face (struct frame *f, Lisp_Object *attr)
 {
   struct face_cache *cache = FRAME_FACE_CACHE (f);
   unsigned hash;
@@ -4831,7 +4830,7 @@ x_supports_face_attributes_p (struct frame *f,
 			      Lisp_Object attrs[LFACE_VECTOR_SIZE],
 			      struct face *def_face)
 {
-  ELisp_Pointer_Value def_attrs = def_face->lface;
+  ELisp_Pointer def_attrs = def_face->lface;
 
   /* Check that other specified attributes are different that the default
      face.  */
@@ -4942,7 +4941,7 @@ tty_supports_face_attributes_p (struct frame *f,
   XColor fg_tty_color, fg_std_color;
   XColor bg_tty_color, bg_std_color;
   unsigned test_caps = 0;
-  ELisp_Pointer_Value def_attrs = def_face->lface;
+  ELisp_Pointer def_attrs = def_face->lface;
 
   /* First check some easy-to-check stuff; ttys support none of the
      following attributes, so we can just return false if any are requested
@@ -6066,7 +6065,7 @@ compute_char_face (struct frame *f, int ch, Lisp_Object prop)
 int
 face_at_buffer_position (struct window *w, ptrdiff_t pos,
 			 ptrdiff_t *endptr, ptrdiff_t limit,
-			 bool mouse, int base_face_id) /*1*/
+			 bool mouse, int base_face_id)
 {
   struct frame *f = XFRAME (w->frame);
   Lisp_Object attrs[LFACE_VECTOR_SIZE];

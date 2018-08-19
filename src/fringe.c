@@ -473,7 +473,7 @@ static struct fringe_bitmap standard_bitmaps[] =
 #define MAX_STANDARD_FRINGE_BITMAPS ARRAYELTS (standard_bitmaps)
 
 static struct fringe_bitmap **fringe_bitmaps;
-ELisp_Pointer_Struct_Value fringe_faces;
+static ELisp_Pointer fringe_faces;
 static int max_fringe_bitmaps;
 
 int max_used_fringe_bitmap = MAX_STANDARD_FRINGE_BITMAPS;
@@ -1330,7 +1330,7 @@ destroy_fringe_bitmap (int n)
 {
   struct fringe_bitmap **fbp;
 
-  fringe_faces.set_element(n, Qnil);
+  fringe_faces.sref(n, Qnil);
 
   fbp = &fringe_bitmaps[n];
   if (*fbp && (*fbp)->dynamic)
@@ -1576,7 +1576,7 @@ If BITMAP already exists, the existing definition is replaced.  */)
 	      for (i = max_fringe_bitmaps; i < bitmaps; i++)
 		{
 		  fringe_bitmaps[i] = NULL;
-		  fringe_faces.set_element(i, Qnil);
+		  fringe_faces.sref(i, Qnil);
 		}
 
 	      max_fringe_bitmaps = bitmaps;
@@ -1631,7 +1631,7 @@ If FACE is nil, reset face to default fringe face.  */)
   if (!n)
     error ("Undefined fringe bitmap");
 
-  fringe_faces.set_element(n, face);
+  fringe_faces.sref(n, face);
   return Qnil;
 }
 

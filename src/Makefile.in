@@ -394,11 +394,7 @@ chunkl.all: $(chunkls)
 %.h.hh: %.h | chunkl.all
 	perl $(top_srcdir)/chunkl.pl $*.h < $< > $@
 %.h.chunkl: %.h
-	if rm $@.remake 2> /dev/null; then \
-		perl $(top_srcdir)/chunkl.pl $*.h --header --nomd5 < $< > $@; \
-	else \
-		perl $(top_srcdir)/chunkl.pl $*.h --header < $< > $@; \
-	fi
+	perl $(top_srcdir)/chunkl.pl $*.h --header < $< > $@
 %.c.chunkl: %.c
 	perl $(top_srcdir)/chunkl.pl $*.c --header < $< > $@
 %.cc.o: %.cc

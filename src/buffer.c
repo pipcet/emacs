@@ -2231,21 +2231,21 @@ so the buffer is truly empty after this.  */)
 void
 validate_region (register Lisp_Object *b, register Lisp_Object *e)
 {
-  ELisp_Value bv = b.get_element(0);
-  ELisp_Value ev = e.get_element(0);
+  ELisp_Value bv = b.ref(0);
+  ELisp_Value ev = e.ref(0);
   CHECK_FIXNUM_COERCE_MARKER (bv);
   CHECK_FIXNUM_COERCE_MARKER (ev);
   b.set(bv);
   e.set(ev);
 
-  if (XFIXNUM (b.get_element(0)) > XFIXNUM (e.get_element(0)))
+  if (XFIXNUM (b.ref(0)) > XFIXNUM (e.ref(0)))
     {
       ELisp_Value tem;
-      tem = b.get_element(0);  b.set(e.get_element(0));  e.set(tem);
+      tem = b.ref(0);  b.set(e.ref(0));  e.set(tem);
     }
 
-  if (! (BEGV <= XFIXNUM (b.get_element(0)) && XFIXNUM (e.get_element(0)) <= ZV))
-    args_out_of_range_3 (Fcurrent_buffer (), b.get_element(0), e.get_element(0));
+  if (! (BEGV <= XFIXNUM (b.ref(0)) && XFIXNUM (e.ref(0)) <= ZV))
+    args_out_of_range_3 (Fcurrent_buffer (), b.ref(0), e.ref(0));
 }
 
 /* Advance BYTE_POS up to a character boundary
@@ -3171,7 +3171,7 @@ compare_overlays (const void *v1, const void *v2)
     return s2->end < s1->end ? -1 : 1;
   else if (s1->spriority != s2->spriority)
     return (s1->spriority < s2->spriority ? -1 : 1);
-  else if (EQ (s1->overlay.get_element(0), s2->overlay.get_element(0)))
+  else if (EQ (s1->overlay.ref(0), s2->overlay.ref(0)))
     return 0;
   else
     /* Avoid the non-determinism of qsort by choosing an arbitrary ordering
@@ -3194,7 +3194,7 @@ sort_overlays (Lisp_Object *overlay_vec, ptrdiff_t noverlays, struct window *w)
 
   SAFE_ALLOCA_LISP (overlay_vec2, noverlays);
   for (i = 0; i < noverlays; i++)
-    overlay_vec2.set_element(i, overlay_vec.get_element(i));
+    overlay_vec2.sref(i, overlay_vec.ref(i));
   SAFE_NALLOCA (sortvec, 1, noverlays);
 
   /* Put the valid and relevant overlays into sortvec.  */
@@ -3253,7 +3253,7 @@ sort_overlays (Lisp_Object *overlay_vec, ptrdiff_t noverlays, struct window *w)
     qsort (sortvec, noverlays, sizeof (struct sortvec), compare_overlays);
 
   for (i = 0; i < noverlays; i++)
-    overlay_vec[i] = sortvec[i].overlay.get_element(0);
+    overlay_vec[i] = sortvec[i].overlay.ref(0);
 
   SAFE_FREE ();
   return (noverlays);
@@ -4593,7 +4593,7 @@ report_overlay_modification (Lisp_Object start, Lisp_Object end, bool after,
     USE_SAFE_ALLOCA;
     SAFE_ALLOCA_LISP (copy, size);
     for (size_t i = 0; i < size; i++)
-      copy.set_element(i, XVECTOR (last_overlay_modification_hooks)->contents[i]);
+      copy.sref(i, XVECTOR (last_overlay_modification_hooks)->contents[i]);
 
     for (i = 0; i < size;)
       {

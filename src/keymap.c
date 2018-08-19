@@ -1356,7 +1356,7 @@ static ptrdiff_t cmm_size = 0;
    list, let the key sequence be read, and hope some other piece of
    code signals the error.  */
 ptrdiff_t
-current_minor_maps (ELisp_Pointer_Value *modeptr, ELisp_Pointer_Value *mapptr)
+current_minor_maps (ELisp_Pointer *modeptr, ELisp_Pointer *mapptr)
 {
   ptrdiff_t i = 0;
   int list_number = 0;
@@ -3253,10 +3253,10 @@ describe_map (Lisp_Object map, Lisp_Object prefix,
 	  /* The same keymap might be in the structure twice, if we're
 	     using an inherited keymap.  So skip anything we've already
 	     encountered.  */
-	  tem = Fassq (tail, seen.get_element(0));
+	  tem = Fassq (tail, seen.ref(0));
 	  if (CONSP (tem) && !NILP (Fequal (XCAR (tem), prefix)))
 	    break;
-	  seen.set(Fcons (Fcons (tail, prefix), seen.get_element(0)));
+	  seen.set(Fcons (Fcons (tail, prefix), seen.ref(0)));
 	}
     }
 
