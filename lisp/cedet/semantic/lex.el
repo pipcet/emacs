@@ -1,6 +1,6 @@
 ;;; semantic/lex.el --- Lexical Analyzer builder  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1999-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1999-2020 Free Software Foundation, Inc.
 
 ;; Author: Eric M. Ludlam <zappo@gnu.org>
 
@@ -17,7 +17,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 ;;
@@ -256,7 +256,7 @@ SPECS must be a list of (NAME . TOKSYM) elements, where:
   NAME is the name of the keyword symbol to define.
   TOKSYM is the lexical token symbol of that keyword.
 
-If optional argument PROPSPECS is non nil, then interpret it, and
+If optional argument PROPSPECS is non-nil, then interpret it, and
 apply those properties.
 PROPSPECS must be a list of (NAME PROPERTY VALUE) elements."
   ;; Create the symbol hash table
@@ -408,13 +408,13 @@ TYPE name does not exist.  Otherwise signal an error."
 SPECS must be a list of (TYPE . TOKENS) elements, where:
 
   TYPE is the name of the type symbol to define.
-  TOKENS is an list of (TOKSYM . MATCHER) elements, where:
+  TOKENS is a list of (TOKSYM . MATCHER) elements, where:
 
     TOKSYM is any lexical token symbol.
     MATCHER is a string or regexp a text must match to be a such
     lexical token.
 
-If optional argument PROPSPECS is non nil, then interpret it, and
+If optional argument PROPSPECS is non-nil, then interpret it, and
 apply those properties.
 PROPSPECS must be a list of (TYPE PROPERTY VALUE)."
   ;; Create the symbol hash table
@@ -454,7 +454,7 @@ PROPSPECS must be a list of (TYPE PROPERTY VALUE)."
 (defsubst semantic-lex-map-types (fun &optional property)
   "Call function FUN on every lexical type.
 If optional PROPERTY is non-nil, call FUN only on every type symbol
-which as a PROPERTY value.  FUN receives a type symbol as argument."
+which has a PROPERTY value.  FUN receives a type symbol as argument."
   (semantic-lex-map-symbols
    fun semantic-lex-types-obarray property))
 
@@ -471,6 +471,7 @@ PROPERTY set."
 ;;; Lexical Analyzer framework settings
 ;;
 
+;; FIXME change to non-obsolete default.
 (defvar semantic-lex-analyzer 'semantic-flex
   "The lexical analyzer used for a given buffer.
 See `semantic-lex' for documentation.
@@ -595,7 +596,7 @@ may need to be overridden for some special languages.")
             "\\|"
             "\\<[0-9]+[eE][-+]?[0-9]+[fFdD]?\\>"
             "\\|"
-            "\\<0[xX][0-9a-fA-F]+[lL]?\\>"
+            "\\<0[xX][[:xdigit:]]+[lL]?\\>"
             "\\|"
             "\\<[0-9]+[lLfFdD]?\\>"
             "\\)"
@@ -608,7 +609,7 @@ DECIMAL_LITERAL:
     [1-9][0-9]*
   ;
 HEX_LITERAL:
-    0[xX][0-9a-fA-F]+
+    0[xX][[:xdigit:]]+
   ;
 OCTAL_LITERAL:
     0[0-7]*
@@ -657,10 +658,9 @@ If universal argument ARG, then try the whole buffer."
   (let* ((start (current-time))
 	 (result (semantic-lex
 		  (if arg (point-min) (point))
-		  (point-max)))
-	 (end (current-time)))
+		  (point-max))))
     (message "Elapsed Time: %.2f seconds."
-	     (semantic-elapsed-time start end))
+	     (semantic-elapsed-time start nil))
     (pop-to-buffer "*Lexer Output*")
     (require 'pp)
     (erase-buffer)
@@ -686,9 +686,9 @@ displayed in the minibuffer.  Press SPC to move to the next lexical token."
   "Highlight the lexical TOKEN.
 TOKEN is a lexical token with a START And END position.
 Return the overlay."
-  (let ((o (semantic-make-overlay (semantic-lex-token-start token)
-				  (semantic-lex-token-end token))))
-    (semantic-overlay-put o 'face 'highlight)
+  (let ((o (make-overlay (semantic-lex-token-start token)
+			 (semantic-lex-token-end token))))
+    (overlay-put o 'face 'highlight)
     o))
 
 ;;; Lexical analyzer creation
@@ -752,11 +752,11 @@ a LOCAL option.")
 	  (progn
 	    (when token
 	      (setq o (semantic-lex-highlight-token token)))
-	    (semantic-read-event
+	    (read-event
 	     (format "%S :: Depth: %d :: SPC - continue" token semantic-lex-current-depth))
 	    )
 	(when o
-	  (semantic-overlay-delete o))))))
+	  (delete-overlay o))))))
 
 (defmacro define-lex (name doc &rest analyzers)
   "Create a new lexical analyzer with NAME.
@@ -769,7 +769,7 @@ Note: The order in which analyzers are listed is important.
 If two analyzers can match the same text, it is important to order the
 analyzers so that the one you want to match first occurs first.  For
 example, it is good to put a number analyzer in front of a symbol
-analyzer which might mistake a number for as a symbol."
+analyzer which might mistake a number for a symbol."
   `(defun ,name  (start end &optional depth length)
      ,(concat doc "\nSee `semantic-lex' for more information.")
      ;; Make sure the state of block parsing starts over.
@@ -810,7 +810,7 @@ analyzer which might mistake a number for as a symbol."
                     tmp-start (car semantic-lex-token-stream)))
 	   (setq tmp-start semantic-lex-end-point)
            (goto-char semantic-lex-end-point)
-	   ;;(when (> (semantic-elapsed-time starttime (current-time))
+	   ;;(when (> (semantic-elapsed-time starttime nil)
 	   ;;	    semantic-lex-timeout)
 	   ;;  (error "Timeout during lex at char %d" (point)))
 	   (semantic-throw-on-input 'lex)
@@ -1060,7 +1060,7 @@ The collapsed tokens are saved in `semantic-lex-block-streams'."
 ;; to create new lexical analyzers.
 
 (defcustom semantic-lex-debug-analyzers nil
-  "Non nil means to debug analyzers with syntax protection.
+  "Non-nil means to debug analyzers with syntax protection.
 Only in effect if `debug-on-error' is also non-nil."
   :group 'semantic
   :type 'boolean)
@@ -1581,7 +1581,7 @@ DEFAULT is the default lexical token returned when no MATCHES."
 (defmacro define-lex-block-type-analyzer (name doc syntax matches)
   "Define a block type analyzer NAME with DOC string.
 
-SYNTAX is the regexp that matches block delimiters,  typically the
+SYNTAX is the regexp that matches block delimiters, typically the
 open (`\\\\s(') and close (`\\\\s)') parenthesis syntax classes.
 
 MATCHES is a pair (OPEN-SPECS . CLOSE-SPECS) that defines blocks.
@@ -1857,7 +1857,7 @@ end of the return token will be larger than END.  To truly restrict
 scanning, use `narrow-to-region'.
 The last argument, LENGTH specifies that `semantic-flex' should only
 return LENGTH tokens."
-  (message "`semantic-flex' is an obsolete function.  Use `define-lex' to create lexers.")
+  (declare (obsolete define-lex "23.2"))
   (if (not semantic-flex-keywords-obarray)
       (setq semantic-flex-keywords-obarray [ nil ]))
   (let ((ts nil)

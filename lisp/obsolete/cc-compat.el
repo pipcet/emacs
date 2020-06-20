@@ -1,6 +1,6 @@
 ;;; cc-compat.el --- cc-mode compatibility with c-mode.el confusion
 
-;; Copyright (C) 1985, 1987, 1992-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1985, 1987, 1992-2020 Free Software Foundation, Inc.
 
 ;; Authors:    1998- Martin Stjernholm
 ;;	       1994-1999 Barry A. Warsaw
@@ -23,7 +23,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 ;;
@@ -59,21 +59,21 @@
 
 ;; In case c-mode.el isn't loaded
 (defvar c-indent-level 2
-  "*Indentation of C statements with respect to containing block.")
+  "Indentation of C statements with respect to containing block.")
 ;;;###autoload(put 'c-indent-level 'safe-local-variable 'integerp)
 
 (defvar c-brace-imaginary-offset 0
-  "*Imagined indentation of a C open brace that actually follows a statement.")
+  "Imagined indentation of a C open brace that actually follows a statement.")
 (defvar c-brace-offset 0
-  "*Extra indentation for braces, compared with other text in same context.")
+  "Extra indentation for braces, compared with other text in same context.")
 (defvar c-argdecl-indent 5
-  "*Indentation level of declarations of C function arguments.")
+  "Indentation level of declarations of C function arguments.")
 (defvar c-label-offset -2
-  "*Offset of C label lines and case statements relative to usual indentation.")
+  "Offset of C label lines and case statements relative to usual indentation.")
 (defvar c-continued-statement-offset 2
-  "*Extra indent for lines not starting new statements.")
+  "Extra indent for lines not starting new statements.")
 (defvar c-continued-brace-offset 0
-  "*Extra indent for substatements that start with open-braces.
+  "Extra indent for substatements that start with open-braces.
 This is in addition to c-continued-statement-offset.")
 
 
@@ -106,7 +106,7 @@ This is in addition to c-continued-statement-offset.")
     (if (eq (char-before) ?{)
 	(forward-char -1)
       (goto-char (cdr langelem)))
-    (let* ((curcol (save-excursion 
+    (let* ((curcol (save-excursion
 		     (goto-char (cdr langelem))
 		     (current-column)))
 	  (bocm-lossage
@@ -138,7 +138,7 @@ This is in addition to c-continued-statement-offset.")
 (defun cc-block-close-offset (langelem)
   (save-excursion
     (let* ((here (point))
-	   bracep 
+	   bracep
 	   (curcol (progn
 		     (goto-char (cdr langelem))
 		     (current-column)))
@@ -154,7 +154,7 @@ This is in addition to c-continued-statement-offset.")
 			   (current-column))))
       (- bocm-lossage curcol
 	 (if bracep 0 c-indent-level)))))
-      
+
 
 (defun cc-substatement-open-offset (langelem)
   (+ c-continued-statement-offset c-continued-brace-offset))

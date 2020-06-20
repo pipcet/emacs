@@ -1,6 +1,6 @@
 #!/usr/bin/awk -f
 
-## Copyright (C) 2015-2017 Free Software Foundation, Inc.
+## Copyright (C) 2015-2020 Free Software Foundation, Inc.
 
 ## Author: Glenn Morris <rgm@gnu.org>
 
@@ -17,7 +17,7 @@
 ## GNU General Public License for more details.
 
 ## You should have received a copy of the GNU General Public License
-## along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+## along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ### Commentary:
 
@@ -32,7 +32,7 @@
 ## The Unicode blocks actually extend past some of these ranges with
 ## undefined codepoints.
 
-## For additional details, see <http://debbugs.gnu.org/20789#11>.
+## For additional details, see <https://debbugs.gnu.org/20789#11>.
 
 ## Things to do after installing a new version of Blocks.txt:
 ## Check the output against the old output.
@@ -55,6 +55,7 @@ BEGIN {
     alias["box drawing"] = "symbol"
     alias["block elements"] = "symbol"
     alias["miscellaneous symbols"] = "symbol"
+    alias["symbols for legacy computing"] = "symbol"
     alias["cjk strokes"] = "cjk-misc"
     alias["cjk symbols and punctuation"] = "cjk-misc"
     alias["halfwidth and fullwidth forms"] = "cjk-misc"
@@ -115,14 +116,15 @@ function name2alias(name   , w, w2) {
     else if (name ~ /duployan|shorthand/) return "duployan-shorthand"
     else if (name ~ /sutton signwriting/) return "sutton-sign-writing"
 
-    sub(/ (extended|extensions|supplement).*/, "", name)
+    sub(/^small /, "", name)
+    sub(/ (extended|extensions*|supplement).*/, "", name)
     sub(/numbers/, "number", name)
     sub(/numerals/, "numeral", name)
     sub(/symbols/, "symbol", name)
     sub(/forms$/, "form", name)
     sub(/tiles$/, "tile", name)
     sub(/^new /, "", name)
-    sub(/ (characters|hieroglyphs|cursive)$/, "", name)
+    sub(/ (characters|hieroglyphs|cursive|hieroglyph format controls)$/, "", name)
     gsub(/ /, "-", name)
 
     return name

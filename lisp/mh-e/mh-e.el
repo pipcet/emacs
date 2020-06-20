@@ -1,10 +1,9 @@
 ;;; mh-e.el --- GNU Emacs interface to the MH mail system
 
-;; Copyright (C) 1985-1988, 1990, 1992-1995, 1997, 1999-2017 Free
+;; Copyright (C) 1985-1988, 1990, 1992-1995, 1997, 1999-2020 Free
 ;; Software Foundation, Inc.
 
 ;; Author: Bill Wohler <wohler@newt.com>
-;; Maintainer: Bill Wohler <wohler@newt.com>
 ;; Version: 8.6+git
 ;; Keywords: mail
 
@@ -21,7 +20,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -92,7 +91,7 @@
 ;; for if it does it will introduce a require loop.
 (require 'mh-loaddefs)
 
-(mh-require-cl)
+(require 'cl-lib)
 
 (require 'mh-buffers)
 (require 'mh-compat)
@@ -410,6 +409,8 @@ gnus-version)
   (require 'gnus)
   gnus-version)
 
+(defvar mh-variant)
+
 ;;;###autoload
 (defun mh-version ()
   "Display version information about MH-E and the MH mail handling system."
@@ -430,6 +431,7 @@ gnus-version)
   ;; Emacs version.
   (insert (emacs-version) "\n\n")
   ;; MH version.
+  (or mh-variant-in-use (mh-variant-set mh-variant))
   (if mh-variant-in-use
       (insert mh-variant-in-use "\n"
               " mh-progs:\t" mh-progs "\n"
@@ -494,7 +496,7 @@ all the strings have been used."
               (push (buffer-substring-no-properties (point)
                                                     (mh-line-end-position))
                     arg-list)
-              (incf count)
+              (cl-incf count)
               (forward-line))
             (apply #'call-process cmd nil (list out nil) nil
                    (nreverse arg-list))))
@@ -507,8 +509,8 @@ all the strings have been used."
 Adds double-quotes around entire string and quotes the characters
 \\, `, and $ with a backslash."
   (concat "\""
-          (loop for x across string
-                concat (format (if (memq x '(?\\ ?` ?$)) "\\%c" "%c") x))
+          (cl-loop for x across string
+                   concat (format (if (memq x '(?\\ ?` ?$)) "\\%c" "%c") x))
           "\""))
 
 (defun mh-exec-cmd (command &rest args)
@@ -525,7 +527,7 @@ parsed by MH-E."
         (save-excursion
           (goto-char start)
           (insert "Errors when executing: " command)
-          (loop for arg in args do (insert " " arg))
+          (cl-loop for arg in args do (insert " " arg))
           (insert "\n"))
         (save-window-excursion
           (switch-to-buffer-other-window mh-log-buffer)
@@ -581,7 +583,7 @@ ARGS are passed to COMMAND as command line arguments."
       (push elem process-environment))
     (apply #'mh-exec-cmd-daemon command filter args)))
 
-(defun mh-process-daemon (process output)
+(defun mh-process-daemon (_process output)
   "PROCESS daemon that puts OUTPUT into a temporary buffer.
 Any output from the process is displayed in an asynchronous
 pop-up window."
@@ -681,11 +683,11 @@ ARGS is returned unchanged."
   `(if (boundp 'customize-package-emacs-version-alist)
        ,args
      (let (seen)
-       (loop for keyword in ,args
-             if (cond ((eq keyword ':package-version) (setq seen t) nil)
-                      (seen (setq seen nil) nil)
-                      (t t))
-             collect keyword))))
+       (cl-loop for keyword in ,args
+                if (cond ((eq keyword ':package-version) (setq seen t) nil)
+                         (seen (setq seen nil) nil)
+                         (t t))
+                collect keyword))))
 
 (defmacro defgroup-mh (symbol members doc &rest args)
   "Declare SYMBOL as a customization group containing MEMBERS.
@@ -738,14 +740,14 @@ is described by the variable `mh-variants'."
     (let ((list-unique))
       ;; Make a unique list of directories, keeping the given order.
       ;; We don't want the same MH variant to be listed multiple times.
-      (loop for dir in (append mh-path mh-sys-path exec-path) do
-            (setq dir (file-chase-links (directory-file-name dir)))
-            (add-to-list 'list-unique dir))
-      (loop for dir in (nreverse list-unique) do
-            (when (and dir (file-accessible-directory-p dir))
-              (let ((variant (mh-variant-info dir)))
-                (if variant
-                    (add-to-list 'mh-variants variant)))))
+      (cl-loop for dir in (append mh-path mh-sys-path exec-path) do
+               (setq dir (file-chase-links (directory-file-name dir)))
+               (cl-pushnew dir list-unique :test #'equal))
+      (cl-loop for dir in (nreverse list-unique) do
+               (when (and dir (file-accessible-directory-p dir))
+                 (let ((variant (mh-variant-info dir)))
+                   (if variant
+                       (add-to-list 'mh-variants variant)))))
       mh-variants)))
 
 (defun mh-variant-info (dir)
@@ -831,7 +833,7 @@ This assumes that a temporary buffer is set up."
                               (expand-file-name "flists" dir)))))))))
 
 (defun mh-file-command-p (file)
-  "Return t if file FILE is the name of a executable regular file."
+  "Return t if file FILE is the name of an executable regular file."
   (and (file-regular-p file) (file-executable-p file)))
 
 (defun mh-variant-set-variant (variant)
@@ -856,26 +858,27 @@ variant."
               mh-progs               progs
               mh-variant-in-use      variant))))
    ((symbolp variant)                   ;e.g. 'nmh (pick the first match)
-    (loop for variant-list in (mh-variants)
-          when (eq variant (cadr (assoc 'variant (cdr variant-list))))
-          return (let* ((version   (car variant-list))
-                        (alist (cdr variant-list))
-                        (lib-progs (cadr (assoc 'mh-lib-progs alist)))
-                        (lib       (cadr (assoc 'mh-lib       alist)))
-                        (progs     (cadr (assoc 'mh-progs     alist)))
-                        (flists    (cadr (assoc 'flists       alist))))
-                   ;;(set-default mh-variant flavor)
-                   (setq mh-x-mailer-string     nil
-                         mh-flists-present-flag flists
-                         mh-lib-progs           lib-progs
-                         mh-lib                 lib
-                         mh-progs               progs
-                         mh-variant-in-use      version)
-                   t)))))
+    (cl-loop for variant-list in (mh-variants)
+             when (eq variant (cadr (assoc 'variant (cdr variant-list))))
+             return (let* ((version   (car variant-list))
+                           (alist (cdr variant-list))
+                           (lib-progs (cadr (assoc 'mh-lib-progs alist)))
+                           (lib       (cadr (assoc 'mh-lib       alist)))
+                           (progs     (cadr (assoc 'mh-progs     alist)))
+                           (flists    (cadr (assoc 'flists       alist))))
+                      ;;(set-default mh-variant flavor)
+                      (setq mh-x-mailer-string     nil
+                            mh-flists-present-flag flists
+                            mh-lib-progs           lib-progs
+                            mh-lib                 lib
+                            mh-progs               progs
+                            mh-variant-in-use      version)
+                      t)))))
 
 (defun mh-variant-p (&rest variants)
   "Return t if variant is any of VARIANTS.
 Currently known variants are `MH', `nmh', and `gnu-mh'."
+  (or mh-variant-in-use (mh-variant-set mh-variant))
   (let ((variant-in-use
          (cadr (assoc 'variant (assoc mh-variant-in-use (mh-variants))))))
     (not (null (member variant-in-use variants)))))
@@ -941,6 +944,8 @@ finally GNU mailutils MH."
       (when (not (mh-variant-set-variant variant))
         (message "Warning: %s variant not found. Autodetecting..." variant)
         (mh-variant-set 'autodetect)))
+     ((null valid-list)
+      (message "Unknown variant %s; can't find MH anywhere" variant))
      (t
       (message "Unknown variant %s; use %s"
                variant
@@ -972,6 +977,7 @@ necessary and can actually cause problems."
   :set (lambda (symbol value)
          (set-default symbol value)     ;Done in mh-variant-set-variant!
          (mh-variant-set value))
+  :initialize 'custom-initialize-default
   :group 'mh-e
   :package-version '(MH-E . "8.0"))
 
@@ -1022,12 +1028,13 @@ windows in the frame are removed."
   (when delete-other-windows-flag
     (delete-other-windows)))
 
-;; FIXME: Maybe out of date?  --xfq
 (if (boundp 'customize-package-emacs-version-alist)
     (add-to-list 'customize-package-emacs-version-alist
                  '(MH-E ("6.0" . "22.1") ("6.1" . "22.1") ("7.0" . "22.1")
                         ("7.1" . "22.1") ("7.2" . "22.1") ("7.3" . "22.1")
-                        ("7.4" . "22.1") ("8.0" . "22.1"))))
+                        ("7.4" . "22.1") ("8.0" . "22.1") ("8.1" . "23.1")
+                        ("8.2" . "23.1") ("8.3" . "24.1") ("8.4" . "24.4")
+                        ("8.5" . "24.4") ("8.6" . "24.4"))))
 
 
 
@@ -1699,9 +1706,9 @@ The function is always called with SYMBOL bound to
   (set symbol value)                    ;XXX shouldn't this be set-default?
   (setq mh-junk-choice
         (or value
-            (loop for element in mh-junk-function-alist
-                  until (executable-find (symbol-name (car element)))
-                  finally return (car element)))))
+            (cl-loop for element in mh-junk-function-alist
+                     until (executable-find (symbol-name (car element)))
+                     finally return (car element)))))
 
 (defcustom-mh mh-junk-background nil
   "If on, spam programs are run in background.
@@ -2412,14 +2419,14 @@ of citations entirely, choose \"None\"."
   :package-version '(MH-E . "8.0"))
 
 ;; These entries have been intentionally excluded by the developers.
-;;  "Comments:"                         ; RFC 2822 - show this one
+;;  "Comments:"                         ; RFC 822 (or later) - show this one
 ;;  "Fax:"                              ; http://people.dsv.su.se/~jpalme/ietf/mail-headers/
 ;;  "Mail-System-Version:"              ; http://people.dsv.su.se/~jpalme/ietf/mail-headers/
 ;;  "Mailer:"                           ; http://people.dsv.su.se/~jpalme/ietf/mail-headers/
 ;;  "Organization:"                     ;
 ;;  "Phone:"                            ; http://people.dsv.su.se/~jpalme/ietf/mail-headers/
 ;;  "Reply-By:"                         ; RFC 2156
-;;  "Reply-To:"                         ; RFC 2822
+;;  "Reply-To:"                         ; RFC 822 (or later)
 ;;  "Sender:"                           ;
 ;;  "User-Agent:"                       ; Similar to X-Mailer, so display it.
 ;;  "X-Mailer:"                         ;
@@ -2480,9 +2487,9 @@ of citations entirely, choose \"None\"."
     "From "                             ; sendmail
     "Generate-Delivery-Report:"         ; RFC 2156
     "Importance:"                       ; RFC 2156, 2421
-    "In-Reply-To:"                      ; RFC 2822
+    "In-Reply-To:"                      ; RFC 822 (or later)
     "Incomplete-Copy:"                  ; RFC 2156
-    "Keywords:"                         ; RFC 2822
+    "Keywords:"                         ; RFC 822 (or later)
     "Language:"                         ; RFC 2156
     "Lines:"                            ; RFC 1036
     "List-"                             ; RFC 2369, 2919
@@ -2492,7 +2499,7 @@ of citations entirely, choose \"None\"."
     "Mail-Reply-To:"                    ; http://people.dsv.su.se/~jpalme/ietf/mail-headers/
     "Mailing-List:"                     ; Egroups/yahoogroups mailing list manager
     "Message-Content:"                  ; http://people.dsv.su.se/~jpalme/ietf/mail-headers/
-    "Message-Id:"                       ; RFC 822
+    "Message-ID:"                       ; RFC 822 (or later)
     "Message-Type:"                     ; RFC 2156
     "Mime-Version"                      ; RFC 2045
     "Msgid:"
@@ -2523,14 +2530,14 @@ of citations entirely, choose \"None\"."
     "Priority:"                         ; RFC 2156
     "Read-Receipt-To:"                  ; http://people.dsv.su.se/~jpalme/ietf/mail-headers/
     "Received-SPF:"                     ; Gmail
-    "Received:"                         ; RFC 822
-    "References:"                       ; RFC 2822
+    "Received:"                         ; RFC 822 (or later)
+    "References:"                       ; RFC 822 (or later)
     "Registered-Mail-Reply-Requested-By:"       ; http://people.dsv.su.se/~jpalme/ietf/mail-headers/
     "Remailed-"                         ; MH
     "Replaces:"                         ; http://people.dsv.su.se/~jpalme/ietf/mail-headers/
     "Replied:"                          ; MH
-    "Resent-"                           ; RFC 2822
-    "Return-Path:"                      ; RFC 822
+    "Resent-"                           ; RFC 822 (or later)
+    "Return-Path:"                      ; RFC 822 (or later)
     "Return-Receipt-Requested:"         ; http://people.dsv.su.se/~jpalme/ietf/mail-headers/
     "Return-Receipt-To:"                ; http://people.dsv.su.se/~jpalme/ietf/mail-headers/
     "Seal-Send-Time:"
@@ -2878,9 +2885,9 @@ removed and entries from `mh-invisible-header-fields' are added."
     (when mh-invisible-header-fields-default
       ;; Remove entries from `mh-invisible-header-fields-default'
       (setq fields
-            (loop for x in fields
-                  unless (member x mh-invisible-header-fields-default)
-                  collect x)))
+            (cl-loop for x in fields
+                     unless (member x mh-invisible-header-fields-default)
+                     collect x)))
     (when (and (boundp 'mh-invisible-header-fields)
                mh-invisible-header-fields)
       (dolist (x mh-invisible-header-fields)
@@ -3035,12 +3042,12 @@ XEmacs. For more information, see URL
 `ftp://ftp.cs.indiana.edu/pub/faces/compface/compface.tar.z'). Recent
 versions of XEmacs have internal support for \"X-Face:\" images. If
 your version of XEmacs does not, then you'll need both \"uncompface\"
-and the x-face package (see URL `ftp://ftp.jpl.org/pub/elisp/').
+and the x-face package (see URL `http://www.jpl.org/ftp/pub/elisp/').
 
 Finally, MH-E will display images referenced by the \"X-Image-URL:\"
 header field if neither the \"Face:\" nor the \"X-Face:\" fields are
 present. The display of the images requires \"wget\" (see URL
-`http://www.gnu.org/software/wget/wget.html'), \"fetch\", or \"curl\"
+`https://www.gnu.org/software/wget/wget.html'), \"fetch\", or \"curl\"
 to fetch the image and the \"convert\" program from the ImageMagick
 suite (see URL `http://www.imagemagick.org/'). Of the three header
 fields this is the most efficient in terms of network usage since the
@@ -3373,13 +3380,14 @@ used to affect the behavior of MH-E in general or when
 (defcustom-mh mh-show-mode-hook nil
   "Hook run upon entry to `mh-show-mode'.
 
-This hook is called early on in the process of the message
-display. It is usually used to perform some action on the
-message's content. See `mh-show-hook'."
+This hook is called early on in the process of the message display,
+before the message contents have been inserted into the buffer.
+It is usually used to perform some action on the
+buffer itself. See also `mh-show-hook'."
   :type 'hook
   :group 'mh-hooks
   :group 'mh-show
-  :package-version '(MH-E . "6.0"))
+  :package-version '(MH-E . "8.7"))
 
 (defcustom-mh mh-unseen-updated-hook nil
   "Hook run after the unseen sequence has been updated.
@@ -3598,16 +3606,17 @@ specified colors."
             new-spec)
         ;; Remove entries with min-colors, or delete them if we have
         ;; fewer colors than they specify.
-        (loop for entry in (reverse spec) do
-              (let ((requirement (if (eq (car entry) t)
-                                     nil
-                                   (assq 'min-colors (car entry)))))
-                (if requirement
-                    (when (>= cells (nth 1 requirement))
-                      (setq new-spec (cons (cons (delq requirement (car entry))
-                                                 (cdr entry))
-                                           new-spec)))
-                  (setq new-spec (cons entry new-spec)))))
+        (cl-loop
+         for entry in (reverse spec) do
+         (let ((requirement (if (eq (car entry) t)
+                                nil
+                              (assq 'min-colors (car entry)))))
+           (if requirement
+               (when (>= cells (nth 1 requirement))
+                 (setq new-spec (cons (cons (delq requirement (car entry))
+                                            (cdr entry))
+                                      new-spec)))
+             (setq new-spec (cons entry new-spec)))))
         new-spec))))
 
 (defface-mh mh-folder-address

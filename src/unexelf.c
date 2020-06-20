@@ -1,4 +1,4 @@
-/* Copyright (C) 1985-1988, 1990, 1992, 1999-2017 Free Software
+/* Copyright (C) 1985-1988, 1990, 1992, 1999-2020 Free Software
    Foundation, Inc.
 
 This file is part of GNU Emacs.
@@ -14,7 +14,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.  */
+along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 
 /*
 In other words, you are welcome to use, share and improve this program.
@@ -58,9 +58,11 @@ what you give them.   Help stamp out software-hoarding!  */
 #include <sys/types.h>
 #include <unistd.h>
 
-#if !defined (__NetBSD__) && !defined (__OpenBSD__)
-#include <elf.h>
-#endif /* not __NetBSD__ and not __OpenBSD__ */
+#ifdef __QNX__
+# include <sys/elf.h>
+#elif !defined __NetBSD__ && !defined __OpenBSD__
+# include <elf.h>
+#endif
 #include <sys/mman.h>
 #if defined (_SYSTYPE_SYSV)
 #include <sys/elf_mips.h>
@@ -186,7 +188,8 @@ verify ((! TYPE_SIGNED (ElfW (Half))
 
 #define UNEXELF_DEBUG 1
 #ifdef UNEXELF_DEBUG
-# define DEBUG_LOG(expr) fprintf (stderr, #expr " 0x%jx\n", (uintmax_t) (expr))
+# define DEBUG_LOG(expr) fprintf (stderr, #expr " 0x%"PRIxMAX"\n", \
+				  (uintmax_t) (expr))
 #endif
 
 /* Get the address of a particular section or program header entry,
@@ -225,7 +228,6 @@ unexec (const char *new_name, const char *old_name)
 {
   int new_file, old_file;
   off_t new_file_size;
-  void *new_break;
 
   /* Pointers to the base of the image of the two files.  */
   caddr_t old_base, new_base;
@@ -311,6 +313,7 @@ unexec (const char *new_name, const char *old_name)
 	      || seg->p_vaddr > old_bss_seg->p_vaddr))
 	old_bss_seg = seg;
     }
+  eassume (old_bss_seg);
 
   /* Note that old_bss_addr may be lower than the first bss section
      address, since the section may need aligning.  */

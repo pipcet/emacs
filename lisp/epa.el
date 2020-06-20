@@ -1,6 +1,6 @@
 ;;; epa.el --- the EasyPG Assistant -*- lexical-binding: t -*-
 
-;; Copyright (C) 2006-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2006-2020 Free Software Foundation, Inc.
 
 ;; Author: Daiki Ueno <ueno@unixuser.org>
 ;; Keywords: PGP, GnuPG
@@ -18,7 +18,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Code:
 
@@ -40,6 +40,7 @@
 If t, replace the original text without any confirmation.
 If nil, don't replace the original text and show the result in a new buffer.
 If neither t nor nil, ask user for confirmation."
+  :version "26.1"
   :type '(choice (const :tag "Never" nil)
 		 (const :tag "Ask the user" ask)
 		 (const :tag "Always" t))
@@ -54,25 +55,6 @@ If neither t nor nil, ask user for confirmation."
   "Number of lines used to display status information."
   :type 'integer
   :group 'epa)
-
-(defcustom epa-pinentry-mode nil
-  "The pinentry mode.
-
-GnuPG 2.1 or later has an option to control the behavior of
-Pinentry invocation.  Possible modes are: `ask', `cancel',
-`error', and `loopback'.  See the GnuPG manual for the meanings.
-
-In epa commands, a particularly useful mode is `loopback', which
-redirects all Pinentry queries to the caller, so Emacs can query
-passphrase through the minibuffer, instead of external Pinentry
-program."
-  :type '(choice (const nil)
-		 (const ask)
-		 (const cancel)
-		 (const error)
-		 (const loopback))
-  :group 'epa
-  :version "25.1")
 
 (defgroup epa-faces nil
   "Faces for epa-mode."
@@ -197,6 +179,7 @@ You should bind this variable with `let', but do not set it globally.")
 (defvar epa-list-keys-arguments nil)
 (defvar epa-info-buffer nil)
 (defvar epa-error-buffer nil)
+(defvar epa-suppress-error-buffer nil)
 (defvar epa-last-coding-system-specified nil)
 
 (defvar epa-key-list-mode-map
@@ -263,7 +246,7 @@ You should bind this variable with `let', but do not set it globally.")
 (defvar epa-exit-buffer-function #'quit-window)
 
 (define-widget 'epa-key 'push-button
-  "Button for representing a epg-key object."
+  "Button for representing an epg-key object."
   :format "%[%v%]"
   :button-face-get 'epa--key-widget-button-face-get
   :value-create 'epa--key-widget-value-create
@@ -303,36 +286,24 @@ You should bind this variable with `let', but do not set it globally.")
 	  (epg-sub-key-id (car (epg-key-sub-key-list
 				(widget-get widget :value))))))
 
-(defalias 'epa--encode-coding-string
-  (if (fboundp 'encode-coding-string) #'encode-coding-string #'identity))
-
-(defalias 'epa--decode-coding-string
-  (if (fboundp 'decode-coding-string) #'decode-coding-string #'identity))
-
-(define-derived-mode epa-key-list-mode special-mode "Keys"
+(define-derived-mode epa-key-list-mode special-mode "EPA Keys"
   "Major mode for `epa-list-keys'."
   (buffer-disable-undo)
   (setq truncate-lines t
 	buffer-read-only t)
   (setq-local font-lock-defaults '(epa-font-lock-keywords t))
-  ;; In XEmacs, auto-initialization of font-lock is not effective
-  ;; if buffer-file-name is not set.
-  (font-lock-set-defaults)
   (make-local-variable 'epa-exit-buffer-function)
   (setq-local revert-buffer-function #'epa--key-list-revert-buffer))
 
-(define-derived-mode epa-key-mode special-mode "Key"
+(define-derived-mode epa-key-mode special-mode "EPA Key"
   "Major mode for a key description."
   (buffer-disable-undo)
   (setq truncate-lines t
 	buffer-read-only t)
   (setq-local font-lock-defaults '(epa-font-lock-keywords t))
-  ;; In XEmacs, auto-initialization of font-lock is not effective
-  ;; if buffer-file-name is not set.
-  (font-lock-set-defaults)
   (make-local-variable 'epa-exit-buffer-function))
 
-(define-derived-mode epa-info-mode special-mode "Info"
+(define-derived-mode epa-info-mode special-mode "EPA Info"
   "Major mode for `epa-info-buffer'."
   (buffer-disable-undo)
   (setq truncate-lines t
@@ -390,7 +361,10 @@ If ARG is non-nil, mark the key."
 				 'start-open t
 				 'end-open t)))))
 
-(defun epa--list-keys (name secret)
+(defun epa--list-keys (name secret &optional doc)
+  "NAME specifies which key to list.
+SECRET says list data on the secret key (default, the public key).
+DOC is documentation text to insert at the start."
   (unless (and epa-keys-buffer
 	       (buffer-live-p epa-keys-buffer))
     (setq epa-keys-buffer (generate-new-buffer "*Keys*")))
@@ -400,13 +374,28 @@ If ARG is non-nil, mark the key."
 	buffer-read-only
 	(point (point-min))
 	(context (epg-make-context epa-protocol)))
+
+    ;; Find the end of the documentation text at the start.
+    ;; Set POINT to where it ends, or nil if ends at eob.
     (unless (get-text-property point 'epa-list-keys)
       (setq point (next-single-property-change point 'epa-list-keys)))
+
+    ;; If caller specified documentation text for that, replace the old
+    ;; documentation text (if any) with what was specified.
+    ;; Otherwise, preserve whatever intro text is present.
+    (when doc
+      (if (or point (not (eobp)))
+          (delete-region (point-min) point))
+      (insert doc)
+      (setq point (point)))
+
+    ;; Now delete the key description text, if any.
     (when point
       (delete-region point
 		     (or (next-single-property-change point 'epa-list-keys)
 			 (point-max)))
       (goto-char point))
+
     (epa--insert-keys (epg-list-keys context name secret))
     (widget-setup)
     (set-keymap-parent (current-local-map) widget-keymap))
@@ -425,7 +414,13 @@ If ARG is non-nil, mark the key."
 				    (car epa-list-keys-arguments)))))
 	 (list (if (equal name "") nil name)))
      (list nil)))
-  (epa--list-keys name nil))
+  (epa--list-keys name nil
+                  "The letters at the start of a line have these meanings.
+e  expired key.  n  never trust.  m  trust marginally.  u  trust ultimately.
+f  trust fully (keys you have signed, usually).
+q  trust status questionable.  -  trust status unspecified.
+ See GPG documentaion for more explanation.
+\n"))
 
 ;;;###autoload
 (defun epa-list-secret-keys (&optional name)
@@ -470,12 +465,12 @@ If ARG is non-nil, mark the key."
 	      (substitute-command-keys "\
 - `\\[epa-mark-key]' to mark a key on the line
 - `\\[epa-unmark-key]' to unmark a key on the line\n"))
-      (widget-create 'link
+      (widget-create 'push-button
 		     :notify (lambda (&rest _ignore) (abort-recursive-edit))
 		     :help-echo
 		     "Click here or \\[abort-recursive-edit] to cancel"
 		     "Cancel")
-      (widget-create 'link
+      (widget-create 'push-button
 		     :notify (lambda (&rest _ignore) (exit-recursive-edit))
 		     :help-echo
 		     "Click here or \\[exit-recursive-edit] to finish"
@@ -561,7 +556,7 @@ If SECRET is non-nil, list secret keys instead of public keys."
 				      (epg-sub-key-creation-time (car pointer)))
 		(error "????-??-??"))
 	      (if (epg-sub-key-expiration-time (car pointer))
-		  (format (if (time-less-p (current-time)
+		  (format (if (time-less-p nil
 					   (epg-sub-key-expiration-time
 					    (car pointer)))
 			      "\n\tExpires: %s"
@@ -608,7 +603,8 @@ If SECRET is non-nil, list secret keys instead of public keys."
     (message "%s" info)))
 
 (defun epa-display-error (context)
-  (unless (equal (epg-context-error-output context) "")
+  (unless (or (equal (epg-context-error-output context) "")
+              epa-suppress-error-buffer)
     (let ((buffer (get-buffer-create "*Error*")))
       (save-selected-window
 	(unless (and epa-error-buffer (buffer-live-p epa-error-buffer))
@@ -621,12 +617,12 @@ If SECRET is non-nil, list secret keys instead of public keys."
 	    (erase-buffer)
 	    (insert (format
 		     (pcase (epg-context-operation context)
-		       (`decrypt "Error while decrypting with \"%s\":")
-		       (`verify "Error while verifying with \"%s\":")
-		       (`sign "Error while signing with \"%s\":")
-		       (`encrypt "Error while encrypting with \"%s\":")
-		       (`import-keys "Error while importing keys with \"%s\":")
-		       (`export-keys "Error while exporting keys with \"%s\":")
+		       ('decrypt "Error while decrypting with \"%s\":")
+		       ('verify "Error while verifying with \"%s\":")
+		       ('sign "Error while signing with \"%s\":")
+		       ('encrypt "Error while encrypting with \"%s\":")
+		       ('import-keys "Error while importing keys with \"%s\":")
+		       ('export-keys "Error while exporting keys with \"%s\":")
 		       (_ "Error while executing \"%s\":\n\n"))
 		     (epg-context-program context))
 		    "\n\n"
@@ -731,7 +727,8 @@ If you do not specify PLAIN-FILE, this functions prompts for the value to use."
     (message "Verifying %s...done" (file-name-nondirectory file))
     (if (epg-context-result-for context 'verify)
 	(epa-display-info (epg-verify-result-to-string
-			   (epg-context-result-for context 'verify))))))
+			   (epg-context-result-for context 'verify)))
+      (message "Verification not successful"))))
 
 (defun epa--read-signature-type ()
   (let (type c)
@@ -792,7 +789,6 @@ If no one is selected, default secret key is used.  "
 					#'epa-progress-callback-function
 					(format "Signing %s..."
 						(file-name-nondirectory file))))
-    (setf (epg-context-pinentry-mode context) epa-pinentry-mode)
     (message "Signing %s..." (file-name-nondirectory file))
     (condition-case error
 	(epg-sign-file context file signature mode)
@@ -823,7 +819,6 @@ If no one is selected, symmetric encryption will be performed.  ")))
 					#'epa-progress-callback-function
 					(format "Encrypting %s..."
 						(file-name-nondirectory file))))
-    (setf (epg-context-pinentry-mode context) epa-pinentry-mode)
     (message "Encrypting %s..." (file-name-nondirectory file))
     (condition-case error
 	(epg-encrypt-file context file recipients cipher)
@@ -866,7 +861,6 @@ For example:
 					 (cons
 					  #'epa-progress-callback-function
 					  "Decrypting..."))
-      (setf (epg-context-pinentry-mode context) epa-pinentry-mode)
       (message "Decrypting...")
       (condition-case error
 	  (setq plain (epg-decrypt-string context (buffer-substring start end)))
@@ -874,7 +868,7 @@ For example:
 	 (epa-display-error context)
 	 (signal (car error) (cdr error))))
       (message "Decrypting...done")
-      (setq plain (epa--decode-coding-string
+      (setq plain (decode-coding-string
 		   plain
 		   (or coding-system-for-read
 		       (get-text-property start 'epa-coding-system-used)
@@ -899,16 +893,13 @@ For example:
 			     (epg-context-result-for context 'verify)))))))
 
 (defun epa--find-coding-system-for-mime-charset (mime-charset)
-  (if (featurep 'xemacs)
-      (if (fboundp 'find-coding-system)
-	  (find-coding-system mime-charset))
-    ;; Find the first coding system which corresponds to MIME-CHARSET.
-    (let ((pointer (coding-system-list)))
-      (while (and pointer
-		  (not (eq (coding-system-get (car pointer) 'mime-charset)
-			   mime-charset)))
-	(setq pointer (cdr pointer)))
-      (car pointer))))
+  ;; Find the first coding system which corresponds to MIME-CHARSET.
+  (let ((pointer (coding-system-list)))
+    (while (and pointer
+		(not (eq (coding-system-get (car pointer) 'mime-charset)
+			 mime-charset)))
+      (setq pointer (cdr pointer)))
+    (car pointer)))
 
 ;;;###autoload
 (defun epa-decrypt-armor-in-region (start end)
@@ -968,7 +959,7 @@ For example:
     (condition-case error
 	(setq plain (epg-verify-string
 		     context
-		     (epa--encode-coding-string
+		     (encode-coding-string
 		      (buffer-substring start end)
 		      (or coding-system-for-write
 			  (get-text-property start 'epa-coding-system-used)))))
@@ -976,11 +967,13 @@ For example:
        (epa-display-error context)
        (signal (car error) (cdr error))))
     (message "Verifying...done")
-    (setq plain (epa--decode-coding-string
+    (setq plain (decode-coding-string
 		 plain
 		 (or coding-system-for-read
 		     (get-text-property start 'epa-coding-system-used)
 		     'undecided)))
+    (unless (epg-context-result-for context 'verify)
+      (error "Unable to verify region"))
     (if (or (eq epa-replace-original-text t)
             (and epa-replace-original-text
                  (y-or-n-p "Replace the original text? ")))
@@ -1022,13 +1015,8 @@ See the reason described in the `epa-verify-region' documentation."
 			       nil t))
 	  (unless cleartext-end
 	    (error "No cleartext tail"))
-	  (epa-verify-region cleartext-start cleartext-end))))))
-
-(defalias 'epa--select-safe-coding-system
-  (if (fboundp 'select-safe-coding-system)
-      #'select-safe-coding-system
-    (lambda (_from _to)
-      buffer-file-coding-system)))
+          (with-suppressed-warnings ((interactive-only epa-verify-region))
+	    (epa-verify-region cleartext-start cleartext-end)))))))
 
 ;;;###autoload
 (defun epa-sign-region (start end signers mode)
@@ -1052,7 +1040,7 @@ For example:
    (let ((verbose current-prefix-arg))
      (setq epa-last-coding-system-specified
 	   (or coding-system-for-write
-	       (epa--select-safe-coding-system
+	       (select-safe-coding-system
 		(region-beginning) (region-end))))
      (list (region-beginning) (region-end)
 	   (if verbose
@@ -1077,11 +1065,10 @@ If no one is selected, default secret key is used.  "
 					 (cons
 					  #'epa-progress-callback-function
 					  "Signing..."))
-      (setf (epg-context-pinentry-mode context) epa-pinentry-mode)
       (message "Signing...")
       (condition-case error
 	  (setq signature (epg-sign-string context
-					   (epa--encode-coding-string
+					   (encode-coding-string
 					    (buffer-substring start end)
 					    epa-last-coding-system-specified)
 					   mode))
@@ -1093,7 +1080,7 @@ If no one is selected, default secret key is used.  "
       (goto-char start)
       (add-text-properties (point)
 			   (progn
-			     (insert (epa--decode-coding-string
+			     (insert (decode-coding-string
 				      signature
 				      (or coding-system-for-read
 					  epa-last-coding-system-specified)))
@@ -1141,7 +1128,7 @@ For example:
 	 sign)
      (setq epa-last-coding-system-specified
 	   (or coding-system-for-write
-	       (epa--select-safe-coding-system
+	       (select-safe-coding-system
 		(region-beginning) (region-end))))
      (list (region-beginning) (region-end)
 	   (epa-select-keys context
@@ -1166,11 +1153,10 @@ If no one is selected, symmetric encryption will be performed.  ")
 					 (cons
 					  #'epa-progress-callback-function
 					  "Encrypting..."))
-      (setf (epg-context-pinentry-mode context) epa-pinentry-mode)
       (message "Encrypting...")
       (condition-case error
 	  (setq cipher (epg-encrypt-string context
-					   (epa--encode-coding-string
+					   (encode-coding-string
 					    (buffer-substring start end)
 					    epa-last-coding-system-specified)
 					   recipients
@@ -1316,30 +1302,6 @@ If no one is selected, default public key is exported.  ")))
       (error
        (epa-display-error context)
        (signal (car error) (cdr error))))))
-
-;; (defun epa-sign-keys (keys &optional local)
-;;   "Sign selected KEYS.
-;; If a prefix-arg is specified, the signature is marked as non exportable.
-
-;; Don't use this command in Lisp programs!"
-;;   (declare (interactive-only t))
-;;   (interactive
-;;    (let ((keys (epa--marked-keys)))
-;;      (unless keys
-;;        (error "No keys selected"))
-;;      (list keys current-prefix-arg)))
-;;   (let ((context (epg-make-context epa-protocol)))
-;;     (epg-context-set-passphrase-callback context
-;; 	                                    #'epa-passphrase-callback-function)
-;;     (epg-context-set-progress-callback context
-;; 	                                  (cons
-;; 	                                    #'epa-progress-callback-function
-;; 	                                    "Signing keys..."))
-;;     (setf (epg-context-pinentry-mode context) epa-pinentry-mode)
-;;     (message "Signing keys...")
-;;     (epg-sign-keys context keys local)
-;;     (message "Signing keys...done")))
-;; (make-obsolete 'epa-sign-keys "Do not use.")
 
 (provide 'epa)
 

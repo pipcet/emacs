@@ -1,6 +1,6 @@
 ;;; eieio-opt.el -- eieio optional functions (debug, printing, speedbar)
 
-;; Copyright (C) 1996, 1998-2003, 2005, 2008-2017 Free Software
+;; Copyright (C) 1996, 1998-2003, 2005, 2008-2020 Free Software
 ;; Foundation, Inc.
 
 ;; Author: Eric M. Ludlam <zappo@gnu.org>
@@ -20,7 +20,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 ;;
@@ -31,6 +31,10 @@
 (require 'eieio)
 (require 'find-func)
 (require 'speedbar)
+
+;; We require cl-extra here instead of cl-lib because we need the
+;; internal `cl--describe-class' function.
+(require 'cl-extra)
 
 ;;; Code:
 ;;;###autoload
@@ -82,7 +86,7 @@ Argument CH-PREFIX is another character prefix to display."
 (defun eieio-build-class-alist (&optional class instantiable-only buildlist)
   "Return an alist of all currently active classes for completion purposes.
 Optional argument CLASS is the class to start with.
-If INSTANTIABLE-ONLY is non nil, only allow names of classes which
+If INSTANTIABLE-ONLY is non-nil, only allow names of classes which
 are not abstract, otherwise allow all classes.
 Optional argument BUILDLIST is more list to attach and is used internally."
   (let* ((cc (or class 'eieio-default-superclass))
@@ -103,7 +107,7 @@ Optional argument BUILDLIST is more list to attach and is used internally."
 (defun eieio-read-class (prompt &optional histvar instantiable-only)
   "Return a class chosen by the user using PROMPT.
 Optional argument HISTVAR is a variable to use as history.
-If INSTANTIABLE-ONLY is non nil, only allow names of classes which
+If INSTANTIABLE-ONLY is non-nil, only allow names of classes which
 are not abstract."
   (intern (completing-read prompt (eieio-build-class-alist nil instantiable-only)
 			   nil t nil
@@ -113,7 +117,7 @@ are not abstract."
   "Return a class chosen by the user using PROMPT.
 CLASS is the base class, and completion occurs across all subclasses.
 Optional argument HISTVAR is a variable to use as history.
-If INSTANTIABLE-ONLY is non nil, only allow names of classes which
+If INSTANTIABLE-ONLY is non-nil, only allow names of classes which
 are not abstract."
   (intern (completing-read prompt
 			   (eieio-build-class-alist class instantiable-only)
@@ -142,7 +146,10 @@ are not abstract."
 	      (find-lisp-object-file-name ctr def)))
       (when location
 	(insert (substitute-command-keys " in `"))
-	(help-insert-xref-button
+	;; The `cl-type-definition' button type can't be autoloaded
+	;; due to circularity during bootstrap (Bug#28899).
+        (require 'cl-extra)
+        (help-insert-xref-button
 	 (help-fns-short-filename location)
 	 'cl-type-definition ctr location 'define-type)
 	(insert (substitute-command-keys "'")))
@@ -152,8 +159,7 @@ are not abstract."
 	  (insert "\n\n[Class description not available until class definition is loaded.]\n")
 	(save-excursion
 	  (insert (propertize "\n\nClass description:\n" 'face 'bold))
-	  (eieio-help-class ctr))
-	))))
+	  (cl--describe-class ctr))))))
 
 
 ;;; METHOD STATS
@@ -272,14 +278,7 @@ are not abstract."
 
 (if eieio-class-speedbar-key-map
     nil
-  (if (not (featurep 'speedbar))
-      (add-hook 'speedbar-load-hook (lambda ()
-				      (eieio-class-speedbar-make-map)
-				      (speedbar-add-expansion-list
-				       '("EIEIO"
-					 eieio-class-speedbar-menu
-					 eieio-class-speedbar-key-map
-					 eieio-class-speedbar))))
+  (with-eval-after-load 'speedbar
     (eieio-class-speedbar-make-map)
     (speedbar-add-expansion-list '("EIEIO"
 				   eieio-class-speedbar-menu
@@ -324,7 +323,7 @@ current expansion depth."
 (defun eieio-sb-expand (text class indent)
   "For button TEXT, expand CLASS at the current location.
 Argument INDENT is the depth of indentation."
-  (cond ((string-match "+" text)	;we have to expand this file
+  (cond ((string-match "\\+" text)	;we have to expand this file
 	 (speedbar-change-expand-button-char ?-)
 	 (speedbar-with-writable
 	   (save-excursion

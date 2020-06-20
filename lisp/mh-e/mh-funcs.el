@@ -1,9 +1,8 @@
 ;;; mh-funcs.el --- MH-E functions not everyone will use right away
 
-;; Copyright (C) 1993, 1995, 2001-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1993, 1995, 2001-2020 Free Software Foundation, Inc.
 
 ;; Author: Bill Wohler <wohler@newt.com>
-;; Maintainer: Bill Wohler <wohler@newt.com>
 ;; Keywords: mail
 ;; See: mh-e.el
 
@@ -20,7 +19,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -124,7 +123,7 @@ folder. This is useful for folders that are easily regenerated."
         (message "Folder %s removed" folder))
     (message "Folder not removed")))
 
-(defun mh-rmf-daemon (process output)
+(defun mh-rmf-daemon (_process output)
   "The rmf PROCESS puts OUTPUT in temporary buffer.
 Display the results only if something went wrong."
   (set-buffer (get-buffer-create mh-temp-buffer))
@@ -357,6 +356,8 @@ Arguments are IGNORED (for `revert-buffer')."
              (yes-or-no-p "Undo all commands in folder? "))
          (setq mh-delete-list nil
                mh-refile-list nil
+               mh-blacklist nil
+               mh-whitelist nil
                mh-seq-list nil
                mh-next-direction 'forward)
          (with-mh-folder-updating (nil)

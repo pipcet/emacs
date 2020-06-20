@@ -1,6 +1,6 @@
 ;;; rng-loc.el --- Locate the schema to use for validation  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2003, 2007-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2003, 2007-2020 Free Software Foundation, Inc.
 
 ;; Author: James Clark
 ;; Keywords: wp, hypermedia, languages, XML, RelaxNG
@@ -18,7 +18,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -407,7 +407,7 @@ or nil."
   "Return a list of rules for the schema locating file FILE."
   (setq file (expand-file-name file))
   (let ((cached (assoc file rng-schema-locating-file-alist))
-	(mtime (nth 5 (file-attributes file)))
+	(mtime (file-attribute-modification-time (file-attributes file)))
 	parsed)
     (cond ((not mtime)
 	   (when cached

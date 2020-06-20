@@ -1,6 +1,6 @@
 ;;; elec-pair.el --- Automatic parenthesis pairing  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2013-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2013-2020 Free Software Foundation, Inc.
 
 ;; Author: João Távora <joaotavora@gmail.com>
 
@@ -17,13 +17,14 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
 ;;; Code:
 
 (require 'electric)
+(eval-when-compile (require 'cl-lib))
 
 ;;; Electric pairing.
 
@@ -50,7 +51,7 @@ See also the variable `electric-pair-text-pairs'."
 
 Pairs of delimiters in this list are a fallback in case they have
 no syntax relevant to `electric-pair-mode' in the syntax table
-defined in `electric-pair-text-syntax-table'"
+defined in `electric-pair-text-syntax-table'."
   :version "24.4"
   :group 'electricity
   :type '(repeat (cons character character)))
@@ -154,6 +155,13 @@ return value is considered instead."
                       (const :tag "Newline" ?\n))
                  (list character)))
 
+(defvar-local electric-pair-skip-whitespace-function
+  #'electric-pair--skip-whitespace
+  "Function to use to skip whitespace forward.
+Before attempting a skip, if `electric-pair-skip-whitespace' is
+non-nil, this function is called.  It move point to a new buffer
+position, presumably skipping only whitespace in between.")
+
 (defun electric-pair--skip-whitespace ()
   "Skip whitespace forward, not crossing comment or string boundaries."
   (let ((saved (point))
@@ -219,8 +227,31 @@ inside a comment or string."
 (defun electric-pair--insert (char)
   (let ((last-command-event char)
 	(blink-matching-paren nil)
-	(electric-pair-mode nil))
+	(electric-pair-mode nil)
+        ;; When adding the "closer" delimiter, a job his function is
+        ;; frequently used for, we don't want to munch any extra
+        ;; newlines above us.  That would be the default behavior of
+        ;; `electric-layout-mode', which potentially kicked in before
+        ;; us to add these newlines, and is probably about to kick in
+        ;; again after we add the closer.
+        (electric-layout-allow-duplicate-newlines t))
     (self-insert-command 1)))
+
+(cl-defmacro electric-pair--with-uncached-syntax ((table &optional start) &rest body)
+  "Like `with-syntax-table', but flush the syntax-ppss cache afterwards.
+Use this instead of (with-syntax-table TABLE BODY) when BODY
+contains code which may update the syntax-ppss cache.  This
+includes calling `parse-partial-sexp' and any sexp-based movement
+functions when `parse-sexp-lookup-properties' is non-nil.  The
+cache is flushed from position START, defaulting to point."
+  (declare (debug ((form &optional form) body)) (indent 1))
+  (let ((start-var (make-symbol "start")))
+    `(let ((syntax-propertize-function #'ignore)
+           (,start-var ,(or start '(point))))
+       (unwind-protect
+           (with-syntax-table ,table
+             ,@body)
+         (syntax-ppss-flush-cache ,start-var)))))
 
 (defun electric-pair--syntax-ppss (&optional pos where)
   "Like `syntax-ppss', but sometimes fallback to `parse-partial-sexp'.
@@ -240,7 +271,8 @@ when to fallback to `parse-partial-sexp'."
                               (skip-syntax-forward " >!")
                               (point)))))
     (if s-or-c-start
-        (with-syntax-table electric-pair-text-syntax-table
+        (electric-pair--with-uncached-syntax (electric-pair-text-syntax-table
+                                              s-or-c-start)
           (parse-partial-sexp s-or-c-start pos))
       ;; HACK! cc-mode apparently has some `syntax-ppss' bugs
       (if (memq major-mode '(c-mode c++ mode))
@@ -293,7 +325,8 @@ If point is not enclosed by any lists, return ((t) . (t))."
                         (cond ((< direction 0)
                                (condition-case nil
                                    (eq (char-after pos)
-                                       (with-syntax-table table
+                                       (electric-pair--with-uncached-syntax
+                                           (table)
                                          (matching-paren
                                           (char-before
                                            (scan-sexps (point) 1)))))
@@ -323,7 +356,7 @@ If point is not enclosed by any lists, return ((t) . (t))."
     (save-excursion
       (while (not outermost)
         (condition-case err
-            (with-syntax-table table
+            (electric-pair--with-uncached-syntax (table)
               (scan-sexps (point) (if (> direction 0)
                                       (point-max)
                                     (- (point-max))))
@@ -347,7 +380,7 @@ If point is not enclosed by any lists, return ((t) . (t))."
 (defvar electric-pair-string-bound-function 'point-max
   "Next buffer position where strings are syntactically unexpected.
 Value is a function called with no arguments and returning a
-buffer position. Major modes should set this variable
+buffer position.  Major modes should set this variable
 buffer-locally if they experience slowness with
 `electric-pair-mode' when pairing quotes.")
 
@@ -379,6 +412,15 @@ strings."
   (let ((ppss (electric-pair--syntax-ppss (point) '(comment))))
     (memq (nth 3 ppss) (list t char))))
 
+(defmacro electric-pair--save-literal-point-excursion (&rest body)
+  ;; FIXME: need this instead of `save-excursion' when functions in
+  ;; BODY, such as `electric-pair-inhibit-if-helps-balance' and
+  ;; `electric-pair-skip-if-helps-balance' modify and restore the
+  ;; buffer in a way that modifies the marker used by save-excursion.
+  (let ((point (make-symbol "point")))
+    `(let ((,point (point)))
+       (unwind-protect (progn ,@body) (goto-char ,point)))))
+
 (defun electric-pair-inhibit-if-helps-balance (char)
   "Return non-nil if auto-pairing of CHAR would hurt parentheses' balance.
 
@@ -387,24 +429,28 @@ some list calculations, finally restoring the situation as if nothing
 happened."
   (pcase (electric-pair-syntax-info char)
     (`(,syntax ,pair ,_ ,s-or-c)
-     (unwind-protect
-         (progn
-           (delete-char -1)
-           (cond ((eq ?\( syntax)
-                  (let* ((pair-data
-                          (electric-pair--balance-info 1 s-or-c))
-                         (outermost (cdr pair-data)))
-                    (cond ((car outermost)
-                           nil)
-                          (t
-                           (eq (cdr outermost) pair)))))
-                 ((eq syntax ?\")
-                  (electric-pair--unbalanced-strings-p char))))
-       (insert-char char)))))
+     (catch 'done
+       ;; FIXME: modify+undo is *very* tricky business.  We used to
+       ;; use `delete-char' followed by `insert', but this changed the
+       ;; position some markers.  The real fix would be to compute the
+       ;; result without having to modify the buffer at all.
+       (atomic-change-group
+         (delete-char -1)
+         (throw
+          'done
+          (cond ((eq ?\( syntax)
+                 (let* ((pair-data
+                         (electric-pair--balance-info 1 s-or-c))
+                        (outermost (cdr pair-data)))
+                   (cond ((car outermost)
+                          nil)
+                         (t
+                          (eq (cdr outermost) pair)))))
+                ((eq syntax ?\")
+                 (electric-pair--unbalanced-strings-p char)))))))))
 
 (defun electric-pair-skip-if-helps-balance (char)
   "Return non-nil if skipping CHAR would benefit parentheses' balance.
-
 Works by first removing the character from the buffer, then doing
 some list calculations, finally restoring the situation as if nothing
 happened."
@@ -426,7 +472,7 @@ happened."
                             (not (eq (cdr outermost) pair)))))))
                  ((eq syntax ?\")
                   (electric-pair--inside-string-p char))))
-       (insert-char char)))))
+       (insert char)))))
 
 (defun electric-pair-default-skip-self (char)
   (if electric-pair-preserve-balance
@@ -472,7 +518,9 @@ happened."
         ((and (memq syntax '(?\) ?\" ?\$))
               (and (or unconditional
                        (if (functionp electric-pair-skip-self)
-                           (funcall electric-pair-skip-self last-command-event)
+                           (electric-pair--save-literal-point-excursion
+                             (goto-char pos)
+                             (funcall electric-pair-skip-self last-command-event))
                          electric-pair-skip-self))
                    (save-excursion
                      (when (and (not (and unconditional
@@ -482,7 +530,7 @@ happened."
                                                (functionp electric-pair-skip-whitespace))
                                           (funcall electric-pair-skip-whitespace)
                                         electric-pair-skip-whitespace)))
-                       (electric-pair--skip-whitespace))
+                       (funcall electric-pair-skip-whitespace-function))
                      (eq (char-after) last-command-event))))
          ;; This is too late: rather than insert&delete we'd want to only
          ;; skip (or insert in overwrite mode).  The difference is in what
@@ -490,17 +538,19 @@ happened."
          ;; be visible to other post-self-insert-hook.  We'll just have to
          ;; live with it for now.
          (when skip-whitespace-info
-           (electric-pair--skip-whitespace))
+           (funcall electric-pair-skip-whitespace-function))
          (delete-region (1- pos) (if (eq skip-whitespace-info 'chomp)
                                      (point)
                                    pos))
          (forward-char))
         ;; Insert matching pair.
-        ((and (memq syntax `(?\( ?\" ?\$))
+        ((and (memq syntax '(?\( ?\" ?\$))
               (not overwrite-mode)
               (or unconditional
-                  (not (funcall electric-pair-inhibit-predicate
-                                last-command-event))))
+                  (not (electric-pair--save-literal-point-excursion
+                         (goto-char pos)
+                         (funcall electric-pair-inhibit-predicate
+                                  last-command-event)))))
          (save-excursion (electric-pair--insert pair)))))
       (_
        (when (and (if (functionp electric-pair-open-newline-between-pairs)
@@ -513,8 +563,6 @@ happened."
                         (char-before (1- (point))))
                       (matching-paren (char-after))))
          (save-excursion (newline 1 t)))))))
-
-(put 'electric-pair-post-self-insert-function   'priority  20)
 
 (defun electric-pair-will-use-region ()
   (and (use-region-p)
@@ -555,20 +603,26 @@ ARG and KILLP are passed directly to
 ;;;###autoload
 (define-minor-mode electric-pair-mode
   "Toggle automatic parens pairing (Electric Pair mode).
-With a prefix argument ARG, enable Electric Pair mode if ARG is
-positive, and disable it otherwise.  If called from Lisp, enable
-the mode if ARG is omitted or nil.
 
 Electric Pair mode is a global minor mode.  When enabled, typing
 an open parenthesis automatically inserts the corresponding
-closing parenthesis.  (Likewise for brackets, etc.). To toggle
-the mode in a single buffer, use `electric-pair-local-mode'."
+closing parenthesis, and vice versa.  (Likewise for brackets, etc.).
+If the region is active, the parentheses (brackets, etc.) are
+inserted around the region instead.
+
+To toggle the mode in a single buffer, use `electric-pair-local-mode'."
   :global t :group 'electricity
   (if electric-pair-mode
       (progn
 	(add-hook 'post-self-insert-hook
-		  #'electric-pair-post-self-insert-function)
-        (electric--sort-post-self-insertion-hook)
+		  #'electric-pair-post-self-insert-function
+                  ;; Prioritize this to kick in after
+                  ;; `electric-layout-post-self-insert-function': that
+                  ;; considerably simplifies interoperation when
+                  ;; `electric-pair-mode', `electric-layout-mode' and
+                  ;; `electric-indent-mode' are used together.
+                  ;; Use `vc-region-history' on these lines for more info.
+                  50)
 	(add-hook 'self-insert-uses-region-functions
 		  #'electric-pair-will-use-region))
     (remove-hook 'post-self-insert-hook

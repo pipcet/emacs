@@ -1,11 +1,11 @@
 # Configure a GNU-like replacement for <string.h>.
 
-# Copyright (C) 2007-2017 Free Software Foundation, Inc.
+# Copyright (C) 2007-2020 Free Software Foundation, Inc.
 # This file is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
 # with or without modifications, as long as this notice is preserved.
 
-# serial 21
+# serial 23
 
 # Written by Paul Eggert.
 
@@ -18,7 +18,6 @@ AC_DEFUN([gl_HEADER_STRING_H],
 
 AC_DEFUN([gl_HEADER_STRING_H_BODY],
 [
-  AC_REQUIRE([AC_C_RESTRICT])
   AC_REQUIRE([gl_HEADER_STRING_H_DEFAULTS])
   gl_NEXT_HEADERS([string.h])
 
@@ -30,6 +29,8 @@ AC_DEFUN([gl_HEADER_STRING_H_BODY],
     [ffsl ffsll memmem mempcpy memrchr rawmemchr stpcpy stpncpy strchrnul
      strdup strncat strndup strnlen strpbrk strsep strcasestr strtok_r
      strerror_r strsignal strverscmp])
+
+  AC_REQUIRE([AC_C_RESTRICT])
 ])
 
 AC_DEFUN([gl_STRING_MODULE_INDICATOR],
@@ -107,16 +108,16 @@ AC_DEFUN([gl_HEADER_STRING_H_DEFAULTS],
   REPLACE_MEMCHR=0;             AC_SUBST([REPLACE_MEMCHR])
   REPLACE_MEMMEM=0;             AC_SUBST([REPLACE_MEMMEM])
   REPLACE_STPNCPY=0;            AC_SUBST([REPLACE_STPNCPY])
-  REPLACE_STRDUP=0;             AC_SUBST([REPLACE_STRDUP])
-  REPLACE_STRSTR=0;             AC_SUBST([REPLACE_STRSTR])
-  REPLACE_STRCASESTR=0;         AC_SUBST([REPLACE_STRCASESTR])
   REPLACE_STRCHRNUL=0;          AC_SUBST([REPLACE_STRCHRNUL])
-  REPLACE_STRERROR=0;           AC_SUBST([REPLACE_STRERROR])
-  REPLACE_STRERROR_R=0;         AC_SUBST([REPLACE_STRERROR_R])
+  REPLACE_STRDUP=0;             AC_SUBST([REPLACE_STRDUP])
   REPLACE_STRNCAT=0;            AC_SUBST([REPLACE_STRNCAT])
   REPLACE_STRNDUP=0;            AC_SUBST([REPLACE_STRNDUP])
   REPLACE_STRNLEN=0;            AC_SUBST([REPLACE_STRNLEN])
-  REPLACE_STRSIGNAL=0;          AC_SUBST([REPLACE_STRSIGNAL])
+  REPLACE_STRSTR=0;             AC_SUBST([REPLACE_STRSTR])
+  REPLACE_STRCASESTR=0;         AC_SUBST([REPLACE_STRCASESTR])
   REPLACE_STRTOK_R=0;           AC_SUBST([REPLACE_STRTOK_R])
+  REPLACE_STRERROR=0;           AC_SUBST([REPLACE_STRERROR])
+  REPLACE_STRERROR_R=0;         AC_SUBST([REPLACE_STRERROR_R])
+  REPLACE_STRSIGNAL=0;          AC_SUBST([REPLACE_STRSIGNAL])
   UNDEFINE_STRTOK_R=0;          AC_SUBST([UNDEFINE_STRTOK_R])
 ])

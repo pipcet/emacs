@@ -1,9 +1,8 @@
 ;;; ebnf-iso.el --- parser for ISO EBNF
 
-;; Copyright (C) 1999-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1999-2020 Free Software Foundation, Inc.
 
-;; Author: Vinicius Jose Latorre <viniciusjl@ig.com.br>
-;; Maintainer: Vinicius Jose Latorre <viniciusjl@ig.com.br>
+;; Author: Vinicius Jose Latorre <viniciusjl.gnu@gmail.com>
 ;; Keywords: wp, ebnf, PostScript
 ;; Old-Version: 1.9
 ;; Package: ebnf2ps
@@ -21,7 +20,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -380,9 +379,8 @@
     (aset ebnf-iso-token-table ?.  'character)))
 
 
-;; replace the range "\240-\377" (see `ebnf-range-regexp').
 (defconst ebnf-iso-non-terminal-chars
-  (ebnf-range-regexp " 0-9A-Za-z_" ?\240 ?\377))
+  " 0-9A-Za-z_\u00a0-\u00ff")
 
 
 (defun ebnf-iso-lex ()
@@ -488,9 +486,8 @@ See documentation for variable `ebnf-iso-lex'."
        ))))
 
 
-;; replace the range "\177-\237" (see `ebnf-range-regexp').
 (defconst ebnf-iso-comment-chars
-  (ebnf-range-regexp "^*(\000-\010\016-\037" ?\177 ?\237))
+  "^*(\000-\010\016-\037\177\u0080-\u009f")
 
 
 (defun ebnf-iso-skip-comment ()

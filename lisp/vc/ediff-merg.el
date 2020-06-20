@@ -1,6 +1,6 @@
-;;; ediff-merg.el --- merging utilities
+;;; ediff-merg.el --- merging utilities  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1994-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1994-2020 Free Software Foundation, Inc.
 
 ;; Author: Michael Kifer <kifer@cs.stonybrook.edu>
 ;; Package: ediff
@@ -18,7 +18,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -194,7 +194,7 @@ Buffer B."
 
 (defun ediff-set-merge-mode ()
   (normal-mode t)
-  (remove-hook 'local-write-file-hooks 'ediff-set-merge-mode))
+  (remove-hook 'write-file-functions 'ediff-set-merge-mode t))
 
 
 ;; Go over all diffs starting with DIFF-NUM and copy regions into buffer C
@@ -382,12 +382,4 @@ Combining is done according to the specifications in variable
 
 
 (provide 'ediff-merg)
-
-
-;; Local Variables:
-;; eval: (put 'ediff-defvar-local 'lisp-indent-hook 'defun)
-;; eval: (put 'ediff-with-current-buffer 'lisp-indent-hook 1)
-;; eval: (put 'ediff-with-current-buffer 'edebug-form-spec '(form body))
-;; End:
-
 ;;; ediff-merg.el ends here

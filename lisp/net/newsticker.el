@@ -1,6 +1,6 @@
 ;;; newsticker.el --- A Newsticker for Emacs. -*- lexical-binding: t -*-
 
-;; Copyright (C) 2003-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2003-2020 Free Software Foundation, Inc.
 
 ;; Author:      Ulf Jasper <ulf.jasper@web.de>
 ;; Filename:    newsticker.el
@@ -23,7 +23,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 (defconst newsticker-version "1.99" "Version number of newsticker.el.")
 (make-obsolete-variable 'newsticker-version 'emacs-version "25.1")
@@ -71,11 +71,6 @@
 
 ;; Requirements
 ;; ------------
-;; Newsticker can be used with GNU Emacs version 21.1 or later as well as
-;; XEmacs.  It requires an XML-parser (`xml.el') which is part of GNU
-;; Emacs.  If you are using XEmacs you want to get the `net-utils' package
-;; which contains `xml.el' for XEmacs.
-
 ;; Newsticker requires a program which can retrieve files via http and
 ;; prints them to stdout.  By default Newsticker will use wget for this
 ;; task.

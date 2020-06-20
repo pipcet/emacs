@@ -1,6 +1,6 @@
 ;;; dired-x.el --- extra Dired functionality  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1993-1994, 1997, 2001-2017 Free Software Foundation,
+;; Copyright (C) 1993-1994, 1997, 2001-2020 Free Software Foundation,
 ;; Inc.
 
 ;; Author: Sebastian Kremer <sk@thp.uni-koeln.de>
@@ -22,12 +22,12 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
 ;; This is based on Sebastian Kremer's excellent dired-x.el (Dired Extra),
-;; version 1.191, adapted for GNU Emacs.  See the `dired-x' info pages.
+;; version 1.191, adapted for GNU Emacs.  See the `dired-x' Info manual.
 
 ;; At load time dired-x.el will install itself and bind some dired keys.
 ;; Some dired.el and dired-aux.el functions have extra features if
@@ -35,7 +35,7 @@
 
 ;; User customization: M-x customize-group RET dired-x RET.
 
-;; *Please* see the `dired-x' info pages for more details.
+;; *Please* see the `dired-x' Info manual for more details.
 
 
 ;;; Code:
@@ -57,7 +57,7 @@
 
 (defcustom dired-bind-vm nil
   "Non-nil means \"V\" runs `dired-vm', otherwise \"V\" runs `dired-rmail'.
-RMAIL files in the old Babyl format (used before before Emacs 23.1)
+RMAIL files in the old Babyl format (used before Emacs 23.1)
 contain \"-*- rmail -*-\" at the top, so `dired-find-file'
 will run `rmail' on these files.  New RMAIL files use the standard
 mbox format, and so cannot be distinguished in this way."
@@ -137,13 +137,8 @@ folding to be used on case-insensitive filesystems only."
       (file-name-case-insensitive-p dir)
     dired-omit-case-fold))
 
-;; For backward compatibility
-(define-obsolete-variable-alias 'dired-omit-files-p 'dired-omit-mode "22.1")
 (define-minor-mode dired-omit-mode
   "Toggle omission of uninteresting files in Dired (Dired-Omit mode).
-With a prefix argument ARG, enable Dired-Omit mode if ARG is
-positive, and disable it otherwise.  If called from Lisp, enable
-the mode if ARG is omitted or nil.
 
 Dired-Omit mode is a buffer-local minor mode.  When enabled in a
 Dired buffer, Dired does not list files whose filenames match
@@ -164,7 +159,7 @@ See Info node `(dired-x) Omitting Variables' for more information."
 
 (put 'dired-omit-mode 'safe-local-variable 'booleanp)
 
-(defcustom dired-omit-files "^\\.?#\\|^\\.$\\|^\\.\\.$"
+(defcustom dired-omit-files "\\`[.]?#\\|\\`[.][.]?\\'"
   "Filenames matching this regexp will not be displayed.
 This only has effect when `dired-omit-mode' is t.  See interactive function
 `dired-omit-mode' (\\[dired-omit-mode]) and variable
@@ -193,21 +188,6 @@ a normal and a wildcard buffer for the same directory, \\[dired] will
 toggle between those two."
   :type 'boolean
   :group 'dired-x)
-
-(defcustom dired-enable-local-variables t
-  "Control use of local-variables lists in Dired.
-This temporarily overrides the value of `enable-local-variables' when
-listing a directory.  See also `dired-local-variables-file'."
-  :risky t
-  :type '(choice (const :tag "Query Unsafe" t)
-		 (const :tag "Safe Only" :safe)
-		 (const :tag "Do all" :all)
-		 (const :tag "Ignore" nil)
-		 (other :tag "Query" other))
-  :group 'dired-x)
-
-(make-obsolete-variable 'dired-enable-local-variables
-                        "use a standard `dir-locals-file' instead." "24.1")
 
 (defcustom dired-guess-shell-gnutar
   (catch 'found
@@ -243,25 +223,34 @@ to nil: a pipe using `zcat' or `gunzip -c' will be used."
   :type 'boolean
   :group 'dired-x)
 
+(defcustom dired-clean-confirm-killing-deleted-buffers t
+  "If nil, don't ask whether to kill buffers visiting deleted files."
+  :version "26.1"
+  :type 'boolean
+  :group 'dired-x)
+
 ;;; KEY BINDINGS.
+(when (keymapp (lookup-key dired-mode-map "*"))
+  (define-key dired-mode-map "*(" 'dired-mark-sexp)
+  (define-key dired-mode-map "*O" 'dired-mark-omitted)
+  (define-key dired-mode-map "*." 'dired-mark-extension))
+
+(when (keymapp (lookup-key dired-mode-map "%"))
+  (define-key dired-mode-map "%Y" 'dired-do-relsymlink-regexp))
 
 (define-key dired-mode-map "\C-x\M-o" 'dired-omit-mode)
-(define-key dired-mode-map "*O" 'dired-mark-omitted)
 (define-key dired-mode-map "\M-(" 'dired-mark-sexp)
-(define-key dired-mode-map "*(" 'dired-mark-sexp)
-(define-key dired-mode-map "*." 'dired-mark-extension)
 (define-key dired-mode-map "\M-!" 'dired-smart-shell-command)
 (define-key dired-mode-map "\M-G" 'dired-goto-subdir)
 (define-key dired-mode-map "F" 'dired-do-find-marked-files)
 (define-key dired-mode-map "Y"  'dired-do-relsymlink)
-(define-key dired-mode-map "%Y" 'dired-do-relsymlink-regexp)
 (define-key dired-mode-map "V" 'dired-do-run-mail)
 
 ;;; MENU BINDINGS
 
 (require 'easymenu)
 
-(let ((menu (lookup-key dired-mode-map [menu-bar])))
+(when-let ((menu (lookup-key dired-mode-map [menu-bar])))
   (easy-menu-add-item menu '("Operate")
                       ["Find Files" dired-do-find-marked-files
                        :help "Find current or marked files"]
@@ -326,7 +315,6 @@ See also the functions:
   `dired-do-find-marked-files'"
   (interactive)
   ;; These must be done in each new dired buffer.
-  (dired-hack-local-variables)
   (dired-omit-startup))
 
 
@@ -460,6 +448,7 @@ See variables `dired-texinfo-unclean-extensions',
                                 dired-tex-unclean-extensions
                                 (list ".dvi"))))
 
+(defvar archive-superior-buffer)
 (defvar tar-superior-buffer)
 ;;; JUMP.
 
@@ -476,8 +465,14 @@ Interactively with prefix argument, read FILE-NAME."
   (interactive
    (list nil (and current-prefix-arg
                   (read-file-name "Jump to Dired file: "))))
-  (if (bound-and-true-p tar-subfile-mode)
-      (switch-to-buffer tar-superior-buffer)
+  (cond
+   ((and (bound-and-true-p archive-subfile-mode)
+         (buffer-live-p archive-superior-buffer))
+    (switch-to-buffer archive-superior-buffer))
+   ((and (bound-and-true-p tar-subfile-mode)
+         (buffer-live-p tar-superior-buffer))
+    (switch-to-buffer tar-superior-buffer))
+   (t
     ;; Expand file-name before `dired-goto-file' call:
     ;; `dired-goto-file' requires its argument to be an absolute
     ;; file name; the result of `read-file-name' could be
@@ -505,7 +500,7 @@ Interactively with prefix argument, read FILE-NAME."
                 ;; Toggle omitting, if it is on, and try again.
                 (when dired-omit-mode
                   (dired-omit-mode)
-                  (dired-goto-file file))))))))
+                  (dired-goto-file file)))))))))
 
 ;;;###autoload
 (defun dired-jump-other-window (&optional file-name)
@@ -628,7 +623,9 @@ interactively, prompt for REGEXP.
 With prefix argument, unflag all those files.
 Optional fourth argument LOCALP is as in `dired-get-filename'.
 Optional fifth argument CASE-FOLD-P specifies the value of
-`case-fold-search' used for matching REGEXP."
+`case-fold-search' used for matching REGEXP.
+If the region is active in Transient Mark mode, operate only on
+files in the active region if `dired-mark-region' is non-nil."
   (interactive
    (list (read-regexp
 	  "Mark unmarked files matching regexp (default all): "
@@ -637,9 +634,12 @@ Optional fifth argument CASE-FOLD-P specifies the value of
   (let ((dired-marker-char (if unflag-p ?\s dired-marker-char)))
     (dired-mark-if
      (and
-      ;; not already marked
-      (= (following-char) ?\s)
-      ;; uninteresting
+      (if unflag-p
+          ;; Already marked.
+          (not (= (following-char) ?\s))
+        ;; Not already marked.
+        (= (following-char) ?\s))
+      ;; Interesting.
       (let ((fn (dired-get-filename localp t))
             ;; Match patterns case-insensitively on case-insensitive
             ;; systems
@@ -666,7 +666,7 @@ visit that file and turn on Virtual Dired mode.  But don't try to save
 this file, as dired-virtual indents the listing and thus changes the
 buffer.
 
-If you have save a Dired buffer in a file you can use \\[dired-virtual] to
+If you have saved a Dired buffer in a file you can use \\[dired-virtual] to
 resume it in a later session.
 
 Type \\<dired-mode-map>\\[revert-buffer] \
@@ -781,34 +781,6 @@ Also useful for `auto-mode-alist' like this:
 ;; mechanism is provided for special handling of the working directory in
 ;; special major modes.
 
-(define-obsolete-variable-alias 'default-directory-alist
-  'dired-default-directory-alist "24.1")
-
-;; It's easier to add to this alist than redefine function
-;; default-directory while keeping the old information.
-(defconst dired-default-directory-alist
-  '((dired-mode . (if (fboundp 'dired-current-directory)
-                      (dired-current-directory)
-                    default-directory)))
-  "Alist of major modes and their opinion on `default-directory'.
-Each element has the form (MAJOR . EXPRESSION).
-The function `dired-default-directory' evaluates EXPRESSION to
-determine a default directory.")
-
-(put 'dired-default-directory-alist 'risky-local-variable t) ; gets eval'd
-(make-obsolete-variable 'dired-default-directory-alist
-                        "this feature is due to be removed." "24.1")
-
-(defun dired-default-directory ()
-  "Return the `dired-default-directory-alist' entry for the current major-mode.
-If none, return `default-directory'."
-  ;; It looks like this was intended to be something of a "general"
-  ;; feature, but it only ever seems to have been used in
-  ;; dired-smart-shell-command, and doesn't seem worth keeping around.
-  (declare (obsolete nil "24.1"))
-  (or (eval (cdr (assq major-mode dired-default-directory-alist)))
-      default-directory))
-
 (defun dired-smart-shell-command (command &optional output-buffer error-buffer)
   "Like function `shell-command', but in the current Virtual Dired directory."
   (interactive
@@ -823,85 +795,6 @@ If none, return `default-directory'."
                                     (dired-current-directory))
                                default-directory)))
     (shell-command command output-buffer error-buffer)))
-
-
-;;; LOCAL VARIABLES FOR DIRED BUFFERS.
-
-;; Brief Description  (This feature is obsolete as of Emacs 24.1)
-;;
-;; * `dired-extra-startup' is part of the `dired-mode-hook'.
-;;
-;; * `dired-extra-startup' calls `dired-hack-local-variables'
-;;
-;; * `dired-hack-local-variables' checks the value of
-;;   `dired-local-variables-file'
-;;
-;; * Check if `dired-local-variables-file' is a non-nil string and is a
-;;   filename found in the directory of the Dired Buffer being created.
-;;
-;; * If `dired-local-variables-file' satisfies the above, then temporarily
-;;   include it in the Dired Buffer at the bottom.
-;;
-;; * Set `enable-local-variables' temporarily to the user variable
-;;   `dired-enable-local-variables' and run `hack-local-variables' on the
-;;   Dired Buffer.
-
-(defcustom dired-local-variables-file (convert-standard-filename ".dired")
-  "Filename, as string, containing local Dired buffer variables to be hacked.
-If this file found in current directory, then it will be inserted into dired
-buffer and `hack-local-variables' will be run.  See Info node
-`(emacs)File Variables' for more information on local variables.
-See also `dired-enable-local-variables'."
-  :type 'file
-  :group 'dired)
-
-(make-obsolete-variable 'dired-local-variables-file 'dir-locals-file "24.1")
-
-(defun dired-hack-local-variables ()
-  "Evaluate local variables in `dired-local-variables-file' for Dired buffer."
-  (declare (obsolete hack-dir-local-variables-non-file-buffer "24.1"))
-  (and (stringp dired-local-variables-file)
-       (file-exists-p dired-local-variables-file)
-       (let ((opoint (point-max))
-             (inhibit-read-only t)
-             ;; In case user has `enable-local-variables' set to nil we
-             ;; override it locally with dired's variable.
-             (enable-local-variables dired-enable-local-variables))
-         ;; Insert 'em.
-         (save-excursion
-           (goto-char opoint)
-           (insert "\^L\n")
-           (insert-file-contents dired-local-variables-file))
-         ;; Hack 'em.
-         (unwind-protect
-             (let ((buffer-file-name dired-local-variables-file))
-               (hack-local-variables))
-           ;; Delete this stuff: `eobp' is used to find last subdir by dired.el.
-           (delete-region opoint (point-max)))
-         ;; Make sure that the mode line shows the proper information.
-         (dired-sort-set-mode-line))))
-
-;; Does not seem worth a dedicated command.
-;; See the more general features in files-x.el.
-(defun dired-omit-here-always ()
-  "Create `dir-locals-file' setting `dired-omit-mode' to t in `dired-mode'.
-If in a Dired buffer, reverts it."
-  (declare (obsolete add-dir-local-variable "24.1"))
-  (interactive)
-  (if (file-exists-p dired-local-variables-file)
-      (error "Old-style dired-local-variables-file `./%s' found;
-replace it with a dir-locals-file `./%s'"
-             dired-local-variables-file
-             dir-locals-file))
-  (if (file-exists-p dir-locals-file)
-      (message "File `./%s' already exists." dir-locals-file)
-    (add-dir-local-variable 'dired-mode 'subdirs nil)
-    (add-dir-local-variable 'dired-mode 'dired-omit-mode t)
-    ;; Run extra-hooks and revert directory.
-    (when (derived-mode-p 'dired-mode)
-      (hack-dir-local-variables-non-file-buffer)
-      (dired-extra-startup)
-      (dired-revert))))
 
 
 ;;; GUESS SHELL COMMAND.
@@ -939,6 +832,7 @@ replace it with a dir-locals-file `./%s'"
 ;; install GNU zip's version of zcat.
 
 (autoload 'Man-support-local-filenames "man")
+(autoload 'vc-responsible-backend "vc")
 
 (defvar dired-guess-shell-alist-default
   (list
@@ -1021,7 +915,10 @@ replace it with a dir-locals-file `./%s'"
 	 '(concat "znew" (if dired-guess-shell-gzip-quiet " -q")
 		  " " dired-guess-shell-znew-switches))
 
-   '("\\.patch\\'" "cat * | patch")
+   (list "\\.patch\\'"
+         '(if (eq (ignore-errors (vc-responsible-backend default-directory)) 'Git)
+              "cat * | git apply"
+            "cat * | patch"))
    (list "\\.patch\\.g?z\\'" "gunzip -qc * | patch"
 	 ;; Optional decompression.
 	 '(concat "gunzip" (if dired-guess-shell-gzip-quiet " -q")))
@@ -1122,7 +1019,9 @@ Each element of this list looks like
     (REGEXP COMMAND...)
 
 where each COMMAND can either be a string or a Lisp expression that evaluates
-to a string.  This expression can access the file name as the variable `file'.
+to a string.  If this expression needs to consult the name of the file for
+which the shell commands are being requested, it can access that file name
+as the variable `file'.
 If several COMMANDs are given, the first one will be the default
 and the rest will be added temporarily to the history and can be retrieved
 with \\[previous-history-element] (M-p) .
@@ -1327,7 +1226,8 @@ displayed this way is restricted by the height of the current window and
 To keep Dired buffer displayed, type \\[split-window-below] first.
 To display just marked files, type \\[delete-other-windows] first."
   (interactive "P")
-  (dired-simultaneous-find-file (dired-get-marked-files) noselect))
+  (dired-simultaneous-find-file (dired-get-marked-files nil nil nil nil t)
+                                noselect))
 
 (defun dired-simultaneous-find-file (file-list noselect)
   "Visit all files in FILE-LIST and display them simultaneously.
@@ -1488,7 +1388,9 @@ present for some values of `ls-lisp-emulation'.
 
 This function operates only on the buffer content and does not
 refer at all to the underlying file system.  Contrast this with
-`find-dired', which might be preferable for the task at hand."
+`find-dired', which might be preferable for the task at hand.
+If the region is active in Transient Mark mode, mark files
+only in the active region if `dired-mark-region' is non-nil."
   ;; Using sym="" instead of nil avoids the trap of
   ;; (string-match "foo" sym) into which a user would soon fall.
   ;; Give `equal' instead of `=' in the example, as this works on
@@ -1710,7 +1612,6 @@ If `current-prefix-arg' is non-nil, uses name at point as guess."
 (provide 'dired-x)
 
 ;; Local Variables:
-;; byte-compile-dynamic: t
 ;; generated-autoload-file: "dired-loaddefs.el"
 ;; End:
 

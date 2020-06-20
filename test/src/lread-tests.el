@@ -1,6 +1,6 @@
 ;;; lread-tests.el --- tests for lread.c -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2016-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2016-2020 Free Software Foundation, Inc.
 
 ;; Author: Philipp Stephani <phst@google.com>
 
@@ -17,7 +17,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -140,27 +140,12 @@ literals (Bug#20852)."
     (should (equal (lread-tests--last-message)
                    (concat (format-message "Loading `%s': " file-name)
                            "unescaped character literals "
-                           "`?\"', `?(', `?)', `?;', `?[', `?]' detected!")))))
-
-(ert-deftest lread-tests--funny-quote-symbols ()
-  "Check that 'smart quotes' or similar trigger errors in symbol names."
-  (dolist (quote-char
-           '(#x2018 ;; LEFT SINGLE QUOTATION MARK
-             #x2019 ;; RIGHT SINGLE QUOTATION MARK
-             #x201B ;; SINGLE HIGH-REVERSED-9 QUOTATION MARK
-             #x201C ;; LEFT DOUBLE QUOTATION MARK
-             #x201D ;; RIGHT DOUBLE QUOTATION MARK
-             #x201F ;; DOUBLE HIGH-REVERSED-9 QUOTATION MARK
-             #x301E ;; DOUBLE PRIME QUOTATION MARK
-             #xFF02 ;; FULLWIDTH QUOTATION MARK
-             #xFF07 ;; FULLWIDTH APOSTROPHE
-             ))
-    (let ((str (format "%cfoo" quote-char)))
-     (should-error (read str) :type 'invalid-read-syntax)
-     (should (eq (read (concat "\\" str)) (intern str))))))
+                           "`?\"', `?(', `?)', `?;', `?[', `?]' detected, "
+                           "`?\\\"', `?\\(', `?\\)', `?\\;', `?\\[', `?\\]' "
+                           "expected!")))))
 
 (ert-deftest lread-test-bug26837 ()
-  "Test for http://debbugs.gnu.org/26837 ."
+  "Test for https://debbugs.gnu.org/26837 ."
   (let ((load-path (cons
                     (file-name-as-directory
                      (expand-file-name "data" (getenv "EMACS_TEST_DIRECTORY")))
@@ -172,19 +157,37 @@ literals (Bug#20852)."
     (load "somelib" nil t)
     (should (string-suffix-p "/somelib.el" (caar load-history)))))
 
-(ert-deftest lread-tests--old-style-backquotes ()
-  "Check that loading warns about old-style backquotes."
-  (lread-tests--with-temp-file file-name
-    (write-region "(` (a b))" nil file-name)
-    (should (equal (load file-name nil :nomessage :nosuffix) t))
-    (should (equal (lread-tests--last-message)
-                   (concat (format-message "Loading `%s': " file-name)
-                           "old-style backquotes detected!")))))
-
 (ert-deftest lread-lread--substitute-object-in-subtree ()
   (let ((x (cons 0 1)))
     (setcar x x)
     (lread--substitute-object-in-subtree x 1 t)
     (should (eq x (cdr x)))))
+
+(ert-deftest lread-long-hex-integer ()
+  (should (bignump (read "#xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"))))
+
+(ert-deftest lread-test-bug-31186 ()
+  (with-temp-buffer
+    (insert ";; -*- -:*-")
+    (should-not
+     ;; This used to crash in lisp_file_lexically_bound_p before the
+     ;; bug was fixed.
+     (eval-buffer))))
+
+(ert-deftest lread-invalid-bytecodes ()
+  (should-error
+   (let ((load-force-doc-strings t)) (read "#[0 \"\"]"))))
+
+(ert-deftest lread-string-to-number-trailing-dot ()
+  (dolist (n (list (* most-negative-fixnum most-negative-fixnum)
+                   (1- most-negative-fixnum) most-negative-fixnum
+                   (1+ most-negative-fixnum) -1 0 1
+                   (1- most-positive-fixnum) most-positive-fixnum
+                   (1+ most-positive-fixnum)
+                   (* most-positive-fixnum most-positive-fixnum)))
+    (should (= n (string-to-number (format "%d." n))))))
+
+(ert-deftest lread-circular-hash ()
+  (should-error (read "#s(hash-table data #0=(#0# . #0#))")))
 
 ;;; lread-tests.el ends here

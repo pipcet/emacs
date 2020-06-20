@@ -1,6 +1,6 @@
-;;; kermit.el --- additions to shell mode for use with kermit
+;;; kermit.el --- additions to shell mode for use with kermit -*- lexical-binding: t -*-
 
-;; Copyright (C) 1988, 2001-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1988, 2001-2020 Free Software Foundation, Inc.
 
 ;; Author: Jeff Norden <jeff@colgate.csnet>
 ;; Maintainer: emacs-devel@gnu.org
@@ -20,7 +20,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -77,7 +77,13 @@
 
 (require 'shell)
 
-(defvar kermit-esc-char "\C-\\" "*Kermit's escape char.")
+(defgroup kermit nil
+  "Kermit support."
+  :group 'comm)
+
+(defcustom kermit-esc-char "\C-\\"
+  "Kermit's escape char."
+  :type 'string)
 
 (defun kermit-esc ()
   "For sending escape sequences to a kermit running in shell mode."

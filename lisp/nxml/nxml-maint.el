@@ -1,6 +1,6 @@
 ;;; nxml-maint.el --- commands for maintainers of nxml-*.el  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2003, 2007-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2003, 2007-2020 Free Software Foundation, Inc.
 
 ;; Author: James Clark
 ;; Keywords: wp, hypermedia, languages, XML
@@ -18,7 +18,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -34,10 +34,10 @@
   (let (lst head)
     (with-current-buffer (find-file-noselect file)
       (goto-char (point-min))
-      (while (re-search-forward "^ *\\([a-FA-F0-9]\\{2\\}\\)[ \t]+" nil t)
+      (while (re-search-forward "^ *\\([[:xdigit:]]\\{2\\}\\)[ \t]+" nil t)
 	(let ((row (match-string 1))
 	      (eol (line-end-position)))
-	  (while (re-search-forward "\\([a-FA-F0-9]\\{2\\}\\)-\\([a-FA-F0-9]\\{2\\}\\)\\|\\([a-FA-F0-9]\\{2\\}\\)" eol t)
+	  (while (re-search-forward "\\([[:xdigit:]]\\{2\\}\\)-\\([[:xdigit:]]\\{2\\}\\)\\|\\([[:xdigit:]]\\{2\\}\\)" eol t)
 	    (setq lst
 		  (cons (if (match-beginning 3)
 			    (concat "#x" row (match-string 3))

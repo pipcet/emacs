@@ -1,6 +1,6 @@
 ;;; cookie1.el --- retrieve random phrases from fortune cookie files
 
-;; Copyright (C) 1993, 2001-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1993, 2001-2020 Free Software Foundation, Inc.
 
 ;; Author: Eric S. Raymond <esr@snark.thyrsus.com>
 ;; Maintainer: emacs-devel@gnu.org
@@ -20,7 +20,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -125,7 +125,8 @@ and subsequent calls on the same file won't go to disk."
   (setq phrase-file (cookie-check-file phrase-file))
   (let ((sym (intern-soft phrase-file cookie-cache)))
     (and sym (not (equal (symbol-function sym)
-			 (nth 5 (file-attributes phrase-file))))
+			 (file-attribute-modification-time
+                          (file-attributes phrase-file))))
 	 (yes-or-no-p (concat phrase-file
 			      " has changed.  Read new contents? "))
 	 (setq sym nil))
@@ -133,7 +134,8 @@ and subsequent calls on the same file won't go to disk."
 	(symbol-value sym)
       (setq sym (intern phrase-file cookie-cache))
       (if startmsg (message "%s" startmsg))
-      (fset sym (nth 5 (file-attributes phrase-file)))
+      (fset sym (file-attribute-modification-time
+                 (file-attributes phrase-file)))
       (let (result)
 	(with-temp-buffer
 	  (insert-file-contents (expand-file-name phrase-file))

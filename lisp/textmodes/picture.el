@@ -1,6 +1,6 @@
 ;;; picture.el --- "Picture mode" -- editing using quarter-plane screen model
 
-;; Copyright (C) 1985, 1994, 2001-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1985, 1994, 2001-2020 Free Software Foundation, Inc.
 
 ;; Author: K. Shane Hartman
 ;; Maintainer: emacs-devel@gnu.org
@@ -19,7 +19,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -66,7 +66,7 @@
 (defvar picture-desired-column 0
   "Desired current column for Picture mode.
 When a cursor is on a wide-column character (e.g. Chinese,
-Japanese, Korean), this may may be different from `current-column'.")
+Japanese, Korean), this may be different from `current-column'.")
 
 
 (defun picture-update-desired-column (adjust-to-current)
@@ -338,8 +338,9 @@ always moves to the beginning of a line."
         (newline lines-left))))
 
 (defun picture-open-line (arg)
-  "Insert an empty line after the current line.
-With positive argument insert that many lines."
+  "Insert ARG empty lines after the current line.
+ARG must be positive.
+Interactively, ARG is the numeric argument, and defaults to 1."
   (interactive "p")
   (save-excursion
    (end-of-line)
@@ -386,7 +387,8 @@ With positive argument insert that many lines."
 \\[picture-set-tab-stops] and \\[picture-tab-search].
 The syntax for this variable is like the syntax used inside of `[...]'
 in a regular expression--but without the `[' and the `]'.
-It is NOT a regular expression, any regexp special characters will be quoted.
+It is NOT a regular expression, and should follow the usual
+rules for the contents of a character alternative.
 It defines a set of \"interesting characters\" to look for when setting
 \(or searching for) tab stops, initially \"!-~\" (all printing characters).
 For example, suppose that you are editing a table which is formatted thus:
@@ -424,7 +426,7 @@ stops computed are displayed in the minibuffer with `:' at each stop."
       (if arg
 	  (setq tabs (or (default-value 'tab-stop-list)
 			 (indent-accumulate-tab-stops (window-width))))
-	(let ((regexp (concat "[ \t]+[" (regexp-quote picture-tab-chars) "]")))
+	(let ((regexp (concat "[ \t]+[" picture-tab-chars "]")))
 	  (beginning-of-line)
 	  (let ((bol (point)))
 	    (end-of-line)
@@ -432,8 +434,8 @@ stops computed are displayed in the minibuffer with `:' at each stop."
 	      (skip-chars-forward " \t")
 	      (setq tabs (cons (current-column) tabs)))
 	    (if (null tabs)
-		(error "No characters in set %s on this line"
-		       (regexp-quote picture-tab-chars))))))
+		(error "No characters in set [%s] on this line"
+		       picture-tab-chars)))))
       (setq tab-stop-list tabs)
       (let ((blurb (make-string (1+ (nth (1- (length tabs)) tabs)) ?\ )))
 	(while tabs
@@ -454,12 +456,13 @@ If no such character is found, move to beginning of line."
 	       (progn
 		 (beginning-of-line)
 		 (skip-chars-backward
-		  (concat "^" (regexp-quote picture-tab-chars))
+		  (concat "^" (replace-regexp-in-string
+			       "\\\\" "\\\\" picture-tab-chars nil t))
 		  (point-min))
 		 (not (bobp))))
 	  (move-to-column target))
       (if (re-search-forward
-	   (concat "[ \t]+[" (regexp-quote picture-tab-chars) "]")
+	   (concat "[ \t]+[" picture-tab-chars "]")
 	   (line-end-position)
 	   'move)
 	  (setq target (1- (current-column)))
@@ -621,7 +624,6 @@ Leaves the region surrounding the rectangle."
 
 (defvar picture-mode-map
   (let ((map (make-keymap)))
-    (define-key map [remap self-insert-command] 'picture-self-insert)
     (define-key map [remap self-insert-command] 'picture-self-insert)
     (define-key map [remap completion-separator-self-insert-command]
 			  'picture-self-insert)
@@ -788,8 +790,9 @@ they are not by default assigned to keys."
 
 (defun picture-mode-exit (&optional nostrip)
   "Undo `picture-mode' and return to previous major mode.
-With no argument, strip whitespace from end of every line in Picture buffer;
-  otherwise, just return to previous mode.
+With NOSTRIP omitted or nil, strip whitespace from end of every line
+  in Picture buffer; otherwise, just return to previous mode.
+Interactively, NOSTRIP is the prefix argument, and defaults to nil.
 Runs `picture-mode-exit-hook' at the end."
   (interactive "P")
   (if (not (eq major-mode 'picture-mode))

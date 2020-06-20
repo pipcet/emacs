@@ -1,6 +1,6 @@
 ;;; calc-math.el --- mathematical functions for Calc
 
-;; Copyright (C) 1990-1993, 2001-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1990-1993, 2001-2020 Free Software Foundation, Inc.
 
 ;; Author: David Gillespie <daveg@synaptics.com>
 
@@ -17,7 +17,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -25,6 +25,8 @@
 
 ;; This file is autoloaded from calc-ext.el.
 
+
+(require 'cl-lib)
 (require 'calc-ext)
 (require 'calc-macs)
 
@@ -44,15 +46,15 @@
     (1- n))
   "The number of digits in an Emacs float.")
 
-;;; Find the largest power of 10 which is an Emacs float, 
-;;; then back off by one so that any float d.dddd...eN 
+;;; Find the largest power of 10 which is an Emacs float,
+;;; then back off by one so that any float d.dddd...eN
 ;;; is an Emacs float, for acceptable d.dddd....
 
 (defvar math-largest-emacs-expt
   (let ((x 1)
         (pow 1e2))
-    ;; The following loop is for efficiency; it should stop when 
-    ;; 10^(2x) is too large.  This could be indicated by a range 
+    ;; The following loop is for efficiency; it should stop when
+    ;; 10^(2x) is too large.  This could be indicated by a range
     ;; error when computing 10^(2x) or an infinite value for 10^(2x).
     (while (and
             pow
@@ -95,16 +97,15 @@ If this can't be done, return NIL."
   (and
    (<= calc-internal-prec math-emacs-precision)
    (math-realp x)
-   (let* ((fx (math-float x))
-          (xpon (+ (nth 2 x) (1- (math-numdigs (nth 1 x))))))
+   (let* ((xpon (+ (nth 2 x) (1- (math-numdigs (nth 1 x))))))
      (and (<= math-smallest-emacs-expt xpon)
           (<= xpon math-largest-emacs-expt)
           (condition-case nil
               (math-read-number
                (number-to-string
-                (funcall fn 
-			 (string-to-number 
-			  (let 
+                (funcall fn
+			 (string-to-number
+			  (let
                               ((calc-number-radix 10)
                                (calc-twos-complement-mode nil)
                                (calc-float-format (list 'float calc-internal-prec))
@@ -371,50 +372,14 @@ If this can't be done, return NIL."
 ;;; with an overestimate always works, even using truncating integer division!
 (defun math-isqrt (a)
   (cond ((Math-zerop a) a)
-	((not (math-natnump a))
+	((not (natnump a))
 	 (math-reject-arg a 'natnump))
-	((integerp a)
-	 (math-isqrt-small a))
-	(t
-	 (math-normalize (cons 'bigpos (cdr (math-isqrt-bignum (cdr a))))))))
+	(t (cl-isqrt a))))
 
 (defun calcFunc-isqrt (a)
   (if (math-realp a)
       (math-isqrt (math-floor a))
     (math-floor (math-sqrt a))))
-
-
-;;; This returns (flag . result) where the flag is t if A is a perfect square.
-(defun math-isqrt-bignum (a)   ; [P.l L]
-  (let ((len (length a)))
-    (if (= (% len 2) 0)
-	(let* ((top (nthcdr (- len 2) a)))
-	  (math-isqrt-bignum-iter
-	   a
-	   (math-scale-bignum-digit-size
-	    (math-bignum-big
-	     (1+ (math-isqrt-small
-		  (+ (* (nth 1 top) math-bignum-digit-size) (car top)))))
-	    (1- (/ len 2)))))
-      (let* ((top (nth (1- len) a)))
-	(math-isqrt-bignum-iter
-	 a
-	 (math-scale-bignum-digit-size
-	  (list (1+ (math-isqrt-small top)))
-	  (/ len 2)))))))
-
-(defun math-isqrt-bignum-iter (a guess)   ; [l L l]
-  (math-working "isqrt" (cons 'bigpos guess))
-  (let* ((q (math-div-bignum a guess))
-	 (s (math-add-bignum (car q) guess))
-	 (g2 (math-div2-bignum s))
-	 (comp (math-compare-bignum g2 guess)))
-    (if (< comp 0)
-	(math-isqrt-bignum-iter a g2)
-      (cons (and (= comp 0)
-		 (math-zerop-bignum (cdr q))
-		 (= (% (car s) 2) 0))
-	    guess))))
 
 (defun math-zerop-bignum (a)
   (and (eq (car a) 0)
@@ -428,19 +393,6 @@ If this can't be done, return NIL."
 	  n (1- n)))
   a)
 
-(defun math-isqrt-small (a)   ; A > 0.  [S S]
-  (let ((g (cond ((>= a 1000000) 10000)
-                 ((>= a 10000) 1000)
-		 ((>= a 100) 100)
-		 (t 10)))
-	g2)
-    (while (< (setq g2 (/ (+ g (/ a g)) 2)) g)
-      (setq g g2))
-    g))
-
-
-
-
 ;;; Compute the square root of a number.
 ;;; [T N] if possible, else [F N] if possible, else [C N].  [Public]
 (defun math-sqrt (a)
@@ -449,32 +401,24 @@ If this can't be done, return NIL."
    (and (math-known-nonposp a)
 	(math-imaginary (math-sqrt (math-neg a))))
    (and (integerp a)
-	(let ((sqrt (math-isqrt-small a)))
+	(let ((sqrt (cl-isqrt a)))
 	  (if (= (* sqrt sqrt) a)
 	      sqrt
 	    (if calc-symbolic-mode
 		(list 'calcFunc-sqrt a)
 	      (math-sqrt-float (math-float a) (math-float sqrt))))))
-   (and (eq (car-safe a) 'bigpos)
-	(let* ((res (math-isqrt-bignum (cdr a)))
-	       (sqrt (math-normalize (cons 'bigpos (cdr res)))))
-	  (if (car res)
-	      sqrt
-	    (if calc-symbolic-mode
-		(list 'calcFunc-sqrt a)
-	      (math-sqrt-float (math-float a) (math-float sqrt))))))
    (and (eq (car-safe a) 'frac)
-	(let* ((num-res (math-isqrt-bignum (cdr (Math-bignum-test (nth 1 a)))))
-	       (num-sqrt (math-normalize (cons 'bigpos (cdr num-res))))
-	       (den-res (math-isqrt-bignum (cdr (Math-bignum-test (nth 2 a)))))
-	       (den-sqrt (math-normalize (cons 'bigpos (cdr den-res)))))
-	  (if (and (car num-res) (car den-res))
+	(let* ((num-sqrt (cl-isqrt (nth 1 a)))
+               (num-exact (= (* num-sqrt num-sqrt) (nth 1 a)))
+	       (den-sqrt (cl-isqrt (nth 2 a)))
+               (den-exact (= (* den-sqrt den-sqrt) (nth 2 a))))
+	  (if (and num-exact den-exact)
 	      (list 'frac num-sqrt den-sqrt)
 	    (if calc-symbolic-mode
-		(if (or (car num-res) (car den-res))
-		    (math-div (if (car num-res)
+		(if (or num-exact den-exact)
+		    (math-div (if num-exact
 				  num-sqrt (list 'calcFunc-sqrt (nth 1 a)))
-			      (if (car den-res)
+			      (if den-exact
 				  den-sqrt (list 'calcFunc-sqrt (nth 2 a))))
 		  (list 'calcFunc-sqrt a))
 	      (math-sqrt-float (math-float a)
@@ -482,12 +426,9 @@ If this can't be done, return NIL."
    (and (eq (car-safe a) 'float)
 	(if calc-symbolic-mode
 	    (if (= (% (nth 2 a) 2) 0)
-		(let ((res (math-isqrt-bignum
-			    (cdr (Math-bignum-test (nth 1 a))))))
-		  (if (car res)
-		      (math-make-float (math-normalize
-					(cons 'bigpos (cdr res)))
-				       (/ (nth 2 a) 2))
+		(let ((res (cl-isqrt (nth 1 a))))
+		  (if (= (* res res) (nth 1 a))
+		      (math-make-float res (/ (nth 2 a) 2))
 		    (signal 'inexact-result nil)))
 	      (signal 'inexact-result nil))
 	  (math-sqrt-float a)))
@@ -551,7 +492,7 @@ If this can't be done, return NIL."
       (if (null guess)
           (let ((ldiff (- (math-numdigs (nth 1 a)) 6)))
             (or (= (% (+ (nth 2 a) ldiff) 2) 0) (setq ldiff (1+ ldiff)))
-            (setq guess (math-make-float (math-isqrt-small
+            (setq guess (math-make-float (cl-isqrt
                                           (math-scale-int (nth 1 a) (- ldiff)))
                                          (/ (+ (nth 2 a) ldiff) 2)))))
       (math-sqrt-float-iter a guess)))))
@@ -948,7 +889,7 @@ If this can't be done, return NIL."
                                     (math-mul xs (car sc))
                                     (math-sqr (cdr sc)))))))
            (math-make-sdev (calcFunc-sec (nth 1 x))
-                           (math-div 
+                           (math-div
                             (math-mul (nth 2 x)
                                       (calcFunc-sin (nth 1 x)))
                             (math-sqr (calcFunc-cos (nth 1 x)))))))
@@ -1010,7 +951,7 @@ If this can't be done, return NIL."
                                     (math-mul xs (cdr sc))
                                     (math-sqr (car sc)))))))
            (math-make-sdev (calcFunc-csc (nth 1 x))
-                           (math-div 
+                           (math-div
                             (math-mul (nth 2 x)
                                       (calcFunc-cos (nth 1 x)))
                             (math-sqr (calcFunc-sin (nth 1 x)))))))
@@ -1114,7 +1055,7 @@ If this can't be done, return NIL."
                 (sh (math-mul-float (math-sub-float expx expmx) '(float 5 -1)))
                 (ch (math-mul-float (math-add-float expx expmx) '(float 5 -1)))
 		(sc (math-sin-cos-raw (nth 1 x)))
-		(d (math-add-float 
+		(d (math-add-float
                     (math-mul-float (math-sqr (car sc))
                                     (math-sqr sh))
                     (math-mul-float (math-sqr (cdr sc))
@@ -1139,7 +1080,7 @@ If this can't be done, return NIL."
                 (sh (math-mul-float (math-sub-float expx expmx) '(float 5 -1)))
                 (ch (math-mul-float (math-add-float expx expmx) '(float 5 -1)))
 		(sc (math-sin-cos-raw (nth 1 x)))
-		(d (math-add-float 
+		(d (math-add-float
                     (math-mul-float (math-sqr (car sc))
                                     (math-sqr ch))
                     (math-mul-float (math-sqr (cdr sc))
@@ -1164,17 +1105,17 @@ If this can't be done, return NIL."
                 (sh (math-mul-float (math-sub-float expx expmx) '(float 5 -1)))
                 (ch (math-mul-float (math-add-float expx expmx) '(float 5 -1)))
 		(sc (math-sin-cos-raw (nth 1 x)))
-		(d (math-add-float 
+		(d (math-add-float
                     (math-sqr (car sc))
                     (math-sqr sh))))
 	   (and (not (eq (nth 1 d) 0))
 		(list 'cplx
-		      (math-div-float 
+		      (math-div-float
                        (math-mul-float (car sc) (cdr sc))
                        d)
                       (math-neg
-                       (math-div-float 
-                        (math-mul-float sh ch) 
+                       (math-div-float
+                        (math-mul-float sh ch)
                         d))))))
 	((eq (car x) 'polar)
 	 (math-polar (math-cot-raw (math-complex x))))
@@ -1223,7 +1164,7 @@ If this can't be done, return NIL."
 	   (math-cos-raw-2 xmpo2 orgx))
 	  ((math-lessp-float x (math-neg (math-pi-over-4)))
 	   (math-neg (math-cos-raw-2 (math-add (math-pi-over-2) x) orgx)))
-	  ((math-with-extra-prec -1 (math-nearly-zerop-float x orgx)) 
+	  ((math-with-extra-prec -1 (math-nearly-zerop-float x orgx))
            '(float 0 0))
           ((math-use-emacs-fn 'sin x))
 	  (calc-symbolic-mode (signal 'inexact-result nil))
@@ -1697,7 +1638,7 @@ If this can't be done, return NIL."
     (while (not (Math-lessp x pow))
       (setq pows (cons pow pows)
 	    pow (math-sqr pow)))
-    (setq n (lsh 1 (1- (length pows)))
+    (setq n (ash 1 (1- (length pows)))
 	  sum n
 	  pow (car pows))
     (while (and (setq pows (cdr pows))
@@ -1765,7 +1706,7 @@ If this can't be done, return NIL."
 	 '(float 0 0))
 	(calc-symbolic-mode (signal 'inexact-result nil))
 	((math-posp (nth 1 x))    ; positive and real
-         (cond 
+         (cond
           ((math-use-emacs-fn 'log x))
           (t
            (let ((xdigs (1- (math-numdigs (nth 1 x)))))
@@ -1818,7 +1759,7 @@ If this can't be done, return NIL."
 (defconst math-approx-ln-10
   (math-read-number-simple "2.302585092994045684018")
   "An approximation for ln(10).")
-     
+
 (math-defcache math-ln-10 math-approx-ln-10
   (math-ln-raw-2 '(float 1 1)))
 
@@ -1963,7 +1904,7 @@ If this can't be done, return NIL."
 	     (math-div '(float 2 0) (math-add expx (math-div -1 expx))))))
 	((eq (car-safe x) 'sdev)
 	 (math-make-sdev (calcFunc-csch (nth 1 x))
-			 (math-mul (nth 2 x) 
+			 (math-mul (nth 2 x)
                                    (math-mul (calcFunc-csch (nth 1 x))
                                              (calcFunc-coth (nth 1 x))))))
 	((eq (car x) 'intv)

@@ -1,6 +1,6 @@
 ;;; characters.el --- set syntax and category for multibyte characters
 
-;; Copyright (C) 1997, 2000-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1997, 2000-2020 Free Software Foundation, Inc.
 ;; Copyright (C) 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004,
 ;;   2005, 2006, 2007, 2008, 2009, 2010, 2011
 ;;   National Institute of Advanced Industrial Science and Technology (AIST)
@@ -24,7 +24,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -643,10 +643,22 @@ with L, LRE, or LRO Unicode bidi character type.")
     (setq c (1+ c)))
 
   ;; Circled Latin
-  (setq c #x24b6)
-  (while (<= c #x24cf)
+  (setq c #x24B6)
+  (while (<= c #x24CF)
     (modify-category-entry c ?l)
     (modify-category-entry (+ c 26) ?l)
+    (setq c (1+ c)))
+
+  ;; Supplemental Mathematical Operators
+  (setq c #x2A00)
+  (while (<= c #x2AFF)
+    (set-case-syntax c "." tbl)
+    (setq c (1+ c)))
+
+  ;; Miscellaneous Symbols and Arrows
+  (setq c #x2B00)
+  (while (<= c #x2BFF)
+    (set-case-syntax c "." tbl)
     (setq c (1+ c)))
 
   ;; Coptic
@@ -655,6 +667,18 @@ with L, LRE, or LRO Unicode bidi character type.")
   ;; in this block are derived from Greek letters, so let's be
   ;; consistent about their category.
   (modify-category-entry '(#x2C80 . #x2CFF) ?g)
+
+  ;; Supplemental Punctuation
+  (setq c #x2E00)
+  (while (<= c #x2E7F)
+    (set-case-syntax c "." tbl)
+    (setq c (1+ c)))
+
+  ;; Symbols for Legacy Computing
+  (setq c #x1FB00)
+  (while (<= c #x1FBFF)
+    (set-case-syntax c "." tbl)
+    (setq c (1+ c)))
 
   ;; Fullwidth Latin
   (setq c #xff21)
@@ -946,6 +970,7 @@ with L, LRE, or LRO Unicode bidi character type.")
 	   (#x0D41 . #x0D44)
 	   (#x0D4D . #x0D4D)
 	   (#x0D62 . #x0D63)
+           (#x0D81 . #x0D81)
 	   (#x0DCA . #x0DCA)
 	   (#x0DD2 . #x0DD6)
 	   (#x0E31 . #x0E31)
@@ -968,12 +993,13 @@ with L, LRE, or LRO Unicode bidi character type.")
 	   (#x1039 . #x103A)
 	   (#x103D . #x103E)
 	   (#x1058 . #x1059)
-	   (#x105E . #x1160)
-	   (#x1171 . #x1074)
+	   (#x105E . #x1060)
+	   (#x1071 . #x1074)
 	   (#x1082 . #x1082)
 	   (#x1085 . #x1086)
 	   (#x108D . #x108D)
 	   (#x109D . #x109D)
+           (#x1160 . #x11FF)
 	   (#x135D . #x135F)
 	   (#x1712 . #x1714)
 	   (#x1732 . #x1734)
@@ -1001,7 +1027,7 @@ with L, LRE, or LRO Unicode bidi character type.")
 	   (#x1A65 . #x1A6C)
 	   (#x1A73 . #x1A7C)
 	   (#x1A7F . #x1A7F)
-	   (#x1AB0 . #x1ABE)
+	   (#x1AB0 . #x1AC0)
 	   (#x1B00 . #x1B03)
 	   (#x1B34 . #x1B34)
 	   (#x1B36 . #x1B3A)
@@ -1039,6 +1065,7 @@ with L, LRE, or LRO Unicode bidi character type.")
 	   (#xA806 . #xA806)
 	   (#xA80B . #xA80B)
 	   (#xA825 . #xA826)
+           (#xA82C . #xA82C)
 	   (#xA8C4 . #xA8C5)
 	   (#xA8E0 . #xA8F1)
 	   (#xA926 . #xA92D)
@@ -1063,6 +1090,7 @@ with L, LRE, or LRO Unicode bidi character type.")
 	   (#xABE5 . #xABE5)
 	   (#xABE8 . #xABE8)
 	   (#xABED . #xABED)
+           (#xD7B0 . #xD7FB)
 	   (#xFB1E . #xFB1E)
 	   (#xFE00 . #xFE0F)
 	   (#xFE20 . #xFE2F)
@@ -1074,6 +1102,7 @@ with L, LRE, or LRO Unicode bidi character type.")
 	   (#x10A01 . #x10A0F)
 	   (#x10A38 . #x10A3F)
 	   (#x10AE5 . #x10AE6)
+           (#x10EAB . #x10EAC)
 	   (#x11001 . #x11001)
 	   (#x11038 . #x11046)
 	   (#x1107F . #x11081)
@@ -1087,6 +1116,7 @@ with L, LRE, or LRO Unicode bidi character type.")
 	   (#x11180 . #x11181)
 	   (#x111B6 . #x111BE)
 	   (#x111CA . #x111CC)
+           (#x111CF . #x111CF)
 	   (#x1122F . #x11231)
 	   (#x11234 . #x11234)
 	   (#x11236 . #x11237)
@@ -1118,6 +1148,9 @@ with L, LRE, or LRO Unicode bidi character type.")
 	   (#x1171D . #x1171F)
 	   (#x11722 . #x11725)
 	   (#x11727 . #x1172B)
+           (#x1193B . #x1193C)
+           (#x1193E . #x1193E)
+           (#x11943 . #x11943)
 	   (#x11C30 . #x11C36)
 	   (#x11C38 . #x11C3D)
 	   (#x11C92 . #x11CA7)
@@ -1127,6 +1160,7 @@ with L, LRE, or LRO Unicode bidi character type.")
 	   (#x16AF0 . #x16AF4)
 	   (#x16B30 . #x16B36)
 	   (#x16F8F . #x16F92)
+           (#x16FE4 . #x16FE4)
 	   (#x1BC9D . #x1BC9E)
 	   (#x1BCA0 . #x1BCA3)
 	   (#x1D167 . #x1D169)
@@ -1190,7 +1224,7 @@ with L, LRE, or LRO Unicode bidi character type.")
 	   (#x2E80 . #x303E)
 	   (#x3040 . #x3247)
 	   (#x3250 . #x4DBF)
-	   (#x4E00 . #xA4CF)
+	   (#x4E00 . #x9FFF)
 	   (#xA490 . #xA4C6)
 	   (#xA960 . #xA97F)
 	   (#xAC00 . #xD7A3)
@@ -1199,15 +1233,19 @@ with L, LRE, or LRO Unicode bidi character type.")
 	   (#xFE30 . #xFE6F)
 	   (#xFF01 . #xFF60)
 	   (#xFFE0 . #xFFE6)
-	   (#x16FE0 . #x16FE1)
-	   (#x17000 . #x187EC)
-	   (#x18800 . #x18AF2)
-	   (#x1B000 . #x1B11E)
+	   (#x16FE0 . #x16FE4)
+           (#x16FF0 . #x16FF1)
+	   (#x17000 . #x187F7)
+	   (#x18800 . #x18AFF)
+           (#x18B00 . #x18CD5)
+	   (#x1B000 . #x1B152)
+           (#x1B164 . #x1B167)
            (#x1B170 . #x1B2FB)
 	   (#x1F004 . #x1F004)
 	   (#x1F0CF . #x1F0CF)
 	   (#x1F18E . #x1F18E)
 	   (#x1F191 . #x1F19A)
+           (#x1F1AD . #x1F1AD)
 	   (#x1F200 . #x1F320)
 	   (#x1F32D . #x1F335)
 	   (#x1F337 . #x1F37C)
@@ -1232,14 +1270,27 @@ with L, LRE, or LRO Unicode bidi character type.")
 	   (#x1F680 . #x1F6C5)
 	   (#x1F6CC . #x1F6CC)
 	   (#x1F6D0 . #x1F6D2)
+           (#x1F6D5 . #x1F6D7)
 	   (#x1F6EB . #x1F6EC)
-	   (#x1F6F4 . #x1F6F8)
-	   (#x1F910 . #x1F93E)
-	   (#x1F940 . #x1F94C)
-	   (#x1F950 . #x1F96B)
-	   (#x1F980 . #x1F997)
-	   (#x1F9C0 . #x1F9C0)
-           (#x1F9D0 . #x1F9E6)
+	   (#x1F6F4 . #x1F6FC)
+           (#x1F7E0 . #x1F7EB)
+	   (#x1F90C . #x1F93A)
+           (#x1F93C . #x1F945)
+           (#x1F947 . #x1F978)
+	   (#x1F97A . #x1F9CB)
+           (#x1F9A5 . #x1F9AA)
+           (#x1F9AE . #x1F9CA)
+           (#x1F9CD . #x1F9FF)
+           (#x1FA00 . #x1FA53)
+           (#x1FA60 . #x1FA6D)
+           (#x1FA70 . #x1FA74)
+           (#x1FA78 . #x1FA7A)
+           (#x1FA80 . #x1FA86)
+           (#x1FA90 . #x1FAA8)
+           (#x1FAB0 . #x1FAB6)
+           (#x1FAC0 . #x1FAC2)
+           (#x1FAD0 . #x1FAD6)
+           (#x1FB00 . #x1FB92)
 	   (#x20000 . #x2FFFF)
 	   (#x30000 . #x3FFFF))))
   (dolist (elt l)
@@ -1313,7 +1364,7 @@ Setup char-width-table appropriate for non-CJK language environment."
 
 
 ;; Setting char-script-table.
-(if purify-flag
+(if dump-mode
     ;; While dumping, we can't use require, and international is not
     ;; in load-path.
     (load "international/charscript")
@@ -1403,7 +1454,9 @@ Setup char-width-table appropriate for non-CJK language environment."
 
 (defun update-glyphless-char-display (&optional variable value)
   "Make the setting of `glyphless-char-display-control' take effect.
-This function updates the char-table `glyphless-char-display'."
+This function updates the char-table `glyphless-char-display',
+and is intended to be used in the `:set' attribute of the
+option `glyphless-char-display'."
   (when value
     (set-default variable value))
   (dolist (elt value)

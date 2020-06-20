@@ -1,5 +1,5 @@
-# manywarnings.m4 serial 11
-dnl Copyright (C) 2008-2017 Free Software Foundation, Inc.
+# manywarnings.m4 serial 19
+dnl Copyright (C) 2008-2020 Free Software Foundation, Inc.
 dnl This file is free software; the Free Software Foundation
 dnl gives unlimited permission to copy and/or distribute it,
 dnl with or without modifications, as long as this notice is preserved.
@@ -39,7 +39,8 @@ AC_DEFUN([gl_MANYWARN_ALL_GCC],
 [_AC_LANG_DISPATCH([$0], _AC_LANG, $@)])
 
 # Specialization for _AC_LANG = C.
-AC_DEFUN([gl_MANYWARN_ALL_GCC(C)],
+# Use of m4_defun rather than AC_DEFUN works around a bug in autoconf < 2.63b.
+m4_defun([gl_MANYWARN_ALL_GCC(C)],
 [
   AC_LANG_PUSH([C])
 
@@ -50,54 +51,53 @@ AC_DEFUN([gl_MANYWARN_ALL_GCC(C)],
 
     dnl Check if -W -Werror -Wno-missing-field-initializers is supported
     dnl with the current $CC $CFLAGS $CPPFLAGS.
-    AC_MSG_CHECKING([whether -Wno-missing-field-initializers is supported])
-    AC_CACHE_VAL([gl_cv_cc_nomfi_supported], [
-      gl_save_CFLAGS="$CFLAGS"
-      CFLAGS="$CFLAGS -W -Werror -Wno-missing-field-initializers"
-      AC_COMPILE_IFELSE(
-        [AC_LANG_PROGRAM([[]], [[]])],
-        [gl_cv_cc_nomfi_supported=yes],
-        [gl_cv_cc_nomfi_supported=no])
-      CFLAGS="$gl_save_CFLAGS"])
-    AC_MSG_RESULT([$gl_cv_cc_nomfi_supported])
+    AC_CACHE_CHECK([whether -Wno-missing-field-initializers is supported],
+      [gl_cv_cc_nomfi_supported],
+      [gl_save_CFLAGS="$CFLAGS"
+       CFLAGS="$CFLAGS -W -Werror -Wno-missing-field-initializers"
+       AC_COMPILE_IFELSE(
+         [AC_LANG_PROGRAM([[]], [[]])],
+         [gl_cv_cc_nomfi_supported=yes],
+         [gl_cv_cc_nomfi_supported=no])
+       CFLAGS="$gl_save_CFLAGS"
+      ])
 
     if test "$gl_cv_cc_nomfi_supported" = yes; then
       dnl Now check whether -Wno-missing-field-initializers is needed
       dnl for the { 0, } construct.
-      AC_MSG_CHECKING([whether -Wno-missing-field-initializers is needed])
-      AC_CACHE_VAL([gl_cv_cc_nomfi_needed], [
-        gl_save_CFLAGS="$CFLAGS"
-        CFLAGS="$CFLAGS -W -Werror"
-        AC_COMPILE_IFELSE(
-          [AC_LANG_PROGRAM(
-             [[int f (void)
-               {
-                 typedef struct { int a; int b; } s_t;
-                 s_t s1 = { 0, };
-                 return s1.b;
-               }
-             ]],
-             [[]])],
-          [gl_cv_cc_nomfi_needed=no],
-          [gl_cv_cc_nomfi_needed=yes])
-        CFLAGS="$gl_save_CFLAGS"
-      ])
-      AC_MSG_RESULT([$gl_cv_cc_nomfi_needed])
+      AC_CACHE_CHECK([whether -Wno-missing-field-initializers is needed],
+        [gl_cv_cc_nomfi_needed],
+        [gl_save_CFLAGS="$CFLAGS"
+         CFLAGS="$CFLAGS -W -Werror"
+         AC_COMPILE_IFELSE(
+           [AC_LANG_PROGRAM(
+              [[int f (void)
+                {
+                  typedef struct { int a; int b; } s_t;
+                  s_t s1 = { 0, };
+                  return s1.b;
+                }
+              ]],
+              [[]])],
+           [gl_cv_cc_nomfi_needed=no],
+           [gl_cv_cc_nomfi_needed=yes])
+         CFLAGS="$gl_save_CFLAGS"
+        ])
     fi
 
     dnl Next, check if -Werror -Wuninitialized is useful with the
     dnl user's choice of $CFLAGS; some versions of gcc warn that it
     dnl has no effect if -O is not also used
-    AC_MSG_CHECKING([whether -Wuninitialized is supported])
-    AC_CACHE_VAL([gl_cv_cc_uninitialized_supported], [
-      gl_save_CFLAGS="$CFLAGS"
-      CFLAGS="$CFLAGS -Werror -Wuninitialized"
-      AC_COMPILE_IFELSE(
-        [AC_LANG_PROGRAM([[]], [[]])],
-        [gl_cv_cc_uninitialized_supported=yes],
-        [gl_cv_cc_uninitialized_supported=no])
-      CFLAGS="$gl_save_CFLAGS"])
-    AC_MSG_RESULT([$gl_cv_cc_uninitialized_supported])
+    AC_CACHE_CHECK([whether -Wuninitialized is supported],
+      [gl_cv_cc_uninitialized_supported],
+      [gl_save_CFLAGS="$CFLAGS"
+       CFLAGS="$CFLAGS -Werror -Wuninitialized"
+       AC_COMPILE_IFELSE(
+         [AC_LANG_PROGRAM([[]], [[]])],
+         [gl_cv_cc_uninitialized_supported=yes],
+         [gl_cv_cc_uninitialized_supported=no])
+       CFLAGS="$gl_save_CFLAGS"
+      ])
 
   fi
 
@@ -105,27 +105,47 @@ AC_DEFUN([gl_MANYWARN_ALL_GCC(C)],
   # To compare this list to your installed GCC's, run this Bash command:
   #
   # comm -3 \
-  #  <(sed -n 's/^  *\(-[^ ]*\) .*/\1/p' manywarnings.m4 | sort) \
-  #  <(gcc --help=warnings | sed -n 's/^  \(-[^ ]*\) .*/\1/p' | sort |
-  #      grep -v -x -F -f <(
-  #         awk '/^[^#]/ {print $1}' ../build-aux/gcc-warning.spec))
+  #  <((sed -n 's/^  *\(-[^ 0-9][^ ]*\) .*/\1/p' manywarnings.m4; \
+  #     awk '/^[^#]/ {print $1}' ../build-aux/gcc-warning.spec) | sort) \
+  #  <(LC_ALL=C gcc --help=warnings | sed -n 's/^  \(-[^ ]*\) .*/\1/p' | sort)
 
   gl_manywarn_set=
   for gl_manywarn_item in -fno-common \
     -W \
-    -Wabi \
+    -Wabsolute-value \
     -Waddress \
+    -Waddress-of-packed-member \
     -Waggressive-loop-optimizations \
     -Wall \
+    -Wanalyzer-double-fclose \
+    -Wanalyzer-double-free \
+    -Wanalyzer-exposure-through-output-file \
+    -Wanalyzer-file-leak \
+    -Wanalyzer-free-of-non-heap \
+    -Wanalyzer-malloc-leak \
+    -Wanalyzer-null-argument \
+    -Wanalyzer-null-dereference \
+    -Wanalyzer-possible-null-argument \
+    -Wanalyzer-possible-null-dereference \
+    -Wanalyzer-stale-setjmp-buffer \
+    -Wanalyzer-tainted-array-index \
+    -Wanalyzer-too-complex \
+    -Wanalyzer-unsafe-call-within-signal-handler \
+    -Wanalyzer-use-after-free \
+    -Wanalyzer-use-of-pointer-in-stale-stack-frame \
+    -Warith-conversion \
+    -Wattribute-warning \
     -Wattributes \
     -Wbad-function-cast \
     -Wbool-compare \
     -Wbool-operation \
     -Wbuiltin-declaration-mismatch \
     -Wbuiltin-macro-redefined \
+    -Wcannot-profile \
     -Wcast-align \
+    -Wcast-align=strict \
+    -Wcast-function-type \
     -Wchar-subscripts \
-    -Wchkp \
     -Wclobbered \
     -Wcomment \
     -Wcomments \
@@ -147,9 +167,11 @@ AC_DEFUN([gl_MANYWARN_ALL_GCC(C)],
     -Wempty-body \
     -Wendif-labels \
     -Wenum-compare \
+    -Wenum-conversion \
     -Wexpansion-to-defined \
     -Wextra \
     -Wformat-contains-nul \
+    -Wformat-diag \
     -Wformat-extra-args \
     -Wformat-nonliteral \
     -Wformat-security \
@@ -159,6 +181,7 @@ AC_DEFUN([gl_MANYWARN_ALL_GCC(C)],
     -Wframe-address \
     -Wfree-nonheap-object \
     -Whsa \
+    -Wif-not-aligned \
     -Wignored-attributes \
     -Wignored-qualifiers \
     -Wimplicit \
@@ -172,7 +195,6 @@ AC_DEFUN([gl_MANYWARN_ALL_GCC(C)],
     -Wint-to-pointer-cast \
     -Winvalid-memory-model \
     -Winvalid-pch \
-    -Wjump-misses-init \
     -Wlogical-not-parentheses \
     -Wlogical-op \
     -Wmain \
@@ -180,13 +202,16 @@ AC_DEFUN([gl_MANYWARN_ALL_GCC(C)],
     -Wmemset-elt-size \
     -Wmemset-transposed-args \
     -Wmisleading-indentation \
+    -Wmissing-attributes \
     -Wmissing-braces \
     -Wmissing-declarations \
     -Wmissing-field-initializers \
     -Wmissing-include-dirs \
     -Wmissing-parameter-type \
+    -Wmissing-profile \
     -Wmissing-prototypes \
     -Wmultichar \
+    -Wmultistatement-macros \
     -Wnarrowing \
     -Wnested-externs \
     -Wnonnull \
@@ -201,6 +226,7 @@ AC_DEFUN([gl_MANYWARN_ALL_GCC(C)],
     -Woverride-init \
     -Wpacked \
     -Wpacked-bitfield-compat \
+    -Wpacked-not-aligned \
     -Wparentheses \
     -Wpointer-arith \
     -Wpointer-compare \
@@ -218,20 +244,25 @@ AC_DEFUN([gl_MANYWARN_ALL_GCC(C)],
     -Wshift-count-overflow \
     -Wshift-negative-value \
     -Wsizeof-array-argument \
+    -Wsizeof-pointer-div \
     -Wsizeof-pointer-memaccess \
     -Wstack-protector \
     -Wstrict-aliasing \
     -Wstrict-overflow \
     -Wstrict-prototypes \
+    -Wstring-compare \
+    -Wstringop-truncation \
+    -Wsuggest-attribute=cold \
     -Wsuggest-attribute=const \
     -Wsuggest-attribute=format \
+    -Wsuggest-attribute=malloc \
     -Wsuggest-attribute=noreturn \
     -Wsuggest-attribute=pure \
     -Wsuggest-final-methods \
     -Wsuggest-final-types \
     -Wswitch \
     -Wswitch-bool \
-    -Wswitch-default \
+    -Wswitch-outside-range \
     -Wswitch-unreachable \
     -Wsync-nand \
     -Wsystem-headers \
@@ -259,6 +290,7 @@ AC_DEFUN([gl_MANYWARN_ALL_GCC(C)],
     -Wvla \
     -Wvolatile-register-var \
     -Wwrite-strings \
+    -Wzero-length-bounds \
     \
     ; do
     gl_manywarn_set="$gl_manywarn_set $gl_manywarn_item"
@@ -266,21 +298,27 @@ AC_DEFUN([gl_MANYWARN_ALL_GCC(C)],
 
   # gcc --help=warnings outputs an unusual form for these options; list
   # them here so that the above 'comm' command doesn't report a false match.
-  # Would prefer "min (PTRDIFF_MAX, SIZE_MAX)", but it must be a literal
-  # and AC_COMPUTE_INT requires it to fit in a long:
+  # Would prefer "min (PTRDIFF_MAX, SIZE_MAX)", but it must be a literal.
+  # Also, AC_COMPUTE_INT requires it to fit in a long; it is 2**63 on
+  # the only platforms where it does not fit in a long, so make that
+  # a special case.
   AC_MSG_CHECKING([max safe object size])
   AC_COMPUTE_INT([gl_alloc_max],
-    [(LONG_MAX < PTRDIFF_MAX ? LONG_MAX : PTRDIFF_MAX) < (size_t) -1
-     ? (LONG_MAX < PTRDIFF_MAX ? LONG_MAX : PTRDIFF_MAX)
-     : (size_t) -1],
+    [LONG_MAX < (PTRDIFF_MAX < (size_t) -1 ? PTRDIFF_MAX : (size_t) -1)
+     ? -1
+     : PTRDIFF_MAX < (size_t) -1 ? (long) PTRDIFF_MAX : (long) (size_t) -1],
     [[#include <limits.h>
       #include <stddef.h>
       #include <stdint.h>
     ]],
     [gl_alloc_max=2147483647])
+  case $gl_alloc_max in
+    -1) gl_alloc_max=9223372036854775807;;
+  esac
   AC_MSG_RESULT([$gl_alloc_max])
   gl_manywarn_set="$gl_manywarn_set -Walloc-size-larger-than=$gl_alloc_max"
   gl_manywarn_set="$gl_manywarn_set -Warray-bounds=2"
+  gl_manywarn_set="$gl_manywarn_set -Wattribute-alias=2"
   gl_manywarn_set="$gl_manywarn_set -Wformat-overflow=2"
   gl_manywarn_set="$gl_manywarn_set -Wformat-truncation=2"
   gl_manywarn_set="$gl_manywarn_set -Wimplicit-fallthrough=5"
@@ -316,7 +354,8 @@ AC_DEFUN([gl_MANYWARN_ALL_GCC(C)],
 ])
 
 # Specialization for _AC_LANG = C++.
-AC_DEFUN([gl_MANYWARN_ALL_GCC(C++)],
+# Use of m4_defun rather than AC_DEFUN works around a bug in autoconf < 2.63b.
+m4_defun([gl_MANYWARN_ALL_GCC(C++)],
 [
   gl_MANYWARN_ALL_GCC_CXX_IMPL([$1])
 ])

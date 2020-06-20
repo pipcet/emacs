@@ -1,6 +1,6 @@
 ;;; arc-mode-tests.el --- Test suite for arc-mode. -*- lexical-binding: t -*-
 
-;; Copyright (C) 2017 Free Software Foundation, Inc.
+;; Copyright (C) 2017-2020 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -15,22 +15,36 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Code:
 (require 'ert)
 (require 'arc-mode)
 
+(defvar arc-mode-tests-data-directory
+  (expand-file-name "test/data/decompress" source-directory))
 
 (ert-deftest arc-mode-test-archive-int-to-mode ()
   (let ((alist (list (cons 448 "-rwx------")
                      (cons 420 "-rw-r--r--")
                      (cons 292 "-r--r--r--")
-                     (cons 512 "----------")
+                     (cons 512 "---------T")
                      (cons 1024 "------S---") ; Bug#28092
                      (cons 2048 "---S------"))))
     (dolist (x alist)
       (should (equal (cdr x) (archive-int-to-mode (car x)))))))
+
+(ert-deftest arc-mode-test-zip-extract-gz ()
+  (skip-unless (and archive-zip-extract (executable-find (car archive-zip-extract))))
+  (skip-unless (executable-find "gzip"))
+  (let* ((zip-file (expand-file-name "zg.zip" arc-mode-tests-data-directory))
+         zip-buffer gz-buffer)
+    (unwind-protect
+        (with-current-buffer (setq zip-buffer (find-file-noselect zip-file))
+          (setq gz-buffer (archive-extract))
+          (should (equal (char-after) ?\N{SNOWFLAKE})))
+      (when (buffer-live-p zip-buffer) (kill-buffer zip-buffer))
+      (when (buffer-live-p gz-buffer) (kill-buffer gz-buffer)))))
 
 (provide 'arc-mode-tests)
 

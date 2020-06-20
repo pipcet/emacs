@@ -1,6 +1,6 @@
-;;; xml-parse-tests.el --- Test suite for XML parsing.
+;;; xml-parse-tests.el --- Test suite for XML parsing.  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2012-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2012-2020 Free Software Foundation, Inc.
 
 ;; Author: Chong Yidong <cyd@stupidchicken.com>
 ;; Keywords:       internal
@@ -19,7 +19,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -163,6 +163,16 @@ Parser is called with and without 'symbol-qnames argument.")
     (insert (car xml-parse-test--namespace-attribute-qnames))
     (should (equal (cdr xml-parse-test--namespace-attribute-qnames)
                    (xml-parse-region nil nil nil nil 'symbol-qnames)))))
+
+(ert-deftest xml-print-invalid-cdata ()
+  "Check that Bug#41094 is fixed."
+  (with-temp-buffer
+    (should (equal (should-error (xml-print '((foo () "\0")))
+                                 :type 'xml-invalid-character)
+                   '(xml-invalid-character 0 1)))
+    (should (equal (should-error (xml-print '((foo () "\u00FF \xFF")))
+                                 :type 'xml-invalid-character)
+                   '(xml-invalid-character #x3FFFFF 3)))))
 
 ;; Local Variables:
 ;; no-byte-compile: t

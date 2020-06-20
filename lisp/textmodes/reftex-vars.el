@@ -1,6 +1,6 @@
 ;;; reftex-vars.el --- configuration variables for RefTeX
 
-;; Copyright (C) 1997-1999, 2001-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1997-1999, 2001-2020 Free Software Foundation, Inc.
 
 ;; Author: Carsten Dominik <dominik@science.uva.nl>
 ;; Maintainer: auctex-devel@gnu.org
@@ -18,7 +18,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -202,8 +202,8 @@ distribution.  Mixed-case symbols are convenience aliases.")
     (harvard "The Harvard package"
      ((?\C-m . "\\cite[]{%l}")
       (?p    . "\\cite[]{%l}")
-      (?t    . "\\citeasnoun{%l}")
-      (?n    . "\\citeasnoun{%l}")
+      (?t    . "\\citeasnoun[]{%l}")
+      (?n    . "\\citeasnoun[]{%l}")
       (?s    . "\\possessivecite{%l}")
       (?e    . "\\citeaffixed{%l}{?}")
       (?y    . "\\citeyear{%l}")
@@ -264,7 +264,7 @@ distribution.  Mixed-case symbols are convenience aliases.")
   "LaTeX label and citation support."
   :tag "RefTeX"
   :link '(url-link :tag "Home Page"
-                   "http://www.gnu.org/software/auctex/reftex.html")
+                   "https://www.gnu.org/software/auctex/reftex.html")
   :link '(emacs-commentary-link :tag "Commentary in reftex.el" "reftex.el")
   :link '(custom-manual "(reftex)Top")
   :prefix "reftex-"
@@ -891,21 +891,58 @@ DOWNCASE    t:   Downcase words before using them."
     ;; so this list mustn't get any more items.
     (defconst reftex-label-regexps '("\\\\label{\\([^}]*\\)}"))
   (defcustom reftex-label-regexps
-    '(;; Normal \\label{foo} labels
+    `(;; Normal \\label{foo} labels
       "\\\\label{\\(?1:[^}]*\\)}"
       ;; keyvals [..., label = {foo}, ...] forms used by ctable,
-      ;; listings, minted, ...
-      "\\[[^][]\\{0,2000\\}\\<label[[:space:]]*=[[:space:]]*{?\\(?1:[^],}]+\\)}?")
+      ;; listings, breqn, ...
+      ,(concat
+        ;; Make sure we search only for optional arguments of
+        ;; environments/macros and don't match any other [.  ctable
+        ;; provides a macro called \ctable, listings/breqn have
+        ;; environments.  Start with a backslash and a group for names
+        "\\\\\\(?:"
+        ;; begin, optional spaces and opening brace
+        "begin[[:space:]]*{"
+        ;; Build a regexp for env names
+        (regexp-opt '("lstlisting" "dmath" "dseries" "dgroup" "darray"))
+        ;; closing brace, optional spaces
+        "}[[:space:]]*"
+        ;; Now for macros
+        "\\|"
+        ;; Build a regexp for macro names; currently only \ctable
+        (regexp-opt '("ctable"))
+        ;; Close the group for names
+        "\\)"
+        ;; Match the opening [ and the following chars
+        "\\[[^][]*"
+        ;; Allow nested levels of chars enclosed in braces
+        "\\(?:{[^}{]*"
+          "\\(?:{[^}{]*"
+            "\\(?:{[^}{]*}[^}{]*\\)*"
+          "}[^}{]*\\)*"
+        "}[^][]*\\)*"
+        ;; Match the label key
+        "\\<label[[:space:]]*=[[:space:]]*"
+        ;; Match the label value; braces around the value are
+        ;; optional.
+        "{?\\(?1:[^] ,}\r\n\t%]+\\)"
+        ;; We are done.  Just search until the next closing bracket
+        "[^]]*\\]"))
     "List of regexps matching \\label definitions.
 The default value matches usual \\label{...} definitions and
-keyval style [..., label = {...}, ...] label definitions.  It is
-assumed that the regexp group 1 matches the label text, so you
-have to define it using \\(?1:...\\) when adding new regexps.
+keyval style [..., label = {...}, ...] label definitions.  The
+regexp for keyval style explicitly looks for environments
+provided by the packages \"listings\" (\"lstlisting\"),
+\"breqn\" (\"dmath\", \"dseries\", \"dgroup\", \"darray\") and
+the macro \"\\ctable\" provided by the package of the same name.
+
+It is assumed that the regexp group 1 matches the label text, so
+you have to define it using \\(?1:...\\) when adding new regexps.
 
 When changed from Lisp, make sure to call
 `reftex-compile-variables' afterwards to make the change
 effective."
-    :version "25.1"
+    :version "27.1"
     :set (lambda (symbol value)
 	   (set symbol value)
 	   (when (fboundp 'reftex-compile-variables)
@@ -1022,15 +1059,17 @@ This is used to string together whole reference sets, like
 
 (defcustom reftex-ref-style-alist
   '(("Default" t
-     (("\\ref" ?\C-m) ("\\pageref" ?p)))
+     (("\\ref" ?\C-m) ("\\Ref" ?R) ("\\pageref" ?p)))
     ("Varioref" "varioref"
-     (("\\vref" ?v) ("\\vpageref" ?g) ("\\Vref" ?V) ("\\Ref" ?R)))
+     (("\\vref" ?v) ("\\Vref" ?V) ("\\vpageref" ?g)))
     ("Fancyref" "fancyref"
      (("\\fref" ?f) ("\\Fref" ?F)))
     ("Hyperref" "hyperref"
      (("\\autoref" ?a) ("\\autopageref" ?u)))
     ("Cleveref" "cleveref"
-     (("\\cref" ?c) ("\\Cref" ?C) ("\\cpageref" ?d) ("\\Cpageref" ?D))))
+     (("\\cref" ?c) ("\\Cref" ?C) ("\\cpageref" ?d) ("\\Cpageref" ?D)))
+    ("AMSmath" "amsmath"
+     (("\\eqref" ?e))))
   "Alist of reference styles.
 Each element is a list of the style name, the name of the LaTeX
 package associated with the style or t for any package, and an
@@ -1040,7 +1079,7 @@ the macro type is being prompted for.  (See also
 `reftex-ref-macro-prompt'.)  The keys, represented as characters,
 have to be unique."
   :group 'reftex-referencing-labels
-  :version "24.3"
+  :version "27.1"
   :type '(alist :key-type (string :tag "Style name")
 		:value-type (group (choice :tag "Package"
 					   (const :tag "Any package" t)
@@ -1405,7 +1444,7 @@ the text, so that the text has to be repeated outside the index macro.
 Needed for `reftex-index-selection-or-word' and for indexing from the
 phrase buffer.
 
-The final entry may also be a symbol if this entry has a association
+The final entry may also be a symbol if this entry has an association
 in the variable `reftex-index-macros-builtin' to specify the main
 indexing package you are using.  Valid values are currently
 default         The LaTeX default - unnecessary to specify this one
@@ -1616,7 +1655,7 @@ viewing can be useful.  Each entry has the structure
 
 MACRO-RE is matched against the macro.  SEARCH-RE is the regexp used
 to search for cross references.  `%s' in this regexp is replaced with
-with the macro argument at point.  HIGHLIGHT is an integer indicating
+the macro argument at point.  HIGHLIGHT is an integer indicating
 which subgroup of the match should be highlighted."
   :group 'reftex-viewing-cross-references
   :type '(repeat (group (regexp  :tag "Macro  Regexp  ")
@@ -2061,6 +2100,8 @@ construct:  \\bbb [xxx] {aaa}."
   "Hook which is being run when loading reftex.el."
   :group 'reftex-miscellaneous-configurations
   :type 'hook)
+(make-obsolete-variable 'reftex-load-hook
+                        "use `with-eval-after-load' instead." "28.1")
 
 (defcustom reftex-mode-hook nil
   "Hook which is being run when turning on RefTeX mode."

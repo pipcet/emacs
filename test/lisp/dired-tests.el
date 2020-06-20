@@ -1,6 +1,6 @@
 ;;; dired-tests.el --- Test suite. -*- lexical-binding: t -*-
 
-;; Copyright (C) 2015-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2015-2020 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -15,12 +15,11 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Code:
 (require 'ert)
 (require 'dired)
-(require 'nadvice)
 
 (ert-deftest dired-autoload ()
   "Tests to see whether dired-x has been autoloaded"
@@ -32,7 +31,7 @@
      'dired-jump))))
 
 (ert-deftest dired-test-bug22694 ()
-  "Test for http://debbugs.gnu.org/22694 ."
+  "Test for https://debbugs.gnu.org/22694 ."
   (let* ((dir       (expand-file-name "bug22694" default-directory))
          (file      "test")
          (full-name (expand-file-name file dir))
@@ -54,9 +53,9 @@
         (when (buffer-live-p buf) (kill-buffer buf)))
       (delete-directory dir 'recursive))))
 
-(defvar dired-dwim-target)
+(defvar dired-query)
 (ert-deftest dired-test-bug25609 ()
-  "Test for http://debbugs.gnu.org/25609 ."
+  "Test for https://debbugs.gnu.org/25609 ."
   (let* ((from (make-temp-file "foo" 'dir))
          ;; Make sure we have long file-names in 'from' and 'to', not
          ;; their 8+3 short aliases, because the latter will confuse
@@ -109,7 +108,7 @@
       (advice-remove 'completing-read "advice-completing-read"))))
 
 ;; (ert-deftest dired-test-bug27243 ()
-;;   "Test for http://debbugs.gnu.org/27243 ."
+;;   "Test for https://debbugs.gnu.org/27243 ."
 ;;   (let ((test-dir (make-temp-file "test-dir-" t))
 ;;         (dired-auto-revert-buffer t) buffers)
 ;;     (with-current-buffer (find-file-noselect test-dir)
@@ -210,12 +209,12 @@
                          (concat (file-name-as-directory test-dir)
                                  (file-name-as-directory "test-subdir"))))
           (push (dired-find-file) buffers)
-          (let ((pt2 (point)))          ; Point is on test-file.
-            (switch-to-buffer buf)
-            ;; Sanity check: point should now be back on the subdirectory.
-            (should (eq (point) pt1))
-            (push (dired test-dir) buffers)
-            (should (eq (point) pt1))))
+          ;; Point is on test-file.
+          (switch-to-buffer buf)
+          ;; Sanity check: point should now be back on the subdirectory.
+          (should (eq (point) pt1))
+          (push (dired test-dir) buffers)
+          (should (eq (point) pt1)))
       (dolist (buf buffers)
         (when (buffer-live-p buf) (kill-buffer buf)))
       (delete-directory test-dir t))))
@@ -224,7 +223,7 @@
   "Test for https://debbugs.gnu.org/cgi/bugreport.cgi?bug=27243#61 ."
   (let ((test-dir (make-temp-file "test-dir-" t))
         (dired-auto-revert-buffer t)
-        test-subdir1 test-subdir2 allbufs)
+        allbufs)
     (unwind-protect
         (progn
           (with-current-buffer (find-file-noselect test-dir)
@@ -254,7 +253,7 @@
       (delete-directory test-dir t))))
 
 (ert-deftest dired-test-bug7131 ()
-  "Test for http://debbugs.gnu.org/7131 ."
+  "Test for https://debbugs.gnu.org/7131 ."
   (let* ((dir (expand-file-name "lisp" source-directory))
          (buf (dired dir)))
     (unwind-protect
@@ -270,7 +269,7 @@
       (when (buffer-live-p buf) (kill-buffer buf)))))
 
 (ert-deftest dired-test-bug27631 ()
-  "Test for http://debbugs.gnu.org/27631 ."
+  "Test for https://debbugs.gnu.org/27631 ."
   ;; For dired using 'ls' emulation we test for this bug in
   ;; ls-lisp-tests.el and em-ls-tests.el.
   (skip-unless (and (not (featurep 'ls-lisp))
@@ -293,10 +292,10 @@
       (when (buffer-live-p buf) (kill-buffer buf)))))
 
 (ert-deftest dired-test-bug27899 ()
-  "Test for http://debbugs.gnu.org/27899 ."
-  (let* ((dir (expand-file-name "src" source-directory))
-	 (buf (dired (list dir "cygw32.c" "alloc.c" "w32xfns.c" "xdisp.c")))
-         (orig dired-hide-details-mode))
+  "Test for https://debbugs.gnu.org/27899 ."
+  (dired (list (expand-file-name "src" source-directory)
+               "cygw32.c" "alloc.c" "w32xfns.c" "xdisp.c"))
+  (let ((orig dired-hide-details-mode))
     (dired-goto-file (expand-file-name "cygw32.c"))
     (forward-line 0)
     (unwind-protect
@@ -309,7 +308,7 @@
       (dired-hide-details-mode orig))))
 
 (ert-deftest dired-test-bug27968 ()
-  "Test for http://debbugs.gnu.org/27968 ."
+  "Test for https://debbugs.gnu.org/27968 ."
   (let* ((top-dir (make-temp-file "top-dir" t))
          (subdir (expand-file-name "subdir" top-dir))
          (header-len-fn (lambda ()
@@ -362,8 +361,7 @@
 (defmacro dired-test-with-temp-dirs (just-empty-dirs &rest body)
   "Helper macro for Bug#27940 test."
   (declare (indent 1) (debug body))
-  (let ((dir (make-symbol "dir"))
-        (ignore-funcs (make-symbol "ignore-funcs")))
+  (let ((dir (make-symbol "dir")))
     `(let* ((,dir (make-temp-file "bug27940" t))
             (dired-deletion-confirmer (lambda (_) "yes")) ; Suppress prompts.
             (inhibit-message t)
@@ -379,14 +377,14 @@
          (kill-buffer (current-buffer))))))
 
 (ert-deftest dired-test-bug27940 ()
-  "Test for http://debbugs.gnu.org/27940 ."
-  ;; If just empty dirs we shouln't be prompted.
+  "Test for https://debbugs.gnu.org/27940 ."
+  ;; If just empty dirs we shouldn't be prompted.
   (dired-test-with-temp-dirs
    'just-empty-dirs
    (let (asked)
-     (advice-add 'dired--yes-no-all-quit-help
+     (advice-add 'read-answer
                  :override
-                 (lambda (_) (setq asked t) "")
+                 (lambda (_q _a) (setq asked t) "")
                  '((name . dired-test-bug27940-advice)))
      (dired default-directory)
      (dired-toggle-marks)
@@ -395,44 +393,44 @@
          (progn
            (should-not asked)
            (should-not (dired-get-marked-files))) ; All dirs deleted.
-       (advice-remove 'dired--yes-no-all-quit-help 'dired-test-bug27940-advice))))
+       (advice-remove 'read-answer 'dired-test-bug27940-advice))))
   ;; Answer yes
   (dired-test-with-temp-dirs
    nil
-   (advice-add 'dired--yes-no-all-quit-help :override (lambda (_) "yes")
+   (advice-add 'read-answer :override (lambda (_q _a) "yes")
                '((name . dired-test-bug27940-advice)))
    (dired default-directory)
    (dired-toggle-marks)
    (dired-do-delete nil)
    (unwind-protect
        (should-not (dired-get-marked-files)) ; All dirs deleted.
-     (advice-remove 'dired--yes-no-all-quit-help 'dired-test-bug27940-advice)))
+     (advice-remove 'read-answer 'dired-test-bug27940-advice)))
   ;; Answer no
   (dired-test-with-temp-dirs
    nil
-   (advice-add 'dired--yes-no-all-quit-help :override (lambda (_) "no")
+   (advice-add 'read-answer :override (lambda (_q _a) "no")
                '((name . dired-test-bug27940-advice)))
    (dired default-directory)
    (dired-toggle-marks)
    (dired-do-delete nil)
    (unwind-protect
        (should (= 5 (length (dired-get-marked-files)))) ; Just the empty dirs deleted.
-     (advice-remove 'dired--yes-no-all-quit-help 'dired-test-bug27940-advice)))
+     (advice-remove 'read-answer 'dired-test-bug27940-advice)))
   ;; Answer all
   (dired-test-with-temp-dirs
    nil
-   (advice-add 'dired--yes-no-all-quit-help :override (lambda (_) "all")
+   (advice-add 'read-answer :override (lambda (_q _a) "all")
                '((name . dired-test-bug27940-advice)))
    (dired default-directory)
    (dired-toggle-marks)
    (dired-do-delete nil)
    (unwind-protect
        (should-not (dired-get-marked-files)) ; All dirs deleted.
-     (advice-remove 'dired--yes-no-all-quit-help 'dired-test-bug27940-advice)))
+     (advice-remove 'read-answer 'dired-test-bug27940-advice)))
   ;; Answer quit
   (dired-test-with-temp-dirs
    nil
-   (advice-add 'dired--yes-no-all-quit-help :override (lambda (_) "quit")
+   (advice-add 'read-answer :override (lambda (_q _a) "quit")
                '((name . dired-test-bug27940-advice)))
    (dired default-directory)
    (dired-toggle-marks)
@@ -440,7 +438,7 @@
      (dired-do-delete nil))
    (unwind-protect
        (should (= 6 (length (dired-get-marked-files)))) ; All empty dirs but zeta-empty-dir deleted.
-     (advice-remove 'dired--yes-no-all-quit-help 'dired-test-bug27940-advice))))
+     (advice-remove 'read-answer 'dired-test-bug27940-advice))))
 
 
 (provide 'dired-tests)

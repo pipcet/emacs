@@ -1,6 +1,6 @@
 ;;; calc-store.el --- value storage functions for Calc
 
-;; Copyright (C) 1990-1993, 2001-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1990-1993, 2001-2020 Free Software Foundation, Inc.
 
 ;; Author: David Gillespie <daveg@synaptics.com>
 
@@ -17,7 +17,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -405,8 +405,8 @@
                                     sconst))))
        (if var
            (let ((msg (calc-store-value var value "")))
-             (message (concat "Special constant \"%s\" copied to \"%s\"" msg)
-                      sconst (calc-var-name var)))))))))
+	     (message "Special constant \"%s\" copied to \"%s\"%s"
+		      sconst (calc-var-name var) msg))))))))
 
 (defun calc-copy-variable (&optional var1 var2)
   (interactive)

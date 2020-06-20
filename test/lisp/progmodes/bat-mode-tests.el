@@ -1,6 +1,6 @@
 ;;; bat-mode-tests.el --- Tests for bat-mode.el  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2017 Free Software Foundation, Inc.
+;; Copyright (C) 2017-2020 Free Software Foundation, Inc.
 
 ;; Author: Vladimir Panteleev <vladimir@thecybershadow.net>
 ;; Keywords:
@@ -18,7 +18,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -63,10 +63,11 @@
   "Test fontification of iteration variables."
   (should
    (equal
-    (bat-test-fontify "echo %%a\necho %%~dp1\necho %%~$PATH:I")
+    (bat-test-fontify "echo %%a\necho %%~dp1\necho %%~$PATH:I\necho %%~1")
     "<span class=\"builtin\">echo</span> %%<span class=\"variable-name\">a</span>
 <span class=\"builtin\">echo</span> %%~dp<span class=\"variable-name\">1</span>
-<span class=\"builtin\">echo</span> %%~$<span class=\"variable-name\">PATH</span>:<span class=\"variable-name\">I</span>")))
+<span class=\"builtin\">echo</span> %%~$<span class=\"variable-name\">PATH</span>:<span class=\"variable-name\">I</span>
+<span class=\"builtin\">echo</span> %%~<span class=\"variable-name\">1</span>")))
 
 (defun bat-test-fill-paragraph (str)
   "Return the result of invoking `fill-paragraph' on STR in a `bat-mode' buffer."

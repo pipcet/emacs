@@ -1,6 +1,6 @@
 ;;; gnus-int.el --- backend interface functions for Gnus
 
-;; Copyright (C) 1996-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1996-2020 Free Software Foundation, Inc.
 
 ;; Author: Lars Magne Ingebrigtsen <larsi@gnus.org>
 ;; Keywords: news
@@ -18,13 +18,11 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
 ;;; Code:
-
-(eval-when-compile (require 'cl))
 
 (require 'gnus)
 (require 'message)
@@ -65,6 +63,8 @@ server denied."
 		 (const :tag "Deny server" denied)
 		 (const :tag "Unplug Agent" offline)))
 
+;; Note: When this option is finally removed, also remove the entire
+;; `gnus-start-news-server' function.
 (defcustom gnus-nntp-server nil
   "The name of the host running the NNTP server."
   :group 'gnus-server
@@ -253,13 +253,14 @@ If it is down, start it up (again)."
 
 (defun gnus-backend-trace (type form)
   (when gnus-backend-trace
-    (with-current-buffer (get-buffer-create "*gnus trace*")
+    (with-current-buffer (gnus-get-buffer-create "*gnus trace*")
       (buffer-disable-undo)
       (goto-char (point-max))
       (insert (format-time-string "%H:%M:%S")
 	      (format " %.2fs %s %S\n"
 		      (if (numberp gnus-backend-trace-elapsed)
-			  (- (float-time) gnus-backend-trace-elapsed)
+			  (float-time
+			   (time-since gnus-backend-trace-elapsed))
 			0)
 		      type form))
       (setq gnus-backend-trace-elapsed (float-time)))))
@@ -351,7 +352,8 @@ If it is down, start it up (again)."
   (when (stringp gnus-command-method)
     (setq gnus-command-method (gnus-server-to-method gnus-command-method)))
   (funcall (gnus-get-function gnus-command-method 'close-server)
-	   (nth 1 gnus-command-method)))
+	   (nth 1 gnus-command-method)
+	   (nthcdr 2 gnus-command-method)))
 
 (defun gnus-request-list (gnus-command-method)
   "Request the active file from GNUS-COMMAND-METHOD."
@@ -725,7 +727,7 @@ If GROUP is nil, all groups on GNUS-COMMAND-METHOD are scanned."
 	       (let* ((range (if (= min 2) 1 (cons 1 (1- min))))
 		      (read (gnus-info-read info))
 		      (new-read (gnus-range-add read (list range))))
-		 (gnus-info-set-read info new-read)))
+		 (setf (gnus-info-read info) new-read)))
 	     info)))))
 
 (defun gnus-request-expire-articles (articles group &optional force)

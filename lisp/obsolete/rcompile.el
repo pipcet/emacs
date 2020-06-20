@@ -1,6 +1,6 @@
 ;;; rcompile.el --- run a compilation on a remote machine
 
-;; Copyright (C) 1993-1994, 2001-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1993-1994, 2001-2020 Free Software Foundation, Inc.
 
 ;; Author: Alon Albert <alon@milcse.rtsg.mot.com>
 ;; Maintainer: emacs-devel@gnu.org
@@ -21,7 +21,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -89,7 +89,7 @@ nil means use the value returned by \\[user-login-name]."
   "Command to run before compilation.
 This can be used for setting up environment variables,
 since rsh does not invoke the shell as a login shell and files like .login
-\(tcsh\) and .bash_profile \(bash\) are not run.
+\(tcsh) and .bash_profile \(bash) are not run.
 nil means run no commands."
   :type '(choice string (const nil))
   :group 'remote-compile)

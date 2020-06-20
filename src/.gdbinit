@@ -1,4 +1,4 @@
-# Copyright (C) 1992-1998, 2000-2017 Free Software Foundation, Inc.
+# Copyright (C) 1992-1998, 2000-2020 Free Software Foundation, Inc.
 #
 # This file is part of GNU Emacs.
 #
@@ -13,7 +13,7 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+# along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 # Force loading of symbols, enough to give us VALBITS etc.
 set $dummy = main + 8
@@ -49,7 +49,7 @@ define xgetptr
   else
     set $bugfix = $arg0
   end
-  set $ptr = $bugfix & VALMASK
+  set $ptr = (EMACS_INT) $bugfix & VALMASK
 end
 
 define xgetint
@@ -58,7 +58,7 @@ define xgetint
   else
     set $bugfix = $arg0
   end
-  set $int = $bugfix << (USE_LSB_TAG ? 0 : INTTYPEBITS) >> INTTYPEBITS
+  set $int = (EMACS_INT) $bugfix << (USE_LSB_TAG ? 0 : INTTYPEBITS) >> INTTYPEBITS
 end
 
 define xgettype
@@ -67,18 +67,18 @@ define xgettype
   else
     set $bugfix = $arg0
   end
-  set $type = (enum Lisp_Type) (USE_LSB_TAG ? $bugfix & (1 << GCTYPEBITS) - 1 : (EMACS_UINT) $bugfix >> VALBITS)
+  set $type = (enum Lisp_Type) (USE_LSB_TAG ? (EMACS_INT) $bugfix & (1 << GCTYPEBITS) - 1 : (EMACS_UINT) $bugfix >> VALBITS)
 end
 
 define xgetsym
   xgetptr $arg0
-  set $ptr = ((struct Lisp_Symbol *) ((char *)lispsym + $ptr))
+  set $ptr = ((struct Lisp_Symbol *) ((char *) &lispsym + $ptr))
 end
 
 # Access the name of a symbol
 define xsymname
   xgetsym $arg0
-  set $symname = $ptr->name
+  set $symname = $ptr->u.s.name
 end
 
 # Set up something to print out s-expressions.
@@ -117,6 +117,12 @@ end
 document pv
 Print the value of the lisp variable given as argument.
 Works only when an inferior emacs is executing.
+end
+
+# Format the value and print it as a string. Works in
+# an rr session and during live debugging. Calls into lisp.
+define xfmt
+  printf "%s\n", debug_format("%S", $arg0)
 end
 
 # Print out current buffer point and boundaries
@@ -352,7 +358,7 @@ end
 
 define pcursorx
   set $cp = $arg0
-  printf "y=%d x=%d vpos=%d hpos=%d", $cp->y, $cp->x, $cp->vpos, $cp->hpos
+  printf "y=%d x=%d vpos=%d hpos=%d", $cp.y, $cp.x, $cp.vpos, $cp.hpos
 end
 document pcursorx
 Pretty print a window cursor.
@@ -369,28 +375,26 @@ end
 
 define pwinx
   set $w = $arg0
-  if ($w->mini_p != Qnil)
+  if ($w->mini != 0)
     printf "Mini "
   end
-  printf "Window %d ", $int
-  xgetptr $w->buffer
+  printf "Window %d ", $w->sequence_number
+  xgetptr $w->contents
   set $tem = (struct buffer *) $ptr
   xgetptr $tem->name_
-  printf "%s", ((struct Lisp_String *) $ptr)->data
+  printf "%s", $ptr ? (char *) ((struct Lisp_String *) $ptr)->u.s.data : "DEAD"
   printf "\n"
   xgetptr $w->start
   set $tem = (struct Lisp_Marker *) $ptr
   printf "start=%d end:", $tem->charpos
-  if ($w->window_end_valid != Qnil)
-    xgetint $w->window_end_pos
-    printf "pos=%d", $int
-    xgetint $w->window_end_vpos
-    printf " vpos=%d", $int
+  if ($w->window_end_valid != 0)
+    printf "pos=%d", $w->window_end_pos
+    printf " vpos=%d", $w->window_end_vpos
   else
     printf "invalid"
   end
   printf " vscroll=%d", $w->vscroll
-  if ($w->force_start != Qnil)
+  if ($w->force_start != 0)
     printf " FORCE_START"
   end
   if ($w->must_be_updated_p)
@@ -496,6 +500,9 @@ define pgx
   # IMAGE_GLYPH
   if ($g.type == 3)
     printf "IMAGE[%d]", $g.u.img_id
+    if ($g.slice.img.x || $g.slice.img.y || $g.slice.img.width || $g.slice.img.height)
+      printf " slice=%d,%d,%d,%d" ,$g.slice.img.x, $g.slice.img.y, $g.slice.img.width, $g.slice.img.height
+    end
   end
   # STRETCH_GLYPH
   if ($g.type == 4)
@@ -504,7 +511,12 @@ define pgx
   xgettype ($g.object)
   if ($type == Lisp_String)
     xgetptr $g.object
-    printf " str=0x%x[%d]", ((struct Lisp_String *)$ptr)->data, $g.charpos
+    if ($ptr)
+      printf " str=0x%x", ((struct Lisp_String *)$ptr)->u.s.data
+    else
+      printf " str=DEAD"
+    end
+    printf "[%d]", $g.charpos
   else
     printf " pos=%d", $g.charpos
   end
@@ -542,9 +554,6 @@ define pgx
   if ($g.right_box_line_p)
     printf " ]"
   end
-  if ($g.slice.img.x || $g.slice.img.y || $g.slice.img.width || $g.slice.img.height)
-    printf " slice=%d,%d,%d,%d" ,$g.slice.img.x, $g.slice.img.y, $g.slice.img.width, $g.slice.img.height
-  end
   printf "\n"
 end
 document pgx
@@ -566,7 +575,7 @@ define pgi
 end
 document pgi
 Pretty print glyph structure glyph[I].
-Takes one argument, a integer I.
+Takes one argument, an integer I.
 end
 
 define pgn
@@ -645,17 +654,13 @@ define xtype
   xgettype $
   output $type
   echo \n
-  if $type == Lisp_Misc
-    xmisctype
-  else
-    if $type == Lisp_Vectorlike
-      xvectype
-    end
+  if $type == Lisp_Vectorlike
+    xvectype
   end
 end
 document xtype
 Print the type of $, assuming it is an Emacs Lisp value.
-If the first type printed is Lisp_Vector or Lisp_Misc,
+If the first type printed is Lisp_Vectorlike,
 a second line gives the more precise type.
 end
 
@@ -707,15 +712,6 @@ Print the size of $
 This command assumes that $ is a Lisp_Object.
 end
 
-define xmisctype
-  xgetptr $
-  output (enum Lisp_Misc_Type) (((struct Lisp_Free *) $ptr)->type)
-  echo \n
-end
-document xmisctype
-Assume that $ is some misc type and print its specific type.
-end
-
 define xint
   xgetint $
   print $int
@@ -748,15 +744,6 @@ end
 document xoverlay
 Print $ as a overlay pointer.
 This command assumes that $ is an Emacs Lisp overlay value.
-end
-
-define xmiscfree
-  xgetptr $
-  print (struct Lisp_Free *) $ptr
-end
-document xmiscfree
-Print $ as a misc free-cell pointer.
-This command assumes that $ is an Emacs Lisp Misc value.
 end
 
 define xsymbol
@@ -821,6 +808,7 @@ define xcompiled
   xgetptr $
   print (struct Lisp_Vector *) $ptr
   output ($->contents[0])@($->header.size & 0xff)
+  echo \n
 end
 document xcompiled
 Print $ as a compiled function pointer.
@@ -896,7 +884,7 @@ define xbuffer
   xgetptr $
   print (struct buffer *) $ptr
   xgetptr $->name_
-  output ((struct Lisp_String *) $ptr)->data
+  output $ptr ? (char *) ((struct Lisp_String *) $ptr)->u.s.data : "DEAD"
   echo \n
 end
 document xbuffer
@@ -935,7 +923,7 @@ end
 define xcar
   xgetptr $
   xgettype $
-  print/x ($type == Lisp_Cons ? ((struct Lisp_Cons *) $ptr)->car : 0)
+  print/x ($type == Lisp_Cons ? ((struct Lisp_Cons *) $ptr)->u.s.car : 0)
 end
 document xcar
 Assume that $ is an Emacs Lisp pair and print its car.
@@ -944,7 +932,7 @@ end
 define xcdr
   xgetptr $
   xgettype $
-  print/x ($type == Lisp_Cons ? ((struct Lisp_Cons *) $ptr)->u.cdr : 0)
+  print/x ($type == Lisp_Cons ? ((struct Lisp_Cons *) $ptr)->u.s.u.cdr : 0)
 end
 document xcdr
 Assume that $ is an Emacs Lisp pair and print its cdr.
@@ -957,9 +945,9 @@ define xlist
   set $nil = $ptr
   set $i = 0
   while $cons != $nil && $i < 10
-    p/x $cons->car
+    p/x $cons->u.s.car
     xpr
-    xgetptr $cons->u.cdr
+    xgetptr $cons->u.s.u.cdr
     set $cons = (struct Lisp_Cons *) $ptr
     set $i = $i + 1
     printf "---\n"
@@ -1010,27 +998,18 @@ define xpr
   if $type == Lisp_Float
     xfloat
   end
-  if $type == Lisp_Misc
-    set $misc = (enum Lisp_Misc_Type) (((struct Lisp_Free *) $ptr)->type)
-    if $misc == Lisp_Misc_Free
-      xmiscfree
-    end
-    if $misc == Lisp_Misc_Marker
-      xmarker
-    end
-    if $misc == Lisp_Misc_Overlay
-      xoverlay
-    end
-#    if $misc == Lisp_Misc_Save_Value
-#      xsavevalue
-#    end
-  end
   if $type == Lisp_Vectorlike
     set $size = ((struct Lisp_Vector *) $ptr)->header.size
     if ($size & PSEUDOVECTOR_FLAG)
       set $vec = (enum pvec_type) (($size & PVEC_TYPE_MASK) >> PSEUDOVECTOR_AREA_BITS)
       if $vec == PVEC_NORMAL_VECTOR
 	xvector
+      end
+      if $vec == PVEC_MARKER
+        xmarker
+      end
+      if $vec == PVEC_OVERLAY
+        xoverlay
       end
       if $vec == PVEC_PROCESS
 	xprocess
@@ -1072,21 +1051,27 @@ Print $ as a lisp object of any type.
 end
 
 define xprintstr
-  set $data = (char *) $arg0->data
-  set $strsize = ($arg0->size_byte < 0) ? ($arg0->size & ~ARRAY_MARK_FLAG) : $arg0->size_byte
-  # GDB doesn't like zero repetition counts
-  if $strsize == 0
-    output ""
+  if (! $arg0)
+    output "DEAD"
   else
-    output ($arg0->size > 1000) ? 0 : ($data[0])@($strsize)
+    set $data = (char *) $arg0->u.s.data
+    set $strsize = ($arg0->u.s.size_byte < 0) ? ($arg0->u.s.size & ~ARRAY_MARK_FLAG) : $arg0->u.s.size_byte
+    # GDB doesn't like zero repetition counts
+    if $strsize == 0
+      output ""
+    else
+      output ($arg0->u.s.size > 1000) ? 0 : ($data[0])@($strsize)
+    end
   end
 end
 
 define xprintsym
   xsymname $arg0
   xgetptr $symname
-  set $sym_name = (struct Lisp_String *) $ptr
-  xprintstr $sym_name
+  if $ptr != 0
+    set $sym_name = (struct Lisp_String *) $ptr
+    xprintstr $sym_name
+  end
 end
 document xprintsym
   Print argument as a symbol.
@@ -1245,24 +1230,12 @@ show environment TERM
 # terminate_due_to_signal when an assertion failure is non-fatal.
 break terminate_due_to_signal
 
-# x_error_quitter is defined only on X.  But window-system is set up
-# only at run time, during Emacs startup, so we need to defer setting
-# the breakpoint.  init_sys_modes is the first function called on
-# every platform after init_display, where window-system is set.
-tbreak init_sys_modes
-commands
-  silent
-  xsymname globals.f_Vinitial_window_system
-  xgetptr $symname
-  set $tem = (struct Lisp_String *) $ptr
-  set $tem = (char *) $tem->data
-  # If we are running in synchronous mode, we want a chance to look
-  # around before Emacs exits.  Perhaps we should put the break
-  # somewhere else instead...
-  if $tem[0] == 'x' && $tem[1] == '\0'
-    break x_error_quitter
-  end
-  continue
+# x_error_quitter is defined only if defined_HAVE_X_WINDOWS.
+# If we are running in synchronous mode, we want a chance to look
+# around before Emacs exits.  Perhaps we should put the break
+# somewhere else instead...
+if defined_HAVE_X_WINDOWS
+  break x_error_quitter
 end
 
 
@@ -1271,6 +1244,12 @@ end
 # reporting an error.
 
 python
+
+# Python 3 compatibility.
+try:
+  long
+except:
+  long = int
 
 # Omit pretty-printing in older (pre-7.3) GDBs that lack it.
 if hasattr(gdb, 'printing'):
@@ -1303,46 +1282,65 @@ if hasattr(gdb, 'printing'):
 
       # This implementation should work regardless of C compiler, and
       # it should not attempt to run any code in the inferior.
-      EMACS_INT_WIDTH = int(gdb.lookup_symbol("EMACS_INT_WIDTH")[0].value())
-      USE_LSB_TAG = int(gdb.lookup_symbol("USE_LSB_TAG")[0].value())
+
+      # If the macros EMACS_INT_WIDTH and USE_LSB_TAG are not in the
+      # symbol table, guess reasonable defaults.
+      sym = gdb.lookup_symbol ("EMACS_INT_WIDTH")[0]
+      if sym:
+        EMACS_INT_WIDTH = long (sym.value ())
+      else:
+        sym = gdb.lookup_symbol ("EMACS_INT")[0]
+        EMACS_INT_WIDTH = 8 * sym.type.sizeof
+      sym = gdb.lookup_symbol ("USE_LSB_TAG")[0]
+      if sym:
+        USE_LSB_TAG = long (sym.value ())
+      else:
+        USE_LSB_TAG = 1
+
       GCTYPEBITS = 3
       VALBITS = EMACS_INT_WIDTH - GCTYPEBITS
       Lisp_Int0 = 2
       Lisp_Int1 = 6 if USE_LSB_TAG else 3
 
-      # Unpack the Lisp value from its containing structure, if necessary.
       val = self.val
       basic_type = gdb.types.get_basic_type (val.type)
+
+      # Unpack VAL from its containing structure, if necessary.
       if (basic_type.code == gdb.TYPE_CODE_STRUCT
           and gdb.types.has_field (basic_type, "i")):
         val = val["i"]
 
+      # Convert VAL to a Python integer.  Convert by hand, as this is
+      # simpler and works regardless of whether VAL is a pointer or
+      # integer.  Also, val.cast (gdb.lookup.type ("EMACS_UINT"))
+      # would have problems with GDB 7.12.1; see
+      # <https://patchwork.sourceware.org/patch/11557/>
+      ival = long (val)
+
       # For nil, yield "XIL(0)", which is easier to read than "XIL(0x0)".
-      if not val:
+      if not ival:
         return "XIL(0)"
 
       # Extract the integer representation of the value and its Lisp type.
-      ival = int(val)
       itype = ival >> (0 if USE_LSB_TAG else VALBITS)
       itype = itype & ((1 << GCTYPEBITS) - 1)
 
-      # For a Lisp integer N, yield "make_number(N)".
+      # For a Lisp fixnum N, yield "make_fixnum(N)".
       if itype == Lisp_Int0 or itype == Lisp_Int1:
         if USE_LSB_TAG:
           ival = ival >> (GCTYPEBITS - 1)
-        elif (ival >> VALBITS) & 1:
+        if (ival >> VALBITS) & 1:
           ival = ival | (-1 << VALBITS)
         else:
           ival = ival & ((1 << VALBITS) - 1)
-        return "make_number(%d)" % ival
+        return "make_fixnum(%d)" % ival
 
       # For non-integers other than nil yield "XIL(N)", where N is a C integer.
       # This helps humans distinguish Lisp_Object values from ordinary
       # integers even when Lisp_Object is an integer.
       # Perhaps some day the pretty-printing could be fancier.
       # Prefer the unsigned representation to negative values, converting
-      # by hand as val.cast(gdb.lookup_type("EMACS_UINT") does not work in
-      # GDB 7.12.1; see <http://patchwork.sourceware.org/patch/11557/>.
+      # by hand as val.cast does not work in GDB 7.12.1 as noted above.
       if ival < 0:
         ival = ival + (1 << EMACS_INT_WIDTH)
       return "XIL(0x%x)" % ival

@@ -1,6 +1,6 @@
 # Configurations for ../lib/gnulib.mk.
 #
-# Copyright 2017 Free Software Foundation, Inc.
+# Copyright 2017-2020 Free Software Foundation, Inc.
 #
 # This file is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,7 +13,7 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with this file.  If not, see <http://www.gnu.org/licenses/>.
+# along with this file.  If not, see <https://www.gnu.org/licenses/>.
 
 
 # Gnulib modules to be omitted from Emacs.
@@ -49,6 +49,7 @@ OMIT_GNULIB_MODULE_dirent = true
 OMIT_GNULIB_MODULE_dirfd = true
 OMIT_GNULIB_MODULE_fcntl = true
 OMIT_GNULIB_MODULE_fcntl-h = true
+OMIT_GNULIB_MODULE_fsusage = true
 OMIT_GNULIB_MODULE_inttypes-incomplete = true
 OMIT_GNULIB_MODULE_open = true
 OMIT_GNULIB_MODULE_pipe2 = true
@@ -61,3 +62,9 @@ OMIT_GNULIB_MODULE_sys_stat = true
 OMIT_GNULIB_MODULE_sys_time = true
 OMIT_GNULIB_MODULE_sys_types = true
 OMIT_GNULIB_MODULE_unistd = true
+OMIT_GNULIB_MODULE_canonicalize-lgpl = true
+OMIT_GNULIB_MODULE_utimens = true
+OMIT_GNULIB_MODULE_fchmodat = true
+OMIT_GNULIB_MODULE_lchmod = true
+OMIT_GNULIB_MODULE_futimens = true
+OMIT_GNULIB_MODULE_utimensat = true

@@ -1,4 +1,4 @@
-Copyright (C) 2008-2017 Free Software Foundation, Inc.
+Copyright (C) 2008-2020 Free Software Foundation, Inc.
 See the end of the file for license conditions.
 
 
@@ -45,6 +45,35 @@ files will be installed under whatever 'prefix' is set to (defaults to
 require 'sudo' for "make install").
 
 
+Targeting different macOS versions
+----------------------------------
+
+The Emacs build process automatically enables or disables macOS
+features according to the version of macOS it is being built on.  It
+is possible to override this automatic configuration if you are
+targeting a different version of macOS, or wish to build one
+executable that is able to enable or disable features at run-time.
+
+To build a version compatible with an older version of macOS use this
+flag:
+
+  -DMAC_OS_X_VERSION_MIN_REQUIRED=x
+
+and to build for a newer version of macOS:
+
+  -DMAC_OS_X_VERSION_MAX_ALLOWED=x
+
+For example, to enable run-time checks for features available between
+macOS 10.6, and 10.12 inclusive:
+
+  ./configure --with-ns CFLAGS="-DMAC_OS_X_VERSION_MIN_REQUIRED=1060 \
+    -DMAC_OS_X_VERSION_MAX_ALLOWED=101200 -g3 -O2"
+
+The macOS version numbers are formatted as 10x0 for macOS up to 10.10,
+and 10xx00 for macOS 10.10 and above.  A full list is provided in
+/usr/include/AvailabilityMacros.h.
+
+
 Installation
 ------------
 
@@ -65,4 +94,4 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.

@@ -1,6 +1,6 @@
 ;;; gnus-logic.el --- advanced scoring code for Gnus
 
-;; Copyright (C) 1996-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1996-2020 Free Software Foundation, Inc.
 
 ;; Author: Lars Magne Ingebrigtsen <larsi@gnus.org>
 ;; Keywords: news
@@ -18,13 +18,13 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
 ;;; Code:
 
-(eval-when-compile (require 'cl))
+(eval-when-compile (require 'cl-lib))
 
 (require 'gnus)
 (require 'gnus-score)
@@ -162,9 +162,9 @@
     (funcall type (or (aref gnus-advanced-headers index) 0) match)))
 
 (defun gnus-advanced-date (index match type)
-  (let ((date (apply 'encode-time (parse-time-string
-				   (aref gnus-advanced-headers index))))
-	(match (apply 'encode-time (parse-time-string match))))
+  (let ((date (encode-time (parse-time-string
+			    (aref gnus-advanced-headers index))))
+	(match (encode-time (parse-time-string match))))
     (cond
      ((eq type 'at)
       (equal date match))

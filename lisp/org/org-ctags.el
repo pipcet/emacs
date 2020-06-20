@@ -1,6 +1,6 @@
 ;;; org-ctags.el - Integrate Emacs "tags" Facility with Org -*- lexical-binding: t; -*-
 ;;
-;; Copyright (C) 2007-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2007-2020 Free Software Foundation, Inc.
 
 ;; Author: Paul Sexton <eeeickythump@gmail.com>
 
@@ -20,7 +20,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;
 ;; Synopsis
@@ -137,6 +137,7 @@
 
 ;;; Code:
 
+(eval-when-compile (require 'cl-lib))
 (require 'org)
 
 (defgroup org-ctags nil
@@ -235,7 +236,7 @@ buffer position where the tag is found."
       (with-current-buffer (get-file-buffer tags-file-name)
         (goto-char (point-min))
         (cond
-         ((re-search-forward (format "^.*%s\\([0-9]+\\),\\([0-9]+\\)$"
+         ((re-search-forward (format "^.*\^?%s\^A\\([0-9]+\\),\\([0-9]+\\)$"
                                      (regexp-quote tag)) nil t)
           (let ((line (string-to-number (match-string 1)))
                 (pos (string-to-number (match-string 2))))
@@ -260,7 +261,7 @@ Return the list."
       (visit-tags-table-buffer 'same)
       (with-current-buffer (get-file-buffer tags-file-name)
         (goto-char (point-min))
-        (while (re-search-forward "^.*\\(.*\\)\\([0-9]+\\),\\([0-9]+\\)$"
+        (while (re-search-forward "^.*\^?\\(.*\\)\^A\\([0-9]+\\),\\([0-9]+\\)$"
                                   nil t)
           (push (substring-no-properties (match-string 1)) taglist)))
       taglist)))

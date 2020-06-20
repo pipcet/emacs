@@ -1,6 +1,6 @@
 ;;; foldout.el --- folding extensions for outline-mode and outline-minor-mode
 
-;; Copyright (C) 1994, 2001-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1994, 2001-2020 Free Software Foundation, Inc.
 
 ;; Author: Kevin Broadey <KevinB@bartley.demon.co.uk>
 ;; Maintainer: emacs-devel@gnu.org
@@ -21,7 +21,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -208,10 +208,6 @@
 ;;; Code:
 
 (require 'outline)
-
-;; something has gone very wrong if outline-minor-mode isn't bound now.
-(if (not (boundp 'outline-minor-mode))
-    (error "Can't find outline-minor-mode"))
 
 (defvar foldout-fold-list nil
   "List of start and end markers for the folds currently entered.

@@ -1,10 +1,10 @@
 ;;; ob-ebnf.el --- Babel Functions for EBNF          -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2013-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2013-2020 Free Software Foundation, Inc.
 
 ;; Author: Michael Gauland
 ;; Keywords: literate programming, reproducible research
-;; Homepage: http://orgmode.org
+;; Homepage: https://orgmode.org
 ;; Version: 1.00
 
 ;; This file is part of GNU Emacs.
@@ -20,7 +20,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -49,8 +49,8 @@
 ;; Use ebnf-eps-buffer to produce an encapsulated postscript file.
 ;;
 (defun org-babel-execute:ebnf (body params)
-  "Execute a block of Ebnf code with org-babel.  This function is
-called by `org-babel-execute-src-block'"
+  "Execute a block of Ebnf code with org-babel.
+This function is called by `org-babel-execute-src-block'."
   (save-excursion
     (let* ((dest-file (cdr (assq :file params)))
 	   (dest-dir (file-name-directory dest-file))

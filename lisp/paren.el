@@ -1,6 +1,6 @@
-;;; paren.el --- highlight matching paren
+;;; paren.el --- highlight matching paren  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1993, 1996, 2001-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1993, 1996, 2001-2020 Free Software Foundation, Inc.
 
 ;; Author: rms@gnu.org
 ;; Maintainer: emacs-devel@gnu.org
@@ -19,7 +19,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -60,7 +60,7 @@ active, you must toggle the mode off and on again for this to take effect."
 
 (defcustom show-paren-priority 1000
   "Priority of paren highlighting overlays."
-  :type 'integer 
+  :type 'integer
   :version "21.1")
 
 (defcustom show-paren-ring-bell-on-mismatch nil
@@ -100,9 +100,6 @@ its position."
 ;;;###autoload
 (define-minor-mode show-paren-mode
   "Toggle visualization of matching parens (Show Paren mode).
-With a prefix argument ARG, enable Show Paren mode if ARG is
-positive, and disable it otherwise.  If called from Lisp, enable
-the mode if ARG is omitted or nil.
 
 Show Paren mode is a global minor mode.  When enabled, any
 matching parenthesis is highlighted in `show-paren-style' after
@@ -176,7 +173,7 @@ if there's no opener/closer near point, or a list of the form
 Where HERE-BEG..HERE-END is expected to be near point.")
 
 (defun show-paren--default ()
-  "Finds the opener/closer near point and its match.
+  "Find the opener/closer near point and its match.
 
 It is the default value of `show-paren-data-function'."
   (let* ((temp (show-paren--locate-near-paren))

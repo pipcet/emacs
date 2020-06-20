@@ -1,6 +1,6 @@
 ;;; enriched.el --- read and save files in text/enriched format
 
-;; Copyright (C) 1994-1996, 2001-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1994-1996, 2001-2020 Free Software Foundation, Inc.
 
 ;; Author: Boris Goldowsky <boris@gnu.org>
 ;; Keywords: wp, faces
@@ -18,7 +18,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -120,9 +120,11 @@ expression, which is evaluated to get the string to insert.")
     ;; The following are not part of the standard:
     (FUNCTION      (enriched-decode-foreground "x-color")
 		   (enriched-decode-background "x-bg-color")
-		   (enriched-decode-display-prop "x-display"))
+		   (enriched-decode-display-prop "x-display")
+                   (enriched-decode-charset "x-charset"))
     (read-only     (t           "x-read-only"))
     (display	   (nil		enriched-handle-display-prop))
+    (charset       (nil         enriched-handle-charset-prop))
     (unknown       (nil         format-annotate-value))
 ;   (font-size     (2           "bigger")       ; unimplemented
 ;		   (-2          "smaller"))
@@ -145,6 +147,22 @@ If you set variables in this hook, you should arrange for them to be restored
 to their old values if you leave Enriched mode.  One way to do this is to add
 them and their old values to `enriched-old-bindings'."
   :type 'hook
+  :group 'enriched)
+
+(defcustom enriched-allow-eval-in-display-props nil
+  "If non-nil allow to evaluate arbitrary forms in display properties.
+
+Enriched mode recognizes display properties of text stored using
+an extension command to the text/enriched format, \"x-display\".
+These properties must not, by default, include evaluation of
+Lisp forms, otherwise they are not applied.  Customize this option
+to t to turn off this safety feature, and allow Enriched mode to
+apply display properties which evaluate arbitrary Lisp forms.
+Note, however, that applying unsafe display properties could
+execute malicious Lisp code, if that code came from an external source."
+  :risky t
+  :type 'boolean
+  :version "26.1"
   :group 'enriched)
 
 (defvar enriched-old-bindings nil
@@ -191,10 +209,6 @@ The value is a list of \(VAR VALUE VAR VALUE...).")
   "Minor mode for editing text/enriched files.
 These are files with embedded formatting information in the MIME standard
 text/enriched format.
-
-With a prefix argument ARG, enable the mode if ARG is positive,
-and disable it otherwise.  If called from Lisp, enable the mode
-if ARG is omitted or nil.
 
 Turning the mode on or off runs `enriched-mode-hook'.
 
@@ -476,6 +490,21 @@ Return value is \(begin end name positive-p), or nil if none was found."
       (list from to 'face (list ':background color))
     (message "Warning: no color specified for <x-bg-color>")
     nil))
+
+(defun enriched-decode-charset (from to &optional cset)
+  (let ((cs (when (stringp cset)
+              (condition-case ()
+                  (car (read-from-string cset))
+                (error nil)))))
+    (unless cs
+      (message "Warning: invalid <x-charset> parameter %s" cset))
+    (list from to 'charset cs)))
+
+(defun enriched-handle-charset-prop (old new)
+  "Return a list of annotations for a change in the `charset' property."
+  (cons (and old (list (list "x-charset" (symbol-name old))))
+        (and new (list (list "x-charset" (symbol-name new))))))
+
 
 ;;; Handling the `display' property.
 
@@ -503,6 +532,8 @@ the range of text to assign text property SYMBOL with value VALUE."
 		  (error nil)))))
     (unless prop
       (message "Warning: invalid <x-display> parameter %s" param))
-    (list start end 'display prop)))
+    (if enriched-allow-eval-in-display-props
+        (list start end 'display prop)
+      (list start end 'display (list 'disable-eval prop)))))
 
 ;;; enriched.el ends here

@@ -1,6 +1,6 @@
 ;;; minibuf-tests.el --- tests for minibuf.c functions -*- lexical-binding: t -*-
 
-;; Copyright (C) 2016-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2016-2020 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -15,7 +15,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Code:
 
@@ -398,6 +398,17 @@
 (ert-deftest test-completion-symbol-hashtable-completion-regexp ()
   (minibuf-tests--test-completion-regexp
    #'minibuf-tests--strings-to-symbol-hashtable))
+
+(ert-deftest test-try-completion-ignore-case ()
+  (let ((completion-ignore-case t))
+    (should (equal (try-completion "bar" '("bAr" "barfoo")) "bAr"))
+    (should (equal (try-completion "bar" '("bArfoo" "barbaz")) "bar"))
+    (should (equal (try-completion "bar" '("bArfoo" "barbaz"))
+                   (try-completion "bar" '("barbaz" "bArfoo"))))
+    ;; bug#11339
+    (should (equal (try-completion "baz" '("baz" "bAz")) "baz")) ;And not `t'!
+    (should (equal (try-completion "baz" '("bAz" "baz"))
+                   (try-completion "baz" '("baz" "bAz"))))))
 
 
 ;;; minibuf-tests.el ends here

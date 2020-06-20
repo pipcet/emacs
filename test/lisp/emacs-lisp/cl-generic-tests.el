@@ -1,6 +1,6 @@
 ;;; cl-generic-tests.el --- Tests for cl-generic.el functionality  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2015-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2015-2020 Free Software Foundation, Inc.
 
 ;; Author: Stefan Monnier <monnier@iro.umontreal.ca>
 
@@ -17,14 +17,20 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
 ;;; Code:
 
-(eval-when-compile (require 'ert)) ;Don't indirectly require cl-lib at run-time.
 (require 'cl-generic)
+
+;; Don't indirectly require `cl-lib' at run-time.
+(eval-when-compile (require 'ert))
+(declare-function ert--should-signal-hook "ert")
+(declare-function ert--signal-should-execution "ert")
+(declare-function ert-fail "ert")
+(declare-function ert-set-test "ert")
 
 (fmakunbound 'cl--generic-1)
 (cl-defgeneric cl--generic-1 (x y))

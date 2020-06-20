@@ -1,7 +1,7 @@
 /* unexec() support for Cygwin;
    complete rewrite of xemacs Cygwin unexec() code
 
-   Copyright (C) 2004-2017 Free Software Foundation, Inc.
+   Copyright (C) 2004-2020 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -16,7 +16,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.  */
+along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 
 #include <config.h>
 #include "unexec.h"
@@ -48,7 +48,7 @@ static exe_header_t *
 read_exe_header (int fd, exe_header_t * exe_header_buffer)
 {
   int i;
-  int ret;
+  int ret ATTRIBUTE_UNUSED;
 
   assert (fd >= 0);
   assert (exe_header_buffer != 0);
@@ -111,7 +111,7 @@ fixup_executable (int fd)
   exe_header_t exe_header_buffer;
   exe_header_t *exe_header;
   int i;
-  int ret;
+  int ret ATTRIBUTE_UNUSED;
   int found_data = 0;
   int found_bss = 0;
 
@@ -269,7 +269,7 @@ unexec (const char *outfile, const char *infile)
   int fd_in;
   int fd_out;
   int ret;
-  int ret2;
+  int ret2 ATTRIBUTE_UNUSED;
 
   infile = add_exe_suffix_if_necessary (infile, infile_buffer);
   outfile = add_exe_suffix_if_necessary (outfile, outfile_buffer);

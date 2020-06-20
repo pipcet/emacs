@@ -1,6 +1,6 @@
 ;;; octave.el --- editing octave source files under emacs  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 1997, 2001-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1997, 2001-2020 Free Software Foundation, Inc.
 
 ;; Author: Kurt Hornik <Kurt.Hornik@wu-wien.ac.at>
 ;;	   John Eaton <jwe@octave.org>
@@ -20,7 +20,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -37,7 +37,7 @@
 (defgroup octave nil
   "Editing Octave code."
   :link '(custom-manual "(octave-mode)Top")
-  :link '(url-link "http://www.gnu.org/s/octave")
+  :link '(url-link "https://www.gnu.org/s/octave")
   :link '(custom-group-link :tag "Font Lock Faces group" font-lock-faces)
   :group 'languages)
 
@@ -170,8 +170,8 @@ parenthetical grouping.")
     (modify-syntax-entry ?. "."   table)
     (modify-syntax-entry ?\" "\"" table)
     (modify-syntax-entry ?_ "_"   table)
-    ;; The "b" flag only applies to the second letter of the comstart
-    ;; and the first letter of the comend, i.e. the "4b" below is ineffective.
+    ;; The "b" flag only applies to the second letter of the comstart and
+    ;; the first letter of the comend, i.e. a "4b" below would be ineffective.
     ;; If we try to put `b' on the single-line comments, we get a similar
     ;; problem where the % and # chars appear as first chars of the 2-char
     ;; comend, so the multi-line ender is also turned into style-b.
@@ -198,6 +198,7 @@ newline or semicolon after an else or end keyword."
 (defcustom octave-block-offset 2
   "Extra indentation applied to statements in Octave block structures."
   :type 'integer)
+(put 'octave-block-offset 'safe-local-variable 'integerp)
 
 (defvar octave-block-comment-start
   (concat (make-string 2 octave-comment-char) " ")
@@ -288,6 +289,7 @@ Non-nil means always go to the next Octave code line after sending."
         ("methods" exp "endmethods")
         ("properties" exp "endproperties")
         ("classdef" exp "endclassdef")
+        ("spmd" exp "endspmd")
         ))
 
      (bnf-table
@@ -442,12 +444,12 @@ Non-nil means always go to the next Octave code line after sending."
     ;; disadvantages:
     ;; - changes to octave-block-offset wouldn't take effect immediately.
     ;; - edebug wouldn't show the use of this variable.
-    (`(:elem . basic) octave-block-offset)
+    ('(:elem . basic) octave-block-offset)
     (`(:list-intro . ,(or "global" "persistent")) t)
     ;; Since "case" is in the same BNF rules as switch..end, SMIE by default
     ;; aligns it with "switch".
-    (`(:before . "case") (if (not (smie-rule-sibling-p)) octave-block-offset))
-    (`(:after . ";")
+    ('(:before . "case") (if (not (smie-rule-sibling-p)) octave-block-offset))
+    ('(:after . ";")
      (if (apply #'smie-rule-parent-p octave--block-offset-keywords)
          (smie-rule-parent octave-block-offset)
        ;; For (invalid) code between switch and case.
@@ -533,6 +535,27 @@ Non-nil means always go to the next Octave code line after sending."
 
 (defvar electric-layout-rules)
 
+;; FIXME: cc-mode.el also adds an entry for .m files, mapping them to
+;; objc-mode.  We here rely on the fact that loaddefs.el is filled in
+;; alphabetical order, so cc-mode.el comes before octave-mode.el, which lets
+;; our entry come first!
+;;;###autoload (add-to-list 'auto-mode-alist '("\\.m\\'" . octave-maybe-mode))
+
+;;;###autoload
+(defun octave-maybe-mode ()
+  "Select `octave-mode' if the current buffer seems to hold Octave code."
+  (if (save-excursion
+        (with-syntax-table octave-mode-syntax-table
+          (goto-char (point-min))
+          (forward-comment (point-max))
+          ;; FIXME: What about Octave files which don't start with "function"?
+          (looking-at "function")))
+      (octave-mode)
+    (let ((x (rassq 'octave-maybe-mode auto-mode-alist)))
+      (when x
+        (let ((auto-mode-alist (remove x auto-mode-alist)))
+          (set-auto-mode))))))
+
 ;;;###autoload
 (define-derived-mode octave-mode prog-mode "Octave"
   "Major mode for editing Octave code.
@@ -596,8 +619,7 @@ Key bindings:
   (add-hook 'before-save-hook 'octave-sync-function-file-names nil t)
   (setq-local beginning-of-defun-function 'octave-beginning-of-defun)
   (and octave-font-lock-texinfo-comment (octave-font-lock-texinfo-comment))
-  (add-function :before-until (local 'eldoc-documentation-function)
-                'octave-eldoc-function)
+  (add-hook 'eldoc-documentation-functions 'octave-eldoc-function nil t)
 
   (easy-menu-add octave-mode-menu))
 
@@ -612,7 +634,7 @@ Key bindings:
 
 (defcustom inferior-octave-prompt
   ;; For Octave >= 3.8, default is always 'octave', see
-  ;; http://hg.savannah.gnu.org/hgweb/octave/rev/708173343c50
+  ;; https://hg.savannah.gnu.org/hgweb/octave/rev/708173343c50
   "\\(?:^octave\\(?:.bin\\|.exe\\)?\\(?:-[.0-9]+\\)?\\(?::[0-9]+\\)?\\|^debug\\|^\\)>+ "
   "Regexp to match prompts for the inferior Octave process."
   :type 'regexp)
@@ -638,6 +660,9 @@ For example, for suppressing the startup message and using `traditional'
 mode, include \"-q\" and \"--traditional\"."
   :type '(repeat string)
   :version "24.4")
+
+(define-obsolete-variable-alias 'inferior-octave-startup-hook
+  'inferior-octave-mode-hook "24.4")
 
 (defcustom inferior-octave-mode-hook nil
   "Hook to be run when Inferior Octave mode is started."
@@ -692,9 +717,6 @@ mode, include \"-q\" and \"--traditional\"."
 (defvar inferior-octave-output-list nil)
 (defvar inferior-octave-output-string nil)
 (defvar inferior-octave-receive-in-progress nil)
-
-(define-obsolete-variable-alias 'inferior-octave-startup-hook
-  'inferior-octave-mode-hook "24.4")
 
 (defvar inferior-octave-dynamic-complete-functions
   '(inferior-octave-completion-at-point comint-filename-completion)
@@ -839,7 +861,7 @@ startup file, `~/.emacs-octave'."
     (inferior-octave-send-list-and-digest
      (list "more off;\n"
            (unless (equal inferior-octave-output-string ">> ")
-             ;; See http://hg.savannah.gnu.org/hgweb/octave/rev/708173343c50
+             ;; See https://hg.savannah.gnu.org/hgweb/octave/rev/708173343c50
              "PS1 ('octave> ');\n")
            (when (and inferior-octave-startup-file
                       (file-exists-p inferior-octave-startup-file))
@@ -867,7 +889,7 @@ startup file, `~/.emacs-octave'."
 
 (defun inferior-octave-completion-at-point ()
   "Return the data to complete the Octave symbol at point."
-  ;; http://debbugs.gnu.org/14300
+  ;; https://debbugs.gnu.org/14300
   (unless (string-match-p "/" (or (comint--match-partial-filename) ""))
     (let ((beg (save-excursion
                  (skip-syntax-backward "w_" (comint-line-beginning-position))
@@ -1044,8 +1066,8 @@ directory and makes this the current buffer's default directory."
              (unless found (goto-char orig))
              found))))
     (pcase (and buffer-file-name (file-name-extension buffer-file-name))
-      (`"cc" (funcall search
-                      "\\_<DEFUN\\(?:_DLD\\)?\\s-*(\\s-*\\(\\(?:\\sw\\|\\s_\\)+\\)" 1))
+      ("cc" (funcall search
+                     "\\_<DEFUN\\(?:_DLD\\)?\\s-*(\\s-*\\(\\(?:\\sw\\|\\s_\\)+\\)" 1))
       (_ (funcall search octave-function-header-regexp 3)))))
 
 (defun octave-function-file-p ()
@@ -1114,19 +1136,19 @@ q: Don't fix\n" func file))
                       (read-char-choice
                        "Which name to use? (a/b/q) " '(?a ?b ?q))))))
           (pcase c
-            (`?a (let ((newname (expand-file-name
-                                 (concat func (file-name-extension
-                                               buffer-file-name t)))))
-                   (when (or (not (file-exists-p newname))
-                             (yes-or-no-p
-                              (format "Target file %s exists; proceed? " newname)))
-                     (when (file-exists-p buffer-file-name)
-                       (rename-file buffer-file-name newname t))
-                     (set-visited-file-name newname))))
-            (`?b (save-excursion
-                   (goto-char name-start)
-                   (delete-region name-start name-end)
-                   (insert file)))))))))
+            (?a (let ((newname (expand-file-name
+                                (concat func (file-name-extension
+                                              buffer-file-name t)))))
+                  (when (or (not (file-exists-p newname))
+                            (yes-or-no-p
+                             (format "Target file %s exists; proceed? " newname)))
+                    (when (file-exists-p buffer-file-name)
+                      (rename-file buffer-file-name newname t))
+                    (set-visited-file-name newname))))
+            (?b (save-excursion
+                  (goto-char name-start)
+                  (delete-region name-start name-end)
+                  (insert file)))))))))
 
 (defun octave-update-function-file-comment (beg end)
   "Query replace function names in function file comment."
@@ -1165,6 +1187,8 @@ q: Don't fix\n" func file))
   "Face used to highlight function comment block.")
 
 (eval-when-compile (require 'texinfo))
+;; Undo the effects of texinfo loading tex-mode loading compile.
+(declare-function compilation-forget-errors "compile" ())
 
 (defun octave-font-lock-texinfo-comment ()
   (let ((kws
@@ -1497,7 +1521,7 @@ current buffer file unless called with a prefix arg \\[universal-argument]."
         (string (buffer-substring-no-properties beg end))
         line)
     (with-current-buffer inferior-octave-buffer
-      ;; http://lists.gnu.org/archive/html/emacs-devel/2013-10/msg00095.html
+      ;; https://lists.gnu.org/r/emacs-devel/2013-10/msg00095.html
       (compilation-forget-errors)
       (setq inferior-octave-output-list nil)
       (while (not (string-equal string ""))
@@ -1591,8 +1615,23 @@ code line."
      (list (format "print_usage ('%s');\n" fn)))
     (let (result)
       (dolist (line inferior-octave-output-list)
+        ;; The help output has changed a few times in GNU Octave.
+        ;; Earlier versions output "usage: " before the function signature.
+        ;; After deprecating the usage function, and up until GNU Octave 4.0.3,
+        ;; the output looks like this:
+        ;; -- Mapping Function: abs (Z).
+        ;; After GNU Octave 4.2.0, the output is less verbose and it looks like
+        ;; this:
+        ;; -- abs (Z)
+        ;; The following regexp matches these three formats.
+        ;; The "usage: " alternative matches the symbol, because a call to
+        ;; print_usage with a non-existent function (e.g., print_usage ('A'))
+        ;; would output:
+        ;; error: print_usage: 'A' not found
+        ;; and we wouldn't like to match anything in this case.
+        ;; See bug #36459.
         (when (string-match
-               "\\s-*\\(?:--[^:]+\\|usage\\):\\s-*\\(.*\\)$"
+               "\\s-*\\(?:--[^:]+:\\|\\_<usage:\\|--\\)\\s-*\\(.*\\)$"
                line)
           (push (match-string 1 line) result)))
       (setq octave-eldoc-cache
@@ -1607,12 +1646,7 @@ code line."
            (paren-pos (cadr ppss))
            (fn (save-excursion
                  (if (and paren-pos
-                          ;; PAREN-POS must be after the prompt
-                          (>= paren-pos
-                              (if (eq (get-buffer-process (current-buffer))
-                                      inferior-octave-process)
-                                  (process-mark inferior-octave-process)
-                                (point-min)))
+                          ;; PAREN-POS must be after the prompt.
                           (or (not (eq (get-buffer-process (current-buffer))
                                        inferior-octave-process))
                               (< (process-mark inferior-octave-process)
@@ -1629,11 +1663,11 @@ code line."
       ;;
       ;; Return the value according to style.
       (pcase octave-eldoc-message-style
-        (`auto (if (< (length oneline) (window-width (minibuffer-window)))
+        ('auto (if (< (length oneline) (window-width (minibuffer-window)))
                    oneline
                  multiline))
-        (`oneline oneline)
-        (`multiline multiline)))))
+        ('oneline oneline)
+        ('multiline multiline)))))
 
 (defcustom octave-help-buffer "*Octave Help*"
   "Buffer name for `octave-help'."
@@ -1668,7 +1702,7 @@ code line."
   (eval-and-compile (require 'help-mode))
   ;; Don't highlight `EXAMPLE' as elisp symbols by using a regexp that
   ;; can never match.
-  (setq-local help-xref-symbol-regexp "x\\`"))
+  (setq-local help-xref-symbol-regexp regexp-unmatchable))
 
 (defun octave-help (fn)
   "Display the documentation of FN."
@@ -1778,19 +1812,19 @@ If the environment variable OCTAVE_SRCDIR is set, it is searched first."
 (defun octave-find-definition-default-filename (name)
   "Default value for `octave-find-definition-filename-function'."
   (pcase (file-name-extension name)
-    (`"oct"
+    ("oct"
      (octave-find-definition-default-filename
       (concat "libinterp/dldfcn/"
               (file-name-sans-extension (file-name-nondirectory name))
               ".cc")))
-    (`"cc"
+    ("cc"
      (let ((file (or (locate-file name (octave-source-directories))
                      (locate-file (file-name-nondirectory name)
                                   (octave-source-directories)))))
        (or (and file (file-exists-p file))
            (error "File `%s' not found" name))
        file))
-    (`"mex"
+    ("mex"
      (if (yes-or-no-p (format-message "File `%s' may be binary; open? "
 				      (file-name-nondirectory name)))
          name

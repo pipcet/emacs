@@ -1,6 +1,6 @@
 ;;; semantic/dep.el --- Methods for tracking dependencies (include files)
 
-;; Copyright (C) 2006-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2006-2020 Free Software Foundation, Inc.
 
 ;; Author: Eric M. Ludlam <zappo@gnu.org>
 ;; Keywords: syntax
@@ -18,7 +18,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 ;;
@@ -56,7 +56,7 @@ reparsed, the cache will be reset.
 TODO: use ffap.el to locate such items?
 
 NOTE: Obsolete this, or use as special user")
-(make-variable-buffer-local `semantic-dependency-include-path)
+(make-variable-buffer-local 'semantic-dependency-include-path)
 
 (defvar semantic-dependency-system-include-path nil
   "Defines the system include path.
@@ -67,11 +67,11 @@ For mode authors, use
 `defcustom-mode-local-semantic-dependency-system-include-path'
 to create a mode-specific variable to control this.
 
-When searching for a file associated with a name found in an tag of
+When searching for a file associated with a name found in a tag of
 class include, this path will be inspected for includes of type
 `system'.  Some include tags are agnostic to this setting and will
 check both the project and system directories.")
-(make-variable-buffer-local `semantic-dependency-system-include-path)
+(make-variable-buffer-local 'semantic-dependency-system-include-path)
 
 (defmacro defcustom-mode-local-semantic-dependency-system-include-path
   (mode name value &optional docstring)

@@ -1,6 +1,6 @@
 ;;; url.el --- Uniform Resource Locator retrieval tool  -*- lexical-binding: t -*-
 
-;; Copyright (C) 1996-1999, 2001, 2004-2017 Free Software Foundation,
+;; Copyright (C) 1996-1999, 2001, 2004-2020 Free Software Foundation,
 ;; Inc.
 
 ;; Author: Bill Perry <wmperry@gnu.org>
@@ -20,7 +20,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -119,6 +119,8 @@ variable in the original buffer as a forwarding pointer.")
 
 (defvar url-retrieve-number-of-calls 0)
 (autoload 'url-cache-prune-cache "url-cache")
+(defvar url-asynchronous t
+  "Bind to nil before calling `url-retrieve' to signal :nowait connections.")
 
 ;;;###autoload
 (defun url-retrieve (url callback &optional cbargs silent inhibit-cookies)
@@ -134,9 +136,11 @@ STATUS is a plist representing what happened during the request,
 with most recent events first, or an empty list if no events have
 occurred.  Each pair is one of:
 
-\(:redirect REDIRECTED-TO) - the request was redirected to this URL
-\(:error (ERROR-SYMBOL . DATA)) - an error occurred.  The error can be
-signaled with (signal ERROR-SYMBOL DATA).
+\(:redirect REDIRECTED-TO) - the request was redirected to this URL.
+
+\(:error (error type . DATA)) - an error occurred.  TYPE is a
+symbol that says something about where the error occurred, and
+DATA is a list (possibly nil) that describes the error further.
 
 Return the buffer URL will load into, or nil if the process has
 already completed (i.e. URL was a mailto URL or similar; in this case
@@ -190,6 +194,7 @@ URL-encoded before it's used."
   (unless (url-type url)
     (error "Bad url: %s" (url-recreate-url url)))
   (setf (url-silent url) silent)
+  (setf (url-asynchronous url) url-asynchronous)
   (setf (url-use-cookies url) (not inhibit-cookies))
   ;; Once in a while, remove old entries from the URL cache.
   (when (zerop (% url-retrieve-number-of-calls 1000))
@@ -232,6 +237,7 @@ how long to wait for a response before giving up."
 
   (let ((retrieval-done nil)
 	(start-time (current-time))
+        (url-asynchronous nil)
         (asynch-buffer nil))
     (setq asynch-buffer
 	  (url-retrieve url (lambda (&rest ignored)
@@ -255,9 +261,7 @@ how long to wait for a response before giving up."
 	;; process output.
 	(while (and (not retrieval-done)
                     (or (not timeout)
-                        (< (float-time (time-subtract
-                                        (current-time) start-time))
-                           timeout)))
+			(time-less-p (time-since start-time) timeout)))
 	  (url-debug 'retrieval
 		     "Spinning in url-retrieve-synchronously: %S (%S)"
 		     retrieval-done asynch-buffer)

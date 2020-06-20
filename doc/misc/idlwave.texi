@@ -23,7 +23,7 @@ Emacs, and interacting with an IDL shell run as a subprocess.
 This is edition @value{EDITION} of the IDLWAVE User Manual for IDLWAVE
 @value{VERSION}.
 
-Copyright @copyright{} 1999--2017 Free Software Foundation, Inc.
+Copyright @copyright{} 1999--2020 Free Software Foundation, Inc.
 
 @quotation
 Permission is granted to copy, distribute and/or modify this document
@@ -172,7 +172,7 @@ Catalogs
 @cindex CORBA (Common Object Request Broker Architecture)
 @cindex Interface Definition Language
 @cindex Interactive Data Language
-@cindex cc-mode.el
+@cindex @file{cc-mode.el}
 @cindex @file{idl.el}
 @cindex @file{idl-shell.el}
 @cindex Feature overview
@@ -702,13 +702,13 @@ be located in the library.  E.g., if you have scanned the IDL-Astro
 library:
 
 @example
-    a=readf@key{M-@key{TAB}}
+    a=readf@kbd{M-@key{TAB}}
 @end example
 
 expands to ``readfits(''.  Then try
 
 @example
-    a=readfits(@key{C-c ?}
+    a=readfits(@kbd{C-c ?}
 @end example
 
 and you get:
@@ -935,7 +935,7 @@ IDL code.
 @cindex String splitting
 @cindex Splitting, of lines
 
-@kindex M-@key{RET}
+@kindex M-RET
 In IDL, a newline character terminates a statement unless preceded by a
 @samp{$}.  If you would like to start a continuation line, use
 @kbd{M-@key{RET}}, which calls the command @code{idlwave-split-line}.
@@ -1523,7 +1523,7 @@ The case-insensitive heading word in doclib headers to locate the
 @cindex Function name completion
 @cindex Procedure name completion
 
-@kindex M-@key{TAB}
+@kindex M-TAB
 @kindex C-c C-i
 IDLWAVE offers completion for class names, routine names, keywords,
 system variables, system variable tags, class structure tags, regular
@@ -1805,8 +1805,8 @@ Structure tag completion is not enabled by default.  To enable it,
 simply add the following to your @file{.emacs}:
 
 @lisp
-   (add-hook 'idlwave-load-hook
-             (lambda () (require 'idlw-complete-structtag)))
+(with-eval-after-load 'idlwave
+  (require 'idlw-complete-structtag))
 @end lisp
 
 Once enabled, you'll also be able to access online help on the structure
@@ -2360,10 +2360,6 @@ is first called.
 Normal hook.  Executed when a buffer is put into @code{idlwave-mode}.
 @end defopt
 
-@defopt idlwave-load-hook
-Normal hook.  Executed when @file{idlwave.el} is loaded.
-@end defopt
-
 @node The IDLWAVE Shell
 @chapter The IDLWAVE Shell
 @cindex IDLWAVE shell
@@ -2519,9 +2515,9 @@ between emacs and IDL sessions.  Here is a list of commonly used
 commands:
 
 @multitable @columnfractions .12 .88
-@item @key{UP}, @key{M-p}
+@item @key{UP}, @kbd{M-p}
 @tab Cycle backwards in input history
-@item @key{DOWN}, @key{M-n}
+@item @key{DOWN}, @kbd{M-n}
 @tab Cycle forwards in input history
 @item @kbd{M-r}
 @tab Previous input matching a regexp
@@ -3131,8 +3127,8 @@ variable, number, or function you see can be examined.
 If the variable @code{idlwave-shell-separate-examine-output} is
 non-@code{nil} (the default), all examine output will be sent to a
 special @file{*Examine*} buffer, rather than the shell.  The output of
-prior examine commands is saved in this buffer.  In this buffer @key{c}
-clears the contents, and @key{q} hides the buffer.
+prior examine commands is saved in this buffer.  In this buffer @kbd{c}
+clears the contents, and @kbd{q} hides the buffer.
 
 The two most basic examine commands are bound to @kbd{C-c C-d C-p}, to
 print the expression at point, and @kbd{C-c C-d ?}, to invoke help on
@@ -4064,7 +4060,7 @@ sure you check the following things:
 @itemize @bullet
 @item When you download the IDLWAVE distribution, make sure you save the
 file under the names @file{idlwave.tar.gz}.
-@item M-TAB switches among running programs---use Esc-TAB
+@item M-@key{TAB} switches among running programs---use @key{ESC}-@key{TAB}
 instead.
 @item Other issues as yet unnamed...
 @end itemize
@@ -4249,7 +4245,7 @@ This actually happens when running IDL in an XTerm as well.  There are
 a couple of workarounds: @code{define_key,/control,'^d'} (e.g., in
 your @file{$IDL_STARTUP} file) will disable the @samp{EOF} character
 and give you a 512 character limit.  You won't be able to use
-@key{C-d} to quit the shell, however.  Another possibility is
+@kbd{C-d} to quit the shell, however.  Another possibility is
 @code{!EDIT_INPUT=0}, which gives you an @emph{infinite} limit (OK, a
 memory-bounded limit), but disables the processing of background
 widget events (those with @code{/NO_BLOCK} passed to @code{XManager}).

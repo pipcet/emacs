@@ -1,6 +1,6 @@
 ;;; fontset.el --- commands for handling fontset
 
-;; Copyright (C) 1997-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1997-2020 Free Software Foundation, Inc.
 ;; Copyright (C) 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004,
 ;;   2005, 2006, 2007, 2008, 2009, 2010, 2011
 ;;   National Institute of Advanced Industrial Science and Technology (AIST)
@@ -24,7 +24,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -53,7 +53,10 @@
 	("ascii-0$" . ascii)
 	("gb2312.1980" . chinese-gb2312)
 	("gbk" . chinese-gbk)
-	("gb18030" . (unicode . nil))
+        ;; GB18030 needs the characters encoded by gb18030, but a
+        ;; gb18030 font doesn't necessarily support all of the GB18030
+        ;; characters.
+	("gb18030" . (gb18030 . unicode))
 	("jisx0208.1978" . japanese-jisx0208-1978)
 	("jisx0208" . japanese-jisx0208)
 	("jisx0201" . jisx0201)
@@ -216,6 +219,12 @@
 	(lydian #x10920)
 	(kharoshthi #x10A00)
 	(manichaean #x10AC0)
+        (hanifi-rohingya #x10D00)
+        (yezidi #x10E80)
+        (old-sogdian #x10F00)
+        (sogdian #x10F30)
+        (chorasmian #x10FB0)
+        (elymaic #x10FE0)
 	(mahajani #x11150)
 	(sinhala-archaic-number #x111E1)
 	(khojki #x11200)
@@ -226,20 +235,28 @@
 	(siddham #x11580)
 	(modi #x11600)
 	(takri #x11680)
+        (dogra #x11800)
 	(warang-citi #x118A1)
+        (dives-akuru #x11900)
+        (nandinagari #x119a0)
         (zanabazar-square #x11A00)
         (soyombo #x11A50)
 	(pau-cin-hau #x11AC0)
         (bhaiksuki #x11C00)
         (marchen #x11C72)
         (masaram-gondi #x11D00)
+        (gunjala-gondi #x11D60)
+        (makasar #x11EE0)
 	(cuneiform #x12000)
 	(cuneiform-numbers-and-punctuation #x12400)
+	(egyptian #x13000)
 	(mro #x16A40)
 	(bassa-vah #x16AD0)
 	(pahawh-hmong #x16B11)
+        (medefaidrin #x16E40)
         (tangut #x17000)
         (tangut-components #x18800)
+        (khitan-small-script #x18B00)
         (nushu #x1B170)
 	(duployan-shorthand #x1BC20)
 	(byzantine-musical-symbol #x1D000)
@@ -247,15 +264,19 @@
 	(ancient-greek-musical-notation #x1D200)
 	(tai-xuan-jing-symbol #x1D300)
 	(counting-rod-numeral #x1D360)
+        (nyiakeng-puachue-hmong #x1e100)
+        (wancho #x1e2c0)
 	(mende-kikakui #x1E810)
         (adlam #x1E900)
+        (indic-siyaq-number #x1ec71)
+        (ottoman-siyaq-number #x1ed01)
 	(mahjong-tile #x1F000)
 	(domino-tile #x1F030)))
 
 (defvar otf-script-alist)
 
-;; The below was synchronized with the latest Feb 25, 2016 version of
-;; https://www.microsoft.com/typography/otspec/scripttags.htm.
+;; The below was synchronized with the latest Aug 16, 2018 version of
+;; https://docs.microsoft.com/en-us/typography/opentype/spec/scripttags
 (setq otf-script-alist
       '((adlm . adlam)
         (ahom . ahom)
@@ -290,6 +311,7 @@
 	(dsrt . deseret)
 	(deva . devanagari)
 	(dev2 . devanagari)
+        (dogr . dogra)
         (dupl . duployan-shorthand)
 	(egyp . egyptian)
         (elba . elbasan)
@@ -301,21 +323,24 @@
 	(grek . greek)
 	(gujr . gujarati)
 	(gjr2 . gujarati)
+        (gong . gunjala-gondi)
 	(guru . gurmukhi)
 	(gur2 . gurmukhi)
 	(hani . han)
 	(hang . hangul)
 	(jamo . hangul)
+        (rohg . hanifi-rohingya)
 	(hano . hanunoo)
         (hatr . hatran)
 	(hebr . hebrew)
+        (hung . old-hungarian)
 	(phli . inscriptional-pahlavi)
 	(prti . inscriptional-parthian)
 	(java . javanese)
 	(kthi . kaithi)
-	(kana . kana)	; Hiragana
 	(knda . kannada)
 	(knd2 . kannada)
+	(kana . kana)	; Hiragana
 	(kali . kayah-li)
 	(khar . kharoshthi)
 	(khmr . khmer)
@@ -331,12 +356,15 @@
         (lyci . lycian)
         (lydi . lydian)
         (mahj . mahajani)
+        (maka . makasar)
         (marc . marchen)
 	(mlym . malayalam)
 	(mlm2 . malayalam)
 	(mand . mandaic)
         (mani . manichaean)
+        (gonm . masaram-gondi)
 	(math . mathematical)
+        (medf . medefaidrin)
 	(mtei . meetei-mayek)
         (mend . mende-kikakui)
 	(merc . meroitic)
@@ -352,12 +380,14 @@
         (nbat . nabataean)
         (newa . newa)
 	(nko\  . nko)
+        (nshu . nushu)
 	(ogam . ogham)
 	(olck . ol-chiki)
 	(ital . old_italic)
 	(xpeo . old_persian)
         (narb . old-north-arabian)
         (perm . old-permic)
+        (sogo . old-sogdian)
 	(sarb . old-south-arabian)
 	(orkh . old-turkic)
 	(orya . oriya)
@@ -381,7 +411,9 @@
         (sidd . siddham)
         (sgnw . sutton-sign-writing)
 	(sinh . sinhala)
+        (sogd . sogdian)
 	(sora . sora-sompeng)
+        (soyo . soyombo)
 	(sund . sundanese)
 	(sylo . syloti_nagri)
 	(syrc . syriac)
@@ -405,7 +437,8 @@
 	(ugar . ugaritic)
 	(vai\  . vai)
         (wara . warang-citi)
-	(yi\ \   . yi)))
+	(yi\ \   . yi)
+        (zanb . zanabazar-square)))
 
 ;; Set standard fontname specification of characters in the default
 ;; fontset to find an appropriate font for each script/charset.  The
@@ -476,7 +509,7 @@
 	 (data (list (vconcat (mapcar 'car cjk))))
 	 (i 0))
     (dolist (elt cjk)
-      (let ((mask (lsh 1 i)))
+      (let ((mask (ash 1 i)))
 	(map-charset-chars
 	 #'(lambda (range _arg)
 	     (let ((from (car range)) (to (cdr range)))
@@ -680,8 +713,8 @@
   ;; For simple scripts
   (dolist (script '(phonetic
 		    armenian
-		    syriac
 		    thaana
+		    syriac
 		    georgian
 		    cherokee
 		    canadian-aboriginal
@@ -690,6 +723,7 @@
 		    symbol
 		    braille
 		    yi
+		    tai-viet
 		    aegean-number
 		    ancient-greek-number
 		    ancient-symbol
@@ -702,17 +736,29 @@
 		    deseret
 		    shavian
 		    osmanya
+		    osage
 		    cypriot-syllabary
 		    phoenician
 		    lydian
+                    yezidi
 		    kharoshthi
-		    cuneiform
+		    manichaean
+                    chorasmian
+		    elymaic
+		    makasar
+                    dives-akuru
 		    cuneiform-numbers-and-punctuation
+		    cuneiform
+		    egyptian
+		    bassa-vah
+		    pahawh-hmong
+		    medefaidrin
 		    byzantine-musical-symbol
 		    musical-symbol
 		    ancient-greek-musical-notation
 		    tai-xuan-jing-symbol
 		    counting-rod-numeral
+		    adlam
 		    mahjong-tile
 		    domino-tile))
     (set-fontset-font "fontset-default"
@@ -804,9 +850,16 @@
              (#x4DC0 . #x4DFF)	;; Yijing Hexagram Symbols
              (#xFE10 . #xFE1F)	;; Vertical Forms
              (#x10100 . #x1013F)	;; Aegean Numbers
+             (#x10190 . #x101CF)	;; Ancient Symbols
+             (#x101D0 . #x101FF)	;; Phaistos Disc
              (#x102E0 . #x102FF)	;; Coptic Epact Numbers
              (#x1D000 . #x1D0FF)	;; Byzantine Musical Symbols
              (#x1D200 . #x1D24F)	;; Ancient Greek Musical Notation
+             (#x1D2E0 . #x1D2FF)	;; Mayan Numerals
+             (#x1D300 . #x1D35F)	;; Tai Xuan Jing Symbols
+             (#x1D360 . #x1D37F)	;; Counting Rod Numerals
+             (#x1F000 . #x1F02F)	;; Mahjong Tiles
+             (#x1F030 . #x1F09F)	;; Domino Tiles
              (#x1F0A0 . #x1F0FF)	;; Playing Cards
              (#x1F100 . #x1F1FF)	;; Enclosed Alphanumeric Suppl
              (#x1F300 . #x1F5FF)	;; Misc Symbols and Pictographs
@@ -815,7 +868,9 @@
              (#x1F680 . #x1F6FF)	;; Transport and Map Symbols
              (#x1F700 . #x1F77F)	;; Alchemical Symbols
              (#x1F780 . #x1F7FF)	;; Geometric Shapes Extended
-             (#x1F800 . #x1F8FF)))	;; Supplemental Arrows-C
+             (#x1F800 . #x1F8FF)	;; Supplemental Arrows-C
+             (#x1F900 . #x1F9FF)	;; Supplemental Symbols and Pictographs
+             (#x1FA00 . #x1FA6F)))	;; Chess Symbols
     (set-fontset-font "fontset-default" symbol-subgroup
                       '("Symbola" . "iso10646-1") nil 'prepend))
   ;; Box Drawing and Block Elements
@@ -823,7 +878,7 @@
                     '("FreeMono" . "iso10646-1") nil 'prepend)
 
   ;; Since standard-fontset-spec on X uses fixed-medium font, which
-  ;; gets mapped to a iso8859-1 variant, we would like to prefer its
+  ;; gets mapped to an iso8859-1 variant, we would like to prefer its
   ;; iso10646-1 variant for symbols, where the coverage is known to be
   ;; good.
   (dolist (symbol-subgroup
@@ -856,7 +911,7 @@
 	    (spec (cdr target-spec)))
 	(if (integerp spec)
 	    (dotimes (i (length registries))
-	      (if (> (logand spec (lsh 1 i)) 0)
+	      (if (> (logand spec (ash 1 i)) 0)
 		  (set-fontset-font "fontset-default" target
 				    (cons nil (aref registries i))
 				    nil 'append)))
@@ -1144,13 +1199,19 @@ given from DEFAULT-SPEC."
 	(setcar (cdr elt) spec)))
     fontlist))
 
+(defvar fontset-alias-alist)
+
 (defun fontset-name-p (fontset)
   "Return non-nil if FONTSET is valid as fontset name.
 A valid fontset name should conform to XLFD (X Logical Font Description)
-with \"fontset\" in `<CHARSET_REGISTRY>' field."
-  (and (string-match xlfd-tight-regexp fontset)
-       (string= (match-string (1+ xlfd-regexp-registry-subnum) fontset)
-		"fontset")))
+with \"fontset-SOMETHING\" in `<CHARSET_REGISTRY>' field.
+A fontset alias name recorded in `fontset-alias-alist' is also a valid
+fontset name."
+  (or (and (string-match xlfd-tight-regexp fontset)
+           (let ((registry
+                  (match-string (1+ xlfd-regexp-registry-subnum) fontset)))
+             (= 0 (string-match "\\`fontset-" registry))))
+      (consp (rassoc fontset fontset-alias-alist))))
 
 (declare-function fontset-list "fontset.c" ())
 
@@ -1216,11 +1277,12 @@ Done when `mouse-set-font' is called."
     (latin-iso8859-15 . latin)
     (latin-iso8859-16 . latin)
     (latin-jisx0201 . latin)
+    (thai-iso8859-11 . thai)
     (thai-tis620 . thai)
     (cyrillic-iso8859-5 . cyrillic)
     (arabic-iso8859-6 . arabic)
-    (greek-iso8859-7 . latin)
-    (hebrew-iso8859-8 . latin)
+    (greek-iso8859-7 . greek)
+    (hebrew-iso8859-8 . hebrew)
     (katakana-jisx0201 . kana)
     (chinese-gb2312 . han)
     (chinese-gbk . han)

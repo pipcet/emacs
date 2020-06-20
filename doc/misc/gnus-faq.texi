@@ -1,7 +1,7 @@
 @c \input texinfo @c -*-texinfo-*-
 @c Uncomment 1st line before texing this file alone.
 @c %**start of header
-@c Copyright (C) 1995, 2001-2017 Free Software Foundation, Inc.
+@c Copyright (C) 1995, 2001--2020 Free Software Foundation, Inc.
 @c
 @c @setfilename gnus-faq.info
 @c @settitle Frequently Asked Questions
@@ -104,7 +104,6 @@ misprints are the Gnus team's fault, sorry.
 * FAQ 1-5::    I sometimes read references to No Gnus and Oort Gnus,
                what are those?
 * FAQ 1-6::    Which version of Emacs do I need?
-* FAQ 1-7::    How do I run Gnus on both Emacs and XEmacs?
 @end menu
 
 @node FAQ 1-1
@@ -161,14 +160,13 @@ Where and how to get Gnus?
 
 @subsubheading Answer
 
-Gnus is released independent from releases of Emacs and XEmacs.
-Therefore, the version bundled with Emacs or the version in XEmacs's
-package system might not be up to date (e.g., Gnus 5.9 bundled with Emacs
-21 is outdated).
+Gnus is released independent from releases of Emacs.  Therefore, the
+version bundled with Emacs might not be up to date (e.g., Gnus 5.9
+bundled with Emacs 21 is outdated).
 You can get the latest released version of Gnus from
-@uref{http://www.gnus.org/dist/gnus.tar.gz}
-or via anonymous FTP from
-@uref{ftp://ftp.gnus.org/pub/gnus/gnus.tar.gz}.
+@uref{https://www.gnus.org/dist/gnus.tar.gz}
+or from
+@uref{https://ftp.gnus.org/pub/gnus/gnus.tar.gz}.
 
 @node FAQ 1-4
 @subsubheading Question 1.4
@@ -180,20 +178,17 @@ What to do with the tarball now?
 Untar it via @samp{tar xvzf gnus.tar.gz} and do the common
 @samp{./configure; make; make install} circle.
 (under MS-Windows either get the Cygwin environment from
-@uref{http://www.cygwin.com}
+@uref{https://www.cygwin.com}
 which allows you to do what's described above or unpack the
-tarball with some packer (e.g., Winace from
-@uref{http://www.winace.com})
+tarball with some packer (e.g., Winace)
 and use the batch-file make.bat included in the tarball to install
 Gnus.) If you don't want to (or aren't allowed to) install Gnus
 system-wide, you can install it in your home directory and add the
-following lines to your ~/.xemacs/init.el or ~/.emacs:
+following lines to your ~/.emacs:
 
 @example
 (add-to-list 'load-path "/path/to/gnus/lisp")
-(if (featurep 'xemacs)
-    (add-to-list 'Info-directory-list "/path/to/gnus/texi/")
-  (add-to-list 'Info-default-directory-list "/path/to/gnus/texi/"))
+(add-to-list 'Info-default-directory-list "/path/to/gnus/texi/")
 @end example
 @noindent
 
@@ -224,20 +219,8 @@ Which version of Emacs do I need?
 @subsubheading Answer
 
 Gnus 5.13 requires an Emacs version that is greater than or equal
-to Emacs 23.1 or XEmacs 21.1, although there are some features that
+to Emacs 23.1, although there are some features that
 only work on Emacs 24.
-
-@node FAQ 1-7
-@subsubheading Question 1.7
-
-How do I run Gnus on both Emacs and XEmacs?
-
-@subsubheading Answer
-
-You can't use the same copy of Gnus in both as the Lisp
-files are byte-compiled to a format which is different
-depending on which Emacs did the compilation. Get one copy
-of Gnus for Emacs and one for XEmacs.
 
 @node FAQ 2 - Startup / Group buffer
 @subsection Startup / Group buffer
@@ -284,7 +267,7 @@ what's this?
 @subsubheading Answer
 
 You get the message described in the q/a pair above while
-starting Gnus, right? It's an other symptom for the same
+starting Gnus, right? It's another symptom for the same
 problem, so read the answer above.
 
 @node FAQ 2-3
@@ -397,7 +380,7 @@ The ~/ means the home directory where Gnus and Emacs look
 for the configuration files.  However, you don't really
 need to know what this means, it suffices that Emacs knows
 what it means :-) You can type
-@samp{C-x C-f ~/.gnus.el RET }
+@samp{C-x C-f ~/.gnus.el @key{RET}}
 (yes, with the forward slash, even on Windows), and
 Emacs will open the right file for you.  (It will most
 likely be new, and thus empty.)
@@ -405,7 +388,7 @@ However, I'd discourage you from doing so, since the
 directory Emacs chooses will most certainly not be what
 you want, so let's do it the correct way.
 The first thing you've got to do is to
-create a suitable directory (no blanks in directory name
+create a suitable directory (no blanks in names
 please), e.g., c:\myhome. Then you must set the environment
 variable HOME to this directory.  To do this under Windows 9x
 or Me include the line
@@ -422,7 +405,7 @@ possibility to set environment variables.  Create a new one with
 name HOME and value C:\myhome.  Rebooting is not necessary.
 
 Now to create @file{~/.gnus.el}, say
-@samp{C-x C-f ~/.gnus.el RET C-x C-s}.
+@samp{C-x C-f ~/.gnus.el @key{RET} C-x C-s}.
 in Emacs.
 
 @node FAQ 3-3
@@ -441,7 +424,7 @@ machine news.yourprovider.net login YourUserName password YourPassword
 @noindent
 .
 Make sure that the file isn't readable to others if you
-work on a OS which is capable of doing so.  (Under Unix
+work on an OS which is capable of doing so.  (Under Unix
 say
 @example
 chmod 600 ~/.authinfo
@@ -459,11 +442,11 @@ subscribe to a group.
 @subsubheading Answer
 
 If you know the name of the group say @samp{U
-name.of.group RET} in group buffer (use the
+name.of.group @key{RET}} in group buffer (use the
 tab-completion Luke). Otherwise hit ^ in group buffer,
 this brings you to the server buffer. Now place point (the
 cursor) over the server which carries the group you want,
-hit @samp{RET}, move point to the group
+hit @samp{@key{RET}}, move point to the group
 you want to subscribe to and say @samp{u}
 to subscribe to it.
 
@@ -706,8 +689,9 @@ retrieves via POP3?
 @subsubheading Answer
 
 Yes, if the POP3 server supports the UIDL control (maybe almost servers
-do it nowadays).  To do that, add a @code{:leave VALUE} pair to each
-POP3 mail source.  See @pxref{Mail Source Specifiers} for VALUE.
+do it nowadays).  To do that, add a @code{:leave @var{value}} pair to
+each POP3 mail source.  @xref{Mail Source Specifiers}, for details on
+@var{value}.
 
 @node FAQ 4 - Reading messages
 @subsection Reading messages
@@ -753,11 +737,11 @@ When I enter a group, all read messages are gone. How to view them again?
 @subsubheading Answer
 
 If you enter the group by saying
-@samp{RET}
+@samp{@key{RET}}
 in group buffer with point over the group, only unread and ticked messages are loaded. Say
-@samp{C-u RET}
+@samp{C-u @key{RET}}
 instead to load all available messages. If you want only the 300 newest say
-@samp{C-u 300 RET}
+@samp{C-u 300 @key{RET}}
 
 Loading only unread messages can be annoying if you have threaded view enabled, say
 
@@ -915,7 +899,7 @@ You want Scoring. Scoring means, that you define rules
 which assign each message an integer value. Depending on
 the value the message is highlighted in summary buffer (if
 it's high, say +2000) or automatically marked read (if the
-value is low, say -800) or some other action happens.
+value is low, say @minus{}800) or some other action happens.
 
 There are basically three ways of setting up rules which assign
 the scoring-value to messages. The first and easiest way is to set
@@ -1019,7 +1003,7 @@ back ends. Gnus thinks ``highest-article-number @minus{}
 lowest-article-number = total-number-of-articles''. This
 works OK for Usenet groups, but if you delete and move
 many messages in mail groups, this fails. To cure the
-symptom, enter the group via @samp{C-u RET}
+symptom, enter the group via @samp{C-u @key{RET}}
 (this makes Gnus get all messages), then
 hit @samp{M P b} to mark all messages and
 then say @samp{B m name.of.group} to move
@@ -1161,13 +1145,13 @@ from using them):
 @example
 (setq nnmail-split-methods
   '(("duplicates" "^Gnus-Warning:.*duplicate")
-    ("XEmacs-NT" "^\\(To:\\|CC:\\).*localpart@@xemacs.invalid.*")
-    ("Gnus-Tut" "^\\(To:\\|CC:\\).*localpart@@socha.invalid.*")
-    ("tcsh" "^\\(To:\\|CC:\\).*localpart@@mx.gw.invalid.*")
-    ("BAfH" "^\\(To:\\|CC:\\).*localpart@@.*uni-muenchen.invalid.*")
-    ("Hamster-src" "^\\(CC:\\|To:\\).*hamster-sourcen@@yahoogroups.\\(de\\|com\\).*")
+    ("Emacs-devel" "^\\(To:\\|Cc:\\).*localpart@@gnu.invalid.*")
+    ("Gnus-Tut" "^\\(To:\\|Cc:\\).*localpart@@socha.invalid.*")
+    ("tcsh" "^\\(To:\\|Cc:\\).*localpart@@mx.gw.invalid.*")
+    ("BAfH" "^\\(To:\\|Cc:\\).*localpart@@.*uni-muenchen.invalid.*")
+    ("Hamster-src" "^\\(Cc:\\|To:\\).*hamster-sourcen@@yahoogroups.\\(de\\|com\\).*")
     ("Tagesschau" "^From: tagesschau <localpart@@www.tagesschau.invalid>$")
-    ("Replies" "^\\(CC:\\|To:\\).*localpart@@Frank-Schmitt.invalid.*")
+    ("Replies" "^\\(Cc:\\|To:\\).*localpart@@Frank-Schmitt.invalid.*")
     ("EK" "^From:.*\\(localpart@@privateprovider.invalid\\|localpart@@workplace.invalid\\).*")
     ("Spam" "^Content-Type:.*\\(ks_c_5601-1987\\|EUC-KR\\|big5\\|iso-2022-jp\\).*")
     ("Spam" "^Subject:.*\\(This really work\\|XINGA\\|ADV:\\|XXX\\|adult\\|sex\\).*")
@@ -1177,10 +1161,10 @@ from using them):
     ("Spam" "^From:.*\\(verizon\.net\\|prontomail\.com\\|money\\|ConsumerDirect\\).*")
     ("Spam" "^Delivered-To: GMX delivery to spamtrap@@gmx.invalid$")
     ("Spam" "^Received: from link2buy.com")
-    ("Spam" "^CC: .*azzrael@@t-online.invalid")
+    ("Spam" "^Cc: .*azzrael@@t-online.invalid")
     ("Spam" "^X-Mailer-Version: 1.50 BETA")
-    ("Uni" "^\\(CC:\\|To:\\).*localpart@@uni-koblenz.invalid.*")
-    ("Inbox" "^\\(CC:\\|To:\\).*\\(my\ name\\|address@@one.invalid\\|address@@two.invalid\\)")
+    ("Uni" "^\\(Cc:\\|To:\\).*localpart@@uni-koblenz.invalid.*")
+    ("Inbox" "^\\(Cc:\\|To:\\).*\\(my\ name\\|address@@one.invalid\\|address@@two.invalid\\)")
     ("Spam" "")))
 @end example
 @noindent
@@ -1383,15 +1367,14 @@ Is there a spell-checker? Perhaps even on-the-fly spell-checking?
 
 You can use ispell.el to spell-check stuff in Emacs. So the
 first thing to do is to make sure that you've got either
-@uref{http://fmg-www.cs.ucla.edu/fmg-members/geoff/ispell.html, ispell}
-or @uref{http://aspell.sourceforge.net/, aspell}
+@uref{https://www.cs.hmc.edu/~geoff/ispell.html, ispell}
+or @uref{http://aspell.net, aspell}
 installed and in your Path. Then you need
-@uref{http://www.kdstevens.com/~stevens/ispell-page.html, ispell.el}
+ispell.el
 and for on-the-fly spell-checking
-@uref{http://www-sop.inria.fr/members/Manuel.Serrano/flyspell/flyspell.html, flyspell.el}.
-Ispell.el is shipped with Emacs and available through the XEmacs package system,
-flyspell.el is shipped with Emacs and part of XEmacs text-modes package which is
-available through the package system, so there should be no need to install them
+@uref{https://www-sop.inria.fr/members/Manuel.Serrano/flyspell/flyspell.html, flyspell.el}.
+Ispell.el is shipped with Emacs,
+flyspell.el is shipped with Emacs, so there should be no need to install them
 manually.
 
 Ispell.el assumes you use ispell, if you choose aspell say
@@ -1449,7 +1432,7 @@ all those email addresses?
 
 @subsubheading Answer
 
-There's an very basic solution for this, mail aliases.
+There's a very basic solution for this, mail aliases.
 You can store your mail addresses in a ~/.mailrc file using a simple
 alias syntax:
 
@@ -1465,7 +1448,7 @@ node "Mail Aliases" in Message (not Gnus) manual for
 details.
 
 However, what you really want is the Insidious Big Brother
-Database bbdb. Get it through the XEmacs package system or from
+Database bbdb. Get it from
 @uref{http://bbdb.sourceforge.net/, bbdb's homepage}.
 Now place the following in @file{~/.gnus.el}, to activate bbdb for Gnus:
 
@@ -1494,8 +1477,8 @@ place them in ~/.emacs:
 @end example
 @noindent
 
-Now you should be ready to go. Say @samp{M-x bbdb RET
-RET} to open a bbdb buffer showing all
+Now you should be ready to go. Say @samp{M-x bbdb @key{RET}
+@key{RET}} to open a bbdb buffer showing all
 entries. Say @samp{c} to create a new
 entry, @samp{b} to search your BBDB and
 @samp{C-o} to add a new field to an
@@ -1522,7 +1505,7 @@ Gimp), open the image you want to include, cut out the
 relevant part, reduce color depth to 1 bit, resize to
 48*48 and save as bitmap. Now you should get the compface
 package from
-@uref{ftp://ftp.cs.indiana.edu:/pub/faces/, this site}.
+@uref{ftp://ftp.cs.indiana.edu/pub/faces/, this site}.
 and create the actual X-face by saying
 
 @example
@@ -1532,7 +1515,7 @@ cat file.face | sed 's/["\\]/\\&/g' > file.face.quoted
 @noindent
 
 If you can't use compface, there's an online X-face converter at
-@uref{http://www.dairiki.org/xface/}.
+@uref{https://www.dairiki.org/xface/}.
 If you use MS Windows, you could also use the WinFace program,
 which used to be available from
 @indicateurl{http://www.xs4all.nl/~walterln/winface/}.
@@ -1730,19 +1713,19 @@ The easiest way is to tell your old mail program to
 export the messages in mbox format. Most Unix mailers
 are able to do this, if you come from the MS Windows
 world, you may find tools at
-@uref{http://mbx2mbox.sourceforge.net/}.
+@uref{https://sourceforge.net/projects/mbx2mbox/}.
 
 Now you've got to import this mbox file into Gnus. To do
 this, create a nndoc group based on the mbox file by
-saying @samp{G f /path/file.mbox RET} in
+saying @samp{G f /path/file.mbox @key{RET}} in
 Group buffer. You now have read-only access to your
 mail. If you want to import the messages to your normal
 Gnus mail groups hierarchy, enter the nndoc group you've
-just created by saying @samp{C-u RET}
+just created by saying @samp{C-u @key{RET}}
 (thus making sure all messages are retrieved), mark all
 messages by saying @samp{M P b} and
 either copy them to the desired group by saying
-@samp{B c name.of.group RET} or send them
+@samp{B c name.of.group @key{RET}} or send them
 through nnmail-split-methods (respool them) by saying
 @samp{B r}.
 
@@ -1774,9 +1757,7 @@ more then one article."
   (let ((archive-name
          (format
           "nnml:1.%s"
-          (if (featurep 'xemacs)
-              (replace-in-string gnus-newsgroup-name "^.*:" "")
-            (replace-regexp-in-string "^.*:" "" gnus-newsgroup-name)))))
+          (replace-in-string gnus-newsgroup-name "^.*:" ""))))
     (gnus-summary-copy-article n archive-name)))
 @end example
 @noindent
@@ -1806,10 +1787,10 @@ How to search for a specific message?
 
 There are several ways for this, too. For a posting from
 a Usenet group the easiest solution is probably to ask
-@uref{http://groups.google.com, groups.google.com},
+@uref{https://groups.google.com, groups.google.com},
 if you found the posting there, tell Google to display
 the raw message, look for the message-id, and say
-@samp{M-^ the@@message.id RET} in a
+@samp{M-^ the@@message.id @key{RET}} in a
 summary buffer.
 Since Gnus 5.10 there's also a Gnus interface for
 groups.google.com which you can call with
@@ -1853,7 +1834,7 @@ How to get rid of old unwanted mail?
 
 You can of course just mark the mail you don't need
 anymore by saying @samp{#} with point
-over the mail and then say @samp{B DEL}
+over the mail and then say @samp{B @key{DEL}}
 to get rid of them forever. You could also instead of
 actually deleting them, send them to a junk-group by
 saying @samp{B m nnml:trash-bin} which
@@ -1961,23 +1942,21 @@ when you're online.
 Let's talk about Unix systems first: For the news part,
 the easiest solution is a small nntp server like
 @uref{http://www.leafnode.org/, Leafnode} or
-@uref{http://infa.abo.fi/~patrik/sn/, sn},
+@uref{http://patrik.iki.fi/sn/, sn},
 of course you can also install a full featured news
 server like
-@uref{http://www.isc.org/software/inn/, inn}.
+@uref{https://www.isc.org/othersoftware/, inn}.
 Then you want to fetch your Mail, popular choices
-are @uref{http://www.catb.org/~esr/fetchmail/, fetchmail}
+are @uref{http://www.fetchmail.info/, fetchmail}
 and @uref{http://pyropus.ca/software/getmail/, getmail}.
 You should tell those to write the mail to your disk and
 Gnus to read it from there. Last but not least the mail
 sending part: This can be done with every MTA like
-@uref{http://www.sendmail.org/, sendmail},
-@uref{http://www.qmail.org/, postfix},
-@uref{http://www.exim.org/, exim} or
-@uref{http://www.qmail.org/, qmail}.
+@uref{https://www.proofpoint.com/us/open-source-email-solution, sendmail} or
+@uref{https://www.exim.org/, exim}.
 
 On windows boxes I'd vote for
-@uref{http://www.tglsoft.de/, Hamster},
+@uref{http://www.tglsoft.de/freeware_hamster.html, Hamster},
 it's a small freeware, open-source program which fetches
 your mail and news from remote servers and offers them
 to Gnus (or any other mail and/or news reader) via nntp
@@ -2012,7 +1991,7 @@ server by typing @samp{J a}.  If you
 make a mistake, or change your mind, you can undo this
 action by typing @samp{J r}.  When
 you're done, type 'q' to return to the group buffer.
-Now the next time you enter a group on a agentized
+Now the next time you enter a group on an agentized
 server, the headers will be stored on disk and read from
 there the next time you enter the group.
 
@@ -2089,7 +2068,7 @@ How to find information and help inside Emacs?
 @subsubheading Answer
 
 The first stop should be the Gnus manual (Say
-@samp{C-h i d m Gnus RET} to start the
+@samp{C-h i d m Gnus @key{RET}} to start the
 Gnus manual, then walk through the menus or do a
 full-text search with @samp{s}). Then
 there are the general Emacs help commands starting with
@@ -2121,7 +2100,7 @@ Which websites should I know?
 @subsubheading Answer
 
 The most important one is the
-@uref{http://www.gnus.org, official Gnus website}.
+@uref{https://www.gnus.org, official Gnus website}.
 
 Tell me about other sites which are interesting.
 
@@ -2132,9 +2111,7 @@ Which mailing lists and newsgroups are there?
 
 @subsubheading Answer
 
-There's the newsgroup gnu.emacs.gnus (also available as
-@uref{http://dir.gmane.org/gmane.emacs.gnus.user,
-gmane.emacs.gnus.user}) which deals with general Gnus
+There's the newsgroup gnu.emacs.gnus which deals with general Gnus
 questions.  If you have questions about development versions of
 Gnus, you should better ask on the ding mailing list, see below.
 
@@ -2145,9 +2122,7 @@ the above groups).  If you speak German, there's
 de.comm.software.gnus.
 
 The ding mailing list (ding@@gnus.org) deals with development of
-Gnus. You can read the ding list via NNTP, too under the name
-@uref{http://dir.gmane.org/gmane.emacs.gnus.general,
-gmane.emacs.gnus.general} from news.gmane.org.
+Gnus.
 
 @node FAQ 8-5
 @subsubheading Question 8.5
@@ -2191,8 +2166,8 @@ The reason for this could be the way Gnus reads its
 active file, see the node "The Active File" in the Gnus
 manual for things you might try to speed the process up.
 An other idea would be to byte compile your @file{~/.gnus.el} (say
-@samp{M-x byte-compile-file RET ~/.gnus.el
-RET} to do it). Finally, if you have require
+@samp{M-x byte-compile-file @key{RET} ~/.gnus.el
+@key{RET}} to do it). Finally, if you have require
 statements in your .gnus, you could replace them with
 @code{with-eval-after-load}, which loads the stuff not at startup
 time, but when it's needed. Say you've got this in your
@@ -2289,11 +2264,11 @@ whatever-server which offers Gnus a standardized interface
 to functions like "get message", "get Headers" etc.
 
 @item Emacs
-When the term Emacs is used in this FAQ, it means either GNU
-Emacs or XEmacs.
+When the term Emacs is used in this FAQ, it means GNU
+Emacs.
 
 @item Message
-In this FAQ message means a either a mail or a posting to a
+In this FAQ message means either a mail or a posting to a
 Usenet Newsgroup or to some other fancy back end, no matter
 of which kind it is.
 

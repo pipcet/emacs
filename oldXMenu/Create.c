@@ -3,7 +3,7 @@
 #include "copyright.h"
 
 /*
-Copyright (C) 1993-1994, 2001-2017 Free Software Foundation, Inc.
+Copyright (C) 1993-1994, 2001-2020 Free Software Foundation, Inc.
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
 
 
 /*
@@ -87,7 +87,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 #define XASSOC_TABLE_SIZE	64
 
-char *x_get_resource_string (char const *, char const *);
+const char *x_get_resource_string (char const *, char const *);
 
 
 
@@ -107,7 +107,7 @@ XMenuCreate(Display *display, Window parent, register char const *def_env)
                   		/* Window ID of the menu's parent window. */
                            	/* X Defaults program environment name. */
 {
-  register char *def_val;	/* X Default value temp variable. */
+  register const char *def_val;	/* X Default value temp variable. */
 
   register XMenu *menu;		/* Pointer to the new menu. */
   XMStyle menu_style;		/* Menu display style. */

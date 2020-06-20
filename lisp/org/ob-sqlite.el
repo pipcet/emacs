@@ -1,10 +1,10 @@
 ;;; ob-sqlite.el --- Babel Functions for SQLite Databases -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2010-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2010-2020 Free Software Foundation, Inc.
 
 ;; Author: Eric Schulte
 ;; Keywords: literate programming, reproducible research
-;; Homepage: http://orgmode.org
+;; Homepage: https://orgmode.org
 
 ;; This file is part of GNU Emacs.
 
@@ -19,7 +19,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -28,7 +28,6 @@
 ;;; Code:
 (require 'ob)
 
-(declare-function org-fill-template "org" (template alist))
 (declare-function org-table-convert-region "org-table"
 		  (beg0 end0 &optional separator))
 (declare-function orgtbl-to-csv "org-table" (table params))
@@ -123,10 +122,7 @@ This function is called by `org-babel-execute-src-block'."
               (if (listp val)
                   (let ((data-file (org-babel-temp-file "sqlite-data-")))
                     (with-temp-file data-file
-                      (insert (orgtbl-to-csv
-                               val '(:fmt (lambda (el) (if (stringp el)
-                                                      el
-                                                    (format "%S" el)))))))
+                      (insert (orgtbl-to-csv val nil)))
                     data-file)
                 (if (stringp val) val (format "%S" val))))
 	    body)))

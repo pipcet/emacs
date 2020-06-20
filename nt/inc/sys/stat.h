@@ -1,7 +1,7 @@
 /* sys/stat.h supplied with MSVCRT uses too narrow data types for
    inode and user/group id, so we replace them with our own.
 
-Copyright (C) 2008-2017 Free Software Foundation, Inc.
+Copyright (C) 2008-2020 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -16,7 +16,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.  */
+along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 
 #ifndef INC_SYS_STAT_H_
 #define INC_SYS_STAT_H_
@@ -163,5 +163,10 @@ int __cdecl __MINGW_NOTHROW	lstat (const char*, struct stat*);
 int __cdecl __MINGW_NOTHROW	fstatat (int, char const *,
 						 struct stat *, int);
 int __cdecl __MINGW_NOTHROW	chmod (const char*, int);
+
+/* Provide prototypes of library functions that are emulated on w32
+   and whose prototypes are usually found in sys/stat.h on POSIX
+   platforms.  */
+extern int utimensat (int, const char *, struct timespec const[2], int);
 
 #endif	/* INC_SYS_STAT_H_ */

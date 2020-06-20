@@ -1,6 +1,6 @@
-;;; tango-theme.el --- Tango-based custom theme for faces
+;;; tango-theme.el --- Tango-based custom theme for faces  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2010-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2010-2020 Free Software Foundation, Inc.
 
 ;; Authors: Chong Yidong <cyd@stupidchicken>
 ;;          Jan Moringen <jan.moringen@uni-bielefeld.de>
@@ -18,7 +18,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary
 
@@ -153,9 +153,5 @@ Semantic, and Ansi-Color faces are included.")
 				      ,blue-3 ,plum-3 ,blue-1 ,alum-1])))
 
 (provide-theme 'tango)
-
-;; Local Variables:
-;; no-byte-compile: t
-;; End:
 
 ;;; tango-theme.el ends here

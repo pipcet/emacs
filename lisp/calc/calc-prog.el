@@ -1,6 +1,6 @@
 ;;; calc-prog.el --- user programmability functions for Calc
 
-;; Copyright (C) 1990-1993, 2001-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1990-1993, 2001-2020 Free Software Foundation, Inc.
 
 ;; Author: David Gillespie <daveg@synaptics.com>
 
@@ -17,7 +17,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -1097,7 +1097,7 @@ Redefine the corresponding command."
        (or func (setq func (and cmd (symbolp cmd) (fboundp cmd) cmd)))
        (if (get func 'math-compose-forms)
 	   (let ((pt (point)))
-	     (insert "(put '" (symbol-name cmd)
+             (insert "(put '" (symbol-name func)
 		     " 'math-compose-forms '"
 		     (prin1-to-string (get func 'math-compose-forms))
 		     ")\n")
@@ -1451,11 +1451,6 @@ Redefine the corresponding command."
 	(exit-recursive-edit))
     (error "%s" "Unbalanced Z' in keyboard macro")))
 
-
-;; (defun calc-kbd-report (msg)
-;;   (interactive "sMessage: ")
-;;   (calc-wrapper
-;;    (math-working msg (calc-top-n 1))))
 
 (defun calc-kbd-query ()
   (interactive)

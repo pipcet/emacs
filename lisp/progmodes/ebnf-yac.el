@@ -1,9 +1,8 @@
 ;;; ebnf-yac.el --- parser for Yacc/Bison
 
-;; Copyright (C) 1999-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1999-2020 Free Software Foundation, Inc.
 
-;; Author: Vinicius Jose Latorre <viniciusjl@ig.com.br>
-;; Maintainer: Vinicius Jose Latorre <viniciusjl@ig.com.br>
+;; Author: Vinicius Jose Latorre <viniciusjl.gnu@gmail.com>
 ;; Keywords: wp, ebnf, PostScript
 ;; Old-Version: 1.4
 ;; Package: ebnf2ps
@@ -21,7 +20,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -392,15 +391,14 @@ See documentation for variable `ebnf-yac-lex'."
 (defun ebnf-yac-skip-spaces ()
   (skip-chars-forward
    (if ebnf-yac-skip-char
-       "\n\r\t !#$&()*+-.0123456789=?@[\\\\]^_`~"
+       "-\n\r\t !#$&()*+,.0123456789=?@[\\\\]^_`~"
      "\n\r\t ")
    ebnf-limit)
   (< (point) ebnf-limit))
 
 
-;; replace the range "\177-\377" (see `ebnf-range-regexp').
 (defconst ebnf-yac-skip-chars
-  (ebnf-range-regexp "^{}/'\"\000-\010\013\016-\037" ?\177 ?\377))
+  "^{}/'\"\000-\010\013\016-\037\177\u0080-\u009f")
 
 
 (defun ebnf-yac-skip-code ()
@@ -443,9 +441,8 @@ See documentation for variable `ebnf-yac-lex'."
    ))
 
 
-;; replace the range "\177-\237" (see `ebnf-range-regexp').
 (defconst ebnf-yac-comment-chars
-  (ebnf-range-regexp "^*\000-\010\013\016-\037" ?\177 ?\237))
+  "^*\000-\010\013\016-\037\177\u0080-\u009f")
 
 
 (defun ebnf-yac-skip-comment ()

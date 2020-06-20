@@ -1,6 +1,6 @@
 ;;; rst.el --- Mode for viewing and editing reStructuredText-documents  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2003-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2003-2020 Free Software Foundation, Inc.
 
 ;; Maintainer: Stefan Merten <stefan at merten-home dot de>
 ;; Author: Stefan Merten <stefan at merten-home dot de>,
@@ -21,7 +21,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -109,45 +109,8 @@
 (def-edebug-spec push
   (&or [form symbolp] [form gv-place]))
 
-;; Correct wrong declaration. This still doesn't support dotted destructuring
-;; though.
-(def-edebug-spec cl-lambda-list
-  (([&rest cl-macro-arg]
-    [&optional ["&optional" cl-&optional-arg &rest cl-&optional-arg]]
-    [&optional ["&rest" arg]]
-    [&optional ["&key" [cl-&key-arg &rest cl-&key-arg]
-		&optional "&allow-other-keys"]]
-    [&optional ["&aux" &rest
-		&or (symbolp &optional def-form) symbolp]]
-    )))
-
-;; Add missing declaration.
-(def-edebug-spec cl-type-spec sexp) ;; This is not exactly correct but good
-				    ;; enough.
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Support for `testcover'
-
-(when (and (boundp 'testcover-1value-functions)
-	   (boundp 'testcover-compose-functions))
-  ;; Below `lambda' is used in a loop with varying parameters and is thus not
-  ;; 1valued.
-  (setq testcover-1value-functions
-	(delq 'lambda testcover-1value-functions))
-  (add-to-list 'testcover-compose-functions 'lambda))
-
-(defun rst-testcover-defcustom ()
-  "Remove all customized variables from `testcover-module-constants'.
-This seems to be a bug in `testcover': `defcustom' variables are
-considered constants.  Revert it with this function after each `defcustom'."
-  (when (boundp 'testcover-module-constants)
-    (setq testcover-module-constants
-	  (delq nil
-		(mapcar
-		 #'(lambda (sym)
-		     (if (not (plist-member (symbol-plist sym) 'standard-value))
-			 sym))
-		 testcover-module-constants)))))
 
 (defun rst-testcover-add-compose (fun)
   "Add FUN to `testcover-compose-functions'."
@@ -262,7 +225,7 @@ and before TAIL-RE and DELIM-RE in VAR or DEFAULT for no match."
   "The SVN revision of this file.
 SVN revision is the upstream (docutils) revision.")
 (defconst rst-svn-timestamp
-  (rst-extract-version "\\$" "LastChangedDate: " ".+?+" " "
+  (rst-extract-version "\\$" "LastChangedDate: " ".+" " "
 		       "$LastChangedDate: 2017-01-08 10:54:35 +0100 (Sun, 08 Jan 2017) $")
   "The SVN time stamp of this file.")
 
@@ -425,8 +388,8 @@ in parentheses follows the development revision and the time stamp.")
 				        ; item tag.
 
     ;; Inline markup (`ilm')
-    (ilm-pfx (:alt "^" hws-prt "[-'\"([{<‘“«’/:]"))
-    (ilm-sfx (:alt "$" hws-prt "[]-'\")}>’”»/:.,;!?\\]"))
+    (ilm-pfx (:alt "^" hws-prt "['\"([{<‘“«’/:-]"))
+    (ilm-sfx (:alt "$" hws-prt "[]'\")}>’”»/:.,;!?\\-]"))
 
     ;; Inline markup content (`ilc')
     (ilcsgl-tag "\\S ") ; A single non-white character.
@@ -468,7 +431,7 @@ in parentheses follows the development revision and the time stamp.")
     (fld-tag ":" fldnam-tag ":") ; A field marker.
 
     ;; Options (`opt')
-    (optsta-tag (:alt "[-+/]" "--")) ; Start of an option.
+    (optsta-tag (:alt "[+/-]" "--")) ; Start of an option.
     (optnam-tag "\\sw" (:alt "-" "\\sw") "*") ; Name of an option.
     (optarg-tag (:shy "[ =]\\S +")) ; Option argument.
     (optsep-tag (:shy "," hws-prt)) ; Separator between options.
@@ -494,7 +457,7 @@ in parentheses follows the development revision and the time stamp.")
 				       ; tag.
 
     ;; Symbol (`sym')
-    (sym-prt "[-+.:_]") ; Non-word part of a symbol.
+    (sym-prt "[+.:_-]") ; Non-word part of a symbol.
     (sym-tag (:shy "\\sw+" (:shy sym-prt "\\sw+") "*"))
 
     ;; URIs (`uri')
@@ -668,7 +631,7 @@ After interpretation of ARGS the results are concatenated as for
      &aux
      (char (rst-Ado--validate-char char-arg))
      (-style 'simple)))
-   ;; Construct a over-and-under section header.
+   ;; Construct an over-and-under section header.
    (:constructor
     rst-Ado-new-over-and-under
     (char-arg
@@ -733,7 +696,7 @@ Return CHAR if so or signal an error otherwise."
 
 (defun rst-Ado-is-over-and-under (self)
   ;; testcover: ok.
-  "Return non-nil if SELF is a over-and-under section adornment."
+  "Return non-nil if SELF is an over-and-under section adornment."
   (cl-check-type self rst-Ado)
   (eq (rst-Ado--style self) 'over-and-under))
 
@@ -833,6 +796,9 @@ Return ADO if so or signal an error otherwise."
 
 ;; Public class methods
 
+(define-obsolete-variable-alias
+  'rst-preferred-decorations 'rst-preferred-adornments "rst 1.0.0")
+
 (defvar rst-preferred-adornments) ; Forward declaration.
 
 (defun rst-Hdr-preferred-adornments ()
@@ -871,7 +837,7 @@ Return ADO if so or signal an error otherwise."
 
 (defun rst-Hdr-is-over-and-under (self)
   ;; testcover: ok.
-  "Return non-nil if SELF is a over-and-under section header."
+  "Return non-nil if SELF is an over-and-under section header."
   (cl-check-type self rst-Hdr)
   (rst-Ado-is-over-and-under (rst-Hdr-ado self)))
 
@@ -974,7 +940,7 @@ This type is immutable."
 		   (or (null und-beg) (integer-or-marker-p und-beg))
 		   (or (null und-end) (integer-or-marker-p und-end)))
 	(signal 'args-out-of-range
-		'("For a over-and-under section adornment all match pairs must be set."))))))
+		'("For an over-and-under section adornment all match pairs must be set."))))))
   match)
 
 (defun rst-Ttl--validate-indent (indent ado)
@@ -1261,7 +1227,7 @@ as well but give an additional message."
     ;; Makes paragraphs in region as a bullet list.
     (rst-define-key map [?\C-c ?\C-l ?\C-b] #'rst-bullet-list-region
 		    [?\C-c ?\C-b])
-    ;; Makes paragraphs in region as a enumeration.
+    ;; Makes paragraphs in region an enumeration.
     (rst-define-key map [?\C-c ?\C-l ?\C-e] #'rst-enumerate-region
 		    [?\C-c ?\C-e])
     ;; Converts bullets to an enumeration.
@@ -1360,7 +1326,6 @@ This inherits from Text mode.")
 The hook for `text-mode' is run before this one."
   :group 'rst
   :type '(hook))
-(rst-testcover-defcustom)
 
 ;; Pull in variable definitions silencing byte-compiler.
 (require 'newcomment)
@@ -1446,9 +1411,6 @@ highlighting.
 ;;;###autoload
 (define-minor-mode rst-minor-mode
   "Toggle ReST minor mode.
-With a prefix argument ARG, enable ReST minor mode if ARG is
-positive, and disable it otherwise.  If called from Lisp, enable
-the mode if ARG is omitted or nil.
 
 When ReST minor mode is enabled, the ReST mode keybindings
 are installed on top of the major mode bindings.  Use this
@@ -1519,8 +1481,6 @@ for modes derived from Text mode, like Mail mode."
   :group 'rst
   :version "21.1")
 
-(define-obsolete-variable-alias
-  'rst-preferred-decorations 'rst-preferred-adornments "rst 1.0.0")
 ;; FIXME: Default must match suggestion in
 ;;        http://sphinx-doc.org/rest.html#sections for Python documentation.
 (defcustom rst-preferred-adornments '((?= over-and-under 1)
@@ -1557,7 +1517,6 @@ file."
 			(const :tag "Underline only" simple))
 		 (integer :tag "Indentation for overline and underline type"
 			  :value 0))))
-(rst-testcover-defcustom)
 
 ;; FIXME: Rename this to `rst-over-and-under-default-indent' and set default to
 ;;        0 because the effect of 1 is probably surprising in the few cases
@@ -1568,13 +1527,12 @@ file."
 (defcustom rst-default-indent 1
   "Number of characters to indent the section title.
 This is only used while toggling adornment styles when switching
-from a simple adornment style to a over-and-under adornment
+from a simple adornment style to an over-and-under adornment
 style.  In addition this is used in cases where the adornments
 found in the buffer are to be used but the indentation for
 over-and-under adornments is inconsistent across the buffer."
   :group 'rst-adjust
   :type '(integer))
-(rst-testcover-defcustom)
 
 (defun rst-new-preferred-hdr (seen prev)
   ;; testcover: ok.
@@ -1946,7 +1904,7 @@ includes indentation and correct length of adornment lines."
   "Return the next best `rst-Hdr' upward from HDR.
 Consider existing hierarchy HIER and preferred headers.  PREV may
 be a previous `rst-Hdr' which may be taken into account.  If DOWN
-return the next best `rst-Hdr' downward instead. Return nil in
+return the next best `rst-Hdr' downward instead.  Return nil if
 HIER is nil."
   (let* ((normalized-hier (if down
 			      hier
@@ -2013,7 +1971,6 @@ b. a negative numerical argument, which generally inverts the
   :group 'rst-adjust
   :type '(hook)
   :package-version '(rst . "1.1.0"))
-(rst-testcover-defcustom)
 
 (defcustom rst-new-adornment-down nil
   "Controls level of new adornment for section headers."
@@ -2022,7 +1979,6 @@ b. a negative numerical argument, which generally inverts the
 	  (const :tag "Same level as previous one" nil)
 	  (const :tag "One level down relative to the previous one" t))
   :package-version '(rst . "1.1.0"))
-(rst-testcover-defcustom)
 
 (defun rst-adjust-adornment (pfxarg)
   "Call `rst-adjust-section' interactively.
@@ -2445,7 +2401,6 @@ also arranged by `rst-insert-list-new-tag'."
 				      :tag (char-to-string char) char))
 			    rst-bullets)))
   :package-version '(rst . "1.1.0"))
-(rst-testcover-defcustom)
 
 (defun rst-insert-list-continue (ind tag tab prefer-roman)
   ;; testcover: ok.
@@ -2682,7 +2637,6 @@ section headers at all."
 Also used for formatting insertion, when numbering is disabled."
   :type 'integer
   :group 'rst-toc)
-(rst-testcover-defcustom)
 
 (defcustom rst-toc-insert-style 'fixed
   "Insertion style for table-of-contents.
@@ -2697,19 +2651,16 @@ indentation style:
                  (const aligned)
                  (const listed))
   :group 'rst-toc)
-(rst-testcover-defcustom)
 
 (defcustom rst-toc-insert-number-separator "  "
   "Separator that goes between the TOC number and the title."
   :type 'string
   :group 'rst-toc)
-(rst-testcover-defcustom)
 
 (defcustom rst-toc-insert-max-level nil
   "If non-nil, maximum depth of the inserted TOC."
   :type '(choice (const nil) integer)
   :group 'rst-toc)
-(rst-testcover-defcustom)
 
 (defconst rst-toc-link-keymap
   (let ((map (make-sparse-keymap)))
@@ -2927,7 +2878,7 @@ file-write hook to always make it up-to-date automatically."
   ;; testcover: ok.
   "Display a table of contents for current buffer.
 Displays all section titles found in the current buffer in a
-hierarchical list. The resulting buffer can be navigated, and
+hierarchical list.  The resulting buffer can be navigated, and
 selecting a section title moves the cursor to that section."
   (interactive)
   (rst-reset-section-caches)
@@ -3174,35 +3125,30 @@ These indentation widths can be customized here."
   "Indentation when there is no more indentation point given."
   :group 'rst-indent
   :type '(integer))
-(rst-testcover-defcustom)
 
 (defcustom rst-indent-field 3
   "Indentation for first line after a field or 0 to always indent for content."
   :group 'rst-indent
   :package-version '(rst . "1.1.0")
   :type '(integer))
-(rst-testcover-defcustom)
 
 (defcustom rst-indent-literal-normal 3
   "Default indentation for literal block after a markup on an own line."
   :group 'rst-indent
   :package-version '(rst . "1.1.0")
   :type '(integer))
-(rst-testcover-defcustom)
 
 (defcustom rst-indent-literal-minimized 2
   "Default indentation for literal block after a minimized markup."
   :group 'rst-indent
   :package-version '(rst . "1.1.0")
   :type '(integer))
-(rst-testcover-defcustom)
 
 (defcustom rst-indent-comment 3
   "Default indentation for first line of a comment."
   :group 'rst-indent
   :package-version '(rst . "1.1.0")
   :type '(integer))
-(rst-testcover-defcustom)
 
 ;; FIXME: Must consider other tabs:
 ;;        * Line blocks
@@ -3451,7 +3397,7 @@ Region is from BEG to END.  Uncomment if ARG."
 
 (defun rst-uncomment-region (beg end &optional _arg)
   "Uncomment the current region.
-Region is from BEG to END.  _ARG is ignored"
+Region is from BEG to END.  _ARG is ignored."
   (save-excursion
     (goto-char beg)
     (rst-forward-line-strict 0)
@@ -3486,7 +3432,7 @@ applied to each line like this
 COUNT is 0 before the first paragraph and increments for every
 paragraph found on level IND.  IN-FIRST is non-nil if this is the
 first line of such a paragraph.  IN-SUB is non-nil if this line
-is part of a sub-block while IN-SUPER is non-nil of this line is
+is part of a sub-block while IN-SUPER is non-nil if this line is
 part of a less indented block (super-block).  IN-EMPTY is non-nil
 if this line is empty where an empty line is considered being
 part of the previous block.  RELIND is nil for an empty line, 0
@@ -3652,7 +3598,6 @@ Region is from BEG to END.  With WITH-EMPTY prefix empty lines too."
   :version "24.1"
   :group 'rst-faces
   :type '(face))
-(rst-testcover-defcustom)
 (make-obsolete-variable 'rst-block-face
                         "customize the face `rst-block' instead."
                         "24.1")
@@ -3667,7 +3612,6 @@ Region is from BEG to END.  With WITH-EMPTY prefix empty lines too."
   :version "24.1"
   :group 'rst-faces
   :type '(face))
-(rst-testcover-defcustom)
 (make-obsolete-variable 'rst-external-face
                         "customize the face `rst-external' instead."
                         "24.1")
@@ -3682,7 +3626,6 @@ Region is from BEG to END.  With WITH-EMPTY prefix empty lines too."
   :version "24.1"
   :group 'rst-faces
   :type '(face))
-(rst-testcover-defcustom)
 (make-obsolete-variable 'rst-definition-face
                         "customize the face `rst-definition' instead."
                         "24.1")
@@ -3699,7 +3642,6 @@ Region is from BEG to END.  With WITH-EMPTY prefix empty lines too."
   "Directives and roles."
   :group 'rst-faces
   :type '(face))
-(rst-testcover-defcustom)
 (make-obsolete-variable 'rst-directive-face
                         "customize the face `rst-directive' instead."
                         "24.1")
@@ -3714,7 +3656,6 @@ Region is from BEG to END.  With WITH-EMPTY prefix empty lines too."
   :version "24.1"
   :group 'rst-faces
   :type '(face))
-(rst-testcover-defcustom)
 (make-obsolete-variable 'rst-comment-face
                         "customize the face `rst-comment' instead."
                         "24.1")
@@ -3729,7 +3670,6 @@ Region is from BEG to END.  With WITH-EMPTY prefix empty lines too."
   :version "24.1"
   :group 'rst-faces
   :type '(face))
-(rst-testcover-defcustom)
 (make-obsolete-variable 'rst-emphasis1-face
                         "customize the face `rst-emphasis1' instead."
                         "24.1")
@@ -3743,7 +3683,6 @@ Region is from BEG to END.  With WITH-EMPTY prefix empty lines too."
   "Double emphasis."
   :group 'rst-faces
   :type '(face))
-(rst-testcover-defcustom)
 (make-obsolete-variable 'rst-emphasis2-face
                         "customize the face `rst-emphasis2' instead."
                         "24.1")
@@ -3758,7 +3697,6 @@ Region is from BEG to END.  With WITH-EMPTY prefix empty lines too."
   :version "24.1"
   :group 'rst-faces
   :type '(face))
-(rst-testcover-defcustom)
 (make-obsolete-variable 'rst-literal-face
                         "customize the face `rst-literal' instead."
                         "24.1")
@@ -3773,7 +3711,6 @@ Region is from BEG to END.  With WITH-EMPTY prefix empty lines too."
   :version "24.1"
   :group 'rst-faces
   :type '(face))
-(rst-testcover-defcustom)
 (make-obsolete-variable 'rst-reference-face
                         "customize the face `rst-reference' instead."
                         "24.1")
@@ -3856,7 +3793,6 @@ of your own."
 	   (const :tag "transitions" t)
 	   (const :tag "section title adornment" nil))
 	  :value-type (face)))
-(rst-testcover-defcustom)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -4067,7 +4003,7 @@ to `font-lock-end'."
 
 (defun rst-font-lock-extend-region-internal (beg end)
   "Check the region BEG / END for being in the middle of a multi-line construct.
-Return nil if not or a cons with new values for BEG / END"
+Return nil if not or a cons with new values for BEG / END."
   (let ((nbeg (rst-font-lock-extend-region-extend beg -1))
 	(nend (rst-font-lock-extend-region-extend end 1)))
     (if (or nbeg nend)
@@ -4353,7 +4289,6 @@ string)) to be used for converting the document."
                                      (string :tag "Options"))))
   :group 'rst-compile
   :package-version "1.2.0")
-(rst-testcover-defcustom)
 
 ;; FIXME: Must be defcustom.
 (defvar rst-compile-primary-toolset 'html
@@ -4445,10 +4380,15 @@ buffer, if the region is not selected."
   "Convert the document to a PDF file and launch a preview program."
   (interactive)
   (let* ((tmp-filename (make-temp-file "rst_el" nil ".pdf"))
+         (pdf-compile-program (cadr (assq 'pdf rst-compile-toolsets)))
 	 (command (format "%s %s %s && %s %s ; rm %s"
-			  (cadr (assq 'pdf rst-compile-toolsets))
+			  pdf-compile-program
 			  buffer-file-name tmp-filename
 			  rst-pdf-program tmp-filename tmp-filename)))
+    (unless (executable-find pdf-compile-program)
+      (error "Cannot find executable `%s'" pdf-compile-program))
+    (unless (executable-find rst-pdf-program)
+      (error "Cannot find executable `%s'" rst-pdf-program))
     (start-process-shell-command "rst-pdf-preview" nil command)
     ;; Note: you could also use (compile command) to view the compilation
     ;; output.

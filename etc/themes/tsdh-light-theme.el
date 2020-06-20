@@ -1,6 +1,6 @@
-;;; tsdh-light-theme.el --- Tassilo's light custom theme
+;;; tsdh-light-theme.el --- Tassilo's light custom theme  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2011-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2011-2020 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -15,7 +15,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Code:
 
@@ -64,7 +64,7 @@ Used and created by Tassilo Horn.")
  '(gnus-group-news-3-empty ((t (:foreground "tomato2")))) '(header-line ((t (:inherit mode-line :inverse-video t))))
  '(hl-line ((t (:background "#f0f0f1"))))
  '(hl-paren-face ((t (:weight bold))) t)
- '(minibuffer-prompt ((t (:foreground "#0184bc" :family "DeJaVu" :box (:line-width -1 :style released-button) :weight bold))))
+ '(minibuffer-prompt ((t (:foreground "#0184bc" :box (:line-width -1 :style released-button) :weight bold))))
  '(mode-line ((t (:background "#f0f0f1" :box (:line-width 1 :color "#383a42")))))
  '(mode-line-inactive ((t (:inherit mode-line :foreground "#a0a1a7"))))
  '(org-agenda-date ((t (:inherit org-agenda-structure))))
@@ -105,10 +105,5 @@ Used and created by Tassilo Horn.")
  '(window-number-face ((t (:foreground "red" :weight bold)))))
 
 (provide-theme 'tsdh-light)
-
-
-;; Local Variables:
-;; no-byte-compile: t
-;; End:
 
 ;;; tsdh-light-theme.el ends here

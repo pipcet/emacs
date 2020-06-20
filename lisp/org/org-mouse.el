@@ -1,6 +1,6 @@
 ;;; org-mouse.el --- Better mouse support for Org -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2006-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2006-2020 Free Software Foundation, Inc.
 
 ;; Author: Piotr Zielinski <piotr dot zielinski at gmail dot com>
 ;; Maintainer: Carsten Dominik <carsten at orgmode dot org>
@@ -18,13 +18,13 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 ;;
 ;; Org-mouse provides mouse support for org-mode.
 ;;
-;; http://orgmode.org
+;; https://orgmode.org
 ;;
 ;; Org mouse implements the following features:
 ;; * following links with the left mouse button
@@ -391,8 +391,8 @@ DEFAULT is returned if no priority is given in the headline."
 (defun org-mouse-delete-timestamp ()
   "Deletes the current timestamp as well as the preceding keyword.
 SCHEDULED: or DEADLINE: or ANYTHINGLIKETHIS:"
-  (when (or (org-at-date-range-p) (org-at-timestamp-p))
-    (replace-match "")			; delete the timestamp
+  (when (or (org-at-date-range-p) (org-at-timestamp-p 'lax))
+    (replace-match "")			;delete the timestamp
     (skip-chars-backward " :A-Z")
     (when (looking-at " *[A-Z][A-Z]+:")
       (replace-match ""))))
@@ -422,7 +422,7 @@ SCHEDULED: or DEADLINE: or ANYTHINGLIKETHIS:"
 (defun org-mouse-tag-menu ()		;todo
   "Create the tags menu."
   (append
-   (let ((tags (org-get-tags)))
+   (let ((tags (org-get-tags nil t)))
      (org-mouse-keyword-menu
       (sort (mapcar 'car (org-get-buffer-tags)) 'string-lessp)
       `(lambda (tag)
@@ -434,22 +434,12 @@ SCHEDULED: or DEADLINE: or ANYTHINGLIKETHIS:"
       `(lambda (tag) (member tag (quote ,tags)))
       ))
    '("--"
-     ["Align Tags Here" (org-set-tags nil t) t]
-     ["Align Tags in Buffer" (org-set-tags t t) t]
-     ["Set Tags ..." (org-set-tags) t])))
+     ["Align Tags Here" (org-align-tags) t]
+     ["Align Tags in Buffer" (org-align-tags t) t]
+     ["Set Tags ..." (org-set-tags-command) t])))
 
 (defun org-mouse-set-tags (tags)
-  (save-excursion
-    ;; remove existing tags first
-    (beginning-of-line)
-    (when (org-mouse-re-search-line ":\\(\\([A-Za-z_]+:\\)+\\)")
-      (replace-match ""))
-
-    ;; set new tags if any
-    (when tags
-      (end-of-line)
-      (insert " :" (mapconcat 'identity tags ":") ":")
-      (org-set-tags nil t))))
+  (org-set-tags tags))
 
 (defun org-mouse-insert-checkbox ()
   (interactive)
@@ -498,7 +488,7 @@ SCHEDULED: or DEADLINE: or ANYTHINGLIKETHIS:"
    `("Main Menu"
      ["Show Overview" org-mouse-show-overview t]
      ["Show Headlines" org-mouse-show-headlines t]
-     ["Show All" outline-show-all t]
+     ["Show All" org-show-all t]
      ["Remove Highlights" org-remove-occur-highlights
       :visible org-occur-highlights]
      "--"
@@ -516,7 +506,6 @@ SCHEDULED: or DEADLINE: or ANYTHINGLIKETHIS:"
      ["Check Phrase ..." org-occur]
      "--"
      ["Display Agenda" org-agenda-list t]
-     ["Display Timeline" org-timeline t]
      ["Display TODO List" org-todo-list t]
      ("Display Tags"
       ,@(org-mouse-keyword-menu
@@ -644,7 +633,7 @@ This means, between the beginning of line and the point."
 	 ,@(org-mouse-list-options-menu (mapcar 'car org-startup-options)
 					'org-mode-restart))))
      ((or (eolp)
-	  (and (looking-at "\\(  \\|\t\\)\\(+:[0-9a-zA-Z_:]+\\)?\\(  \\|\t\\)+$")
+	  (and (looking-at "\\(  \\|\t\\)\\(\\+:[0-9a-zA-Z_:]+\\)?\\(  \\|\t\\)+$")
 	       (looking-back "  \\|\t" (- (point) 2)
 			     (line-beginning-position))))
       (org-mouse-popup-global-menu))
@@ -715,7 +704,7 @@ This means, between the beginning of line and the point."
 	  (org-tags-sparse-tree nil ,(match-string 1))]
 	 "--"
 	 ,@(org-mouse-tag-menu))))
-     ((org-at-timestamp-p)
+     ((org-at-timestamp-p 'lax)
       (popup-menu
        '(nil
 	 ["Show Day" org-open-at-point t]
@@ -1044,21 +1033,21 @@ This means, between the beginning of line and the point."
 		     org-agenda-undo-list)]
 	 ["Rebuild Buffer" org-agenda-redo t]
 	 ["New Diary Entry"
-	  org-agenda-diary-entry (org-agenda-check-type nil 'agenda 'timeline) t]
+	  org-agenda-diary-entry (org-agenda-check-type nil 'agenda) t]
 	 "--"
 	 ["Goto Today" org-agenda-goto-today
-	  (org-agenda-check-type nil 'agenda 'timeline) t]
+	  (org-agenda-check-type nil 'agenda) t]
 	 ["Display Calendar" org-agenda-goto-calendar
-	  (org-agenda-check-type nil 'agenda 'timeline) t]
+	  (org-agenda-check-type nil 'agenda) t]
 	 ("Calendar Commands"
 	  ["Phases of the Moon" org-agenda-phases-of-moon
-	   (org-agenda-check-type nil 'agenda 'timeline)]
+	   (org-agenda-check-type nil 'agenda)]
 	  ["Sunrise/Sunset" org-agenda-sunrise-sunset
-	   (org-agenda-check-type nil 'agenda 'timeline)]
+	   (org-agenda-check-type nil 'agenda)]
 	  ["Holidays" org-agenda-holidays
-	   (org-agenda-check-type nil 'agenda 'timeline)]
+	   (org-agenda-check-type nil 'agenda)]
 	  ["Convert" org-agenda-convert-date
-	   (org-agenda-check-type nil 'agenda 'timeline)]
+	   (org-agenda-check-type nil 'agenda)]
 	  "--"
 	  ["Create iCalendar file" org-icalendar-combine-agenda-files t])
 	 "--"
@@ -1071,7 +1060,7 @@ This means, between the beginning of line and the point."
 	 "--"
 	 ["Show Logbook entries" org-agenda-log-mode
 	  :style toggle :selected org-agenda-show-log
-	  :active (org-agenda-check-type nil 'agenda 'timeline)]
+	  :active (org-agenda-check-type nil 'agenda)]
 	 ["Include Diary" org-agenda-toggle-diary
 	  :style toggle :selected org-agenda-include-diary
 	  :active (org-agenda-check-type nil 'agenda)]

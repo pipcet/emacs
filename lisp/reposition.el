@@ -1,6 +1,6 @@
 ;;; reposition.el --- center a Lisp function or comment on the screen
 
-;; Copyright (C) 1991, 1994, 2001-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1991, 1994, 2001-2020 Free Software Foundation, Inc.
 
 ;; Author: Michael D. Ernst <mernst@theory.lcs.mit.edu>
 ;; Created: Jan 1991
@@ -19,7 +19,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -170,12 +170,13 @@ first comment line visible (if point is in a comment)."
 
 ;;; Auxiliary functions
 
+
 ;; Return number of screen lines between START and END.
 (defun repos-count-screen-lines (start end)
   (save-excursion
     (save-restriction
-      (narrow-to-region start end)
-      (goto-char (point-min))
+      (narrow-to-region (point-min) end)
+      (goto-char start)
       (vertical-motion (- (point-max) (point-min))))))
 
 ;; Return number of screen lines between START and END; returns a negative

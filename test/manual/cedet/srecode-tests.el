@@ -1,8 +1,8 @@
 ;;; srecode-tests.el --- Some tests for CEDET's srecode
 
-;; Copyright (C) 2008-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2008-2020 Free Software Foundation, Inc.
 
-;; Author: Eric M. Ludlam <eric@siege-engine.com>
+;; Author: Eric M. Ludlam <zappo@gnu.org>
 
 ;; This file is part of GNU Emacs.
 
@@ -17,7 +17,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -39,9 +39,7 @@ It is filled with some text."
 (defun srecode-field-utest ()
   "Test the srecode field manager."
   (interactive)
-  (if (featurep 'xemacs)
-      (message "There is no XEmacs support for SRecode Fields.")
-    (srecode-field-utest-impl)))
+  (srecode-field-utest-impl))
 
 (defun srecode-field-utest-impl ()
   "Implementation of the SRecode field utest."
@@ -68,13 +66,13 @@ It is filled with some text."
       (when (or (not (slot-boundp f 'overlay)) (not (oref f overlay)))
 	(error "Field test: Overlay info not created for field"))
 
-      (when (and (overlay-p (oref f overlay))
+      (when (and (overlayp (oref f overlay))
 		 (not (overlay-get (oref f overlay) 'srecode-init-only)))
 	(error "Field creation overlay is not tagged w/ init flag"))
 
       (srecode-overlaid-activate f)
 
-      (when (or (not (overlay-p (oref f overlay)))
+      (when (or (not (overlayp (oref f overlay)))
 		(overlay-get (oref f overlay) 'srecode-init-only))
 	(error "New field overlay not created during activation"))
 
@@ -245,7 +243,7 @@ It is filled with some text."
 
 ;;; From srecode-document:
 
-(require 'srecode/doc)
+(require 'srecode/document)
 
 (defun srecode-document-function-comment-extract-test ()
   "Test old comment extraction.

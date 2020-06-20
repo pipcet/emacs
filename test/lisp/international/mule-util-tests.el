@@ -1,6 +1,6 @@
-;;; mule-util --- tests for international/mule-util.el
+;;; mule-util-tests.el --- tests for international/mule-util.el  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2002-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2002-2020 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -15,7 +15,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -81,4 +81,4 @@
 (dotimes (i (length mule-util-test-truncate-data))
   (mule-util-test-truncate-create i))
 
-;;; mule-util.el ends here
+;;; mule-util-tests.el ends here

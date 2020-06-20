@@ -1,6 +1,6 @@
 ;;; gnus-fun.el --- various frivolous extension functions to Gnus
 
-;; Copyright (C) 2002-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2002-2020 Free Software Foundation, Inc.
 
 ;; Author: Lars Magne Ingebrigtsen <larsi@gnus.org>
 ;; Keywords: news
@@ -18,14 +18,11 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
 ;;; Code:
-
-(eval-when-compile
-  (require 'cl))
 
 (require 'mm-util)
 (require 'gnus-util)
@@ -43,7 +40,7 @@
   "Regexp to match faces in `gnus-x-face-directory' to be omitted."
   :version "25.1"
   :group 'gnus-fun
-  :type '(choice (const nil) string))
+  :type '(choice (const nil) regexp))
 
 (defcustom gnus-face-directory (expand-file-name "faces" gnus-directory)
   "Directory where Face PNG files are stored."
@@ -55,7 +52,7 @@
   "Regexp to match faces in `gnus-face-directory' to be omitted."
   :version "25.1"
   :group 'gnus-fun
-  :type '(choice (const nil) string))
+  :type '(choice (const nil) regexp))
 
 (defcustom gnus-convert-pbm-to-x-face-command "pbmtoxbm %s | compface"
   "Command for converting a PBM to an X-Face."
@@ -66,7 +63,7 @@
 (defcustom gnus-convert-image-to-x-face-command
   "convert -scale 48x48! %s xbm:- | xbm2xface.pl"
   "Command for converting an image to an X-Face.
-The command must take a image filename (use \"%s\") as input.
+The command must take an image filename (use \"%s\") as input.
 The output must be the X-Face header data on stdout."
   :version "22.1"
   :group 'gnus-fun

@@ -1,6 +1,6 @@
 ;;; crisp.el --- CRiSP/Brief Emacs emulator
 
-;; Copyright (C) 1997-1999, 2001-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1997-1999, 2001-2020 Free Software Foundation, Inc.
 
 ;; Author: Gary D. Foster <Gary.Foster@Corp.Sun.COM>
 ;; Keywords: emulations brief crisp
@@ -19,7 +19,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -353,10 +353,7 @@ normal CRiSP binding) and when it is nil M-x will run
 
 ;;;###autoload
 (define-minor-mode crisp-mode
-  "Toggle CRiSP/Brief emulation (CRiSP mode).
-With a prefix argument ARG, enable CRiSP mode if ARG is positive,
-and disable it otherwise.  If called from Lisp, enable the mode
-if ARG is omitted or nil."
+  "Toggle CRiSP/Brief emulation (CRiSP mode)."
   :keymap crisp-mode-map
   :lighter crisp-mode-mode-line-string
   (when crisp-mode
@@ -378,10 +375,6 @@ if ARG is omitted or nil."
 ;; People might use Apropos on `brief'.
 ;;;###autoload
 (defalias 'brief-mode 'crisp-mode)
-
-;; Interaction with other packages.
-(put 'crisp-home 'CUA 'move)
-(put 'crisp-end  'CUA 'move)
 
 (run-hooks 'crisp-load-hook)
 (provide 'crisp)

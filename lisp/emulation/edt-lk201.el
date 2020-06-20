@@ -1,10 +1,9 @@
 ;;; edt-lk201.el --- enhanced EDT keypad mode emulation for LK-201 keyboards
 
-;; Copyright (C) 1986, 1992-1993, 1995, 2001-2017 Free Software
+;; Copyright (C) 1986, 1992-1993, 1995, 2001-2020 Free Software
 ;; Foundation, Inc.
 
 ;; Author: Kevin Gallagher <kevin.gal@verizon.net>
-;; Maintainer: Kevin Gallagher <kevin.gal@verizon.net>
 ;; Keywords: emulations
 ;; Package: edt
 
@@ -21,7 +20,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 

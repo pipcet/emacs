@@ -1,6 +1,6 @@
 ;;; sieve-mode.el --- Sieve code editing commands for Emacs
 
-;; Copyright (C) 2001-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2001-2020 Free Software Foundation, Inc.
 
 ;; Author: Simon Josefsson <simon@josefsson.org>
 
@@ -17,7 +17,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -100,23 +100,20 @@
 
 (defconst sieve-font-lock-keywords
   (eval-when-compile
-    (list
-     ;; control commands
-     (cons (regexp-opt '("require" "if" "else" "elsif" "stop")
-                       'words)
-	   'sieve-control-commands)
-     ;; action commands
-     (cons (regexp-opt '("fileinto" "redirect" "reject" "keep" "discard")
-                       'words)
-	   'sieve-action-commands)
-     ;; test commands
-     (cons (regexp-opt '("address" "allof" "anyof" "exists" "false"
-			 "true" "header" "not" "size" "envelope"
-                         "body")
-                       'words)
-	   'sieve-test-commands)
-     (cons "\\Sw+:\\sw+"
-	   'sieve-tagged-arguments))))
+    `(
+      ;; control commands
+      (,(regexp-opt '("require" "if" "else" "elsif" "stop") 'words)
+       . 'sieve-control-commands)
+      ;; action commands
+      (,(regexp-opt '("fileinto" "redirect" "reject" "keep" "discard") 'words)
+       . 'sieve-action-commands)
+      ;; test commands
+      (,(regexp-opt '("address" "allof" "anyof" "exists" "false"
+		      "true" "header" "not" "size" "envelope"
+                      "body")
+                    'words)
+       . 'sieve-test-commands)
+      ("\\Sw+:\\sw+" . 'sieve-tagged-arguments))))
 
 ;; Syntax table
 

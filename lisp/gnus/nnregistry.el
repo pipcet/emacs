@@ -1,9 +1,9 @@
 ;;; nnregistry.el --- access to articles via Gnus' message-id registry
 ;;; -*- coding: utf-8 -*-
 
-;; Copyright (C) 2010-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2010-2020 Free Software Foundation, Inc.
 
-;; Authors: Ludovic Courtès <ludo@gnu.org>
+;; Author: Ludovic Courtès <ludo@gnu.org>
 ;; Keywords: news, mail
 
 ;; This file is part of GNU Emacs.
@@ -19,7 +19,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -39,7 +39,7 @@
 (deffoo nnregistry-server-opened (server)
   gnus-registry-enabled)
 
-(deffoo nnregistry-close-server (server)
+(deffoo nnregistry-close-server (server &optional defs)
   t)
 
 (deffoo nnregistry-status-message (server)

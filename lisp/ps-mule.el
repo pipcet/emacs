@@ -1,11 +1,9 @@
 ;;; ps-mule.el --- provide multi-byte character facility to ps-print
 
-;; Copyright (C) 1998-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1998-2020 Free Software Foundation, Inc.
 
-;; Author: Vinicius Jose Latorre <viniciusjl@ig.com.br>
-;;	Kenichi Handa <handa@m17n.org> (multi-byte characters)
-;; Maintainer: Kenichi Handa <handa@m17n.org> (multi-byte characters)
-;;	Vinicius Jose Latorre <viniciusjl@ig.com.br>
+;; Author: Vinicius Jose Latorre <viniciusjl.gnu@gmail.com>
+;;	Kenichi Handa <handa@gnu.org> (multi-byte characters)
 ;; Keywords: wp, print, PostScript, multibyte, mule
 ;; Package: ps-print
 
@@ -22,7 +20,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -1031,7 +1029,7 @@ the sequence."
   (setq ps-mule-prologue-generated nil
 	ps-mule-composition-prologue-generated nil
 	ps-mule-bitmap-prologue-generated nil)
-  (mapcar `(lambda (x) (setcar (nthcdr 2 x) nil))
+  (mapcar (lambda (x) (setcar (nthcdr 2 x) nil))
 	  ps-mule-external-libraries))
 
 (defun ps-mule-encode-header-string (string fonttag)

@@ -1,10 +1,10 @@
 ;;; org-datetree.el --- Create date entries in a tree -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2009-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2009-2020 Free Software Foundation, Inc.
 
 ;; Author: Carsten Dominik <carsten at orgmode dot org>
 ;; Keywords: outlines, hypermedia, calendar, wp
-;; Homepage: http://orgmode.org
+;; Homepage: https://orgmode.org
 ;;
 ;; This file is part of GNU Emacs.
 ;;
@@ -19,7 +19,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 ;;; Commentary:
@@ -54,16 +54,25 @@ Added time stamp is active unless value is `inactive'."
   "Find or create an entry for date D.
 If KEEP-RESTRICTION is non-nil, do not widen the buffer.
 When it is nil, the buffer will be widened to make sure an existing date
-tree can be found."
+tree can be found.  If it is the symbol `subtree-at-point', then the tree
+will be built under the headline at point."
   (setq-local org-datetree-base-level 1)
-  (or keep-restriction (widen))
   (save-restriction
-    (let ((prop (org-find-property "DATE_TREE")))
-      (when prop
-	(goto-char prop)
-	(setq-local org-datetree-base-level
-		    (org-get-valid-level (org-current-level) 1))
-	(org-narrow-to-subtree)))
+    (if (eq keep-restriction 'subtree-at-point)
+	(progn
+	  (unless (org-at-heading-p) (error "Not at heading"))
+	  (widen)
+	  (org-narrow-to-subtree)
+	  (setq-local org-datetree-base-level
+		      (org-get-valid-level (org-current-level) 1)))
+      (unless keep-restriction (widen))
+      ;; Support the old way of tree placement, using a property
+      (let ((prop (org-find-property "DATE_TREE")))
+	(when prop
+	  (goto-char prop)
+	  (setq-local org-datetree-base-level
+		      (org-get-valid-level (org-current-level) 1))
+	  (org-narrow-to-subtree))))
     (goto-char (point-min))
     (let ((year (calendar-extract-year d))
 	  (month (calendar-extract-month d))
@@ -84,18 +93,26 @@ tree can be found."
   "Find or create an ISO week entry for date D.
 Compared to `org-datetree-find-date-create' this function creates
 entries ordered by week instead of months.
-If KEEP-RESTRICTION is non-nil, do not widen the buffer.  When it
-is nil, the buffer will be widened to make sure an existing date
-tree can be found."
+When it is nil, the buffer will be widened to make sure an existing date
+tree can be found.  If it is the symbol `subtree-at-point', then the tree
+will be built under the headline at point."
   (setq-local org-datetree-base-level 1)
-  (or keep-restriction (widen))
   (save-restriction
-    (let ((prop (org-find-property "WEEK_TREE")))
-      (when prop
-	(goto-char prop)
-	(setq-local org-datetree-base-level
-		    (org-get-valid-level (org-current-level) 1))
-	(org-narrow-to-subtree)))
+    (if (eq keep-restriction 'subtree-at-point)
+	(progn
+	  (unless (org-at-heading-p) (error "Not at heading"))
+	  (widen)
+	  (org-narrow-to-subtree)
+	  (setq-local org-datetree-base-level
+		      (org-get-valid-level (org-current-level) 1)))
+      (unless keep-restriction (widen))
+      ;; Support the old way of tree placement, using a property
+      (let ((prop (org-find-property "WEEK_TREE")))
+	(when prop
+	  (goto-char prop)
+	  (setq-local org-datetree-base-level
+		      (org-get-valid-level (org-current-level) 1))
+	  (org-narrow-to-subtree))))
     (goto-char (point-min))
     (require 'cal-iso)
     (let* ((year (calendar-extract-year d))
@@ -121,15 +138,16 @@ tree can be found."
        "^\\*+[ \t]+%d-%02d-\\([0123][0-9]\\) \\w+$"
        year month day))))
 
-(defun org-datetree--find-create (regex year &optional month day insert)
-  "Find the datetree matched by REGEX for YEAR, MONTH, or DAY.
-REGEX is passed to `format' with YEAR, MONTH, and DAY as
+(defun org-datetree--find-create
+    (regex-template year &optional month day insert)
+  "Find the datetree matched by REGEX-TEMPLATE for YEAR, MONTH, or DAY.
+REGEX-TEMPLATE is passed to `format' with YEAR, MONTH, and DAY as
 arguments.  Match group 1 is compared against the specified date
 component.  If INSERT is non-nil and there is no match then it is
 inserted into the buffer."
   (when (or month day)
     (org-narrow-to-subtree))
-  (let ((re (format regex year month day))
+  (let ((re (format regex-template year month day))
 	match)
     (goto-char (point-min))
     (while (and (setq match (re-search-forward re nil t))

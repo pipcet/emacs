@@ -1,6 +1,6 @@
 ;;; pcase.el --- ML-style pattern-matching macro for Elisp -*- lexical-binding: t -*-
 
-;; Copyright (C) 2010-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2010-2020 Free Software Foundation, Inc.
 
 ;; Author: Stefan Monnier <monnier@iro.umontreal.ca>
 ;; Keywords:
@@ -18,7 +18,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -63,6 +63,7 @@
 ;; FIXME: Now that macroexpansion is also performed when loading an interpreted
 ;; file, this is not a real problem any more.
 (defconst pcase--memoize (make-hash-table :weakness 'key :test 'eq))
+;; (defconst pcase--memoize (make-hash-table :test 'eq))
 ;; (defconst pcase--memoize-1 (make-hash-table :test 'eq))
 ;; (defconst pcase--memoize-2 (make-hash-table :weakness 'key :test 'equal))
 
@@ -108,56 +109,43 @@
 
 ;;;###autoload
 (defmacro pcase (exp &rest cases)
-  "Evaluate EXP and attempt to match it against structural patterns.
+  "Evaluate EXP to get EXPVAL; try passing control to one of CASES.
 CASES is a list of elements of the form (PATTERN CODE...).
+For the first CASE whose PATTERN \"matches\" EXPVAL,
+evaluate its CODE..., and return the value of the last form.
+If no CASE has a PATTERN that matches, return nil.
 
-A structural PATTERN describes a template that identifies a class
-of values.  For example, the pattern \\=`(,foo ,bar) matches any
-two element list, binding its elements to symbols named `foo' and
-`bar' -- in much the same way that `cl-destructuring-bind' would.
+Each PATTERN expands, in essence, to a predicate to call
+on EXPVAL.  When the return value of that call is non-nil,
+PATTERN matches.  PATTERN can take one of the forms:
 
-A significant difference from `cl-destructuring-bind' is that, if
-a pattern match fails, the next case is tried until either a
-successful match is found or there are no more cases.
+  _                matches anything.
+  \\='VAL             matches if EXPVAL is `equal' to VAL.
+  KEYWORD          shorthand for \\='KEYWORD
+  INTEGER          shorthand for \\='INTEGER
+  STRING           shorthand for \\='STRING
+  SYMBOL           matches anything and binds it to SYMBOL.
+                   If a SYMBOL is used twice in the same pattern
+                   the second occurrence becomes an `eq'uality test.
+  (pred FUN)       matches if FUN called on EXPVAL returns non-nil.
+  (app FUN PAT)    matches if FUN called on EXPVAL matches PAT.
+  (guard BOOLEXP)  matches if BOOLEXP evaluates to non-nil.
+  (let PAT EXPR)   matches if EXPR matches PAT.
+  (and PAT...)     matches if all the patterns match.
+  (or PAT...)      matches if any of the patterns matches.
 
-Another difference is that pattern elements may be quoted,
-meaning they must match exactly: The pattern \\='(foo bar)
-matches only against two element lists containing the symbols
-`foo' and `bar' in that order.  (As a short-hand, atoms always
-match themselves, such as numbers or strings, and need not be
-quoted.)
+FUN in `pred' and `app' can take one of the forms:
+  SYMBOL  or  (lambda ARGS BODY)
+     call it with one argument
+  (F ARG1 .. ARGn)
+     call F with ARG1..ARGn and EXPVAL as n+1'th argument
 
-Lastly, a pattern can be logical, such as (pred numberp), that
-matches any number-like element; or the symbol `_', that matches
-anything.  Also, when patterns are backquoted, a comma may be
-used to introduce logical patterns inside backquoted patterns.
-
-The complete list of standard patterns is as follows:
-
-  _		matches anything.
-  SYMBOL	matches anything and binds it to SYMBOL.
-                If a SYMBOL is used twice in the same pattern
-                the second occurrence becomes an `eq'uality test.
-  (or PAT...)	matches if any of the patterns matches.
-  (and PAT...)	matches if all the patterns match.
-  \\='VAL		matches if the object is `equal' to VAL.
-  ATOM		is a shorthand for \\='ATOM.
-		   ATOM can be a keyword, an integer, or a string.
-  (pred FUN)	matches if FUN applied to the object returns non-nil.
-  (guard BOOLEXP)	matches if BOOLEXP evaluates to non-nil.
-  (let PAT EXP)	matches if EXP matches PAT.
-  (app FUN PAT)	matches if FUN applied to the object matches PAT.
+FUN, BOOLEXP, EXPR, and subsequent PAT can refer to variables
+bound earlier in the pattern by a SYMBOL pattern.
 
 Additional patterns can be defined using `pcase-defmacro'.
 
-The FUN argument in the `app' pattern may have the following forms:
-  SYMBOL or (lambda ARGS BODY)  in which case it's called with one argument.
-  (F ARG1 .. ARGn) in which case F gets called with an n+1'th argument
-                        which is the value being matched.
-So a FUN of the form SYMBOL is equivalent to (FUN).
-FUN can refer to variables bound earlier in the pattern.
-
-See Info node `(elisp) Pattern matching case statement' in the
+See Info node `(elisp) Pattern-Matching Conditional' in the
 Emacs Lisp manual for more information and examples."
   (declare (indent 1) (debug (form &rest (pcase-PAT body))))
   ;; We want to use a weak hash table as a cache, but the key will unavoidably
@@ -188,7 +176,9 @@ Emacs Lisp manual for more information and examples."
 
 ;; FIXME: Obviously, this will collide with nadvice's use of
 ;; function-documentation if we happen to advise `pcase'.
+;;;###autoload
 (put 'pcase 'function-documentation '(pcase--make-docstring))
+;;;###autoload
 (defun pcase--make-docstring ()
   (let* ((main (documentation (symbol-function 'pcase) 'raw))
          (ud (help-split-fundoc main 'pcase)))
@@ -197,23 +187,39 @@ Emacs Lisp manual for more information and examples."
     (require 'help-fns)
     (with-temp-buffer
       (insert (or (cdr ud) main))
-      (mapatoms
-       (lambda (symbol)
-         (let ((me (get symbol 'pcase-macroexpander)))
-           (when me
-             (insert "\n\n-- ")
-             (let* ((doc (documentation me 'raw)))
-               (setq doc (help-fns--signature symbol doc me
-                                              (indirect-function me) nil))
-               (insert "\n" (or doc "Not documented.")))))))
+      ;; Presentation Note: For conceptual continuity, we guarantee
+      ;; that backquote doc immediately follows main pcase doc.
+      ;; (The order of the other extensions is unimportant.)
+      (let (more)
+        ;; Collect all the extensions.
+        (mapatoms (lambda (symbol)
+                    (let ((me (get symbol 'pcase-macroexpander)))
+                      (when me
+                        (push (cons symbol me)
+                              more)))))
+        ;; Ensure backquote is first.
+        (let ((x (assq '\` more)))
+          (setq more (cons x (delq x more))))
+        ;; Do the output.
+        (while more
+          (let* ((pair (pop more))
+                 (symbol (car pair))
+                 (me (cdr pair))
+                 (doc (documentation me 'raw)))
+            (insert "\n\n-- ")
+            (setq doc (help-fns--signature symbol doc me
+                                           (indirect-function me)
+                                           nil))
+            (insert "\n" (or doc "Not documented.")))))
       (let ((combined-doc (buffer-string)))
         (if ud (help-add-fundoc-usage combined-doc (car ud)) combined-doc)))))
 
 ;;;###autoload
 (defmacro pcase-exhaustive (exp &rest cases)
-  "The exhaustive version of `pcase' (which see)."
+  "The exhaustive version of `pcase' (which see).
+If EXP fails to match any of the patterns in CASES, an error is signaled."
   (declare (indent 1) (debug pcase))
-  (let* ((x (make-symbol "x"))
+  (let* ((x (gensym "x"))
          (pcase--dontwarn-upats (cons x pcase--dontwarn-upats)))
     (pcase--expand
      ;; FIXME: Could we add the FILE:LINE data in the error message?
@@ -226,7 +232,7 @@ I.e. accepts the usual &optional and &rest keywords, but every
 formal argument can be any pattern accepted by `pcase' (a mere
 variable name being but a special case of it)."
   (declare (doc-string 2) (indent defun)
-           (debug ((&rest pcase-PAT) body)))
+           (debug (&define (&rest pcase-PAT) lambda-doc def-body)))
   (let* ((bindings ())
          (parsed-body (macroexp-parse-body body))
          (args (mapcar (lambda (pat)
@@ -261,9 +267,14 @@ variable name being but a special case of it)."
 
 ;;;###autoload
 (defmacro pcase-let* (bindings &rest body)
-  "Like `let*' but where you can use `pcase' patterns for bindings.
-BODY should be an expression, and BINDINGS should be a list of bindings
-of the form (PAT EXP)."
+  "Like `let*', but supports destructuring BINDINGS using `pcase' patterns.
+As with `pcase-let', BINDINGS are of the form (PATTERN EXP), but the
+EXP in each binding in BINDINGS can use the results of the destructuring
+bindings that precede it in BINDINGS' order.
+
+Each EXP should match (i.e. be of compatible structure) to its
+respective PATTERN; a mismatch may signal an error or may go
+undetected, binding variables to arbitrary values, such as nil."
   (declare (indent 1)
            (debug ((&rest (pcase-PAT &optional form)) body)))
   (let ((cached (gethash bindings pcase--memoize)))
@@ -276,12 +287,16 @@ of the form (PAT EXP)."
 
 ;;;###autoload
 (defmacro pcase-let (bindings &rest body)
-  "Like `let' but where you can use `pcase' patterns for bindings.
-BODY should be a list of expressions, and BINDINGS should be a list of bindings
-of the form (PAT EXP).
-The macro is expanded and optimized under the assumption that those
-patterns *will* match, so a mismatch may go undetected or may cause
-any kind of error."
+  "Like `let', but supports destructuring BINDINGS using `pcase' patterns.
+BODY should be a list of expressions, and BINDINGS should be a list of
+bindings of the form (PATTERN EXP).
+All EXPs are evaluated first, and then used to perform destructuring
+bindings by matching each EXP against its respective PATTERN.  Then
+BODY is evaluated with those bindings in effect.
+
+Each EXP should match (i.e. be of compatible structure) to its
+respective PATTERN; a mismatch may signal an error or may go
+undetected, binding variables to arbitrary values, such as nil."
   (declare (indent 1) (debug pcase-let*))
   (if (null (cdr bindings))
       `(pcase-let* ,bindings ,@body)
@@ -299,12 +314,20 @@ any kind of error."
 
 ;;;###autoload
 (defmacro pcase-dolist (spec &rest body)
-  "Like `dolist' but where the binding can be a `pcase' pattern.
+  "Eval BODY once for each set of bindings defined by PATTERN and LIST elements.
+PATTERN should be a `pcase' pattern describing the structure of
+LIST elements, and LIST is a list of objects that match PATTERN,
+i.e. have a structure that is compatible with PATTERN.
+For each element of LIST, this macro binds the variables in
+PATTERN to the corresponding subfields of the LIST element, and
+then evaluates BODY with these bindings in effect.  The
+destructuring bindings of variables in PATTERN to the subfields
+of the elements of LIST is performed as if by `pcase-let'.
 \n(fn (PATTERN LIST) BODY...)"
   (declare (indent 1) (debug ((pcase-PAT form) body)))
   (if (pcase--trivial-upat-p (car spec))
       `(dolist ,spec ,@body)
-    (let ((tmpvar (make-symbol "x")))
+    (let ((tmpvar (gensym "x")))
       `(dolist (,tmpvar ,@(cdr spec))
          (pcase-let* ((,(car spec) ,tmpvar))
            ,@body)))))
@@ -321,7 +344,8 @@ any kind of error."
            (seen '())
            (codegen
             (lambda (code vars)
-              (let ((prev (assq code seen)))
+              (let ((vars (pcase--fgrep vars code))
+                    (prev (assq code seen)))
                 (if (not prev)
                     (let ((res (pcase-codegen code vars)))
                       (push (list code vars res) seen)
@@ -375,7 +399,10 @@ any kind of error."
                              (if (pcase--small-branch-p (cdr case))
                                  ;; Don't bother sharing multiple
                                  ;; occurrences of this leaf since it's small.
-                                 #'pcase-codegen codegen)
+                                 (lambda (code vars)
+                                   (pcase-codegen code
+                                                  (pcase--fgrep vars code)))
+                               codegen)
                              (cdr case)
                              vars))))
                      cases))))
@@ -409,7 +436,11 @@ any kind of error."
 (defmacro pcase-defmacro (name args &rest body)
   "Define a new kind of pcase PATTERN, by macro expansion.
 Patterns of the form (NAME ...) will be expanded according
-to this macro."
+to this macro.
+
+By convention, DOC should use \"EXPVAL\" to stand
+for the result of evaluating EXP (first arg to `pcase').
+\n(fn NAME ARGS [DOC] &rest BODY...)"
   (declare (indent 2) (debug defun) (doc-string 3))
   ;; Add the function via `fsym', so that an autoload cookie placed
   ;; on a pcase-defmacro will cause the macro to be loaded on demand.
@@ -660,14 +691,22 @@ MATCH is the pattern that needs to be matched, of the form:
           '(nil . :pcase--fail)
         '(:pcase--fail . nil))))))
 
-(defun pcase--fgrep (vars sexp)
-  "Check which of the symbols VARS appear in SEXP."
+(defun pcase--fgrep (bindings sexp)
+  "Return those of the BINDINGS which might be used in SEXP."
   (let ((res '()))
-    (while (consp sexp)
-      (dolist (var (pcase--fgrep vars (pop sexp)))
-        (unless (memq var res) (push var res))))
-    (and (memq sexp vars) (not (memq sexp res)) (push sexp res))
-    res))
+    (while (and (consp sexp) bindings)
+      (dolist (binding (pcase--fgrep bindings (pop sexp)))
+        (push binding res)
+        (setq bindings (remove binding bindings))))
+    (if (vectorp sexp)
+        ;; With backquote, code can appear within vectors as well.
+        ;; This wouldn't be needed if we `macroexpand-all' before
+        ;; calling pcase--fgrep, OTOH.
+        (pcase--fgrep bindings (mapcar #'identity sexp))
+      (let ((tmp (assq sexp bindings)))
+        (if tmp
+            (cons tmp res)
+          res)))))
 
 (defun pcase--self-quoting-p (upat)
   (or (keywordp upat) (integerp upat) (stringp upat)))
@@ -707,21 +746,19 @@ MATCH is the pattern that needs to be matched, of the form:
   "Build a function call to FUN with arg ARG."
   (if (symbolp fun)
       `(,fun ,arg)
-    (let* (;; `vs' is an upper bound on the vars we need.
-           (vs (pcase--fgrep (mapcar #'car vars) fun))
-           (env (mapcar (lambda (var)
-                          (list var (cdr (assq var vars))))
-                        vs))
+    (let* (;; `env' is an upper bound on the bindings we need.
+           (env (mapcar (lambda (x) (list (car x) (cdr x)))
+                        (pcase--fgrep vars fun)))
            (call (progn
-                   (when (memq arg vs)
+                   (when (assq arg env)
                      ;; `arg' is shadowed by `env'.
-                     (let ((newsym (make-symbol "x")))
+                     (let ((newsym (gensym "x")))
                        (push (list newsym arg) env)
                        (setq arg newsym)))
                    (if (functionp fun)
                        `(funcall #',fun ,arg)
                      `(,@fun ,arg)))))
-      (if (null vs)
+      (if (null env)
           call
         ;; Let's not replace `vars' in `fun' since it's
         ;; too difficult to do it right, instead just
@@ -732,10 +769,12 @@ MATCH is the pattern that needs to be matched, of the form:
   "Build an expression that will evaluate EXP."
   (let* ((found (assq exp vars)))
     (if found (cdr found)
-      (let* ((vs (pcase--fgrep (mapcar #'car vars) exp))
-             (env (mapcar (lambda (v) (list v (cdr (assq v vars))))
-                          vs)))
-        (if env (macroexp-let* env exp) exp)))))
+      (let* ((env (pcase--fgrep vars exp)))
+        (if env
+            (macroexp-let* (mapcar (lambda (x) (list (car x) (cdr x)))
+                                   env)
+                           exp)
+          exp)))))
 
 ;; It's very tempting to use `pcase' below, tho obviously, it'd create
 ;; bootstrapping problems.
@@ -758,25 +797,26 @@ Otherwise, it defers to REST which is a list of branches of the form
    ((eq 'or (caar matches))
     (let* ((alts (cdar matches))
            (var (if (eq (caar alts) 'match) (cadr (car alts))))
-           (simples '()) (others '()) (memq-ok t))
+           (simples '()) (others '()) (mem-fun 'memq))
       (when var
         (dolist (alt alts)
           (if (and (eq (car alt) 'match) (eq var (cadr alt))
                    (let ((upat (cddr alt)))
                      (eq (car-safe upat) 'quote)))
               (let ((val (cadr (cddr alt))))
-                (unless (or (integerp val) (symbolp val))
-                  (setq memq-ok nil))
-                (push (cadr (cddr alt)) simples))
+                (cond ((integerp val)
+                       (when (eq mem-fun 'memq)
+                         (setq mem-fun 'memql)))
+                      ((not (symbolp val))
+                       (setq mem-fun 'member)))
+                (push val simples))
             (push alt others))))
       (cond
        ((null alts) (error "Please avoid it") (pcase--u rest))
-       ;; Yes, we can use `memq' (or `member')!
+       ;; Yes, we can use `memql' (or `member')!
        ((> (length simples) 1)
         (pcase--u1 (cons `(match ,var
-                                 . (pred (pcase--flip
-                                          ,(if memq-ok #'memq #'member)
-                                          ',simples)))
+                                 . (pred (pcase--flip ,mem-fun ',simples)))
                          (cdr matches))
                    code vars
                    (if (null others) rest
@@ -842,7 +882,7 @@ Otherwise, it defers to REST which is a list of branches of the form
         ;; A upat of the form (app FUN PAT)
         (pcase--mark-used sym)
         (let* ((fun (nth 1 upat))
-               (nsym (make-symbol "x"))
+               (nsym (gensym "x"))
                (body
                 ;; We don't change `matches' to reuse the newly computed value,
                 ;; because we assume there shouldn't be such redundancy in there.
@@ -863,7 +903,8 @@ Otherwise, it defers to REST which is a list of branches of the form
                (else-rest (cdr splitrest)))
           (pcase--if (cond
                       ((null val) `(null ,sym))
-                      ((or (integerp val) (symbolp val))
+                      ((integerp val) `(eql ,sym ,val))
+                      ((symbolp val)
                        (if (pcase--self-quoting-p val)
                            `(eq ,sym ,val)
                          `(eq ,sym ',val)))
@@ -904,14 +945,29 @@ Otherwise, it defers to REST which is a list of branches of the form
        sexp))
 
 (pcase-defmacro \` (qpat)
-  "Backquote-style pcase patterns.
+  "Backquote-style pcase patterns: \\=`QPAT
 QPAT can take the following forms:
   (QPAT1 . QPAT2)       matches if QPAT1 matches the car and QPAT2 the cdr.
   [QPAT1 QPAT2..QPATn]  matches a vector of length n and QPAT1..QPATn match
                            its 0..(n-1)th elements, respectively.
-  ,PAT                  matches if the pcase pattern PAT matches.
-  ATOM                  matches if the object is `equal' to ATOM.
-			   ATOM can be a symbol, an integer, or a string."
+  ,PAT                  matches if the `pcase' pattern PAT matches.
+  SYMBOL                matches if EXPVAL is `equal' to SYMBOL.
+  KEYWORD               likewise for KEYWORD.
+  NUMBER                likewise for NUMBER.
+  STRING                likewise for STRING.
+
+The list or vector QPAT is a template.  The predicate formed
+by a backquote-style pattern is a combination of those
+formed by any sub-patterns, wrapped in a top-level condition:
+EXPVAL must be \"congruent\" with the template.  For example:
+
+  \\=`(technical ,forum)
+
+The predicate is the logical-AND of:
+ - Is EXPVAL a list of two elements?
+ - Is the first element the symbol `technical'?
+ - True!  (The second element can be anything, and for the sake
+   of the body forms, its value is bound to the symbol `forum'.)"
   (declare (debug (pcase-QPAT)))
   (cond
    ((eq (car-safe qpat) '\,) (cadr qpat))
@@ -927,7 +983,10 @@ QPAT can take the following forms:
     `(and (pred consp)
           (app car ,(list '\` (car qpat)))
           (app cdr ,(list '\` (cdr qpat)))))
-   ((or (stringp qpat) (integerp qpat) (symbolp qpat)) `',qpat)
+   ((or (stringp qpat) (numberp qpat) (symbolp qpat)) `',qpat)
+   ;; In all other cases just raise an error so we can't break
+   ;; backward compatibility when adding \` support for other
+   ;; compounded values that are not `consp'
    (t (error "Unknown QPAT: %S" qpat))))
 
 (provide 'pcase)

@@ -1,6 +1,6 @@
 ;;; pp.el --- pretty printer for Emacs Lisp  -*- lexical-binding: t -*-
 
-;; Copyright (C) 1989, 1993, 2001-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1989, 1993, 2001-2020 Free Software Foundation, Inc.
 
 ;; Author: Randal Schwartz <merlyn@stonehenge.com>
 ;; Keywords: lisp
@@ -18,7 +18,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -53,6 +53,7 @@ to make output that `read' can handle, whenever this is possible."
 ;;;###autoload
 (defun pp-buffer ()
   "Prettify the current buffer with printed representation of a Lisp object."
+  (interactive)
   (goto-char (point-min))
   (while (not (eobp))
     ;; (message "%06d" (- (point-max) (point)))

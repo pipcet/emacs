@@ -1,6 +1,6 @@
 ;;; tutorial.el --- tutorial for Emacs
 
-;; Copyright (C) 2006-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2006-2020 Free Software Foundation, Inc.
 
 ;; Maintainer: emacs-devel@gnu.org
 ;; Keywords: help, internal
@@ -19,7 +19,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -476,8 +476,8 @@ where
 		    ((and cua-mode
 			  (or (and (eq def-fun 'ESC-prefix)
 				   (equal key-fun
-					  `(keymap
-					    (118 . cua-repeat-replace-region)))
+					  '(keymap
+                                            (118 . cua-repeat-replace-region)))
 				   (setq def-fun-txt "\"ESC prefix\""))
 			      (and (eq def-fun 'mode-specific-command-prefix)
 				   (equal key-fun

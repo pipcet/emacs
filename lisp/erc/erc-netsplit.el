@@ -1,9 +1,9 @@
 ;;; erc-netsplit.el --- Reduce JOIN/QUIT messages on netsplits
 
-;; Copyright (C) 2002-2004, 2006-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2002-2004, 2006-2020 Free Software Foundation, Inc.
 
 ;; Author: Mario Lang <mlang@delysid.org>
-;; Maintainer: emacs-devel@gnu.org
+;; Maintainer: Amin Bandali <bandali@gnu.org>
 ;; Keywords: comm
 
 ;; This file is part of GNU Emacs.
@@ -19,7 +19,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -33,12 +33,12 @@
 (require 'erc)
 
 (defgroup erc-netsplit nil
-  "Netsplit detection tries to automatically figure when a
-netsplit happens, and filters the QUIT messages. It also keeps
-track of netsplits, so that it can filter the JOIN messages on a netjoin too."
+  "Netsplit detection tries to automatically figure when a netsplit
+happens, and filters the QUIT messages.  It also keeps track of
+netsplits, so that it can filter the JOIN messages on a netjoin too."
   :group 'erc)
 
-;;;###autoload (autoload 'erc-netsplit-mode "erc-netsplit")
+;;;###autoload(autoload 'erc-netsplit-mode "erc-netsplit")
 (define-erc-module netsplit nil
   "This mode hides quit/join messages if a netsplit occurs."
   ((erc-netsplit-install-message-catalogs)
@@ -57,8 +57,7 @@ track of netsplits, so that it can filter the JOIN messages on a netjoin too."
   :type 'boolean)
 
 (defcustom erc-netsplit-debug nil
-  "If non-nil, debug messages will be shown in the
-sever buffer."
+  "If non-nil, debug messages will be shown in the sever buffer."
   :group 'erc-netsplit
   :type 'boolean)
 
@@ -151,7 +150,7 @@ join from that split has been detected or not.")
 	    (when (nth 2 ass)
 	      ;; There was already a netjoin for this netsplit, it
 	      ;; seems like the old one didn't get finished...
-	      (erc-display-message 
+	      (erc-display-message
 	       parsed 'notice (process-buffer proc)
 	       'netsplit ?s split)
 	      (setcar (nthcdr 2 ass) t)
@@ -205,7 +204,5 @@ join from that split has been detected or not.")
 ;;; erc-netsplit.el ends here
 ;;
 ;; Local Variables:
-;; indent-tabs-mode: t
-;; tab-width: 8
+;; generated-autoload-file: "erc-loaddefs.el"
 ;; End:
-

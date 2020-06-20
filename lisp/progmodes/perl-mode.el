@@ -1,6 +1,6 @@
 ;;; perl-mode.el --- Perl code editing commands for GNU Emacs  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1990, 1994, 2001-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1990, 1994, 2001-2020 Free Software Foundation, Inc.
 
 ;; Author: William F. Mann
 ;; Maintainer: emacs-devel@gnu.org
@@ -23,7 +23,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -86,6 +86,8 @@
 ;;          ] =~ s/;9$//;
 
 ;;; Code:
+
+(eval-when-compile (require 'cl-lib))
 
 (defgroup perl nil
   "Major mode for editing Perl code."
@@ -165,7 +167,7 @@
     ;; Fontify function and package names in declarations.
     ("\\<\\(package\\|sub\\)\\>[ \t]*\\(\\sw+\\)?"
      (1 font-lock-keyword-face) (2 font-lock-function-name-face nil t))
-    ("\\<\\(import\\|no\\|require\\|use\\)\\>[ \t]*\\(\\sw+\\)?"
+    ("\\(^\\|[^$@%&\\]\\)\\<\\(import\\|no\\|require\\|use\\)\\>[ \t]*\\(\\sw+\\)?"
      (1 font-lock-keyword-face) (2 font-lock-constant-face nil t)))
   "Subdued level highlighting for Perl mode.")
 
@@ -233,7 +235,7 @@
                                                       (match-beginning 0))))))
                             (string-to-syntax ". p"))))
       ;; Handle funny names like $DB'stop.
-      ("\\$ ?{?^?[_[:alpha:]][_[:alnum:]]*\\('\\)[_[:alpha:]]" (1 "_"))
+      ("\\$ ?{?\\^?[_[:alpha:]][_[:alnum:]]*\\('\\)[_[:alpha:]]" (1 "_"))
       ;; format statements
       ("^[ \t]*format.*=[ \t]*\\(\n\\)"
        (1 (prog1 "\"" (perl-syntax-propertize-special-constructs end))))
@@ -321,8 +323,8 @@
               (cons (car (string-to-syntax "< c"))
                     ;; Remember the names of heredocs found on this line.
                     (cons (cons (pcase (aref name 0)
-                                  (`?\\ (substring name 1))
-                                  ((or `?\" `?\' `?\`) (substring name 1 -1))
+                                  (?\\ (substring name 1))
+                                  ((or ?\" ?\' ?\`) (substring name 1 -1))
                                   (_ name))
                                 indented)
                           (cdr st)))))))
@@ -498,7 +500,7 @@
   "Indentation of Perl statements with respect to containing block."
   :type 'integer)
 
-;; Is is not unusual to put both things like perl-indent-level and
+;; It is not unusual to put both things like perl-indent-level and
 ;; cperl-indent-level in the local variable section of a file. If only
 ;; one of perl-mode and cperl-mode is in use, a warning will be issued
 ;; about the variable. Autoload these here, so that no warning is
@@ -579,6 +581,74 @@ create a new comment."
   (save-excursion
     (if (re-search-backward "^sub[ \t]+\\([^({ \t\n]+\\)" nil t)
 	(match-string-no-properties 1))))
+
+
+;;; Flymake support
+(defcustom perl-flymake-command '("perl" "-w" "-c")
+  "External tool used to check Perl source code.
+This is a non empty list of strings, the checker tool possibly
+followed by required arguments.  Once launched it will receive
+the Perl source to be checked as its standard input."
+  :version "26.1"
+  :group 'perl
+  :type '(repeat string))
+
+(defvar-local perl--flymake-proc nil)
+
+;;;###autoload
+(defun perl-flymake (report-fn &rest _args)
+  "Perl backend for Flymake.  Launches
+`perl-flymake-command' (which see) and passes to its standard
+input the contents of the current buffer.  The output of this
+command is analyzed for error and warning messages."
+  (unless (executable-find (car perl-flymake-command))
+    (error "Cannot find a suitable checker"))
+
+  (when (process-live-p perl--flymake-proc)
+    (kill-process perl--flymake-proc))
+
+  (let ((source (current-buffer)))
+    (save-restriction
+      (widen)
+      (setq
+       perl--flymake-proc
+       (make-process
+        :name "perl-flymake" :noquery t :connection-type 'pipe
+        :buffer (generate-new-buffer " *perl-flymake*")
+        :command perl-flymake-command
+        :sentinel
+        (lambda (proc _event)
+          (when (eq 'exit (process-status proc))
+            (unwind-protect
+                (if (with-current-buffer source (eq proc perl--flymake-proc))
+                    (with-current-buffer (process-buffer proc)
+                      (goto-char (point-min))
+                      (cl-loop
+                       while (search-forward-regexp
+                              "^\\(.+\\) at - line \\([0-9]+\\)"
+                              nil t)
+                       for msg = (match-string 1)
+                       for (beg . end) = (flymake-diag-region
+                                          source
+                                          (string-to-number (match-string 2)))
+                       for type =
+                       (if (string-match
+                            "\\(Scalar value\\|Useless use\\|Unquoted string\\)"
+                            msg)
+                           :warning
+                         :error)
+                       collect (flymake-make-diagnostic source
+                                                        beg
+                                                        end
+                                                        type
+                                                        msg)
+                       into diags
+                       finally (funcall report-fn diags)))
+                  (flymake-log :debug "Canceling obsolete check %s"
+                               proc))
+              (kill-buffer (process-buffer proc)))))))
+      (process-send-region perl--flymake-proc (point-min) (point-max))
+      (process-send-eof perl--flymake-proc))))
 
 
 (defvar perl-mode-hook nil
@@ -665,7 +735,9 @@ Turning on Perl mode runs the normal hook `perl-mode-hook'."
   ;; Setup outline-minor-mode.
   (setq-local outline-regexp perl-outline-regexp)
   (setq-local outline-level 'perl-outline-level)
-  (setq-local add-log-current-defun-function #'perl-current-defun-name))
+  (setq-local add-log-current-defun-function #'perl-current-defun-name)
+  ;; Setup Flymake
+  (add-hook 'flymake-diagnostic-functions #'perl-flymake nil t))
 
 ;; This is used by indent-for-comment
 ;; to decide how much to indent a comment in Perl code
@@ -675,10 +747,10 @@ Turning on Perl mode runs the normal hook `perl-mode-hook'."
       0					;Existing comment at bol stays there.
     comment-column))
 
-(define-obsolete-function-alias 'electric-perl-terminator
-  'perl-electric-terminator "22.1")
 (defun perl-electric-noindent-p (_char)
-  (unless (eolp) 'no-indent))
+  ;; To reproduce the old behavior, ;, {, }, and : are made electric, but
+  ;; we only want them to be electric at EOL.
+  (unless (or (bolp) (eolp)) 'no-indent))
 
 (defun perl-electric-terminator (arg)
   "Insert character and maybe adjust indentation.
@@ -863,15 +935,24 @@ changed by, or (parse-state) if line starts in a quoted string."
 In usual case returns an integer: the column to indent to.
 Returns (parse-state) if line starts inside a string."
   (save-excursion
-    (let ((indent-point (point))
-	  (case-fold-search nil)
-	  (colon-line-end 0)
-          prev-char
-	  state containing-sexp)
-      (setq containing-sexp (nth 1 (syntax-ppss indent-point)))
+    (let* ((indent-point (point))
+	   (case-fold-search nil)
+	   (colon-line-end 0)
+           prev-char
+	   (state (syntax-ppss))
+	   (containing-sexp (nth 1 state))
+	   ;; Don't auto-indent in a quoted string or a here-document.
+	   (unindentable (or (nth 3 state) (eq 2 (nth 7 state)))))
+      (when (and (eq t (nth 3 state))
+                 (save-excursion
+                   (goto-char (nth 8 state))
+                   (looking-back "qw[ \t]*" (- (point) 4))))
+        ;; qw(...) is a list of words so the spacing is not meaningful,
+        ;; and makes indentation possible (and desirable).
+        (setq unindentable nil)
+        (setq containing-sexp (nth 8 state)))
       (cond
-       ;; Don't auto-indent in a quoted string or a here-document.
-       ((or (nth 3 state) (eq 2 (nth 7 state))) 'noindent)
+       (unindentable 'noindent)
        ((null containing-sexp)          ; Line is at top level.
         (skip-chars-forward " \t\f")
         (if (memq (following-char)
@@ -893,7 +974,11 @@ Returns (parse-state) if line starts inside a string."
             ;;             arg2
             ;;         );
             (progn
-              (skip-syntax-backward "(")
+              ;; Go just before the open paren (don't rely on the
+              ;; skip-syntax-backward to jump over it, because it could
+              ;; have string-fence syntax instead!).
+              (goto-char containing-sexp)
+              (skip-syntax-backward "(") ;FIXME: Not sure if still want this.
               (condition-case nil
                   (while (save-excursion
                            (skip-syntax-backward " ") (not (bolp)))
@@ -935,8 +1020,8 @@ Returns (parse-state) if line starts inside a string."
            ;; Skip over comments and labels following openbrace.
            (while (progn
                     (skip-chars-forward " \t\f\n")
-                    (cond ((looking-at ";?#")
-                           (forward-line 1) t)
+                    (cond ((looking-at ";?#\\|^=\\w+")
+                           (forward-comment 1) t)
                           ((looking-at "\\(\\w\\|\\s_\\)+:[^:]")
                            (setq colon-line-end (line-end-position))
                            (search-forward ":")))))

@@ -1,6 +1,6 @@
 ;;; notifications.el --- Client interface to desktop notifications.
 
-;; Copyright (C) 2010-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2010-2020 Free Software Foundation, Inc.
 
 ;; Author: Julien Danjou <julien@danjou.info>
 ;; Keywords: comm desktop notifications
@@ -18,7 +18,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -232,8 +232,8 @@ of another `notifications-notify' call."
 	(add-to-list 'hints `(:dict-entry
 			      "urgency"
 			      (:variant :byte ,(pcase urgency
-						 (`low 0)
-						 (`critical 2)
+						 ('low 0)
+						 ('critical 2)
 						 (_ 1)))) t))
       (when category
 	(add-to-list 'hints `(:dict-entry

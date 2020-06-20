@@ -1,6 +1,6 @@
 @c -*- coding: utf-8 -*-
 @c This is part of the Emacs manual.
-@c Copyright (C) 1994-1997, 1999-2017 Free Software Foundation, Inc.
+@c Copyright (C) 1994--1997, 1999--2020 Free Software Foundation, Inc.
 @c See file emacs.texi for copying conditions.
 @c
 @node Acknowledgments
@@ -209,8 +209,8 @@ for Korean Hanja.
 
 @item
 Andrew Choi and Yamamoto Mitsuharu wrote the Carbon support, used
-prior to Emacs 23 for Mac OS@.  Yamamoto Mitsuharu continued to
-contribute to Mac OS support in the newer Nextstep port; and also
+prior to Emacs 23 for macOS@.  Yamamoto Mitsuharu continued to
+contribute to macOS support in the newer Nextstep port; and also
 improved support for multi-monitor displays.
 
 @item
@@ -234,6 +234,12 @@ use it, Snake and Tetris.
 @item
 Andrew Cohen wrote @file{spam-wash.el}, to decode and clean email before
 it is analyzed for spam.
+
+@item
+Daniel Colascione wrote the portable dumping code in @file{pdumper.c}
+and elsewhere.  He also implemented double-buffering for X-based GUI
+frames, and the original support for loading shared-object modules
+into Emacs.
 
 @item
 Theresa O'Connor wrote @file{json.el}, a file for parsing and
@@ -503,8 +509,8 @@ Tassilo Horn wrote DocView mode, allowing viewing of PDF, PostScript and
 DVI documents.
 
 @item
-Tom Houlder wrote @file{mantemp.el}, which generates manual C@t{++}
-template instantiations.
+Khaled Hosny, Yamamoto Mitsuharu, and Eli Zaretskii implemented
+text shaping with HarfBuzz for Emacs.
 
 @item
 Joakim Hove wrote @file{html2text.el}, a html to plain text converter.
@@ -706,7 +712,9 @@ files.
 Juri Linkov wrote @file{misearch.el}, extending isearch to multi-buffer
 searches; the code in @file{files-x.el} for handling file- and
 directory-local variables; and the @code{info-finder} feature that
-creates a virtual Info manual of package keywords.
+creates a virtual Info manual of package keywords.  He also
+implemented the Tab Bar and window tab-lines, and added numerous
+enhancements and improvements in I-search.
 
 @item
 Leo Liu wrote @file{pcmpl-x.el}, providing completion for
@@ -822,6 +830,11 @@ major modes by inheriting key bindings and commands from existing major
 modes.
 
 @item
+Jimmy Aguilar Mena wrote the code to support the @code{:extend} face
+attribute, and also implemented the optional
+@code{display-fill-column-indicator} feature.
+
+@item
 Will Mengarini wrote @file{repeat.el}, a command to repeat the preceding
 command with its arguments.
 
@@ -829,8 +842,8 @@ command with its arguments.
 Richard Mlynarik wrote @file{cl-indent.el}, a package for indenting
 Common Lisp code; @file{ebuff-menu.el}, an electric browser for
 buffer listings; @file{ehelp.el}, bindings for browsing help screens;
-and @file{rfc822.el}, a parser for E-mail addresses in the RFC-822 format,
-used in mail messages and news articles.
+and @file{rfc822.el}, a parser for E-mail addresses in the format
+used in mail messages and news articles (Internet RFC 822 and its successors).
 
 @item
 Gerd Möllmann was the Emacs maintainer from the beginning of Emacs 21
@@ -1088,6 +1101,10 @@ Kevin Ryde wrote @file{info-xref.el}, a library for checking
 references in Info files.
 
 @item
+Phil Sainty wrote @file{so-long.el}, a set of features for easier
+editing of files with very long lines.
+
+@item
 James B. Salem and Brewster Kahle wrote @file{completion.el}, providing
 dynamic word completion.
 
@@ -1237,6 +1254,10 @@ buffers.
 @item
 Tibor Šimko and Milan Zamazal wrote @file{slovak.el}, support for
 editing text in Slovak language.
+
+@item
+João Távora wrote many improvements for @file{flymake.el}, an
+on-the-fly syntax-checking package.
 
 @item
 Luc Teirlinck wrote @file{help-at-pt.el}, providing local help through
@@ -1418,8 +1439,8 @@ zone out in front of Emacs.
 Eli Zaretskii made many standard Emacs features work on MS-DOS and
 Microsoft Windows.  He also wrote @file{tty-colors.el}, which
 implements transparent mapping of X colors to tty colors; and
-@file{rxvt.el}.  He implemented support for bidirectional text,
-and also menus on text-mode terminals.
+@file{rxvt.el}.  He implemented support for bidirectional text, menus
+on text-mode terminals, and built-in display of line numbers.
 
 @item
 Jamie Zawinski wrote much of the support for faces and X selections.

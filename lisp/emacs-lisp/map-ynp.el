@@ -1,6 +1,6 @@
 ;;; map-ynp.el --- general-purpose boolean question-asker  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1991-1995, 2000-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1991-1995, 2000-2020 Free Software Foundation, Inc.
 
 ;; Author: Roland McGrath <roland@gnu.org>
 ;; Maintainer: emacs-devel@gnu.org
@@ -20,7 +20,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -79,6 +79,7 @@ are meaningful here.
 
 Returns the number of actions taken."
   (let* ((actions 0)
+         (msg (current-message))
 	 user-keys mouse-event map prompt char elt def
 	 ;; Non-nil means we should use mouse menus to ask.
 	 use-menus
@@ -191,34 +192,30 @@ Returns the number of actions taken."
 				  (funcall actor elt)
 				  (setq actions (1+ actions))))))
 			 ((eq def 'help)
-			  (with-output-to-temp-buffer "*Help*"
+                          (with-help-window (help-buffer)
 			    (princ
-			     (let ((object (if help (nth 0 help) "object"))
-				   (objects (if help (nth 1 help) "objects"))
-				   (action (if help (nth 2 help) "act on")))
+                             (let ((object  (or (nth 0 help) "object"))
+                                   (objects (or (nth 1 help) "objects"))
+                                   (action  (or (nth 2 help) "act on")))
 			       (concat
-				(format-message "\
+                                (format-message
+                                 "\
 Type SPC or `y' to %s the current %s;
 DEL or `n' to skip the current %s;
-RET or `q' to give up on the %s (skip all remaining %s);
+RET or `q' to skip the current and all remaining %s;
 C-g to quit (cancel the whole command);
 ! to %s all remaining %s;\n"
-					action object object action objects action
-					objects)
-				(mapconcat (function
-					    (lambda (elt)
-					      (format "%s to %s"
-						      (single-key-description
-						       (nth 0 elt))
-						      (nth 2 elt))))
+                                 action object object objects action objects)
+                                (mapconcat (lambda (elt)
+                                             (format "%s to %s;\n"
+                                                     (single-key-description
+                                                      (nth 0 elt))
+                                                     (nth 2 elt)))
 					   action-alist
-					   ";\n")
-				(if action-alist ";\n")
-				(format "or . (period) to %s \
-the current %s and exit."
-					action object))))
-			    (with-current-buffer standard-output
-			      (help-mode)))
+                                           "")
+                                (format
+                                 "or . (period) to %s the current %s and exit."
+                                 action object)))))
 
 			  (funcall try-again))
 			 ((and (symbolp def) (commandp def))
@@ -250,10 +247,154 @@ the current %s and exit."
       (if delayed-switch-frame
 	  (setq unread-command-events
 		(cons delayed-switch-frame unread-command-events))))
-    ;; Clear the last prompt from the minibuffer.
+    ;; Clear the last prompt from the minibuffer, and restore the
+    ;; previous echo-area message, if any.
     (let ((message-log-max nil))
-      (message ""))
+      (if msg
+          (message "%s" msg)
+        (message "")))
     ;; Return the number of actions that were taken.
     actions))
+
+
+;; read-answer is a general-purpose question-asker that supports
+;; either long or short answers.
+
+;; For backward compatibility check if short y/n answers are preferred.
+(defcustom read-answer-short 'auto
+  "If non-nil, `read-answer' accepts single-character answers.
+If t, accept short (single key-press) answers to the question.
+If nil, require long answers.  If `auto', accept short answers if
+the function cell of `yes-or-no-p' is set to `y-or-n-p'."
+  :type '(choice (const :tag "Accept short answers" t)
+                 (const :tag "Require long answer" nil)
+                 (const :tag "Guess preference" auto))
+  :version "26.2"
+  :group 'minibuffer)
+
+(defconst read-answer-map--memoize (make-hash-table :weakness 'key :test 'equal))
+
+(defun read-answer (question answers)
+  "Read an answer either as a complete word or its character abbreviation.
+Ask user a question and accept an answer from the list of possible answers.
+
+QUESTION should end in a space; this function adds a list of answers to it.
+
+ANSWERS is an alist with elements in the following format:
+  (LONG-ANSWER SHORT-ANSWER HELP-MESSAGE)
+where
+  LONG-ANSWER is a complete answer,
+  SHORT-ANSWER is an abbreviated one-character answer,
+  HELP-MESSAGE is a string describing the meaning of the answer.
+
+SHORT-ANSWER is not necessarily a single character answer.  It can be
+also a function key like F1, a character event such as C-M-h, or
+a control character like C-h.
+
+Example:
+  \\='((\"yes\"  ?y \"perform the action\")
+    (\"no\"   ?n \"skip to the next\")
+    (\"all\"  ?! \"accept all remaining without more questions\")
+    (\"help\" ?h \"show help\")
+    (\"quit\" ?q \"exit\"))
+
+When `read-answer-short' is non-nil, accept short answers.
+
+Return a long answer even in case of accepting short ones.
+
+When `use-dialog-box' is t, pop up a dialog window to get user input."
+  (let* ((short (if (eq read-answer-short 'auto)
+                    (eq (symbol-function 'yes-or-no-p) 'y-or-n-p)
+                  read-answer-short))
+         (answers-with-help
+          (if (assoc "help" answers)
+              answers
+            (append answers '(("help" ?? "show this help message")))))
+         (answers-without-help
+          (assoc-delete-all "help" (copy-alist answers-with-help)))
+         (prompt
+          (format "%s(%s) " question
+                  (mapconcat (lambda (a)
+                               (if short
+                                   (if (characterp (nth 1 a))
+                                       (format "%c" (nth 1 a))
+                                     (key-description (nth 1 a)))
+                                 (nth 0 a)))
+                             answers-with-help ", ")))
+         (message
+          (format "Please answer %s."
+                  (mapconcat (lambda (a)
+                               (format "`%s'" (if short
+                                                  (if (characterp (nth 1 a))
+                                                      (string (nth 1 a))
+                                                    (key-description (nth 1 a)))
+                                                (nth 0 a))))
+                             answers-with-help " or ")))
+         (short-answer-map
+          (when short
+            (or (gethash answers read-answer-map--memoize)
+                (puthash answers
+                         (let ((map (make-sparse-keymap)))
+                           (set-keymap-parent map minibuffer-local-map)
+                           (dolist (a answers-with-help)
+                             (define-key map (if (characterp (nth 1 a))
+                                                 (vector (nth 1 a))
+                                               (nth 1 a))
+                               (lambda ()
+                                 (interactive)
+                                 (delete-minibuffer-contents)
+                                 (insert (nth 0 a))
+                                 (exit-minibuffer))))
+                           (define-key map [remap self-insert-command]
+                             (lambda ()
+                               (interactive)
+                               (delete-minibuffer-contents)
+                               (beep)
+                               (message message)
+                               (sit-for 2)))
+                           map)
+                         read-answer-map--memoize))))
+         answer)
+    (while (not (assoc (setq answer (downcase
+                                     (cond
+                                      ((and (display-popup-menus-p)
+                                            last-input-event ; not during startup
+                                            (listp last-nonmenu-event)
+                                            use-dialog-box)
+                                       (x-popup-dialog
+                                        t
+                                        (cons question
+                                              (mapcar (lambda (a)
+                                                        (cons (capitalize (nth 0 a))
+                                                              (nth 0 a)))
+                                                      answers-with-help))))
+                                      (short
+                                       (read-from-minibuffer
+                                        prompt nil short-answer-map nil
+                                        'read-char-history))
+                                      (t
+                                       (read-from-minibuffer
+                                        prompt nil nil nil
+                                        'yes-or-no-p-history)))))
+                       answers-without-help))
+      (if (string= answer "help")
+          (with-help-window "*Help*"
+            (with-current-buffer "*Help*"
+              (insert "Type:\n"
+                      (mapconcat
+                       (lambda (a)
+                         (format "`%s'%s to %s"
+                                 (if short (if (characterp (nth 1 a))
+                                               (string (nth 1 a))
+                                             (key-description (nth 1 a)))
+                                   (nth 0 a))
+                                 (if short (format " (%s)" (nth 0 a)) "")
+                                 (nth 2 a)))
+                       answers-with-help ",\n")
+                      ".\n")))
+        (beep)
+        (message message)
+        (sit-for 2)))
+    answer))
 
 ;;; map-ynp.el ends here

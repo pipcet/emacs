@@ -1,6 +1,6 @@
 ;;; scheme.by -- Scheme BNF language specification
 
-;; Copyright (C) 2001-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2001-2020 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -15,10 +15,15 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 %package semantic-scm-by
 %provide semantic/bovine/scm-by
+
+%{
+(declare-function semantic-parse-region "semantic"
+		  (start end &optional nonterminal depth returnonerror))
+}
 
 %languagemode  scheme-mode
 %start         scheme
@@ -67,6 +72,8 @@ scheme-in-list: DEFINE symbol expression
 		(INCLUDE-TAG (file-name-nondirectory (read $2)) (read $2) )
 	      | symbol sequence
 		(CODE-TAG $1 nil)
+	      | ;; No match, error
+		(TAG "Bad Tag in Sexp" 'error)
 	      ;
 
 name-args: semantic-list
@@ -98,4 +105,3 @@ expression : symbol
 	   ;
 
 ;;; scheme.by ends here
-

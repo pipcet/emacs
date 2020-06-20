@@ -10,7 +10,7 @@
 @copying
 This manual is for Eshell, the Emacs shell.
 
-Copyright @copyright{} 1999--2017 Free Software Foundation, Inc.
+Copyright @copyright{} 1999--2020 Free Software Foundation, Inc.
 
 @quotation
 Permission is granted to copy, distribute and/or modify this document
@@ -142,24 +142,6 @@ Any tool you use often deserves the time spent learning to master it.
 looks like: But don't let it fool you; once you know what's going on,
 it's easier than it looks: @code{ls -lt **/*.doc(Lk+50aM+5)}.}
 
-@section What Eshell is not
-@cindex Eshell, what it is not
-@cindex what Eshell is not
-@cindex what isn't Eshell?
-
-Eshell is @emph{not} a replacement for system shells such as
-@command{bash} or @command{zsh}.  Use Eshell when you want to move
-text between Emacs and external processes; if you only want to pipe
-output from one external process to another (and then another, and so
-on), use a system shell, because Emacs's IO system is buffer oriented,
-not stream oriented, and is very inefficient at such tasks.  If you
-want to write shell scripts in Eshell, don't; either write an elisp
-library or use a system shell.
-
-Some things Eshell just doesn't do well.  It fills the niche between
-IELM and your system shell, where the peculiar use-cases lie, and it
-is less than ideal outside that niche.
-
 @menu
 * Contributors to Eshell::      People who have helped out!
 @end menu
@@ -176,6 +158,9 @@ this package.
 The following persons have made contributions to Eshell.
 
 @itemize @bullet
+@item
+John Wiegley is the original author of Eshell.
+
 @item
 Eli Zaretskii made it possible for Eshell to run without requiring
 asynchronous subprocess support.  This is important for MS-DOS, which
@@ -195,9 +180,6 @@ integration with Emacs 21.
 @item
 Alex Schroeder contributed code for interactively querying the user
 before overwriting files.
-
-@item
-Sudish Joseph helped with some XEmacs compatibility issues.
 @end itemize
 
 Apart from these, a lot of people have sent suggestions, ideas,
@@ -231,8 +213,8 @@ available in the Emacs Lisp library.  It does this by transforming the
 input line into a callable Lisp form.@footnote{To see the Lisp form that will be invoked, type: @samp{eshell-parse-command "echo hello"}}
 
 The command can be either an Elisp function or an external command.
-Eshell looks first for an @ref{Aliases, alias} with the same name as the
-command, then a @ref{Built-ins, built-in command} or a function with the
+Eshell looks first for an alias (@pxref{Aliases}) with the same name as the
+command, then a built-in (@pxref{Built-ins}) or a function with the
 same name; if there is no match, it then tries to execute it as an
 external command.
 
@@ -257,7 +239,6 @@ especially for file names with special characters like pipe
 (@code{|}), which could be part of remote file names.
 
 @node Built-ins
-
 @section Built-in commands
 Several commands are built-in in Eshell.  In order to call the
 external variant of a built-in command @code{foo}, you could call
@@ -272,11 +253,11 @@ eshell/ls is a compiled Lisp function in `em-ls.el'
 @end example
 
 If you want to discard a given built-in command, you could declare an
-alias, @ref{Aliases}.  Example:
+alias (@pxref{Aliases}).  Example:
 
 @example
 ~ $ which sudo
-eshell/sudo is a compiled Lisp function in `em-unix.el'
+eshell/sudo is a compiled Lisp function in `em-tramp.el'.
 ~ $ alias sudo '*sudo $*'
 ~ $ which sudo
 sudo is an alias, defined as "*sudo $*"
@@ -299,8 +280,7 @@ with no arguments, prints the current paths in this variable.
 
 @item alias
 @cmindex alias
-Define an alias (@pxref{Aliases}).  This does not add it to the aliases
-file.
+Define an alias (@pxref{Aliases}).  This adds it to the aliases file.
 
 @item clear
 @cmindex clear
@@ -349,7 +329,7 @@ List subprocesses of the Emacs process, if any, using the function
 @item kill
 @cmindex kill
 Kill processes.  Takes a PID or a process object and an optional
-signal specifier.
+signal specifier which can either be a number or a signal name.
 
 @item listify
 @cmindex listify
@@ -365,8 +345,9 @@ Alias to Emacs's @code{locate} function, which simply runs the external
 
 @item make
 @cmindex make
-Run @command{make} through @code{compile}.
-@xref{Compilation, , , emacs, The GNU Emacs Manual}.
+Run @command{make} through @code{compile} when run asynchronously
+(e.g., @samp{make &}).  @xref{Compilation, , , emacs, The GNU Emacs
+Manual}.  Otherwise call the external @command{make} command.
 
 @item occur
 @cmindex occur
@@ -437,6 +418,9 @@ Lisp functions, based on successful completion).
 
 @end table
 
+@xref{Aliases}, for the built-in variables @samp{$*}, @samp{$1},
+@samp{$2}, @dots{}, in alias definitions.
+
 @node Variables
 @section Variables
 Since Eshell is just an Emacs REPL@footnote{Read-Eval-Print Loop}, it
@@ -447,14 +431,23 @@ would in an Elisp program.  Eshell provides a command version of
 @node Aliases
 @section Aliases
 
+@vindex $*
 Aliases are commands that expand to a longer input line.  For example,
 @command{ll} is a common alias for @code{ls -l}, and would be defined
-with the command invocation @samp{alias ll ls -l}; with this defined,
+with the command invocation @kbd{alias ll 'ls -l $*'}; with this defined,
 running @samp{ll foo} in Eshell will actually run @samp{ls -l foo}.
 Aliases defined (or deleted) by the @command{alias} command are
 automatically written to the file named by @code{eshell-aliases-file},
 which you can also edit directly (although you will have to manually
 reload it).
+
+@vindex $1, $2, @dots{}
+Note that unlike aliases in Bash, arguments must be handled
+explicitly.  Typically the alias definition would end in @samp{$*} to
+pass all arguments along.  More selective use of arguments via
+@samp{$1}, @samp{$2}, etc., is also possible.  For example,
+@kbd{alias mcd 'mkdir $1 && cd $1'} would cause @kbd{mcd foo} to
+create and switch to a directory called @samp{foo}.
 
 @node History
 @section History
@@ -469,10 +462,14 @@ The n-th entry of the history ring can be applied with the @samp{!n}
 command.  If @code{n} is negative, the entry is counted from the end
 of the history ring.
 
-@samp{!foo} expands to the last command beginning with @code{foo}, and
-@samp{!?foo} to the last command containing @code{foo}.  The n-th
-argument of the last command beginning with @code{foo} is accessible
-by @code{!foo:n}.
+@cindex event designators
+@findex eshell-expand-history-references
+When history event designators are enabled (by adding
+@code{eshell-expand-history-references} to
+@code{eshell-expand-input-functions}), @samp{!foo} expands to the last
+command beginning with @code{foo}, and @samp{!?foo} to the last
+command containing @code{foo}.  The n-th argument of the last command
+beginning with @code{foo} is accessible by @code{!foo:n}.
 
 The history ring is loaded from a file at the start of every session,
 and written back to the file at the end of every session.  The file path
@@ -506,15 +503,14 @@ be directories @emph{and} files.  Eshell provides predefined completions
 for the built-in functions and some common external commands, and you
 can define your own for any command.
 
-Eshell completion also works for lisp forms and glob patterns. If the
-point is on a lisp form, then @key{TAB} will behave similarly to completion
-in @code{elisp-mode} and @code{lisp-interaction-mode}.  For glob
-patterns, If there are few enough possible completions of the patterns,
-they will be cycled when @key{TAB} is pressed, otherwise it will be removed
-from the input line and the possible completions will be listed.
+Eshell completion also works for lisp forms and glob patterns. If the point is
+on a lisp form, then @key{TAB} will behave similarly to completion in
+@code{elisp-mode} and @code{lisp-interaction-mode}.  For glob patterns, the
+pattern will be removed from the input line, and replaced by the
+completion.
 
-If you want to see the entire list of possible completions when it's
-below the cycling threshold, press @kbd{M-?}.
+If you want to see the entire list of possible completions (e.g. when it's
+below the @code{completion-cycle-threshold}), press @kbd{M-?}.
 
 @subsection pcomplete
 Pcomplete, short for programmable completion, is the completion
@@ -636,8 +632,8 @@ to @code{"hello"}.
 Eshell's globbing syntax is very similar to that of Zsh.  Users coming
 from Bash can still use Bash-style globbing, as there are no
 incompatibilities.  Most globbing is pattern-based expansion, but there
-is also predicate-based expansion.  See
-@ref{Filename Generation, , , zsh, The Z Shell Manual}
+is also predicate-based expansion.  @xref{Filename Generation, , ,
+zsh, The Z Shell Manual},
 for full syntax.  To customize the syntax and behavior of globbing in
 Eshell see the Customize@footnote{@xref{Easy Customization, , , emacs,
 The GNU Emacs Manual}.}
@@ -808,16 +804,6 @@ general.  If I change the call to @code{eshell-copy-handles} in
 to work, but the output occurs after the prompt is displayed.  The whole
 structured command thing is too complicated at present.
 
-@item Error with @command{bc} in @code{eshell-test}
-
-On some XEmacs system, the subprocess interaction test fails
-inexplicably, although @command{bc} works fine at the command prompt.
-
-@item Eshell does not delete @file{*Help*} buffers in XEmacs 21.1.8+
-
-In XEmacs 21.1.8, the @file{*Help*} buffer has been renamed such that
-multiple instances of the @file{*Help*} buffer can exist.
-
 @item Pcomplete sometimes gets stuck
 
 You press @key{TAB}, but no completions appear, even though the
@@ -857,7 +843,7 @@ since.
 
 Make it so that the Lisp command on the right of the pipe is repeatedly
 called with the input strings as arguments.  This will require changing
-@code{eshell-do-pipeline} to handle non-process targets.
+@code{eshell-do-pipelines} to handle non-process targets.
 
 @item Input redirection is not supported
 
@@ -901,7 +887,7 @@ will happen as it should (albeit slowly).
 
 @item Make sure syntax table is correct in Eshell mode
 
-So that @kbd{M-DEL} acts in a predictable manner, etc.
+So that @kbd{M-@key{DEL}} acts in a predictable manner, etc.
 
 @item Allow all Eshell buffers to share the same history and list-dir
 
@@ -915,19 +901,19 @@ output from all subsequent commands is swallowed.
 Make it similar to the way that @file{esh-arg.el} is structured.
 Then add parsing of @samp{$[?\n]}.
 
-@item After pressing @kbd{M-RET}, redisplay before running the next command
+@item After pressing @kbd{M-@key{RET}}, redisplay before running the next command
 
 @item Argument predicates and modifiers should work anywhere in a path
 
 @example
-/usr/local/src/editors/vim $ vi **/CVS(/)/Root(.)
-Invalid regexp: "Unmatched ( or \\("
+/usr/local/src/editors/vim $ vi **/CVS(/)/Root(.)  Invalid regexp:
+"Unmatched ( or \\("
 @end example
 
 With @command{zsh}, the glob above expands to all files named
 @file{Root} in directories named @file{CVS}.
 
-@item Typing @samp{echo $@{locate locate@}/bin<TAB>} results in a Lisp error
+@item Typing @samp{echo $@{locate locate@}/bin@key{TAB}} results in a Lisp error
 
 Perhaps it should interpolate all permutations, and make that the
 globbing result, since otherwise hitting return here will result in
@@ -967,7 +953,7 @@ At the moment, this is not supported.
 An error should be generated only if @code{eshell-error-if-no-glob} is
 non-@code{nil}.
 
-@item @samp{(+ RET SPC TAB} does not cause @code{indent-according-to-mode} to occur
+@item @samp{(+ @key{RET} @key{SPC} @key{TAB}} does not cause @code{indent-according-to-mode} to occur
 
 @item Create @code{eshell-auto-accumulate-list}
 
@@ -1029,7 +1015,7 @@ So that the user can enter @samp{info chmod}, for example.
 
 @item Create a mode @code{eshell-browse}
 
-It would treat the Eshell buffer as a outline.  Collapsing the outline
+It would treat the Eshell buffer as an outline.  Collapsing the outline
 hides all of the output text.  Collapsing again would show only the
 first command run in each directory
 
@@ -1179,8 +1165,8 @@ only.  That way, it could be listed as a login shell.
 @item Make @kbd{/} electric
 
 So that it automatically expands and corrects pathnames.  Or make
-pathname completion for Pcomplete auto-expand @samp{/u/i/std<TAB>} to
-@samp{/usr/include/std<TAB>}.
+pathname completion for Pcomplete auto-expand @samp{/u/i/std@key{TAB}} to
+@samp{/usr/include/std@key{TAB}}.
 
 @item Write the @command{pushd} stack to disk along with @code{last-dir-ring}
 
@@ -1211,7 +1197,7 @@ perform this on-thy-fly rewriting.
 
 @item Write an alias for @command{less} that brings up a @code{view-mode} buffer
 
-Such that the user can press @key{SPC} and @key{DEL}, and then @key{q}
+Such that the user can press @key{SPC} and @key{DEL}, and then @kbd{q}
 to return to Eshell.  It would be equivalent to:
 @samp{X > #<buffer Y>; view-buffer #<buffer Y>}.
 
@@ -1228,7 +1214,7 @@ If the first thing that I do after entering Emacs is to run
 @code{eshell-command} and invoke @command{ls}, and then use @kbd{M-x
 eshell}, it doesn't display anything.
 
-@item @kbd{M-RET} during a long command (using smart display) doesn't work
+@item @kbd{M-@key{RET}} during a long command (using smart display) doesn't work
 
 Since it keeps the cursor up where the command was invoked.
 

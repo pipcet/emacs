@@ -1,6 +1,6 @@
 ;;; alloc-tests.el --- alloc tests -*- lexical-binding: t -*-
 
-;; Copyright (C) 2015-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2015-2020 Free Software Foundation, Inc.
 
 ;; Author: Daniel Colascione <dancol@dancol.org>
 ;; Keywords:
@@ -18,7 +18,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -51,3 +51,10 @@
     (should-not (eq x y))
     (dotimes (i 4)
       (should (eql (aref x i) (aref y i))))))
+
+;; Bug#39207
+(ert-deftest aset-nbytes-change ()
+  (let ((s (make-string 1 ?a)))
+    (dolist (c (list 10003 ?b 128 ?c ?d (max-char) ?e))
+      (aset s 0 c)
+      (should (equal s (make-string 1 c))))))

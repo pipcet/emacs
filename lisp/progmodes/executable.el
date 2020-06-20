@@ -1,6 +1,6 @@
-;;; executable.el --- base functionality for executable interpreter scripts -*- byte-compile-dynamic: t -*-
+;;; executable.el --- base functionality for executable interpreter scripts
 
-;; Copyright (C) 1994-1996, 2000-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1994-1996, 2000-2020 Free Software Foundation, Inc.
 
 ;; Author: Daniel Pfeiffer <occitan@esperanto.org>
 ;; Keywords: languages, unix
@@ -18,7 +18,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -155,7 +155,7 @@ See `compilation-error-regexp-alist'.")
 If PROGRAM is non-nil, use that instead of \"find\"."
   ;;  Pick file to search from location we know
   (let* ((dir (file-truename data-directory))
-         (file (car (directory-files dir nil "^[^.]"))))
+         (file (car (directory-files dir nil "\\`[^.]"))))
     (with-temp-buffer
       (call-process (or program "find")
                     nil
@@ -228,8 +228,8 @@ executable."
 			 (and argument (string< "" argument) " ")
 			 argument))
 
-  ;; For backward compatibilty, allow `executable-prefix-env' to be
-  ;; overriden by custom `executable-prefix'.
+  ;; For backward compatibility, allow `executable-prefix-env' to be
+  ;; overridden by custom `executable-prefix'.
   (if (string-match "#!\\([ \t]*/usr/bin/env[ \t]*\\)?$" executable-prefix)
       (if executable-prefix-env
           (setq argument (concat "/usr/bin/env "

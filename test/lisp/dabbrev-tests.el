@@ -1,6 +1,6 @@
-;;; dabbrev-tests.el --- Test suite for dabbrev.
+;;; dabbrev-tests.el --- Test suite for dabbrev.  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2016-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2016-2020 Free Software Foundation, Inc.
 
 ;; Author: Alan Third <alan@idiocy.org>
 ;; Keywords: dabbrev
@@ -18,7 +18,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -40,3 +40,33 @@ first expansion being replaced rather than the destination."
      ;; M-/ SPC M-/ M-/
      (execute-kbd-macro "\257 \257\257"))
    (should (string= (buffer-string) "ab  x\nab y\nab  y"))))
+
+(ert-deftest dabbrev-completion-test ()
+  "Test for bug#17899.
+dabbrev-completion should not look for expansions in other
+buffers unless a prefix argument is used."
+  (with-temp-buffer
+    (insert "axy")
+    (with-temp-buffer
+      (insert "abc\na")
+      (goto-char 6)
+      (save-window-excursion
+        (set-window-buffer nil (current-buffer))
+        ;; C-M-/
+        (execute-kbd-macro [201326639]))
+      (should (string= (buffer-string) "abc\nabc")))))
+
+(ert-deftest dabbrev-completion-test-with-argument ()
+  "Test for bug#17899.
+dabbrev-completion should not complete because it has found
+multiple expansions."
+  (with-temp-buffer
+    (insert "axy")
+    (with-temp-buffer
+      (insert "abc\na")
+      (goto-char 6)
+      (save-window-excursion
+        (set-window-buffer nil (current-buffer))
+        ;; C-u C-u C-M-/
+        (execute-kbd-macro [21 21 201326639]))
+      (should (string= (buffer-string) "abc\na")))))

@@ -1,6 +1,6 @@
 ;;; bib-mode.el --- major mode for editing bib files
 
-;; Copyright (C) 1989, 2001-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1989, 2001-2020 Free Software Foundation, Inc.
 
 ;; Author: Henry Kautz
 ;; (according to authors.el)
@@ -20,7 +20,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -198,7 +198,7 @@ named by variable `unread-bib-file'."
 
 (defvar bib-capitalize-title-stop-words
    (concat
-      "the\\|and\\|of\\|is\\|a\\|an\\|of\\|for\\|in\\|to\\|in\\|on\\|at\\|"
+      "the\\|and\\|of\\|is\\|a\\|an\\|for\\|in\\|to\\|on\\|at\\|"
       "by\\|with\\|that\\|its")
    "Words not to be capitalized in a title (unless the first word).")
 

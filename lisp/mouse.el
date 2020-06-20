@@ -1,6 +1,6 @@
 ;;; mouse.el --- window system-independent mouse support  -*- lexical-binding: t -*-
 
-;; Copyright (C) 1993-1995, 1999-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1993-1995, 1999-2020 Free Software Foundation, Inc.
 
 ;; Maintainer: emacs-devel@gnu.org
 ;; Keywords: hardware, mouse
@@ -19,7 +19,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -28,6 +28,8 @@
 ;; interpretation has been abstracted into Emacs input events.
 
 ;;; Code:
+
+(eval-when-compile (require 'rect))
 
 ;;; Utility functions.
 
@@ -41,8 +43,7 @@
 
 (defcustom mouse-yank-at-point nil
   "If non-nil, mouse yank commands yank at point instead of at click."
-  :type 'boolean
-  :group 'mouse)
+  :type 'boolean)
 
 (defcustom mouse-drag-copy-region nil
   "If non-nil, copy to kill-ring upon mouse adjustments of the region.
@@ -50,16 +51,15 @@
 This affects `mouse-save-then-kill' (\\[mouse-save-then-kill]) in
 addition to mouse drags."
   :type 'boolean
-  :version "24.1"
-  :group 'mouse)
+  :version "24.1")
 
 (defcustom mouse-1-click-follows-link 450
   "Non-nil means that clicking Mouse-1 on a link follows the link.
 
 With the default setting, an ordinary Mouse-1 click on a link
 performs the same action as Mouse-2 on that link, while a longer
-Mouse-1 click \(hold down the Mouse-1 button for more than 450
-milliseconds) performs the original Mouse-1 binding \(which
+Mouse-1 click (hold down the Mouse-1 button for more than 450
+milliseconds) performs the original Mouse-1 binding (which
 typically sets point where you click the mouse).
 
 If value is an integer, the time elapsed between pressing and
@@ -83,8 +83,7 @@ packages.  See `mouse-on-link-p' for details."
   :type '(choice (const :tag "Disabled" nil)
 		 (const :tag "Double click" double)
                  (number :tag "Single click time limit" :value 450)
-                 (other :tag "Single click" t))
-  :group 'mouse)
+                 (other :tag "Single click" t)))
 
 (defcustom mouse-1-click-in-non-selected-windows t
   "If non-nil, a Mouse-1 click also follows links in non-selected windows.
@@ -93,58 +92,64 @@ If nil, a Mouse-1 click on a link in a non-selected window performs
 the normal mouse-1 binding, typically selects the window and sets
 point at the click position."
   :type 'boolean
-  :version "22.1"
-  :group 'mouse)
+  :version "22.1")
+
+(defvar mouse--last-down nil)
 
 (defun mouse--down-1-maybe-follows-link (&optional _prompt)
+  (when mouse-1-click-follows-link
+    (setq mouse--last-down (cons (car-safe last-input-event) (current-time))))
+  nil)
+
+(defun mouse--click-1-maybe-follows-link (&optional _prompt)
   "Turn `mouse-1' events into `mouse-2' events if follows-link.
-Expects to be bound to `down-mouse-1' in `key-translation-map'."
-  (when (and mouse-1-click-follows-link
-             (eq (if (eq mouse-1-click-follows-link 'double)
-                     'double-down-mouse-1 'down-mouse-1)
-                 (car-safe last-input-event)))
-    (let ((action (mouse-on-link-p (event-start last-input-event))))
-      (when (and action
-                 (or mouse-1-click-in-non-selected-windows
-                     (eq (selected-window)
-                         (posn-window (event-start last-input-event)))))
-        (let ((timedout
-               (sit-for (if (numberp mouse-1-click-follows-link)
-                            (/ (abs mouse-1-click-follows-link) 1000.0)
-                          0))))
-          (if (if (and (numberp mouse-1-click-follows-link)
-                       (>= mouse-1-click-follows-link 0))
-                  timedout (not timedout))
-              nil
-            ;; Use read-key so it works for xterm-mouse-mode!
-            (let ((event (read-key)))
-              (if (eq (car-safe event)
-                      (if (eq mouse-1-click-follows-link 'double)
-                          'double-mouse-1 'mouse-1))
-                  (progn
-                    ;; Turn the mouse-1 into a mouse-2 to follow links,
-                    ;; but only if ‘mouse-on-link-p’ hasn’t returned a
-                    ;; string or vector (see its docstring).
-                    (if (or (stringp action) (vectorp action))
-                        (push (aref action 0) unread-command-events)
-                      (let ((newup (if (eq mouse-1-click-follows-link 'double)
-                                       'double-mouse-2 'mouse-2)))
-                        ;; If mouse-2 has never been done by the user, it
-                        ;; doesn't have the necessary property to be
-                        ;; interpreted correctly.
-                        (unless (get newup 'event-kind)
-                          (put newup 'event-kind (get (car event) 'event-kind)))
-                        (push (cons newup (cdr event)) unread-command-events)))
-                    ;; Don't change the down event, only the up-event
-                    ;; (bug#18212).
-                    nil)
-                (push event unread-command-events)
-                nil))))))))
+Expects to be bound to `(double-)mouse-1' in `key-translation-map'."
+  (and mouse--last-down
+       (pcase mouse-1-click-follows-link
+         ('nil nil)
+         ('double (eq 'double-mouse-1 (car-safe last-input-event)))
+         (_ (and (eq 'mouse-1 (car-safe last-input-event))
+                 (or (not (numberp mouse-1-click-follows-link))
+		     (funcall (if (< mouse-1-click-follows-link 0)
+				  (lambda (a b) (time-less-p b a))
+				#'time-less-p)
+			      (time-since (cdr mouse--last-down))
+                              (/ (abs mouse-1-click-follows-link) 1000.0))))))
+       (eq (car mouse--last-down)
+           (event-convert-list (list 'down (car-safe last-input-event))))
+       (let* ((action (mouse-on-link-p (event-start last-input-event))))
+         (when (and action
+                    (or mouse-1-click-in-non-selected-windows
+                        (eq (selected-window)
+                            (posn-window (event-start last-input-event)))))
+           ;; Turn the mouse-1 into a mouse-2 to follow links,
+           ;; but only if ‘mouse-on-link-p’ hasn’t returned a
+           ;; string or vector (see its docstring).
+           (if (arrayp action)
+               (vector (aref action 0))
+             (let ((newup (if (eq mouse-1-click-follows-link 'double)
+                              'double-mouse-2 'mouse-2)))
+               ;; If mouse-2 has never been done by the user, it
+               ;; doesn't have the necessary property to be
+               ;; interpreted correctly.
+               (unless (get newup 'event-kind)
+                 (put newup 'event-kind
+                      (get (car last-input-event) 'event-kind)))
+               ;; Modify the event in-place, otherwise we can get a prefix
+               ;; added again, so a click on the header-line turns
+               ;; into a [header-line header-line mouse-2] :-(.
+               ;; See fake_prefixed_keys in src/keyboard.c's.
+               (setf (car last-input-event) newup)
+               (vector last-input-event)))))))
 
 (define-key key-translation-map [down-mouse-1]
   #'mouse--down-1-maybe-follows-link)
 (define-key key-translation-map [double-down-mouse-1]
   #'mouse--down-1-maybe-follows-link)
+(define-key key-translation-map [mouse-1]
+  #'mouse--click-1-maybe-follows-link)
+(define-key key-translation-map [double-mouse-1]
+  #'mouse--click-1-maybe-follows-link)
 
 
 ;; Provide a mode-specific menu on a mouse button.
@@ -168,7 +173,10 @@ items `Turn Off' and `Help'."
                 (mouse-menu-non-singleton menu)
               (if (fboundp mm-fun)      ; bug#20201
                   `(keymap
-                    ,indicator
+                    ,(format "%s - %s" indicator
+			     (capitalize
+			      (replace-regexp-in-string
+			       "-" " " (format "%S" minor-mode))))
                     (turn-off menu-item "Turn off minor mode" ,mm-fun)
                     (help menu-item "Help for minor mode"
                           (lambda () (interactive)
@@ -326,7 +334,7 @@ This command must be bound to a mouse click."
 (define-obsolete-function-alias 'mouse-tear-off-window 'tear-off-window "24.4")
 (defun tear-off-window (click)
   "Delete the selected window, and create a new frame displaying its buffer."
-  (interactive "e")
+  (interactive (list last-nonmenu-event))
   (mouse-minibuffer-check click)
   (let* ((window (posn-window (event-start click)))
 	 (buf (window-buffer window))
@@ -544,7 +552,7 @@ frame instead."
              (not (eq (window-frame minibuffer-window) frame))))
       ;; Drag frame when the window is on the bottom of its frame and
       ;; there is no minibuffer window below.
-      (mouse-drag-frame start-event 'move)))))
+      (mouse-drag-frame-move start-event)))))
 
 (defun mouse-drag-header-line (start-event)
   "Change the height of a window by dragging on its header line.
@@ -561,7 +569,7 @@ the frame instead."
         (mouse-drag-line start-event 'header)
       (let ((frame (window-frame window)))
         (when (frame-parameter frame 'drag-with-header-line)
-          (mouse-drag-frame start-event 'move))))))
+          (mouse-drag-frame-move start-event))))))
 
 (defun mouse-drag-vertical-line (start-event)
   "Change the width of a window by dragging on a vertical line.
@@ -569,54 +577,15 @@ START-EVENT is the starting mouse event of the drag action."
   (interactive "e")
   (mouse-drag-line start-event 'vertical))
 
-(defun mouse-resize-frame (frame x-diff y-diff &optional x-move y-move)
-  "Helper function for `mouse-drag-frame'."
-  (let* ((frame-x-y (frame-position frame))
-         (frame-x (car frame-x-y))
-         (frame-y (cdr frame-x-y))
-         alist)
-    (if (> x-diff 0)
-        (when x-move
-          (setq x-diff (min x-diff frame-x))
-          (setq x-move (- frame-x x-diff)))
-      (let* ((min-width (frame-windows-min-size frame t nil t))
-             (min-diff (max 0 (- (frame-inner-width frame) min-width))))
-        (setq x-diff (max x-diff (- min-diff)))
-        (when x-move
-          (setq x-move (+ frame-x (- x-diff))))))
-
-    (if (> y-diff 0)
-        (when y-move
-          (setq y-diff (min y-diff frame-y))
-          (setq y-move (- frame-y y-diff)))
-      (let* ((min-height (frame-windows-min-size frame nil nil t))
-             (min-diff (max 0 (- (frame-inner-height frame) min-height))))
-        (setq y-diff (max y-diff (- min-diff)))
-        (when y-move
-          (setq y-move (+ frame-y (- y-diff))))))
-
-    (unless (zerop x-diff)
-      (when x-move
-        (push `(left . ,x-move) alist))
-      (push `(width . (text-pixels . ,(+ (frame-text-width frame) x-diff)))
-            alist))
-    (unless (zerop y-diff)
-      (when y-move
-        (push `(top . ,y-move) alist))
-      (push `(height . (text-pixels . ,(+ (frame-text-height frame) y-diff)))
-            alist))
-    (when alist
-      (modify-frame-parameters frame alist))))
-
-(defun mouse-drag-frame (start-event part)
+(defun mouse-drag-frame-resize (start-event part)
   "Drag a frame or one of its edges with the mouse.
 START-EVENT is the starting mouse event of the drag action.  Its
 position window denotes the frame that will be dragged.
 
 PART specifies the part that has been dragged and must be one of
-the symbols 'left', 'top', 'right', 'bottom', 'top-left',
-'top-right', 'bottom-left', 'bottom-right' to drag an internal
-border or edge.  If PART equals 'move', this means to move the
+the symbols `left', `top', `right', `bottom', `top-left',
+`top-right', `bottom-left', `bottom-right' to drag an internal
+border or edge.  If PART equals `move', this means to move the
 frame with the mouse."
   ;; Give temporary modes such as isearch a chance to turn off.
   (run-hooks 'mouse-leave-buffer-hook)
@@ -627,9 +596,144 @@ frame with the mouse."
          (frame (if (window-live-p window)
                     (window-frame window)
                   window))
-         (width (frame-native-width frame))
-         (height (frame-native-height frame))
-         ;; PARENT is the parent frame of FRAME or, if FRAME is a
+	 ;; Initial "first" frame position and size.  While dragging we
+	 ;; base all calculations against that size and position.
+	 (first-pos (frame-position frame))
+	 (first-left (car first-pos))
+         (first-top (cdr first-pos))
+	 (first-width (frame-text-width frame))
+	 (first-height (frame-text-height frame))
+	 ;; Don't let FRAME become less large than the size needed to
+	 ;; fit all of its windows.
+	 (min-text-width
+	  (+ (frame-windows-min-size frame t nil t)
+	     (- (frame-inner-width frame) first-width)))
+	 (min-text-height
+	  (+ (frame-windows-min-size frame nil nil t)
+	     (- (frame-inner-height frame) first-height)))
+	 ;; PARENT is the parent frame of FRAME or, if FRAME is a
+         ;; top-level frame, FRAME's workarea.
+         (parent (frame-parent frame))
+         (parent-edges
+          (if parent
+              (frame-edges parent)
+            (let* ((attributes
+                    (car (display-monitor-attributes-list)))
+                   (workarea (assq 'workarea attributes)))
+              (and workarea
+                   `(,(nth 1 workarea) ,(nth 2 workarea)
+                     ,(+ (nth 1 workarea) (nth 3 workarea))
+                     ,(+ (nth 2 workarea) (nth 4 workarea)))))))
+         (parent-left (and parent-edges (nth 0 parent-edges)))
+         (parent-top (and parent-edges (nth 1 parent-edges)))
+         (parent-right (and parent-edges (nth 2 parent-edges)))
+         (parent-bottom (and parent-edges (nth 3 parent-edges)))
+	 ;; Drag types.  drag-left/drag-right and drag-top/drag-bottom
+	 ;; are mutually exclusive.
+	 (drag-left (memq part '(bottom-left left top-left)))
+	 (drag-top (memq part '(top-left top top-right)))
+	 (drag-right (memq part '(top-right right bottom-right)))
+	 (drag-bottom (memq part '(bottom-right bottom bottom-left)))
+	 ;; Initial "first" mouse position.  While dragging we base all
+	 ;; calculations against that position.
+	 (first-x-y (mouse-absolute-pixel-position))
+         (first-x (car first-x-y))
+         (first-y (cdr first-x-y))
+         (exitfun nil)
+         (move
+          (lambda (event)
+            (interactive "e")
+            (when (consp event)
+              (let* ((last-x-y (mouse-absolute-pixel-position))
+		     (last-x (car last-x-y))
+		     (last-y (cdr last-x-y))
+		     (left (- last-x first-x))
+		     (top (- last-y first-y))
+		     alist)
+                ;; We never want to warp the mouse position here.  When
+                ;; moving the mouse leftward or upward, then with a wide
+                ;; border the calculated left or top position of the
+                ;; frame could drop to a value less than zero depending
+                ;; on where precisely the mouse within the border.  We
+                ;; guard against this by never allowing the frame to
+                ;; move to a position less than zero here.  No such
+                ;; precautions are used for the right and bottom borders
+                ;; so with a large internal border parts of that border
+                ;; may disappear.
+                  (when (and drag-left (>= last-x parent-left)
+                             (>= (- first-width left) min-text-width))
+		    (push `(left . ,(max (+ first-left left) 0)) alist)
+		    (push `(width . (text-pixels . ,(- first-width left)))
+                          alist))
+	          (when (and drag-top (>= last-y parent-top)
+                             (>= (- first-height top) min-text-height))
+		    (push `(top . ,(max 0 (+ first-top top))) alist)
+		    (push `(height . (text-pixels . ,(- first-height top)))
+                          alist))
+	          (when (and drag-right (<= last-x parent-right)
+                             (>= (+ first-width left) min-text-width))
+		    (push `(width . (text-pixels . ,(+ first-width left)))
+                          alist))
+	          (when (and drag-bottom (<= last-y parent-bottom)
+                             (>= (+ first-height top) min-text-height))
+		    (push `(height . (text-pixels . ,(+ first-height top)))
+                          alist))
+	          (modify-frame-parameters frame alist)))))
+         (old-track-mouse track-mouse))
+    ;; Start tracking.  The special value 'dragging' signals the
+    ;; display engine to freeze the mouse pointer shape for as long
+    ;; as we drag.
+    (setq track-mouse 'dragging)
+    ;; Loop reading events and sampling the position of the mouse.
+    (setq exitfun
+          (set-transient-map
+           (let ((map (make-sparse-keymap)))
+             (define-key map [switch-frame] #'ignore)
+             (define-key map [select-window] #'ignore)
+             (define-key map [scroll-bar-movement] #'ignore)
+             (define-key map [mouse-movement] move)
+             ;; Swallow drag-mouse-1 events to avoid selecting some other window.
+             (define-key map [drag-mouse-1]
+               (lambda () (interactive) (funcall exitfun)))
+             ;; Some of the events will of course end up looked up
+             ;; with a mode-line, header-line or vertical-line prefix ...
+             (define-key map [mode-line] map)
+             (define-key map [header-line] map)
+             (define-key map [vertical-line] map)
+             ;; ... and some maybe even with a right- or bottom-divider
+             ;; prefix.
+             (define-key map [right-divider] map)
+             (define-key map [bottom-divider] map)
+             map)
+           t (lambda () (setq track-mouse old-track-mouse))))))
+
+(defun mouse-drag-frame-move (start-event)
+  "Drag a frame or one of its edges with the mouse.
+START-EVENT is the starting mouse event of the drag action.  Its
+position window denotes the frame that will be dragged.
+
+PART specifies the part that has been dragged and must be one of
+the symbols `left', `top', `right', `bottom', `top-left',
+`top-right', `bottom-left', `bottom-right' to drag an internal
+border or edge.  If PART equals `move', this means to move the
+frame with the mouse."
+  ;; Give temporary modes such as isearch a chance to turn off.
+  (run-hooks 'mouse-leave-buffer-hook)
+  (let* ((echo-keystrokes 0)
+	 (start (event-start start-event))
+         (window (posn-window start))
+         ;; FRAME is the frame to drag.
+         (frame (if (window-live-p window)
+                    (window-frame window)
+                  window))
+         (native-width (frame-native-width frame))
+         (native-height (frame-native-height frame))
+	 ;; Initial "first" frame position and size.  While dragging we
+	 ;; base all calculations against that size and position.
+	 (first-pos (frame-position frame))
+	 (first-left (car first-pos))
+	 (first-top (cdr first-pos))
+	 ;; PARENT is the parent frame of FRAME or, if FRAME is a
          ;; top-level frame, FRAME's workarea.
          (parent (frame-parent frame))
          (parent-edges
@@ -646,19 +750,16 @@ frame with the mouse."
          (parent-top (and parent-edges (nth 1 parent-edges)))
          (parent-right (and parent-edges (nth 2 parent-edges)))
          (parent-bottom (and parent-edges (nth 3 parent-edges)))
-         ;; `pos-x' and `pos-y' record the x- and y-coordinates of the
-	 ;; last sampled mouse position.  Note that we sample absolute
-	 ;; mouse positions to avoid that moving the mouse from one
-	 ;; frame into another gets into our way.  `last-x' and `last-y'
-	 ;; records the x- and y-coordinates of the previously sampled
-	 ;; position.  The differences between `last-x' and `pos-x' as
-	 ;; well as `last-y' and `pos-y' determine the amount the mouse
-	 ;; has been dragged between the last two samples.
-         pos-x-y pos-x pos-y
-         (last-x-y (mouse-absolute-pixel-position))
-         (last-x (car last-x-y))
-         (last-y (cdr last-x-y))
-         ;; `snap-x' and `snap-y' record the x- and y-coordinates of the
+	 ;; Initial "first" mouse position.  While dragging we base all
+	 ;; calculations against that position.
+	 (first-x-y (mouse-absolute-pixel-position))
+         (first-x (car first-x-y))
+         (first-y (cdr first-x-y))
+         ;; `snap-width' (maybe also a yet to be provided `snap-height')
+         ;; could become floats to handle proportionality wrt PARENT.
+         ;; We don't do any checks on this parameter so far.
+         (snap-width (frame-parameter frame 'snap-width))
+	 ;; `snap-x' and `snap-y' record the x- and y-coordinates of the
          ;; mouse position when FRAME snapped.  As soon as the
          ;; difference between `pos-x' and `snap-x' (or `pos-y' and
          ;; `snap-y') exceeds the value of FRAME's `snap-width'
@@ -670,176 +771,141 @@ frame with the mouse."
           (lambda (event)
             (interactive "e")
             (when (consp event)
-              (setq pos-x-y (mouse-absolute-pixel-position))
-              (setq pos-x (car pos-x-y))
-              (setq pos-y (cdr pos-x-y))
-              (cond
-               ((eq part 'left)
-                (mouse-resize-frame frame (- last-x pos-x) 0 t))
-               ((eq part 'top)
-                (mouse-resize-frame frame 0 (- last-y pos-y) nil t))
-               ((eq part 'right)
-                (mouse-resize-frame frame (- pos-x last-x) 0))
-               ((eq part 'bottom)
-                (mouse-resize-frame frame 0 (- pos-y last-y)))
-               ((eq part 'top-left)
-                (mouse-resize-frame
-                 frame (- last-x pos-x) (- last-y pos-y) t t))
-               ((eq part 'top-right)
-                (mouse-resize-frame
-                 frame (- pos-x last-x) (- last-y pos-y) nil t))
-               ((eq part 'bottom-left)
-                (mouse-resize-frame
-                 frame (- last-x pos-x) (- pos-y last-y) t))
-               ((eq part 'bottom-right)
-                (mouse-resize-frame
-                 frame (- pos-x last-x) (- pos-y last-y)))
-               ((eq part 'move)
-                (let* ((old-position (frame-position frame))
-                       (old-left (car old-position))
-                       (old-top (cdr old-position))
-                       (left (+ old-left (- pos-x last-x)))
-                       (top (+ old-top (- pos-y last-y)))
-                       right bottom
-                       ;; `snap-width' (maybe also a yet to be provided
-                       ;; `snap-height') could become floats to handle
-                       ;; proportionality wrt PARENT.  We don't do any
-                       ;; checks on this parameter so far.
-                       (snap-width (frame-parameter frame 'snap-width)))
-                  ;; Docking and constraining.
-                  (when (and (numberp snap-width) parent-edges)
+              (let* ((last-x-y (mouse-absolute-pixel-position))
+		     (last-x (car last-x-y))
+		     (last-y (cdr last-x-y))
+		     (left (- last-x first-x))
+		     (top (- last-y first-y))
+                     right bottom)
+		(setq left (+ first-left left))
+		(setq top (+ first-top top))
+                ;; Docking and constraining.
+                (when (and (numberp snap-width) parent-edges)
+                  (cond
+                   ;; Docking at the left parent edge.
+                   ((< last-x first-x)
                     (cond
-                     ;; Docking at the left parent edge.
-                     ((< pos-x last-x)
-                      (cond
-                       ((and (> left parent-left)
-                             (<= (- left parent-left) snap-width))
-                        ;; Snap when the mouse moved leftward and
-                        ;; FRAME's left edge would end up within
-                        ;; `snap-width' pixels from PARENT's left edge.
-                        (setq snap-x pos-x)
-                        (setq left parent-left))
-                       ((and (<= left parent-left)
-                             (<= (- parent-left left) snap-width)
-                             snap-x (<= (- snap-x pos-x) snap-width))
-                        ;; Stay snapped when the mouse moved leftward
-                        ;; but not more than `snap-width' pixels from
-                        ;; the time FRAME snapped.
-                        (setq left parent-left))
-                       (t
-                        ;; Unsnap when the mouse moved more than
-                        ;; `snap-width' pixels leftward from the time
-                        ;; FRAME snapped.
-                        (setq snap-x nil))))
-                     ((> pos-x last-x)
-                      (setq right (+ left width))
-                      (cond
-                       ((and (< right parent-right)
-                             (<= (- parent-right right) snap-width))
-                        ;; Snap when the mouse moved rightward and
-                        ;; FRAME's right edge would end up within
-                        ;; `snap-width' pixels from PARENT's right edge.
-                        (setq snap-x pos-x)
-                        (setq left (- parent-right width)))
-                       ((and (>= right parent-right)
-                             (<= (- right parent-right) snap-width)
-                             snap-x (<= (- pos-x snap-x) snap-width))
-                        ;; Stay snapped when the mouse moved rightward
-                        ;; but not more more than `snap-width' pixels
-                        ;; from the time FRAME snapped.
-                        (setq left (- parent-right width)))
-                       (t
-                        ;; Unsnap when the mouse moved rightward more
-                        ;; than `snap-width' pixels from the time FRAME
-                        ;; snapped.
-                        (setq snap-x nil)))))
-
+                     ((and (> left parent-left)
+                           (<= (- left parent-left) snap-width))
+                      ;; Snap when the mouse moved leftward and FRAME's
+                      ;; left edge would end up within `snap-width'
+                      ;; pixels from PARENT's left edge.
+                      (setq snap-x last-x)
+                      (setq left parent-left))
+                     ((and (<= left parent-left)
+                           (<= (- parent-left left) snap-width)
+                           snap-x (<= (- snap-x last-x) snap-width))
+                      ;; Stay snapped when the mouse moved leftward but
+                      ;; not more than `snap-width' pixels from the time
+                      ;; FRAME snapped.
+                      (setq left parent-left))
+                     (t
+                      ;; Unsnap when the mouse moved more than
+                      ;; `snap-width' pixels leftward from the time
+                      ;; FRAME snapped.
+                      (setq snap-x nil))))
+                   ((> last-x first-x)
+                    (setq right (+ left native-width))
                     (cond
-                     ((< pos-y last-y)
-                      (cond
-                       ((and (> top parent-top)
-                             (<= (- top parent-top) snap-width))
-                        ;; Snap when the mouse moved upward and FRAME's
-                        ;; top edge would end up within `snap-width'
-                        ;; pixels from PARENT's top edge.
-                        (setq snap-y pos-y)
-                        (setq top parent-top))
-                       ((and (<= top parent-top)
-                             (<= (- parent-top top) snap-width)
-                             snap-y (<= (- snap-y pos-y) snap-width))
-                        ;; Stay snapped when the mouse moved upward but
-                        ;; not more more than `snap-width' pixels from
-                        ;; the time FRAME snapped.
-                        (setq top parent-top))
-                       (t
-                        ;; Unsnap when the mouse moved upward more than
-                        ;; `snap-width' pixels from the time FRAME
-                        ;; snapped.
-                        (setq snap-y nil))))
-                     ((> pos-y last-y)
-                      (setq bottom (+ top height))
-                      (cond
-                       ((and (< bottom parent-bottom)
-                             (<= (- parent-bottom bottom) snap-width))
-                        ;; Snap when the mouse moved downward and
-                        ;; FRAME's bottom edge would end up within
-                        ;; `snap-width' pixels from PARENT's bottom
-                        ;; edge.
-                        (setq snap-y pos-y)
-                        (setq top (- parent-bottom height)))
-                       ((and (>= bottom parent-bottom)
-                             (<= (- bottom parent-bottom) snap-width)
-                             snap-y (<= (- pos-y snap-y) snap-width))
-                        ;; Stay snapped when the mouse moved downward
-                        ;; but not more more than `snap-width' pixels
-                        ;; from the time FRAME snapped.
-                        (setq top (- parent-bottom height)))
-                       (t
-                        ;; Unsnap when the mouse moved downward more
-                        ;; than `snap-width' pixels from the time FRAME
-                        ;; snapped.
-                        (setq snap-y nil))))))
+                     ((and (< right parent-right)
+                           (<= (- parent-right right) snap-width))
+                      ;; Snap when the mouse moved rightward and FRAME's
+                      ;; right edge would end up within `snap-width'
+                      ;; pixels from PARENT's right edge.
+                      (setq snap-x last-x)
+                      (setq left (- parent-right native-width)))
+                     ((and (>= right parent-right)
+                           (<= (- right parent-right) snap-width)
+                           snap-x (<= (- last-x snap-x) snap-width))
+                      ;; Stay snapped when the mouse moved rightward but
+                      ;; not more more than `snap-width' pixels from the
+                      ;; time FRAME snapped.
+                      (setq left (- parent-right native-width)))
+                     (t
+                      ;; Unsnap when the mouse moved rightward more than
+                      ;; `snap-width' pixels from the time FRAME
+                      ;; snapped.
+                      (setq snap-x nil)))))
+                  (cond
+                   ((< last-y first-y)
+                    (cond
+                     ((and (> top parent-top)
+                           (<= (- top parent-top) snap-width))
+                      ;; Snap when the mouse moved upward and FRAME's
+                      ;; top edge would end up within `snap-width'
+                      ;; pixels from PARENT's top edge.
+                      (setq snap-y last-y)
+                      (setq top parent-top))
+                     ((and (<= top parent-top)
+                           (<= (- parent-top top) snap-width)
+                           snap-y (<= (- snap-y last-y) snap-width))
+                      ;; Stay snapped when the mouse moved upward but
+                      ;; not more more than `snap-width' pixels from the
+                      ;; time FRAME snapped.
+                      (setq top parent-top))
+                     (t
+                      ;; Unsnap when the mouse moved upward more than
+                      ;; `snap-width' pixels from the time FRAME
+                      ;; snapped.
+                      (setq snap-y nil))))
+                   ((> last-y first-y)
+                    (setq bottom (+ top native-height))
+                    (cond
+                     ((and (< bottom parent-bottom)
+                           (<= (- parent-bottom bottom) snap-width))
+                      ;; Snap when the mouse moved downward and FRAME's
+                      ;; bottom edge would end up within `snap-width'
+                      ;; pixels from PARENT's bottom edge.
+                      (setq snap-y last-y)
+                      (setq top (- parent-bottom native-height)))
+                     ((and (>= bottom parent-bottom)
+                           (<= (- bottom parent-bottom) snap-width)
+                           snap-y (<= (- last-y snap-y) snap-width))
+                      ;; Stay snapped when the mouse moved downward but
+                      ;; not more more than `snap-width' pixels from the
+                      ;; time FRAME snapped.
+                      (setq top (- parent-bottom native-height)))
+                     (t
+                      ;; Unsnap when the mouse moved downward more than
+                      ;; `snap-width' pixels from the time FRAME
+                      ;; snapped.
+                      (setq snap-y nil))))))
 
-                  ;; If requested, constrain FRAME's draggable areas to
-                  ;; PARENT's edges.  The `top-visible' parameter should
-                  ;; be set when FRAME has a draggable header-line.  If
-                  ;; set to a number, it ascertains that the top of
-                  ;; FRAME is always constrained to the top of PARENT
-                  ;; and that at least as many pixels of FRAME as
-                  ;; specified by that number are visible on each of the
-                  ;; three remaining sides of PARENT.
-                  ;;
-                  ;; The `bottom-visible' parameter should be set when
-                  ;; FRAME has a draggable mode-line.  If set to a
-                  ;; number, it ascertains that the bottom of FRAME is
-                  ;; always constrained to the bottom of PARENT and that
-                  ;; at least as many pixels of FRAME as specified by
-                  ;; that number are visible on each of the three
-                  ;; remaining sides of PARENT.
-                  (let ((par (frame-parameter frame 'top-visible))
-                        bottom-visible)
-                    (unless par
-                      (setq par (frame-parameter frame 'bottom-visible))
-                      (setq bottom-visible t))
-                    (when (and (numberp par) parent-edges)
-                      (setq left
-                            (max (min (- parent-right par) left)
-                                 (+ (- parent-left width) par)))
-                      (setq top
-                            (if bottom-visible
-                                (min (max top (- parent-top (- height par)))
-                                     (- parent-bottom height))
-                              (min (max top parent-top)
-                                   (- parent-bottom par))))))
-
-                  ;; Use `modify-frame-parameters' since `left' and
-                  ;; `top' may want to move FRAME out of its PARENT.
-                  (modify-frame-parameters
-                   frame
-                   `((left . (+ ,left)) (top . (+ ,top)))))))
-              (setq last-x pos-x)
-              (setq last-y pos-y))))
-         (old-track-mouse track-mouse))
+                ;; If requested, constrain FRAME's draggable areas to
+                ;; PARENT's edges.  The `top-visible' parameter should
+                ;; be set when FRAME has a draggable header-line.  If
+                ;; set to a number, it ascertains that the top of FRAME
+                ;; is always constrained to the top of PARENT and that
+                ;; at least as many pixels of FRAME as specified by that
+                ;; number are visible on each of the three remaining
+                ;; sides of PARENT.
+                ;;
+                ;; The `bottom-visible' parameter should be set when
+                ;; FRAME has a draggable mode-line.  If set to a number,
+                ;; it ascertains that the bottom of FRAME is always
+                ;; constrained to the bottom of PARENT and that at least
+                ;; as many pixels of FRAME as specified by that number
+                ;; are visible on each of the three remaining sides of
+                ;; PARENT.
+                (let ((par (frame-parameter frame 'top-visible))
+                      bottom-visible)
+                  (unless par
+                    (setq par (frame-parameter frame 'bottom-visible))
+                    (setq bottom-visible t))
+                  (when (and (numberp par) parent-edges)
+                    (setq left
+                          (max (min (- parent-right par) left)
+                               (+ (- parent-left native-width) par)))
+                    (setq top
+                          (if bottom-visible
+                              (min (max top (- parent-top (- native-height par)))
+                                   (- parent-bottom native-height))
+                            (min (max top parent-top)
+                                 (- parent-bottom par))))))
+                ;; Use `modify-frame-parameters' since `left' and `top'
+                ;; may want to move FRAME out of its PARENT.
+                (modify-frame-parameters frame `((left . (+ ,left)) (top . (+ ,top))))))))
+	 (old-track-mouse track-mouse))
     ;; Start tracking.  The special value 'dragging' signals the
     ;; display engine to freeze the mouse pointer shape for as long
     ;; as we drag.
@@ -871,49 +937,49 @@ frame with the mouse."
   "Drag left edge of a frame with the mouse.
 START-EVENT is the starting mouse event of the drag action."
   (interactive "e")
-  (mouse-drag-frame start-event 'left))
+  (mouse-drag-frame-resize start-event 'left))
 
 (defun mouse-drag-top-left-corner (start-event)
   "Drag top left corner of a frame with the mouse.
 START-EVENT is the starting mouse event of the drag action."
   (interactive "e")
-  (mouse-drag-frame start-event 'top-left))
+  (mouse-drag-frame-resize start-event 'top-left))
 
 (defun mouse-drag-top-edge (start-event)
   "Drag top edge of a frame with the mouse.
 START-EVENT is the starting mouse event of the drag action."
   (interactive "e")
-  (mouse-drag-frame start-event 'top))
+  (mouse-drag-frame-resize start-event 'top))
 
 (defun mouse-drag-top-right-corner (start-event)
   "Drag top right corner of a frame with the mouse.
 START-EVENT is the starting mouse event of the drag action."
   (interactive "e")
-  (mouse-drag-frame start-event 'top-right))
+  (mouse-drag-frame-resize start-event 'top-right))
 
 (defun mouse-drag-right-edge (start-event)
   "Drag right edge of a frame with the mouse.
 START-EVENT is the starting mouse event of the drag action."
   (interactive "e")
-  (mouse-drag-frame start-event 'right))
+  (mouse-drag-frame-resize start-event 'right))
 
 (defun mouse-drag-bottom-right-corner (start-event)
   "Drag bottom right corner of a frame with the mouse.
 START-EVENT is the starting mouse event of the drag action."
   (interactive "e")
-  (mouse-drag-frame start-event 'bottom-right))
+  (mouse-drag-frame-resize start-event 'bottom-right))
 
 (defun mouse-drag-bottom-edge (start-event)
   "Drag bottom edge of a frame with the mouse.
 START-EVENT is the starting mouse event of the drag action."
   (interactive "e")
-  (mouse-drag-frame start-event 'bottom))
+  (mouse-drag-frame-resize start-event 'bottom))
 
 (defun mouse-drag-bottom-left-corner (start-event)
   "Drag bottom left corner of a frame with the mouse.
 START-EVENT is the starting mouse event of the drag action."
   (interactive "e")
-  (mouse-drag-frame start-event 'bottom-left))
+  (mouse-drag-frame-resize start-event 'bottom-left))
 
 (defcustom mouse-select-region-move-to-beginning nil
   "Effect of selecting a region extending backward from double click.
@@ -921,7 +987,6 @@ Nil means keep point at the position clicked (region end);
 non-nil means move point to beginning of region."
   :type '(choice (const :tag "Don't move point" nil)
 		 (const :tag "Move point to beginning of region" t))
-  :group 'mouse
   :version "26.1")
 
 (defun mouse-set-point (event &optional promote-to-region)
@@ -1027,8 +1092,7 @@ this many seconds between scroll steps.  Scrolling stops when you move
 the mouse back into the window, or release the button.
 This variable's value may be non-integral.
 Setting this to zero causes Emacs to scroll as fast as it can."
-  :type 'number
-  :group 'mouse)
+  :type 'number)
 
 (defcustom mouse-scroll-min-lines 1
   "The minimum number of lines scrolled by dragging mouse out of window.
@@ -1037,13 +1101,14 @@ scrolling repeatedly.  The number of lines scrolled per repetition
 is normally equal to the number of lines beyond the window edge that
 the mouse has moved.  However, it always scrolls at least the number
 of lines specified by this variable."
-  :type 'integer
-  :group 'mouse)
+  :type 'integer)
 
-(defun mouse-scroll-subr (window jump &optional overlay start)
+(defun mouse-scroll-subr (window jump &optional overlay start adjust)
   "Scroll the window WINDOW, JUMP lines at a time, until new input arrives.
 If OVERLAY is an overlay, let it stretch from START to the far edge of
 the newly visible text.
+ADJUST, if non-nil, is a function, without arguments, to call after
+setting point.
 Upon exit, point is at the far edge of the newly visible text."
   (cond
    ((and (> jump 0) (< jump mouse-scroll-min-lines))
@@ -1072,6 +1137,8 @@ Upon exit, point is at the far edge of the newly visible text."
 		   ;; so that we don't mess up the selected window.
 		   (or (eq window (selected-window))
 		       (goto-char opoint))
+                   (when adjust
+                     (funcall adjust))
 		   (sit-for mouse-scroll-delay)))))
     (or (eq window (selected-window))
 	(goto-char opoint))))
@@ -1099,6 +1166,12 @@ is dragged over to."
     (run-hooks 'mouse-leave-buffer-hook)
     (mouse-drag-track start-event)))
 
+;; Inhibit the region-confinement when undoing mouse-drag-region
+;; immediately after the command.  Otherwise, the selection left
+;; active around the dragged text would prevent an undo of the whole
+;; operation.
+(put 'mouse-drag-region 'undo-inhibit-region t)
+
 (defun mouse-posn-property (pos property)
   "Look for a property at click position.
 POS may be either a buffer position or a click position like
@@ -1111,6 +1184,10 @@ its value is returned."
   (if (consp pos)
       (let ((w (posn-window pos)) (pt (posn-point pos))
 	    (str (posn-string pos)))
+        ;; FIXME: When STR has a `category' property and there's another
+        ;; `category' property at PT, we should probably disregard the
+        ;; `category' property at PT while doing the (get-char-property
+        ;; pt property w)!
 	(or (and str
 		 (get-text-property (cdr str) property (car str)))
             ;; Mouse clicks in the fringe come with a position in
@@ -1144,19 +1221,15 @@ The resulting value determine whether POS is inside a link:
 is a non-nil `mouse-face' property at POS.  Return t in this case.
 
 - If the value is a function, FUNC, POS is inside a link if
-the call \(FUNC POS) returns non-nil.  Return the return value
-from that call.  Arg is \(posn-point POS) if POS is a mouse event.
+the call (FUNC POS) returns non-nil.  Return the return value
+from that call.  Arg is (posn-point POS) if POS is a mouse event.
 
 - Otherwise, return the value itself.
 
 The return value is interpreted as follows:
 
-- If it is a string, the mouse-1 event is translated into the
-first character of the string, i.e. the action of the mouse-1
-click is the local or global binding of that character.
-
-- If it is a vector, the mouse-1 event is translated into the
-first element of that vector, i.e. the action of the mouse-1
+- If it is an array, the mouse-1 event is translated into the
+first element of that array, i.e. the action of the mouse-1
 click is the local or global binding of that event.
 
 - Otherwise, the mouse-1 event is translated into a mouse-2 event
@@ -1225,7 +1298,11 @@ The region will be defined with mark and point."
 	 (bounds (window-edges start-window))
 	 (make-cursor-line-fully-visible nil)
 	 (top (nth 1 bounds))
-	 (bottom (if (window-minibuffer-p start-window)
+	 (bottom (if (or (window-minibuffer-p start-window)
+                         ;; Do not account for the mode line if there
+                         ;; is no mode line, which is common for child
+                         ;; frames.
+                         (not mode-line-format))
 		     (nth 3 bounds)
 		   ;; Don't count the mode line.
 		   (1- (nth 3 bounds))))
@@ -1287,7 +1364,7 @@ The region will be defined with mark and point."
      t (lambda ()
          (setq track-mouse old-track-mouse)
          (setq auto-hscroll-mode auto-hscroll-mode-saved)
-          (deactivate-mark)
+         (deactivate-mark)
          (pop-mark)))))
 
 (defun mouse--drag-set-mark-and-point (start click click-count)
@@ -1583,7 +1660,7 @@ previous region was just saved to the kill ring).
 
 If this command is called a second consecutive time with the same
 CLICK position, kill the region (or delete it
-if `mouse-drag-copy-region' is non-nil)"
+if `mouse-drag-copy-region' is non-nil)."
   (interactive "e")
   (mouse-minibuffer-check click)
   (let* ((posn     (event-start click))
@@ -1608,8 +1685,8 @@ if `mouse-drag-copy-region' is non-nil)"
       (if mouse-drag-copy-region
           ;; Region already saved in the previous click;
           ;; don't make a duplicate entry, just delete.
-          (delete-region (mark t) (point))
-        (kill-region (mark t) (point)))
+          (funcall region-extract-function 'delete-only)
+        (kill-region (mark t) (point) 'region))
       (setq mouse-selection-click-count 0)
       (setq mouse-save-then-kill-posn nil))
 
@@ -1634,7 +1711,7 @@ if `mouse-drag-copy-region' is non-nil)"
 	(mouse-set-region-1)
         (when mouse-drag-copy-region
           ;; Region already copied to kill-ring once, so replace.
-          (kill-new (filter-buffer-substring (mark t) (point)) t))
+          (kill-new (funcall region-extract-function nil) t))
 	;; Arrange for a repeated mouse-3 to kill the region.
 	(setq mouse-save-then-kill-posn click-pt)))
 
@@ -1916,13 +1993,166 @@ CLICK position, kill the secondary selection."
 	 (> (length str) 0)
 	 (gui-set-selection 'SECONDARY str))))
 
+(defun secondary-selection-exist-p ()
+  "Return non-nil if the secondary selection exists in the current buffer."
+  (memq mouse-secondary-overlay (overlays-in (point-min) (point-max))))
+
+(defun secondary-selection-to-region ()
+  "Set beginning and end of the region to those of the secondary selection.
+This puts mark and point at the beginning and the end of the
+secondary selection, respectively.  This works when the secondary
+selection exists and the region does not exist in current buffer;
+the secondary selection will be deleted afterward.
+If the region is active, or the secondary selection doesn't exist,
+this function does nothing."
+  (when (and (not (region-active-p))
+             (secondary-selection-exist-p))
+    (let ((beg (overlay-start mouse-secondary-overlay))
+          (end (overlay-end mouse-secondary-overlay)))
+      (push-mark beg t t)
+      (goto-char end))
+    ;; Delete the secondary selection on current buffer.
+    (delete-overlay mouse-secondary-overlay)))
+
+(defun secondary-selection-from-region ()
+  "Set beginning and end of the secondary selection to those of the region.
+When there is no region, this function does nothing."
+  (when (region-active-p) ; Create the secondary selection from the region.
+    (delete-overlay mouse-secondary-overlay) ; Delete the secondary selection even on a different buffer.
+    (move-overlay mouse-secondary-overlay (region-beginning) (region-end))))
+
+
+(declare-function rectangle--col-pos "rect" (col kind))
+(declare-function rectangle--reset-point-crutches "rect" ())
+
+(defconst mouse--rectangle-track-cursor t
+  "Whether the mouse tracks the cursor when selecting a rectangle.
+If nil, the mouse tracks the rectangle corner instead.")
+
+(defun mouse-drag-region-rectangle (start-event)
+  "Set the region to the rectangle that the mouse is dragged over.
+This must be bound to a button-down mouse event."
+  (interactive "e")
+  (let* ((scroll-margin 0)
+         (start-pos (event-start start-event))
+         (start-posn (event-start start-event))
+         (start-point (posn-point start-posn))
+         (start-window (posn-window start-posn))
+         (start-hscroll (window-hscroll start-window))
+         (start-col (+ (car (posn-col-row start-pos)) start-hscroll))
+         (bounds (window-edges start-window))
+         (top (nth 1 bounds))
+         (bottom (if (window-minibuffer-p start-window)
+                     (nth 3 bounds)
+                   (1- (nth 3 bounds))))
+         (extra-margin (round (line-number-display-width 'columns)))
+         (dragged nil)
+         (old-track-mouse track-mouse)
+         (old-mouse-fine-grained-tracking mouse-fine-grained-tracking)
+         ;; For right-to-left text, columns are counted from the right margin;
+         ;; translate from mouse events, which always count from the left.
+         (adjusted-col (lambda (col)
+                         (if (eq (current-bidi-paragraph-direction)
+                                 'right-to-left)
+                             (- (window-width) col extra-margin
+                                (if mouse--rectangle-track-cursor 1 -1))
+                           (- col extra-margin))))
+         (map (make-sparse-keymap)))
+    (define-key map [switch-frame] #'ignore)
+    (define-key map [select-window] #'ignore)
+    (define-key map [mouse-movement]
+      (lambda (event)
+        (interactive "e")
+        (unless dragged
+          ;; This is actually a drag.
+          (setq dragged t)
+          (mouse-minibuffer-check start-event)
+          (deactivate-mark)
+          (setq-local transient-mark-mode
+                      (if (eq transient-mark-mode 'lambda)
+                          '(only)
+                        (cons 'only transient-mark-mode)))
+          (posn-set-point start-pos)
+          (rectangle-mark-mode)
+          ;; Only tell rectangle about the exact column if we are possibly
+          ;; beyond end-of-line or in a tab, since the column we got from
+          ;; the mouse position isn't necessarily accurate for use in
+          ;; specifying a rectangle (which uses the `move-to-column'
+          ;; measure).
+          (when (or (eolp) (eq (following-char) ?\t))
+            (let ((col (funcall adjusted-col start-col)))
+              (rectangle--col-pos col 'mark)
+              (rectangle--col-pos col 'point))))
+
+        (let* ((posn (event-end event))
+               (window (posn-window posn))
+               (hscroll (if (window-live-p window)
+                            (window-hscroll window)
+                          0))
+               (mouse-row (cddr (mouse-position)))
+               (mouse-col (+ (car (posn-col-row posn)) hscroll
+                             (if mouse--rectangle-track-cursor 0 1)))
+               (set-col (lambda ()
+                          (if (or (eolp) (eq (following-char) ?\t))
+                              (rectangle--col-pos
+                               (funcall adjusted-col mouse-col) 'point)
+                            (unless mouse--rectangle-track-cursor
+                              (forward-char))
+                            (rectangle--reset-point-crutches))))
+               (scroll-adjust (lambda ()
+                                (move-to-column
+                                 (funcall adjusted-col mouse-col))
+                                (funcall set-col))))
+          (if (and (eq window start-window)
+                   mouse-row
+                   (<= top mouse-row (1- bottom)))
+              ;; Drag inside the same window.
+              (progn
+                (posn-set-point posn)
+                (funcall set-col))
+            ;; Drag outside the window: scroll.
+            (cond
+             ((null mouse-row))
+             ((< mouse-row top)
+              (mouse-scroll-subr
+               start-window (- mouse-row top) nil start-point
+               scroll-adjust))
+             ((>= mouse-row bottom)
+              (mouse-scroll-subr
+               start-window (1+ (- mouse-row bottom)) nil start-point
+               scroll-adjust)))))))
+    (condition-case err
+        (progn
+          (setq track-mouse t)
+          (setq mouse-fine-grained-tracking t)
+          (set-transient-map
+           map t
+           (lambda ()
+             (setq track-mouse old-track-mouse)
+             (setq mouse-fine-grained-tracking old-mouse-fine-grained-tracking)
+             (when (or (not dragged)
+                       (not (mark))
+                       (equal (rectangle-dimensions (mark) (point)) '(0 . 1)))
+               ;; No nontrivial region selected; deactivate rectangle mode.
+               (deactivate-mark)))))
+      ;; Clean up in case something went wrong.
+      (error (setq track-mouse old-track-mouse)
+             (setq mouse-fine-grained-tracking old-mouse-fine-grained-tracking)
+             (signal (car err) (cdr err))))))
+
+;; The drag event must be bound to something but does not need any effect,
+;; as everything takes place in `mouse-drag-region-rectangle'.
+;; The click event can be anything; `mouse-set-point' is just a convenience.
+(global-set-key [C-M-down-mouse-1] #'mouse-drag-region-rectangle)
+(global-set-key [C-M-drag-mouse-1] #'ignore)
+(global-set-key [C-M-mouse-1]      #'mouse-set-point)
+
 
 (defcustom mouse-buffer-menu-maxlen 20
   "Number of buffers in one pane (submenu) of the buffer menu.
 If we have lots of buffers, divide them into groups of
 `mouse-buffer-menu-maxlen' and make a pane (or submenu) for each one."
-  :type 'integer
-  :group 'mouse)
+  :type 'integer)
 
 (defcustom mouse-buffer-menu-mode-mult 4
   "Group the buffers by the major mode groups on \\[mouse-buffer-menu]?
@@ -1932,20 +2162,19 @@ will split the buffer menu by the major modes (see
 Set to 1 (or even 0!) if you want to group by major mode always, and to
 a large number if you prefer a mixed multitude.  The default is 4."
   :type 'integer
-  :group 'mouse
   :version "20.3")
 
 (defvar mouse-buffer-menu-mode-groups
   (mapcar (lambda (arg) (cons  (purecopy (car arg)) (purecopy (cdr arg))))
   '(("Info\\|Help\\|Apropos\\|Man" . "Help")
-    ("\\bVM\\b\\|\\bMH\\b\\|Message\\|Mail\\|Group\\|Score\\|Summary\\|Article"
+    ("\\bVM\\b\\|\\bMH\\b\\|Message\\b\\|Mail\\|Group\\|Score\\|Summary\\|Article"
      . "Mail/News")
     ("\\<C\\>" . "C")
     ("ObjC" . "C")
     ("Text" . "Text")
     ("Outline" . "Text")
     ("\\(HT\\|SG\\|X\\|XHT\\)ML" . "SGML")
-    ("log\\|diff\\|vc\\|cvs\\|Annotate" . "Version Control") ; "Change Management"?
+    ("log\\|diff\\|vc\\|cvs\\|Git\\|Annotate" . "Version Control")
     ("Threads\\|Memory\\|Disassembly\\|Breakpoints\\|Frames\\|Locals\\|Registers\\|Inferior I/O\\|Debugger"
      . "GDB")
     ("Lisp" . "Lisp")))
@@ -2317,13 +2546,62 @@ choose a font."
 
 ;; Drag and drop support.
 (defcustom mouse-drag-and-drop-region nil
-  "If non-nil, dragging the mouse drags the region, if that exists.
-If the value is a modifier, such as `control' or `shift' or `meta',
-then if that modifier key is pressed when dropping the region, region
-text is copied instead of being cut."
-  :type 'symbol
-  :version "26.1"
-  :group 'mouse)
+  "If non-nil, dragging the mouse drags the region, if it exists.
+If the value is a modifier, such as `control' or `shift' or
+`meta', then if that modifier key is pressed when dropping the
+region, text is copied instead of being cut."
+  :type `(choice
+          (const :tag "Disable dragging the region" nil)
+          ,@(mapcar
+             (lambda (modifier)
+               `(const :tag ,(format "Enable, but copy with the %s modifier"
+                                     modifier)
+                       ,modifier))
+             '(alt super hyper shift control meta))
+          (other :tag "Enable dragging the region" t))
+  :version "26.1")
+
+(defcustom mouse-drag-and-drop-region-cut-when-buffers-differ nil
+  "If non-nil, cut text also when source and destination buffers differ.
+If this option is nil, `mouse-drag-and-drop-region' will leave
+the text in the source buffer alone when dropping it in a
+different buffer.  If this is non-nil, it will cut the text just
+as it does when dropping text in the source buffer."
+  :type 'boolean
+  :version "26.1")
+
+(defcustom mouse-drag-and-drop-region-show-tooltip 256
+  "If non-nil, text is shown by a tooltip in a graphic display.
+If this option is nil, `mouse-drag-and-drop-region' does not show
+tooltips.  If this is t, it shows the entire text dragged in a
+tooltip.  If this is an integer (as with the default value of
+256), it will show up to that many characters of the dragged text
+in a tooltip."
+  :type '(choice
+          (const :tag "Do not show tooltips" nil)
+          (const :tag "Show all text" t)
+          (integer :tag "Max number of characters to show" 256))
+  :version "26.1")
+
+(defcustom mouse-drag-and-drop-region-show-cursor t
+  "If non-nil, move point with mouse cursor during dragging.
+If this is nil, `mouse-drag-and-drop-region' leaves point alone.
+Otherwise, it will move point together with the mouse cursor and,
+in addition, temporarily highlight the original region with the
+`mouse-drag-and-drop-region' face."
+  :type 'boolean
+  :version "26.1")
+
+(defface mouse-drag-and-drop-region '((t :inherit region))
+  "Face to highlight original text during dragging.
+This face is used by `mouse-drag-and-drop-region' to temporarily
+highlight the original region when
+`mouse-drag-and-drop-region-show-cursor' is non-nil."
+  :version "26.1")
+
+(declare-function rectangle-dimensions "rect" (start end))
+(declare-function rectangle-position-as-coordinates "rect" (position))
+(declare-function rectangle-intersect-p "rect" (pos1 size1 pos2 size2))
 
 (defun mouse-drag-and-drop-region (event)
   "Move text in the region to point where mouse is dragged to.
@@ -2333,64 +2611,286 @@ modifier key was pressed when dropping, and the value of the
 variable `mouse-drag-and-drop-region' is that modifier, the text
 is copied instead of being cut."
   (interactive "e")
-  (require 'tooltip)
-  (let ((start (region-beginning))
-        (end (region-end))
-        (point (point))
-        (buffer (current-buffer))
-        (window (selected-window))
-        value-selection)
-    (track-mouse
-      ;; When event was click instead of drag, skip loop
-      (while (progn
-               (setq event (read-event))
-               (mouse-movement-p event))
-        (unless value-selection ; initialization
-          (delete-overlay mouse-secondary-overlay)
-          (setq value-selection (buffer-substring start end))
-          (move-overlay mouse-secondary-overlay start end)) ; (deactivate-mark)
-        (ignore-errors (deactivate-mark) ; care existing region in other window
-                       (mouse-set-point event)
-                       (tooltip-show value-selection)))
-      (tooltip-hide))
-    ;; Do not modify buffer under mouse when "event was click",
-    ;;                                       "drag negligible", or
-    ;;                                       "drag to read-only".
-    (if (or (equal (mouse-posn-property (event-end event) 'face) 'region) ; "event was click"
-            (member 'secondary-selection ; "drag negligible"
-                    (mapcar (lambda (xxx) (overlay-get xxx 'face))
-                            (overlays-at (posn-point (event-end event)))))
-            buffer-read-only)
-        ;; Do not modify buffer under mouse.
+  (let* ((mouse-button (event-basic-type last-input-event))
+         (mouse-drag-and-drop-region-show-tooltip
+          (when (and mouse-drag-and-drop-region-show-tooltip
+                     (> mouse-drag-and-drop-region-show-tooltip 0)
+                     (display-multi-frame-p)
+                     (require 'tooltip))
+            mouse-drag-and-drop-region-show-tooltip))
+         (start (region-beginning))
+         (end (region-end))
+         (point (point))
+         (buffer (current-buffer))
+         (window (selected-window))
+         (text-from-read-only buffer-read-only)
+         ;; Use multiple overlays to cover cases where the region has more
+         ;; than one boundary.
+         (mouse-drag-and-drop-overlays (mapcar (lambda (bounds)
+                                                 (make-overlay (car bounds)
+                                                               (cdr bounds)))
+                                               (region-bounds)))
+         (region-noncontiguous (region-noncontiguous-p))
+         point-to-paste
+         point-to-paste-read-only
+         window-to-paste
+         buffer-to-paste
+         cursor-in-text-area
+         no-modifier-on-drop
+         drag-but-negligible
+         clicked
+         value-selection    ; This remains nil when event was "click".
+         text-tooltip
+         states
+         window-exempt)
+
+    ;; STATES stores for each window on this frame its start and point
+    ;; positions so we can restore them on all windows but for the one
+    ;; where the drop occurs.  For inter-frame drags we'll have to do
+    ;; this for all windows on all visible frames.  In addition we save
+    ;; also the cursor type for the window's buffer so we can restore it
+    ;; in case we modified it.
+    ;; https://lists.gnu.org/archive/html/emacs-devel/2017-12/msg00090.html
+    (walk-window-tree
+     (lambda (window)
+       (setq states
+             (cons
+              (list
+               window
+               (copy-marker (window-start window))
+               (copy-marker (window-point window))
+               (with-current-buffer (window-buffer window)
+                 cursor-type))
+              states))))
+
+    (ignore-errors
+      (track-mouse
+        (setq track-mouse 'dropping)
+        ;; When event was "click" instead of "drag", skip loop.
+        (while (progn
+                 (setq event (read-key))      ; read-event or read-key
+                 (or (mouse-movement-p event)
+                     ;; Handle `mouse-autoselect-window'.
+                     (memq (car event) '(select-window switch-frame))))
+          ;; Obtain the dragged text in region.  When the loop was
+          ;; skipped, value-selection remains nil.
+          (unless value-selection
+            (setq value-selection (funcall region-extract-function nil))
+            (when mouse-drag-and-drop-region-show-tooltip
+              (let ((text-size mouse-drag-and-drop-region-show-tooltip))
+                (setq text-tooltip
+                      (if (and (integerp text-size)
+                               (> (length value-selection) text-size))
+                          (concat
+                           (substring value-selection 0 (/ text-size 2))
+                           "\n...\n"
+                           (substring value-selection (- (/ text-size 2)) -1))
+                        value-selection))))
+
+            ;; Check if selected text is read-only.
+            (setq text-from-read-only
+                  (or text-from-read-only
+                      (catch 'loop
+                        (dolist (bound (region-bounds))
+                          (when (text-property-not-all
+                                 (car bound) (cdr bound) 'read-only nil)
+                            (throw 'loop t)))))))
+
+          (setq window-to-paste (posn-window (event-end event)))
+          (setq point-to-paste (posn-point (event-end event)))
+          ;; Set nil when target buffer is minibuffer.
+          (setq buffer-to-paste (let (buf)
+                                  (when (windowp window-to-paste)
+                                    (setq buf (window-buffer window-to-paste))
+                                    (when (not (minibufferp buf))
+                                      buf))))
+          (setq cursor-in-text-area (and window-to-paste
+                                         point-to-paste
+                                         buffer-to-paste))
+
+          (when cursor-in-text-area
+            ;; Check if point under mouse is read-only.
+            (save-window-excursion
+              (select-window window-to-paste)
+              (setq point-to-paste-read-only
+                    (or buffer-read-only
+                        (get-text-property point-to-paste 'read-only))))
+
+            ;; Check if "drag but negligible".  Operation "drag but
+            ;; negligible" is defined as drag-and-drop the text to
+            ;; the original region.  When modifier is pressed, the
+            ;; text will be inserted to inside of the original
+            ;; region.
+            ;;
+            ;; If the region is rectangular, check if the newly inserted
+            ;; rectangular text would intersect the already selected
+            ;; region. If it would, then set "drag-but-negligible" to t.
+            ;; As a special case, allow dragging the region freely anywhere
+            ;; to the left, as this will never trigger its contents to be
+            ;; inserted into the overlays tracking it.
+            (setq drag-but-negligible
+                  (and (eq (overlay-buffer (car mouse-drag-and-drop-overlays))
+                           buffer-to-paste)
+                       (if region-noncontiguous
+                           (let ((dimensions (rectangle-dimensions start end))
+                                 (start-coordinates
+                                  (rectangle-position-as-coordinates start))
+                                 (point-to-paste-coordinates
+                                  (rectangle-position-as-coordinates
+                                   point-to-paste)))
+                             (and (rectangle-intersect-p
+                                   start-coordinates dimensions
+                                   point-to-paste-coordinates dimensions)
+                                  (not (< (car point-to-paste-coordinates)
+                                           (car start-coordinates)))))
+                         (and (<= (overlay-start
+                                   (car mouse-drag-and-drop-overlays))
+                                  point-to-paste)
+                              (<= point-to-paste
+                                  (overlay-end
+                                   (car mouse-drag-and-drop-overlays))))))))
+
+          ;; Show a tooltip.
+          (if mouse-drag-and-drop-region-show-tooltip
+              (tooltip-show text-tooltip)
+            (tooltip-hide))
+
+          ;; Show cursor and highlight the original region.
+          (when mouse-drag-and-drop-region-show-cursor
+            ;; Modify cursor even when point is out of frame.
+            (setq cursor-type (cond
+                               ((not cursor-in-text-area)
+                                nil)
+                               ((or point-to-paste-read-only
+                                    drag-but-negligible)
+                                'hollow)
+                               (t
+                                'bar)))
+            (when cursor-in-text-area
+              (dolist (overlay mouse-drag-and-drop-overlays)
+                (overlay-put overlay
+                           'face 'mouse-drag-and-drop-region))
+              (deactivate-mark)     ; Maintain region in other window.
+              (mouse-set-point event)))))
+
+      ;; Hide a tooltip.
+      (when mouse-drag-and-drop-region-show-tooltip (tooltip-hide))
+
+      ;; Check if modifier was pressed on drop.
+      (setq no-modifier-on-drop
+            (not (member mouse-drag-and-drop-region (event-modifiers event))))
+
+      ;; Check if event was "click".
+      (setq clicked (not value-selection))
+
+      ;; Restore status on drag to outside of text-area or non-mouse input.
+      (when (or (not cursor-in-text-area)
+                (not (equal (event-basic-type event) mouse-button)))
+        (setq drag-but-negligible t
+              no-modifier-on-drop t))
+
+      ;; Do not modify any buffers when event is "click",
+      ;; "drag but negligible", or "drag to read-only".
+      (let* ((mouse-drag-and-drop-region-cut-when-buffers-differ
+              (if no-modifier-on-drop
+                  mouse-drag-and-drop-region-cut-when-buffers-differ
+                (not mouse-drag-and-drop-region-cut-when-buffers-differ)))
+             (wanna-paste-to-same-buffer (equal buffer-to-paste buffer))
+             (wanna-cut-on-same-buffer (and wanna-paste-to-same-buffer
+                                            no-modifier-on-drop))
+             (wanna-cut-on-other-buffer
+              (and (not wanna-paste-to-same-buffer)
+                   mouse-drag-and-drop-region-cut-when-buffers-differ))
+             (cannot-paste (or point-to-paste-read-only
+                               (when (or wanna-cut-on-same-buffer
+                                         wanna-cut-on-other-buffer)
+                                 text-from-read-only))))
+
         (cond
-         ;; "drag negligible" or "drag to read-only", restore region.
-         (value-selection
-          (select-window window) ; In case miss drag to other window
+         ;; Move point within region.
+         (clicked
+          (deactivate-mark)
+          (mouse-set-point event))
+         ;; Undo operation. Set back the original text as region.
+         ((or (and drag-but-negligible
+                   no-modifier-on-drop)
+              cannot-paste)
+          ;; Inform user either source or destination buffer cannot be modified.
+          (when (and (not drag-but-negligible)
+                     cannot-paste)
+            (message "Buffer is read-only"))
+
+          ;; Select source window back and restore region.
+          ;; (set-window-point window point)
+          (select-window window)
           (goto-char point)
           (setq deactivate-mark nil)
-          (activate-mark))
-         ;; "event was click"
+          (activate-mark)
+          (when region-noncontiguous
+            (rectangle-mark-mode)))
+         ;; Modify buffers.
          (t
-          (deactivate-mark)
-          (mouse-set-point event)))
-      ;; Modify buffer under mouse by inserting text.
-      (push-mark)
-      (insert value-selection)
-      (when (not (equal (mark) (point))) ; on success insert
-        (setq deactivate-mark nil)
-        (activate-mark)) ; have region on destination
-      ;; Take care of initial region on source.
-      (if (equal (current-buffer) buffer) ; when same buffer
-          (let (deactivate-mark) ; remove text
-            (unless (member mouse-drag-and-drop-region (event-modifiers event))
-              (kill-region (overlay-start mouse-secondary-overlay)
-                           (overlay-end mouse-secondary-overlay))))
-        (let ((window1 (selected-window))) ; when beyond buffer
-          (select-window window)
-          (goto-char point) ; restore point on source window
-          (activate-mark) ; restore region
-          (select-window window1))))
-    (delete-overlay mouse-secondary-overlay)))
+          ;; * DESTINATION BUFFER::
+          ;; Insert the text to destination buffer under mouse.
+          (select-window window-to-paste)
+          (setq window-exempt window-to-paste)
+          (goto-char point-to-paste)
+          (push-mark)
+          (insert-for-yank value-selection)
+
+          ;; On success, set the text as region on destination buffer.
+          (when (not (equal (mark) (point)))
+            (setq deactivate-mark nil)
+            (activate-mark)
+            (when region-noncontiguous
+              (rectangle-mark-mode)))
+
+          ;; * SOURCE BUFFER::
+          ;; Set back the original text as region or delete the original
+          ;; text, on source buffer.
+          (if wanna-paste-to-same-buffer
+              ;; When source buffer and destination buffer are the same,
+              ;; remove the original text.
+              (when no-modifier-on-drop
+                (let (deactivate-mark)
+                  (dolist (overlay mouse-drag-and-drop-overlays)
+                    (delete-region (overlay-start overlay)
+                                   (overlay-end overlay)))))
+            ;; When source buffer and destination buffer are different,
+            ;; keep (set back the original text as region) or remove the
+            ;; original text.
+            (select-window window) ; Select window with source buffer.
+            (goto-char point) ; Move point to the original text on source buffer.
+
+            (if mouse-drag-and-drop-region-cut-when-buffers-differ
+                ;; Remove the dragged text from source buffer like
+                ;; operation `cut'.
+                (dolist (overlay mouse-drag-and-drop-overlays)
+                    (delete-region (overlay-start overlay)
+                                   (overlay-end overlay)))
+              ;; Set back the dragged text as region on source buffer
+              ;; like operation `copy'.
+              (activate-mark))
+            (select-window window-to-paste))))))
+
+    ;; Clean up.
+    (dolist (overlay mouse-drag-and-drop-overlays)
+      (delete-overlay overlay))
+
+    ;; Restore old states but for the window where the drop
+    ;; occurred. Restore cursor types for all windows.
+    (dolist (state states)
+      (let ((window (car state)))
+        (when (and window-exempt
+                   (not (eq window window-exempt)))
+          (set-window-start window (nth 1 state) 'noforce)
+          (set-marker (nth 1 state) nil)
+          ;; If window is selected, the following automatically sets
+          ;; point for that window's buffer.
+          (set-window-point window (nth 2 state))
+          (set-marker (nth 2 state) nil))
+        (with-current-buffer (window-buffer window)
+          (setq cursor-type (nth 3 state)))))))
 
 
 ;;; Bindings for mouse commands.
@@ -2432,6 +2932,7 @@ is copied instead of being cut."
 ;; versions.
 (global-set-key [header-line down-mouse-1] 'mouse-drag-header-line)
 (global-set-key [header-line mouse-1] 'mouse-select-window)
+(global-set-key [tab-line mouse-1] 'mouse-select-window)
 ;; (global-set-key [mode-line drag-mouse-1] 'mouse-select-window)
 (global-set-key [mode-line down-mouse-1] 'mouse-drag-mode-line)
 (global-set-key [mode-line mouse-1] 'mouse-select-window)

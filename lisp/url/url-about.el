@@ -1,6 +1,6 @@
 ;;; url-about.el --- Show internal URLs
 
-;; Copyright (C) 2001, 2004-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2001, 2004-2020 Free Software Foundation, Inc.
 
 ;; Keywords: comm, data, processes, hypermedia
 
@@ -17,7 +17,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -37,7 +37,7 @@
 			  (mapc (lambda (f)
 				  (if (string-match "url-\\(.*\\).el$" f)
 				      (push (match-string 1 f) schemes)))
-				(directory-files d nil "^url-.*\\.el$")))
+				(directory-files d nil "\\`url-.*\\.el\\'")))
 			load-path)
 		  (put 'url-extension-protocols 'schemes schemes)
 		  schemes)))))
@@ -51,7 +51,7 @@
 	  "  <title>Supported Protocols</title>\n"
 	  " </head>\n"
 	  " <body>\n"
-	  "  <h1>Supported Protocols - URL v" url-version "</h1>\n"
+          "  <h1>Supported Protocols - URL package in Emacs " emacs-version "</h1>\n"
 	  "  <table width='100%' border='1'>\n"
 	  "   <tr>\n"
 	  "    <td>Protocol\n"

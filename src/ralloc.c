@@ -1,5 +1,5 @@
 /* Block-relocating memory allocator.
-   Copyright (C) 1993, 1995, 2000-2017 Free Software Foundation, Inc.
+   Copyright (C) 1993, 1995, 2000-2020 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -14,7 +14,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.  */
+along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 
 /* NOTES:
 
@@ -26,11 +26,9 @@ along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.  */
 
 #include <stddef.h>
 
-#ifdef emacs
-# include "lisp.h"
-# include "blockinput.h"
-# include <unistd.h>
-#endif
+#include "lisp.h"
+#include "blockinput.h"
+#include <unistd.h>
 
 #include "getpagesize.h"
 
@@ -924,9 +922,7 @@ r_alloc_free (void **ptr)
   free_bloc (dead_bloc);
   *ptr = 0;
 
-#ifdef emacs
   refill_memory_reserve ();
-#endif
 }
 
 /* Given a pointer at address PTR to relocatable data, resize it to SIZE.
@@ -1000,7 +996,7 @@ r_re_alloc (void **ptr, size_t size)
 }
 
 
-#if defined (emacs) && defined (DOUG_LEA_MALLOC)
+#ifdef DOUG_LEA_MALLOC
 
 /* Reinitialize the morecore hook variables after restarting a dumped
    Emacs.  This is needed when using Doug Lea's malloc from GNU libc.  */

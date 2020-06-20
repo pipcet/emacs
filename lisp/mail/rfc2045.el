@@ -1,6 +1,6 @@
-;;; rfc2045.el --- Functions for decoding rfc2045 headers
+;;; rfc2045.el --- Functions for decoding rfc2045 headers  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1998-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1998-2020 Free Software Foundation, Inc.
 
 ;; Author: Lars Magne Ingebrigtsen <larsi@gnus.org>
 ;; This file is part of GNU Emacs.
@@ -16,7 +16,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;; RFC 2045 is: "Multipurpose Internet Mail Extensions (MIME) Part
 ;; One:  Format of Internet Message Bodies".

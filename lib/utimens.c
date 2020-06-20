@@ -1,6 +1,6 @@
 /* Set file access and modification times.
 
-   Copyright (C) 2003-2017 Free Software Foundation, Inc.
+   Copyright (C) 2003-2020 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify it
    under the terms of the GNU General Public License as published by the
@@ -13,7 +13,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+   along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
 
 /* Written by Paul Eggert.  */
 
@@ -39,8 +39,7 @@
    GNU Emacs, which arranges for this in some other way and which
    defines WIN32_LEAN_AND_MEAN itself.  */
 
-#if ((defined _WIN32 || defined __WIN32__) \
-     && ! defined __CYGWIN__ && ! defined EMACS_CONFIGURATION)
+#if defined _WIN32 && ! defined __CYGWIN__ && ! defined EMACS_CONFIGURATION
 # define USE_SETFILETIME
 # define WIN32_LEAN_AND_MEAN
 # include <windows.h>
@@ -92,11 +91,11 @@ validate_timespec (struct timespec timespec[2])
   if ((timespec[0].tv_nsec != UTIME_NOW
        && timespec[0].tv_nsec != UTIME_OMIT
        && ! (0 <= timespec[0].tv_nsec
-             && timespec[0].tv_nsec < TIMESPEC_RESOLUTION))
+             && timespec[0].tv_nsec < TIMESPEC_HZ))
       || (timespec[1].tv_nsec != UTIME_NOW
           && timespec[1].tv_nsec != UTIME_OMIT
           && ! (0 <= timespec[1].tv_nsec
-                && timespec[1].tv_nsec < TIMESPEC_RESOLUTION)))
+                && timespec[1].tv_nsec < TIMESPEC_HZ)))
     {
       errno = EINVAL;
       return -1;
@@ -196,7 +195,7 @@ fdutimens (int fd, char const *file, struct timespec const timespec[2])
   /* Some Linux-based NFS clients are buggy, and mishandle timestamps
      of files in NFS file systems in some cases.  We have no
      configure-time test for this, but please see
-     <http://bugs.gentoo.org/show_bug.cgi?id=132673> for references to
+     <https://bugs.gentoo.org/show_bug.cgi?id=132673> for references to
      some of the problems with Linux 2.6.16.  If this affects you,
      compile with -DHAVE_BUGGY_NFS_TIME_STAMPS; this is reported to
      help in some cases, albeit at a cost in performance.  But you
@@ -250,8 +249,8 @@ fdutimens (int fd, char const *file, struct timespec const timespec[2])
           result = utimensat (AT_FDCWD, file, ts, 0);
 #  ifdef __linux__
           /* Work around a kernel bug:
-             http://bugzilla.redhat.com/442352
-             http://bugzilla.redhat.com/449910
+             https://bugzilla.redhat.com/show_bug.cgi?id=442352
+             https://bugzilla.redhat.com/show_bug.cgi?id=449910
              It appears that utimensat can mistakenly return 280 rather
              than -1 upon ENOSYS failure.
              FIXME: remove in 2010 or whenever the offending kernels
@@ -289,8 +288,8 @@ fdutimens (int fd, char const *file, struct timespec const timespec[2])
 
 #ifdef USE_SETFILETIME
   /* On native Windows, use SetFileTime(). See
-     <https://msdn.microsoft.com/en-us/library/ms724933.aspx>
-     <https://msdn.microsoft.com/en-us/library/ms724284.aspx>  */
+     <https://docs.microsoft.com/en-us/windows/desktop/api/fileapi/nf-fileapi-setfiletime>
+     <https://docs.microsoft.com/en-us/windows/desktop/api/minwinbase/ns-minwinbase-filetime>  */
   if (0 <= fd)
     {
       HANDLE handle;
@@ -308,10 +307,10 @@ fdutimens (int fd, char const *file, struct timespec const timespec[2])
       if (ts == NULL || ts[0].tv_nsec == UTIME_NOW || ts[1].tv_nsec == UTIME_NOW)
         {
           /* GetSystemTimeAsFileTime
-             <https://msdn.microsoft.com/en-us/library/ms724397.aspx>.
+             <https://docs.microsoft.com/en-us/windows/desktop/api/sysinfoapi/nf-sysinfoapi-getsystemtimeasfiletime>.
              It would be overkill to use
              GetSystemTimePreciseAsFileTime
-             <https://msdn.microsoft.com/en-us/library/hh706895.aspx>.  */
+             <https://docs.microsoft.com/en-us/windows/desktop/api/sysinfoapi/nf-sysinfoapi-getsystemtimepreciseasfiletime>.  */
           GetSystemTimeAsFileTime (&current_time);
         }
 
@@ -566,8 +565,8 @@ lutimens (char const *file, struct timespec const timespec[2])
       result = utimensat (AT_FDCWD, file, ts, AT_SYMLINK_NOFOLLOW);
 # ifdef __linux__
       /* Work around a kernel bug:
-         http://bugzilla.redhat.com/442352
-         http://bugzilla.redhat.com/449910
+         https://bugzilla.redhat.com/show_bug.cgi?id=442352
+         https://bugzilla.redhat.com/show_bug.cgi?id=449910
          It appears that utimensat can mistakenly return 280 rather
          than -1 upon ENOSYS failure.
          FIXME: remove in 2010 or whenever the offending kernels

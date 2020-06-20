@@ -1,8 +1,8 @@
 ;;; landmark.el --- Neural-network robot that learns landmarks  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1996-1997, 2000-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1996-1997, 2000-2020 Free Software Foundation, Inc.
 
-;; Author: Terrence Brannon (was: <brannon@rana.usc.edu>)
+;; Author: Terrence Brannon <metaperl@gmail.com>
 ;; Created: December 16, 1996 - first release to usenet
 ;; Keywords: games, neural network, adaptive search, chemotaxis
 ;; Version: 1.0
@@ -21,7 +21,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 
 ;;; Commentary:
@@ -36,7 +36,7 @@
 ;; the smell of the tree increases, then the weights in the robot's
 ;; brain are adjusted to encourage this odor-driven behavior in the
 ;; future. If the smell of the tree decreases, the robots weights are
-;; adjusted to discourage a correct move.
+;; adjusted to discourage that odor-driven behavior.
 
 ;; In laymen's terms, the search space is initially flat. The point
 ;; of training is to "turn up the edges of the search space" so that
@@ -52,6 +52,13 @@
 ;; example, if moving south will produce positive payoff, then, if in
 ;; a single move, one moves east,west and south, then both east and
 ;; west will be improved when they shouldn't
+
+;; The source code was developed as part of a course on Brain Theory
+;; and Neural Networks at the University of Southern California. The
+;; original problem description and solution appeared in 1981 in the
+;; paper "Landmark Learning: An Illustration of Associative
+;; Search" authored by Andrew G. Barto and Richard S. Sutton and
+;; published to Biological Cybernetics.
 
 ;; Many thanks to Yuri Pryadkin <yuri@rana.usc.edu> for this
 ;; concise problem description.
@@ -260,7 +267,7 @@ is non-nil.  One interesting value is `turn-on-font-lock'."
   "Vector recording the actual score of the free squares.")
 
 
-;; The key point point about the algorithm is that, rather than considering
+;; The key point about the algorithm is that, rather than considering
 ;; the board as just a set of squares, we prefer to see it as a "space" of
 ;; internested 5-tuples of contiguous squares (called qtuples).
 ;;

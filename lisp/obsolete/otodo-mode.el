@@ -1,6 +1,6 @@
 ;;; todo-mode.el --- major mode for editing TODO list files
 
-;; Copyright (C) 1997, 1999, 2001-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1997, 1999, 2001-2020 Free Software Foundation, Inc.
 
 ;; Author: Oliver Seidel <privat@os10000.net>
 ;; Maintainer: Stephen Berman <stephen.berman@gmx.net>
@@ -21,7 +21,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;; ---------------------------------------------------------------------------
 
@@ -164,7 +164,7 @@
 ;;      might be nicer and to that effect a function has been declared
 ;;      further down in the code.  You may wish to auto-load this.
 ;;
-;;      Carsten also writes that that *changing* the prefix after the
+;;      Carsten also writes that *changing* the prefix after the
 ;;      todo list is already established is not as simple as changing
 ;;      the variable - the todo files have to be changed by hand.
 ;;
@@ -925,8 +925,9 @@ If INCLUDE-SEP is non-nil, return point after the separator."
   "Major mode for editing TODO lists."
   (easy-menu-add todo-menu))
 
-(defvar date)
-(defvar entry)
+(with-suppressed-warnings ((lexical date entry))
+  (defvar date)
+  (defvar entry))
 
 ;; t-c should be used from diary code, which requires calendar.
 (declare-function calendar-current-date "calendar" (&optional offset))

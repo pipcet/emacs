@@ -1,6 +1,6 @@
 ;;; ox-md.el --- Markdown Back-End for Org Export Engine -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2012-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2012-2020 Free Software Foundation, Inc.
 
 ;; Author: Nicolas Goaziou <n.goaziou@gmail.com>
 ;; Keywords: org, wp, markdown
@@ -18,7 +18,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -175,7 +175,7 @@ channel."
 	    value)))
 
 
-;;;; Example Block, Src Block and export Block
+;;;; Example Block, Src Block and Export Block
 
 (defun org-md-example-block (example-block _contents info)
   "Transcode EXAMPLE-BLOCK element into Markdown format.
@@ -211,8 +211,7 @@ a communication channel."
 	   (tags (and (plist-get info :with-tags)
 		      (let ((tag-list (org-export-get-tags headline info)))
 			(and tag-list
-			     (format "     :%s:"
-				     (mapconcat 'identity tag-list ":"))))))
+			     (concat "     " (org-make-tag-string tag-list))))))
 	   (priority
 	    (and (plist-get info :with-priority)
 		 (let ((char (org-element-property :priority headline)))
@@ -240,7 +239,7 @@ a communication channel."
 		    (format "<a id=\"%s\"></a>"
 			    (or (org-element-property :CUSTOM_ID headline)
 				(org-export-get-reference headline info))))))
-	  (concat (org-md--headline-title style level title anchor tags)
+	  (concat (org-md--headline-title style level heading anchor tags)
 		  contents)))))))
 
 
@@ -248,15 +247,42 @@ a communication channel."
   "Non-nil when HEADLINE is being referred to.
 INFO is a plist used as a communication channel.  Links and table
 of contents can refer to headlines."
-  (or (plist-get info :with-toc)
-      (org-element-map (plist-get info :parse-tree) 'link
-	(lambda (link)
-	  (eq headline
-	      (pcase (org-element-property :type link)
-		((or "custom-id" "id") (org-export-resolve-id-link link info))
-		("fuzzy" (org-export-resolve-fuzzy-link link info))
-		(_ nil))))
-	info t)))
+  (unless (org-element-property :footnote-section-p headline)
+    (or
+     ;; Global table of contents includes HEADLINE.
+     (and (plist-get info :with-toc)
+	  (memq headline
+		(org-export-collect-headlines info (plist-get info :with-toc))))
+     ;; A local table of contents includes HEADLINE.
+     (cl-some
+      (lambda (h)
+	(let ((section (car (org-element-contents h))))
+	  (and
+	   (eq 'section (org-element-type section))
+	   (org-element-map section 'keyword
+	     (lambda (keyword)
+	       (when (equal "TOC" (org-element-property :key keyword))
+		 (let ((case-fold-search t)
+		       (value (org-element-property :value keyword)))
+		   (and (string-match-p "\\<headlines\\>" value)
+			(let ((n (and
+				  (string-match "\\<[0-9]+\\>" value)
+				  (string-to-number (match-string 0 value))))
+			      (local? (string-match-p "\\<local\\>" value)))
+			  (memq headline
+				(org-export-collect-headlines
+				 info n (and local? keyword))))))))
+	     info t))))
+      (org-element-lineage headline))
+     ;; A link refers internally to HEADLINE.
+     (org-element-map (plist-get info :parse-tree) 'link
+       (lambda (link)
+	 (eq headline
+	     (pcase (org-element-property :type link)
+	       ((or "custom-id" "id") (org-export-resolve-id-link link info))
+	       ("fuzzy" (org-export-resolve-fuzzy-link link info))
+	       (_ nil))))
+       info t))))
 
 (defun org-md--headline-title (style level title &optional anchor tags)
   "Generate a headline title in the preferred Markdown headline style.
@@ -328,9 +354,24 @@ a communication channel."
   "Transcode a KEYWORD element into Markdown format.
 CONTENTS is nil.  INFO is a plist used as a communication
 channel."
-  (if (member (org-element-property :key keyword) '("MARKDOWN" "MD"))
-      (org-element-property :value keyword)
-    (org-export-with-backend 'html keyword contents info)))
+  (pcase (org-element-property :key keyword)
+    ((or "MARKDOWN" "MD") (org-element-property :value keyword))
+    ("TOC"
+     (let ((case-fold-search t)
+	   (value (org-element-property :value keyword)))
+       (cond
+	((string-match-p "\\<headlines\\>" value)
+	 (let ((depth (and (string-match "\\<[0-9]+\\>" value)
+			   (string-to-number (match-string 0 value))))
+	       (scope
+		(cond
+		 ((string-match ":target +\\(\".+?\"\\|\\S-+\\)" value) ;link
+		  (org-export-resolve-link
+		   (org-strip-quotes (match-string 1 value)) info))
+		 ((string-match-p "\\<local\\>" value) keyword)))) ;local
+	   (org-remove-indentation
+	    (org-md--build-toc info depth keyword scope)))))))
+    (_ (org-export-with-backend 'html keyword contents info))))
 
 
 ;;;; Line Break
@@ -395,8 +436,9 @@ a communication channel."
 		       (org-export-get-reference destination info))))))))
      ((org-export-inline-image-p link org-html-inline-image-rules)
       (let ((path (let ((raw-path (org-element-property :path link)))
-		    (if (not (file-name-absolute-p raw-path)) raw-path
-		      (expand-file-name raw-path))))
+		    (cond ((not (equal "file" type)) (concat type ":" raw-path))
+			  ((not (file-name-absolute-p raw-path)) raw-path)
+			  (t (expand-file-name raw-path)))))
 	    (caption (org-export-data
 		      (org-export-get-caption
 		       (org-export-get-parent-element link)) info)))
@@ -411,7 +453,7 @@ a communication channel."
      (t (let* ((raw-path (org-element-property :path link))
 	       (path
 		(cond
-		 ((member type '("http" "https" "ftp"))
+		 ((member type '("http" "https" "ftp" "mailto"))
 		  (concat type ":" raw-path))
 		 ((string= type "file")
 		  (org-export-file-uri (funcall link-org-files-as-md raw-path)))
@@ -462,14 +504,15 @@ TEXT is the string to transcode.  INFO is a plist holding
 contextual information."
   (when (plist-get info :with-smart-quotes)
     (setq text (org-export-activate-smart-quotes text :html info)))
+  ;; The below series of replacements in `text' is order sensitive.
+  ;; Protect `, *, _, and \
+  (setq text (replace-regexp-in-string "[`*_\\]" "\\\\\\&" text))
   ;; Protect ambiguous #.  This will protect # at the beginning of
   ;; a line, but not at the beginning of a paragraph.  See
   ;; `org-md-paragraph'.
   (setq text (replace-regexp-in-string "\n#" "\n\\\\#" text))
   ;; Protect ambiguous !
   (setq text (replace-regexp-in-string "\\(!\\)\\[" "\\\\!" text nil nil 1))
-  ;; Protect `, *, _ and \
-  (setq text (replace-regexp-in-string "[`*_\\]" "\\\\\\&" text))
   ;; Handle special strings, if required.
   (when (plist-get info :with-special-strings)
     (setq text (org-html-convert-special-strings text)))
@@ -512,6 +555,50 @@ a communication channel."
 
 ;;;; Template
 
+(defun org-md--build-toc (info &optional n _keyword scope)
+  "Return a table of contents.
+
+INFO is a plist used as a communication channel.
+
+Optional argument N, when non-nil, is an integer specifying the
+depth of the table.
+
+When optional argument SCOPE is non-nil, build a table of
+contents according to the specified element."
+  (concat
+   (unless scope
+     (let ((style (plist-get info :md-headline-style))
+	   (title (org-html--translate "Table of Contents" info)))
+       (org-md--headline-title style 1 title nil)))
+   (mapconcat
+    (lambda (headline)
+      (let* ((indentation
+	      (make-string
+	       (* 4 (1- (org-export-get-relative-level headline info)))
+	       ?\s))
+	     (bullet
+	      (if (not (org-export-numbered-headline-p headline info)) "-   "
+		(let ((prefix
+		       (format "%d." (org-last (org-export-get-headline-number
+						headline info)))))
+		  (concat prefix (make-string (max 1 (- 4 (length prefix)))
+					      ?\s)))))
+	     (title
+	      (format "[%s](#%s)"
+		      (org-export-data-with-backend
+		       (org-export-get-alt-title headline info)
+		       (org-export-toc-entry-backend 'md)
+		       info)
+		      (or (org-element-property :CUSTOM_ID headline)
+			  (org-export-get-reference headline info))))
+	     (tags (and (plist-get info :with-tags)
+			(not (eq 'not-in-toc (plist-get info :with-tags)))
+			(org-make-tag-string
+			 (org-export-get-tags headline info)))))
+	(concat indentation bullet title tags)))
+    (org-export-collect-headlines info n scope) "\n")
+   "\n"))
+
 (defun org-md--footnote-formatted (footnote info)
   "Formats a single footnote entry FOOTNOTE.
 FOOTNOTE is a cons cell of the form (number . definition).
@@ -548,7 +635,8 @@ holding export options."
   (concat
    ;; Table of contents.
    (let ((depth (plist-get info :with-toc)))
-     (when depth (org-html-toc depth info)))
+     (when depth
+       (concat (org-md--build-toc info (and (wholenump depth) depth)) "\n")))
    ;; Document contents.
    contents
    "\n"

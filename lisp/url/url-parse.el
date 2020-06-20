@@ -1,6 +1,6 @@
 ;;; url-parse.el --- Uniform Resource Locator parser -*- lexical-binding: t -*-
 
-;; Copyright (C) 1996-1999, 2004-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1996-1999, 2004-2020 Free Software Foundation, Inc.
 
 ;; Keywords: comm, data, processes
 
@@ -17,7 +17,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -36,7 +36,8 @@
                                      target attributes fullness))
             (:copier nil))
   type user password host portspec filename target attributes fullness
-  silent (use-cookies t))
+  silent (use-cookies t)
+  (asynchronous t))
 
 (defsubst url-port (urlobj)
   "Return the port number for the URL specified by URLOBJ.
@@ -208,7 +209,7 @@ parses to
 	    ;; 3.3. Path
 	    (skip-chars-forward "^?#")
 	    ;; 3.4. Query
-	    (when (looking-at "?")
+	    (when (looking-at "\\?")
 	      (skip-chars-forward "^#"))
 	    (setq file (buffer-substring save-pos (point)))
 	    ;; 3.5 Fragment

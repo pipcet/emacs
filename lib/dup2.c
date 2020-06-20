@@ -1,6 +1,6 @@
 /* Duplicate an open file descriptor to a specified file descriptor.
 
-   Copyright (C) 1999, 2004-2007, 2009-2017 Free Software Foundation, Inc.
+   Copyright (C) 1999, 2004-2007, 2009-2020 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,7 +13,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+   along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
 
 /* written by Paul Eggert */
 
@@ -29,7 +29,7 @@
 
 # undef dup2
 
-# if (defined _WIN32 || defined __WIN32__) && ! defined __CYGWIN__
+# if defined _WIN32 && ! defined __CYGWIN__
 
 /* Get declarations of the native Windows API functions.  */
 #  define WIN32_LEAN_AND_MEAN
@@ -88,7 +88,7 @@ ms_windows_dup2 (int fd, int desired_fd)
     }
 
   /* Wine 1.0.1 return 0 when desired_fd is negative but not -1:
-     http://bugs.winehq.org/show_bug.cgi?id=21289 */
+     https://bugs.winehq.org/show_bug.cgi?id=21289 */
   if (desired_fd < 0)
     {
       errno = EBADF;

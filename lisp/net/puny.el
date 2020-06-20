@@ -1,6 +1,6 @@
-;;; puny.el --- translate non-ASCII domain names to ASCII
+;;; puny.el --- translate non-ASCII domain names to ASCII  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2015-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2015-2020 Free Software Foundation, Inc.
 
 ;; Author: Lars Magne Ingebrigtsen <larsi@gnus.org>
 ;; Keywords: mail, net
@@ -18,7 +18,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -27,6 +27,7 @@
 
 ;;; Code:
 
+(eval-when-compile (require 'cl-lib))
 (require 'seq)
 
 (defun puny-encode-domain (domain)
@@ -34,7 +35,7 @@
 For instance, \"fśf.org\" => \"xn--ff-2sa.org\"."
   ;; The vast majority of domain names are not IDNA domain names, so
   ;; add a check first to avoid doing unnecessary work.
-  (if (string-match "\\'[[:ascii:]]+\\'" domain)
+  (if (string-match "\\`[[:ascii:]]+\\'" domain)
       domain
     (mapconcat 'puny-encode-string (split-string domain "[.]") ".")))
 
@@ -62,7 +63,10 @@ For instance, \"xn--ff-2sa.org\" => \"fśf.org\"."
   "Decode an IDNA/punycode-encoded string.
 For instance \"xn--bcher-kva\" => \"bücher\"."
   (if (string-match "\\`xn--" string)
-      (puny-decode-string-internal (substring string 4))
+      (condition-case nil
+          (puny-decode-string-internal (substring string 4))
+        ;; If the string is invalid Punycode, just return the string.
+        (args-out-of-range string))
     string))
 
 (defconst puny-initial-n 128)

@@ -1,10 +1,10 @@
 ;;; hippie-exp.el --- expand text trying various ways to find its expansion
 
-;; Copyright (C) 1992, 2001-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1992, 2001-2020 Free Software Foundation, Inc.
 
 ;; Author: Anders Holst <aho@sans.kth.se>
 ;; Maintainer: emacs-devel@gnu.org
-;; Version: 1.6
+;; Old-Version: 1.6
 ;; Keywords: abbrev convenience
 
 ;; This file is part of GNU Emacs.
@@ -20,7 +20,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -248,7 +248,7 @@ If nil, all buffers are searched."
 (defcustom hippie-expand-ignore-buffers '("^ \\*.*\\*$" dired-mode)
   "A list specifying which buffers not to search (if not current).
 Can contain both regexps matching buffer names (as strings) and major modes
-\(as atoms)"
+\(as atoms)."
   :type '(repeat (choice regexp (symbol :tag "Major Mode")))
   :group 'hippie-expand)
 

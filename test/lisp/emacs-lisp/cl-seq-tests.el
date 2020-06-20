@@ -1,6 +1,6 @@
 ;;; cl-seq-tests.el --- Tests for cl-seq.el functionality  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2015-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2015-2020 Free Software Foundation, Inc.
 
 ;; Author: Nicolas Richard <youngfrog@members.fsf.org>
 
@@ -17,7 +17,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -27,7 +27,7 @@
 (require 'cl-seq)
 
 (ert-deftest cl-union-test-00 ()
-  "Test for http://debbugs.gnu.org/22729 ."
+  "Test for https://debbugs.gnu.org/22729 ."
   (let ((str1 "foo")
         (str2 (make-string 3 ?o)))
     ;; Emacs may make two string literals eql when reading.
@@ -293,7 +293,7 @@ Body are forms defining the test."
     (should (= 3 (cl-search (nthcdr 2 list) list2)))))
 
 (ert-deftest cl-seq-test-bug24264 ()
-  "Test for http://debbugs.gnu.org/24264 ."
+  "Test for https://debbugs.gnu.org/24264 ."
   (let ((list  (append (make-list 8000005 1) '(8)))
         (list2 (make-list 8000005 2)))
     (should (cl-position 8 list))
@@ -302,6 +302,14 @@ Body are forms defining the test."
     (should (equal '(2 8) (last (cl-replace list list2) 2)))
     (should (equal '(1 1) (last (cl-fill list 1) 2)))))
 
+(ert-deftest cl-seq-bignum-eql ()
+  (let ((x (+ most-positive-fixnum 1))
+        (y (+ most-positive-fixnum 1)))
+    (let ((l (list y)))
+      (should (eq (cl-member x l) l)))
+    (let ((a (list (cons y 1) (cons 2 y))))
+      (should (eq (cl-assoc x a) (car a)))
+      (should (eq (cl-rassoc x a) (cadr a))))))
 
 (provide 'cl-seq-tests)
 ;;; cl-seq-tests.el ends here

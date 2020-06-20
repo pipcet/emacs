@@ -1,11 +1,11 @@
 ;;; erc-match.el --- Highlight messages matching certain regexps
 
-;; Copyright (C) 2002-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2002-2020 Free Software Foundation, Inc.
 
 ;; Author: Andreas Fuchs <asf@void.at>
-;; Maintainer: emacs-devel@gnu.org
+;; Maintainer: Amin Bandali <bandali@gnu.org>
 ;; Keywords: comm, faces
-;; URL: http://www.emacswiki.org/cgi-bin/wiki.pl?ErcMatch
+;; URL: https://www.emacswiki.org/emacs/ErcMatch
 
 ;; This file is part of GNU Emacs.
 
@@ -20,7 +20,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -44,7 +44,7 @@ Group containing all things concerning pattern matching in ERC
 messages."
   :group 'erc)
 
-;;;###autoload (autoload 'erc-match-mode "erc-match")
+;;;###autoload(autoload 'erc-match-mode "erc-match")
 (define-erc-module match nil
   "This mode checks whether messages match certain patterns.  If so,
 they are hidden or highlighted.  This is controlled via the variables
@@ -199,8 +199,8 @@ When `away', log messages only when away."
 
 (defcustom erc-log-match-format "%t<%n:%c> %m"
   "Format for matched Messages.
-This variable specifies how messages in the corresponding log buffers will
-be formatted. The various format specs are:
+This variable specifies how messages in the corresponding log buffers
+will be formatted.  The various format specs are:
 
 %t Timestamp (uses `erc-timestamp-format' if non-nil or \"[%Y-%m-%d %H:%M] \")
 %n Nickname of sender
@@ -227,7 +227,7 @@ for beeping to work."
   "Hook run when text matches a given match-type.
 Functions in this hook are passed as arguments:
 \(match-type nick!user@host message) where MATCH-TYPE is a symbol of:
-current-nick, keyword, pal, dangerous-host, fool"
+current-nick, keyword, pal, dangerous-host, fool."
   :options '(erc-log-matches erc-hide-fools erc-beep-on-match)
   :group 'erc-match
   :type 'hook)
@@ -246,14 +246,11 @@ and other miscellaneous functions."
 ;; just put it in erc.el
 (defvar erc-match-syntax-table
   (let ((table (make-syntax-table)))
-    (modify-syntax-entry ?\( "w" table)
-    (modify-syntax-entry ?\) "w" table)
     (modify-syntax-entry ?\[ "w" table)
     (modify-syntax-entry ?\] "w" table)
     (modify-syntax-entry ?\{ "w" table)
     (modify-syntax-entry ?\} "w" table)
     (modify-syntax-entry ?` "w" table)
-    (modify-syntax-entry ?' "w" table)
     (modify-syntax-entry ?^ "w" table)
     (modify-syntax-entry ?- "w" table)
     (modify-syntax-entry ?_ "w" table)
@@ -558,16 +555,15 @@ See `erc-log-match-format'."
 	       (and (eq erc-log-matches-flag 'away)
 		    (erc-away-time)))
 	   match-buffer-name)
-      (let ((line (format-spec erc-log-match-format
-		   (format-spec-make
-		    ?n nick
-		    ?t (format-time-string
-			(or (and (boundp 'erc-timestamp-format)
-				 erc-timestamp-format)
-			    "[%Y-%m-%d %H:%M] "))
-		    ?c (or (erc-default-target) "")
-		    ?m message
-		    ?u nickuserhost))))
+      (let ((line (format-spec
+                   erc-log-match-format
+                   `((?n . ,nick)
+                     (?t . ,(format-time-string
+                             (or (bound-and-true-p erc-timestamp-format)
+                                 "[%Y-%m-%d %H:%M] ")))
+                     (?c . ,(or (erc-default-target) ""))
+                     (?m . ,message)
+                     (?u . ,nickuserhost)))))
 	(with-current-buffer (erc-log-matches-make-buffer match-buffer-name)
 	  (let ((inhibit-read-only t))
 	    (goto-char (point-max))
@@ -601,7 +597,7 @@ See `erc-log-match-format'."
 						       'timestamp))))
 		  (away-time (erc-emacs-time-to-erc-time (erc-away-time))))
 	     (when (and away-time last-msg-time
-			(erc-time-gt last-msg-time away-time))
+			(time-less-p away-time last-msg-time))
 	       (erc-display-message
 		nil 'notice 'active
 		(format "You have logged messages waiting in \"%s\"."
@@ -648,6 +644,5 @@ This function is meant to be called from `erc-text-matched-hook'."
 ;;; erc-match.el ends here
 ;;
 ;; Local Variables:
-;; indent-tabs-mode: t
-;; tab-width: 8
+;; generated-autoload-file: "erc-loaddefs.el"
 ;; End:

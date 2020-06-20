@@ -1,11 +1,11 @@
 ;;; org-entities.el --- Support for Special Entities -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2010-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2010-2020 Free Software Foundation, Inc.
 
 ;; Author: Carsten Dominik <carsten at orgmode dot org>,
 ;;         Ulf Stegemann <ulf at zeitform dot de>
 ;; Keywords: outlines, calendar, wp
-;; Homepage: http://orgmode.org
+;; Homepage: https://orgmode.org
 ;;
 ;; This file is part of GNU Emacs.
 ;;
@@ -20,7 +20,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 ;;; Commentary:
@@ -295,6 +295,8 @@ packages to be loaded, add these packages to `org-latex-packages-alist'."
      ("yen" "\\textyen{}" nil "&yen;" "yen" "¥" "¥")
      ("euro" "\\texteuro{}" nil "&euro;" "EUR" "EUR" "€")
      ("EUR" "\\texteuro{}" nil "&euro;" "EUR" "EUR" "€")
+     ("dollar" "\\$" nil "$" "$" "$" "$")
+     ("USD" "\\$" nil "$" "$" "$" "$")
 
      "** Property Marks"
      ("copy" "\\textcopyright{}" nil "&copy;" "(c)" "©" "©")
@@ -541,11 +543,11 @@ This first checks the user list, then the built-in list."
     (dolist (e org-entities)
       (pcase e
 	(`(,name ,latex ,mathp ,html ,ascii ,latin ,utf8)
-	 (if (equal ascii "|") (setq ascii "\\vert"))
-	 (if (equal latin "|") (setq latin "\\vert"))
-	 (if (equal utf8  "|") (setq utf8  "\\vert"))
-	 (if (equal ascii "=>") (setq ascii "= >"))
-	 (if (equal latin "=>") (setq latin "= >"))
+	 (when (equal ascii "|") (setq ascii "\\vert"))
+	 (when (equal latin "|") (setq latin "\\vert"))
+	 (when (equal utf8  "|") (setq utf8  "\\vert"))
+	 (when (equal ascii "=>") (setq ascii "= >"))
+	 (when (equal latin "=>") (setq latin "= >"))
 	 (insert "|" name
 		 "|" (format "=%s=" latex)
 		 "|" (format (if mathp "$%s$" "$\\mbox{%s}$") latex)

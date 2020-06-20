@@ -1,9 +1,9 @@
 ;;; ses.el -- Simple Emacs Spreadsheet  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2002-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2002-2020 Free Software Foundation, Inc.
 
 ;; Author: Jonathan Yavner <jyavner@member.fsf.org>
-;; Maintainer: Vincent Belaïche  <vincentb1@users.sourceforge.net>
+;; Maintainer: Vincent Belaïche <vincentb1@users.sourceforge.net>
 ;; Keywords: spreadsheet Dijkstra
 
 ;; This file is part of GNU Emacs.
@@ -19,7 +19,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -506,7 +506,7 @@ This can alter PLIST."
       (setplist name (ses-plist-delq (symbol-plist name) 'ses-cell))) ))
 
 (defmacro ses--letref (vars place &rest body)
-  (declare (indent 2) (debug (sexp form &rest body)))
+  (declare (indent 2) (debug (sexp form body)))
   (gv-letplace (getter setter) place
     `(cl-macrolet ((,(nth 0 vars) () ',getter)
                    (,(nth 1 vars) (v) (funcall ',setter v)))
@@ -671,17 +671,6 @@ variables `minrow', `maxrow', `mincol', and `maxcol'."
                (let ((col (+ ,c mincol)))
                  ,@body))))))))
 
-;;Support for coverage testing.
-(defmacro 1value (form)
-  "For code-coverage testing, indicate that FORM is expected to always have
-the same value."
-  (declare (debug t))
-  form)
-(defmacro noreturn (form)
-  "For code-coverage testing, indicate that FORM will always signal an error."
-  (declare (debug t))
-  form)
-
 
 ;;----------------------------------------------------------------------------
 ;; Utility functions
@@ -837,7 +826,7 @@ updated again."
 (defmacro ses--time-check (format &rest args)
   "If `ses-start-time' is more than a second ago, call `message' with FORMAT
 and ARGS and reset `ses-start-time' to the current time."
-  `(when (> (- (float-time) ses-start-time) 1.0)
+  `(when (time-less-p 1 (time-since ses-start-time))
      (message ,format ,@args)
      (setq ses-start-time (float-time))))
 
@@ -858,7 +847,7 @@ cell (ROW,COL).  This is undoable.  The cell's data will be updated through
              ,(let ((field (progn (cl-assert (eq (car field) 'quote))
                                   (cadr field))))
                 (if (eq field 'value)
-                    `(ses-set-with-undo (ses-cell-symbol cell) val)
+                    '(ses-set-with-undo (ses-cell-symbol cell) val)
                   ;; (let* ((slots (get 'ses-cell 'cl-struct-slots))
                   ;;        (slot (or (assq field slots)
                   ;;                  (error "Unknown field %S" field)))
@@ -1254,8 +1243,7 @@ preceding cell has spilled over."
 	 ((< len width)
 	  ;; Fill field to length with spaces.
 	  (setq len  (make-string (- width len) ?\s)
-		text (if (or (stringp value)
-			     (eq ses-call-printer-return t))
+		text (if (eq ses-call-printer-return t)
 			 (concat text len)
 		       (concat len text))))
 	 ((> len width)
@@ -1436,7 +1424,7 @@ ses--default-printer, ses--numrows, or ses--numcols."
   "Extend the global parameters list when file format is updated
 from 2 to 3. This happens when local printer function are added
 to a sheet that was created with SES version 2. This is not
-undoable. Return nil when there was no change, and non nil otherwise."
+undoable. Return nil when there was no change, and non-nil otherwise."
   (save-excursion
     (cond
      ((and (= ses--file-format 2) (= 3 new-file-format))
@@ -1510,8 +1498,9 @@ Newlines in the data are escaped."
                                  ,printer
                                  ,(ses-cell-references cell))))
 	  (ses-goto-data row col)
-	  (delete-region (point) (line-end-position))
-	  (insert text)))
+          (let ((inhibit-quit t))
+	    (delete-region (point) (line-end-position))
+	    (insert text))))
       (message " "))))
 
 
@@ -2496,7 +2485,7 @@ to are recalculated first."
          prefix-length)
     (when (and prefix (null (string= prefix "")))
       (setq prefix-length (length prefix))
-      (maphash (lambda (key val)
+      (maphash (lambda (key _val)
                  (let ((key-name (symbol-name key)))
                    (when (and (>= (length key-name) prefix-length)
                               (string= prefix (substring key-name 0 prefix-length)))
@@ -2649,7 +2638,7 @@ cells."
          prefix-length)
     (when prefix
       (setq prefix-length (length prefix))
-      (maphash (lambda (key val)
+      (maphash (lambda (key _val)
                  (let ((key-name (symbol-name key)))
                    (when (and (>= (length key-name) prefix-length)
                               (string= prefix (substring key-name 0 prefix-length)))
@@ -3052,7 +3041,7 @@ We'll assume copying front-sticky properties doesn't make sense, either.
 
 This advice also includes some SES-specific code because otherwise it's too
 hard to override how mouse-1 works."
-  (when (> beg end)
+  (when (and beg end (> beg end))
     (let ((temp beg))
       (setq beg end
 	    end temp)))
@@ -3957,17 +3946,17 @@ Use `math-format-value' as a printer for Calc objects."
     (while rest
       (let ((x (pop rest)))
 	(pcase x
-	  (`>v (setq transpose nil reorient-x nil reorient-y nil))
-	  (`>^ (setq transpose nil reorient-x nil reorient-y t))
-	  (`<^ (setq transpose nil reorient-x t reorient-y t))
-	  (`<v (setq transpose nil reorient-x t reorient-y nil))
-	  (`v> (setq transpose t reorient-x nil reorient-y t))
-	  (`^> (setq transpose t reorient-x nil reorient-y nil))
-	  (`^< (setq transpose t reorient-x t reorient-y nil))
-	  (`v< (setq transpose t reorient-x t reorient-y t))
-	  ((or `* `*2 `*1) (setq vectorize x))
-	  (`! (setq clean 'ses--clean-!))
-	  (`_ (setq clean `(lambda (&rest x)
+	  ('>v (setq transpose nil reorient-x nil reorient-y nil))
+	  ('>^ (setq transpose nil reorient-x nil reorient-y t))
+	  ('<^ (setq transpose nil reorient-x t reorient-y t))
+	  ('<v (setq transpose nil reorient-x t reorient-y nil))
+	  ('v> (setq transpose t reorient-x nil reorient-y t))
+	  ('^> (setq transpose t reorient-x nil reorient-y nil))
+	  ('^< (setq transpose t reorient-x t reorient-y nil))
+	  ('v< (setq transpose t reorient-x t reorient-y t))
+	  ((or '* '*2 '*1) (setq vectorize x))
+	  ('! (setq clean 'ses--clean-!))
+	  ('_ (setq clean `(lambda (&rest x)
                              (ses--clean-_  x ,(if rest (pop rest) 0)))))
 	  (_
 	   (cond
@@ -4002,10 +3991,10 @@ Use `math-format-value' as a printer for Calc objects."
                                            (cons  clean (cons (quote 'vec) x)))
                                          result)))))
       (pcase vectorize
-	(`nil (cons clean (apply #'append result)))
-	(`*1 (vectorize-*1 clean result))
-	(`*2 (vectorize-*2 clean result))
-	(`* (funcall (if (cdr result)
+	('nil (cons clean (apply #'append result)))
+	('*1 (vectorize-*1 clean result))
+	('*2 (vectorize-*2 clean result))
+	('* (funcall (if (cdr result)
                          #'vectorize-*2
                        #'vectorize-*1)
                      clean result))))))

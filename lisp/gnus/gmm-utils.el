@@ -1,6 +1,6 @@
 ;;; gmm-utils.el --- Utility functions for Gnus, Message and MML
 
-;; Copyright (C) 2006-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2006-2020 Free Software Foundation, Inc.
 
 ;; Author: Reiner Steib <reiner.steib@gmx.de>
 ;; Keywords: news
@@ -18,7 +18,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -168,9 +168,9 @@ ARGS are passed to `message'."
 (defcustom gmm-tool-bar-style
   (if (and (boundp 'tool-bar-mode)
 	   tool-bar-mode
-	   (memq (display-visual-class)
-		 (list 'static-gray 'gray-scale
-		       'static-color 'pseudo-color)))
+	   (not (memq (display-visual-class)
+		      (list 'static-gray 'gray-scale
+		            'static-color 'pseudo-color))))
       'gnome
     'retro)
   "Preferred tool bar style."

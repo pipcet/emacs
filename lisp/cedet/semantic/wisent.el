@@ -1,9 +1,8 @@
 ;;; semantic/wisent.el --- Wisent - Semantic gateway
 
-;; Copyright (C) 2001-2007, 2009-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2001-2007, 2009-2020 Free Software Foundation, Inc.
 
 ;; Author: David Ponce <david@dponce.com>
-;; Maintainer: David Ponce <david@dponce.com>
 ;; Created: 30 Aug 2001
 ;; Keywords: syntax
 
@@ -20,7 +19,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 ;;
@@ -185,7 +184,7 @@ the standard function `semantic-parse-stream'."
     ;; lookahead tokens and tokens in STREAM can be different the
     ;; lookahead token is put in the variable `wisent-lex-lookahead'
     ;; before calling `wisent-parse'.  Wisent's lexers always pop the
-    ;; next lexical token from that variable when non nil, then from
+    ;; next lexical token from that variable when non-nil, then from
     ;; the lexical input stream.
     ;;
     ;; The first element of STREAM is used to keep lookahead tokens

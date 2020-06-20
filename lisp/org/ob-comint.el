@@ -1,10 +1,10 @@
 ;;; ob-comint.el --- Babel Functions for Interaction with Comint Buffers -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2009-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2009-2020 Free Software Foundation, Inc.
 
 ;; Author: Eric Schulte
 ;; Keywords: literate programming, reproducible research, comint
-;; Homepage: http://orgmode.org
+;; Homepage: https://orgmode.org
 
 ;; This file is part of GNU Emacs.
 
@@ -19,7 +19,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -33,11 +33,10 @@
 (require 'ob-core)
 (require 'org-compat)
 (require 'comint)
-(require 'tramp)
 
 (defun org-babel-comint-buffer-livep (buffer)
   "Check if BUFFER is a comint buffer with a live process."
-  (let ((buffer (if buffer (get-buffer buffer))))
+  (let ((buffer (when buffer (get-buffer buffer))))
     (and buffer (buffer-live-p buffer) (get-buffer-process buffer) buffer)))
 
 (defmacro org-babel-comint-in-buffer (buffer &rest body)
@@ -148,10 +147,6 @@ FILE exists at end of evaluation."
   (process-send-string
    (get-buffer-process buffer)
    (if (= (aref string (1- (length string))) ?\n) string (concat string "\n")))
-  ;; From Tramp 2.1.19 the following cache flush is not necessary
-  (when (file-remote-p default-directory)
-    (with-parsed-tramp-file-name default-directory nil
-      (tramp-flush-directory-property v "")))
   (while (not (file-exists-p file)) (sit-for (or period 0.25))))
 
 (provide 'ob-comint)

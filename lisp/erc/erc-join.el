@@ -1,11 +1,11 @@
 ;;; erc-join.el --- autojoin channels on connect and reconnects
 
-;; Copyright (C) 2002-2004, 2006-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2002-2004, 2006-2020 Free Software Foundation, Inc.
 
 ;; Author: Alex Schroeder <alex@gnu.org>
-;; Maintainer: emacs-devel@gnu.org
+;; Maintainer: Amin Bandali <bandali@gnu.org>
 ;; Keywords: irc
-;; URL: http://www.emacswiki.org/cgi-bin/wiki.pl?ErcAutoJoin
+;; URL: https://www.emacswiki.org/emacs/ErcAutoJoin
 
 ;; This file is part of GNU Emacs.
 
@@ -20,7 +20,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -39,7 +39,7 @@
   "Enable autojoining."
   :group 'erc)
 
-;;;###autoload (autoload 'erc-autojoin-mode "erc-join" nil t)
+;;;###autoload(autoload 'erc-autojoin-mode "erc-join" nil t)
 (define-erc-module autojoin nil
   "Makes ERC autojoin on connects and reconnects."
   ((add-hook 'erc-after-connect 'erc-autojoin-channels)
@@ -161,6 +161,10 @@ This function is run from `erc-nickserv-identified-hook'."
 	      ;; Only auto-join the channels that we aren't already in
 	      ;; using a different nick.
 	      (when (or (not buffer)
+			;; If the same channel is joined on another
+			;; server the best-effort is to just join
+			(not (string-match (car l)
+					   (process-name erc-server-process)))
 			(not (with-current-buffer buffer
 			       (erc-server-process-alive))))
 		(erc-server-join-channel server chan))))))))
@@ -215,7 +219,5 @@ This function is run from `erc-nickserv-identified-hook'."
 ;;; erc-join.el ends here
 ;;
 ;; Local Variables:
-;; indent-tabs-mode: t
-;; tab-width: 8
+;; generated-autoload-file: "erc-loaddefs.el"
 ;; End:
-

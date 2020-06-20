@@ -1,8 +1,8 @@
 ;;; benchmark.el --- support for benchmarking code  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2003-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2003-2020 Free Software Foundation, Inc.
 
-;; Author: Dave Love  <fx@gnu.org>
+;; Author: Dave Love <fx@gnu.org>
 ;; Keywords: lisp, extensions
 
 ;; This file is part of GNU Emacs.
@@ -18,7 +18,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -34,13 +34,11 @@
 (defmacro benchmark-elapse (&rest forms)
   "Return the time in seconds elapsed for execution of FORMS."
   (declare (indent 0) (debug t))
-  (let ((t1 (make-symbol "t1"))
-	(t2 (make-symbol "t2")))
-    `(let (,t1 ,t2)
+  (let ((t1 (make-symbol "t1")))
+    `(let (,t1)
        (setq ,t1 (current-time))
        ,@forms
-       (setq ,t2 (current-time))
-       (float-time (time-subtract ,t2 ,t1)))))
+       (float-time (time-since ,t1)))))
 
 ;;;###autoload
 (defmacro benchmark-run (&optional repetitions &rest forms)
@@ -52,7 +50,7 @@ Return a list of the total elapsed time for execution, the number of
 garbage collections that ran, and the time taken by garbage collection.
 See also `benchmark-run-compiled'."
   (declare (indent 1) (debug t))
-  (unless (natnump repetitions)
+  (unless (or (natnump repetitions) (and repetitions (symbolp repetitions)))
     (setq forms (cons repetitions forms)
 	  repetitions 1))
   (let ((i (make-symbol "i"))
@@ -60,7 +58,7 @@ See also `benchmark-run-compiled'."
 	(gc (make-symbol "gc")))
     `(let ((,gc gc-elapsed)
 	   (,gcs gcs-done))
-       (list ,(if (> repetitions 1)
+       (list ,(if (or (symbolp repetitions) (> repetitions 1))
 		  ;; Take account of the loop overhead.
 		  `(- (benchmark-elapse (dotimes (,i ,repetitions)
 					  ,@forms))
@@ -76,17 +74,17 @@ This is like `benchmark-run', but what is timed is a funcall of the
 byte code obtained by wrapping FORMS in a `lambda' and compiling the
 result.  The overhead of the `lambda's is accounted for."
   (declare (indent 1) (debug t))
-  (unless (natnump repetitions)
+  (unless (or (natnump repetitions) (and repetitions (symbolp repetitions)))
     (setq forms (cons repetitions forms)
 	  repetitions 1))
   (let ((i (make-symbol "i"))
 	(gcs (make-symbol "gcs"))
 	(gc (make-symbol "gc"))
 	(code (byte-compile `(lambda () ,@forms)))
-	(lambda-code (byte-compile `(lambda ()))))
+	(lambda-code (byte-compile '(lambda ()))))
     `(let ((,gc gc-elapsed)
 	   (,gcs gcs-done))
-       (list ,(if (> repetitions 1)
+       (list ,(if (or (symbolp repetitions) (> repetitions 1))
 		  ;; Take account of the loop overhead.
 		  `(- (benchmark-elapse (dotimes (,i ,repetitions)
 					  (funcall ,code)))
@@ -98,15 +96,40 @@ result.  The overhead of the `lambda's is accounted for."
 ;;;###autoload
 (defun benchmark (repetitions form)
   "Print the time taken for REPETITIONS executions of FORM.
-Interactively, REPETITIONS is taken from the prefix arg.
+Interactively, REPETITIONS is taken from the prefix arg, and
+the command prompts for the form to benchmark.
 For non-interactive use see also `benchmark-run' and
 `benchmark-run-compiled'."
   (interactive "p\nxForm: ")
-  (let ((result (eval `(benchmark-run ,repetitions ,form))))
+  (let ((result (eval `(benchmark-run ,repetitions ,form) t)))
     (if (zerop (nth 1 result))
 	(message "Elapsed time: %fs" (car result))
       (message "Elapsed time: %fs (%fs in %d GCs)" (car result)
 	       (nth 2 result) (nth 1 result)))))
+
+;;;###autoload
+(defmacro benchmark-progn (&rest body)
+  "Evaluate BODY and message the time taken.
+The return value is the value of the final form in BODY."
+  (declare (debug body) (indent 0))
+  (let ((value (make-symbol "value"))
+	(start (make-symbol "start"))
+	(gcs (make-symbol "gcs"))
+	(gc (make-symbol "gc")))
+    `(let ((,gc gc-elapsed)
+	   (,gcs gcs-done)
+           (,start (current-time))
+           (,value (progn
+                     ,@body)))
+       (message "Elapsed time: %fs%s"
+                (float-time (time-since ,start))
+                (if (> (- gcs-done ,gcs) 0)
+                    (format " (%fs in %d GCs)"
+	                    (- gc-elapsed ,gc)
+	                    (- gcs-done ,gcs))
+                  ""))
+       ;; Return the value of the body.
+       ,value)))
 
 (provide 'benchmark)
 

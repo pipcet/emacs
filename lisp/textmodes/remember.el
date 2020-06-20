@@ -1,11 +1,11 @@
 ;;; remember --- a mode for quickly jotting down things to remember
 
-;; Copyright (C) 1999-2001, 2003-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1999-2001, 2003-2020 Free Software Foundation, Inc.
 
 ;; Author: John Wiegley <johnw@gnu.org>
 ;; Maintainer: emacs-devel@gnu.org
 ;; Created: 29 Mar 1999
-;; Version: 2.0
+;; Old-Version: 2.0
 ;; Keywords: data memory todo pim
 ;; URL: http://gna.org/projects/remember-el/
 
@@ -22,7 +22,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -148,7 +148,7 @@
 ;; out, in the long run?  Perhaps its because the time we save
 ;; electronically in one way, we're losing electronically in another;
 ;; the tool should never dominate one's focus.  As the mystic
-;; Faridu'd-Din `Attar wrote: "Be occupied as little as possible with
+;; Farīd ud-Dīn ʿAṭṭār wrote: "Be occupied as little as possible with
 ;; things of the outer world but much with things of the inner world;
 ;; then right action will overcome inaction."
 ;;
@@ -181,6 +181,7 @@
 
 (defconst remember-version "2.0"
   "This version of remember.")
+(make-obsolete-variable 'remember-version nil "28.1")
 
 (defgroup remember nil
   "A mode to remember information."
@@ -349,7 +350,7 @@ In which case `remember-mailbox' should be the name of the mailbox.
 Each piece of pseudo-mail created will have an `X-Todo-Priority'
 field, for the purpose of appropriate splitting."
   (let ((who (read-string "Who is this item related to? "))
-        (moment (format "%.0f" (float-time)))
+        (moment (format-time-string "%s"))
         (desc (remember-buffer-desc))
         (text (buffer-string)))
     (with-temp-buffer
@@ -402,11 +403,19 @@ exists) might be changed."
   :type 'string
   :group 'remember)
 
+(defcustom remember-time-format "%a %b %d %H:%M:%S %Y"
+  "The format for time stamp, passed to `format-time-string'.
+The default emulates `current-time-string' for backward compatibility."
+  :type 'string
+  :group 'remember
+  :version "27.1")
+
 (defun remember-append-to-file ()
   "Remember, with description DESC, the given TEXT."
   (let* ((text (buffer-string))
          (desc (remember-buffer-desc))
-         (remember-text (concat "\n" remember-leader-text (current-time-string)
+         (remember-text (concat "\n" remember-leader-text
+                                (format-time-string remember-time-format)
                                 " (" desc ")\n\n" text
                                 (save-excursion (goto-char (point-max))
                                                 (if (bolp) nil "\n"))))

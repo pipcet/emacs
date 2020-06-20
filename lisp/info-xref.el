@@ -1,6 +1,6 @@
 ;;; info-xref.el --- check external references in an Info document -*- lexical-binding: t -*-
 
-;; Copyright (C) 2003-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2003-2020 Free Software Foundation, Inc.
 
 ;; Author: Kevin Ryde <user42@zip.com.au>
 ;; Keywords: docs
@@ -19,7 +19,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -71,7 +71,7 @@ you should set this variable to nil."
 (defun info-xref-lock-file-p (filename)
   "Return non-nil if FILENAME is an Emacs lock file.
 A lock file is \".#foo.txt\" etc per `lock-buffer'."
-  (string-match "\\(\\`\\|\\/\\)\\.#" filename))
+  (string-match "\\(\\`\\|/\\)\\.#" filename))
 
 (defun info-xref-subfile-p (filename)
   "Return t if FILENAME is an info subfile.

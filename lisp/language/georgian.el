@@ -1,6 +1,6 @@
 ;;; georgian.el --- language support for Georgian
 
-;; Copyright (C) 2001-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2001-2020 Free Software Foundation, Inc.
 
 ;; Author: Dave Love <fx@gnu.org>
 ;; Keywords: i18n
@@ -18,7 +18,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -37,7 +37,7 @@
   :charset-list '(georgian-academy))
 
 (set-language-info-alist
- "Georgian" `((coding-system georgian-ps)
+ "Georgian" '((coding-system georgian-ps)
 	      (coding-priority georgian-ps)
 	      (input-method . "georgian")
 	      (nonascii-translation . georgian-ps)

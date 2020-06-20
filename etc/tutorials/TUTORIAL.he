@@ -1004,7 +1004,7 @@ find-file.
 גירסה זו של השיעור הינה חלק מחבילת GNU Emacs. היא מוגנת בזכויות יוצרים
 וניתנת להעתקה והפצת עותקים בתנאים מסויימים כדלקמן:
 
-                       Copyright (C) 2010-2017 Free Software Foundation, Inc.
+                       Copyright (C) 2010-2020 Free Software Foundation, Inc.
 
 ‏GNU Emacs הינו תכנה חפשית; זכותכם להפיצו ו\או לשנותו בכפוף לתנאי
 הרשיון GNU General Public License, כפי שהוא יוצא לאור ע״י Free
@@ -1016,7 +1016,7 @@ Software Foundation, אם בגרסא 3 של הרשיון, ואם (כאופציה
 אנא עיינו ב־GNU General Public License.
 
 ‏GNU Emacs אמור להיות מלווה בעותק של GNU General Public License; אם לא
-קיבלתם אותו, תוכלו למצוא אותו ב־‪<http://www.gnu.org/licenses/>‬.
+קיבלתם אותו, תוכלו למצוא אותו sב־‪<https://www.gnu.org/licenses/>‬.
 
 הנכם מוזמנים לקרוא את הקובץ COPYING ואז אכן לחלק עותקים של GNU Emacs
 לחבריכם. עזרו לנו לחסל את "הבעלות" על תוכנה שאינה אלא חבלה בתוכנה,

@@ -1,8 +1,8 @@
 ;;; semantic/symref/grep.el --- Symref implementation using find/grep
 
-;; Copyright (C) 2008-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2008-2020 Free Software Foundation, Inc.
 
-;; Author: Eric M. Ludlam <eric@siege-engine.com>
+;; Author: Eric M. Ludlam <zappo@gnu.org>
 
 ;; This file is part of GNU Emacs.
 
@@ -17,7 +17,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 ;;
@@ -38,16 +38,22 @@
   (
    )
   "A symref tool implementation using grep.
-This tool uses EDE to find he root of the project, then executes
-find-grep in the project.  The output is parsed for hits
-and those hits returned.")
+This tool uses EDE to find the root of the project, then executes
+find-grep in the project.  The output is parsed for hits and
+those hits returned.")
 
 (defvar semantic-symref-filepattern-alist
   '((c-mode "*.[ch]")
     (c++-mode "*.[chCH]" "*.[ch]pp" "*.cc" "*.hh")
-    (html-mode "*.s?html" "*.php")
+    (html-mode "*.html" "*.shtml" "*.php")
+    (mhtml-mode "*.html" "*.shtml" "*.php") ; FIXME: remove
+                                            ; duplication of
+                                            ; HTML-related patterns.
+                                            ; Maybe they belong in the
+                                            ; major mode definition?
     (ruby-mode "*.r[bu]" "*.rake" "*.gemspec" "*.erb" "*.haml"
                "Rakefile" "Thorfile" "Capfile" "Guardfile" "Vagrantfile")
+    (python-mode "*.py" "*.pyi" "*.pyw")
     (perl-mode "*.pl" "*.PL")
     (cperl-mode "*.pl" "*.PL")
     (lisp-interaction-mode "*.el" "*.ede" ".emacs" "_emacs")
@@ -58,7 +64,7 @@ See find -name man page for format.")
 (defun semantic-symref-derive-find-filepatterns (&optional mode)
   ;; FIXME: This should be moved to grep.el, where it could be used
   ;; for "C-u M-x grep" as well.
-  "Derive a list of file patterns for the current buffer.
+  "Derive a list of file (glob) patterns for the current buffer.
 Looks first in `semantic-symref-filepattern-alist'.  If it is not
 there, it then looks in `auto-mode-alist', and attempts to derive something
 from that.
@@ -78,7 +84,7 @@ Optional argument MODE specifies the `major-mode' to test."
         (error "Customize `semantic-symref-filepattern-alist' for %S"
                major-mode)
       (let ((args `("-name" ,(car pat))))
-        (if (null (cdr args))
+        (if (null (cdr pat))
             args
           `("(" ,@args
             ,@(mapcan (lambda (s) `("-o" "-name" ,s)) pat)
@@ -149,7 +155,7 @@ This shell should support pipe redirect syntax."
                          (oref tool searchfor))
                         (t
                          ;; Can't use the word boundaries: Grep
-                         ;; doesn't always agrees with the language
+                         ;; doesn't always agree with the language
                          ;; syntax on those.
                          (format "\\(^\\|\\W\\)%s\\(\\W\\|$\\)"
                                  (oref tool searchfor)))))
@@ -167,14 +173,16 @@ This shell should support pipe redirect syntax."
 	  ;; find . -type f -print0 | xargs -0 -e grep -nH -e
 	  ;; Note : I removed -e as it is not posix, nor necessary it seems.
 
-	  (let ((cmd (concat "find " default-directory " -type f " filepattern " -print0 "
+	  (let ((cmd (concat "find " (file-local-name rootdir)
+                             " -type f " filepattern " -print0 "
 			     "| xargs -0 grep -H " grepflags "-e " greppat)))
 	    ;;(message "Old command: %s" cmd)
-	    (call-process semantic-symref-grep-shell nil b nil
+	    (process-file semantic-symref-grep-shell nil b nil
                           shell-command-switch cmd)
 	    )
-	(let ((cmd (semantic-symref-grep-use-template rootdir filepattern grepflags greppat)))
-	  (call-process semantic-symref-grep-shell nil b nil
+	(let ((cmd (semantic-symref-grep-use-template
+                    (file-local-name rootdir) filepattern grepflags greppat)))
+	  (process-file semantic-symref-grep-shell nil b nil
                         shell-command-switch cmd))
 	))
     (setq ans (semantic-symref-parse-tool-output tool b))

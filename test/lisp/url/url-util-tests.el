@@ -1,6 +1,6 @@
-;;; url-util-tests.el --- Test suite for url-util.
+;;; url-util-tests.el --- Test suite for url-util.  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2012-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2012-2020 Free Software Foundation, Inc.
 
 ;; Author: Teodor Zlatanov <tzz@lifelogs.com>
 ;; Keywords: data
@@ -18,7 +18,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Code:
 
@@ -45,6 +45,18 @@
                    ("key3" "val2" "val1")
                    ("key2" "val2")
                    ("key1" "val1")))))
+
+(ert-deftest url-domain-tests ()
+  (should (equal (url-domain (url-generic-parse-url "http://www.fsf.co.uk"))
+                 "fsf.co.uk"))
+  (should (equal (url-domain (url-generic-parse-url "http://fsf.co.uk"))
+                 "fsf.co.uk"))
+  (should (equal (url-domain (url-generic-parse-url "http://co.uk"))
+                 nil))
+  (should (equal (url-domain (url-generic-parse-url "http://www.fsf.com"))
+                 "fsf.com"))
+  (should (equal (url-domain (url-generic-parse-url "http://192.168.0.1"))
+                 nil)))
 
 (provide 'url-util-tests)
 

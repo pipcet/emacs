@@ -1,6 +1,6 @@
 ;;; network-stream-tests.el --- tests for network processes       -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2016-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2016-2020 Free Software Foundation, Inc.
 
 ;; Author: Lars Ingebrigtsen <larsi@gnus.org>
 
@@ -17,7 +17,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -52,6 +52,19 @@
            (result (shr-test name)))
       (unless (equal (car result) (cdr result))
         (should (not (list name (car result) (cdr result))))))))
+
+(ert-deftest use-cookies ()
+  (let ((shr-cookie-policy 'same-origin))
+    (should
+     (shr--use-cookies-p "http://images.fsf.org" '("http://www.fsf.org")))
+    (should
+     (shr--use-cookies-p "http://www.fsf.org" '("https://www.fsf.org")))
+    (should
+     (shr--use-cookies-p "http://www.fsf.org" '("https://www.fsf.org")))
+    (should
+     (shr--use-cookies-p "http://www.fsf.org" '("http://fsf.org")))
+    (should-not
+     (shr--use-cookies-p "http://www.gnu.org" '("http://www.fsf.org")))))
 
 (require 'shr)
 

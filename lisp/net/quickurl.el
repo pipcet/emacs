@@ -1,9 +1,8 @@
 ;;; quickurl.el --- insert a URL based on text at point in buffer
 
-;; Copyright (C) 1999-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1999-2020 Free Software Foundation, Inc.
 
 ;; Author: Dave Pearson <davep@davep.org>
-;; Maintainer: Dave Pearson <davep@davep.org>
 ;; Created: 1999-05-28
 ;; Keywords: hypermedia
 
@@ -20,7 +19,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 ;;
@@ -39,7 +38,7 @@
 ;; where <Lookup> is a string that acts as the keyword lookup and <URL> is
 ;; the URL associated with it. An example might be:
 ;;
-;;    ("GNU" . "http://www.gnu.org/")
+;;    ("GNU" . "https://www.gnu.org/")
 ;;
 ;; A list entry looks like:
 ;;
@@ -50,12 +49,12 @@
 ;; used when presenting a list of URLS using `quickurl-list'. An example
 ;; might be:
 ;;
-;;    ("FSF" "http://www.fsf.org/" "The Free Software Foundation")
+;;    ("FSF" "https://www.fsf.org/" "The Free Software Foundation")
 ;;
 ;; Given the above, your quickurl file might look like:
 ;;
-;; (("GNU"    . "http://www.gnu.org/")
-;;  ("FSF"      "http://www.fsf.org/" "The Free Software Foundation")
+;; (("GNU"    . "https://www.gnu.org/")
+;;  ("FSF"      "https://www.fsf.org/" "The Free Software Foundation")
 ;;  ("emacs"  . "http://www.emacs.org/")
 ;;  ("davep"    "http://www.davep.org/" "Dave's homepage"))
 ;;
@@ -116,8 +115,13 @@
   :type  'function
   :group 'quickurl)
 
-(defcustom quickurl-assoc-function #'assoc-ignore-case
+(defun quickurl--assoc-function (key alist)
+  "Default function for `quickurl-assoc-function'."
+  (assoc-string key alist t))
+
+(defcustom quickurl-assoc-function #'quickurl--assoc-function
   "Function to use for alist lookup into `quickurl-urls'."
+  :version "26.1"                 ; was the obsolete assoc-ignore-case
   :type  'function
   :group 'quickurl)
 
@@ -150,7 +154,7 @@ could be used here."
 (defconst quickurl-reread-hook-postfix
     "
 ;; Local Variables:
-;; eval: (progn (require 'quickurl) (add-hook 'local-write-file-hooks (lambda () (quickurl-read) nil)))
+;; eval: (progn (require 'quickurl) (add-hook 'write-file-functions (lambda () (quickurl-read) nil) nil t))
 ;; End:
 "
   "Example `quickurl-postfix' text that adds a local variable to the
@@ -499,15 +503,15 @@ TYPE dictates what will be inserted, options are:
         (with-current-buffer quickurl-list-last-buffer
           (insert
            (pcase type
-             (`url         (funcall quickurl-format-function url))
-             (`naked-url   (quickurl-url-url url))
-             (`with-lookup (format "%s <URL:%s>"
+             ('url         (funcall quickurl-format-function url))
+             ('naked-url   (quickurl-url-url url))
+             ('with-lookup (format "%s <URL:%s>"
                                    (quickurl-url-keyword url)
                                    (quickurl-url-url url)))
-             (`with-desc   (format "%S <URL:%s>"
+             ('with-desc   (format "%S <URL:%s>"
                                    (quickurl-url-description url)
                                    (quickurl-url-url url)))
-             (`lookup      (quickurl-url-keyword url)))))
+             ('lookup      (quickurl-url-keyword url)))))
       (error "No URL details on that line"))
     url))
 

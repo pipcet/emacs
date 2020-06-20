@@ -1,11 +1,11 @@
 ;;; ob-ref.el --- Babel Functions for Referencing External Data -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2009-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2009-2020 Free Software Foundation, Inc.
 
 ;; Authors: Eric Schulte
 ;;	 Dan Davison
 ;; Keywords: literate programming, reproducible research
-;; Homepage: http://orgmode.org
+;; Homepage: https://orgmode.org
 
 ;; This file is part of GNU Emacs.
 
@@ -20,7 +20,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -37,8 +37,8 @@
 
 ;; - resource-id :: the id or name of the resource
 
-;; So an example of a simple src block referencing table data in the
-;; same file would be
+;; So an example of a simple source block referencing table data in
+;; the same file would be
 
 ;;  #+NAME: sandbox
 ;;  | 1 |         2 | 3 |
@@ -50,6 +50,7 @@
 
 ;;; Code:
 (require 'ob-core)
+(require 'org-macs)
 (require 'cl-lib)
 
 (declare-function org-babel-lob-get-info "ob-lob" (&optional datum))
@@ -63,26 +64,22 @@
 (declare-function org-in-commented-heading-p "org" (&optional no-inheritance))
 (declare-function org-narrow-to-subtree "org" ())
 (declare-function org-show-context "org" (&optional key))
-(declare-function org-trim "org" (s &optional keep-lead))
-
-(defvar org-babel-ref-split-regexp
-  "[ \f\t\n\r\v]*\\(.+?\\)[ \f\t\n\r\v]*=[ \f\t\n\r\v]*\\(.+\\)[ \f\t\n\r\v]*")
 
 (defvar org-babel-update-intermediate nil
   "Update the in-buffer results of code blocks executed to resolve references.")
 
 (defun org-babel-ref-parse (assignment)
   "Parse a variable ASSIGNMENT in a header argument.
+
 If the right hand side of the assignment has a literal value
-return that value, otherwise interpret as a reference to an
-external resource and find its value using
-`org-babel-ref-resolve'.  Return a list with two elements.  The
-first element of the list will be the name of the variable, and
-the second will be an emacs-lisp representation of the value of
-the variable."
-  (when (string-match org-babel-ref-split-regexp assignment)
-    (let ((var (match-string 1 assignment))
-	  (ref (match-string 2 assignment)))
+return that value, otherwise interpret it as a reference to an
+external resource and find its value using `org-babel-ref-resolve'.
+
+Return a list with two elements: the name of the variable, and an
+Emacs Lisp representation of the value of the variable."
+  (when (string-match "\\(.+?\\)=" assignment)
+    (let ((var (org-trim (match-string 1 assignment)))
+	  (ref (org-trim (substring assignment (match-end 0)))))
       (cons (intern var)
 	    (let ((out (save-excursion
 			 (when org-babel-current-src-block-location

@@ -1,6 +1,6 @@
 ;;; em-basic.el --- basic shell builtin commands  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1999-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1999-2020 Free Software Foundation, Inc.
 
 ;; Author: John Wiegley <johnw@gnu.org>
 
@@ -17,7 +17,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -118,7 +118,7 @@ or `eshell-printn' for display."
 
 (defun eshell/printnl (&rest args)
   "Print out each of the arguments, separated by newlines."
-  (let ((elems (eshell-flatten-list args)))
+  (let ((elems (flatten-tree args)))
     (while elems
       (eshell-printn (eshell-echo (list (car elems))))
       (setq elems (cdr elems)))))

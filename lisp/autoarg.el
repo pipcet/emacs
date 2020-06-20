@@ -1,6 +1,6 @@
-;;; autoarg.el --- make digit keys supply prefix args
+;;; autoarg.el --- make digit keys supply prefix args -*- lexical-binding: t -*-
 
-;; Copyright (C) 1998, 2000-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1998, 2000-2020 Free Software Foundation, Inc.
 
 ;; Author:  Dave Love <fx@gnu.org>
 ;; Created: 1998-09-04
@@ -19,7 +19,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -59,9 +59,8 @@
 ;; (define-key autoarg-mode-map [?\r] 'autoarg-terminate)
 
 (defvar autoarg-kp-digits
-  (let (alist)
-    (dotimes (i 10 alist)
-      (push (cons (intern (format "kp-%d" i)) i) alist))))
+  (mapcar (lambda (i) (cons (intern (format "kp-%d" i)) i))
+          (reverse (number-sequence 0 9))))
 
 (defun autoarg-kp-digit-argument (arg)
   "Part of the numeric argument for the next command, like `digit-argument'."
@@ -90,9 +89,6 @@
 ;;;###autoload
 (define-minor-mode autoarg-mode
   "Toggle Autoarg mode, a global minor mode.
-With a prefix argument ARG, enable Autoarg mode if ARG is
-positive, and disable it otherwise.  If called from Lisp, enable
-the mode if ARG is omitted or nil.
 
 \\<autoarg-mode-map>
 In Autoarg mode, digits are bound to `digit-argument', i.e. they
@@ -116,9 +112,6 @@ then invokes the normal binding of \\[autoarg-terminate].
 ;;;###autoload
 (define-minor-mode autoarg-kp-mode
   "Toggle Autoarg-KP mode, a global minor mode.
-With a prefix argument ARG, enable Autoarg-KP mode if ARG is
-positive, and disable it otherwise.  If called from Lisp, enable
-the mode if ARG is omitted or nil.
 
 \\<autoarg-kp-mode-map>
 This is similar to `autoarg-mode' but rebinds the keypad keys

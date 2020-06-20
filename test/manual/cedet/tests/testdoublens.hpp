@@ -1,8 +1,8 @@
 // testdoublens.hpp --- Header file used in one of the Semantic tests
 
-// Copyright (C) 2008-2017 Free Software Foundation, Inc.
+// Copyright (C) 2008-2020 Free Software Foundation, Inc.
 
-// Author: Eric M. Ludlam <eric@siege-engine.com>
+// Author: Eric M. Ludlam <zappo@gnu.org>
 
 // This file is part of GNU Emacs.
 
@@ -17,7 +17,7 @@
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+// along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace Name1 {
   namespace Name2 {
@@ -31,10 +31,12 @@ namespace Name1 {
       int get();
 
     private:
-      void publishStuff(int a, int b);
+      void publishStuff(char /* a */, char /* b */);
+
+      void publishStuff(int q, int r); // Purposely different names.
 
       void sendStuff(int a, int b);
-    
+
       Mumble* pMumble;
     };
 
@@ -58,7 +60,7 @@ namespace a {
     class Foo
     {
       struct Dum {
-        int diDum;
+	int diDum;
       };
 
     protected:
@@ -67,4 +69,3 @@ namespace a {
 
   } // namespace b
 } // namespace a
-

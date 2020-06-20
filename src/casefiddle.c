@@ -1,7 +1,7 @@
 /* -*- coding: utf-8 -*- */
 /* GNU Emacs case conversion functions.
 
-Copyright (C) 1985, 1994, 1997-1999, 2001-2017 Free Software Foundation,
+Copyright (C) 1985, 1994, 1997-1999, 2001-2020 Free Software Foundation,
 Inc.
 
 This file is part of GNU Emacs.
@@ -17,7 +17,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.  */
+along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 
 
 #include <config.h>
@@ -133,9 +133,9 @@ case_character_impl (struct casing_str_buf *buf,
           struct Lisp_String *str = XSTRING (prop);
           if (STRING_BYTES (str) <= sizeof buf->data)
 	    {
-	      buf->len_chars = str->size;
+	      buf->len_chars = str->u.s.size;
 	      buf->len_bytes = STRING_BYTES (str);
-	      memcpy (buf->data, str->data, buf->len_bytes);
+	      memcpy (buf->data, str->u.s.data, buf->len_bytes);
 	      return 1;
 	    }
         }
@@ -152,7 +152,7 @@ case_character_impl (struct casing_str_buf *buf,
 	  prop = CHAR_TABLE_REF (ctx->titlecase_char_table, ch);
 	  if (CHARACTERP (prop))
 	    {
-	      cased = XFASTINT (prop);
+	      cased = XFIXNAT (prop);
 	      cased_is_set = true;
 	    }
 	}
@@ -220,16 +220,23 @@ case_character (struct casing_str_buf *buf, struct casing_context *ctx,
   return changed;
 }
 
+/* If C is not ASCII, make it unibyte. */
+static inline int
+make_char_unibyte (int c)
+{
+  return ASCII_CHAR_P (c) ? c : CHAR_TO_BYTE8 (c);
+}
+
 static Lisp_Object
 do_casify_natnum (struct casing_context *ctx, Lisp_Object obj)
 {
   int flagbits = (CHAR_ALT | CHAR_SUPER | CHAR_HYPER
 		  | CHAR_SHIFT | CHAR_CTL | CHAR_META);
-  int ch = XFASTINT (obj);
+  int ch = XFIXNAT (obj);
 
   /* If the character has higher bits set above the flags, return it unchanged.
      It is not a real character.  */
-  if (UNSIGNED_CMP (ch, >, flagbits))
+  if (! (0 <= ch && ch <= flagbits))
     return obj;
 
   int flags = ch & flagbits;
@@ -243,14 +250,14 @@ do_casify_natnum (struct casing_context *ctx, Lisp_Object obj)
 		    || !NILP (BVAR (current_buffer,
 				    enable_multibyte_characters)));
   if (! multibyte)
-    MAKE_CHAR_MULTIBYTE (ch);
+    ch = make_char_multibyte (ch);
   int cased = case_single_character (ctx, ch);
   if (cased == ch)
     return obj;
 
   if (! multibyte)
-    MAKE_CHAR_UNIBYTE (cased);
-  return make_natnum (cased | flags);
+    cased = make_char_unibyte (cased);
+  return make_fixed_natnum (cased | flags);
 }
 
 static Lisp_Object
@@ -278,7 +285,7 @@ do_casify_multibyte_string (struct casing_context *ctx, Lisp_Object obj)
     {
       if (dst_end - o < sizeof (struct casing_str_buf))
 	string_overflow ();
-      int ch = STRING_CHAR_ADVANCE (src);
+      int ch = string_char_advance (&src);
       case_character ((struct casing_str_buf *) o, ctx, ch,
 		      size > 1 ? src : NULL);
       n += ((struct casing_str_buf *) o)->len_chars;
@@ -299,15 +306,14 @@ do_casify_unibyte_string (struct casing_context *ctx, Lisp_Object obj)
   obj = Fcopy_sequence (obj);
   for (i = 0; i < size; i++)
     {
-      ch = SREF (obj, i);
-      MAKE_CHAR_MULTIBYTE (ch);
+      ch = make_char_multibyte (SREF (obj, i));
       cased = case_single_character (ctx, ch);
       if (ch == cased)
 	continue;
-      MAKE_CHAR_UNIBYTE (cased);
+      cased = make_char_unibyte (cased);
       /* If the char can't be converted to a valid byte, just don't
 	 change it.  */
-      if (cased >= 0 && cased < 256)
+      if (SINGLE_BYTE_CHAR_P (cased))
 	SSET (obj, i, cased);
     }
   return obj;
@@ -319,7 +325,7 @@ casify_object (enum case_action flag, Lisp_Object obj)
   struct casing_context ctx;
   prepare_casing_context (&ctx, flag, false);
 
-  if (NATNUMP (obj))
+  if (FIXNATP (obj))
     return do_casify_natnum (&ctx, obj);
   else if (!STRINGP (obj))
     wrong_type_argument (Qchar_or_string_p, obj);
@@ -397,9 +403,7 @@ do_casify_unibyte_region (struct casing_context *ctx,
 
   for (ptrdiff_t pos = *startp; pos < end; ++pos)
     {
-      int ch = FETCH_BYTE (pos);
-      MAKE_CHAR_MULTIBYTE (ch);
-
+      int ch = make_char_multibyte (FETCH_BYTE (pos));
       int cased = case_single_character (ctx, ch);
       if (cased == ch)
 	continue;
@@ -408,8 +412,7 @@ do_casify_unibyte_region (struct casing_context *ctx,
       if (first < 0)
 	first = pos;
 
-      MAKE_CHAR_UNIBYTE (cased);
-      FETCH_BYTE (pos) = cased;
+      FETCH_BYTE (pos) = make_char_unibyte (cased);
     }
 
   *startp = first;
@@ -433,8 +436,7 @@ do_casify_multibyte_region (struct casing_context *ctx,
 
   for (; size; --size)
     {
-      int len;
-      int ch = STRING_CHAR_AND_LENGTH (BYTE_POS_ADDR (pos_byte), len);
+      int len, ch = string_char_and_length (BYTE_POS_ADDR (pos_byte), &len);
       struct casing_str_buf buf;
       if (!case_character (&buf, ctx, ch,
 			   size > 1 ? BYTE_POS_ADDR (pos_byte + len) : NULL))
@@ -485,8 +487,8 @@ casify_region (enum case_action flag, Lisp_Object b, Lisp_Object e)
   struct casing_context ctx;
 
   validate_region (&b, &e);
-  ptrdiff_t start = XFASTINT (b);
-  ptrdiff_t end = XFASTINT (e);
+  ptrdiff_t start = XFIXNAT (b);
+  ptrdiff_t end = XFIXNAT (e);
   if (start == end)
     /* Not modifying because nothing marked.  */
     return end;
@@ -516,6 +518,31 @@ casify_region (enum case_action flag, Lisp_Object b, Lisp_Object e)
   return orig_end + added;
 }
 
+/* Casify a possibly noncontiguous region according to FLAG.  BEG and
+   END specify the bounds, except that if REGION_NONCONTIGUOUS_P is
+   non-nil, the region's bounds are specified by (funcall
+   region-extract-function 'bounds) instead.  */
+
+static Lisp_Object
+casify_pnc_region (enum case_action flag, Lisp_Object beg, Lisp_Object end,
+		   Lisp_Object region_noncontiguous_p)
+{
+  if (!NILP (region_noncontiguous_p))
+    {
+      Lisp_Object bounds = call1 (Vregion_extract_function, Qbounds);
+      FOR_EACH_TAIL (bounds)
+	{
+	  CHECK_CONS (XCAR (bounds));
+	  casify_region (flag, XCAR (XCAR (bounds)), XCDR (XCAR (bounds)));
+	}
+      CHECK_LIST_END (bounds, bounds);
+    }
+  else
+    casify_region (flag, beg, end);
+
+  return Qnil;
+}
+
 DEFUN ("upcase-region", Fupcase_region, Supcase_region, 2, 3,
        "(list (region-beginning) (region-end) (region-noncontiguous-p))",
        doc: /* Convert the region to upper case.  In programs, wants two arguments.
@@ -525,23 +552,7 @@ point and the mark is operated on.
 See also `capitalize-region'.  */)
   (Lisp_Object beg, Lisp_Object end, Lisp_Object region_noncontiguous_p)
 {
-  Lisp_Object bounds = Qnil;
-
-  if (!NILP (region_noncontiguous_p))
-    {
-      bounds = call1 (Fsymbol_value (intern ("region-extract-function")),
-		      intern ("bounds"));
-
-      while (CONSP (bounds))
-	{
-	  casify_region (CASE_UP, XCAR (XCAR (bounds)), XCDR (XCAR (bounds)));
-	  bounds = XCDR (bounds);
-	}
-    }
-  else
-    casify_region (CASE_UP, beg, end);
-
-  return Qnil;
+  return casify_pnc_region (CASE_UP, beg, end, region_noncontiguous_p);
 }
 
 DEFUN ("downcase-region", Fdowncase_region, Sdowncase_region, 2, 3,
@@ -552,60 +563,45 @@ the region to operate on.  When used as a command, the text between
 point and the mark is operated on.  */)
   (Lisp_Object beg, Lisp_Object end, Lisp_Object region_noncontiguous_p)
 {
-  Lisp_Object bounds = Qnil;
-
-  if (!NILP (region_noncontiguous_p))
-    {
-      bounds = call1 (Fsymbol_value (intern ("region-extract-function")),
-		      intern ("bounds"));
-
-      while (CONSP (bounds))
-	{
-	  casify_region (CASE_DOWN, XCAR (XCAR (bounds)), XCDR (XCAR (bounds)));
-	  bounds = XCDR (bounds);
-	}
-    }
-  else
-    casify_region (CASE_DOWN, beg, end);
-
-  return Qnil;
+  return casify_pnc_region (CASE_DOWN, beg, end, region_noncontiguous_p);
 }
 
-DEFUN ("capitalize-region", Fcapitalize_region, Scapitalize_region, 2, 2, "r",
+DEFUN ("capitalize-region", Fcapitalize_region, Scapitalize_region, 2, 3,
+       "(list (region-beginning) (region-end) (region-noncontiguous-p))",
        doc: /* Convert the region to capitalized form.
 This means that each word's first character is converted to either
 title case or upper case, and the rest to lower case.
 In programs, give two arguments, the starting and ending
 character positions to operate on.  */)
-  (Lisp_Object beg, Lisp_Object end)
+  (Lisp_Object beg, Lisp_Object end, Lisp_Object region_noncontiguous_p)
 {
-  casify_region (CASE_CAPITALIZE, beg, end);
-  return Qnil;
+  return casify_pnc_region (CASE_CAPITALIZE, beg, end, region_noncontiguous_p);
 }
 
 /* Like Fcapitalize_region but change only the initials.  */
 
 DEFUN ("upcase-initials-region", Fupcase_initials_region,
-       Supcase_initials_region, 2, 2, "r",
+       Supcase_initials_region, 2, 3,
+       "(list (region-beginning) (region-end) (region-noncontiguous-p))",
        doc: /* Upcase the initial of each word in the region.
 This means that each word's first character is converted to either
 title case or upper case, and the rest are left unchanged.
 In programs, give two arguments, the starting and ending
 character positions to operate on.  */)
-  (Lisp_Object beg, Lisp_Object end)
+     (Lisp_Object beg, Lisp_Object end, Lisp_Object region_noncontiguous_p)
 {
-  casify_region (CASE_CAPITALIZE_UP, beg, end);
-  return Qnil;
+  return casify_pnc_region (CASE_CAPITALIZE_UP, beg, end,
+			    region_noncontiguous_p);
 }
 
 static Lisp_Object
 casify_word (enum case_action flag, Lisp_Object arg)
 {
-  CHECK_NUMBER (arg);
-  ptrdiff_t farend = scan_words (PT, XINT (arg));
+  CHECK_FIXNUM (arg);
+  ptrdiff_t farend = scan_words (PT, XFIXNUM (arg));
   if (!farend)
-    farend = XINT (arg) <= 0 ? BEGV : ZV;
-  SET_PT (casify_region (flag, make_number (PT), make_number (farend)));
+    farend = XFIXNUM (arg) <= 0 ? BEGV : ZV;
+  SET_PT (casify_region (flag, make_fixnum (PT), make_fixnum (farend)));
   return Qnil;
 }
 
@@ -652,11 +648,27 @@ With negative argument, capitalize previous words but do not move.  */)
 void
 syms_of_casefiddle (void)
 {
+  DEFSYM (Qbounds, "bounds");
   DEFSYM (Qidentity, "identity");
   DEFSYM (Qtitlecase, "titlecase");
   DEFSYM (Qspecial_uppercase, "special-uppercase");
   DEFSYM (Qspecial_lowercase, "special-lowercase");
   DEFSYM (Qspecial_titlecase, "special-titlecase");
+
+  DEFVAR_LISP ("region-extract-function", Vregion_extract_function,
+	       doc: /* Function to get the region's content.
+Called with one argument METHOD which can be:
+- nil: return the content as a string (list of strings for
+  non-contiguous regions).
+- `delete-only': delete the region; the return value is undefined.
+- `bounds': return the boundaries of the region as a list of one
+  or more cons cells of the form (START . END).
+- anything else: delete the region and return its content
+  as a string (or list of strings for non-contiguous regions),
+  after filtering it with `filter-buffer-substring', which
+  is called, for each contiguous sub-region, with METHOD as its
+  3rd argument.  */);
+  Vregion_extract_function = Qnil; /* simple.el sets this.  */
 
   defsubr (&Supcase);
   defsubr (&Sdowncase);

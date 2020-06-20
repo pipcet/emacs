@@ -1,9 +1,8 @@
 ;;; whitespace.el --- minor mode to visualize TAB, (HARD) SPACE, NEWLINE -*- lexical-binding: t -*-
 
-;; Copyright (C) 2000-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2000-2020 Free Software Foundation, Inc.
 
-;; Author: Vinicius Jose Latorre <viniciusjl@ig.com.br>
-;; Maintainer: Vinicius Jose Latorre <viniciusjl@ig.com.br>
+;; Author: Vinicius Jose Latorre <viniciusjl.gnu@gmail.com>
 ;; Keywords: data, wp
 ;; Version: 13.2.2
 ;; X-URL: http://www.emacswiki.org/cgi-bin/wiki/ViniciusJoseLatorre
@@ -21,7 +20,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -495,7 +494,8 @@ Used when `whitespace-style' includes the value `spaces'.")
 (defvar whitespace-tab 'whitespace-tab
   "Symbol face used to visualize TAB.
 Used when `whitespace-style' includes the value `tabs'.")
-(make-obsolete-variable 'whitespace-tab "use the face instead." "24.4")
+(make-obsolete-variable 'whitespace-tab
+                        "customize the face `whitespace-tab' instead." "24.4")
 
 (defface whitespace-tab
   '((((class color) (background dark))
@@ -716,8 +716,8 @@ and the cons cdr is used for TABs visualization.
 
 Used when `whitespace-style' includes `indentation',
 `indentation::tab' or  `indentation::space'."
-  :type '(cons (string :tag "Indentation SPACEs")
-	       (string :tag "Indentation TABs"))
+  :type '(cons (regexp :tag "Indentation SPACEs")
+	       (regexp :tag "Indentation TABs"))
   :group 'whitespace)
 
 
@@ -747,8 +747,8 @@ and the cons cdr is used for TABs visualization.
 
 Used when `whitespace-style' includes `space-after-tab',
 `space-after-tab::tab' or `space-after-tab::space'."
-  :type '(cons (string :tag "SPACEs After TAB")
-	       string)
+  :type '(cons (regexp :tag "SPACEs After TAB")
+	       regexp)
   :group 'whitespace)
 
 (defcustom whitespace-big-indent-regexp
@@ -923,11 +923,6 @@ Any other value is treated as nil."
 ;;;###autoload
 (define-minor-mode whitespace-mode
   "Toggle whitespace visualization (Whitespace mode).
-With a prefix argument ARG, enable Whitespace mode if ARG is
-positive, and disable it otherwise.
-
-If called from Lisp, also enables the mode if ARG is omitted or nil,
-and toggles it if ARG is `toggle'.
 
 See also `whitespace-style', `whitespace-newline' and
 `whitespace-display-mappings'."
@@ -948,11 +943,6 @@ See also `whitespace-style', `whitespace-newline' and
 ;;;###autoload
 (define-minor-mode whitespace-newline-mode
   "Toggle newline visualization (Whitespace Newline mode).
-With a prefix argument ARG, enable Whitespace Newline mode if ARG
-is positive, and disable it otherwise.
-
-If called from Lisp, also enables the mode if ARG is omitted or nil,
-and toggles it if ARG is `toggle'.
 
 Use `whitespace-newline-mode' only for NEWLINE visualization
 exclusively.  For other visualizations, including NEWLINE
@@ -978,11 +968,6 @@ See also `whitespace-newline' and `whitespace-display-mappings'."
 ;;;###autoload
 (define-minor-mode global-whitespace-mode
   "Toggle whitespace visualization globally (Global Whitespace mode).
-With a prefix argument ARG, enable Global Whitespace mode if ARG
-is positive, and disable it otherwise.
-
-If called from Lisp, also enables the mode if ARG is omitted or nil,
-and toggles it if ARG is `toggle'.
 
 See also `whitespace-style', `whitespace-newline' and
 `whitespace-display-mappings'."
@@ -1039,11 +1024,6 @@ This variable is normally modified via `add-function'.")
 ;;;###autoload
 (define-minor-mode global-whitespace-newline-mode
   "Toggle global newline visualization (Global Whitespace Newline mode).
-With a prefix argument ARG, enable Global Whitespace Newline mode
-if ARG is positive, and disable it otherwise.
-
-If called from Lisp, also enables the mode if ARG is omitted or nil,
-and toggles it if ARG is `toggle'.
 
 Use `global-whitespace-newline-mode' only for NEWLINE
 visualization exclusively.  For other visualizations, including
@@ -1704,7 +1684,7 @@ cleaning up these problems."
             (mapcar
              #'(lambda (option)
                  (when force
-                   (add-to-list 'style (car option)))
+                   (push (car option) style))
                  (goto-char rstart)
                  (let ((regexp
                         (cond
@@ -1727,7 +1707,7 @@ cleaning up these problems."
                        (setq has-bogus (memq (car option) style)))
                      t)))
              whitespace-report-list)))
-      (when (pcase report-if-bogus (`nil t) (`never nil) (_ has-bogus))
+      (when (pcase report-if-bogus ('nil t) ('never nil) (_ has-bogus))
         (whitespace-kill-buffer whitespace-report-buffer-name)
         ;; `indent-tabs-mode' may be local to current buffer
         ;; `tab-width' may be local to current buffer
@@ -2045,7 +2025,8 @@ resultant list will be returned."
 	   (memq 'space-after-tab::space  whitespace-active-style)
 	   (memq 'space-before-tab        whitespace-active-style)
 	   (memq 'space-before-tab::tab   whitespace-active-style)
-	   (memq 'space-before-tab::space whitespace-active-style))))
+	   (memq 'space-before-tab::space whitespace-active-style))
+       t))
 
 
 (defun whitespace-color-on ()
@@ -2086,16 +2067,7 @@ resultant list will be returned."
        ,@(when (or (memq 'lines      whitespace-active-style)
                    (memq 'lines-tail whitespace-active-style))
            ;; Show "long" lines.
-           `((,(let ((line-column (or whitespace-line-column fill-column)))
-                 (format
-                  "^\\([^\t\n]\\{%s\\}\\|[^\t\n]\\{0,%s\\}\t\\)\\{%d\\}%s\\(.+\\)$"
-                  tab-width
-                  (1- tab-width)
-                  (/ line-column tab-width)
-                  (let ((rem (% line-column tab-width)))
-                    (if (zerop rem)
-                        ""
-                      (format ".\\{%d\\}" rem)))))
+           `((,#'whitespace-lines-regexp
               ,(if (memq 'lines whitespace-active-style)
                    0                    ; whole line
                  2)                     ; line tail
@@ -2196,6 +2168,19 @@ resultant list will be returned."
 	     (setq status nil)))		  ;; end of buffer
     status))
 
+(defun whitespace-lines-regexp (limit)
+  (re-search-forward
+   (let ((line-column (or whitespace-line-column fill-column)))
+     (format
+      "^\\([^\t\n]\\{%s\\}\\|[^\t\n]\\{0,%s\\}\t\\)\\{%d\\}%s\\(.+\\)$"
+      tab-width
+      (1- tab-width)
+      (/ line-column tab-width)
+      (let ((rem (% line-column tab-width)))
+        (if (zerop rem)
+            ""
+          (format ".\\{%d\\}" rem)))))
+   limit t))
 
 (defun whitespace-empty-at-bob-regexp (limit)
   "Match spaces at beginning of buffer which do not contain the point at \
@@ -2346,9 +2331,10 @@ Also refontify when necessary."
 
 (defun whitespace-style-mark-p ()
   "Return t if there is some visualization via display table."
-  (or (memq 'tab-mark     whitespace-active-style)
-      (memq 'space-mark   whitespace-active-style)
-      (memq 'newline-mark whitespace-active-style)))
+  (and (or (memq 'tab-mark     whitespace-active-style)
+           (memq 'space-mark   whitespace-active-style)
+           (memq 'newline-mark whitespace-active-style))
+       t))
 
 
 (defsubst whitespace-char-valid-p (char)

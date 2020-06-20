@@ -1,6 +1,6 @@
 ;;; thumbs.el --- Thumbnails previewer for images files
 
-;; Copyright (C) 2004-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2004-2020 Free Software Foundation, Inc.
 
 ;; Author: Jean-Philippe Theberge <jphiltheberge@videotron.ca>
 ;; Maintainer: emacs-devel@gnu.org
@@ -19,7 +19,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -48,7 +48,7 @@
 ;; That should be a directory containing image files.
 ;; from dired, C-t m enter in thumbs-mode with all marked files
 ;;             C-t a enter in thumbs-mode with all files in current-directory
-;; In thumbs-mode, pressing <return> on a image will bring you in image view
+;; In thumbs-mode, pressing <return> on an image will bring you in image view
 ;; mode for that image.  C-h m will give you a list of available keybinding.
 
 ;;; History:
@@ -210,7 +210,9 @@ reached."
 	   (mapcar
 	    (lambda (f)
 	      (let ((fattribs-list (file-attributes f)))
-		`(,(nth 4 fattribs-list) ,(nth 7 fattribs-list) ,f)))
+		`(,(file-attribute-access-time fattribs-list)
+		  ,(file-attribute-size fattribs-list)
+		  ,f)))
 	    (directory-files (thumbs-thumbsdir) t (image-file-name-regexp)))
 	   (lambda (l1 l2) (time-less-p (car l1) (car l2)))))
 	 (dirsize (apply '+ (mapcar (lambda (x) (cadr x)) files-list))))
@@ -523,23 +525,16 @@ Open another window."
   (interactive "FRename to file or directory: ")
   (let ((files (or thumbs-marked-list (list (thumbs-current-image))))
 	failures)
-    (if (and (not (file-directory-p newfile))
-	     thumbs-marked-list)
-	(if (file-exists-p newfile)
-	    (error "Renaming marked files to file name `%s'" newfile)
-	  (make-directory newfile t)))
+    (when thumbs-marked-list
+      (make-directory newfile t)
+      (setq newfile (file-name-as-directory newfile)))
     (if (yes-or-no-p (format "Really rename %d files? " (length files)))
 	(let ((thumbs-file-list (thumbs-file-alist))
 	      (inhibit-read-only t))
 	  (dolist (file files)
 	    (let (failure)
 	      (condition-case ()
-		  (if (file-directory-p newfile)
-		      (rename-file file
-				   (expand-file-name
-				    (file-name-nondirectory file)
-				    newfile))
-		    (rename-file file newfile))
+		  (rename-file file newfile)
 		(file-error (setq failure t)
 			    (push file failures)))
 	      (unless failure
@@ -763,7 +758,7 @@ ACTION and ARG should be a valid convert command."
 (put 'thumbs-mode 'mode-class 'special)
 (define-derived-mode thumbs-mode
   fundamental-mode "thumbs"
-  "Preview images in a thumbnails buffer"
+  "Preview images in a thumbnails buffer."
   (setq buffer-read-only t))
 
 (defvar thumbs-view-image-mode-map

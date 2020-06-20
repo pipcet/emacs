@@ -16,14 +16,13 @@
 # GNU General Public License for more details.
 
 # You should have received a copy of the GNU General Public License
-# along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+# along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 # Commentary:
 
 # Add a sort key 0, 1, 2, or 3 at the tail of each line as a comment
 # to realize the round trip mapping to Unicode works as described in
-# this page:
-#	http://support.microsoft.com/default.aspx?scid=kb;EN-US;170559
+# https://www.unicode.org/Public/MAPPINGS/VENDORS/MICSFT/WINDOWS/CP932.TXT
 # Each sort key means as below:
 #   0: JISX0208 characters.
 #   1: NEC special characters.
@@ -113,4 +112,3 @@ END {
 	printf "0x%02X%02X 0x%04X # 4\n", i, j, code++;
     }
 }
-

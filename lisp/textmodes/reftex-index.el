@@ -1,6 +1,6 @@
 ;;; reftex-index.el --- index support with RefTeX
 
-;; Copyright (C) 1997-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1997-2020 Free Software Foundation, Inc.
 
 ;; Author: Carsten Dominik <dominik@science.uva.nl>
 ;; Maintainer: auctex-devel@gnu.org
@@ -18,7 +18,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -474,7 +474,7 @@ With prefix 3, restrict index to region."
 
   (interactive)
 
-  ;; Ensure access to scanning info and rescan buffer if prefix are is '(4).
+  ;; Ensure access to scanning info and rescan buffer if prefix arg is '(4).
   (let ((current-prefix-arg current-prefix-arg))
     (reftex-ensure-index-support t)
     (reftex-access-scan-info current-prefix-arg))
@@ -771,7 +771,7 @@ Label context is only displayed when the labels are there as well."
   (interactive)
   (reftex-index-visit-location 'hide))
 (defun reftex-index-goto-entry ()
-  "Go to document location in other window. *Index* window stays."
+  "Go to document location in other window.  *Index* window stays."
   (interactive)
   (reftex-index-visit-location t))
 (defun reftex-index-mouse-goto-line-and-hide (ev)
@@ -1093,12 +1093,12 @@ When index is restricted, select the previous section as restriction criterion."
     (reftex-index-change-entry new (format "Removed prefix: %s" prefix))))
 
 (defun reftex-index-kill ()
-  "FIXME: Not yet implemented"
+  "FIXME: Not yet implemented."
   (interactive)
   (error "This function is currently not implemented"))
 
 (defun reftex-index-undo ()
-  "FIXME: Not yet implemented"
+  "FIXME: Not yet implemented."
   (interactive)
   (error "This function is currently not implemented"))
 

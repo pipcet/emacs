@@ -1,6 +1,6 @@
 ;;; lisp.el --- Lisp editing commands for Emacs  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1985-1986, 1994, 2000-2017 Free Software Foundation,
+;; Copyright (C) 1985-1986, 1994, 2000-2020 Free Software Foundation,
 ;; Inc.
 
 ;; Maintainer: emacs-devel@gnu.org
@@ -20,7 +20,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -60,8 +60,8 @@ Should take the same arguments and behave similarly to `forward-sexp'.")
 With ARG, do it that many times.  Negative arg -N means move
 backward across N balanced expressions.  This command assumes
 point is not in a string or comment.  Calls
-`forward-sexp-function' to do the work, if that is non-nil.  If
-unable to move over a sexp, signal `scan-error' with three
+`forward-sexp-function' to do the work, if that is non-nil.
+If unable to move over a sexp, signal `scan-error' with three
 arguments: a message, the start of the obstacle (usually a
 parenthesis or list marker of some kind), and end of the
 obstacle."
@@ -164,7 +164,7 @@ This command will also work on other parentheses-like expressions
 defined by the current language mode.  With ARG, do this that
 many times.  A negative argument means move backward but still to
 a less deep spot.  If ESCAPE-STRINGS is non-nil (as it is
-interactively), move out of enclosing strings as well. If
+interactively), move out of enclosing strings as well.  If
 NO-SYNTAX-CROSSING is non-nil (as it is interactively), prefer to
 break out of any enclosing string instead of moving to the start
 of a list broken across multiple strings.  On error, location of
@@ -339,12 +339,18 @@ is called as a function to find the defun's beginning."
 
    ((or defun-prompt-regexp open-paren-in-column-0-is-defun-start)
     (and (< arg 0) (not (eobp)) (forward-char 1))
-    (and (re-search-backward (if defun-prompt-regexp
-				 (concat (if open-paren-in-column-0-is-defun-start
-					     "^\\s(\\|" "")
-					 "\\(?:" defun-prompt-regexp "\\)\\s(")
-			       "^\\s(")
-			     nil 'move arg)
+    (and (let (found)
+           (while
+               (and (setq found
+                          (re-search-backward
+                           (if defun-prompt-regexp
+			       (concat (if open-paren-in-column-0-is-defun-start
+					   "^\\s(\\|" "")
+				       "\\(?:" defun-prompt-regexp "\\)\\s(")
+			     "^\\s(")
+			                      nil 'move arg))
+                    (nth 8 (syntax-ppss))))
+           found)
 	 (progn (goto-char (1- (match-end 0)))
                 t)))
 
@@ -364,8 +370,9 @@ is called as a function to find the defun's beginning."
 	  (arg-+ve (> arg 0)))
       (save-restriction
 	(widen)
-	(let ((ppss (let (syntax-begin-function)
-		      (syntax-ppss)))
+	(let ((ppss (with-suppressed-warnings ((obsolete syntax-begin-function))
+                      (let (syntax-begin-function)
+		        (syntax-ppss))))
 	      ;; position of least enclosing paren, or nil.
 	      encl-pos)
 	  ;; Back out of any comment/string, so that encl-pos will always
@@ -402,15 +409,16 @@ is called as a function to find the defun's beginning."
   "Return non-nil if the point is in an \"emptyish\" line.
 This means a line that consists entirely of comments and/or
 whitespace."
-;; See http://lists.gnu.org/archive/html/help-gnu-emacs/2016-08/msg00141.html
+;; See https://lists.gnu.org/r/help-gnu-emacs/2016-08/msg00141.html
   (save-excursion
     (forward-line 0)
-    (< (line-end-position)
-       (let ((ppss (syntax-ppss)))
-         (when (nth 4 ppss)
-           (goto-char (nth 8 ppss)))
-         (forward-comment (point-max))
-         (point)))))
+    (let ((ppss (syntax-ppss)))
+      (and (null (nth 3 ppss))
+           (< (line-end-position)
+              (progn (when (nth 4 ppss)
+                       (goto-char (nth 8 ppss)))
+                     (forward-comment (point-max))
+                     (point)))))))
 
 (defun beginning-of-defun-comments (&optional arg)
   "Move to the beginning of ARGth defun, including comments."
@@ -428,10 +436,7 @@ whitespace."
                   (progn (skip-syntax-backward
                           "-" (line-beginning-position))
                          (not (bolp))) ; Check for blank line.
-                  (progn (parse-partial-sexp
-                          (line-beginning-position) (line-end-position)
-                          nil t (syntax-ppss (line-beginning-position)))
-                         (eolp))))) ; Check for non-comment text.
+                  (beginning-of-defun--in-emptyish-line-p)))) ; Check for non-comment text.
     (forward-line (if first-line-p 0 1))))
 
 (defvar end-of-defun-function
@@ -525,7 +530,7 @@ the one(s) already marked."
   (interactive "p")
   (setq arg (or arg 1))
   ;; There is no `mark-defun-back' function - see
-  ;; https://lists.gnu.org/archive/html/bug-gnu-emacs/2016-11/msg00079.html
+  ;; https://lists.gnu.org/r/bug-gnu-emacs/2016-11/msg00079.html
   ;; for explanation
   (when (eq last-command 'mark-defun-back)
     (setq arg (- arg)))
@@ -574,7 +579,7 @@ the one(s) already marked."
                   (goto-char beg)
                   (unless (= arg -1)    ; beginning-of-defun behaves
                                         ; strange with zero arg - see
-                                        ; https://lists.gnu.org/archive/html/bug-gnu-emacs/2017-02/msg00196.html
+                                        ; https://lists.gnu.org/r/bug-gnu-emacs/2017-02/msg00196.html
                     (beginning-of-defun (1- (- arg))))
                   (push-mark end nil t))))))
   (skip-chars-backward "[:space:]\n")
@@ -641,7 +646,7 @@ Interactively, the behavior depends on `narrow-to-defun-include-comments'."
       (re-search-backward "^\n" (- (point) 1) t)
       (narrow-to-region beg end))))
 
-(defvar insert-pair-alist
+(defcustom insert-pair-alist
   '((?\( ?\)) (?\[ ?\]) (?\{ ?\}) (?\< ?\>) (?\" ?\") (?\' ?\') (?\` ?\'))
   "Alist of paired characters inserted by `insert-pair'.
 Each element looks like (OPEN-CHAR CLOSE-CHAR) or (COMMAND-CHAR
@@ -651,7 +656,16 @@ or without modifiers, are inserted by `insert-pair'.
 
 If COMMAND-CHAR is specified, it is a character that triggers the
 insertion of the open/close pair, and COMMAND-CHAR itself isn't
-inserted.")
+inserted."
+  :type '(repeat (choice (list :tag "Pair"
+                               (character :tag "Open")
+                               (character :tag "Close"))
+                         (list :tag "Triple"
+                               (character :tag "Command")
+                               (character :tag "Open")
+                               (character :tag "Close"))))
+  :group 'lisp
+  :version "27.1")
 
 (defun insert-pair (&optional arg open close)
   "Enclose following ARG sexps in a pair of OPEN and CLOSE characters.
@@ -719,11 +733,13 @@ This command assumes point is not in a string or comment."
   (interactive "P")
   (insert-pair arg ?\( ?\)))
 
-(defun delete-pair ()
-  "Delete a pair of characters enclosing the sexp that follows point."
-  (interactive)
-  (save-excursion (forward-sexp 1) (delete-char -1))
-  (delete-char 1))
+(defun delete-pair (&optional arg)
+  "Delete a pair of characters enclosing ARG sexps following point.
+A negative ARG deletes a pair of characters around preceding ARG sexps."
+  (interactive "p")
+  (unless arg (setq arg 1))
+  (save-excursion (forward-sexp arg) (delete-char (if (> arg 0) -1 1)))
+  (delete-char (if (> arg 0) 1 -1)))
 
 (defun raise-sexp (&optional arg)
   "Raise ARG sexps higher up the tree."

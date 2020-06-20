@@ -1,6 +1,6 @@
 ;;; isearch-x.el --- extended isearch handling commands
 
-;; Copyright (C) 1997, 2001-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1997, 2001-2020 Free Software Foundation, Inc.
 ;; Copyright (C) 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004,
 ;;   2005, 2006, 2007, 2008, 2009, 2010, 2011
 ;;   National Institute of Advanced Industrial Science and Technology (AIST)
@@ -8,8 +8,7 @@
 
 ;; Keywords: i18n, multilingual, isearch
 
-;; Author: Kenichi HANDA <handa@etl.go.jp>
-;; Maintainer: Kenichi HANDA <handa@etl.go.jp>
+;; Author: Kenichi Handa <handa@gnu.org>
 
 ;; This file is part of GNU Emacs.
 
@@ -24,7 +23,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 

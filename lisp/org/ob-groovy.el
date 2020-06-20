@@ -1,10 +1,10 @@
 ;;; ob-groovy.el --- Babel Functions for Groovy      -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2013-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2013-2020 Free Software Foundation, Inc.
 
 ;; Author: Miro Bezjak
 ;; Keywords: literate programming, reproducible research
-;; Homepage: http://orgmode.org
+;; Homepage: https://orgmode.org
 
 ;; This file is part of GNU Emacs.
 
@@ -19,7 +19,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 ;; Currently only supports the external execution.  No session support yet.
@@ -45,8 +45,8 @@ parameters may be used, like groovy -v"
   :type 'string)
 
 (defun org-babel-execute:groovy (body params)
-  "Execute a block of Groovy code with org-babel.  This function is
-called by `org-babel-execute-src-block'"
+  "Execute a block of Groovy code with org-babel.
+This function is called by `org-babel-execute-src-block'."
   (message "executing Groovy source code block")
   (let* ((processed-params (org-babel-process-params params))
          (session (org-babel-groovy-initiate-session (nth 0 processed-params)))
@@ -84,12 +84,12 @@ in BODY as elisp."
   (when session (error "Sessions are not (yet) supported for Groovy"))
   (pcase result-type
     (`output
-     (let ((src-file (org-babel-temp-file "groovy-")))
+     (let ((src-file (org-babel-temp-file "groovy_")))
        (progn (with-temp-file src-file (insert body))
               (org-babel-eval
                (concat org-babel-groovy-command " " src-file) ""))))
     (`value
-     (let* ((src-file (org-babel-temp-file "groovy-"))
+     (let* ((src-file (org-babel-temp-file "groovy_"))
             (wrapper (format org-babel-groovy-wrapper-method body)))
        (with-temp-file src-file (insert wrapper))
        (let ((raw (org-babel-eval

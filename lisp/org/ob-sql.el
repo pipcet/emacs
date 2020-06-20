@@ -1,10 +1,10 @@
 ;;; ob-sql.el --- Babel Functions for SQL            -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2009-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2009-2020 Free Software Foundation, Inc.
 
 ;; Author: Eric Schulte
 ;; Keywords: literate programming, reproducible research
-;; Homepage: http://orgmode.org
+;; Homepage: https://orgmode.org
 
 ;; This file is part of GNU Emacs.
 
@@ -19,7 +19,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -39,19 +39,30 @@
 ;; - dbport
 ;; - dbuser
 ;; - dbpassword
+;; - dbconnection (to reference connections in sql-connection-alist)
 ;; - database
 ;; - colnames (default, nil, means "yes")
 ;; - result-params
 ;; - out-file
+;;
 ;; The following are used but not really implemented for SQL:
 ;; - colname-names
 ;; - rownames
 ;; - rowname-names
 ;;
+;; Engines supported:
+;; - mysql
+;; - dbi
+;; - mssql
+;; - sqsh
+;; - postgresql
+;; - oracle
+;; - vertica
+;;
 ;; TODO:
 ;;
 ;; - support for sessions
-;; - support for more engines (currently only supports mysql)
+;; - support for more engines
 ;; - what's a reasonable way to drop table data into SQL?
 ;;
 
@@ -63,6 +74,7 @@
 (declare-function org-table-to-lisp "org-table" (&optional txt))
 (declare-function cygwin-convert-file-name-to-windows "cygw32.c" (file &optional absolute-p))
 
+(defvar sql-connection-alist)
 (defvar org-babel-default-header-args:sql '())
 
 (defconst org-babel-header-args:sql
@@ -101,8 +113,24 @@ Pass nil to omit that arg."
 	       (when database (concat "-d" database))))))
 
 (defun org-babel-sql-dbstring-oracle (host port user password database)
-  "Make Oracle command line args for database connection."
-  (format "%s/%s@%s:%s/%s" user password host port database))
+  "Make Oracle command line arguments for database connection.
+
+If HOST and PORT are nil then don't pass them.  This allows you
+to use names defined in your \"TNSNAMES\" file.  So you can
+connect with
+
+  <user>/<password>@<host>:<port>/<database>
+
+or
+
+  <user>/<password>@<database>
+
+using its alias."
+  (cond ((and user password database host port)
+	 (format "%s/%s@%s:%s/%s" user password host port database))
+	((and user password database)
+	 (format "%s/%s@%s" user password database))
+	(t (user-error "Missing information to connect to database"))))
 
 (defun org-babel-sql-dbstring-mssql (host user password database)
   "Make sqlcmd command line args for database connection.
@@ -116,6 +144,28 @@ SQL Server on Windows and Linux platform."
 			 (when database (format "-d \"%s\"" database))))
 	     " "))
 
+(defun org-babel-sql-dbstring-sqsh (host user password database)
+  "Make sqsh command line args for database connection.
+\"sqsh\" is one method to access Sybase or MS SQL via Linux platform"
+  (mapconcat #'identity
+             (delq nil
+                   (list  (when host     (format "-S \"%s\"" host))
+                          (when user     (format "-U \"%s\"" user))
+                          (when password (format "-P \"%s\"" password))
+                          (when database (format "-D \"%s\"" database))))
+             " "))
+
+(defun org-babel-sql-dbstring-vertica (host port user password database)
+  "Make Vertica command line args for database connection. Pass nil to omit that arg."
+  (mapconcat #'identity
+	      (delq nil
+		    (list (when host     (format "-h %s" host))
+			  (when port     (format "-p %d" port))
+			  (when user     (format "-U %s" user))
+			  (when password (format "-w %s" (shell-quote-argument password) ))
+			  (when database (format "-d %s" database))))
+	      " "))
+
 (defun org-babel-sql-convert-standard-filename (file)
   "Convert FILE to OS standard file name.
 If in Cygwin environment, uses Cygwin specific function to
@@ -126,16 +176,35 @@ Otherwise, use Emacs' standard conversion function."
 	((string= "windows-nt" system-type) file)
 	(t (format "%S" (convert-standard-filename file)))))
 
+(defun org-babel-find-db-connection-param (params name)
+  "Return database connection parameter NAME.
+Given a parameter NAME, if :dbconnection is defined in PARAMS
+then look for the parameter into the corresponding connection
+defined in `sql-connection-alist`, otherwise look into PARAMS.
+Look `sql-connection-alist` (part of SQL mode) for how to define
+database connections."
+  (if (assq :dbconnection params)
+      (let* ((dbconnection (cdr (assq :dbconnection params)))
+             (name-mapping '((:dbhost . sql-server)
+                             (:dbport . sql-port)
+                             (:dbuser . sql-user)
+                             (:dbpassword . sql-password)
+                             (:database . sql-database)))
+             (mapped-name (cdr (assq name name-mapping))))
+        (cadr (assq mapped-name
+                    (cdr (assoc dbconnection sql-connection-alist)))))
+    (cdr (assq name params))))
+
 (defun org-babel-execute:sql (body params)
   "Execute a block of Sql code with Babel.
 This function is called by `org-babel-execute-src-block'."
   (let* ((result-params (cdr (assq :result-params params)))
          (cmdline (cdr (assq :cmdline params)))
-         (dbhost (cdr (assq :dbhost params)))
-         (dbport (cdr (assq :dbport params)))
-         (dbuser (cdr (assq :dbuser params)))
-         (dbpassword (cdr (assq :dbpassword params)))
-         (database (cdr (assq :database params)))
+         (dbhost (org-babel-find-db-connection-param params :dbhost))
+         (dbport (org-babel-find-db-connection-param params :dbport))
+         (dbuser (org-babel-find-db-connection-param params :dbuser))
+         (dbpassword (org-babel-find-db-connection-param params :dbpassword))
+         (database (org-babel-find-db-connection-param params :database))
          (engine (cdr (assq :engine params)))
          (colnames-p (not (equal "no" (cdr (assq :colnames params)))))
          (in-file (org-babel-temp-file "sql-in-"))
@@ -179,6 +248,20 @@ footer=off -F \"\t\"  %s -f %s -o %s %s"
 				  (org-babel-process-file-name in-file)
 				  (org-babel-process-file-name out-file)
 				  (or cmdline "")))
+		    (`sqsh (format "sqsh %s %s -i %s -o %s -m csv"
+				   (or cmdline "")
+				   (org-babel-sql-dbstring-sqsh
+				    dbhost dbuser dbpassword database)
+				   (org-babel-sql-convert-standard-filename
+				    (org-babel-process-file-name in-file))
+				   (org-babel-sql-convert-standard-filename
+				    (org-babel-process-file-name out-file))))
+		    (`vertica (format "vsql %s -f %s -o %s %s"
+				    (org-babel-sql-dbstring-vertica
+				     dbhost dbport dbuser dbpassword database)
+				    (org-babel-process-file-name in-file)
+				    (org-babel-process-file-name out-file)
+				    (or cmdline "")))
                     (`oracle (format
 			      "sqlplus -s %s < %s > %s"
 			      (org-babel-sql-dbstring-oracle
@@ -195,6 +278,7 @@ SET NEWPAGE 0
 SET TAB OFF
 SET SPACE 0
 SET LINESIZE 9999
+SET TRIMOUT ON TRIMSPOOL ON
 SET ECHO OFF
 SET FEEDBACK OFF
 SET VERIFY OFF
@@ -203,18 +287,21 @@ SET MARKUP HTML OFF SPOOL OFF
 SET COLSEP '|'
 
 ")
-	 (`mssql "SET NOCOUNT ON
+	 ((or `mssql `sqsh) "SET NOCOUNT ON
 
 ")
+	 (`vertica "\\a\n")
 	 (_ ""))
-       (org-babel-expand-body:sql body params)))
+       (org-babel-expand-body:sql body params)
+       ;; "sqsh" requires "go" inserted at EOF.
+       (if (string= engine "sqsh") "\ngo" "")))
     (org-babel-eval command "")
     (org-babel-result-cond result-params
       (with-temp-buffer
 	(progn (insert-file-contents-literally out-file) (buffer-string)))
       (with-temp-buffer
 	(cond
-	 ((memq (intern engine) '(dbi mysql postgresql))
+	 ((memq (intern engine) '(dbi mysql postgresql sqsh vertica))
 	  ;; Add header row delimiter after column-names header in first line
 	  (cond
 	   (colnames-p
@@ -239,7 +326,7 @@ SET COLSEP '|'
 	      (goto-char (point-max))
 	      (forward-char -1))
 	    (write-file out-file))))
-	(org-table-import out-file '(16))
+	(org-table-import out-file (if (string= engine "sqsh") '(4) '(16)))
 	(org-babel-reassemble-table
 	 (mapcar (lambda (x)
 		   (if (string= (car x) header-delim)

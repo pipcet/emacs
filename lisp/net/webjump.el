@@ -1,6 +1,6 @@
-;;; webjump.el --- programmable Web hotlist
+;;; webjump.el --- programmable Web hotlist  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 1996-1997, 2001-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1996-1997, 2001-2020 Free Software Foundation, Inc.
 
 ;; Author:    Neil W. Van Dyke <nwv@acm.org>
 ;; Created:   09-Aug-1996
@@ -19,7 +19,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -76,9 +76,9 @@
   '(
     ;; FSF, not including Emacs-specific.
     ("GNU Project FTP Archive" .
-     ;; GNU FTP Mirror List from http://www.gnu.org/order/ftp.html
-     [mirrors "ftp://ftp.gnu.org/pub/gnu/"
-              "http://ftpmirror.gnu.org"])
+     ;; GNU FTP Mirror List from https://www.gnu.org/order/ftp.html
+     [mirrors "https://ftp.gnu.org/pub/gnu/"
+              "https://ftpmirror.gnu.org"])
     ("GNU Project Home Page" . "www.gnu.org")
 
     ;; Emacs.
@@ -323,8 +323,7 @@ Please submit bug reports and other feedback to the author, Neil W. Van Dyke
 
 (defun webjump-read-url-choice (what urls &optional default)
   ;; Note: Convert this to use `webjump-read-choice' someday.
-  (let* ((completions (mapcar (function (lambda (n) (cons n n)))
-                              urls))
+  (let* ((completions (mapcar (lambda (n) (cons n n)) urls))
 	 (input (completing-read (concat what
                                          ;;(if default " (RET for default)" "")
                                          ": ")
@@ -342,7 +341,7 @@ Please submit bug reports and other feedback to the author, Neil W. Van Dyke
   (mapconcat (lambda (c)
                (let ((s (char-to-string c)))
                  (cond ((string= s " ") "+")
-                       ((string-match "[a-zA-Z_.-/]" s) s)
+		       ((string-match "[a-zA-Z_./~-]" s) s)
                        (t (upcase (format "%%%02x" c))))))
              (encode-coding-string str 'utf-8)
              ""))

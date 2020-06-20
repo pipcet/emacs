@@ -1,7 +1,7 @@
 #!/bin/sh
 ### autogen.sh - tool to help build Emacs from a repository checkout
 
-## Copyright (C) 2011-2017 Free Software Foundation, Inc.
+## Copyright (C) 2011-2020 Free Software Foundation, Inc.
 
 ## Author: Glenn Morris <rgm@gnu.org>
 ## Maintainer: emacs-devel@gnu.org
@@ -19,7 +19,7 @@
 ## GNU General Public License for more details.
 
 ## You should have received a copy of the GNU General Public License
-## along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+## along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ### Commentary:
 
@@ -82,7 +82,16 @@ check_version ()
         printf '%s' "(using $uprog0=$uprog) "
     fi
 
-    command -v $uprog > /dev/null || return 1
+    ## /bin/sh should always define the "command" builtin, but
+    ## sometimes it does not on hydra.nixos.org.
+    ## /bin/sh = "BusyBox v1.27.2", "built-in shell (ash)".
+    ## It seems to be an optional compile-time feature in that shell:
+    ## see ASH_CMDCMD in <https://git.busybox.net/busybox/tree/shell/ash.c>.
+    if command -v command > /dev/null 2>&1; then
+        command -v $uprog > /dev/null || return 1
+    else
+        $uprog --version > /dev/null 2>&1 || return 1
+    fi
     have_version=`get_version $uprog` || return 4
 
     have_maj=`major_version $have_version`
@@ -210,7 +219,7 @@ If you do not have permission to do this, or if the version provided
 by your system is too old, it is normally straightforward to build
 these packages from source.  You can find the sources at:
 
-ftp://ftp.gnu.org/gnu/PACKAGE/
+https://ftp.gnu.org/gnu/PACKAGE/
 
 Download the package (make sure you get at least the minimum version
 listed above), extract it using tar, then run configure, make,
@@ -269,23 +278,23 @@ fi
 
 git_config ()
 {
+    $do_git || return
+
     name=$1
     value=$2
 
     ovalue=`git config --get "$name"` && test "$ovalue" = "$value" || {
-	if $do_git; then
-	    if $git_was_ok; then
-		echo 'Configuring local git repository...'
-		case $cp_options in
-		  --backup=*)
-		    config=$git_common_dir/config
-		    cp $cp_options --force -- "$config" "$config" || exit;;
-		esac
-	    fi
-	    echo "git config $name '$value'"
-	    git config "$name" "$value" || exit
-	fi
-	git_was_ok=false
+       if $git_was_ok; then
+	   echo 'Configuring local git repository...'
+	   case $cp_options in
+	       --backup=*)
+		   config=$git_common_dir/config
+		   cp $cp_options --force -- "$config" "$config" || exit;;
+	   esac
+       fi
+       echo "git config $name '$value'"
+       git config "$name" "$value" || exit
+       git_was_ok=false
     }
 }
 
@@ -307,8 +316,16 @@ git_config transfer.fsckObjects true
 
 # Configure 'git diff' hunk header format.
 
+# This xfuncname is based on Git's built-in 'cpp' pattern.
+# The first line rejects jump targets and access declarations.
+# The second line matches top-level functions and methods.
+# The third line matches preprocessor and DEFUN macros.
+git_config diff.cpp.xfuncname \
+'!^[ \t]*[A-Za-z_][A-Za-z_0-9]*:[[:space:]]*($|/[/*])
+^((::[[:space:]]*)?[A-Za-z_][A-Za-z_0-9]*[[:space:]]*\(.*)$
+^((#define[[:space:]]|DEFUN).*)$'
 git_config diff.elisp.xfuncname \
-	   '^\(def[^[:space:]]+[[:space:]]+([^()[:space:]]+)'
+           '^\([^[:space:]]*def[^[:space:]]+[[:space:]]+([^()[:space:]]+)'
 git_config 'diff.m4.xfuncname' '^((m4_)?define|A._DEFUN(_ONCE)?)\([^),]*'
 git_config 'diff.make.xfuncname' \
 	   '^([$.[:alnum:]_].*:|[[:alnum:]_]+[[:space:]]*([*:+]?[:?]?|!?)=|define .*)'
@@ -323,7 +340,7 @@ git_config diff.texinfo.xfuncname \
 tailored_hooks=
 sample_hooks=
 
-for hook in commit-msg pre-commit; do
+for hook in commit-msg pre-commit prepare-commit-msg; do
     cmp -- build-aux/git-hooks/$hook "$hooks/$hook" >/dev/null 2>&1 ||
 	tailored_hooks="$tailored_hooks $hook"
 done

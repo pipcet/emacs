@@ -1,6 +1,6 @@
 ;;; cc-guess.el --- guess indentation values by scanning existing code
 
-;; Copyright (C) 1985, 1987, 1992-2006, 2011-2017 Free Software
+;; Copyright (C) 1985, 1987, 1992-2006, 2011-2020 Free Software
 ;; Foundation, Inc.
 
 ;; Author:     1994-1995 Barry A. Warsaw
@@ -22,7 +22,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 ;;

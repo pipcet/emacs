@@ -1,6 +1,6 @@
 ;;; erc-hecomplete.el --- Provides Nick name completion for ERC
 
-;; Copyright (C) 2001-2002, 2004, 2006-2017 Free Software Foundation,
+;; Copyright (C) 2001-2002, 2004, 2006-2020 Free Software Foundation,
 ;; Inc.
 
 ;; Author: Alex Schroeder <alex@gnu.org>
@@ -20,7 +20,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -51,7 +51,7 @@ This function is obsolete, use `erc-pcomplete' instead."
     (hippie-expand nil)))
 
 (defgroup erc-hecomplete nil
-  "Nick completion.  It is recommended to use erc-pcomplete instead."
+  "Nick completion.  It is recommended to use `erc-pcomplete' instead."
   :group 'erc)
 
 (defcustom erc-nick-completion 'all
@@ -99,7 +99,7 @@ add this string when a unique expansion was found."
   :type 'string)
 
 (defun erc-command-list ()
-  "Returns a list of strings of the defined user commands."
+  "Return a list of strings of the defined user commands."
   (let ((case-fold-search nil))
     (mapcar (lambda (x)
 	      (concat "/" (downcase (substring (symbol-name x) 8))))
@@ -208,7 +208,7 @@ Window configurations are stored in
     (equal point (point))))
 
 (defun erc-complete-at-prompt ()
-  "Returns t if point is directly after `erc-prompt' when doing completion."
+  "Return t if point is directly after `erc-prompt' when doing completion."
   (erc-at-beginning-of-line-p (he-dabbrev-beg)))
 
 (provide 'erc-hecomplete)
@@ -219,4 +219,3 @@ Window configurations are stored in
 ;; indent-tabs-mode: t
 ;; tab-width: 8
 ;; End:
-

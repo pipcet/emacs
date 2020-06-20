@@ -1,6 +1,6 @@
 ;;; generator-tests.el --- Testing generators -*- lexical-binding: t -*-
 
-;; Copyright (C) 2015-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2015-2020 Free Software Foundation, Inc.
 
 ;; Author: Daniel Colascione <dancol@dancol.org>
 ;; Keywords:
@@ -18,13 +18,15 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
 (require 'generator)
 (require 'ert)
 (require 'cl-lib)
+
+;;; Code:
 
 (defun generator-list-subrs ()
   (cl-loop for x being the symbols
@@ -38,8 +40,7 @@
 `cps-testcase' defines an ERT testcase called NAME that evaluates
 BODY twice: once using ordinary `eval' and once using
 lambda-generators.  The test ensures that the two forms produce
-identical output.
-"
+identical output."
   `(progn
      (ert-deftest ,name ()
        (should
@@ -282,3 +283,34 @@ identical output.
 (ert-deftest cps-test-declarations-preserved ()
   (should (equal (documentation 'generator-with-docstring) "Documentation!"))
   (should (equal (get 'generator-with-docstring 'lisp-indent-function) 5)))
+
+(ert-deftest cps-iter-lambda-with-dynamic-binding ()
+  "`iter-lambda' with dynamic binding produces correct result (bug#25965)."
+  (should (= 1
+             (iter-next
+              (funcall (iter-lambda ()
+                         (let* ((fill-column 10) ;;any special variable will do
+                                (i 0)
+                                (j (setq i (1+ i))))
+                           (iter-yield i))))))))
+
+(ert-deftest iter-lambda-variable-shadowing ()
+  "`iter-lambda' forms which have local variable shadowing (Bug#26073)."
+  (should (equal (iter-next
+                  (funcall (iter-lambda ()
+                             (let ((it 1))
+                               (iter-yield (funcall
+                                            (lambda (it) (- it))
+                                            (1+ it)))))))
+                 -2)))
+
+(ert-deftest generator-tests-edebug ()
+  "Check that Bug#40434 is fixed."
+  (with-temp-buffer
+    (prin1 '(iter-defun generator-tests-edebug ()
+              (iter-yield 123))
+           (current-buffer))
+    (edebug-defun))
+  (should (eql (iter-next (generator-tests-edebug)) 123)))
+
+;;; generator-tests.el ends here

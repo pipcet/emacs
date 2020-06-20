@@ -1,6 +1,6 @@
 ;;; url-queue.el --- Fetching web pages in parallel   -*- lexical-binding: t -*-
 
-;; Copyright (C) 2011-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2011-2020 Free Software Foundation, Inc.
 
 ;; Author: Lars Magne Ingebrigtsen <larsi@gnus.org>
 ;; Keywords: comm
@@ -18,7 +18,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -52,7 +52,7 @@
 (cl-defstruct url-queue
   url callback cbargs silentp
   buffer start-time pre-triggered
-  inhibit-cookiesp)
+  inhibit-cookiesp context-buffer)
 
 ;;;###autoload
 (defun url-queue-retrieve (url callback &optional cbargs silent inhibit-cookies)
@@ -67,7 +67,8 @@ The variable `url-queue-timeout' sets a timeout."
 				      :callback callback
 				      :cbargs cbargs
 				      :silentp silent
-				      :inhibit-cookiesp inhibit-cookies))))
+				      :inhibit-cookiesp inhibit-cookies
+                                      :context-buffer (current-buffer)))))
   (url-queue-setup-runners))
 
 ;; To ensure asynch behavior, we start the required number of queue
@@ -147,19 +148,22 @@ The variable `url-queue-timeout' sets a timeout."
 (defun url-queue-start-retrieve (job)
   (setf (url-queue-buffer job)
 	(ignore-errors
-	  (let ((url-request-noninteractive t))
-	    (url-retrieve (url-queue-url job)
-			  #'url-queue-callback-function (list job)
-			  (url-queue-silentp job)
-			  (url-queue-inhibit-cookiesp job))))))
+          (with-current-buffer (if (buffer-live-p (url-queue-context-buffer job))
+                                   (url-queue-context-buffer job)
+                                 (current-buffer))
+	   (let ((url-request-noninteractive t))
+             (url-retrieve (url-queue-url job)
+                           #'url-queue-callback-function (list job)
+                           (url-queue-silentp job)
+                           (url-queue-inhibit-cookiesp job)))))))
 
 (defun url-queue-prune-old-entries ()
   (let (dead-jobs)
     (dolist (job url-queue)
       ;; Kill jobs that have lasted longer than the timeout.
       (when (and (url-queue-start-time job)
-		 (> (- (float-time) (url-queue-start-time job))
-		    url-queue-timeout))
+		 (time-less-p url-queue-timeout
+			      (time-since (url-queue-start-time job))))
 	(push job dead-jobs)))
     (dolist (job dead-jobs)
       (url-queue-kill-job job)
@@ -177,7 +181,7 @@ The variable `url-queue-timeout' sets a timeout."
   (with-current-buffer
       (if (and (bufferp (url-queue-buffer job))
 	       (buffer-live-p (url-queue-buffer job)))
-	  ;; Use the (partially filled) process buffer it it exists.
+	  ;; Use the (partially filled) process buffer if it exists.
 	  (url-queue-buffer job)
 	;; If not, just create a new buffer, which will probably be
 	;; killed again by the caller.

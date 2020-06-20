@@ -1,9 +1,8 @@
 ;;; cus-test.el --- tests for custom types and load problems
 
-;; Copyright (C) 1998, 2000, 2002-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1998, 2000, 2002-2020 Free Software Foundation, Inc.
 
-;; Author: Markus Rost <markus.rost@mathematik.uni-regensburg.de>
-;; Maintainer: Markus Rost <rost@math.ohio-state.edu>
+;; Author: Markus Rost <rost@math.uni-bielefeld.de>
 ;; Created: 13 Sep 1998
 ;; Keywords: maint
 
@@ -20,7 +19,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 

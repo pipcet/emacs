@@ -1,6 +1,6 @@
 ;;; cmacexp.el --- expand C macros in a region
 
-;; Copyright (C) 1992, 1994, 1996, 2000-2017 Free Software Foundation,
+;; Copyright (C) 1992, 1994, 1996, 2000-2020 Free Software Foundation,
 ;; Inc.
 
 ;; Author: Francesco Potortì <pot@gnu.org>
@@ -27,7 +27,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -383,7 +383,8 @@ Optional arg DISPLAY non-nil means show messages in the echo area."
 		       (not (member (file-name-nondirectory shell-file-name)
 				    msdos-shells)))
 		   (eq exit-status 0))
-	      (zerop (nth 7 (file-attributes (expand-file-name tempname))))
+	      (zerop (file-attribute-size
+		      (file-attributes (expand-file-name tempname))))
 	      (progn
 		(goto-char (point-min))
 		;; Put the messages inside a comment, so they won't get in

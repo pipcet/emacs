@@ -1,6 +1,6 @@
 ;;; mixal-mode.el --- Major mode for the mix asm language.
 
-;; Copyright (C) 2003-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2003-2020 Free Software Foundation, Inc.
 
 ;; Author: Pieter E.J. Pareit <pieter.pareit@gmail.com>
 ;; Maintainer: emacs-devel@gnu.org
@@ -21,7 +21,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 ;; Major mode for the mix asm language.
@@ -30,7 +30,7 @@
 ;; For optimal use, also use GNU MDK.  Compiling needs mixasm, running
 ;; and debugging needs mixvm and mixvm.el from GNU MDK.  You can get
 ;; GNU MDK from `https://savannah.gnu.org/projects/mdk/' and
-;; `ftp://ftp.gnu.org/pub/gnu/mdk'.
+;; `https://ftp.gnu.org/pub/gnu/mdk'.
 ;;
 ;; To use this mode, place the following in your init file:
 ;; `(load-file "/PATH-TO-FILE/mixal-mode.el")'.
@@ -330,7 +330,7 @@ part of the subfield. The default field for STJ is (0:2)."
          2)
 
     (STZ storing "store zero" 33 field
-         "Store in cell Nr. M '+ 0'.
+         "Store in cell Nr. M `+ 0'.
 The modification of the operation code represents the subfield of the
 memory cell that is to be overwritten with zeros."
          2)
@@ -1044,7 +1044,7 @@ EXECUTION-TIME holds info about the time it takes, number or string.")
      . mixal-font-lock-operation-code-face)
     (,(regexp-opt mixal-assembly-pseudoinstructions 'words)
      . mixal-font-lock-assembly-pseudoinstruction-face)
-    ("^[A-Z0-9a-z]*[ \t]+[A-ZO-9a-z]+[ \t]+\\(=.*=\\)"
+    ("^[A-Z0-9a-z]*[ \t]+[A-Z0-9a-z]+[ \t]+\\(=.*=\\)"
      (1 font-lock-constant-face)))
   "Keyword highlighting specification for `mixal-mode'.")
 ;; (makunbound 'mixal-font-lock-keywords)
@@ -1108,7 +1108,7 @@ Assumes that file has been compiled with debugging support."
   (set (make-local-variable 'comment-start) "*")
   (set (make-local-variable 'comment-start-skip) "^\\*[ \t]*")
   (set (make-local-variable 'font-lock-defaults)
-       `(mixal-font-lock-keywords))
+       '(mixal-font-lock-keywords))
   (set (make-local-variable 'syntax-propertize-function)
        mixal-syntax-propertize-function)
   ;; might add an indent function in the future

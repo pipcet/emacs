@@ -1,6 +1,6 @@
 ;;; cc-bytecomp.el --- compile time setup for proper compilation
 
-;; Copyright (C) 2000-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2000-2020 Free Software Foundation, Inc.
 
 ;; Author:     Martin Stjernholm
 ;; Maintainer: bug-cc-mode@gnu.org
@@ -21,7 +21,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -307,7 +307,7 @@ somewhat intentional."
 file CC-PART.el in the current directory to be loaded at compile
 time, (ii) generate code to load the file at load time.
 
-CC-PART will normally be a quoted name such as 'cc-fix.
+CC-PART will normally be a quoted name such as \\='cc-fix.
 CONDITION should not be quoted."
   (if (eval condition)
       (progn
@@ -321,7 +321,7 @@ file CC-PART.el in the current directory to be loaded at compile
 time, (ii) generate an `eval-after-load' form to load CC-PART.el
 after the loading of FILE.
 
-CC-PART will normally be a quoted name such as 'cc-fix.  FILE
+CC-PART will normally be a quoted name such as \\='cc-fix.  FILE
 should be a string.  CONDITION should not be quoted."
   (if (eval condition)
       (progn

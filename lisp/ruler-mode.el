@@ -1,11 +1,10 @@
 ;;; ruler-mode.el --- display a ruler in the header line
 
-;; Copyright (C) 2001-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2001-2020 Free Software Foundation, Inc.
 
 ;; Author: David Ponce <david@dponce.com>
-;; Maintainer: David Ponce <david@dponce.com>
 ;; Created: 24 Mar 2001
-;; Version: 1.6
+;; Old-Version: 1.6
 ;; Keywords: convenience
 
 ;; This file is part of GNU Emacs.
@@ -21,7 +20,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -307,7 +306,12 @@ or remove a tab stop.  \\[ruler-mode-toggle-show-tab-stops] or
 N is a column number relative to selected frame.
 If required, account for screen estate taken by `display-line-numbers'."
   (if display-line-numbers
-      (setq n (- n (line-number-display-width) 2)))
+      ;; FIXME: ruler-mode relies on N being an integer, so if the
+      ;; 'line-number' face is customized to use a font that is larger
+      ;; or smaller than that of the default face, the alignment might
+      ;; be off by up to half a column, unless the font width is an
+      ;; integral multiple or divisor of the default face's font.
+      (setq n (- n (round (line-number-display-width 'columns)))))
   (- n
      (or (car (window-margins)) 0)
      (fringe-columns 'left)
@@ -586,10 +590,7 @@ format first."
 
 ;;;###autoload
 (define-minor-mode ruler-mode
-  "Toggle display of ruler in header line (Ruler mode).
-With a prefix argument ARG, enable Ruler mode if ARG is positive,
-and disable it otherwise.  If called from Lisp, enable the mode
-if ARG is omitted or nil."
+  "Toggle display of ruler in header line (Ruler mode)."
   nil nil
   ruler-mode-map
   :group 'ruler-mode
@@ -611,7 +612,7 @@ if ARG is omitted or nil."
 
 ;; Add ruler-mode to the minor mode menu in the mode line
 (define-key mode-line-mode-menu [ruler-mode]
-  `(menu-item "Ruler" ruler-mode
+  '(menu-item "Ruler" ruler-mode
               :button (:toggle . ruler-mode)))
 
 (defconst ruler-mode-ruler-help-echo
@@ -668,7 +669,12 @@ Optional argument PROPS specifies other text properties to apply."
   (let* ((w (ruler-mode-text-scaled-window-width))
          (m (window-margins))
          (f (window-fringes))
-         (i (if display-line-numbers (+ (line-number-display-width) 2) 0))
+         (i (if display-line-numbers
+                ;; FIXME: ruler-mode relies on I being an integer, so
+                ;; the column numbers might be slightly off if the
+                ;; line-number face is customized.
+                (round (line-number-display-width 'columns))
+              0))
          (j (ruler-mode-text-scaled-window-hscroll))
          ;; Setup the scrollbar, fringes, and margins areas.
          (lf (ruler-mode-space
@@ -699,20 +705,18 @@ Optional argument PROPS specifies other text properties to apply."
          ;; Create an "clean" ruler.
          (ruler
           (propertize
-           ;; FIXME: `make-string' returns a unibyte string if it's ASCII-only,
-           ;; which prevents further `aset' from inserting non-ASCII chars,
-           ;; hence the need for `string-to-multibyte'.
-           ;; http://lists.gnu.org/archive/html/emacs-devel/2017-05/msg00841.html
-           (string-to-multibyte
-            ;; Make the part of header-line corresponding to the
-            ;; line-number display be blank, not filled with
-            ;; ruler-mode-basic-graduation-char.
-            (if display-line-numbers
-                (let* ((lndw (+ (line-number-display-width) 2))
-                       (s (make-string lndw ?\s)))
-                  (concat s (make-string (- w lndw)
-                                         ruler-mode-basic-graduation-char)))
-              (make-string w ruler-mode-basic-graduation-char)))
+           ;; Make the part of header-line corresponding to the
+           ;; line-number display be blank, not filled with
+           ;; ruler-mode-basic-graduation-char.
+           (if display-line-numbers
+               (let* ((lndw (round (line-number-display-width 'columns)))
+                      ;; We need a multibyte string here so we could
+                      ;; later use aset to insert multibyte characters
+                      ;; into that string.
+                      (s (make-string lndw ?\s t)))
+                 (concat s (make-string (- w lndw)
+                                        ruler-mode-basic-graduation-char t)))
+             (make-string w ruler-mode-basic-graduation-char t))
            'face 'ruler-mode-default
            'local-map ruler-mode-map
            'help-echo (cond

@@ -1,11 +1,11 @@
 ;;; ob-maxima.el --- Babel Functions for Maxima      -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2009-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2009-2020 Free Software Foundation, Inc.
 
 ;; Author: Eric S Fraga
 ;;	Eric Schulte
 ;; Keywords: literate programming, reproducible research, maxima
-;; Homepage: http://orgmode.org
+;; Homepage: https://orgmode.org
 
 ;; This file is part of GNU Emacs.
 
@@ -20,7 +20,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -48,9 +48,13 @@
 
 (defun org-babel-maxima-expand (body params)
   "Expand a block of Maxima code according to its header arguments."
-  (let ((vars (org-babel--get-vars params)))
+  (let ((vars (org-babel--get-vars params))
+	(epilogue (cdr (assq :epilogue params)))
+	(prologue (cdr (assq :prologue params))))
     (mapconcat 'identity
 	       (list
+		;; Any code from the specified prologue at the start.
+		prologue
 		;; graphic output
 		(let ((graphic-file (ignore-errors (org-babel-graphical-output-file params))))
 		  (if graphic-file
@@ -62,6 +66,8 @@
 		(mapconcat 'org-babel-maxima-var-to-maxima vars "\n")
 		;; body
 		body
+		;; Any code from the specified epilogue at the end.
+		epilogue
 		"gnuplot_close ()$")
 	       "\n")))
 

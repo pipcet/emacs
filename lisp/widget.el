@@ -1,6 +1,6 @@
 ;;; widget.el --- a library of user interface components
 ;;
-;; Copyright (C) 1996-1997, 2001-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1996-1997, 2001-2020 Free Software Foundation, Inc.
 ;;
 ;; Author: Per Abrahamsen <abraham@dina.kvl.dk>
 ;; Keywords: help, extensions, faces, hypermedia
@@ -20,7 +20,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 ;;
@@ -44,7 +44,8 @@
   ;; 	(list 'or (list 'boundp (list 'car 'keywords))
   ;; 	  (list 'set (list 'car 'keywords) (list 'car 'keywords)))
   ;; 	(list 'setq 'keywords (list 'cdr 'keywords)))))
-  )
+  (declare (obsolete nil "27.1"))
+  nil)
 
 ;;(define-widget-keywords :documentation-indent
 ;;  :complete-function :complete :button-overlay

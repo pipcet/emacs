@@ -1,6 +1,6 @@
 /* Portable API for dynamic loading.
 
-Copyright 2015-2017 Free Software Foundation, Inc.
+Copyright 2015-2020 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -15,7 +15,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.  */
+along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 
 
 /* Assume modules are enabled on modern systems...  *Yes*, the
@@ -123,7 +123,7 @@ dynlib_sym (dynlib_handle_ptr h, const char *sym)
 }
 
 void
-dynlib_addr (void *addr, const char **fname, const char **symname)
+dynlib_addr (void (*funcptr) (void), const char **fname, const char **symname)
 {
   static char dll_filename[MAX_UTF8_PATH];
   static GetModuleHandleExA_Proc s_pfn_Get_Module_HandleExA = NULL;
@@ -132,6 +132,7 @@ dynlib_addr (void *addr, const char **fname, const char **symname)
   HMODULE hm_dll = NULL;
   wchar_t mfn_w[MAX_PATH];
   char mfn_a[MAX_PATH];
+  void *addr = (void *) funcptr;
 
   /* Step 1: Find the handle of the module where ADDR lives.  */
   if (os_subtype == OS_9X
@@ -156,9 +157,8 @@ dynlib_addr (void *addr, const char **fname, const char **symname)
 	     address we pass to it is not an address of a string, but
 	     an address of a function.  So we don't care about the
 	     Unicode version.  */
-	  s_pfn_Get_Module_HandleExA =
-	    (GetModuleHandleExA_Proc) GetProcAddress (hm_kernel32,
-						      "GetModuleHandleExA");
+	  s_pfn_Get_Module_HandleExA = (GetModuleHandleExA_Proc)
+            get_proc_addr (hm_kernel32, "GetModuleHandleExA");
 	}
       if (s_pfn_Get_Module_HandleExA)
 	{
@@ -280,11 +280,12 @@ dynlib_sym (dynlib_handle_ptr h, const char *sym)
 }
 
 void
-dynlib_addr (void *ptr, const char **path, const char **sym)
+dynlib_addr (void (*funcptr) (void), const char **path, const char **sym)
 {
   *path = NULL;
   *sym = NULL;
 #ifdef HAVE_DLADDR
+  void *ptr = (void *) funcptr;
   Dl_info info;
   if (dladdr (ptr, &info) && info.dli_fname && info.dli_sname)
     {

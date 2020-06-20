@@ -1,6 +1,6 @@
 ;;; time.el --- display time, load and mail indicator in mode line of Emacs
 
-;; Copyright (C) 1985-1987, 1993-1994, 1996, 2000-2017 Free Software
+;; Copyright (C) 1985-1987, 1993-1994, 1996, 2000-2020 Free Software
 ;; Foundation, Inc.
 
 ;; Maintainer: emacs-devel@gnu.org
@@ -18,7 +18,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -160,23 +160,34 @@ LABEL is a string to display as the label of that TIMEZONE's time."
   :type '(repeat (list string string))
   :version "23.1")
 
-(defcustom display-time-world-list
-  ;; Determine if zoneinfo style timezones are supported by testing that
-  ;; America/New York and Europe/London return different timezones.
-  (let ((nyt (format-time-string "%z" nil "America/New_York"))
-        (gmt (format-time-string "%z" nil "Europe/London")))
-    (if (string-equal nyt gmt)
-        legacy-style-world-list
-      zoneinfo-style-world-list))
+(defcustom display-time-world-list t
   "Alist of time zones and places for `display-time-world' to display.
 Each element has the form (TIMEZONE LABEL).
 TIMEZONE should be in a format supported by your system.  See the
 documentation of `zoneinfo-style-world-list' and
 `legacy-style-world-list' for two widely used formats.  LABEL is
-a string to display as the label of that TIMEZONE's time."
+a string to display as the label of that TIMEZONE's time.
+
+If the value is t instead of an alist, use the value of
+`zoneinfo-style-world-list' if it works on this platform, and of
+`legacy-style-world-list' otherwise."
+
   :group 'display-time
-  :type '(repeat (list string string))
+  :type '(choice (const :tag "Default" t)
+                 (repeat :tag "List of zones and labels"
+                         (list (string :tag "Zone") (string :tag "Label"))))
   :version "23.1")
+
+(defun time--display-world-list ()
+  (if (listp display-time-world-list)
+      display-time-world-list
+    ;; Determine if zoneinfo style timezones are supported by testing that
+    ;; America/New York and Europe/London return different timezones.
+    (let ((nyt (format-time-string "%z" nil "America/New_York"))
+	  (gmt (format-time-string "%z" nil "Europe/London")))
+      (if (string-equal nyt gmt)
+	  legacy-style-world-list
+	zoneinfo-style-world-list))))
 
 (defcustom display-time-world-time-format "%A %d %B %R %Z"
   "Format of the time displayed, see `format-time-string'."
@@ -325,15 +336,10 @@ would give mode line times like `94/12/30 21:07:48 (UTC)'."
 	 (next-time (timer-relative-time
 		     (list (aref timer 1) (aref timer 2) (aref timer 3))
 		     (* 5 (aref timer 4)) 0)))
-    ;; If the activation time is far in the past,
+    ;; If the activation time is not in the future,
     ;; skip executions until we reach a time in the future.
     ;; This avoids a long pause if Emacs has been suspended for hours.
-    (or (> (nth 0 next-time) (nth 0 current))
-	(and (= (nth 0 next-time) (nth 0 current))
-	     (> (nth 1 next-time) (nth 1 current)))
-	(and (= (nth 0 next-time) (nth 0 current))
-	     (= (nth 1 next-time) (nth 1 current))
-	     (> (nth 2 next-time) (nth 2 current)))
+    (or (time-less-p current next-time)
 	(progn
 	  (timer-set-time timer (timer-next-integral-multiple-of-time
 				 current display-time-interval)
@@ -354,7 +360,8 @@ Switches from the 1 to 5 to 15 minute load average, and then back to 1."
     (while (and mail-files (= size 0))
       ;; Count size of regular files only.
       (setq size (+ size (or (and (file-regular-p (car mail-files))
-				  (nth 7 (file-attributes (car mail-files))))
+				  (file-attribute-size
+				   (file-attributes (car mail-files))))
 			     0)))
       (setq mail-files (cdr mail-files)))
     (if (> size 0)
@@ -427,23 +434,17 @@ update which can wait for the next redisplay."
 		((and (stringp mail-spool-file)
 		      (or (null display-time-server-down-time)
 			  ;; If have been down for 20 min, try again.
-			  (> (- (nth 1 now) display-time-server-down-time)
-			     1200)
-			  (and (< (nth 1 now) display-time-server-down-time)
-			       (> (- (nth 1 now)
-				     display-time-server-down-time)
-				  -64336))))
+			  (time-less-p 1200 (time-since
+					     display-time-server-down-time))))
 		 (let ((start-time (current-time)))
 		   (prog1
 		       (display-time-file-nonempty-p mail-spool-file)
-		     (if (> (- (nth 1 (current-time))
-			       (nth 1 start-time))
-			    20)
-			 ;; Record that mail file is not accessible.
-			 (setq display-time-server-down-time
-			       (nth 1 (current-time)))
-		       ;; Record that mail file is accessible.
-		       (setq display-time-server-down-time nil)))))))
+		     ;; Record whether mail file is accessible.
+		     (setq display-time-server-down-time
+			   (let ((end-time (current-time)))
+			     (and (time-less-p 20 (time-subtract
+						   end-time start-time))
+				  (float-time end-time)))))))))
          (24-hours (substring time 11 13))
          (hour (string-to-number 24-hours))
          (12-hours (int-to-string (1+ (% (+ hour 11) 12))))
@@ -472,14 +473,12 @@ update which can wait for the next redisplay."
 (defun display-time-file-nonempty-p (file)
   (let ((remote-file-name-inhibit-cache (- display-time-interval 5)))
     (and (file-exists-p file)
-	 (< 0 (nth 7 (file-attributes (file-chase-links file)))))))
+	 (< 0 (file-attribute-size
+	       (file-attributes (file-chase-links file)))))))
 
 ;;;###autoload
 (define-minor-mode display-time-mode
   "Toggle display of time, load level, and mail flag in mode lines.
-With a prefix argument ARG, enable Display Time mode if ARG is
-positive, and disable it otherwise.  If called from Lisp, enable
-it if ARG is omitted or nil.
 
 When Display Time mode is enabled, it updates every minute (you
 can control the number of seconds between updates by customizing
@@ -548,7 +547,7 @@ To turn off the world time display, go to that window and type `q'."
              (not (get-buffer display-time-world-buffer-name)))
     (run-at-time t display-time-world-timer-second 'display-time-world-timer))
   (with-current-buffer (get-buffer-create display-time-world-buffer-name)
-    (display-time-world-display display-time-world-list)
+    (display-time-world-display (time--display-world-list))
     (display-buffer display-time-world-buffer-name
 		    (cons nil '((window-height . fit-window-to-buffer))))
     (display-time-world-mode)))
@@ -556,7 +555,7 @@ To turn off the world time display, go to that window and type `q'."
 (defun display-time-world-timer ()
   (if (get-buffer display-time-world-buffer-name)
       (with-current-buffer (get-buffer display-time-world-buffer-name)
-        (display-time-world-display display-time-world-list))
+        (display-time-world-display (time--display-world-list)))
     ;; cancel timer
     (let ((list timer-list))
       (while list
@@ -573,8 +572,9 @@ For example, the Unix uptime command format is \"%D, %z%2h:%.2m\"."
   (interactive)
   (let ((str
          (format-seconds (or format "%Y, %D, %H, %M, %z%S")
-                         (float-time
-                          (time-subtract (current-time) before-init-time)))))
+			 (time-convert
+			  (time-since before-init-time)
+			  'integer))))
     (if (called-interactively-p 'interactive)
         (message "%s" str)
       str)))
@@ -584,7 +584,7 @@ For example, the Unix uptime command format is \"%D, %z%2h:%.2m\"."
   "Return a string giving the duration of the Emacs initialization."
   (interactive)
   (let ((str
-	 (format "%.1f seconds"
+	 (format "%s seconds"
 		 (float-time
 		  (time-subtract after-init-time before-init-time)))))
     (if (called-interactively-p 'interactive)

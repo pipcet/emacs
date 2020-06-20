@@ -1,9 +1,9 @@
 ;;; texinfmt.el --- format Texinfo files into Info files
 
-;; Copyright (C) 1985-1986, 1988, 1990-1998, 2000-2017 Free Software
+;; Copyright (C) 1985-1986, 1988, 1990-1998, 2000-2020 Free Software
 ;; Foundation, Inc.
 
-;; Maintainer: Robert J. Chassell <bug-texinfo@gnu.org>
+;; Maintainer: emacs-devel@gnu.org
 ;; Keywords: maint, tex, docs
 
 ;; This file is part of GNU Emacs.
@@ -19,7 +19,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -552,13 +552,7 @@ if large.  You can use `Info-split' to do this manually."
 
 (defvar texinfo-accent-commands
   (concat
-   "@^\\|"
-   "@`\\|"
-   "@'\\|"
-   "@\"\\|"
-   "@,\\|"
-   "@=\\|"
-   "@~\\|"
+   "@[\"',=^`~]\\|"
    "@OE{\\|"
    "@oe{\\|"
    "@AA{\\|"
@@ -1292,8 +1286,7 @@ otherwise, insert URL-TITLE followed by URL in parentheses."
     ;; if url-title
     (if (nth 1 args)
         (insert  (nth 1 args) " (" (nth 0 args) ")")
-      (insert "`" (nth 0 args) "'"))
-    (goto-char texinfo-command-start)))
+      (insert "`" (nth 0 args) "'"))))
 
 
 ;;; Section headings
@@ -2022,7 +2015,7 @@ commands that are defined in texinfo.tex for printed output.
             (push (- end-of-template start-of-template)
                   texinfo-multitable-width-list)
             ;; Remove carriage return from within a template, if any.
-            ;; This helps those those who want to use more than
+            ;; This helps those who want to use more than
             ;; one line's worth of words in @multitable line.
             (narrow-to-region start-of-template end-of-template)
             (goto-char (point-min))
@@ -2447,7 +2440,7 @@ Use only the FILENAME arg; for Info, ignore the other arguments to @image."
 (defun texinfo-format-option ()
   "Insert \\=` ... \\=' around arg unless inside a table; in that case, no quotes."
   ;; `looking-at-backward' not available in v. 18.57, 20.2
-  (if (not (search-backward ""    ; searched-for character is a control-H
+  (if (not (search-backward "\^H"
                     (line-beginning-position)
                     t))
       (insert "`" (texinfo-parse-arg-discard) "'")

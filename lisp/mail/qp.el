@@ -1,6 +1,6 @@
-;;; qp.el --- Quoted-Printable functions
+;;; qp.el --- Quoted-Printable functions  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1998-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1998-2020 Free Software Foundation, Inc.
 
 ;; Author: Lars Magne Ingebrigtsen <larsi@gnus.org>
 ;; Keywords: mail, extensions
@@ -18,7 +18,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -115,8 +115,7 @@ encode lines starting with \"From\"."
     (setq class "\010-\012\014\040-\074\076-\177"))
   (save-excursion
     (goto-char from)
-    (if (re-search-forward (string-to-multibyte "[^\x0-\x7f\x80-\xff]")
-			   to t)
+    (if (re-search-forward "[^\x0-\x7f\x80-\xff]" to t)
 	(error "Multibyte character in QP encoding region"))
     (save-restriction
       (narrow-to-region from to)

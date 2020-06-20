@@ -1,8 +1,8 @@
 ;;; test.el --- Unit test file for Semantic Emacs Lisp support.
 
-;; Copyright (C) 2005-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2005-2020 Free Software Foundation, Inc.
 
-;; Author: Eric M. Ludlam <eric@siege-engine.com>
+;; Author: Eric M. Ludlam <zappo@gnu.org>
 
 ;; This file is part of GNU Emacs.
 
@@ -17,7 +17,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Require
 ;;
@@ -83,6 +83,7 @@
 (defvar a-defvar (cons 1 2)
   "Variable a")
 
+;; FIXME: This practice is not recommended in recent Emacs.  Remove?
 (defvar a-defvar-star (cons 1 2)
   "*User visible var a")
 

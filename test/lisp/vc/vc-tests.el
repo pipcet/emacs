@@ -1,6 +1,6 @@
-;;; vc-tests.el --- Tests of different backends of vc.el
+;;; vc-tests.el --- Tests of different backends of vc.el  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2014-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2014-2020 Free Software Foundation, Inc.
 
 ;; Author: Michael Albinus <michael.albinus@gmx.de>
 
@@ -15,7 +15,7 @@
 ;; General Public License for more details.
 ;;
 ;; You should have received a copy of the GNU General Public License
-;; along with this program.  If not, see `http://www.gnu.org/licenses/'.
+;; along with this program.  If not, see `https://www.gnu.org/licenses/'.
 
 ;;; Commentary:
 
@@ -109,7 +109,7 @@
 (require 'ert)
 (require 'vc)
 
-(declare-function w32-application-type "w32proc")
+(declare-function w32-application-type "w32proc.c")
 
 ;; The working horses.
 

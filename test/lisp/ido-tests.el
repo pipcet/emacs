@@ -1,6 +1,6 @@
 ;;; ido-tests.el --- unit tests for ido.el           -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2017  Free Software Foundation, Inc.
+;; Copyright (C) 2017-2020 Free Software Foundation, Inc.
 
 ;; Author: Philipp Stephani <phst@google.com>
 
@@ -17,13 +17,15 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
 ;; Unit tests for ido.el.
 
 ;;; Code:
+
+(require 'ido)
 
 (ert-deftest ido-tests--other-window-frame ()
   "Verifies that Bug#26360 is fixed."
@@ -43,5 +45,10 @@
                        #'ido-display-buffer-other-frame))
         (should (commandp #'ido-display-buffer-other-frame)))
     (ido-mode 0)))
+
+(ert-deftest ido-directory-too-big-p ()
+  (should-not (ido-directory-too-big-p "/some/dir/"))
+  (let ((ido-big-directories (cons (rx "me/di") ido-big-directories)))
+    (should (ido-directory-too-big-p "/some/dir/"))))
 
 ;;; ido-tests.el ends here

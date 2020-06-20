@@ -1,6 +1,6 @@
 ;;; facemenu.el --- create a face menu for interactively adding fonts to text
 
-;; Copyright (C) 1994-1996, 2001-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1994-1996, 2001-2020 Free Software Foundation, Inc.
 
 ;; Author: Boris Goldowsky <boris@gnu.org>
 ;; Keywords: faces
@@ -19,7 +19,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -188,6 +188,8 @@ it will remove any faces not explicitly in the list."
   (let ((map (make-sparse-keymap "Special")))
     (define-key map [?s] (cons (purecopy "Remove Special")
 			       'facemenu-remove-special))
+    (define-key map [?c] (cons (purecopy "Charset")
+			       'facemenu-set-charset))
     (define-key map [?t] (cons (purecopy "Intangible")
 			       'facemenu-set-intangible))
     (define-key map [?v] (cons (purecopy "Invisible")
@@ -433,6 +435,28 @@ This sets the `read-only' text property; it can be undone with
   (interactive "r")
   (add-text-properties start end '(read-only t)))
 
+(defun facemenu-set-charset (cset &optional start end)
+  "Apply CHARSET text property to the region or next character typed.
+
+If the region is active (normally true except in Transient
+Mark mode) and nonempty, and there is no prefix argument,
+this command adds CHARSET property to the region.  Otherwise, it
+sets the CHARSET property of the character at point."
+  (interactive (list (progn
+		       (barf-if-buffer-read-only)
+		       (read-charset
+                        (format "Use charset (default %s): " (charset-after))
+                        (charset-after)))
+		     (if (and mark-active (not current-prefix-arg))
+			 (region-beginning))
+		     (if (and mark-active (not current-prefix-arg))
+			 (region-end))))
+  (or start
+      (setq start (min (point) (1- (point-max)))
+            end (1+ start)))
+  (remove-text-properties start end '(charset nil))
+  (put-text-property start end 'charset cset))
+
 (defun facemenu-remove-face-props (start end)
   "Remove `face' and `mouse-face' text properties."
   (interactive "*r") ; error if buffer is read-only despite the next line.
@@ -452,7 +476,7 @@ These special properties include `invisible', `intangible' and `read-only'."
   (interactive "*r") ; error if buffer is read-only despite the next line.
   (let ((inhibit-read-only t))
     (remove-text-properties
-     start end '(invisible nil intangible nil read-only nil))))
+     start end '(invisible nil intangible nil read-only nil charset nil))))
 
 (defalias 'facemenu-read-color 'read-color)
 
@@ -597,12 +621,11 @@ color.  The function should accept a single argument, the color name."
 						 (downcase b))))))
 	(setq color (list color)))
       (let* ((opoint (point))
-	     (color-values (color-values (car color)))
-	     (light-p (>= (apply 'max color-values)
-			  (* (car (color-values "white")) .5))))
+             (fg (readable-foreground-color (car color))))
 	(insert (car color))
 	(indent-to 22)
-	(put-text-property opoint (point) 'face `(:background ,(car color)))
+	(put-text-property opoint (point) 'face `(:background ,(car color)
+                                                  :foreground ,fg))
 	(put-text-property
 	 (prog1 (point)
 	   (insert " ")
@@ -614,8 +637,8 @@ color.  The function should accept a single argument, the color name."
 	(insert " ")
 	(insert (propertize
 		 (apply 'format "#%02x%02x%02x"
-			(mapcar (lambda (c) (lsh c -8))
-				color-values))
+			(mapcar (lambda (c) (ash c -8))
+				(color-values (car color))))
 		 'mouse-face 'highlight
 		 'help-echo
 		 (let ((hsv (apply 'color-rgb-to-hsv
@@ -627,7 +650,7 @@ color.  The function should accept a single argument, the color name."
 	   opoint (point)
 	   'follow-link t
 	   'mouse-face (list :background (car color)
-			     :foreground (if light-p "black" "white"))
+			     :foreground fg)
 	   'color-name (car color)
 	   'action callback-fn)))
       (insert "\n"))
@@ -708,7 +731,7 @@ effect.  See `facemenu-remove-face-function'."
     (if facemenu-remove-face-function
         (funcall facemenu-remove-face-function start end)
       (if (and start (< start end))
-          (remove-text-properties start end '(face default))
+          (remove-list-of-text-properties start end '(face))
         (facemenu-set-self-insert-face 'default))))
    (facemenu-add-face-function
     (save-excursion

@@ -1,6 +1,6 @@
-;;; animate.el --- make text dance
+;;; animate.el --- make text dance  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2001-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2001-2020 Free Software Foundation, Inc.
 
 ;; Maintainer: Richard Stallman <rms@gnu.org>
 ;; Keywords: games
@@ -18,7 +18,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -84,7 +84,7 @@
 (defun animate-place-char (char vpos hpos)
   (goto-char (window-start))
   (let (abbrev-mode)
-    (dotimes (i vpos)
+    (dotimes (_ vpos)
       (end-of-line)
       (if (= (forward-line 1) 1)
 	  (insert "\n"))))

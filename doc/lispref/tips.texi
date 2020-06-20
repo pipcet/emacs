@@ -1,6 +1,6 @@
 @c -*- mode: texinfo; coding: utf-8 -*-
 @c This is part of the GNU Emacs Lisp Reference Manual.
-@c Copyright (C) 1990-1993, 1995, 1998-1999, 2001-2017 Free Software
+@c Copyright (C) 1990--1993, 1995, 1998--1999, 2001--2020 Free Software
 @c Foundation, Inc.
 @c See the file elisp.texi for copying conditions.
 @node Tips
@@ -8,6 +8,7 @@
 @cindex tips for writing Lisp
 @cindex standards of coding style
 @cindex coding standards
+@cindex best practices
 
   This chapter describes no additional features of Emacs Lisp.  Instead
 it gives advice on making effective use of the features described in the
@@ -17,14 +18,15 @@ should follow.
 @findex checkdoc
 @findex checkdoc-current-buffer
 @findex checkdoc-file
-  You can automatically check some of the conventions described below by
-running the command @kbd{M-x checkdoc RET} when visiting a Lisp file.
-It cannot check all of the conventions, and not all the warnings it
-gives necessarily correspond to problems, but it is worth examining them
-all.  Alternatively, use the command @kbd{M-x checkdoc-current-buffer RET}
-to check the conventions in the current buffer, or @code{checkdoc-file}
-when you want to check a file in batch mode, e.g., with a command run by
-@kbd{@w{M-x compile RET}}.
+  You can automatically check some of the conventions described below
+by running the command @kbd{M-x checkdoc @key{RET}} when visiting a
+Lisp file.  It cannot check all of the conventions, and not all the
+warnings it gives necessarily correspond to problems, but it is worth
+examining them all.  Alternatively, use the command @kbd{M-x
+checkdoc-current-buffer @key{RET}} to check the conventions in the
+current buffer, or @code{checkdoc-file} when you want to check a file
+in batch mode, e.g., with a command run by @kbd{@w{M-x compile
+@key{RET}}}.
 
 @menu
 * Coding Conventions::        Conventions for clean and robust programs.
@@ -68,10 +70,13 @@ costs.}.  Use two hyphens to separate prefix and name if the symbol is
 not meant to be used by other packages.
 
 Occasionally, for a command name intended for users to use, it is more
-convenient if some words come before the package's name prefix.  And
-constructs that define functions, variables, etc., work better if they
-start with @samp{defun} or @samp{defvar}, so put the name prefix later
-on in the name.
+convenient if some words come before the package's name prefix.  For
+example, it is our convention to have commands that list objects named
+as @samp{list-@var{something}}, e.g., a package called @samp{frob}
+could have a command @samp{list-frobs}, when its other global symbols
+begin with @samp{frob-}.  Also, constructs that define functions,
+variables, etc., work better if they start with @samp{defun} or
+@samp{defvar}, so put the name prefix later on in the name.
 
 This recommendation applies even to names for traditional Lisp
 primitives that are not primitives in Emacs Lisp---such as
@@ -154,7 +159,10 @@ If the purpose of a function is to tell you whether a certain
 condition is true or false, give the function a name that ends in
 @samp{p} (which stands for ``predicate'').  If the name is one word,
 add just @samp{p}; if the name is multiple words, add @samp{-p}.
-Examples are @code{framep} and @code{frame-live-p}.
+Examples are @code{framep} and @code{frame-live-p}.  We recommend to
+avoid using this @code{-p} suffix in boolean variable names, unless
+the variable is bound to a predicate function; instead, use a
+@code{-flag} suffix or names like @code{is-foo}.
 
 @item
 If the purpose of a variable is to store a single function, give it a
@@ -312,7 +320,7 @@ any context prevents recognition of escape sequences as function keys in
 that context.
 
 @item
-Similarly, don't bind a key sequence ending in @key{C-g}, since that
+Similarly, don't bind a key sequence ending in @kbd{C-g}, since that
 is commonly used to cancel a key sequence.
 
 @item
@@ -531,9 +539,17 @@ that you know @emph{will} be defined, use a @code{declare-function}
 statement (@pxref{Declaring Functions}).
 
 @item
-If you use many functions and variables from a certain file, you can
-add a @code{require} for that package to avoid compilation warnings
-for them.  For instance,
+If you use many functions, macros, and variables from a certain file,
+you can add a @code{require} (@pxref{Named Features, require}) for
+that package to avoid compilation warnings for them, like this:
+
+@example
+(require 'foo)
+@end example
+
+@noindent
+If you need only macros from some file, you can require it only at
+compile time (@pxref{Eval During Compile}).  For instance,
 
 @example
 (eval-when-compile
@@ -667,10 +683,15 @@ starting double-quote is not part of the string!
 @cindex curly quotes
 @cindex curved quotes
 When a documentation string refers to a Lisp symbol, write it as it
-would be printed (which usually means in lower case), surrounding
-it with curved single quotes (@t{‘} and @t{’}).  There are
-two exceptions: write @code{t} and @code{nil} without surrounding
-punctuation.  For example: @samp{CODE can be ‘lambda’, nil, or t}.
+would be printed (which usually means in lower case), surrounding it
+with curved single quotes (@t{‘..’}).  There are two exceptions: write
+@code{t} and @code{nil} without surrounding punctuation.  For example:
+
+@example
+ CODE can be ‘lambda’, nil, or t.
+@end example
+
+@noindent
 @xref{Quotation Marks,,, emacs, The GNU Emacs Manual}, for how to
 enter curved single quotes.
 
@@ -741,7 +762,7 @@ preceded by @samp{URL}.  For example,
 
 @smallexample
 The home page for the GNU project has more information (see URL
-`http://www.gnu.org/').
+`https://www.gnu.org/').
 @end smallexample
 
 @item
@@ -783,18 +804,6 @@ starting the sentence with lower-case ``t'', which could be somewhat
 distracting.
 
 @item
-If a line in a documentation string begins with an open-parenthesis,
-write a backslash before the open-parenthesis, like this:
-
-@example
-The argument FOO can be either a number
-\(a buffer position) or a string (a file name).
-@end example
-
-This prevents the open-parenthesis from being treated as the start of a
-defun (@pxref{Defuns,, Defuns, emacs, The GNU Emacs Manual}).
-
-@item
 Write documentation strings in the active voice, not the passive, and in
 the present tense, not the future.  For instance, use ``Return a list
 containing A and B.@:'' instead of ``A list containing A and B will be
@@ -810,6 +819,14 @@ Avoid using ``iff'' (a mathematics term meaning ``if and only if''),
 since many people are unfamiliar with it and mistake it for a typo.  In
 most cases, the meaning is clear with just ``if''.  Otherwise, try to
 find an alternate phrasing that conveys the meaning.
+
+@item
+Try to avoid using abbreviations such as ``e.g.'' (for ``for
+example''), ``i.e.'' (for ``that is''), ``no.'' (for ``number''),
+``c.f.'' (for ``in contrast to'') and ``w.r.t.'' (for ``with respect
+to'') as much as possible.  It is almost always clearer and easier to
+read the expanded version.@footnote{We do use these occasionally, but
+try not to overdo it.}
 
 @item
 When a command is meaningful only in a certain mode or situation,
@@ -829,6 +846,21 @@ The documentation string for a variable that is a yes-or-no flag should
 start with words such as ``Non-nil means'', to make it clear that
 all non-@code{nil} values are equivalent and indicate explicitly what
 @code{nil} and non-@code{nil} mean.
+
+@item
+If a line in a documentation string begins with an open-parenthesis,
+consider writing a backslash before the open-parenthesis, like this:
+
+@example
+The argument FOO can be either a number
+\(a buffer position) or a string (a file name).
+@end example
+
+This avoids a bug in Emacs versions older than 27.1, where the
+@samp{(} was treated as the start of a defun
+(@pxref{Defuns,, Defuns, emacs, The GNU Emacs Manual}).
+If you do not anticipate anyone editing your code with older Emacs
+versions, there is no need for this work-around.
 @end itemize
 
 @node Comment Tips
@@ -899,13 +931,16 @@ is discouraged.
 When commenting out entire functions, use two semicolons.
 
 @item ;;;;
-Comments that start with four semicolons, @samp{;;;;}, should be aligned
-to the left margin and are used for headings of major sections of a
-program.  For example:
+Comments that start with four (or more) semicolons, @samp{;;;;},
+should be aligned to the left margin and are used for headings of
+major sections of a program.  For example:
 
 @smallexample
 ;;;; The kill ring
 @end smallexample
+
+If you wish to have sub-headings under these heading, use more
+semicolons to nest these sub-headings.
 @end table
 
 @noindent
@@ -930,7 +965,7 @@ explains these conventions, starting with an example:
 @group
 ;;; foo.el --- Support for the Foo programming language
 
-;; Copyright (C) 2010-2017 Your Name
+;; Copyright (C) 2010-2020 Your Name
 @end group
 
 ;; Author: Your Name <yourname@@example.com>
@@ -938,13 +973,13 @@ explains these conventions, starting with an example:
 ;; Created: 14 Jul 2010
 @group
 ;; Keywords: languages
-;; Homepage: http://example.com/foo
+;; URL: https://example.com/foo
 
 ;; This file is not part of GNU Emacs.
 
 ;; This file is free software@dots{}
 @dots{}
-;; along with this file.  If not, see <http://www.gnu.org/licenses/>.
+;; along with this file.  If not, see <https://www.gnu.org/licenses/>.
 @end group
 @end smallexample
 
@@ -966,7 +1001,7 @@ might need to list them instead.  Do not say that the copyright holder
 is the Free Software Foundation (or that the file is part of GNU
 Emacs) unless your file has been accepted into the Emacs distribution.
 For more information on the form of copyright and license notices, see
-@uref{http://www.gnu.org/licenses/gpl-howto.html, the guide on the GNU
+@uref{https://www.gnu.org/licenses/gpl-howto.html, the guide on the GNU
 website}.
 
   After the copyright notice come several @dfn{header comment} lines,
@@ -996,7 +1031,7 @@ etc.).
 
 If there is no maintainer line, the person(s) in the Author field
 is/are presumed to be the maintainers.  Some files in Emacs use
-@samp{FSF} for the maintainer.  This means that the original author is
+@samp{emacs-devel@@gnu.org} for the maintainer, which means the author is
 no longer responsible for the file, and that it is maintained as part
 of Emacs.
 
@@ -1017,7 +1052,7 @@ but only the main one.
 @findex checkdoc-package-keywords
 This line lists keywords for the @code{finder-by-keyword} help command.
 Please use that command to see a list of the meaningful keywords.  The
-command @kbd{M-x checkdoc-package-keywords RET} will find and display
+command @kbd{M-x checkdoc-package-keywords @key{RET}} will find and display
 any keywords that are not in @code{finder-known-keywords}.  If you set
 the variable @code{checkdoc-package-keywords-flag} non-@code{nil},
 checkdoc commands will include the keyword verification in its checks.
@@ -1031,7 +1066,8 @@ the place to write arbitrary keywords that describe their package,
 rather than just the relevant Finder keywords.
 
 @item Homepage
-This line states the homepage of the library.
+@itemx URL
+These lines state the homepage of the library.
 
 @item Package-Version
 If @samp{Version} is not suitable for use by the package manager, then
@@ -1049,7 +1085,7 @@ package is only activated if all its dependencies have been).
 Its format is a list of lists on a single line.  The @code{car} of
 each sub-list is the name of a package, as a symbol.  The @code{cadr}
 of each sub-list is the minimum acceptable version number, as a string
-that can be parse by @code{version-to-list}.  An entry that lacks a
+that can be parsed by @code{version-to-list}.  An entry that lacks a
 version (i.e., an entry which is just a symbol, or a sub-list of one
 element) is equivalent to entry with version "0".  For instance:
 

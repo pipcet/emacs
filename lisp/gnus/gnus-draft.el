@@ -1,6 +1,6 @@
 ;;; gnus-draft.el --- draft message support for Gnus
 
-;; Copyright (C) 1997-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1997-2020 Free Software Foundation, Inc.
 
 ;; Author: Lars Magne Ingebrigtsen <larsi@gnus.org>
 ;; Keywords: news
@@ -18,7 +18,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -30,7 +30,6 @@
 (require 'gnus-msg)
 (require 'nndraft)
 (require 'gnus-agent)
-(eval-when-compile (require 'cl))
 
 ;;; Draft minor mode
 
@@ -95,14 +94,13 @@
       (save-restriction
 	(message-narrow-to-headers)
 	(message-remove-header "date")))
-    (let ((message-draft-headers
-	   (delq 'Date (copy-sequence message-draft-headers))))
+    (let ((message-draft-headers (remq 'Date message-draft-headers)))
       (save-buffer))
     (let ((gnus-verbose-backends nil))
       (gnus-request-expire-articles (list article) group t))
     (push
      `((lambda ()
-	 (when (gnus-buffer-exists-p ,gnus-summary-buffer)
+         (when (gnus-buffer-live-p ,gnus-summary-buffer)
 	   (save-excursion
 	     (set-buffer ,gnus-summary-buffer)
 	     (gnus-cache-possibly-remove-article ,article nil nil nil t)))))
@@ -250,7 +248,7 @@ If DONT-POP is nil, display the buffer after setting it up."
       (let ((article narticle))
         (message-mail nil nil nil nil
                       (if dont-pop
-                          (lambda (buf) (set-buffer (get-buffer-create buf)))))
+                          (lambda (buf) (set-buffer (gnus-get-buffer-create buf)))))
         (let ((inhibit-read-only t))
           (erase-buffer))
         (if (not (gnus-request-restore-buffer article group))

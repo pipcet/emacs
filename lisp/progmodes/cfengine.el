@@ -1,6 +1,6 @@
 ;;; cfengine.el --- mode for editing Cfengine files
 
-;; Copyright (C) 2001-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2001-2020 Free Software Foundation, Inc.
 
 ;; Author: Dave Love <fx@gnu.org>
 ;; Maintainer: Ted Zlatanov <tzz@lifelogs.com>
@@ -20,7 +20,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -852,8 +852,8 @@ This includes those for cfservd as well as cfagent.")
     ;; Classes.
     ("^[ \t]*\\([[:alnum:]_().|!]+\\)::" 1 font-lock-function-name-face)
     ;; Variables.
-    ("$(\\([[:alnum:]_]+\\))" 1 font-lock-variable-name-face)
-    ("${\\([[:alnum:]_]+\\)}" 1 font-lock-variable-name-face)
+    ("\\$(\\([[:alnum:]_]+\\))" 1 font-lock-variable-name-face)
+    ("\\${\\([[:alnum:]_]+\\)}" 1 font-lock-variable-name-face)
     ;; Variable definitions.
     ("\\_<\\([[:alnum:]_]+\\)[ \t]*=[ \t]*(" 1 font-lock-variable-name-face)
     ;; File, acl &c in group:   { token ... }
@@ -1322,7 +1322,7 @@ Use it by enabling `eldoc-mode'."
   (set (make-local-variable 'parens-require-spaces) nil)
   (set (make-local-variable 'comment-start)  "# ")
   (set (make-local-variable 'comment-start-skip)
-       "\\(\\(?:^\\|[^\\\\\n]\\)\\(?:\\\\\\\\\\)*\\)#+[ \t]*")
+       "\\(\\(?:^\\|[^\\\n]\\)\\(?:\\\\\\\\\\)*\\)#+[ \t]*")
   ;; Like Lisp mode.  Without this, we lose with, say,
   ;; `backward-up-list' when there's an unbalanced quote in a
   ;; preceding comment.
@@ -1390,12 +1390,15 @@ to the action header."
                  (when buffer-file-name
                    (shell-quote-argument buffer-file-name)))))
 
-  ;; For emacs < 25.1 where `eldoc-documentation-function' defaults to
-  ;; nil.
-  (or eldoc-documentation-function
-      (setq-local eldoc-documentation-function #'ignore))
-  (add-function :before-until (local 'eldoc-documentation-function)
-                #'cfengine3-documentation-function)
+  (if (boundp 'eldoc-documentation-functions)
+      (add-hook 'eldoc-documentation-functions
+                #'cfengine3-documentation-function nil t)
+    ;; For emacs < 25.1 where `eldoc-documentation-function' defaults
+    ;; to nil.
+    (or eldoc-documentation-function
+        (setq-local eldoc-documentation-function #'ignore))
+    (add-function :before-until (local 'eldoc-documentation-function)
+                  #'cfengine3-documentation-function))
 
   (add-hook 'completion-at-point-functions
             #'cfengine3-completion-function nil t)

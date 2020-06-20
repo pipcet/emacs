@@ -1,6 +1,6 @@
 ;;; gnus-mlspl.el --- a group params-based mail splitting mechanism
 
-;; Copyright (C) 1998-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1998-2020 Free Software Foundation, Inc.
 
 ;; Author: Alexandre Oliva <oliva@lsd.ic.unicamp.br>
 ;; Keywords: news, mail
@@ -18,13 +18,12 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
 ;;; Code:
 
-(eval-when-compile (require 'cl))
 (require 'gnus)
 (require 'gnus-sum)
 (require 'gnus-group)
@@ -49,7 +48,7 @@ group parameters.
 If AUTO-UPDATE is non-nil (prefix argument accepted, if called
 interactively), it makes sure nnmail-split-fancy is re-computed before
 getting new mail, by adding `gnus-group-split-update' to
-`nnmail-pre-get-new-mail-hook'.
+`gnus-get-top-new-news-hook'.
 
 A non-nil CATCH-ALL replaces the current value of
 `gnus-group-split-default-catch-all-group'.  This variable is only used
@@ -65,15 +64,19 @@ match any of the group-specified splitting rules.  See
   (setq nnmail-split-methods 'nnmail-split-fancy)
   (when catch-all
     (setq gnus-group-split-default-catch-all-group catch-all))
-  (gnus-group-split-update)
-  (when auto-update
-    (add-hook 'nnmail-pre-get-new-mail-hook 'gnus-group-split-update)))
+  (add-hook
+   (if auto-update
+       'gnus-get-top-new-news-hook
+     ;; Split updating requires `gnus-newsrc-hashtb' to be
+     ;; initialized; the read newsrc hook is the only hook that comes
+     ;; after initialization, but before checking for new news.
+     'gnus-read-newsrc-el-hook)
+   #'gnus-group-split-update))
 
 ;;;###autoload
 (defun gnus-group-split-update (&optional catch-all)
   "Computes nnmail-split-fancy from group params and CATCH-ALL.
-It does this by calling by calling (gnus-group-split-fancy nil
-nil CATCH-ALL).
+It does this by calling (gnus-group-split-fancy nil nil CATCH-ALL).
 
 If CATCH-ALL is nil, `gnus-group-split-default-catch-all-group' is used
 instead.  This variable is set by `gnus-group-split-setup'."
@@ -184,7 +187,8 @@ Calling (gnus-group-split-fancy nil nil \"mail.others\") returns:
 		    (to-list (cdr (assoc 'to-list params)))
 		    (extra-aliases (cdr (assoc 'extra-aliases params)))
 		    (split-regexp (cdr (assoc 'split-regexp params)))
-		    (split-exclude (cdr (assoc 'split-exclude params))))
+		    (split-exclude (cdr (assoc 'split-exclude params)))
+		    (match-list (cdr (assoc 'match-list params))))
 		(when (or to-address to-list extra-aliases split-regexp)
 		  ;; regexp-quote to-address, to-list and extra-aliases
 		  ;; and add them all to split-regexp
@@ -204,16 +208,28 @@ Calling (gnus-group-split-fancy nil nil \"mail.others\") returns:
 			  "\\|")
 			 "\\)"))
 		  ;; Now create the new SPLIT
-		  (push (append
-			 (list 'any split-regexp)
+		  (let ((split-regexp-with-list-ids
+			 (replace-regexp-in-string "@" "[@.]" split-regexp t t))
+			(exclude
 			 ;; Generate RESTRICTs for SPLIT-EXCLUDEs.
 			 (if (listp split-exclude)
 			     (apply #'append
 				    (mapcar (lambda (arg) (list '- arg))
 					    split-exclude))
-			   (list '- split-exclude))
-			 (list group-clean))
-			split)
+			   (list '- split-exclude))))
+
+		    (if match-list
+			;; Match RFC2919 IDs or mail addresses
+			(push (append
+			       (list 'list split-regexp-with-list-ids)
+			       exclude
+			       (list group-clean))
+			      split)
+		      (push (append
+			     (list 'any split-regexp)
+			     exclude
+			     (list group-clean))
+			    split)))
 		  ;; If it matches the empty string, it is a catch-all
 		  (when (string-match split-regexp "")
 		    (setq catch-all nil)))))))))

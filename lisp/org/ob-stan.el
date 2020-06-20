@@ -1,10 +1,10 @@
 ;;; ob-stan.el --- Babel Functions for Stan          -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2015-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2015-2020 Free Software Foundation, Inc.
 
 ;; Author: Kyle Meyer
 ;; Keywords: literate programming, reproducible research
-;; Homepage: http://orgmode.org
+;; Homepage: https://orgmode.org
 
 ;; This file is part of GNU Emacs.
 
@@ -19,7 +19,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -39,7 +39,7 @@
 ;;    that does not end in ".stan".
 ;;
 ;; For more information and usage examples, visit
-;; http://orgmode.org/worg/org-contrib/babel/languages/ob-doc-stan.html
+;; https://orgmode.org/worg/org-contrib/babel/languages/ob-doc-stan.html
 ;;
 ;; [1] http://mc-stan.org/
 
@@ -49,11 +49,12 @@
 
 (defcustom org-babel-stan-cmdstan-directory nil
   "CmdStan source directory.
-'make' will be called from this directory to compile the Stan
-block.  When nil, executing Stan blocks dumps the content to a
-plain text file."
+Call \"make\" from this directory to compile the Stan block.
+When nil, executing Stan blocks dumps the content to a file."
   :group 'org-babel
-  :type 'string)
+  :type '(choice
+	  (directory :tag "Compilation directory")
+	  (const :tag "Dump to a file" nil)))
 
 (defvar org-babel-default-header-args:stan
   '((:results . "file")))

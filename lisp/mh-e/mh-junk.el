@@ -1,6 +1,6 @@
 ;;; mh-junk.el --- MH-E interface to anti-spam measures
 
-;; Copyright (C) 2003-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2003-2020 Free Software Foundation, Inc.
 
 ;; Author: Satyaki Das <satyaki@theforce.stanford.edu>,
 ;;         Bill Wohler <wohler@newt.com>
@@ -20,7 +20,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -32,7 +32,6 @@
 
 (require 'mh-e)
 (require 'mh-scan)
-(mh-require-cl)
 
 ;;;###mh-autoload
 (defun mh-junk-blacklist (range)
@@ -108,8 +107,7 @@ message(s) as specified by the option `mh-junk-disposition'."
     (mh-iterate-on-range msg range
       (message "Blacklisting message %d..." msg)
       (funcall (symbol-function blacklist-func) msg)
-      (message "Blacklisting message %d...done" msg))
-    (mh-next-msg)))
+      (message "Blacklisting message %d...done" msg))))
 
 ;;;###mh-autoload
 (defun mh-junk-whitelist (range)
@@ -164,8 +162,7 @@ classified as spam (see the option `mh-junk-program')."
     (mh-iterate-on-range msg range
       (message "Whitelisting message %d..." msg)
       (funcall (symbol-function whitelist-func) msg)
-      (message "Whitelisting message %d...done" msg))
-    (mh-next-msg)))
+      (message "Whitelisting message %d...done" msg))))
 
 
 

@@ -1,6 +1,6 @@
 ;;; msb.el --- customizable buffer-selection with multiple menus
 
-;; Copyright (C) 1993-1995, 1997-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1993-1995, 1997-2020 Free Software Foundation, Inc.
 
 ;; Author: Lars Lindberg <lars.lindberg@home.se>
 ;; Maintainer: emacs-devel@gnu.org
@@ -21,7 +21,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -64,7 +64,7 @@
 ;;  Larry Rosenberg <ljr@ictv.com>
 ;;  Will Henney <will@astroscu.unam.mx>
 ;;  Jari Aalto <jaalto@tre.tele.nokia.fi>
-;;  Michael Kifer <kifer@sbkifer.cs.sunysb.edu>
+;;  Michael Kifer <kifer@cs.stonybrook.edu>
 ;;  Gael Marziou <gael@gnlab030.grenoble.hp.com>
 ;;  Dave Gillespie <daveg@thymus.synaptics.com>
 ;;  Alon Albert <alon@milcse.rtsg.mot.com>
@@ -372,6 +372,8 @@ This is instead of the groups in `msb-menu-cond'."
   :type 'hook
   :set 'msb-custom-set
   :group 'msb)
+(make-obsolete-variable 'msb-after-load-hook
+                        "use `with-eval-after-load' instead." "28.1")
 
 ;;;
 ;;; Internal variables
@@ -1132,9 +1134,6 @@ variable `msb-menu-cond'."
 ;;;###autoload
 (define-minor-mode msb-mode
   "Toggle Msb mode.
-With a prefix argument ARG, enable Msb mode if ARG is positive,
-and disable it otherwise.  If called from Lisp, enable the mode
-if ARG is omitted or nil.
 
 This mode overrides the binding(s) of `mouse-buffer-menu' to provide a
 different buffer menu using the function `msb'."

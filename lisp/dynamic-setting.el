@@ -1,6 +1,6 @@
 ;;; dynamic-setting.el --- Support dynamic changes
 
-;; Copyright (C) 2009-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2009-2020 Free Software Foundation, Inc.
 
 ;; Author: Jan Djärv <jan.h.d@swipnet.se>
 ;; Maintainer: emacs-devel@gnu.org
@@ -20,7 +20,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -40,8 +40,8 @@
   "Change font and/or font settings for frames on display DISPLAY-OR-FRAME.
 If DISPLAY-OR-FRAME is a frame, the display is the one for that frame.
 
-If SET-FONT is non-nil, change the font for frames.  Otherwise re-apply the
-current form for the frame (i.e. hinting or somesuch changed)."
+If SET-FONT is non-nil, change the font for frames.  Otherwise re-apply
+the current form for the frame (i.e. hinting or somesuch changed)."
   (let ((new-font (and (fboundp 'font-get-system-font)
 		       (font-get-system-font)))
 	(frame-list (frames-on-display-list display-or-frame)))
@@ -68,8 +68,8 @@ current form for the frame (i.e. hinting or somesuch changed)."
 (defun dynamic-setting-handle-config-changed-event (event)
   "Handle config-changed-event on the display in EVENT.
 Changes can be
-  The monospace font. If `font-use-system-font' is nil, the font
-    is not changed.
+  The monospace font.  If `font-use-system-font' is nil,
+    the font is not changed.
   The normal font.
   Xft parameters, like DPI and hinting.
   The Gtk+ theme name.
@@ -92,4 +92,3 @@ Changes can be
 
 (define-key special-event-map [config-changed-event]
   'dynamic-setting-handle-config-changed-event)
-

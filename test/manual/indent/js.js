@@ -7,6 +7,9 @@ let c = 1,
 var e = 100500,
     + 1;
 
+// Don't misinterpret "const"
+/const/
+
 function test ()
 {
   return /[/]/.test ('/')     // (bug#19397)
@@ -134,6 +137,33 @@ if (1) {
     ? (isEmpty ? 2 : 3)
     : 4
 }
+
+// Regexp is not a continuation
+bar(
+  "string arg1",
+  /abc/
+)
+
+// No infloop inside js--re-search-backward-inner
+let b = {
+  a : `
+  //1
+  `
+}
+
+// bug#25904
+foo.bar.baz(very => // A comment
+  very
+).biz(([baz={a: [123]}, boz]) =>
+  baz
+).snarf((snorf) => /* Another comment */
+  snorf
+);
+
+// Continuation of bug#25904; support broken arrow as N+1th arg
+map(arr, (val) =>
+  val
+)
 
 // Local Variables:
 // indent-tabs-mode: nil

@@ -15,7 +15,7 @@ Answers to Frequently asked Questions about using Emacs on Microsoft Windows.
 @include emacsver.texi
 
 @copying
-Copyright @copyright{} 2008, 2010-2017 Free Software Foundation, Inc.
+Copyright @copyright{} 2008, 2010--2020 Free Software Foundation, Inc.
 
 @quotation
 This list of frequently asked questions about GNU Emacs on MS Windows
@@ -61,7 +61,7 @@ Emacs @value{EMACSVER}.
 
 This FAQ is maintained by the developers and users of Emacs on MS Windows.
 If you find any errors, or have any suggestions, please send them to
-the @url{http://lists.gnu.org/mailman/listinfo/help-emacs-windows,
+the @url{https://lists.gnu.org/mailman/listinfo/help-emacs-windows,
 help-emacs-windows} mailing list.
 
 At time of writing, the latest version of GNU Emacs is version @value{EMACSVER}.
@@ -125,10 +125,12 @@ systems.
 @cindex Windows, versions
 @cindex supported versions of Windows
 
-Emacs @value{EMACSVER} is known to run on all versions of Windows from
-Windows 98 and Windows NT 4.0 through to Windows 8.1.  The Windows
-port is built using the Win32 API and supports most features of the X
-version, including variable width fonts, images and tooltips.
+Emacs @value{EMACSVER} is known to run on all versions of Windows 9X
+from Windows 98 onward, and all versions of the NT family starting
+from NT 4.0; this includes all the modern versions from Windows XP and
+on.  The Windows port is built using the Win32 API and supports most
+features of the X version, including variable width fonts, images and
+tooltips.
 
 Emacs on Windows can be compiled as either a 32-bit or a 64-bit
 executable, using the MinGW GCC compiler and development tools.
@@ -141,7 +143,7 @@ executable, using the MinGW GCC compiler and development tools.
 
 @cindex DOS port
 @cindex Windows 3.11 port
-Emacs can also be compiled for MSDOS.  When run on recent MS Windows,
+Emacs can also be compiled for MSDOS@.  When run on recent MS Windows,
 it supports long file names, and uses the Windows clipboard.
 See the @file{msdos} directory in the Emacs sources for building
 instructions (requires DJGPP).
@@ -164,7 +166,7 @@ instructions (requires DJGPP).
 @cindex Emacs source code
 @cindex source for Emacs
 You can download Emacs releases from
-@uref{http://ftpmirror.gnu.org/emacs/, ftp.gnu.org mirrors}.  They
+@uref{https://ftpmirror.gnu.org/emacs/, ftp.gnu.org mirrors}.  They
 are distributed as compressed tar files, digitally signed by the
 maintainer who made the release.
 
@@ -181,7 +183,7 @@ to give it a try.  @xref{Compiling}.
 @cindex latest development version of Emacs
 @cindex Emacs Development
 The development version of Emacs is available from
-@uref{http://savannah.gnu.org/projects/emacs, Savannah}, the GNU
+@uref{https://savannah.gnu.org/projects/emacs, Savannah}, the GNU
 development site.
 
 @node Compiling
@@ -220,7 +222,7 @@ specific notes about debugging Emacs.
 
 @cindex debugging Emacs with GDB
 GDB is the GNU debugger, which can be used to debug Emacs when it has
-been compiled with MinGW GCC.  The best results will be obtained if
+been compiled with MinGW GCC@.  The best results will be obtained if
 you start gdb from the @file{src} directory as @kbd{gdb ./emacs.exe}.
 This will load the init file @file{.gdbinit}@footnote{
 Latest versions of GDB might refuse to load the init file for security
@@ -316,7 +318,7 @@ file for build instructions.
 
 You can run Emacs without any extra steps, but if you want icons in your
 Start Menu, or for Emacs to detect the image libraries that are already
-installed on your system as part of GTK, then you should run the program
+installed on your system as part of GTK+, then you should run the program
 @file{addpm.exe}, which is usually installed into the same @file{bin}
 directory with @file{emacs.exe}.
 
@@ -398,7 +400,7 @@ of which varies according to Windows version and whether the computer is
 part of a domain.
 @end enumerate
 
-Within Emacs, @key{~} at the beginning of a file name is expanded to your
+Within Emacs, @kbd{~} at the beginning of a file name is expanded to your
 @env{HOME} directory, so you can always find your @file{.emacs} file
 by typing the command @kbd{C-x C-f ~/.emacs}.
 
@@ -581,7 +583,7 @@ update your registry (you may need to reboot).
 Shane Holder gives some background on how "Scancode Map" is used
 by the system:
 @ignore
-http://ftp.gnu.org/old-gnu/emacs/windows/docs/ntemacs/contrib/caps-ctrl-registry.txt
+https://ftp.gnu.org/old-gnu/emacs/windows/docs/ntemacs/contrib/caps-ctrl-registry.txt
 From: Shane Holder <holder@@mordor.rsn.hp.com>
 To: ntemacs-users@@cs.washington.edu
 Date: 04 Dec 1996 14:36:21 -0600
@@ -590,7 +592,7 @@ Subject: Re: Re[2]: problem with caps/ctrl swap on NT 4.0
 @end ignore
 @smallexample
 It's a binary value that lets you map keystrokes in the low-level keyboard
-drivers in NT.  As a result you don't have to worry about applications
+drivers in NT@.  As a result you don't have to worry about applications
 bypassing mappings that you've done at a higher level (i.e., it just works).
 
 Here's the format of the value:
@@ -906,14 +908,14 @@ The doc string contains a list of the system sounds you can use.
 @cindex font XLFD name format
 @cindex fontconfig font names in Emacs 23
 @cindex font dialog, using to find font names
-@findex w32-select-font
+@findex x-select-font
 @findex x-list-fonts
 
 Fonts in Emacs 22 and earlier are named using the X Logical Font
 Description (XLFD) format.  Emacs on Windows ignores many of the
 fields, and populates them with * when listing fonts.  Former
 maintainer Andrew Innes wrote
-@uref{http://www.gnu.org/software/emacs/windows/ntemacs/discuss/x-font-details,
+@uref{https://www.gnu.org/software/emacs/windows/ntemacs/discuss/x-font-details,
 this explanation} of what each field in the font string means and how
 Emacs treated them back in 19.34.  Since then, multilingual support and
 a redisplay overhaul to support variable width fonts have changed things
@@ -937,13 +939,16 @@ Fontconfig: Courier New-13
 To find the XFLD name for a font, you can execute the following in the
 @file{*scratch*} buffer by pressing C-j at the end of the line:
 @example
-(w32-select-font nil t)
+(x-select-font nil t)
 @end example
 
-To see a complete list of fonts, execute the following in the
-@file{*scratch*} buffer by pressing C-x C-e at the end of the line:
+To see a complete list of fonts, execute the following Lisp snippet by
+typing it into the @file{*scratch*} buffer and pressing @w{@kbd{C-x
+C-e}} at the end of the second line:
+
 @example
-(insert (prin1-to-string (x-list-fonts "*")))
+(dolist (font (x-list-fonts "*"))
+  (insert (format "%s\n" font)))
 @end example
 
 The command line options and frame-parameters for changing the default font
@@ -1060,7 +1065,7 @@ support packages of various components of Windows itself, GNU/Linux
 distributions these days come with a number of Free truetype fonts
 that cover a wide range of languages.  The GNU Unifont project
 contains glyphs for most of the Unicode codespace, and can be
-downloaded from @uref{http://ftpmirror.gnu.org/unifont, ftp.gnu.org
+downloaded from @uref{https://ftpmirror.gnu.org/unifont, ftp.gnu.org
 mirrors}.
 
 @node Third-party multibyte
@@ -1136,7 +1141,7 @@ There are a number of methods by which you can control automatic CR/LF
 translation in Emacs, a situation that reflects the fact that the
 default support was not very robust in the past.  For a discussion of
 this issue, take a look at
-@uref{http://www.gnu.org/software/emacs/windows/ntemacs/todo/translate,
+@uref{https://www.gnu.org/software/emacs/windows/ntemacs/todo/translate,
 this collection of email messages} on the topic.
 
 @menu
@@ -1182,7 +1187,7 @@ A lot of effort has gone into making it easier to print from Emacs on
 MS Windows, but this has still been insufficient to keep up with
 changes in printing technology from text and postscript based printers
 connected via ports that can be accessed directly, to graphical
-printers that are only accessible via USB.  For details, see
+printers that are only accessible via USB@.  For details, see
 @uref{http://www.emacswiki.org/emacs/PrintingFromEmacs, Emacs
 Wiki}, @uref{http://www.emacswiki.org/emacs/PrintWithWebBrowser}, and
 @uref{http://www.emacswiki.org/emacs/PrintFromWindowsExplorer}.
@@ -1339,7 +1344,7 @@ When an EOF is sent to a subprocess running in an interactive shell
 with @code{process-send-eof}, the shell terminates unexpectedly as
 if its input was closed.  This affects the use of @kbd{C-c C-d} in
 shell buffers.  See
-@uref{http://www.gnu.org/software/emacs/windows/ntemacs/todo/shell-ctrl-d,
+@uref{https://www.gnu.org/software/emacs/windows/ntemacs/todo/shell-ctrl-d,
 this discussion} for more details.
 
 @node Using shell
@@ -1393,7 +1398,7 @@ default shell in Emacs, you can place the following in your init file:
 @end example
 
 WARNING: Some versions of bash set and use the environment variable
-PID.  For some as yet unknown reason, if @env{PID} is set and Emacs
+PID@.  For some as yet unknown reason, if @env{PID} is set and Emacs
 passes it on to bash subshells, bash dies (Emacs can inherit the
 @env{PID} variable if it's started from a bash shell).  If you clear
 the @env{PID} variable in your init file, you should be able to
@@ -1595,7 +1600,7 @@ non-@code{nil}, you should set it to @code{nil}:
 @cindex movemail, using pop3
 @cindex MAILHOST
 @vindex rmail-primary-inbox-list
-@vindex rmail-pop-password-required
+@vindex rmail-remote-password-required
 
 For incoming mail using the Rmail package and a POP3 server, you will
 need the following configuration:
@@ -1603,7 +1608,7 @@ need the following configuration:
 @example
 (setenv "MAILHOST" "@var{domain.name.of.your.pop3.server}")
 (setq rmail-primary-inbox-list '("po:@var{your logon id}"))
-(setq rmail-pop-password-required t)
+(setq rmail-remote-password-required t)
 @end example
 
 @node Incoming mail with Gnus
@@ -1752,7 +1757,7 @@ AUCTeX is an Emacs package for writing LaTeX files, which also
 includes preview-latex, an Emacs mode for previewing the formatted
 contents of LaTeX documents.  Pre-compiled versions for Windows are
 available from
-@uref{http://www.gnu.org/software/auctex/download-for-windows.html, the
+@uref{https://www.gnu.org/software/auctex/download-for-windows.html, the
 AUCTeX site}.
 
 @node Spell check
@@ -1820,7 +1825,8 @@ If you want a quick solution without installing extra tools, a poor
 substitute that works for simple text searches is to specify the built
 in Windows command @command{findstr} as the command to run at the
 @kbd{M-x grep} prompt.  Normally you will want to use the @option{/n}
-argument to @command{findstr}.
+argument to @command{findstr}, to have it print the line numbers for
+each hit.
 
 @menu
 * Recursive grep::
@@ -1860,7 +1866,8 @@ path to the findutils @command{find} command.
 An alternative if you have a recent version of grep is to customize
 @code{grep-find-command} to use @samp{grep -r} instead of both find
 and grep.  Another alternative if you don't need the full capabilities
-of grep is to use @samp{findstr /n /r}.
+of grep is to use @samp{findstr /n /r}; add the @samp{/s} option if
+you want a recursive search.
 
 @c ------------------------------------------------------------
 @node Developing with Emacs
@@ -1883,9 +1890,9 @@ need to use.
 @node MSVC
 @section How do I use Emacs with Microsoft Visual C++
 
-There are two ways you can use Emacs in conjunction with MSVC.  You
+There are two ways you can use Emacs in conjunction with MSVC@.  You
 can use Emacs as the editor, and do everything else in the DevStudio
-IDE.  Or you can use Emacs as an IDE, calling the MSVC command line
+IDE@.  Or you can use Emacs as an IDE, calling the MSVC command line
 tools to build your project.
 
 @menu
@@ -2096,7 +2103,7 @@ code in lib/perl5db.pl
 @end example
 
 Doug Campbell also has some
-@uref{http://www.gnu.org/software/emacs/windows/ntemacs/discuss/perldb,
+@uref{https://www.gnu.org/software/emacs/windows/ntemacs/discuss/perldb,
 suggestions} for improving the interaction of perldb and Emacs.
 
 @c ------------------------------------------------------------
@@ -2206,10 +2213,10 @@ outdated.  Tools available here that are useful for Emacs include:
 @item GifLib - library to support GIF images.
 @item Grep - for searching through files with @code{grep}.
 @item Gzip - used by Emacs to automatically decompress .gz files.
-@item Jpeg - library to support JPEG images (also in GTK).
+@item Jpeg - library to support JPEG images (also in GTK+).
 @item Lha - used by @code{archive-mode} to edit .lzh files.
-@item LibPng - library to support PNG images (also in GTK).
-@item LibTiff - library to support TIFF images (also in GTK).
+@item LibPng - library to support PNG images (also in GTK+).
+@item LibTiff - library to support TIFF images (also in GTK+).
 @item Make - used by @code{compile} for building projects (also in MinGW)
 @item OpenSSL - used by @code{gnus} to talk to servers over SSL.
 @item Patch - used by @code{ediff-patch-file} and others to apply patches.
@@ -2218,21 +2225,21 @@ outdated.  Tools available here that are useful for Emacs include:
 @item Unzip - used by @code{archive-mode} for extracting zip files.
 @item Xpm - library to support XPM images (bundled with Emacs binaries)
 @item Zip - used by @code{archive-mode} for editing zip files.
-@item Zlib - required by LibPng (also in GTK).
+@item Zlib - required by LibPng (also in GTK+).
 @end itemize
 
 @node GTK
-@section GTK
-@cindex GTK image libraries
-@cindex image libraries, GTK
-@cindex addpm, using GTK image libraries
+@section GTK+
+@cindex GTK+ image libraries
+@cindex image libraries, GTK+
+@cindex addpm, using GTK+ image libraries
 
-GTK is a potential source for some of the image libraries that Emacs
-requires.  GTK is installed along with other ports of GUI software,
+GTK+ is a potential source for some of the image libraries that Emacs
+requires.  GTK+ is installed along with other ports of GUI software,
 such as the GIMP image editor, and Pidgin instant messenger client.
-If GTK is installed when you run @command{addpm}, Emacs will use the
+If GTK+ is installed when you run @command{addpm}, Emacs will use the
 image libraries that it provides, even if they are not on the
-@env{PATH}.  GTK ships with JPEG, PNG and TIFF support.
+@env{PATH}.  GTK+ ships with JPEG, PNG and TIFF support.
 
 @node Read man pages
 @section How do I read man pages?
@@ -2272,8 +2279,8 @@ In Emacs, you can browse the manual using Info by typing @kbd{C-h r},
 and you can view the FAQ by typing @kbd{C-h C-f}. Other resources include:
 
 @itemize
-@item @uref{http://www.gnu.org/software/emacs/, The Emacs homepage}
-@item @uref{http://www.gnu.org/software/emacs/manual/, Other Emacs manuals}
+@item @uref{https://www.gnu.org/software/emacs/, The Emacs homepage}
+@item @uref{https://www.gnu.org/software/emacs/manual/, Other Emacs manuals}
 @item @uref{http://www.emacswiki.org/, Emacs Wiki}
 @end itemize
 
@@ -2283,10 +2290,10 @@ and you can view the FAQ by typing @kbd{C-h C-f}. Other resources include:
 @cindex help, mailing lists
 
 The official mailing list for Windows specific help and discussion is
-@url{http://lists.gnu.org/mailman/listinfo/help-emacs-windows,
+@url{https://lists.gnu.org/mailman/listinfo/help-emacs-windows,
 help-emacs-windows}.  See that link for information on how to subscribe
 or unsubscribe.  The
-@uref{http://lists.gnu.org/archive/html/help-emacs-windows/, list archives}
+@uref{https://lists.gnu.org/r/help-emacs-windows/, list archives}
 are available online.
 
 @c ------------------------------------------------------------

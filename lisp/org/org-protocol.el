@@ -1,6 +1,6 @@
 ;;; org-protocol.el --- Intercept Calls from Emacsclient to Trigger Custom Actions -*- lexical-binding: t; -*-
 ;;
-;; Copyright (C) 2008-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2008-2020 Free Software Foundation, Inc.
 ;;
 ;; Authors: Bastien Guerry <bzg@gnu.org>
 ;;       Daniel M German <dmg AT uvic DOT org>
@@ -22,7 +22,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Commentary:
@@ -116,12 +116,14 @@
 ;;; Code:
 
 (require 'org)
+(require 'ol)
 
 (declare-function org-publish-get-project-from-filename "ox-publish"
 		  (filename &optional up))
 (declare-function server-edit "server" (&optional arg))
 
 (defvar org-capture-link-is-already-stored)
+(defvar org-capture-templates)
 
 (defgroup org-protocol nil
   "Intercept calls from emacsclient to trigger custom actions.
@@ -184,17 +186,24 @@ Possible properties are:
 Example:
 
    (setq org-protocol-project-alist
-       \\='((\"http://orgmode.org/worg/\"
+       \\='((\"https://orgmode.org/worg/\"
           :online-suffix \".php\"
           :working-suffix \".org\"
-          :base-url \"http://orgmode.org/worg/\"
+          :base-url \"https://orgmode.org/worg/\"
           :working-directory \"/home/user/org/Worg/\")
          (\"http://localhost/org-notes/\"
           :online-suffix \".html\"
           :working-suffix \".org\"
           :base-url \"http://localhost/org/\"
           :working-directory \"/home/user/org/\"
-          :rewrites ((\"org/?$\" . \"index.php\")))))
+          :rewrites ((\"org/?$\" . \"index.php\")))
+         (\"Hugo based blog\"
+          :base-url \"https://www.site.com/\"
+          :working-directory \"~/site/content/post/\"
+          :online-suffix \".html\"
+          :working-suffix \".md\"
+          :rewrites ((\"\\(https://site.com/[0-9]+/[0-9]+/[0-9]+/\\)\" . \".md\")))))
+
 
    The last line tells `org-protocol-open-source' to open
    /home/user/org/index.php, if the URL cannot be mapped to an existing
@@ -269,7 +278,7 @@ This should be a single regexp string."
   :group 'org-protocol
   :version "24.4"
   :package-version '(Org . "8.0")
-  :type 'string)
+  :type 'regexp)
 
 ;;; Helper functions:
 
@@ -290,11 +299,9 @@ SEPARATOR is specified or SEPARATOR is nil, assume \"/+\".  The
 results of that splitting are returned as a list."
   (let* ((sep (or separator "/+\\|\\?"))
          (split-parts (split-string data sep)))
-    (if unhexify
-	(if (fboundp unhexify)
-	    (mapcar unhexify split-parts)
-	  (mapcar 'org-link-unescape split-parts))
-      split-parts)))
+    (cond ((not unhexify) split-parts)
+	  ((fboundp unhexify) (mapcar unhexify split-parts))
+	  (t (mapcar #'org-link-decode split-parts)))))
 
 (defun org-protocol-flatten-greedy (param-list &optional strip-path replacement)
   "Transform PARAM-LIST into a flat list for greedy handlers.
@@ -324,7 +331,7 @@ returned list."
 	 (len 0)
 	 dir
 	 ret)
-    (when (string-match "^\\(.*\\)\\(org-protocol:/+[a-zA-z0-9][-_a-zA-z0-9]*:/+\\)\\(.*\\)" trigger)
+    (when (string-match "^\\(.*\\)\\(org-protocol:/+[a-zA-Z0-9][-_a-zA-Z0-9]*:/+\\)\\(.*\\)" trigger)
       (setq dir (match-string 1 trigger))
       (setq len (length dir))
       (setcar l (concat dir (match-string 3 trigger))))
@@ -342,17 +349,20 @@ returned list."
 	  ret)
       l)))
 
-(defun org-protocol-flatten (list)
-  "Transform LIST into a flat list.
+(defalias 'org-protocol-flatten
+  (if (fboundp 'flatten-tree) 'flatten-tree
+    (lambda (list)
+      "Transform LIST into a flat list.
 
 Greedy handlers might receive a list like this from emacsclient:
 \((\"/dir/org-protocol:/greedy:/~/path1\" (23 . 12)) (\"/dir/param\"))
 where \"/dir/\" is the absolute path to emacsclients working directory.
 This function transforms it into a flat list."
-  (if (null list) ()
-    (if (listp list)
-	(append (org-protocol-flatten (car list)) (org-protocol-flatten (cdr list)))
-      (list list))))
+      (if list
+	  (if (consp list)
+	      (append (org-protocol-flatten (car list))
+		      (org-protocol-flatten (cdr list)))
+	    (list list))))))
 
 (defun org-protocol-parse-parameters (info &optional new-style default-order)
   "Return a property list of parameters from INFO.
@@ -371,11 +381,8 @@ If INFO is already a property list, return it unchanged."
 	      result)
 	  (while data
 	    (setq result
-		  (append
-		   result
-		   (list
-		    (pop data)
-		    (org-link-unescape (pop data))))))
+		  (append result
+			  (list (pop data) (org-link-decode (pop data))))))
 	  result)
       (let ((data (org-protocol-split-data info t org-protocol-data-separator)))
 	(if default-order
@@ -434,9 +441,9 @@ form URL/TITLE can also be used."
     (when (boundp 'org-stored-links)
       (push (list uri title) org-stored-links))
     (kill-new uri)
-    (message "`%s' to insert new org-link, `%s' to insert `%s'"
-             (substitute-command-keys "`\\[org-insert-link]'")
-             (substitute-command-keys "`\\[yank]'")
+    (message "`%s' to insert new Org link, `%s' to insert %S"
+             (substitute-command-keys "\\[org-insert-link]")
+             (substitute-command-keys "\\[yank]")
              uri))
   nil)
 
@@ -461,51 +468,53 @@ You may specify the template with a template= query parameter, like this:
   javascript:location.href = \\='org-protocol://capture?template=b\\='+ ...
 
 Now template ?b will be used."
-  (if (and (boundp 'org-stored-links)
-	   (org-protocol-do-capture info))
-      (message "Item captured."))
-  nil)
-
-(defun org-protocol-convert-query-to-plist (query)
-  "Convert QUERY key=value pairs in the URL to a property list."
-  (if query
-      (apply 'append (mapcar (lambda (x)
-			       (let ((c (split-string x "=")))
-				 (list (intern (concat ":" (car c))) (cadr c))))
-			     (split-string query "&")))))
-
-(defun org-protocol-do-capture (info)
-  "Perform the actual capture based on INFO."
-  (let* ((temp-parts (org-protocol-parse-parameters info))
-	 (parts
-	  (cond
-	   ((and (listp info) (symbolp (car info))) info)
-	   ((= (length (car temp-parts)) 1) ;; First parameter is exactly one character long
-	    (org-protocol-assign-parameters temp-parts '(:template :url :title :body)))
-	   (t
-	    (org-protocol-assign-parameters temp-parts '(:url :title :body)))))
+  (let* ((parts
+	  (pcase (org-protocol-parse-parameters info)
+	    ;; New style links are parsed as a plist.
+	    ((let `(,(pred keywordp) . ,_) info) info)
+	    ;; Old style links, with or without template key, are
+	    ;; parsed as a list of strings.
+	    (p
+	     (let ((k (if (= 1 (length (car p)))
+			  '(:template :url :title :body)
+			'(:url :title :body))))
+	       (org-protocol-assign-parameters p k)))))
 	 (template (or (plist-get parts :template)
 		       org-protocol-default-template-key))
-	 (url (and (plist-get parts :url) (org-protocol-sanitize-uri (plist-get parts :url))))
-	 (type (and url (if (string-match "^\\([a-z]+\\):" url)
-			    (match-string 1 url))))
+	 (url (and (plist-get parts :url)
+		   (org-protocol-sanitize-uri (plist-get parts :url))))
+	 (type (and url
+		    (string-match "^\\([a-z]+\\):" url)
+		    (match-string 1 url)))
 	 (title (or (plist-get parts :title) ""))
 	 (region (or (plist-get parts :body) ""))
-	 (orglink (if url
-		      (org-make-link-string
-		       url (if (string-match "[^[:space:]]" title) title url))
-		    title))
-	 (org-capture-link-is-already-stored t)) ;; avoid call to org-store-link
-    (setq org-stored-links
-	  (cons (list url title) org-stored-links))
-    (org-store-link-props :type type
+	 (orglink
+	  (if (null url) title
+	    (org-link-make-string url (or (org-string-nw-p title) url))))
+	 ;; Avoid call to `org-store-link'.
+	 (org-capture-link-is-already-stored t))
+    ;; Only store link if there's a URL to insert later on.
+    (when url (push (list url title) org-stored-links))
+    (org-link-store-props :type type
 			  :link url
 			  :description title
 			  :annotation orglink
 			  :initial region
 			  :query parts)
     (raise-frame)
-    (funcall 'org-capture nil template)))
+    (org-capture nil template)
+    (message "Item captured.")
+    ;; Make sure we do not return a string, as `server-visit-files',
+    ;; through `server-edit', would interpret it as a file name.
+    nil))
+
+(defun org-protocol-convert-query-to-plist (query)
+  "Convert QUERY key=value pairs in the URL to a property list."
+  (when query
+    (apply 'append (mapcar (lambda (x)
+			     (let ((c (split-string x "=")))
+			       (list (intern (concat ":" (car c))) (cadr c))))
+			   (split-string query "&")))))
 
 (defun org-protocol-open-source (fname)
   "Process an org-protocol://open-source?url= style URL with FNAME.
@@ -520,7 +529,9 @@ The location for a browser's bookmark should look like this:
   ;; As we enter this function for a match on our protocol, the return value
   ;; defaults to nil.
   (let ((result nil)
-        (f (plist-get (org-protocol-parse-parameters fname nil '(:url)) :url)))
+	(f (org-protocol-sanitize-uri
+	    (plist-get (org-protocol-parse-parameters fname nil '(:url))
+		       :url))))
     (catch 'result
       (dolist (prolist org-protocol-project-alist)
         (let* ((base-url (plist-get (cdr prolist) :base-url))
@@ -554,8 +565,12 @@ The location for a browser's bookmark should look like this:
 		      ;; Try to match a rewritten URL and map it to
 		      ;; a real file.  Compare redirects without
 		      ;; suffix.
-		      (when (string-match-p (car rewrite) f2)
-			(throw 'result (concat wdir (cdr rewrite))))))))
+		      (when (string-match (car rewrite) f1)
+			(let ((replacement
+			       (concat (directory-file-name
+					(replace-match "" nil nil f1 1))
+				       (cdr rewrite))))
+			  (throw 'result (concat wdir replacement))))))))
 	      ;; -- end of redirects --
 
               (if (file-readable-p the-file)
@@ -650,7 +665,7 @@ to deal with new-style links.")
 ;;; Org specific functions:
 
 (defun org-protocol-create-for-org ()
-  "Create a Org protocol project for the current file's project.
+  "Create an Org protocol project for the current file's project.
 The visited file needs to be part of a publishing project in
 `org-publish-project-alist' for this to work.  The function
 delegates most of the work to `org-protocol-create'."
@@ -675,7 +690,7 @@ the cdr of an element in `org-publish-project-alist', reuse
   (let ((working-dir (expand-file-name
 		      (or (plist-get project-plist :base-directory)
 			  default-directory)))
-        (base-url "http://orgmode.org/worg/")
+        (base-url "https://orgmode.org/worg/")
         (strip-suffix (or (plist-get project-plist :html-extension) ".html"))
         (working-suffix (if (plist-get project-plist :base-extension)
                             (concat "." (plist-get project-plist :base-extension))

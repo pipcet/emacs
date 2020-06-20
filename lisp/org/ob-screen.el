@@ -1,10 +1,10 @@
 ;;; ob-screen.el --- Babel Support for Interactive Terminal -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2009-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2009-2020 Free Software Foundation, Inc.
 
 ;; Author: Benjamin Andresen
 ;; Keywords: literate programming, interactive shell
-;; Homepage: http://orgmode.org
+;; Homepage: https://orgmode.org
 
 ;; This file is part of GNU Emacs.
 
@@ -19,7 +19,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -126,7 +126,7 @@ The terminal should shortly flicker."
     ;; XXX: need to find a better way to do the following
     (while (not (file-readable-p tmpfile))
       ;; do something, otherwise this will be optimized away
-      (format "org-babel-screen: File not readable yet."))
+      (sit-for 0.1))
     (setq tmp-string (with-temp-buffer
                        (insert-file-contents-literally tmpfile)
                        (buffer-substring (point-min) (point-max))))

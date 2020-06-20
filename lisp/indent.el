@@ -1,6 +1,6 @@
 ;;; indent.el --- indentation commands for Emacs  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1985, 1995, 2001-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1985, 1995, 2001-2020 Free Software Foundation, Inc.
 
 ;; Maintainer: emacs-devel@gnu.org
 ;; Package: emacs
@@ -18,7 +18,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -65,13 +65,17 @@ e.g., `c-tab-always-indent', and do not respect this variable."
   "Indent line in proper way for current major mode.
 Normally, this is done by calling the function specified by the
 variable `indent-line-function'.  However, if the value of that
-variable is `indent-relative' or `indent-relative-maybe', handle
-it specially (since those functions are used for tabbing); in
-that case, indent by aligning to the previous non-blank line."
+variable is `indent-relative' or `indent-relative-first-indent-point',
+handle it specially (since those functions are used for tabbing);
+in that case, indent by aligning to the previous non-blank line."
   (interactive)
+  (save-restriction
+    (widen)
   (syntax-propertize (line-end-position))
   (if (memq indent-line-function
-	    '(indent-relative indent-relative-maybe))
+            '(indent-relative
+              indent-relative-maybe
+              indent-relative-first-indent-point))
       ;; These functions are used for tabbing, but can't be used for
       ;; indenting.  Replace with something ad-hoc.
       (let ((column (save-excursion
@@ -84,7 +88,7 @@ that case, indent by aligning to the previous non-blank line."
 	    (indent-line-to column)
 	  (save-excursion (indent-line-to column))))
     ;; The normal case.
-    (funcall indent-line-function)))
+    (funcall indent-line-function))))
 
 (defun indent--default-inside-comment ()
   (unless (or (> (current-column) (current-indentation))
@@ -140,11 +144,11 @@ prefix argument is ignored."
 	  (old-indent (current-indentation)))
 
       ;; Indent the line.
-      (or (not (eq (funcall indent-line-function) 'noindent))
+      (or (not (eq (indent--funcall-widened indent-line-function) 'noindent))
           (indent--default-inside-comment)
           (when (or (<= (current-column) (current-indentation))
                     (not (eq tab-always-indent 'complete)))
-            (funcall (default-value 'indent-line-function))))
+            (indent--funcall-widened (default-value 'indent-line-function))))
 
       (cond
        ;; If the text was already indented right, try completion.
@@ -165,6 +169,11 @@ prefix argument is ignored."
             (when (and (not (zerop indentation-change))
                        (< (point) end-marker))
               (indent-rigidly (point) end-marker indentation-change))))))))))
+
+(defun indent--funcall-widened (func)
+  (save-restriction
+    (widen)
+    (funcall func)))
 
 (defun insert-tab (&optional arg)
   (let ((count (prefix-numeric-value arg)))
@@ -285,7 +294,8 @@ indentation by specifying a large negative ARG."
   "Indent current line to COLUMN.
 This function removes or adds spaces and tabs at beginning of line
 only if necessary.  It leaves point at end of indentation."
-  (back-to-indentation)
+  (beginning-of-line 1)
+  (skip-chars-forward " \t")
   (let ((cur-col (current-column)))
     (cond ((< cur-col column)
 	   (if (>= (- column (* (/ cur-col tab-width) tab-width)) tab-width)
@@ -293,8 +303,13 @@ only if necessary.  It leaves point at end of indentation."
 			      (progn (skip-chars-backward " ") (point))))
 	   (indent-to column))
 	  ((> cur-col column) ; too far right (after tab?)
-	   (delete-region (progn (move-to-column column t) (point))
-			  (progn (backward-to-indentation 0) (point)))))))
+           (delete-region (progn (move-to-column column t) (point))
+                          ;; The `move-to-column' call may replace
+                          ;; tabs with spaces, so we can't reuse the
+                          ;; previous start point.
+                          (progn (beginning-of-line 1)
+                                 (skip-chars-forward " \t")
+                                 (point)))))))
 
 (defun current-left-margin ()
   "Return the left margin to use for this line.
@@ -538,7 +553,9 @@ column to indent to; if it is nil, use one of the three methods above."
 	  (forward-line 1)))))
    ;; Use indent-region-function is available.
    (indent-region-function
-    (funcall indent-region-function start end))
+    (save-restriction
+      (widen)
+      (funcall indent-region-function start end)))
    ;; Else, use a default implementation that calls indent-line-function on
    ;; each line.
    (t (indent-region-line-by-line start end)))
@@ -583,8 +600,9 @@ considered.
 
 If the previous nonblank line has no indent points beyond the
 column point starts at, then `tab-to-tab-stop' is done, if both
-FIRST-ONLY and UNINDENTED-OK are nil, otherwise nothing is done
-in this case.
+FIRST-ONLY and UNINDENTED-OK are nil, otherwise nothing is done.
+If there isn't a previous nonblank line and UNINDENTED-OK is nil,
+call `tab-to-tab-stop'.
 
 See also `indent-relative-first-indent-point'."
   (interactive "P")

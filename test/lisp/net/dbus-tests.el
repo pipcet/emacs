@@ -1,6 +1,6 @@
-;;; dbus-tests.el --- Tests of D-Bus integration into Emacs
+;;; dbus-tests.el --- Tests of D-Bus integration into Emacs  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2013-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2013-2020 Free Software Foundation, Inc.
 
 ;; Author: Michael Albinus <michael.albinus@gmx.de>
 
@@ -15,7 +15,7 @@
 ;; General Public License for more details.
 ;;
 ;; You should have received a copy of the GNU General Public License
-;; along with this program.  If not, see `http://www.gnu.org/licenses/'.
+;; along with this program.  If not, see `https://www.gnu.org/licenses/'.
 
 ;;; Code:
 
@@ -133,7 +133,7 @@ This includes initialization and closing the bus."
   ;; Start bus.
   (let ((output
 	 (ignore-errors
-	   (shell-command-to-string "dbus-launch --sh-syntax")))
+	   (shell-command-to-string "env DISPLAY= dbus-launch --sh-syntax")))
 	bus pid)
     (skip-unless (stringp output))
     (when (string-match "DBUS_SESSION_BUS_ADDRESS='\\(.+\\)';" output)
@@ -176,8 +176,8 @@ This includes initialization and closing the bus."
 (defun dbus-test-all (&optional interactive)
   "Run all tests for \\[dbus]."
   (interactive "p")
-  (funcall
-   (if interactive 'ert-run-tests-interactively 'ert-run-tests-batch) "^dbus"))
+  (funcall (if interactive #'ert-run-tests-interactively #'ert-run-tests-batch)
+           "^dbus"))
 
 (provide 'dbus-tests)
 ;;; dbus-tests.el ends here

@@ -1,8 +1,8 @@
 ;;; cedet-files.el --- Common routines dealing with file names.
 
-;; Copyright (C) 2007-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2007-2020 Free Software Foundation, Inc.
 
-;; Author: Eric M. Ludlam <eric@siege-engine.com>
+;; Author: Eric M. Ludlam <zappo@gnu.org>
 ;; Package: cedet
 
 ;; This file is part of GNU Emacs.
@@ -18,7 +18,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 ;;
@@ -89,7 +89,7 @@ specific conversions during tests."
     file))
 
 (defun cedet-files-list-recursively (dir re)
-  "Returns list of files in directory matching to given regex"
+  "Return list of files in directory matching to given regex."
   (when (file-accessible-directory-p dir)
     (let ((files (directory-files dir t))
           matched)

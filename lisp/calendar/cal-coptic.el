@@ -1,9 +1,9 @@
 ;;; cal-coptic.el --- calendar functions for the Coptic/Ethiopic calendars
 
-;; Copyright (C) 1995, 1997, 2001-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1995, 1997, 2001-2020 Free Software Foundation, Inc.
 
 ;; Author: Edward M. Reingold <reingold@cs.uiuc.edu>
-;; Maintainer: Glenn Morris <rgm@gnu.org>
+;; Maintainer: emacs-devel@gnu.org
 ;; Keywords: calendar
 ;; Human-Keywords: Coptic calendar, Ethiopic calendar, calendar, diary
 ;; Package: calendar
@@ -21,7 +21,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -168,9 +168,13 @@ Echo Coptic date unless NOECHO is t."
   (or noecho (calendar-coptic-print-date)))
 
 
-(defvar date)
+;; The function below is designed to be used in sexp diary entries,
+;; and may be present in users' diary files, so suppress the warning
+;; about this prefix-less dynamic variable.  It's called from
+;; `diary-list-sexp-entries', which binds the variable.
+(with-suppressed-warnings ((lexical date))
+  (defvar date))
 
-;; To be called from diary-list-sexp-entries, where DATE is bound.
 ;;;###diary-autoload
 (defun diary-coptic-date ()
   "Coptic calendar equivalent of date diary entry."

@@ -1,6 +1,6 @@
-;;; tests/em-ls-tests.el --- em-ls test suite
+;;; tests/em-ls-tests.el --- em-ls test suite  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2017 Free Software Foundation, Inc.
+;; Copyright (C) 2017-2020 Free Software Foundation, Inc.
 
 ;; Author: Tino Calancha <tino.calancha@gmail.com>
 
@@ -17,7 +17,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -26,9 +26,10 @@
 
 (require 'ert)
 (require 'em-ls)
+(require 'dired)
 
 (ert-deftest em-ls-test-bug27631 ()
-  "Test for http://debbugs.gnu.org/27631 ."
+  "Test for https://debbugs.gnu.org/27631 ."
   (let* ((dir (make-temp-file "bug27631" 'dir))
          (dir1 (expand-file-name "dir1" dir))
          (dir2 (expand-file-name "dir2" dir))
@@ -50,7 +51,7 @@
       (when (buffer-live-p buf) (kill-buffer buf)))))
 
 (ert-deftest em-ls-test-bug27817 ()
-  "Test for http://debbugs.gnu.org/27817 ."
+  "Test for https://debbugs.gnu.org/27817 ."
   (let ((orig eshell-ls-use-in-dired)
         (dired-use-ls-dired 'unspecified)
         buf insert-directory-program)
@@ -62,7 +63,7 @@
       (and (buffer-live-p buf) (kill-buffer)))))
 
 (ert-deftest em-ls-test-bug27843 ()
-  "Test for http://debbugs.gnu.org/27843 ."
+  "Test for https://debbugs.gnu.org/27843 ."
   (let ((orig eshell-ls-use-in-dired)
         (dired-use-ls-dired 'unspecified)
         buf insert-directory-program)
@@ -76,7 +77,12 @@
       (and (buffer-live-p buf) (kill-buffer)))))
 
 (ert-deftest em-ls-test-bug27844 ()
-  "Test for http://debbugs.gnu.org/27844 ."
+  "Test for https://debbugs.gnu.org/27844 ."
+  ;; FIXME: it would be better to use something other than source-directory
+  ;; in this test.
+  (skip-unless (and source-directory
+                    (file-exists-p
+                     (expand-file-name "lisp/subr.el" source-directory))))
   (let ((orig eshell-ls-use-in-dired)
         (dired-use-ls-dired 'unspecified)
         buf insert-directory-program)
@@ -87,7 +93,14 @@
           (dired-toggle-marks)
           (should (cdr (dired-get-marked-files)))
           (kill-buffer buf)
-          (setq buf (dired (expand-file-name "lisp/subr.el" source-directory)))
+          ;; Eshell's default format duplicates the year for non-recent files,
+          ;; eg "2015-05-06  2015", which doesn't make a lot of sense,
+          ;; and causes this portion of the test to fail if subr.el
+          ;; is non-recent (eg if building from a tarfile unpacked
+          ;; with a fixed early timestamp for reproducibility).  Bug#33734.
+          (let ((eshell-ls-date-format "%b %e"))
+            (setq buf (dired (expand-file-name "lisp/subr.el"
+                                               source-directory))))
           (should (looking-at "subr\\.el")))
       (customize-set-variable 'eshell-ls-use-in-dired orig)
       (and (buffer-live-p buf) (kill-buffer)))))

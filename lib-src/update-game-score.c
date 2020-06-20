@@ -1,6 +1,6 @@
 /* update-game-score.c --- Update a score file
 
-Copyright (C) 2002-2017 Free Software Foundation, Inc.
+Copyright (C) 2002-2020 Free Software Foundation, Inc.
 
 Author: Colin Walters <walters@debian.org>
 
@@ -17,7 +17,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.  */
+along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 
 
 /* This program allows a game to securely and atomically update a
@@ -240,7 +240,7 @@ main (int argc, char **argv)
   if (! user)
     lose_syserr ("Couldn't determine user id");
   data = argv[optind + 2];
-  if (strlen (data) > MAX_DATA_LEN)
+  if (strnlen (data, MAX_DATA_LEN + 1) == MAX_DATA_LEN + 1)
     data[MAX_DATA_LEN] = '\0';
   nl = strchr (data, '\n');
   if (nl)

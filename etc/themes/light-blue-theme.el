@@ -1,6 +1,6 @@
-;;; light-blue-theme.el --- Custom theme for faces
+;;; light-blue-theme.el --- Custom theme for faces  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2011-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2011-2020 Free Software Foundation, Inc.
 
 ;; Author: Drew Adams <drew.adams@oracle.com>
 
@@ -17,7 +17,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -60,9 +60,5 @@
    `(next-error ((,class (:inherit region :background "SkyBlue"))))))
 
 (provide-theme 'light-blue)
-
-;; Local Variables:
-;; no-byte-compile: t
-;; End:
 
 ;;; light-blue-theme.el ends here

@@ -1,6 +1,6 @@
 ;;; bindings.el --- define standard key bindings and some variables
 
-;; Copyright (C) 1985-1987, 1992-1996, 1999-2017 Free Software
+;; Copyright (C) 1985-1987, 1992-1996, 1999-2020 Free Software
 ;; Foundation, Inc.
 
 ;; Maintainer: emacs-devel@gnu.org
@@ -20,7 +20,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -124,17 +124,61 @@ corresponding to the mode line clicked."
 
 ;;; Mode line contents
 
-(defcustom mode-line-default-help-echo
-  "mouse-1: Select (drag to resize)\n\
-mouse-2: Make current window occupy the whole frame\n\
-mouse-3: Remove current window from display"
+(defun mode-line-default-help-echo (window)
+  "Return default help echo text for WINDOW's mode line."
+  (let* ((frame (window-frame window))
+         (line-1a
+          ;; Show text to select window only if the window is not
+          ;; selected.
+          (not (eq window (frame-selected-window frame))))
+         (line-1b
+          ;; Show text to drag mode line if either the window is not
+          ;; at the bottom of its frame or the minibuffer window of
+          ;; this frame can be resized.  This matches a corresponding
+          ;; check in `mouse-drag-mode-line'.
+          (or (not (window-at-side-p window 'bottom))
+              (let ((mini-window (minibuffer-window frame)))
+                (and (eq frame (window-frame mini-window))
+                     (or (minibuffer-window-active-p mini-window)
+                         (not resize-mini-windows))))))
+         (line-2
+          ;; Show text make window occupy the whole frame
+          ;; only if it doesn't already do that.
+          (not (eq window (frame-root-window frame))))
+         (line-3
+          ;; Show text to delete window only if that's possible.
+          (not (eq window (frame-root-window frame)))))
+    (when (or line-1a line-1b line-2 line-3)
+      (concat
+       (when (or line-1a line-1b)
+         (concat
+          "mouse-1: "
+          (when line-1a "Select window")
+          (when line-1b
+            (if line-1a " (drag to resize)" "Drag to resize"))
+          (when (or line-2 line-3) "\n")))
+       (when line-2
+         (concat
+          "mouse-2: Make window occupy whole frame"
+          (when line-3 "\n")))
+       (when line-3
+         "mouse-3: Remove window from frame")))))
+
+(defcustom mode-line-default-help-echo #'mode-line-default-help-echo
   "Default help text for the mode line.
 If the value is a string, it specifies the tooltip or echo area
 message to display when the mouse is moved over the mode line.
-If the text at the mouse position has a `help-echo' text
-property, that overrides this variable."
-  :type '(choice (const :tag "No help" :value nil) string)
-  :version "24.3"
+If the value is a function, call that function with one argument
+- the window whose mode line to display.  If the text at the
+mouse position has a `help-echo' text property, that overrides
+this variable."
+  :type '(choice
+          (const :tag "No help" :value nil)
+          function
+          (string :value "mouse-1: Select (drag to resize)\n\
+mouse-2: Make current window occupy the whole frame\n\
+mouse-3: Remove current window from display"))
+  :version "27.1"
   :group 'mode-line)
 
 (defvar mode-line-front-space '(:eval (if (display-graphic-p) " " "-"))
@@ -265,7 +309,10 @@ Normally nil in most modes, since there is no process to display.")
 (make-variable-buffer-local 'mode-line-process)
 
 (defun bindings--define-key (map key item)
-  "Make as much as possible of the menus pure."
+  "Define KEY in keymap MAP according to ITEM from a menu.
+This is like `define-key', but it takes the definition from the
+specified menu item, and makes pure copies of as much as possible
+of the menu's data."
   (declare (indent 2))
   (define-key map key
     (cond
@@ -370,7 +417,7 @@ zero, otherwise they start from one."
 This option specifies both the field width and the type of offset
 displayed in `mode-line-position', a component of the default
 `mode-line-format'."
-  :type `(radio
+  :type '(radio
           (const :tag "nil:  No offset is displayed" nil)
           (const :tag "\"%o\": Proportion of \"travel\" of the window through the buffer"
                  (-3 "%o"))
@@ -575,7 +622,7 @@ Switch to the most recently selected buffer other than the current one."
 	      :button (:toggle . (bound-and-true-p flyspell-mode))))
 (bindings--define-key mode-line-mode-menu [auto-revert-tail-mode]
   '(menu-item "Auto revert tail (Tail)" auto-revert-tail-mode
-	      :help "Revert the tail of the buffer when buffer grows"
+	      :help "Revert the tail of the buffer when the file on disk grows"
 	      :enable (buffer-file-name)
 	      :button (:toggle . (bound-and-true-p auto-revert-tail-mode))))
 (bindings--define-key mode-line-mode-menu [auto-revert-mode]
@@ -597,6 +644,11 @@ Switch to the most recently selected buffer other than the current one."
   (let ((indicator (car (nth 4 (car (cdr event))))))
     (describe-minor-mode-from-indicator indicator)))
 
+(defvar mode-line-defining-kbd-macro (propertize " Def" 'face 'font-lock-warning-face)
+  "String displayed in the mode line in keyboard macro recording mode.")
+;;;###autoload
+(put 'mode-line-defining-kbd-macro 'risky-local-variable t)
+
 (defvar minor-mode-alist nil "\
 Alist saying how to show minor modes in the mode line.
 Each element looks like (VARIABLE STRING);
@@ -606,13 +658,14 @@ Actually, STRING need not be a string; any mode-line construct is
 okay.  See `mode-line-format'.")
 ;;;###autoload
 (put 'minor-mode-alist 'risky-local-variable t)
-;; Don't use purecopy here--some people want to change these strings.
+;; Don't use purecopy here--some people want to change these strings,
+;; also string properties are lost when put into pure space.
 (setq minor-mode-alist
       '((abbrev-mode " Abbrev")
         (overwrite-mode overwrite-mode)
         (auto-fill-function " Fill")
         ;; not really a minor mode...
-        (defining-kbd-macro " Def")))
+        (defining-kbd-macro mode-line-defining-kbd-macro)))
 
 ;; These variables are used by autoloadable packages.
 ;; They are defined here so that they do not get overridden
@@ -677,11 +730,11 @@ okay.  See `mode-line-format'.")
       ;; FIXME: Maybe beginning-of-line, beginning-of-buffer, end-of-line,
       ;; end-of-buffer, end-of-file, buffer-read-only, and
       ;; file-supersession should all be user-errors!
-      `(beginning-of-line beginning-of-buffer end-of-line
-	end-of-buffer end-of-file buffer-read-only
-	file-supersession mark-inactive
-        user-error ;; That's the main one!
-        ))
+      '(beginning-of-line beginning-of-buffer end-of-line
+	                  end-of-buffer end-of-file buffer-read-only
+	                  file-supersession mark-inactive
+                          user-error ;; That's the main one!
+                          ))
 
 (make-variable-buffer-local 'indent-tabs-mode)
 
@@ -689,6 +742,7 @@ okay.  See `mode-line-format'.")
 ;; `kill-all-local-variables', because they have no default value.
 ;; For consistency, we give them the `permanent-local' property, even
 ;; though `kill-all-local-variables' does not actually consult it.
+;; See init_buffer_once in buffer.c for the origins of this list.
 
 (mapc (lambda (sym) (put sym 'permanent-local t))
       '(buffer-file-name default-directory buffer-backed-up
@@ -697,7 +751,8 @@ okay.  See `mode-line-format'.")
 	point-before-scroll buffer-file-truename
 	buffer-file-format buffer-auto-save-file-format
 	buffer-display-count buffer-display-time
-	enable-multibyte-characters))
+	enable-multibyte-characters
+	buffer-file-coding-system truncate-lines))
 
 ;; We have base64, md5 and sha1 functions built in now.
 (provide 'base64)
@@ -805,7 +860,7 @@ and \\[backward-word], which see.
 
 Value is normally t.
 If an edge of the buffer or a field boundary is reached, point is left there
-there and the function returns nil.  Field boundaries are not noticed
+and the function returns nil.  Field boundaries are not noticed
 if `inhibit-field-text-motion' is non-nil."
   (interactive "^p")
   (if (eq (current-bidi-paragraph-direction) 'left-to-right)
@@ -821,7 +876,7 @@ and \\[forward-word], which see.
 
 Value is normally t.
 If an edge of the buffer or a field boundary is reached, point is left there
-there and the function returns nil.  Field boundaries are not noticed
+and the function returns nil.  Field boundaries are not noticed
 if `inhibit-field-text-motion' is non-nil."
   (interactive "^p")
   (if (eq (current-bidi-paragraph-direction) 'left-to-right)
@@ -878,9 +933,11 @@ if `inhibit-field-text-motion' is non-nil."
 (define-key ctl-x-map [right] 'next-buffer)
 (define-key ctl-x-map [C-right] 'next-buffer)
 (define-key global-map [XF86Forward] 'next-buffer)
+(put 'next-buffer :advertised-binding [?\C-x right])
 (define-key ctl-x-map [left] 'previous-buffer)
 (define-key ctl-x-map [C-left] 'previous-buffer)
 (define-key global-map [XF86Back] 'previous-buffer)
+(put 'previous-buffer :advertised-binding [?\C-x left])
 
 (let ((map minibuffer-local-map))
   (define-key map "\en"   'next-history-element)
@@ -980,6 +1037,13 @@ if `inhibit-field-text-motion' is non-nil."
 (define-key search-map "hu"   'unhighlight-regexp)
 (define-key search-map "hf"   'hi-lock-find-patterns)
 (define-key search-map "hw"   'hi-lock-write-interactive-patterns)
+(put 'highlight-regexp                   :advertised-binding [?\M-s ?h ?r])
+(put 'highlight-phrase                   :advertised-binding [?\M-s ?h ?p])
+(put 'highlight-lines-matching-regexp    :advertised-binding [?\M-s ?h ?l])
+(put 'highlight-symbol-at-point          :advertised-binding [?\M-s ?h ?.])
+(put 'unhighlight-regexp                 :advertised-binding [?\M-s ?h ?u])
+(put 'hi-lock-find-patterns              :advertised-binding [?\M-s ?h ?f])
+(put 'hi-lock-write-interactive-patterns :advertised-binding [?\M-s ?h ?w])
 
 ;;(defun function-key-error ()
 ;;  (interactive)
@@ -992,6 +1056,7 @@ if `inhibit-field-text-motion' is non-nil."
 ;(define-key global-map [delete] 'backward-delete-char)
 
 ;; natural bindings for terminal keycaps --- defined in X keysym order
+(define-key global-map [Scroll_Lock]    'scroll-lock-mode)
 (define-key global-map [C-S-backspace]  'kill-whole-line)
 (define-key global-map [home]		'move-beginning-of-line)
 (define-key global-map [C-home]		'beginning-of-buffer)
@@ -1173,8 +1238,8 @@ if `inhibit-field-text-motion' is non-nil."
 (define-key ctl-x-map "\C-t" 'transpose-lines)
 
 (define-key esc-map ";" 'comment-dwim)
-(define-key esc-map "j" 'indent-new-comment-line)
-(define-key esc-map "\C-j" 'indent-new-comment-line)
+(define-key esc-map "j" 'default-indent-new-line)
+(define-key esc-map "\C-j" 'default-indent-new-line)
 (define-key ctl-x-map ";" 'comment-set-column)
 (define-key ctl-x-map [?\C-\;] 'comment-line)
 (define-key ctl-x-map "f" 'set-fill-column)

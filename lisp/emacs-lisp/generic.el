@@ -1,8 +1,8 @@
 ;;; generic.el --- defining simple major modes with comment and font-lock
 ;;
-;; Copyright (C) 1997, 1999, 2001-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1997, 1999, 2001-2020 Free Software Foundation, Inc.
 ;;
-;; Author:  Peter Breton <pbreton@cs.umb.edu>
+;; Author: Peter Breton <pbreton@cs.umb.edu>
 ;; Created: Fri Sep 27 1996
 ;; Keywords: generic, comment, font-lock
 ;; Package: emacs
@@ -20,7 +20,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -96,8 +96,6 @@
 ;; Internal Variables
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define-obsolete-variable-alias 'generic-font-lock-defaults
-  'generic-font-lock-keywords "22.1")
 (defvar generic-font-lock-keywords nil
   "Keywords for `font-lock-defaults' in a generic mode.")
 (make-variable-buffer-local 'generic-font-lock-keywords)

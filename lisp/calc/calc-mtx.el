@@ -1,6 +1,6 @@
 ;;; calc-mtx.el --- matrix functions for Calc
 
-;; Copyright (C) 1990-1993, 2001-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1990-1993, 2001-2020 Free Software Foundation, Inc.
 
 ;; Author: David Gillespie <daveg@synaptics.com>
 
@@ -17,7 +17,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -275,7 +275,7 @@ in LUD decomposition."
 		k (1+ k)))
 	(setcar (nthcdr j (nth i lu)) sum)
 	(let ((dum (math-lud-pivot-check sum)))
-	  (if (Math-lessp big dum)
+	  (if (or (math-zerop big) (Math-lessp big dum))
 	      (setq big dum
 		    imax i)))
 	(setq i (1+ i)))

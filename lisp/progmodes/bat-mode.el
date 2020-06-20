@@ -1,6 +1,6 @@
 ;;; bat-mode.el --- Major mode for editing DOS/Windows scripts
 
-;; Copyright (C) 2003, 2008-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2003, 2008-2020 Free Software Foundation, Inc.
 
 ;; Author: Arni Magnusson <arnima@hafro.is>
 ;; Keywords: languages
@@ -18,7 +18,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 ;;
@@ -78,17 +78,19 @@
              "goto" "gtr" "if" "in" "leq" "lss" "neq" "not" "start"))
           (UNIX
            '("bash" "cat" "cp" "fgrep" "grep" "ls" "sed" "sh" "mv" "rm")))
-      `(("\\_<\\(call\\|goto\\)\\_>[ \t]+%?\\([A-Za-z0-9-_\\:.]+\\)%?"
+      `(("\\_<\\(call\\|goto\\)\\_>[ \t]+%?\\([A-Za-z0-9_\\:.-]+\\)%?"
          (2 font-lock-constant-face t))
         ("^:[^:].*"
          . 'bat-label-face)
         ("\\_<\\(defined\\|set\\)\\_>[ \t]*\\(\\(\\sw\\|\\s_\\)+\\)"
          (2 font-lock-variable-name-face))
-        ("%\\(\\(\\sw\\|\\s_\\)+\\)%"
+        ("%~\\([0-9]\\)"
          (1 font-lock-variable-name-face))
-        ("!\\(\\(\\sw\\|\\s_\\)+\\)!"  ; delayed-expansion !variable!
+        ("%\\([^%~ \n]+\\)%?"
          (1 font-lock-variable-name-face))
-        ("%%\\(?:~[adfnpstxz]*\\(?:\\$\\(\\(?:\\sw\\|\\s_\\)+\\):\\)?\\)?\\([]!#$&-:?-[_-{}~]\\)"
+        ("!\\([^!%~ \n]+\\)!?"  ; delayed-expansion !variable!
+         (1 font-lock-variable-name-face))
+        ("%%\\(?:~[adfnpstxz]*\\(?:\\$\\(\\(?:\\sw\\|\\s_\\|_\\)+\\):\\)?\\)?\\([]!#$&-:?-[_-{}~]\\)"
          (1 font-lock-variable-name-face nil t) ; PATH expansion
          (2 font-lock-variable-name-face)) ; iteration variable or positional parameter
         ("[ =][-/]+\\(\\w+\\)"

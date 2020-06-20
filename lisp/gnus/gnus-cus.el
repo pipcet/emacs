@@ -1,6 +1,6 @@
 ;;; gnus-cus.el --- customization commands for Gnus
 
-;; Copyright (C) 1996, 1999-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1996, 1999-2020 Free Software Foundation, Inc.
 
 ;; Author: Per Abrahamsen <abraham@dina.kvl.dk>
 ;; Keywords: news
@@ -18,7 +18,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -140,10 +140,10 @@ rules as described later).")
 				 :format "%v")) "\
 When to expire.
 
-Overrides any `nnmail-expiry-wait' and `nnmail-expiry-wait-function'
-when expiring expirable messages.  The value can either be a number of
-days (not necessarily an integer) or the symbols `never' or
-`immediate'.")
+Overrides any `nnmail-expiry-wait' or `nnmail-expiry-wait-function'
+settings when expiring expirable messages.  The value can be
+either a number of days (not necessarily an integer), or one of
+the symbols `never' or `immediate'.")
 
     (expiry-target (choice :tag "Expiry Target"
 			   :value delete
@@ -190,7 +190,7 @@ Which articles to display on entering the group.
      unread and ticked articles.
 
 `Other'
-     Display the articles that satisfy the S-expression. The S-expression
+     Display the articles that satisfy the S-expression.  The S-expression
      should be in an array form.")
 
     (comment (string :tag  "Comment") "\
@@ -253,7 +253,15 @@ DOC is a documentation string for the parameter.")
 
 (defconst gnus-extra-group-parameters
   '((uidvalidity (string :tag "IMAP uidvalidity") "\
-Server-assigned value attached to IMAP groups, used to maintain consistency."))
+Server-assigned value attached to IMAP groups, used to maintain consistency.")
+    (modseq (choice :tag "modseq"
+		    (const :tag "None" nil)
+		    (string :tag "Sequence number"))
+	    "Modification sequence number")
+    (active (cons :tag "active" (integer :tag "min") (integer :tag "max"))
+	    "active")
+    (permanent-flags (repeat :tag "Permanent Flags" (symbol :tag "Flag"))
+		     "Permanent Flags"))
   "Alist of group parameters that are not also topic parameters.
 
 Each entry has the form (NAME TYPE DOC), where NAME is the parameter
@@ -365,11 +373,11 @@ category."))
     (unless (or group topic)
       (error "No group on current line"))
     (when (and group topic)
-      (error "Both a group an topic on current line"))
+      (error "Both a group and topic on current line"))
     (unless (or topic (setq info (gnus-get-info group)))
       (error "Killed group; can't be edited"))
     ;; Ready.
-    (gnus-kill-buffer (gnus-get-buffer-create "*Gnus Customize*"))
+    (gnus-kill-buffer "*Gnus Customize*")
     (switch-to-buffer (gnus-get-buffer-create "*Gnus Customize*"))
     (gnus-custom-mode)
     (make-local-variable 'gnus-custom-group)
@@ -388,7 +396,7 @@ category."))
 		     :tag  "topic parameters"
 		     "(gnus)Topic Parameters"))
     (widget-insert " for <")
-    (widget-insert (gnus-group-decoded-name (or group topic)))
+    (widget-insert (or group topic))
     (widget-insert "> and press ")
     (widget-create 'push-button
 		   :tag "done"
@@ -406,17 +414,12 @@ category."))
       ;; every duplicate ends up being displayed.  So, rather than
       ;; display them, remove them from the list.
 
-      (let ((tmp (setq values (gnus-copy-sequence values)))
+      (let ((tmp (setq values (copy-tree values)))
 	    elem)
 	(while (cdr tmp)
 	  (while (setq elem (assq (caar tmp) (cdr tmp)))
 	    (delq elem tmp))
 	  (setq tmp (cdr tmp))))
-
-      ;; Decode values posting-style holds.
-      (dolist (style (cdr (assq 'posting-style values)))
-	(when (stringp (cadr style))
-	  (setcdr style (list (decode-coding-string (cadr style) 'utf-8)))))
 
       (setq gnus-custom-params
             (apply 'widget-create 'group
@@ -454,7 +457,7 @@ Set variables local to the group you are entering.
 If you want to turn threading off in `news.answers', you could put
 `(gnus-show-threads nil)' in the group parameters of that group.
 `gnus-show-threads' will be made into a local variable in the summary
-buffer you enter, and the form nil will be `eval'ed there.
+buffer you enter, and the form nil will be `eval'uated there.
 
 This can also be used as a group-specific hook function, if you'd
 like.  If you want to hear a beep when you enter a group, you could
@@ -489,10 +492,6 @@ form, but who cares?"
   "Apply changes and bury the buffer."
   (interactive)
   (let ((params (widget-value gnus-custom-params)))
-    ;; Encode values posting-style holds.
-    (dolist (style (cdr (assq 'posting-style params)))
-      (when (stringp (cadr style))
-	(setcdr style (list (encode-coding-string (cadr style) 'utf-8)))))
     (if gnus-custom-topic
 	(gnus-topic-set-parameters gnus-custom-topic params)
       (gnus-group-edit-group-done 'params gnus-custom-group params)
@@ -535,7 +534,7 @@ These files will not be loaded, even though they would normally be so,
 for some reason or other.")
 
     (eval (sexp :tag "Eval" :value nil) "\
-The value of this entry will be `eval'el.
+The value of this entry will be `eval'uated.
 This element will be ignored when handling global score files.")
 
     (read-only (boolean :tag "Read-only" :value t) "\
@@ -837,8 +836,7 @@ When called interactively, FILE defaults to the current score file.
 This can be changed using the `\\[gnus-score-change-score-file]' command."
   (interactive (list gnus-current-score-file))
   (unless file
-    (error "No score file for %s"
-           (gnus-group-decoded-name gnus-newsgroup-name)))
+    (error "No score file for %s" gnus-newsgroup-name))
   (let ((scores (gnus-score-load file))
 	(types (mapcar (lambda (entry)
 			 `(group :format "%v%h\n"
@@ -1021,9 +1019,7 @@ articles in the thread.
                         (cons 'agent-low-score gnus-agent-low-score)
                         (cons 'agent-high-score gnus-agent-high-score))))
 
-    (let ((old (get-buffer "*Gnus Agent Category Customize*")))
-      (when old
-        (gnus-kill-buffer old)))
+    (gnus-kill-buffer "*Gnus Agent Category Customize*")
     (switch-to-buffer (gnus-get-buffer-create
                        "*Gnus Agent Category Customize*"))
 
@@ -1051,7 +1047,7 @@ articles in the thread.
            (when (get-buffer gnus-category-buffer)
              (switch-to-buffer (get-buffer gnus-category-buffer))
              (gnus-category-list)))
-                       "Done")
+         "Done")
         (widget-insert
          "\n    Note: Empty fields default to the customizable global\
  variables.\n\n")

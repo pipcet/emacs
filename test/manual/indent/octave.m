@@ -14,6 +14,10 @@ function res = tcomp (fn)
   until x = ...
         y
 
+  spmd                          #bug#36703
+    something
+  end
+
   %% res = tcomp (fn)
   %%     imports components and rearranges them.
 
@@ -81,7 +85,7 @@ endfunction
 ##
 ## You should have received a copy of the GNU General Public License
 ## along with Octave; see the file COPYING.  If not, see
-## <http://www.gnu.org/licenses/>.
+## <https://www.gnu.org/licenses/>.
 
 ## -*- texinfo -*-
 ## @deftypefn  {Command} pkg @var{command} @var{pkg_name}

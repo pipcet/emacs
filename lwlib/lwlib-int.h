@@ -1,6 +1,6 @@
 /*
 Copyright (C) 1992 Lucid, Inc.
-Copyright (C) 2000-2017 Free Software Foundation, Inc.
+Copyright (C) 2000-2020 Free Software Foundation, Inc.
 
 This file is part of the Lucid Widget Library.
 
@@ -15,7 +15,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.  */
+along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 
 
 #ifndef LWLIB_INTERNAL_H
@@ -30,9 +30,8 @@ typedef struct _widget_instance
   Widget		widget;
   Widget		parent;
   Boolean		pop_up_p;
-#ifdef HAVE_XFT
+#if defined USE_CAIRO || defined HAVE_XFT
   struct widget_xft_data *xft_data;
-  int                   nr_xft_data;
 #endif
   struct _widget_info*		info;
   struct _widget_instance*	next;

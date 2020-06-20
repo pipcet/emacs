@@ -1,6 +1,6 @@
-;;; python-tests.el --- Test suite for python.el
+;;; python-tests.el --- Test suite for python.el  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2013-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2013-2020 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -15,7 +15,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -118,7 +118,6 @@ Argument MIN and MAX delimit the region to be returned and
 default to `point-min' and `point-max' respectively."
   (let* ((min (or min (point-min)))
          (max (or max (point-max)))
-         (buffer (current-buffer))
          (buffer-contents (buffer-substring-no-properties min max))
          (overlays
           (sort (overlays-in min max)
@@ -134,6 +133,16 @@ default to `point-min' and `point-max' respectively."
                            (overlay-end overlay))))
       (buffer-substring-no-properties (point-min) (point-max)))))
 
+(defun python-virt-bin (&optional virt-root)
+  "Return the virtualenv bin dir, starting from VIRT-ROOT.
+If nil, VIRT-ROOT defaults to `python-shell-virtualenv-root'.
+The name of this directory depends on `system-type'."
+  (expand-file-name
+   (concat
+    (file-name-as-directory (or virt-root
+                                python-shell-virtualenv-root))
+    (if (eq system-type 'windows-nt) "Scripts" "bin"))))
+
 
 ;;; Tests for your tests, so you can test while you test.
 
@@ -144,7 +153,7 @@ default to `point-min' and `point-max' respectively."
 sed do eiusmod tempor incididunt ut labore et dolore magna
 aliqua."
    (let ((expected (save-excursion
-                     (dotimes (i 3)
+                     (dotimes (_ 3)
                        (re-search-forward "et" nil t))
                      (forward-char -2)
                      (point))))
@@ -153,7 +162,7 @@ aliqua."
      ;; one should be returned.
      (should (= (python-tests-look-at "et" 6 t) expected))
      ;; If already looking at STRING, it should skip it.
-     (dotimes (i 2) (re-search-forward "et"))
+     (dotimes (_ 2) (re-search-forward "et"))
      (forward-char -2)
      (should (= (python-tests-look-at "et") expected)))))
 
@@ -168,7 +177,7 @@ aliqua."
             (re-search-forward "et" nil t)
             (forward-char -2)
             (point))))
-     (dotimes (i 3)
+     (dotimes (_ 3)
        (re-search-forward "et" nil t))
      (should (= (python-tests-look-at "et" -3 t) expected))
      (should (= (python-tests-look-at "et" -6 t) expected)))))
@@ -259,6 +268,19 @@ foo = long_function_name(
    (python-tests-look-at "var_three, var_four)")
    (should (eq (car (python-indent-context)) :inside-paren-newline-start))
    (should (= (python-indent-calculate-indentation) 4))))
+
+(ert-deftest python-indent-hanging-close-paren ()
+  "Like first pep8 case, but with hanging close paren." ;; See Bug#20742.
+  (python-tests-with-temp-buffer
+   "\
+foo = long_function_name(var_one, var_two,
+                         var_three, var_four
+                         )
+"
+   (should (= (python-indent-calculate-indentation) 0))
+   (python-tests-look-at ")")
+   (should (eq (car (python-indent-context)) :inside-paren-at-closing-paren))
+   (should (= (python-indent-calculate-indentation) 25))))
 
 (ert-deftest python-indent-base-case ()
   "Check base case does not trigger errors."
@@ -1109,6 +1131,37 @@ def fn(a, b, c=True):
    (should (eq (car (python-indent-context)) :inside-string))
    (should (= (python-indent-calculate-indentation) 4))))
 
+(ert-deftest python-indent-electric-comma-inside-multiline-string ()
+  "Test indentation ...."
+  (python-tests-with-temp-buffer
+   "
+a = (
+    '''\
+- foo,
+- bar
+'''
+"
+   (python-tests-look-at "- bar")
+   (should (eq (car (python-indent-context)) :inside-string))
+   (goto-char (line-end-position))
+   (python-tests-self-insert ",")
+   (should (= (current-indentation) 0))))
+
+(ert-deftest python-indent-electric-comma-after-multiline-string ()
+  "Test indentation ...."
+  (python-tests-with-temp-buffer
+   "
+a = (
+    '''\
+- foo,
+- bar'''
+"
+   (python-tests-look-at "- bar'''")
+   (should (eq (car (python-indent-context)) :inside-string))
+   (goto-char (line-end-position))
+   (python-tests-self-insert ",")
+   (should (= (current-indentation) 0))))
+
 (ert-deftest python-indent-electric-colon-1 ()
   "Test indentation case from Bug#18228."
   (python-tests-with-temp-buffer
@@ -1130,10 +1183,13 @@ def b()
 if do:
     something()
     else
+outside
 "
    (python-tests-look-at "else")
    (goto-char (line-end-position))
    (python-tests-self-insert ":")
+   (should (= (current-indentation) 0))
+   (python-tests-look-at "outside")
    (should (= (current-indentation) 0))))
 
 (ert-deftest python-indent-electric-colon-3 ()
@@ -1292,6 +1348,35 @@ this is an arbitrarily
      (python-indent-region (point-min) (point-max))
      (should (string= (buffer-substring-no-properties (point-min) (point-max))
                       expected)))))
+
+
+;;; Filling
+
+(ert-deftest python-auto-fill-docstring ()
+  (python-tests-with-temp-buffer
+   "\
+def some_function(arg1,
+                  arg2):
+    \"\"\"
+    Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua."
+   (auto-fill-mode +1)
+   (goto-char (point-max))
+   (newline)
+   (search-backward "Lorem")
+   (let ((docindent (current-indentation)))
+     (forward-line 1)
+     (should (= docindent (current-indentation))))))
+
+(ert-deftest python-fill-docstring ()
+  (python-tests-with-temp-buffer
+   "\
+r'''aaa
+
+this is a test this is a test this is a test this is a test this is a test this is a test.
+'''"
+   (search-forward "test.")
+   (fill-paragraph)
+   (should (= (current-indentation) 0))))
 
 
 ;;; Mark
@@ -1973,6 +2058,12 @@ string
                 (python-util-forward-comment -1)
                 (point))))))
 
+(ert-deftest python-nav-end-of-statement-2 ()
+  "Test the string overlap assertion (Bug#30964)."
+  (python-tests-with-temp-buffer
+   "'\n''\n"
+   (python-nav-end-of-statement)))
+
 (ert-deftest python-nav-forward-statement-1 ()
   (python-tests-with-temp-buffer
    "
@@ -2550,7 +2641,7 @@ if x:
 (ert-deftest python-shell-calculate-process-environment-2 ()
   "Test `python-shell-extra-pythonpaths' modification."
   (let* ((process-environment process-environment)
-         (original-pythonpath (setenv "PYTHONPATH" "/path0"))
+         (_original-pythonpath (setenv "PYTHONPATH" "/path0"))
          (python-shell-extra-pythonpaths '("/path1" "/path2"))
          (process-environment (python-shell-calculate-process-environment)))
     (should (equal (getenv "PYTHONPATH")
@@ -2561,7 +2652,7 @@ if x:
   "Test `python-shell-virtualenv-root' modification."
   (let* ((python-shell-virtualenv-root "/env")
          (process-environment
-          (let (process-environment process-environment)
+          (let ((process-environment process-environment))
             (setenv "PYTHONHOME" "/home")
             (setenv "VIRTUAL_ENV")
             (python-shell-calculate-process-environment))))
@@ -2633,7 +2724,7 @@ if x:
          (python-shell-virtualenv-root "/env")
          (new-exec-path (python-shell-calculate-exec-path)))
     (should (equal new-exec-path
-                   (list (expand-file-name "/env/bin") "/path0")))))
+                   (list (python-virt-bin) "/path0")))))
 
 (ert-deftest python-shell-calculate-exec-path-3 ()
   "Test complete `python-shell-virtualenv-root' modification."
@@ -2642,7 +2733,7 @@ if x:
          (python-shell-virtualenv-root "/env")
          (new-exec-path (python-shell-calculate-exec-path)))
     (should (equal new-exec-path
-                   (list (expand-file-name "/env/bin")
+                   (list (python-virt-bin)
                          "/path1" "/path2" "/path0")))))
 
 (ert-deftest python-shell-calculate-exec-path-4 ()
@@ -2653,7 +2744,7 @@ if x:
          (python-shell-virtualenv-root "/env")
          (new-exec-path (python-shell-calculate-exec-path)))
     (should (equal new-exec-path
-                   (list (expand-file-name "/env/bin")
+                   (list (python-virt-bin)
                          "/path1" "/path2" "/path0")))))
 
 (ert-deftest python-shell-calculate-exec-path-5 ()
@@ -2683,7 +2774,7 @@ if x:
          (python-shell-virtualenv-root "/env"))
     (python-shell-with-environment
      (should (equal exec-path
-                    (list (expand-file-name "/env/bin")
+                    (list (python-virt-bin)
                           "/path1" "/path2" "/path0")))
       (should (not (getenv "PYTHONHOME")))
       (should (string= (getenv "VIRTUAL_ENV") "/env")))
@@ -2699,7 +2790,7 @@ if x:
          (python-shell-virtualenv-root "/env"))
     (python-shell-with-environment
       (should (equal (python-shell-calculate-exec-path)
-                     (list (expand-file-name "/env/bin")
+                     (list (python-virt-bin)
                            "/path1" "/path2" "/remote1" "/remote2")))
       (let ((process-environment (python-shell-calculate-process-environment)))
         (should (not (getenv "PYTHONHOME")))
@@ -5305,13 +5396,23 @@ class SomeClass:
 (ert-deftest python-tests--python-nav-end-of-statement--infloop ()
   "Checks that `python-nav-end-of-statement' doesn't infloop in a
 buffer with overlapping strings."
+  ;; FIXME: The treatment of strings has changed in the mean time, and the
+  ;; test below now neither signals an error nor inf-loops.
+  ;; The description of the problem it's trying to catch is not clear enough
+  ;; to be able to see if the underlying problem is really fixed, sadly.
+  ;; E.g. I don't know what is meant by "overlap", really.
+  :tags '(:unstable)
   (python-tests-with-temp-buffer "''' '\n''' ' '\n"
     (syntax-propertize (point-max))
     ;; Create a situation where strings nominally overlap.  This
     ;; shouldn't happen in practice, but apparently it can happen when
     ;; a package calls `syntax-ppss' in a narrowed buffer during JIT
     ;; lock.
+    ;; FIXME: 4-5 is the SPC right after the opening triple quotes: why
+    ;; put a string-fence syntax on it?
     (put-text-property 4 5 'syntax-table (string-to-syntax "|"))
+    ;; FIXME: 8-9 is the middle quote in the closing triple quotes:
+    ;; it shouldn't have any syntax-table property to remove anyway!
     (remove-text-properties 8 9 '(syntax-table nil))
     (goto-char 4)
     (setq-local syntax-propertize-function nil)
@@ -5321,6 +5422,15 @@ buffer with overlapping strings."
                     (python-nav-end-of-statement)))
     (should (eolp))))
 
+;; After call `run-python' the buffer running the python process is current.
+(ert-deftest python-tests--bug31398 ()
+  "Test for https://debbugs.gnu.org/31398 ."
+  (skip-unless (executable-find python-tests-shell-interpreter))
+  (let ((buffer (process-buffer (run-python nil nil 'show))))
+    (should (eq buffer (current-buffer)))
+    (pop-to-buffer (other-buffer))
+    (run-python nil nil 'show)
+    (should (eq buffer (current-buffer)))))
 
 (provide 'python-tests)
 

@@ -1,218 +1,159 @@
 @c -*- coding: utf-8 -*-
 @c This is part of the Emacs manual.
-@c Copyright (C) 2005-2017 Free Software Foundation, Inc.
+@c Copyright (C) 2005--2020 Free Software Foundation, Inc.
 @c See file emacs.texi for copying conditions.
 
 @node Antinews
-@appendix Emacs 24 Antinews
+@appendix Emacs 26 Antinews
 @c Update the emacs.texi Antinews menu entry with the above version number.
 
   For those users who live backwards in time, here is information
-about downgrading to Emacs version 24.5.  We hope you will enjoy the
-greater simplicity that results from the absence of many Emacs
-@value{EMACSVER} features.
+about downgrading to Emacs version 26.3.  We hope you will enjoy the
+greater simplicity that results from the absence of many @w{Emacs
+@value{EMACSVER}} features.
 
 @itemize @bullet
 @item
-Support for Cairo drawing has been removed.  On GNU and Unix systems,
-you now have only one drawing engine---the venerable X Window system.
-No need to procrastinate on the dilemma whether you do or don't want
-the new shiny Cairo thing.  Hail, simplicity!
+Emacs no longer uses @acronym{GMP}, the GNU Multiple Precision
+library, and doesn't support Lisp integers greater than
+@code{most-positive-fixnum} or smaller than
+@code{most-negative-fixnum}.  We now have only one kind of a Lisp
+integer.  This simplifies many Lisp programs that use integers, and
+makes integer calculations always fast.  If you want larger values,
+use Lisp floats, as Emacs has done since day one.
 
 @item
-Emacs still works on SGI IRIX systems.  If you live backwards in time,
-this is actually a bonus, as IRIX systems will become more and more
-popular as you move farther back in time.
+Emacs no longer supports HarfBuzz as the engine for shaping complex
+text.  As you move back in time, we will gradually shed off all traces
+of support for complex text shaping, and this is one step in that
+direction.
 
 @item
-Support for dynamically loaded modules has been removed.  You get to
-use only the trusted Emacs codebase, with no additions.  Those
-external modules written by some J.R. Hacker cannot be trusted anyway.
-Good riddance!
+We have removed support for building with the Jansson library, and
+consequently the native support for JSON parsing is gone.  The
+importance of JSON decreases as we go back in time, so for now using
+the Lisp code for handling it should be good enough; in one of the
+past Emacs versions, we intend to remove even that, as useless bloat.
+
+The library for supporting JSONRPC applications was removed for the
+same reason.
 
 @item
-We have greatly simplified the Emacs features which access the network
-by removing the Network Security Manager.  No more annoying prompts
-about trusting this or that site or page---you asked for it, you get
-it, no questions asked!  You, the user, are now in charge of any
-security issues related to sites whose certificates expired or didn't
-exist in the first place.  Giving the user the utmost freedom was and
-always will be the most important goal of Emacs development.  We keep
-that goal even as we develop Emacs back in time.
+The ``portable dumper'' feature is gone.  We are once again using the
+field-proven ``unexec'' way of dumping Emacs.  With that, the hope for
+being able to re-dump your customized Emacs session is also gone: why
+would anyone want to record their random customization experiments on
+disk, and restore them the next time they start Emacs?  And true
+Emacsers don't restart their Emacs sessions anyway.
 
 @item
-We made the output of @kbd{C-h l} much simpler and easier to grasp by
-removing the names of commands run by the recorded keystrokes.  True
-Emacs lovers know their bindings by heart anyway, so why waste
-precious screen estate on that which is well known?
+We dropped the support for @acronym{XDG}-style configuration
+directories and the @env{XDG_CONFIG_HOME} environment variable.
+There's once again only one place where Emacs looks for its init
+files: the @file{~/.emacs.d} directory, with the @file{~/.emacs} file
+as fallback.  We think this will go a long way towards preventing
+confusion among users who for some reason have @env{XDG_CONFIG_HOME}
+set, thus risking to have their init files randomly spread between two
+places.  In one of the past Emacs versions, we intend to further
+simplify this, removing the @file{~/.emacs.d} place and leaving only
+@file{~/.emacs}; stay tuned.
+
+For similar reasons, we've removed the ``early init'' file.  You can
+now again use all the tricks you want to initialize variables like
+@code{package-user-dir} and @code{package-load-list} just in time for
+the packages to load.
+
+@command{emacsclient} no longer supports @acronym{XDG}-style directory
+trees, either.
 
 @item
-Selection- and clipboard-related commands and variables got their
-historical names back.  It's now the definitive
-@code{x-select-enable-clipboard} again instead of the vague
-@code{select-enable-clipboard}, and all those @code{gui-select-text},
-@code{gui-get-primary-selection}, etc.@: got their @code{x-*} names
-back.  (What's a ``GUI'', anyway?)  The only true window system with
-selections is the X Window system, so we stopped pretending that other
-platforms have anything similar to that.  You now know when you invoke
-a command that accesses X.
+TLS connections are back to their lenient security settings.  We
+decided that too tight security settings are an annoyance for users,
+and make little sense considering the world-wide tendency to have
+fewer and fewer network security problems as we move back in time
+(those issues will be completely gone when networks disappear in some
+distant past).
 
 @item
-Passwords are no longer hidden when typed in @code{-batch} mode.  It
-was a misfeature to have it not shown in the first place: who can type
-without seeing what they type?  We couldn't convince the users of GUI
-sessions to give up hiding the password, so we at least made it
-visible in batch mode, which is something every veteran Emacs user
-uses all the time.  Stay tuned for un-hiding the password in GUI
-sessions as well as we downgrade progressively to previous Emacs
-versions.
+The @code{server-after-make-frame-hook} hook was deleted, in
+preparation for removing the entire daemon business in some past Emacs
+version.  You will be glad to learn that setting up the GUI
+customizations of your sessions is now once again as easy as it ever
+was, with just the @code{after-make-frame-functions} to use.
 
 @item
-The nuisance with Unicode characters popping up all over the place has
-been amply dealt with.  We've removed @kbd{C-x 8} shorthands for
-characters such as ‘, ’, “, ”, €, ≤, and many others; as a nice
-benefit, this removes many useless entries at the beginning of the
-@kbd{C-h b} output.  The @code{electric-quote-mode} has been deleted,
-so there's only the one true quoting method now---using the
-plain-@acronym{ASCII} quote characters.  And if that's not enough, the
-doc strings and other messages show text quoted @t{`like this'}
-as they were written, instead of arbitrarily replacing them
-with Unicode ``curved quote'' characters @t{‘like this’}.  The
-@code{text-quoting-style} variable becomes therefore unneeded and was
-removed.  As result, text produced by Emacs can be sent to those
-venerable teletypes again, yeah!
-
-For the same reasons, the character classes @code{[:alpha:]} and
-@code{[:alnum:]} again match any word-constituent character, and
-@code{[:graph:]} and @code{[:print:]} match every multibyte character.
-Confusing use of Unicode character properties is gone.
+The @code{flex} completion style was removed.  We feel that it
+unnecessarily complicates the Emacs user experience, and therefore
+will continue to remove other tricky completion styles, until in some
+past Emacs version we get to a single original style Emacs pioneered
+decades ago.  Long live simplicity; down with complications!
 
 @item
-I-search and query-replace no longer try to confuse you by using the
-``character-folding'' magic.  They will no longer find any characters
-you didn't actually type, like find @kbd{ⓐ} when you actually typed
-@kbd{a}.  Users who want to find some fancy character will have to
-type it explicitly.
+The optional display of the fill-column indicator is no longer
+supported.  With the display sizes becoming smaller and smaller as you
+move back in time, we feel that the display itself will always show
+you where to fill or wrap your text, and do this much more easily and
+reliably than any such display indicator.
 
 @item
-The @file{desktop.el} package no longer records window and frame
-configuration, and doesn't attempt to restore them.  You now have back
-your freedom of re-arranging your windows and frames anew each time
-you restore a session.  This made the new backward-incompatible format
-of the @file{.emacs.desktop} file unnecessary, so the format was
-reverted back to what it was before Emacs 25.  You can now again use
-the desktop file with all the previous versions of Emacs.
+We removed the features that made visiting large files easier.  Thus,
+Emacs will no longer suggest visiting a large file literally, nor
+offer the @code{so-long} mode to deal with overly-long lines.  We
+decided that this simplification is worthwhile, given that the general
+tendency of having very large files is becoming a rarity as we move
+back in time.
 
 @item
-We have reworked the Prettify Symbols mode to support only the default
-@code{prettify-symbols-compose-predicate}.  No need to consider
-whether your major or minor mode needs its own prettifications; just
-use what came with Emacs.  We also removed the
-@code{prettify-symbols-unprettify-at-point} option: once prettified,
-always prettified!  These changes make the Prettify Symbols mode quite
-a lot simpler and easier to use.
+We have removed the feature that displayed echo-area messages without
+hiding content of the active minibuffer.  This should prevent user
+confusion from having two unrelated pieces of text staring at them,
+with no clear separation between them.  Users with good memories (and
+Emacs users are all expected to be of that kind) will have no trouble
+keeping the minibuffer text in their minds, and typing the responses
+without actually seeing the prompts.
 
 @item
-Support for nifty new features of xterm, such as access to the X
-selection and the clipboard, the ``bracketed paste mode'', and other
-advanced capabilities has been removed.  When you kill text in an
-xterm Emacs session, that text is only saved in the Emacs kill ring,
-without letting other applications have any way of accessing it.  An
-xterm is just a text terminal, nothing more, nothing less.  There
-should be no feature we support on xterm that isn't supported on bare
-console terminals.  For the same reasons, support for mouse-tracking
-on xterm was removed.  We will continue this line of simplifications
-as we downgrade to previous versions of Emacs; stay tuned.
+Horizontal scrolling using the mouse or touchpad has been removed.  In
+the past, wide monitors will become less popular, so horizontal
+scrolling will no longer be needed.  Removal of the mouse support for
+horizontal scrolling is the first step towards its complete removal in
+prior Emacs versions.
 
 @item
-Various features in @file{package.el} have been simplified.  The
-``external'' package status is no longer available.  A package present
-on multiple archives will now be listed as many times as it is found:
-we don't believe in concealing any information from the users.  This
-and other similar simplifications made
-@code{package-menu-toggle-hiding} unnecessary, since there's nothing
-to unhide now.
+The @code{main-thread} variable and @code{list-threads} were removed,
+and @code{thread-join} no longer returns the result of the finished
+thread.  We intend to remove the support for Lisp threads in some past
+Emacs version, so we continue removing the associated complexities and
+features as we go back in time.
 
 @item
-The @kbd{@key{UP}} and @kbd{@key{DOWN}} keys in the minibuffer have
-been simplified to move by history items.  No need to wonder whether
-you have moved to the next/previous item or to another line within the
-same item.  Well-written commands shouldn't allow too long history
-entries anyway; be sure to report any that do as bugs, so that we
-could fix them in past versions of Emacs.
+Tab bar and window tab-lines were removed.  This should make the Emacs
+display simpler and less cluttered, and help those users who disable
+menu bar and tool bar in their GUI sessions.  The fashion to provide
+tabs in every GUI application out there is gaining less and less
+popularity as we move back in time, and will completely disappear at
+some past point; removing the tabs from Emacs is the step in that
+direction.
 
 @item
-The VC mode was simplified by removing the support for ``push''
-commands.  Moving back in time means you will have less and less need
-to use modern version control systems such as Git, Bazaar, and
-Mercurial, so the necessity of using ``push'' commands will gradually
-disappear.  We removed it from Emacs in advance, so that you won't
-need to un-learn it when this command disappears, as it should.
+Displaying line numbers for a buffer is only possibly using add-on
+features, such as @code{linum-mode}, which can only display the
+numbers in the display margins.  Line-number display using these
+features is also slow, as we firmly believe such a feature is
+un-Emacsy and should not have been included in Emacs to begin with.
+Consequently, @code{display-line-numbers-mode} was removed.
 
 @item
-The support for full C/C++ expressions in macros has been removed from
-Hide-Ifdef mode.  It now supports only the basic literal macros.  As
-result, the user interface was simplified, and a number of useless
-commands have been removed from Hide-Ifdef mode.  Further
-simplifications were made possible by removing support for some fancy
-new preprocessor directives, such as @code{#if defined}, @code{#elif},
-etc.
+On our permanent quest for simplifying Emacs, we've removed the
+support for changing the font size by turning the mouse wheel.
 
 @item
-We have reverted to Etags for looking up definitions of functions,
-variables, etc.  Commands such as @kbd{M-.} use tags tables, as they
-always have.  This allowed the removal of the entire @file{xref.el}
-package and its many metastases in the other Emacs packages and
-commands, significantly simplifying those.  No more complexities with
-the various ``backends'' that provide incoherent behavior that is hard
-to explain and remember; either the symbol is in TAGS or it isn't.  No
-more new user interfaces we never before saw in Emacs, either; if you
-want the next definition for the symbol you typed, just invoke
-@kbd{C-u M-.}---what could be simpler?  As a nice side effect, you get
-to use your beloved @code{tags-loop-continue} and @code{pop-tag-mark}
-commands and their memorable bindings.  The @file{package.el} package
-has been removed for similar reasons.
-
-@item
-@code{(/ @var{n})} once again yields just @var{n}.  Emacs Lisp is not
-Common Lisp, so compatibility with CL just complicates Emacs here.
-
-@item
-The functions @code{filepos-to-bufferpos} and
-@code{bufferpos-to-filepos} have been removed.  Code that needs to
-find a file position by a buffer position or vice versa should adapt
-by reading the file with no conversions and counting bytes while
-comparing text.  How hard can that be?
-
-@item
-We saw no need for the @code{make-process} primitive, so we removed
-it.  The @code{start-process} primitive provides all the functionality
-one needs, so adding more APIs just confuses users.
-
-@item
-The functions @code{bidi-find-overridden-directionality} and
-@code{buffer-substring-with-bidi-context} were removed, in preparation
-for removing the whole bidi support when downgrading to Emacs 23.
-
-@item
-Horizontal scroll bars are no longer supported.  Enlarge your windows
-and frames instead, or use @code{truncate-lines} and the automatic
-horizontal scrolling of text that Emacs had since time immemorial.
-
-@item
-Emacs is again counting the height of a frame's menu and its tool bar
-in the frame's text height calculations.  This makes Emacs invocation
-on different platforms and with different toolkits less predictable
-when frame geometry parameters are given on the Emacs command line,
-thus making Emacs more adventurous and less boring to use.
-
-@item
-The @command{etags} program no longer supports Ruby and Go languages.
-You won't need that as you progressively travel back in time towards
-the time before these languages were invented.  We removed support for
-them in anticipation for that time.
+Several commands, deemed to be unnecessary complications, have been
+removed.  Examples include @code{make-empty-file},
+@code{font-lock-refontify}, @code{xref-find-definitions-at-mouse},
+@code{make-frame-on-monitor}, and @code{diff-buffers}.
 
 @item
 To keep up with decreasing computer memory capacity and disk space, many
-other functions and files have been eliminated in Emacs 24.5.
+other functions and files have been eliminated in Emacs 26.3.
 @end itemize

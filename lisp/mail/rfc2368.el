@@ -1,6 +1,6 @@
-;;; rfc2368.el --- support for rfc2368
+;;; rfc2368.el --- support for rfc2368  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1998, 2000-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1998, 2000-2020 Free Software Foundation, Inc.
 
 ;; Author: Sen Nagata <sen@eccosys.com>
 ;; Keywords: mail
@@ -18,7 +18,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 ;;
@@ -61,7 +61,7 @@
 ;; only an approximation?
 ;; see rfc 1738
 (defconst rfc2368-mailto-regexp
-  "^\\(mailto:\\)\\([^?]+\\)*\\(\\?\\(.*\\)\\)*"
+  "^\\(mailto:\\)\\([^?]+\\)?\\(\\?\\(.*\\)\\)*"
   "Regular expression to match and aid in parsing a mailto url.")
 
 ;; describes 'mailto:'

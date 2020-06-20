@@ -1,11 +1,11 @@
 ;;; linum.el --- display line numbers in the left margin -*- lexical-binding: t -*-
 
-;; Copyright (C) 2008-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2008-2020 Free Software Foundation, Inc.
 
 ;; Author: Markus Triska <markus.triska@gmx.at>
 ;; Maintainer: emacs-devel@gnu.org
 ;; Keywords: convenience
-;; Version: 0.9x
+;; Old-Version: 0.9x
 
 ;; This file is part of GNU Emacs.
 
@@ -20,7 +20,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -32,6 +32,7 @@
 ;;; Code:
 
 (defconst linum-version "0.9x")
+(make-obsolete-variable 'linum-version nil "28.1")
 
 (defvar linum-overlays nil "Overlays used in this buffer.")
 (defvar linum-available nil "Overlays available for reuse.")
@@ -75,12 +76,10 @@ and you have to scroll or press \\[recenter-top-bottom] to update the numbers."
 ;;;###autoload
 (define-minor-mode linum-mode
   "Toggle display of line numbers in the left margin (Linum mode).
-With a prefix argument ARG, enable Linum mode if ARG is positive,
-and disable it otherwise.  If called from Lisp, enable the mode
-if ARG is omitted or nil.
 
 Linum mode is a buffer-local minor mode."
   :lighter ""                           ; for desktop.el
+  :append-arg-docstring t
   (if linum-mode
       (progn
         (if linum-eager
@@ -121,6 +120,10 @@ Linum mode is a buffer-local minor mode."
               ;; if some large buffer was under linum-mode when
               ;; desktop was saved.  So we disable linum-mode for
               ;; non-client frames in a daemon session.
+
+              ;; Note that nowadays, this actually doesn't show line
+              ;; numbers in client frames at all, because we visit the
+              ;; file before creating the client frame.  See bug#35726.
               (and (daemonp) (null (frame-parameter nil 'client))))
     (linum-mode 1)))
 

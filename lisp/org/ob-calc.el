@@ -1,10 +1,10 @@
 ;;; ob-calc.el --- Babel Functions for Calc          -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2010-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2010-2020 Free Software Foundation, Inc.
 
 ;; Author: Eric Schulte
 ;; Keywords: literate programming, reproducible research
-;; Homepage: http://orgmode.org
+;; Homepage: https://orgmode.org
 
 ;; This file is part of GNU Emacs.
 
@@ -19,7 +19,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -27,6 +27,7 @@
 
 ;;; Code:
 (require 'ob)
+(require 'org-macs)
 (require 'calc)
 (require 'calc-trail)
 (require 'calc-store)
@@ -34,10 +35,9 @@
 (declare-function calc-store-into    "calc-store" (&optional var))
 (declare-function calc-recall        "calc-store" (&optional var))
 (declare-function math-evaluate-expr "calc-ext"   (x))
-(declare-function org-trim "org" (s &optional keep-lead))
 
 (defvar org-babel-default-header-args:calc nil
-  "Default arguments for evaluating an calc source block.")
+  "Default arguments for evaluating a calc source block.")
 
 (defun org-babel-expand-body:calc (body _params)
   "Expand BODY according to PARAMS, return the expanded body." body)

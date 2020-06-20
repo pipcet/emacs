@@ -1,7 +1,7 @@
 /* A general interface to the widgets of different toolkits.
 
 Copyright (C) 1992, 1993 Lucid, Inc.
-Copyright (C) 1994-1996, 1999-2017 Free Software Foundation, Inc.
+Copyright (C) 1994-1996, 1999-2020 Free Software Foundation, Inc.
 
 This file is part of the Lucid Widget Library.
 
@@ -16,7 +16,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.  */
+along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 
 #include <config.h>
 
@@ -1233,8 +1233,7 @@ lw_separator_p (const char *label, enum menu_separator *type, int motif_p)
 {
   int separator_p = 0;
 
-  if (strlen (label) >= 3
-      && memcmp (label, "--:", 3) == 0)
+  if (strncmp (label, "--:",  3) == 0)
     {
       static struct separator_table
       {
@@ -1276,7 +1275,7 @@ lw_separator_p (const char *label, enum menu_separator *type, int motif_p)
 	    break;
 	  }
     }
-  else if (strlen (label) > 3
+  else if (strnlen (label, 4) == 4
 	   && memcmp (label, "--", 2) == 0
 	   && label[2] != '-')
     {

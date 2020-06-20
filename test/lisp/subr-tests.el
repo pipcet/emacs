@@ -1,6 +1,6 @@
-;;; subr-tests.el --- Tests for subr.el
+;;; subr-tests.el --- Tests for subr.el  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2015-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2015-2020 Free Software Foundation, Inc.
 
 ;; Author: Oleh Krehel <ohwoeowho@gmail.com>,
 ;;         Nicolas Petton <nicolas@petton.fr>
@@ -19,14 +19,13 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
 ;;
 
 ;;; Code:
-
 (require 'ert)
 (eval-when-compile (require 'cl-lib))
 
@@ -61,6 +60,19 @@
                            "\\<\\(?:\\(?:fals\\|tru\\)e\\)\\>")
                      (quote
                       (0 font-lock-keyword-face))))))))
+
+(defalias 'subr-tests--parent-mode
+  (if (fboundp 'prog-mode) 'prog-mode 'fundamental-mode))
+
+(ert-deftest provided-mode-derived-p ()
+  ;; base case: `derived-mode' directly derives `prog-mode'
+  (should (progn
+            (define-derived-mode derived-mode prog-mode "test")
+            (provided-mode-derived-p 'derived-mode 'prog-mode)))
+  ;; edge case: `derived-mode' derives an alias of `prog-mode'
+  (should (progn
+            (define-derived-mode derived-mode subr-tests--parent-mode "test")
+            (provided-mode-derived-p 'derived-mode 'prog-mode))))
 
 (ert-deftest number-sequence-test ()
   (should (= (length
@@ -112,6 +124,13 @@
     (should (= x 2)))
   (should (equal (macroexpand-all '(when a b c d))
                  '(if a (progn b c d)))))
+
+(ert-deftest subr-test-xor ()
+  "Test `xor'."
+  (should-not (xor nil nil))
+  (should (eq (xor nil 'true) 'true))
+  (should (eq (xor 'true nil) 'true))
+  (should-not (xor t t)))
 
 (ert-deftest subr-test-version-parsing ()
   (should (equal (version-to-list ".5") '(0 5)))
@@ -225,6 +244,27 @@
               (error-message-string (should-error (version-to-list "beta22_8alpha3")))
               "Invalid version syntax: `beta22_8alpha3' (must start with a number)"))))
 
+(ert-deftest subr-test-version-list-< ()
+  (should (version-list-< '(0) '(1)))
+  (should (version-list-< '(0 9) '(1 0)))
+  (should (version-list-< '(1 -1) '(1 0)))
+  (should (version-list-< '(1 -2) '(1 -1)))
+  (should (not (version-list-< '(1) '(0))))
+  (should (not (version-list-< '(1 1) '(1 0))))
+  (should (not (version-list-< '(1) '(1 0))))
+  (should (not (version-list-< '(1 0) '(1 0 0)))))
+
+(ert-deftest subr-test-version-list-= ()
+  (should (version-list-= '(1) '(1)))
+  (should (version-list-= '(1 0) '(1)))
+  (should (not (version-list-= '(0) '(1)))))
+
+(ert-deftest subr-test-version-list-<= ()
+  (should (version-list-<= '(0) '(1)))
+  (should (version-list-<= '(1) '(1)))
+  (should (version-list-<= '(1 0) '(1)))
+  (should (not (version-list-<= '(1) '(0)))))
+
 (defun subr-test--backtrace-frames-with-backtrace-frame (base)
   "Reference implementation of `backtrace-frames'."
   (let ((idx 0)
@@ -293,13 +333,110 @@ cf. Bug#25477."
                 :type 'wrong-type-argument))
 
 (ert-deftest subr-tests-bug22027 ()
-  "Test for http://debbugs.gnu.org/22027 ."
+  "Test for https://debbugs.gnu.org/22027 ."
   (let ((default "foo") res)
     (cl-letf (((symbol-function 'read-string)
                (lambda (_prompt _init _hist def) def)))
       (setq res (read-passwd "pass: " 'confirm (mapconcat #'string default "")))
       (should (string= default res)))))
 
+(ert-deftest subr-tests--gensym ()
+  "Test `gensym' behavior."
+  (should (equal (symbol-name (let ((gensym-counter 0)) (gensym)))
+                 "g0"))
+  (should (eq (string-to-char (symbol-name (gensym))) ?g))
+  (should (eq (string-to-char (symbol-name (gensym "X"))) ?X)))
+
+(ert-deftest subr-tests--assq-delete-all ()
+  "Test `assq-delete-all' behavior."
+  (cl-flet ((new-list-fn
+             ()
+             (list (cons 'a 1) (cons 'b 2) (cons 'c 3) 'd (cons "foo" "bar"))))
+    (should (equal (cdr (new-list-fn)) (assq-delete-all 'a (new-list-fn))))
+    (should (equal (new-list-fn) (assq-delete-all 'd (new-list-fn))))
+    (should (equal (new-list-fn) (assq-delete-all "foo" (new-list-fn))))))
+
+(ert-deftest subr-tests--assoc-delete-all ()
+  "Test `assoc-delete-all' behavior."
+  (cl-flet ((new-list-fn
+             ()
+             (list (cons 'a 1) (cons 'b 2) (cons 'c 3) 'd (cons "foo" "bar"))))
+    (should (equal (cdr (new-list-fn)) (assoc-delete-all 'a (new-list-fn))))
+    (should (equal (new-list-fn) (assoc-delete-all 'd (new-list-fn))))
+    (should (equal (butlast (new-list-fn))
+                   (assoc-delete-all "foo" (new-list-fn))))))
+
+(ert-deftest shell-quote-argument-%-on-w32 ()
+  "Quoting of `%' in w32 shells isn't perfect.
+See https://debbugs.gnu.org/cgi/bugreport.cgi?bug=19350."
+  :expected-result :failed
+  (skip-unless (and (fboundp 'w32-shell-dos-semantics)
+                    (w32-shell-dos-semantics)))
+  (let ((process-environment (append '("ca^=with-caret"
+                                       "ca=without-caret")
+                                     process-environment)))
+    ;; It actually results in
+    ;;    without-caret with-caret
+    (should (equal (shell-command-to-string
+                    (format "echo %s %s"
+                            "%ca%"
+                            (shell-quote-argument "%ca%")))
+                   "without-caret %ca%"))))
+
+(ert-deftest subr-tests-flatten-tree ()
+  "Test `flatten-tree' behavior."
+  (should (equal (flatten-tree '(1 (2 . 3) nil (4 5 (6)) 7))
+                 '(1 2 3 4 5 6 7)))
+  (should (equal (flatten-tree '((1 . 2)))
+                 '(1 2)))
+  (should (equal (flatten-tree '(1 nil 2))
+                 '(1 2)))
+  (should (equal (flatten-tree 42)
+                 '(42)))
+  (should (equal (flatten-tree t)
+                 '(t)))
+  (should (equal (flatten-tree nil)
+                 nil))
+  (should (equal (flatten-tree '((nil) ((((nil)))) nil))
+                 nil))
+  (should (equal (flatten-tree '(1 ("foo" "bar") 2))
+                 '(1 "foo" "bar" 2))))
+
+(defvar subr-tests--hook nil)
+
+(ert-deftest subr-tests-add-hook-depth ()
+  "Test the `depth' arg of `add-hook'."
+  (setq-default subr-tests--hook nil)
+  (add-hook 'subr-tests--hook 'f1)
+  (add-hook 'subr-tests--hook 'f2)
+  (should (equal subr-tests--hook '(f2 f1)))
+  (add-hook 'subr-tests--hook 'f3 t)
+  (should (equal subr-tests--hook '(f2 f1 f3)))
+  (add-hook 'subr-tests--hook 'f4 50)
+  (should (equal subr-tests--hook '(f2 f1 f4 f3)))
+  (add-hook 'subr-tests--hook 'f5 -50)
+  (should (equal subr-tests--hook '(f5 f2 f1 f4 f3)))
+  (add-hook 'subr-tests--hook 'f6)
+  (should (equal subr-tests--hook '(f5 f6 f2 f1 f4 f3)))
+  ;; Make sure `t' is equivalent to 90.
+  (add-hook 'subr-tests--hook 'f7 90)
+  (add-hook 'subr-tests--hook 'f8 t)
+  (should (equal subr-tests--hook '(f5 f6 f2 f1 f4 f3 f7 f8)))
+  ;; Make sue `nil' is equivalent to 0.
+  (add-hook 'subr-tests--hook 'f9 0)
+  (add-hook 'subr-tests--hook 'f10)
+  (should (equal subr-tests--hook '(f5 f10 f9 f6 f2 f1 f4 f3 f7 f8)))
+  )
+
+(ert-deftest ignore-error-tests ()
+  (should (equal (ignore-error (end-of-file)
+                   (read ""))
+                 nil))
+  (should (equal (ignore-error end-of-file
+                   (read ""))
+                 nil))
+  (should-error (ignore-error foo
+                  (read ""))))
 
 (provide 'subr-tests)
 ;;; subr-tests.el ends here

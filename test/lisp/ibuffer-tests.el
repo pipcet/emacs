@@ -1,6 +1,6 @@
 ;;; ibuffer-tests.el --- Test suite. -*- lexical-binding: t -*-
 
-;; Copyright (C) 2015-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2015-2020 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -15,7 +15,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Code:
 (require 'ert)
@@ -43,7 +43,7 @@
      'ibuffer-mark-unsaved-buffers))))
 
 (ert-deftest ibuffer-test-Bug24997 ()
-  "Test for http://debbugs.gnu.org/24997 ."
+  "Test for https://debbugs.gnu.org/24997 ."
   (ibuffer)
   (let ((orig ibuffer-filtering-qualifiers))
     (unwind-protect
@@ -58,7 +58,7 @@
       (ibuffer-update nil t))))
 
 (ert-deftest ibuffer-test-Bug25000 ()
-  "Test for http://debbugs.gnu.org/25000 ."
+  "Test for https://debbugs.gnu.org/25000 ."
   (let ((case-fold-search t)
         (buf1 (generate-new-buffer "ibuffer-test-Bug25000-buf1"))
         (buf2 (generate-new-buffer "ibuffer-test-Bug25000-buf2")))
@@ -82,7 +82,7 @@
         (test1 '((mode . org-mode)
                  (or (size-gt . 10000)
                      (and (not (starred-name))
-                          (directory . "\<org\>")))))
+                          (directory . "<org>")))))
         (test2 '((or (mode . emacs-lisp-mode) (file-extension . "elc?")
                      (and (starred-name) (name . "elisp"))
                      (mode . lisp-interaction-mode))))
@@ -104,7 +104,7 @@
     (should (equal (cdr (assoc "test3" ibuffer-saved-filters)) test3))))
 
 (ert-deftest ibuffer-test-Bug25058 ()
-  "Test for http://debbugs.gnu.org/25058 ."
+  "Test for https://debbugs.gnu.org/25058 ."
   (ibuffer)
   (let ((orig-filters ibuffer-saved-filter-groups)
         (tmp-filters '(("saved-filters"
@@ -137,7 +137,7 @@
 
 
 (ert-deftest ibuffer-test-Bug25042 ()
-  "Test for http://debbugs.gnu.org/25042 ."
+  "Test for https://debbugs.gnu.org/25042 ."
   (ibuffer)
   (let ((filters ibuffer-filtering-qualifiers))
     (unwind-protect
@@ -312,8 +312,8 @@
                 (funcall create-non-file-buffer "ibuf-test-3.b" :size 50
                          :mode #'text-mode
                          :include-content "...but a multitude of drops?\n"))
-               (dirA (with-current-buffer bufA default-directory))
-               (dirB (with-current-buffer bufB default-directory)))
+               (dirA (regexp-quote (with-current-buffer bufA default-directory)))
+               (dirB (regexp-quote (with-current-buffer bufB default-directory))))
           (should (ibuffer-included-in-filters-p
                    bufA '((basename . "ibuf-test-3"))))
           (should (ibuffer-included-in-filters-p
@@ -456,11 +456,14 @@
                (funcall create-non-file-buffer "ibuf-test-8a"
                         :mode #'artist-mode))
               (bufB (funcall create-non-file-buffer "*ibuf-test-8b*" :size 32))
-              (bufC (funcall create-file-buffer "ibuf-test8c" :suffix "*"
-                             :size 64))
-              (bufD (funcall create-file-buffer "*ibuf-test8d" :size 128))
-              (bufE (funcall create-file-buffer "*ibuf-test8e" :suffix "*<2>"
-                             :size 16))
+              (bufC (or (memq system-type '(ms-dos windows-nt))
+                        (funcall create-file-buffer "ibuf-test8c" :suffix "*"
+                                 :size 64)))
+              (bufD (or (memq system-type '(ms-dos windows-nt))
+                        (funcall create-file-buffer "*ibuf-test8d" :size 128)))
+              (bufE (or (memq system-type '(ms-dos windows-nt))
+                        (funcall create-file-buffer "*ibuf-test8e"
+                                 :suffix "*<2>" :size 16)))
               (bufF (and (funcall create-non-file-buffer "*ibuf-test8f*")
                          (funcall create-non-file-buffer "*ibuf-test8f*"
                                   :size 8))))
@@ -479,22 +482,28 @@
                                (name . "test.*8b")
                                (size-gt . 31)
                                (not visiting-file)))))
-          (should (ibuffer-included-in-filters-p
-                   bufC '((and (not (starred-name))
-                               (visiting-file)
-                               (name . "8c[^*]*\\*")
-                               (size-lt . 65)))))
-          (should (ibuffer-included-in-filters-p
-                   bufD '((and (not (starred-name))
-                               (visiting-file)
-                               (name . "\\`\\*.*test8d")
-                               (size-lt . 129)
-                               (size-gt . 127)))))
-          (should (ibuffer-included-in-filters-p
-                   bufE '((and (starred-name)
-                               (visiting-file)
-                               (name . "8e.*?\\*<[[:digit:]]+>")
-                               (size-gt . 10)))))
+          ;; MS-DOS and MS-Windows don't allow "*" in file names.
+          (or (memq system-type '(ms-dos windows-nt))
+              (should (ibuffer-included-in-filters-p
+                       bufC '((and (not (starred-name))
+                                   (visiting-file)
+                                   (name . "8c[^*]*\\*")
+                                   (size-lt . 65))))))
+          ;; MS-DOS and MS-Windows don't allow "*" in file names.
+          (or (memq system-type '(ms-dos windows-nt))
+              (should (ibuffer-included-in-filters-p
+                       bufD '((and (not (starred-name))
+                                   (visiting-file)
+                                   (name . "\\`\\*.*test8d")
+                                   (size-lt . 129)
+                                   (size-gt . 127))))))
+          ;; MS-DOS and MS-Windows don't allow "*" in file names.
+          (or (memq system-type '(ms-dos windows-nt))
+              (should (ibuffer-included-in-filters-p
+                       bufE '((and (starred-name)
+                                   (visiting-file)
+                                   (name . "8e.*?\\*<[[:digit:]]+>")
+                                   (size-gt . 10))))))
           (should (ibuffer-included-in-filters-p
                    bufF '((and (starred-name)
                                (not (visiting-file))

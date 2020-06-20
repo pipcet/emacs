@@ -1,6 +1,6 @@
 ;;; reftex-parse.el --- parser functions for RefTeX
 
-;; Copyright (C) 1997-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1997-2020 Free Software Foundation, Inc.
 
 ;; Author: Carsten Dominik <dominik@science.uva.nl>
 ;; Maintainer: auctex-devel@gnu.org
@@ -18,7 +18,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -1000,7 +1000,7 @@ OPT-ARGS is a list of argument numbers which are optional."
                     (eq (following-char) ?\{))
           (cl-incf cnt)))
       (if (and (= n cnt)
-               (> (skip-chars-forward "{\\[") 0))
+               (> (skip-chars-forward "{[") 0))
           (reftex-context-substring)
         nil))))
 
@@ -1013,7 +1013,7 @@ OPT-ARGS is a list of argument numbers which are optional."
 
 (defun reftex-context-substring (&optional to-end)
   "Return up to 150 chars from point.
-When point is just after a { or [, limit string to matching parenthesis"
+When point is just after a { or [, limit string to matching parenthesis."
   (cond
    (to-end
     ;; Environment - find next \end

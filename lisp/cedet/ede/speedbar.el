@@ -1,6 +1,6 @@
 ;;; ede/speedbar.el --- Speedbar viewing of EDE projects
 
-;; Copyright (C) 1998-2001, 2003, 2005, 2007-2017 Free Software
+;; Copyright (C) 1998-2001, 2003, 2005, 2007-2020 Free Software
 ;; Foundation, Inc.
 
 ;; Author: Eric M. Ludlam <zappo@gnu.org>
@@ -19,7 +19,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 ;;
@@ -28,7 +28,6 @@
 
 ;;; Code:
 
-(eval-when-compile (require 'cl))
 (require 'speedbar)
 (require 'eieio-speedbar)
 (require 'ede)
@@ -277,7 +276,7 @@ INDENT is the current indentation level."
 Etags does not support this feature.  TEXT will be the button
 string.  TOKEN will be the list, and INDENT is the current indentation
 level."
-  (cond ((string-match "+" text)	;we have to expand this file
+  (cond ((string-match "\\+" text)	;we have to expand this file
 	 (speedbar-change-expand-button-char ?-)
 	 (speedbar-with-writable
 	   (save-excursion

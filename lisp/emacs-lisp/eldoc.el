@@ -1,11 +1,15 @@
 ;;; eldoc.el --- Show function arglist or variable docstring in echo area  -*- lexical-binding:t; -*-
 
-;; Copyright (C) 1996-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1996-2020 Free Software Foundation, Inc.
 
 ;; Author: Noah Friedman <friedman@splode.com>
-;; Maintainer: friedman@splode.com
 ;; Keywords: extensions
 ;; Created: 1995-10-06
+;; Version: 1.0.0
+;; Package-Requires: ((emacs "26.3"))
+
+;; This is a GNU ELPA :core package.  Avoid functionality that is not
+;; compatible with the version of Emacs recorded above.
 
 ;; This file is part of GNU Emacs.
 
@@ -20,7 +24,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -33,17 +37,13 @@
 ;; the one-line documentation for that variable instead, to remind you of
 ;; that variable's meaning.
 
-;; One useful way to enable this minor mode is to put the following in your
-;; .emacs:
-;;
-;;      (add-hook 'emacs-lisp-mode-hook 'eldoc-mode)
-;;      (add-hook 'lisp-interaction-mode-hook 'eldoc-mode)
-;;      (add-hook 'ielm-mode-hook 'eldoc-mode)
-;;      (add-hook 'eval-expression-minibuffer-setup-hook 'eldoc-mode)
+;; This mode is now enabled by default in all major modes that provide
+;; support for it, such as `emacs-lisp-mode'.
+;; This is controlled by `global-eldoc-mode'.
 
-;; Major modes for other languages may use ElDoc by defining an
-;; appropriate function as the buffer-local value of
-;; `eldoc-documentation-function'.
+;; Major modes for other languages may use ElDoc by adding an
+;; appropriate function to the buffer-local value of
+;; `eldoc-documentation-functions'.
 
 ;;; Code:
 
@@ -58,20 +58,17 @@ If user input arrives before this interval of time has elapsed after the
 last input, no documentation will be printed.
 
 If this variable is set to 0, no idle time is required."
-  :type 'number
-  :group 'eldoc)
+  :type 'number)
 
 (defcustom eldoc-print-after-edit nil
   "If non-nil eldoc info is only shown when editing.
 Changing the value requires toggling `eldoc-mode'."
-  :type 'boolean
-  :group 'eldoc)
+  :type 'boolean)
 
 ;;;###autoload
 (defcustom eldoc-minor-mode-string (purecopy " ElDoc")
   "String to display in mode line when ElDoc Mode is enabled; nil for none."
-  :type '(choice string (const :tag "None" nil))
-  :group 'eldoc)
+  :type '(choice string (const :tag "None" nil)))
 
 (defcustom eldoc-argument-case #'identity
   "Case to display argument names of functions, as a symbol.
@@ -83,8 +80,7 @@ Note that this variable has no effect, unless
 `eldoc-documentation-function' handles it explicitly."
   :type '(radio (function-item upcase)
 		(function-item downcase)
-                function)
-  :group 'eldoc)
+                function))
 (make-obsolete-variable 'eldoc-argument-case nil "25.1")
 
 (defcustom eldoc-echo-area-use-multiline-p 'truncate-sym-name-if-fit
@@ -107,15 +103,13 @@ Note that this variable has no effect, unless
   :type '(radio (const :tag "Always" t)
                 (const :tag "Never" nil)
                 (const :tag "Yes, but truncate symbol names if it will\
- enable argument list to fit on one line" truncate-sym-name-if-fit))
-  :group 'eldoc)
+ enable argument list to fit on one line" truncate-sym-name-if-fit)))
 
 (defface eldoc-highlight-function-argument
   '((t (:inherit bold)))
   "Face used for the argument at point in a function's argument list.
 Note that this face has no effect unless the `eldoc-documentation-function'
-handles it explicitly."
-  :group 'eldoc)
+handles it explicitly.")
 
 ;;; No user options below here.
 
@@ -177,17 +171,13 @@ printed after commands contained in this obarray."
 ;;;###autoload
 (define-minor-mode eldoc-mode
   "Toggle echo area display of Lisp objects at point (ElDoc mode).
-With a prefix argument ARG, enable ElDoc mode if ARG is positive,
-and disable it otherwise.  If called from Lisp, enable ElDoc mode
-if ARG is omitted or nil.
 
 ElDoc mode is a buffer-local minor mode.  When enabled, the echo
 area displays information about a function or variable in the
 text where point is.  If point is on a documented variable, it
 displays the first line of that variable's doc string.  Otherwise
 it displays the argument list of the function called in the
-expression point is on."
-  :group 'eldoc :lighter eldoc-minor-mode-string
+expression point is on." :lighter eldoc-minor-mode-string
   (setq eldoc-last-message nil)
   (cond
    ((not (eldoc--supported-p))
@@ -197,21 +187,37 @@ expression point is on."
    (eldoc-mode
     (when eldoc-print-after-edit
       (setq-local eldoc-message-commands (eldoc-edit-message-commands)))
-    (add-hook 'post-command-hook 'eldoc-schedule-timer nil t)
-    (add-hook 'pre-command-hook 'eldoc-pre-command-refresh-echo-area nil t))
+    (add-hook 'post-command-hook #'eldoc-schedule-timer nil t)
+    (add-hook 'pre-command-hook #'eldoc-pre-command-refresh-echo-area nil t))
    (t
     (kill-local-variable 'eldoc-message-commands)
-    (remove-hook 'post-command-hook 'eldoc-schedule-timer t)
-    (remove-hook 'pre-command-hook 'eldoc-pre-command-refresh-echo-area t)
+    (remove-hook 'post-command-hook #'eldoc-schedule-timer t)
+    (remove-hook 'pre-command-hook #'eldoc-pre-command-refresh-echo-area t)
     (when eldoc-timer
       (cancel-timer eldoc-timer)
       (setq eldoc-timer nil)))))
 
 ;;;###autoload
 (define-globalized-minor-mode global-eldoc-mode eldoc-mode turn-on-eldoc-mode
-  :group 'eldoc
   :initialize 'custom-initialize-delay
-  :init-value t)
+  :init-value t
+  ;; For `read--expression', the usual global mode mechanism of
+  ;; `change-major-mode-hook' runs in the minibuffer before
+  ;; `eldoc-documentation-function' is set, so `turn-on-eldoc-mode'
+  ;; does nothing.  Configure and enable eldoc from
+  ;; `eval-expression-minibuffer-setup-hook' instead.
+  (if global-eldoc-mode
+      (add-hook 'eval-expression-minibuffer-setup-hook
+                #'eldoc--eval-expression-setup)
+    (remove-hook 'eval-expression-minibuffer-setup-hook
+                 #'eldoc--eval-expression-setup)))
+
+(defun eldoc--eval-expression-setup ()
+  ;; Setup `eldoc', similar to `emacs-lisp-mode'.  FIXME: Call
+  ;; `emacs-lisp-mode' itself?
+  (add-hook 'eldoc-documentation-functions
+            #'elisp-eldoc-documentation-function nil t)
+  (eldoc-mode +1))
 
 ;;;###autoload
 (defun turn-on-eldoc-mode ()
@@ -219,10 +225,6 @@ expression point is on."
 See `eldoc-documentation-function' for more detail."
   (when (eldoc--supported-p)
     (eldoc-mode 1)))
-
-(defun eldoc--supported-p ()
-  "Non-nil if an ElDoc function is set for this buffer."
-  (not (memq eldoc-documentation-function '(nil ignore))))
 
 
 (defun eldoc-schedule-timer ()
@@ -256,7 +258,7 @@ Otherwise work like `message'."
       (progn
 	(add-hook 'minibuffer-exit-hook
 		  (lambda () (setq eldoc-mode-line-string nil
-			      ;; http://debbugs.gnu.org/16920
+			      ;; https://debbugs.gnu.org/16920
 			      eldoc-last-message nil))
 		  nil t)
 	(with-current-buffer
@@ -264,17 +266,18 @@ Otherwise work like `message'."
 	     (or (window-in-direction 'above (minibuffer-window))
 		 (minibuffer-selected-window)
 		 (get-largest-window)))
+    (when mode-line-format
 	  (unless (and (listp mode-line-format)
 		       (assq 'eldoc-mode-line-string mode-line-format))
 	    (setq mode-line-format
 		  (list "" '(eldoc-mode-line-string
 			     (" " eldoc-mode-line-string " "))
-			mode-line-format)))
+			mode-line-format))))
           (setq eldoc-mode-line-string
                 (when (stringp format-string)
                   (apply #'format-message format-string args)))
           (force-mode-line-update)))
-    (apply 'message format-string args)))
+    (apply #'message format-string args)))
 
 (defun eldoc-message (&optional string)
   "Display STRING as an ElDoc message if it's non-nil.
@@ -282,9 +285,7 @@ Otherwise work like `message'."
 Also store it in `eldoc-last-message' and return that value."
   (let ((omessage eldoc-last-message))
     (setq eldoc-last-message string)
-    ;; In emacs 19.29 and later, and XEmacs 19.13 and later, all messages
-    ;; are recorded in a log.  Do not put eldoc messages in that log since
-    ;; they are Legion.
+    ;; Do not put eldoc messages in the log since they are Legion.
     ;; Emacs way of preventing log messages.
     (let ((message-log-max nil))
       (cond (eldoc-last-message
@@ -297,12 +298,15 @@ Also store it in `eldoc-last-message' and return that value."
   (and (symbolp command)
        (intern-soft (symbol-name command) eldoc-message-commands)))
 
-;; This function goes on pre-command-hook for XEmacs or when using idle
-;; timers in Emacs.  Motion commands clear the echo area for some reason,
+;; This function goes on pre-command-hook.
+;; Motion commands clear the echo area for some reason,
 ;; which make eldoc messages flicker or disappear just before motion
 ;; begins.  This function reprints the last eldoc message immediately
 ;; before the next command executes, which does away with the flicker.
 ;; This doesn't seem to be required for Emacs 19.28 and earlier.
+;; FIXME: The above comment suggests we don't really understand why
+;; this is needed.  Maybe it's not needed any more, but if it is
+;; we should figure out why.
 (defun eldoc-pre-command-refresh-echo-area ()
   "Reprint `eldoc-last-message' in the echo area."
   (and eldoc-last-message
@@ -333,11 +337,49 @@ Also store it in `eldoc-last-message' and return that value."
   (not (or executing-kbd-macro (bound-and-true-p edebug-active))))
 
 
-;;;###autoload
-(defvar eldoc-documentation-function #'ignore
+(defvar eldoc-documentation-functions nil
+  "Hook for functions to call to return doc string.
+Each function should accept no arguments and return a one-line
+string for displaying doc about a function etc. appropriate to
+the context around point.  It should return nil if there's no doc
+appropriate for the context.  Typically doc is returned if point
+is on a function-like name or in its arg list.
+
+Major modes should modify this hook locally, for example:
+  (add-hook \\='eldoc-documentation-functions #\\='foo-mode-eldoc nil t)
+so that the global value (i.e. the default value of the hook) is
+taken into account if the major mode specific function does not
+return any documentation.")
+
+(defun eldoc-documentation-default ()
+  "Show first doc string for item at point.
+Default value for `eldoc-documentation-function'."
+  (let ((res (run-hook-with-args-until-success 'eldoc-documentation-functions)))
+    (when res
+      (if eldoc-echo-area-use-multiline-p res
+        (truncate-string-to-width
+         res (1- (window-width (minibuffer-window))))))))
+
+(defun eldoc-documentation-compose ()
+  "Show multiple doc string results at once.
+Meant as a value for `eldoc-documentation-function'."
+  (let (res)
+    (run-hook-wrapped
+     'eldoc-documentation-functions
+     (lambda (f)
+       (let ((str (funcall f)))
+         (when str (push str res))
+         nil)))
+    (when res
+      (setq res (mapconcat #'identity (nreverse res) ", "))
+      (if eldoc-echo-area-use-multiline-p res
+        (truncate-string-to-width
+         res (1- (window-width (minibuffer-window))))))))
+
+(defcustom eldoc-documentation-function #'eldoc-documentation-default
   "Function to call to return doc string.
 The function of no args should return a one-line string for displaying
-doc about a function etc. appropriate to the context around point.
+doc about a function etc.  appropriate to the context around point.
 It should return nil if there's no doc appropriate for the context.
 Typically doc is returned if point is on a function-like name or in its
 arg list.
@@ -345,26 +387,41 @@ arg list.
 The result is used as is, so the function must explicitly handle
 the variables `eldoc-argument-case' and `eldoc-echo-area-use-multiline-p',
 and the face `eldoc-highlight-function-argument', if they are to have any
-effect.
+effect."
+  :link '(info-link "(emacs) Lisp Doc")
+  :type '(radio (function-item eldoc-documentation-default)
+                (function-item eldoc-documentation-compose)
+                (function :tag "Other function"))
+  :version "28.1")
 
-Major modes should modify this variable using `add-function', for example:
-  (add-function :before-until (local \\='eldoc-documentation-function)
-                #\\='foo-mode-eldoc-function)
-so that the global documentation function (i.e. the default value of the
-variable) is taken into account if the major mode specific function does not
-return any documentation.")
+(defun eldoc--supported-p ()
+  "Non-nil if an ElDoc function is set for this buffer."
+  (and (not (memq eldoc-documentation-function '(nil ignore)))
+       (or eldoc-documentation-functions
+           ;; The old API had major modes set `eldoc-documentation-function'
+           ;; to provide eldoc support.  It's impossible now to determine
+           ;; reliably whether the `eldoc-documentation-function' provides
+           ;; eldoc support (as in the old API) or whether it just provides
+           ;; a way to combine the results of the
+           ;; `eldoc-documentation-functions' (as in the new API).
+           ;; But at least if it's set buffer-locally it's a good hint that
+           ;; there's some eldoc support in the current buffer.
+           (local-variable-p 'eldoc-documentation-function))))
 
 (defun eldoc-print-current-symbol-info ()
   "Print the text produced by `eldoc-documentation-function'."
   ;; This is run from post-command-hook or some idle timer thing,
   ;; so we need to be careful that errors aren't ignored.
   (with-demoted-errors "eldoc error: %s"
-    (and (or (eldoc-display-message-p)
-             ;; Erase the last message if we won't display a new one.
-             (when eldoc-last-message
-               (eldoc-message nil)
-               nil))
-	 (eldoc-message (funcall eldoc-documentation-function)))))
+    (if (not (eldoc-display-message-p))
+        ;; Erase the last message if we won't display a new one.
+        (when eldoc-last-message
+          (eldoc-message nil))
+      (let ((non-essential t))
+        ;; Only keep looking for the info as long as the user hasn't
+        ;; requested our attention.  This also locally disables inhibit-quit.
+        (while-no-input
+          (eldoc-message (funcall eldoc-documentation-function)))))))
 
 ;; If the entire line cannot fit in the echo area, the symbol name may be
 ;; truncated or eliminated entirely from the output to make room for the

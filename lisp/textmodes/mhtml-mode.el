@@ -1,6 +1,6 @@
 ;;; mhtml-mode.el --- HTML editing mode that handles CSS and JS -*- lexical-binding:t -*-
 
-;; Copyright (C) 2017 Free Software Foundation, Inc.
+;; Copyright (C) 2017-2020 Free Software Foundation, Inc.
 
 ;; Keywords: wp, hypermedia, comm, languages
 
@@ -17,17 +17,15 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Code:
 
-(eval-and-compile
-  (require 'flyspell)
-  (require 'sgml-mode))
+(eval-when-compile (require 'cl-lib))
+(require 'sgml-mode)
 (require 'js)
 (require 'css-mode)
 (require 'prog-mode)
-(require 'font-lock)
 
 (defcustom mhtml-tag-relative-indent t
   "How <script> and <style> bodies are indented relative to the tag.
@@ -75,11 +73,11 @@ code();
 
 (defconst mhtml--crucial-variable-prefix
   (regexp-opt '("comment-" "uncomment-" "electric-indent-"
-                "smie-" "forward-sexp-function"))
+                "smie-" "forward-sexp-function" "completion-" "major-mode"))
   "Regexp matching the prefix of \"crucial\" buffer-locals we want to capture.")
 
 (defconst mhtml--variable-prefix
-  (regexp-opt '("font-lock-" "indent-line-function" "major-mode"))
+  (regexp-opt '("font-lock-" "indent-line-function"))
   "Regexp matching the prefix of buffer-locals we want to capture.")
 
 (defun mhtml--construct-submode (mode &rest args)
@@ -149,52 +147,15 @@ code();
 
 (defun mhtml--submode-lighter ()
   "Mode-line lighter indicating the current submode."
-  (let ((submode (get-text-property (point) 'mhtml-submode)))
+  ;; The end of the buffer has no text properties, so in this case
+  ;; back up one character, if possible.
+  (let* ((where (if (and (eobp) (not (bobp)))
+                    (1- (point))
+                  (point)))
+         (submode (get-text-property where 'mhtml-submode)))
     (if submode
         (mhtml--submode-name submode)
       "")))
-
-(defvar font-lock-beg)
-(defvar font-lock-end)
-
-(defun mhtml--extend-font-lock-region ()
-  "Extend the font lock region according to HTML sub-mode needs.
-
-This is used via `font-lock-extend-region-functions'.  It ensures
-that the font-lock region is extended to cover either whole
-lines, or to the spot where the submode changes, whichever is
-smallest."
-  (let ((orig-beg font-lock-beg)
-        (orig-end font-lock-end))
-    ;; The logic here may look odd but it is needed to ensure that we
-    ;; do the right thing when trying to limit the search.
-    (save-excursion
-      (goto-char font-lock-beg)
-      ;; previous-single-property-change starts by looking at the
-      ;; previous character, but we're trying to extend a region to
-      ;; include just characters with the same submode as this
-      ;; character.
-      (unless (eobp)
-        (forward-char))
-      (setq font-lock-beg (previous-single-property-change
-                           (point) 'mhtml-submode nil
-                           (line-beginning-position)))
-      (unless (eq (get-text-property font-lock-beg 'mhtml-submode)
-                  (get-text-property orig-beg 'mhtml-submode))
-        (cl-incf font-lock-beg))
-
-      (goto-char font-lock-end)
-      (unless (bobp)
-        (backward-char))
-      (setq font-lock-end (next-single-property-change
-                           (point) 'mhtml-submode nil
-                           (line-beginning-position 2)))
-      (unless (eq (get-text-property font-lock-end 'mhtml-submode)
-                  (get-text-property orig-end 'mhtml-submode))
-        (cl-decf font-lock-end)))
-
-    (or (/= font-lock-beg orig-beg)
-        (/= font-lock-end orig-end))))
 
 (defun mhtml--submode-fontify-one-region (submode beg end &optional loudly)
   (if submode
@@ -232,8 +193,8 @@ smallest."
       (cons 'jit-lock-bounds (cons new-beg new-end)))))
 
 (defvar-local mhtml--last-submode nil
-  "Record the last visited submode, so the cursor-sensor function
-can function properly.")
+  "Record the last visited submode.
+This is used by `mhtml--pre-command'.")
 
 (defvar-local mhtml--stashed-crucial-variables nil
   "Alist of stashed values of the crucial variables.")
@@ -277,6 +238,22 @@ can function properly.")
   (funcall (mhtml--submode-propertize submode) (point) end)
   (goto-char end))
 
+(defvar mhtml--syntax-propertize
+  (syntax-propertize-rules
+   ("<style.*?>"
+    (0 (ignore
+        (goto-char (match-end 0))
+        ;; Don't apply in a comment.
+        (unless (syntax-ppss-context (syntax-ppss))
+          (mhtml--syntax-propertize-submode mhtml--css-submode end)))))
+   ("<script.*?>"
+    (0 (ignore
+        (goto-char (match-end 0))
+        ;; Don't apply in a comment.
+        (unless (syntax-ppss-context (syntax-ppss))
+          (mhtml--syntax-propertize-submode mhtml--js-submode end)))))
+   sgml-syntax-propertize-rules))
+
 (defun mhtml-syntax-propertize (start end)
   ;; First remove our special settings from the affected text.  They
   ;; will be re-applied as needed.
@@ -288,29 +265,8 @@ can function properly.")
   (unless (bobp)
     (let ((submode (get-text-property (1- (point)) 'mhtml-submode)))
       (if submode
-          ;; Don't search in a comment or string
-          (unless (syntax-ppss-context (syntax-ppss))
-            (mhtml--syntax-propertize-submode submode end))
-        ;; No submode, so do what sgml-mode does.
-        (sgml-syntax-propertize-inside end))))
-  (funcall
-   (syntax-propertize-rules
-    ("<style.*?>"
-     (0 (ignore
-         (goto-char (match-end 0))
-         ;; Don't apply in a comment.
-         (unless (syntax-ppss-context (syntax-ppss))
-           (mhtml--syntax-propertize-submode mhtml--css-submode end)))))
-    ("<script.*?>"
-     (0 (ignore
-         (goto-char (match-end 0))
-         ;; Don't apply in a comment.
-         (unless (syntax-ppss-context (syntax-ppss))
-           (mhtml--syntax-propertize-submode mhtml--js-submode end)))))
-    sgml-syntax-propertize-rules)
-   ;; Make sure to handle the situation where
-   ;; mhtml--syntax-propertize-submode moved point.
-   (point) end))
+          (mhtml--syntax-propertize-submode submode end))))
+  (sgml-syntax-propertize (point) end mhtml--syntax-propertize))
 
 (defun mhtml-indent-line ()
   "Indent the current line as HTML, JS, or CSS, according to its context."
@@ -332,15 +288,15 @@ can function properly.")
              ((eq mhtml-tag-relative-indent 'ignore)
               (setq base-indent 0)))
             (narrow-to-region region-start (point-max))
-            (let ((prog-indentation-context (list base-indent
-                                                  (cons (point-min) nil)
-                                                  nil)))
+            (let ((prog-indentation-context (list base-indent)))
               (mhtml--with-locals submode
                 ;; indent-line-function was rebound by
                 ;; mhtml--with-locals.
                 (funcall indent-line-function)))))
       ;; HTML.
       (sgml-indent-line))))
+
+(declare-function flyspell-generic-progmode-verify "flyspell")
 
 (defun mhtml--flyspell-check-word ()
   (let ((submode (get-text-property (point) 'mhtml-submode)))
@@ -356,15 +312,10 @@ can function properly.")
 Code inside a <script> element is indented using the rules from
 `js-mode'; and code inside a <style> element is indented using
 the rules from `css-mode'."
-  (cursor-sensor-mode)
   (setq-local indent-line-function #'mhtml-indent-line)
-  (setq-local parse-sexp-lookup-properties t)
   (setq-local syntax-propertize-function #'mhtml-syntax-propertize)
   (setq-local font-lock-fontify-region-function
               #'mhtml--submode-fontify-region)
-  (setq-local font-lock-extend-region-functions
-              '(mhtml--extend-font-lock-region
-                font-lock-extend-region-multiline))
 
   ;; Attach this to both pre- and post- hooks just in case it ever
   ;; changes a key binding that might be accessed from the menu bar.

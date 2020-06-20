@@ -1,10 +1,10 @@
 ;;; cwarn.el --- highlight suspicious C and C++ constructions
 
-;; Copyright (C) 1999-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1999-2020 Free Software Foundation, Inc.
 
 ;; Author: Anders Lindgren
 ;; Keywords: c, languages, faces
-;; Version: 1.3.1
+;; Old-Version: 1.3.1
 
 ;; This file is part of GNU Emacs.
 
@@ -19,7 +19,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -168,6 +168,8 @@ deactivated."
   :tag "Load Hook"
   :group 'cwarn
   :type 'hook)
+(make-obsolete-variable 'cwarn-load-hook
+                        "use `with-eval-after-load' instead." "28.1")
 
 ;;}}}
 ;;{{{ The modes
@@ -180,11 +182,7 @@ Suspicious constructs are highlighted using `font-lock-warning-face'.
 
 Note, in addition to enabling this minor mode, the major mode must
 be included in the variable `cwarn-configuration'.  By default C and
-C++ modes are included.
-
-With a prefix argument ARG, enable the mode if ARG is positive,
-and disable it otherwise.  If called from Lisp, enable the mode
-if ARG is omitted or nil."
+C++ modes are included."
   :group 'cwarn :lighter cwarn-mode-text
   (cwarn-font-lock-keywords cwarn-mode)
   (font-lock-flush))

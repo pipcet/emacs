@@ -1,6 +1,6 @@
 ;;; complete.el --- partial completion mechanism plus other goodies
 
-;; Copyright (C) 1990-1993, 1999-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1990-1993, 1999-2020 Free Software Foundation, Inc.
 
 ;; Author: Dave Gillespie <daveg@synaptics.com>
 ;; Keywords: abbrev convenience
@@ -21,7 +21,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -191,7 +191,6 @@ If nil, means use the colon-separated path in the variable $INCPATH instead."
 ;;;###autoload
 (define-minor-mode partial-completion-mode
   "Toggle Partial Completion mode.
-With prefix ARG, turn Partial Completion mode on if ARG is positive.
 
 When Partial Completion mode is enabled, TAB (or M-TAB if `PC-meta-flag' is
 nil) is enhanced so that if some string is divided into words and each word is
@@ -833,9 +832,12 @@ GOTO-END is non-nil, however, it instead replaces up to END."
                           ;;
                           ;; Note that choose-completion-string-functions
                           ;; plays around with point.
-                          (setq completion-base-size (if dirname
-                                                         dirlength
-                                                       (- beg prompt-end))))))
+                          (with-suppressed-warnings ((obsolete
+                                                      completion-base-size))
+                            (setq completion-base-size
+                                  (if dirname
+                                      dirlength
+                                    (- beg prompt-end)))))))
                              (PC-temp-minibuffer-message " [Next char not unique]"))
                          ;; Expansion of filenames is not reversible,
                          ;; so just keep the prefix.
@@ -924,7 +926,7 @@ or properties are considered."
 			(or (boundp sym) (fboundp sym)
 			    (symbol-plist sym))))))
 	 (PC-not-minibuffer t))
-    ;; http://lists.gnu.org/archive/html/emacs-devel/2007-03/msg01211.html
+    ;; https://lists.gnu.org/r/emacs-devel/2007-03/msg01211.html
     ;;
     ;; This deals with cases like running PC-l-c-s on "M-: (n-f".
     ;; The first call to PC-l-c-s expands this to "(ne-f", and moves

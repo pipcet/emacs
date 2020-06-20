@@ -1,6 +1,6 @@
 ;;; latin-alt.el --- Quail package for inputting various European characters -*-coding: utf-8;-*-
 
-;; Copyright (C) 1997-1998, 2001-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1997-1998, 2001-2020 Free Software Foundation, Inc.
 ;; Copyright (C) 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007,
 ;;   2008, 2009, 2010, 2011
 ;;   National Institute of Advanced Industrial Science and Technology (AIST)
@@ -21,7 +21,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;; Author (of latin-post.el): TAKAHASHI Naoto <ntakahas@etl.go.jp>
 
@@ -1156,7 +1156,7 @@ Caters for French and Dutch.
 
              |         | examples
  ------------+---------+----------
-  others     |         | fl. -> ƒ  eur. -> €  ij -> ĳ  IJ -> Ĳ
+  others     |         | fl. -> ƒ  eur. -> €
  ------------+---------+----------
              | postfix |
  ------------+---------+----------

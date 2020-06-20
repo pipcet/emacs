@@ -1,10 +1,10 @@
 ;;; ox-odt.el --- OpenDocument Text Exporter for Org Mode -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2010-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2010-2020 Free Software Foundation, Inc.
 
 ;; Author: Jambunathan K <kjambunathan at gmail dot com>
 ;; Keywords: outlines, hypermedia, calendar, wp
-;; Homepage: http://orgmode.org
+;; Homepage: https://orgmode.org
 
 ;; This file is part of GNU Emacs.
 
@@ -19,7 +19,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -27,8 +27,9 @@
 
 (require 'cl-lib)
 (require 'format-spec)
-(require 'ox)
 (require 'org-compat)
+(require 'org-macs)
+(require 'ox)
 (require 'table nil 'noerror)
 
 ;;; Define Back-End
@@ -85,7 +86,8 @@
   :filters-alist '((:filter-parse-tree
 		    . (org-odt--translate-latex-fragments
 		       org-odt--translate-description-lists
-		       org-odt--translate-list-tables)))
+		       org-odt--translate-list-tables
+		       org-odt--translate-image-links)))
   :menu-entry
   '(?o "Export to ODT"
        ((?o "As ODT file" org-odt-export-to-odt)
@@ -112,7 +114,9 @@
     (:odt-table-styles nil nil org-odt-table-styles)
     (:odt-use-date-fields nil nil org-odt-use-date-fields)
     ;; Redefine regular option.
-    (:with-latex nil "tex" org-odt-with-latex)))
+    (:with-latex nil "tex" org-odt-with-latex)
+    ;; Retrieve LaTeX header for fragments.
+    (:latex-header "LATEX_HEADER" nil nil newline)))
 
 
 ;;; Dependencies
@@ -144,8 +148,7 @@
 Use this to infer values of `org-odt-styles-dir' and
 `org-odt-schema-dir'.")
 
-(defvar org-odt-data-dir
-  (expand-file-name "../../etc/" org-odt-lib-dir)
+(defvar org-odt-data-dir (expand-file-name "../../etc/" org-odt-lib-dir)
   "Data directory for ODT exporter.
 Use this to infer values of `org-odt-styles-dir' and
 `org-odt-schema-dir'.")
@@ -158,25 +161,17 @@ Use this to infer values of `org-odt-styles-dir' and
   "Regular expressions for special string conversion.")
 
 (defconst org-odt-schema-dir-list
-  (list
-   (and org-odt-data-dir
-	(expand-file-name "./schema/" org-odt-data-dir)) ; bail out
-   (eval-when-compile
-     (and (boundp 'org-odt-data-dir) org-odt-data-dir ; see make install
-	  (expand-file-name "./schema/" org-odt-data-dir))))
+  (list (expand-file-name "./schema/" org-odt-data-dir))
   "List of directories to search for OpenDocument schema files.
-Use this list to set the default value of
-`org-odt-schema-dir'.  The entries in this list are
-populated heuristically based on the values of `org-odt-lib-dir'
-and `org-odt-data-dir'.")
+Use this list to set the default value of `org-odt-schema-dir'.
+The entries in this list are populated heuristically based on the
+values of `org-odt-lib-dir' and `org-odt-data-dir'.")
 
 (defconst org-odt-styles-dir-list
   (list
    (and org-odt-data-dir
 	(expand-file-name "./styles/" org-odt-data-dir)) ; bail out
-   (eval-when-compile
-     (and (boundp 'org-odt-data-dir) org-odt-data-dir ; see make install
-	  (expand-file-name "./styles/" org-odt-data-dir)))
+   (expand-file-name "./styles/" org-odt-data-dir)
    (expand-file-name "../etc/styles/" org-odt-lib-dir) ; git
    (expand-file-name "./etc/styles/" org-odt-lib-dir)  ; elpa
    (expand-file-name "./org/" data-directory)	       ; system
@@ -597,8 +592,7 @@ allow document of a given class (irrespective of its source
 format) to be converted to any of the export formats associated
 with that class.
 
-See default setting of this variable for an typical
-configuration."
+See default setting of this variable for a typical configuration."
   :group 'org-export-odt
   :version "24.1"
   :type
@@ -653,7 +647,7 @@ The function should return the string to be exported.
 
 The default value simply returns the value of CONTENTS."
   :group 'org-export-odt
-  :version "24.4"
+  :version "26.1"
   :package-version '(Org . "8.3")
   :type 'function)
 
@@ -718,16 +712,17 @@ nil            Ignore math snippets.
                imagemagick to convert pdf files to png files.
 `mathjax'      Do MathJax preprocessing and arrange for MathJax.js to
                be loaded.
-t              Synonym for `mathjax'."
+
+Any other symbol is a synonym for `mathjax'."
   :group 'org-export-odt
   :version "24.4"
   :package-version '(Org . "8.0")
   :type '(choice
 	  (const :tag "Do not process math in any way" nil)
+	  (const :tag "Leave math verbatim" verbatim)
 	  (const :tag "Use dvipng to make images" dvipng)
 	  (const :tag "Use imagemagick to make images" imagemagick)
-	  (const :tag "Use MathJax to display math" mathjax)
-	  (const :tag "Leave math verbatim" verbatim)))
+	  (other :tag "Use MathJax to display math" mathjax)))
 
 
 ;;;; Links
@@ -819,7 +814,7 @@ form (TABLE-STYLE-NAME TABLE-TEMPLATE-NAME TABLE-CELL-OPTIONS).
 TABLE-STYLE-NAME is the style associated with the table through
 \"#+ATTR_ODT: :style TABLE-STYLE-NAME\" line.
 
-TABLE-TEMPLATE-NAME is a set of - upto 9 - automatic
+TABLE-TEMPLATE-NAME is a set of - up to 9 - automatic
 TABLE-CELL-STYLE-NAMEs and PARAGRAPH-STYLE-NAMEs (as defined
 below) that is included in `org-odt-content-template-file'.
 
@@ -945,7 +940,7 @@ See `org-odt--build-date-styles' for implementation details."
 	 (has-time-p (or (not timestamp)
 			 (org-timestamp-has-time-p timestamp)))
 	 (iso-date (let ((format (if has-time-p "%Y-%m-%dT%H:%M:%S"
-				   "%Y-%m-%dT%H:%M:%S")))
+				   "%Y-%m-%d")))
 		     (funcall format-timestamp timestamp format end))))
     (if iso-date-p iso-date
       (let* ((style (if has-time-p "OrgDate2" "OrgDate1"))
@@ -1156,12 +1151,8 @@ table of contents as a string, or nil."
   ;; Likewise, links, footnote references and regular targets are also
   ;; suppressed.
   (let* ((headlines (org-export-collect-headlines info depth scope))
-	 (backend (org-export-create-backend
-		   :parent (org-export-backend-name (plist-get info :back-end))
-		   :transcoders '((footnote-reference . ignore)
-				  (link . (lambda (object c i) c))
-				  (radio-target . (lambda (object c i) c))
-				  (target . ignore)))))
+	 (backend (org-export-toc-entry-backend
+		      (org-export-backend-name (plist-get info :back-end)))))
     (when headlines
       (org-odt--format-toc
        (and (not scope) (org-export-translate "Table of Contents" :utf-8 info))
@@ -1358,17 +1349,18 @@ original parsed data.  INFO is a plist holding export options."
   ;; Update styles file.
   ;; Copy styles.xml.  Also dump htmlfontify styles, if there is any.
   ;; Write styles file.
-  (let* ((styles-file (plist-get info :odt-styles-file))
-	 (styles-file (and (org-string-nw-p styles-file)
-			   (read (org-trim styles-file))))
-	 ;; Non-availability of styles.xml is not a critical
-	 ;; error. For now, throw an error.
-	 (styles-file (or styles-file
-			  (plist-get info :odt-styles-file)
-			  (expand-file-name "OrgOdtStyles.xml"
-					    org-odt-styles-dir)
-			  (error "org-odt: Missing styles file?"))))
+  (let* ((styles-file
+	  (pcase (plist-get info :odt-styles-file)
+	    (`nil (expand-file-name "OrgOdtStyles.xml" org-odt-styles-dir))
+	    ((and s (pred (string-match-p "\\`(.*)\\'")))
+	     (condition-case nil
+		 (read s)
+	       (error (user-error "Invalid styles file specification: %S" s))))
+	    (filename (org-strip-quotes filename)))))
     (cond
+     ;; Non-availability of styles.xml is not a critical error.  For
+     ;; now, throw an error.
+     ((null styles-file) (error "Missing styles file"))
      ((listp styles-file)
       (let ((archive (nth 0 styles-file))
 	    (members (nth 1 styles-file)))
@@ -1378,7 +1370,7 @@ original parsed data.  INFO is a plist holding export options."
 	    (let* ((image-type (file-name-extension member))
 		   (media-type (format "image/%s" image-type)))
 	      (org-odt-create-manifest-file-entry media-type member))))))
-     ((and (stringp styles-file) (file-exists-p styles-file))
+     ((file-exists-p styles-file)
       (let ((styles-file-type (file-name-extension styles-file)))
 	(cond
 	 ((string= styles-file-type "xml")
@@ -1422,7 +1414,7 @@ original parsed data.  INFO is a plist holding export options."
       ;; the resulting odt file.
       (setq-local backup-inhibited t)
 
-      ;; Outline numbering is retained only upto LEVEL.
+      ;; Outline numbering is retained only up to LEVEL.
       ;; To disable outline numbering pass a LEVEL of 0.
 
       (goto-char (point-min))
@@ -1868,7 +1860,7 @@ See `org-odt-format-headline-function' for details."
      (let ((style (if (eq todo-type 'done) "OrgDone" "OrgTodo")))
        (format "<text:span text:style-name=\"%s\">%s</text:span> " style todo)))
    (when priority
-     (let* ((style (format "OrgPriority-%s" priority))
+     (let* ((style (format "OrgPriority-%c" priority))
 	    (priority (format "[#%c]" priority)))
        (format "<text:span text:style-name=\"%s\">%s</text:span> "
 	       style priority)))
@@ -1938,7 +1930,7 @@ holding contextual information."
 
 (defun org-odt-format-inlinetask-default-function
   (todo todo-type priority name tags contents)
-  "Default format function for a inlinetasks.
+  "Default format function for inlinetasks.
 See `org-odt-format-inlinetask-function' for details."
   (format "\n<text:p text:style-name=\"%s\">%s</text:p>"
 	  "Text_20_body"
@@ -1968,10 +1960,12 @@ contextual information."
 CONTENTS holds the contents of the item.  INFO is a plist holding
 contextual information."
   (let* ((plain-list (org-export-get-parent item))
+	 (count (org-element-property :counter item))
 	 (type (org-element-property :type plain-list)))
     (unless (memq type '(ordered unordered descriptive-1 descriptive-2))
       (error "Unknown list type: %S" type))
-    (format "\n<text:list-item>\n%s\n%s"
+    (format "\n<text:list-item%s>\n%s\n%s"
+	    (if count (format " text:start-value=\"%s\"" count) "")
 	    contents
 	    (if (org-element-map item 'table #'identity info 'first-match)
 		"</text:list-header>"
@@ -1997,8 +1991,13 @@ information."
 	  (let ((depth (or (and (string-match "\\<[0-9]+\\>" value)
 				(string-to-number (match-string 0 value)))
 			   (plist-get info :headline-levels)))
-		(localp (string-match-p "\\<local\\>" value)))
-	    (org-odt-toc depth info (and localp keyword))))
+		(scope
+		 (cond
+		  ((string-match ":target +\\(\".+?\"\\|\\S-+\\)" value) ;link
+		   (org-export-resolve-link
+		    (org-strip-quotes (match-string 1 value)) info))
+		  ((string-match-p "\\<local\\>" value) keyword)))) ;local
+	    (org-odt-toc depth info scope)))
 	 ((string-match-p "tables\\|figures\\|listings" value)
 	  ;; FIXME
 	  (ignore))))))))
@@ -2175,7 +2174,7 @@ SHORT-CAPTION are strings."
 ;;;; Links :: Inline Images
 
 (defun org-odt--copy-image-file (path)
-  "Returns the internal name of the file"
+  "Return the internal name of the file"
   (let* ((image-type (file-name-extension path))
 	 (media-type (format "image/%s" image-type))
 	 (target-dir "Images/")
@@ -2192,6 +2191,10 @@ SHORT-CAPTION are strings."
     (copy-file path (concat org-odt-zip-dir target-file) 'overwrite)
     (org-odt-create-manifest-file-entry media-type target-file)
     target-file))
+
+;; For --without-x builds.
+(declare-function clear-image-cache "image.c" (&optional filter))
+(declare-function image-size "image.c" (spec &optional pixels frame))
 
 (defun org-odt--image-size
   (file info &optional user-width user-height scale dpi embed-as)
@@ -2376,7 +2379,7 @@ used as a communication channel."
 	(concat equation "<text:tab/>" label))))))
 
 (defun org-odt--copy-formula-file (src-file)
-  "Returns the internal name of the file"
+  "Return the internal name of the file"
   (let* ((target-dir (format "Formula-%04d/"
 			     (cl-incf org-odt-embedded-formulas-count)))
 	 (target-file (concat target-dir "content.xml")))
@@ -3141,7 +3144,7 @@ and prefix with \"OrgSrc\".  For example,
 	 (code-info (org-export-unravel-code element))
 	 (code (car code-info))
 	 (refs (cdr code-info))
-	 ;; Does the src block contain labels?
+	 ;; Does the source block contain labels?
 	 (retain-labels (org-element-property :retain-labels element))
 	 ;; Does it have line numbers?
 	 (num-start (org-export-get-loc element info)))
@@ -3238,7 +3241,7 @@ styles congruent with the ODF-1.2 specification."
     (when style-spec
       ;; LibreOffice - particularly the Writer - honors neither table
       ;; templates nor custom table-cell styles.  Inorder to retain
-      ;; inter-operability with LibreOffice, only automatic styles are
+      ;; interoperability with LibreOffice, only automatic styles are
       ;; used for styling of table-cells.  The current implementation is
       ;; congruent with ODF-1.2 specification and hence is
       ;; future-compatible.
@@ -3680,6 +3683,11 @@ contextual information."
 
 ;;; Filters
 
+;;; Images
+
+(defun org-odt--translate-image-links (data _backend info)
+  (org-export-insert-image-links data info org-odt-inline-image-rules))
+
 ;;;; LaTeX fragments
 
 (defun org-odt--translate-latex-fragments (tree _backend info)
@@ -3731,42 +3739,46 @@ contextual information."
 		    (mathml (format "Creating MathML snippet %d..." count))))
 		 ;; Get an Org-style link to PNG image or the MathML
 		 ;; file.
-		 (org-link
-		  (let ((link (with-temp-buffer
-				(insert latex-frag)
-				(org-format-latex cache-subdir nil nil cache-dir
-						  nil display-msg nil
-						  processing-type)
-				(buffer-substring-no-properties
-				 (point-min) (point-max)))))
-		    (if (string-match-p "file:\\([^]]*\\)" link) link
-		      (message "LaTeX Conversion failed.")
-		      nil))))
-	    (when org-link
+		 (link
+		  (with-temp-buffer
+		    (insert latex-frag)
+		    ;; When converting to a PNG image, make sure to
+		    ;; copy all LaTeX header specifications from the
+		    ;; Org source.
+		    (unless (eq processing-type 'mathml)
+		      (let ((h (plist-get info :latex-header)))
+			(when h
+			  (insert "\n"
+				  (replace-regexp-in-string
+				   "^" "#+LATEX_HEADER: " h)))))
+		    (org-format-latex cache-subdir nil nil cache-dir
+				      nil display-msg nil
+				      processing-type)
+		    (goto-char (point-min))
+		    (skip-chars-forward " \t\n")
+		    (org-element-link-parser))))
+	    (if (not (eq 'link (org-element-type link)))
+		(message "LaTeX Conversion failed.")
 	      ;; Conversion succeeded.  Parse above Org-style link to
 	      ;; a `link' object.
-	      (let* ((link
-		      (org-element-map
-			  (org-element-parse-secondary-string org-link '(link))
-			  'link #'identity info t))
-		     (replacement
-		      (cl-case (org-element-type latex-*)
-			;; Case 1: LaTeX environment.  Mimic
-			;; a "standalone image or formula" by
-			;; enclosing the `link' in a `paragraph'.
-			;; Copy over original attributes, captions to
-			;; the enclosing paragraph.
-			(latex-environment
-			 (org-element-adopt-elements
-			  (list 'paragraph
-				(list :style "OrgFormula"
-				      :name
-				      (org-element-property :name latex-*)
-				      :caption
-				      (org-element-property :caption latex-*)))
-			  link))
-			;; Case 2: LaTeX fragment.  No special action.
-			(latex-fragment link))))
+	      (let ((replacement
+		     (cl-case (org-element-type latex-*)
+		       ;;LaTeX environment.  Mimic a "standalone image
+		       ;; or formula" by enclosing the `link' in
+		       ;; a `paragraph'.  Copy over original
+		       ;; attributes, captions to the enclosing
+		       ;; paragraph.
+		       (latex-environment
+			(org-element-adopt-elements
+			 (list 'paragraph
+			       (list :style "OrgFormula"
+				     :name
+				     (org-element-property :name latex-*)
+				     :caption
+				     (org-element-property :caption latex-*)))
+			 link))
+		       ;; LaTeX fragment.  No special action.
+		       (latex-fragment link))))
 		;; Note down the object that link replaces.
 		(org-element-put-property replacement :replaces
 					  (list (org-element-type latex-*)
@@ -3878,7 +3890,7 @@ contextual information."
 ;; themselves and the list can be arbitrarily deep.
 ;;
 ;; Inspired by following thread:
-;; https://lists.gnu.org/archive/html/emacs-orgmode/2011-03/msg01101.html
+;; https://lists.gnu.org/r/emacs-orgmode/2011-03/msg01101.html
 
 ;; Translate lists to tables
 

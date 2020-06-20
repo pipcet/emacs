@@ -1,6 +1,6 @@
 ;;; gv-tests.el --- tests for gv.el  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2017 Free Software Foundation, Inc.
+;; Copyright (C) 2017-2020 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -15,10 +15,11 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Code:
 
+(require 'edebug)
 (require 'ert)
 (eval-when-compile (require 'cl-lib))
 
@@ -136,6 +137,24 @@
                                              (message "%d" (car gv-test-pair)))))
       (should (equal (buffer-string)
                      "Symbol's function definition is void: \\(setf\\ gv-test-foo\\)\n")))))
+
+(ert-deftest gv-setter-edebug ()
+  "Check that a setter can be defined and edebugged together with
+its getter (Bug#41853)."
+  (with-temp-buffer
+    (let ((edebug-all-defs t)
+          (edebug-initial-mode 'Go-nonstop))
+      (dolist (form '((defun gv-setter-edebug-help (b) b)
+                      (defun gv-setter-edebug-get (a b)
+                        (get a (gv-setter-edebug-help b)))
+                      (gv-define-setter gv-setter-edebug-get (x a b)
+                        `(setf (get ,a (gv-setter-edebug-help ,b)) ,x))
+                      (push 123 (gv-setter-edebug-get 'gv-setter-edebug
+                                                      'gv-setter-edebug-prop))))
+        (print form (current-buffer)))
+      ;; Only check whether evaluation works in general.
+      (eval-buffer)))
+  (should (equal (get 'gv-setter-edebug 'gv-setter-edebug-prop) '(123))))
 
 ;; `ert-deftest' messes up macroexpansion when the test file itself is
 ;; compiled (see Bug #24402).

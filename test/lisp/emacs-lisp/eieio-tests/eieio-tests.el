@@ -1,6 +1,6 @@
-;;; eieio-tests.el -- eieio tests routines
+;;; eieio-tests.el -- eieio test routines -*- lexical-binding: t -*-
 
-;; Copyright (C) 1999-2003, 2005-2010, 2012-2017 Free Software
+;; Copyright (C) 1999-2003, 2005-2010, 2012-2020 Free Software
 ;; Foundation, Inc.
 
 ;; Author: Eric M. Ludlam <zappo@gnu.org>
@@ -18,7 +18,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 ;;
@@ -356,7 +356,7 @@ METHOD is the method that was attempting to be called."
     (oset a test-tag 1))
 
   (let ((ca (class-a)))
-    (should-not (/=  (oref ca test-tag) 2))))
+    (should (= (oref ca test-tag) 2))))
 
 
 ;;; Perform slot testing
@@ -689,12 +689,23 @@ Do not override for `prot-2'."
 (defvar eitest-II2 nil)
 (defvar eitest-II3 nil)
 (ert-deftest eieio-test-29-instance-inheritor ()
-  (setq eitest-II1 (II "II Test."))
+  (setq eitest-II1 (II))
   (oset eitest-II1 slot2 'cat)
   (setq eitest-II2 (clone eitest-II1 "eitest-II2 Test."))
   (oset eitest-II2 slot1 'moose)
   (setq eitest-II3 (clone eitest-II2 "eitest-II3 Test."))
   (oset eitest-II3 slot3 'penguin)
+
+  ;; Test that slots are non-initialized slots are unbounded
+  (oref eitest-II2 slot1)
+  (should (slot-boundp eitest-II2 'slot1))
+  (should-not (slot-boundp eitest-II2 'slot2))
+  (should-not (slot-boundp eitest-II2 'slot3))
+  (should-not (slot-boundp eitest-II3 'slot2))
+  (should-not (slot-boundp eitest-II3 'slot1))
+  (should-not (slot-boundp eitest-II3 'slot2))
+  (should (eieio-instance-inheritor-slot-boundp eitest-II3 'slot2))
+  (should (slot-boundp eitest-II3 'slot3))
 
   ;; Test level 1 inheritance
   (should (eq (oref eitest-II3 slot1) 'moose))
@@ -841,6 +852,7 @@ Subclasses to override slot attributes.")
   "Instance Tracker test object.")
 
 (ert-deftest eieio-test-33-instance-tracker ()
+  (defvar IT-list)
   (let (IT-list IT1)
     (should (setq IT1 (IT)))
     ;; The instance tracker must find this
@@ -862,8 +874,7 @@ Subclasses to override slot attributes.")
     (should (oref obj1 a-slot))))
 
 (defclass NAMED (eieio-named)
-  ((some-slot :initform nil)
-   )
+  ((some-slot :initform nil))
   "A class inheriting from eieio-named.")
 
 (ert-deftest eieio-test-35-named-object ()
@@ -893,14 +904,56 @@ Subclasses to override slot attributes.")
   (list newname 2))
 
 (ert-deftest eieio-test-37-obsolete-name-in-constructor ()
-  ;; FIXME repeated intermittent failures on hydra (bug#24503)
-  (skip-unless (not (getenv "EMACS_HYDRA_CI")))
+  ;; FIXME repeated intermittent failures on hydra and elsewhere (bug#24503).
+  :tags '(:unstable)
   (should (equal (eieio--testing "toto") '("toto" 2))))
 
 (ert-deftest eieio-autoload ()
   "Tests to see whether reftex-auc has been autoloaded"
   (should
    (fboundp 'eieio--defalias)))
+
+(ert-deftest eieio-test-38-clone-named-object ()
+  (let* ((A (NAMED :object-name "aa"))
+         (B (clone A :object-name "bb"))
+         (C (clone A "cc"))
+         (D (clone A))
+         (E (clone D)))
+    (should (string= "aa" (oref A object-name)))
+    (should (string= "bb" (oref B object-name)))
+    (should (string= "cc" (oref C object-name)))
+    (should (string= "aa-1" (oref D object-name)))
+    (should (string= "aa-2" (oref E object-name)))))
+
+(defclass TII (eieio-instance-inheritor)
+  ((a :initform 1 :initarg :a)
+   (b :initarg :b)
+   (c :initarg :c))
+  "Instance Inheritor test class.")
+
+(ert-deftest eieio-test-39-clone-instance-inheritor-with-args ()
+  (let* ((A (TII))
+         (B (clone A :b "bb"))
+         (C (clone B :a "aa")))
+
+    (should (string= "aa" (oref C :a)))
+    (should (string= "bb" (oref C :b)))
+
+    (should (slot-boundp A :a))
+    (should-not (slot-boundp A :b))
+    (should-not (slot-boundp A :c))
+
+    (should-not (slot-boundp B :a))
+    (should (slot-boundp B :b))
+    (should-not (slot-boundp A :c))
+
+    (should (slot-boundp C :a))
+    (should-not (slot-boundp C :b))
+    (should-not (slot-boundp C :c))
+
+    (should (eieio-instance-inheritor-slot-boundp C :a))
+    (should (eieio-instance-inheritor-slot-boundp C :b))
+    (should-not (eieio-instance-inheritor-slot-boundp C :c))))
 
 
 (provide 'eieio-tests)

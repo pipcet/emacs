@@ -1,6 +1,6 @@
 ;;; em-tramp.el --- Eshell features that require TRAMP  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1999-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1999-2020 Free Software Foundation, Inc.
 
 ;; Author: Aidan Gauland <aidalgol@no8wireless.co.nz>
 
@@ -17,7 +17,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -26,12 +26,15 @@
 ;;; Code:
 
 (require 'esh-util)
+(require 'esh-cmd)
 
 (eval-when-compile
   (require 'esh-mode)
   (require 'eshell)
   (require 'tramp))
 
+;; There are no items in this custom group, but eshell modules (ab)use
+;; custom groups.
 ;;;###autoload
 (progn
  (defgroup eshell-tramp nil
@@ -43,7 +46,7 @@
    :tag "TRAMP Eshell features"
    :group 'eshell-module))
 
-(defun eshell-tramp-initialize ()
+(defun eshell-tramp-initialize ()   ;Called from `eshell-mode' via intern-soft!
   "Initialize the TRAMP-using commands code."
   (when (eshell-using-module 'eshell-cmpl)
     (add-hook 'pcomplete-try-first-hook
@@ -59,7 +62,7 @@
   "Alias \"su\" to call TRAMP.
 
 Uses the system su through TRAMP's su method."
-  (setq args (eshell-stringify-list (eshell-flatten-list args)))
+  (setq args (eshell-stringify-list (flatten-tree args)))
   (let ((orig-args (copy-tree args)))
     (eshell-eval-using-options
      "su" args
@@ -97,13 +100,14 @@ Become another USER during a login session.")
   "Alias \"sudo\" to call Tramp.
 
 Uses the system sudo through TRAMP's sudo method."
-  (setq args (eshell-stringify-list (eshell-flatten-list args)))
+  (setq args (eshell-stringify-list (flatten-tree args)))
   (let ((orig-args (copy-tree args)))
     (eshell-eval-using-options
      "sudo" args
      '((?h "help" nil nil "show this usage screen")
        (?u "user" t user "execute a command as another USER")
        :show-usage
+       :parse-leading-options-only
        :usage "[(-u | --user) USER] COMMAND
 Execute a COMMAND as the superuser or another USER.")
      (throw 'eshell-external

@@ -1,10 +1,9 @@
 ;;; master.el --- make a buffer the master over another buffer
 
-;; Copyright (C) 1999-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1999-2020 Free Software Foundation, Inc.
 
 ;; Author: Alex Schroeder <alex@gnu.org>
-;; Maintainer: Alex Schroeder <alex@gnu.org>
-;; Version: 1.0.2
+;; Old-Version: 1.0.2
 ;; Keywords: comm
 
 ;; This file is part of GNU Emacs.
@@ -20,7 +19,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -73,9 +72,6 @@ You can set this variable using `master-set-slave'.")
 ;;;###autoload
 (define-minor-mode master-mode
   "Toggle Master mode.
-With a prefix argument ARG, enable Master mode if ARG is
-positive, and disable it otherwise.  If called from Lisp, enable
-the mode if ARG is omitted or nil.
 
 When Master mode is enabled, you can scroll the slave buffer
 using the following commands:

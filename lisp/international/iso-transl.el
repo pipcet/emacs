@@ -1,6 +1,6 @@
 ;;; iso-transl.el --- keyboard input for ISO 10646 chars -*- coding: utf-8 -*-
 
-;; Copyright (C) 1987, 1993-1999, 2001-2017 Free Software Foundation,
+;; Copyright (C) 1987, 1993-1999, 2001-2020 Free Software Foundation,
 ;; Inc.
 
 ;; Author: Howard Gayle
@@ -20,7 +20,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -177,6 +177,8 @@
     ("c"    . [?¢])
     ("*o"   . [?°])
     ("o"    . [?°])
+    ("Oe"   . [?œ])
+    ("OE"   . [?Œ])
     ("*u"   . [?µ])
     ("u"    . [?µ])
     ("*m"   . [?µ])
@@ -234,18 +236,18 @@ sequence VECTOR.  (VECTOR is normally one character long.)")
 ;; Language-specific translation lists.
 (defvar iso-transl-language-alist
   '(("Esperanto"
-     ("C"  . [?Æ])
-     ("G"  . [?Ø])
-     ("H"  . [?¦])
-     ("J"  . [?¬])
-     ("S"  . [?Þ])
-     ("U"  . [?Ý])
-     ("c"  . [?æ])
-     ("g"  . [?ø])
-     ("h"  . [?¶])
-     ("j"  . [?¼])
-     ("s"  . [?þ])
-     ("u"  . [?ý]))
+     ("C"  . [?Ĉ])
+     ("G"  . [?Ĝ])
+     ("H"  . [?Ĥ])
+     ("J"  . [?Ĵ])
+     ("S"  . [?Ŝ])
+     ("U"  . [?Ŭ])
+     ("c"  . [?ĉ])
+     ("g"  . [?ĝ])
+     ("h"  . [?ĥ])
+     ("j"  . [?ĵ])
+     ("s"  . [?ŝ])
+     ("u"  . [?ŭ]))
     ("French"
      ("C"  . [?Ç])
      ("c"  . [?ç]))

@@ -1,6 +1,6 @@
 ;;; em-xtra.el --- extra alias functions  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1999-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1999-2020 Free Software Foundation, Inc.
 
 ;; Author: John Wiegley <johnw@gnu.org>
 
@@ -17,7 +17,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -25,10 +25,14 @@
 
 (require 'esh-util)
 (eval-when-compile
-  (require 'eshell)
-  (require 'pcomplete))
+  (require 'eshell))
+;; Strictly speaking, should only be needed at compile time.
+;; Require at run-time too to silence compiler.
+(require 'pcomplete)
 (require 'compile)
 
+;; There are no items in this custom group, but eshell modules (ab)use
+;; custom groups.
 ;;;###autoload
 (progn
 (defgroup eshell-xtra nil
@@ -47,7 +51,7 @@ naturally accessible within Emacs."
   "Implementation of expr, using the calc package."
   (if (not (fboundp 'calc-eval))
       (throw 'eshell-replace-command
-	     (eshell-parse-command "*expr" (eshell-flatten-list args)))
+	     (eshell-parse-command "*expr" (flatten-tree args)))
     ;; to fool the byte-compiler...
     (let ((func 'calc-eval))
       (funcall func (eshell-flatten-and-stringify args)))))

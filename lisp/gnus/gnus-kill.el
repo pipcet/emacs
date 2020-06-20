@@ -1,6 +1,6 @@
 ;;; gnus-kill.el --- kill commands for Gnus
 
-;; Copyright (C) 1995-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1995-2020 Free Software Foundation, Inc.
 
 ;; Author: Masanobu UMEDA <umerin@flab.flab.fujitsu.junet>
 ;;	Lars Magne Ingebrigtsen <larsi@gnus.org>
@@ -19,22 +19,15 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
 ;;; Code:
 
-(eval-when-compile (require 'cl))
-
 (require 'gnus)
 (require 'gnus-art)
 (require 'gnus-range)
-
-(defcustom gnus-kill-file-mode-hook nil
-  "Hook for Gnus kill file mode."
-  :group 'gnus-score-kill
-  :type 'hook)
 
 (defcustom gnus-kill-expiry-days 7
   "Number of days before expiring unused kill file entries."
@@ -357,8 +350,7 @@ Returns the number of articles marked as read."
 	    (let ((headers gnus-newsgroup-headers))
 	      (if gnus-kill-killed
 		  (setq gnus-newsgroup-kill-headers
-			(mapcar (lambda (header) (mail-header-number header))
-				headers))
+			(mapcar #'mail-header-number headers))
 		(while headers
 		  (unless (gnus-member-of-range
 			   (mail-header-number (car headers))
@@ -607,8 +599,7 @@ marked as read or ticked are ignored."
        ((cond ((fboundp
 		(setq function
 		      (intern-soft
-		       (concat "mail-header-" (downcase field)))))
-	       (setq function `(lambda (h) (,function h))))
+		       (concat "mail-header-" (downcase field))))))
 	      ((when (setq extras
 			   (member (downcase field)
 				   (mapcar (lambda (header)

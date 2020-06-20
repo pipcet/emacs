@@ -1,10 +1,10 @@
 ;;; cal-hebrew.el --- calendar functions for the Hebrew calendar
 
-;; Copyright (C) 1995, 1997, 2001-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1995, 1997, 2001-2020 Free Software Foundation, Inc.
 
 ;; Author: Nachum Dershowitz <nachum@cs.uiuc.edu>
 ;;         Edward M. Reingold <reingold@cs.uiuc.edu>
-;; Maintainer: Glenn Morris <rgm@gnu.org>
+;; Maintainer: emacs-devel@gnu.org
 ;; Keywords: calendar
 ;; Human-Keywords: Hebrew calendar, calendar, diary
 ;; Package: calendar
@@ -22,7 +22,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -748,15 +748,22 @@ from the cursor position."
       ;; or the corresponding day in years without that date.
       (+ (calendar-hebrew-to-absolute (list b-month 1 year)) b-day -1))))
 
-(defvar date)
+;; The function below is designed to be used in sexp diary entries,
+;; and may be present in users' diary files, so suppress the warning
+;; about this prefix-less dynamic variable.  It's called from
+;; `diary-list-sexp-entries', which binds the variable.
+(with-suppressed-warnings ((lexical date))
+  (defvar date))
 
-;; To be called from diary-list-sexp-entries, where DATE is bound.
 ;;;###diary-autoload
 (defun diary-hebrew-date ()
   "Hebrew calendar equivalent of date diary entry."
   (format "Hebrew date (until sunset): %s" (calendar-hebrew-date-string date)))
 
-(defvar entry)
+;; `diary-hebrew-birthday' can be used in users' diary files, and
+;; `entry' has to be dynamically bound when that is used.
+(with-suppressed-warnings ((lexical entry))
+  (defvar entry))
 (declare-function diary-ordinal-suffix "diary-lib" (n))
 
 ;;;###diary-autoload

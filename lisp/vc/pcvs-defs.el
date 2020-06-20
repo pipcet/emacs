@@ -1,6 +1,6 @@
 ;;; pcvs-defs.el --- variable definitions for PCL-CVS
 
-;; Copyright (C) 1991-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1991-2020 Free Software Foundation, Inc.
 
 ;; Author: Stefan Monnier <monnier@iro.umontreal.ca>
 ;; Keywords: pcl-cvs
@@ -19,7 +19,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -86,8 +86,8 @@ will select a shared-flag.")
 (defvar cvs-cvsroot nil
   "Specifies where the (current) cvs master repository is.
 Overrides the environment variable $CVSROOT by sending \" -d dir\" to
-all CVS commands. This switch is useful if you have multiple CVS
-repositories. It can be set interactively with \\[cvs-change-cvsroot.]
+all CVS commands.  This switch is useful if you have multiple CVS
+repositories.  It can be set interactively with \\[cvs-change-cvsroot.]
 There is no need to set this if $CVSROOT is set to a correct value.")
 
 (defcustom cvs-auto-remove-handled nil
@@ -120,7 +120,7 @@ If `empty', only non-empty directories will be shown."
   "If non-nil, tagging can only be applied to directories.
 Tagging should generally be applied a directory at a time, but sometimes it is
 useful to be able to tag a single file.  The normal way to do that is to use
-`cvs-mode-force-command' so as to temporarily override the restrictions,"
+`cvs-mode-force-command' so as to temporarily override the restrictions."
   :group 'pcl-cvs
   :type '(boolean))
 
@@ -269,7 +269,7 @@ This variable is buffer local and only used in the *cvs* buffer.")
   "Regexp matching the possible names of locks in the CVS repository.")
 
 (defconst cvs-cursor-column 22
-  "Column to position cursor in in `cvs-mode'.")
+  "Column to position cursor in, in `cvs-mode'.")
 
 ;;;;
 ;;;; Global internal variables

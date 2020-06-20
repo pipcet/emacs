@@ -1,8 +1,8 @@
 // testdoublens.cpp --- semantic-ia-utest completion engine unit tests
 
-// Copyright (C) 2008-2017 Free Software Foundation, Inc.
+// Copyright (C) 2008-2020 Free Software Foundation, Inc.
 
-// Author: Eric M. Ludlam <eric@siege-engine.com>
+// Author: Eric M. Ludlam <zappo@gnu.org>
 
 // This file is part of GNU Emacs.
 
@@ -17,7 +17,7 @@
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+// along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "testdoublens.hpp"
 
@@ -39,12 +39,27 @@ namespace Name1 {
       return 0;
     }
 
-    void Foo::publishStuff(int /* a */, int /* b */) // ^2^
+    void Foo::publishStuff(int a, int b) // ^2^
     {
+      int foo = a;
+      int bar = b;
     }
 
-    void Foo::sendStuff(int /* a */, int /* b */) // ^3^
+    // Test polymorphism on arg types.  Note that order is
+    // mixed to maximize failure cases
+    void Foo::publishStuff(char a, char b) // ^4^
     {
+      int foo = a;
+      int bar = b;
+    }
+
+    void Foo::sendStuff(int a, int b) // ^3^
+    {
+      int foo = a;
+      int bar = b;
+
+      Foo::publishStuff(1,2)
+
     }
 
   } // namespace Name2
@@ -164,3 +179,36 @@ namespace d {
   } // namespace f
 } // namespace d
 
+// Fully qualified const struct function arguments
+class ContainsStruct
+{
+  struct TheStruct
+  {
+    int memberOne;
+    int memberTwo;
+  };
+};
+
+void someFunc(const struct ContainsStruct::TheStruct *foo)
+{
+  foo->// -9-
+    // #9# ("memberOne" "memberTwo")
+}
+
+// Class with structure tag
+class ContainsNamedStruct
+{
+  struct _fooStruct
+  {
+    int memberOne;
+    int memberTwo;
+  } member;
+};
+
+void someOtherFunc(void)
+{
+  ContainsNamedStruct *someClass;
+  // This has to find ContainsNamedStruct::_fooStruct
+  someClass->member.// -10-
+    // #10# ("memberOne" "memberTwo")
+}

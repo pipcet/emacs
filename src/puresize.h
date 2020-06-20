@@ -1,5 +1,5 @@
 /* How much read-only Lisp storage a dumped Emacs needs.
-   Copyright (C) 1993, 2001-2017 Free Software Foundation, Inc.
+   Copyright (C) 1993, 2001-2020 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -14,7 +14,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.  */
+along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 
 #ifndef EMACS_PURESIZE_H
 #define EMACS_PURESIZE_H
@@ -47,7 +47,7 @@ INLINE_HEADER_BEGIN
 #endif
 
 #ifndef BASE_PURESIZE
-#define BASE_PURESIZE (1900000 + SYSTEM_PURESIZE_EXTRA + SITELOAD_PURESIZE_EXTRA)
+#define BASE_PURESIZE (2000000 + SYSTEM_PURESIZE_EXTRA + SITELOAD_PURESIZE_EXTRA)
 #endif
 
 /* Increase BASE_PURESIZE by a ratio depending on the machine's word size.  */
@@ -77,7 +77,7 @@ INLINE_HEADER_BEGIN
 #define PURESIZE  (BASE_PURESIZE * PURESIZE_RATIO * PURESIZE_CHECKING_RATIO)
 #endif
 
-extern _Noreturn void pure_write_error (Lisp_Object);
+extern AVOID pure_write_error (Lisp_Object);
 
 extern EMACS_INT pure[];
 

@@ -1,6 +1,6 @@
-;;; dichromacy-theme.el --- color theme suitable for color-blind users
+;;; dichromacy-theme.el --- color theme suitable for color-blind users  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2011-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2011-2020 Free Software Foundation, Inc.
 
 ;; Author: Chong Yidong <cyd@stupidchicken>
 
@@ -17,7 +17,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Code:
 
@@ -121,9 +121,5 @@ Ansi-Color faces are included.")
 			      ,blue ,redpurple ,skyblue "white"])))
 
 (provide-theme 'dichromacy)
-
-;; Local Variables:
-;; no-byte-compile: t
-;; End:
 
 ;;; dichromacy-theme.el ends here

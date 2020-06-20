@@ -1,6 +1,6 @@
 ;;; pcmpl-rpm.el --- functions for dealing with rpm completions
 
-;; Copyright (C) 1999-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1999-2020 Free Software Foundation, Inc.
 
 ;; Package: pcomplete
 
@@ -17,7 +17,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -71,7 +71,8 @@
   "Return a list of all installed rpm packages."
   (if (and pcmpl-rpm-cache
            pcmpl-rpm-cache-time
-           (let ((mtime (nth 5 (file-attributes pcmpl-rpm-cache-stamp-file))))
+           (let ((mtime (file-attribute-modification-time
+                         (file-attributes pcmpl-rpm-cache-stamp-file))))
              (and mtime (not (time-less-p pcmpl-rpm-cache-time mtime)))))
       pcmpl-rpm-packages
     (message "Getting list of installed rpms...")
@@ -96,7 +97,7 @@
 		    (pcomplete-process-result
 		     "rpm" "-q" (car pkgs) flag)))
       (setq pkgs (cdr pkgs)))
-    (pcomplete-uniqify-list (cdr provs))))
+    (pcomplete-uniquify-list (cdr provs))))
 
 (defsubst pcmpl-rpm-files ()
   (pcomplete-dirs-or-entries "\\.rpm\\'"))

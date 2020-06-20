@@ -1,6 +1,6 @@
 ;;; pascal.el --- major mode for editing pascal source in Emacs -*- lexical-binding: t -*-
 
-;; Copyright (C) 1993-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1993-2020 Free Software Foundation, Inc.
 
 ;; Author: Espen Skoglund <esk@gnu.org>
 ;; Keywords: languages
@@ -18,7 +18,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -117,7 +117,7 @@
 (defconst pascal-beg-block-re   "\\<\\(begin\\|case\\|record\\|repeat\\)\\>")
 (defconst pascal-end-block-re   "\\<\\(end\\|until\\)\\>")
 (defconst pascal-declaration-re "\\<\\(const\\|label\\|type\\|var\\)\\>")
-(defconst pascal-progbeg-re     "\\<\\program\\>")
+(defconst pascal-progbeg-re     "\\<program\\>")
 (defconst pascal-defun-re       "\\<\\(function\\|procedure\\|program\\)\\>")
 (defconst pascal-sub-block-re   "\\<\\(if\\|else\\|for\\|while\\|with\\)\\>")
 (defconst pascal-noindent-re    "\\<\\(begin\\|end\\|until\\|else\\)\\>")
@@ -187,7 +187,7 @@
    ;; as comment starters.  Fix it here by removing the "2" from the syntax
    ;; of the second char of such sequences.
    ("/\\(\\*\\)" (1 ". 3b"))
-   ("(\\(\\/\\)" (1 (prog1 ". 1c" (forward-char -1) nil)))
+   ("(\\(/\\)" (1 (prog1 ". 1c" (forward-char -1) nil)))
    ;; Pascal uses '' and "" rather than \' and \" to escape quotes.
    ("''\\|\"\"" (0 (if (save-excursion
                          (nth 3 (syntax-ppss (match-beginning 0))))
@@ -510,9 +510,7 @@ This puts the mark at the end, and point at the beginning."
   (push-mark)
   (pascal-end-of-defun)
   (push-mark)
-  (pascal-beg-of-defun)
-  (when (featurep 'xemacs)
-    (zmacs-activate-region)))
+  (pascal-beg-of-defun))
 
 (defun pascal-comment-area (start end)
   "Put the region into a Pascal comment.\\<pascal-mode-map>
@@ -1394,7 +1392,7 @@ The default is a name found in the buffer around point."
 (defvar pascal-outline-map
   (let ((map (make-sparse-keymap)))
     (if (fboundp 'set-keymap-name)
-        (set-keymap-name pascal-outline-map 'pascal-outline-map))
+        (set-keymap-name map 'pascal-outline-map))
     (define-key map "\M-\C-a"  'pascal-outline-prev-defun)
     (define-key map "\M-\C-e"  'pascal-outline-next-defun)
     (define-key map "\C-c\C-d" 'pascal-outline-goto-defun)
@@ -1403,12 +1401,8 @@ The default is a name found in the buffer around point."
     map)
   "Keymap used in Pascal Outline mode.")
 
-(define-obsolete-function-alias 'pascal-outline 'pascal-outline-mode "22.1")
 (define-minor-mode pascal-outline-mode
   "Outline-line minor mode for Pascal mode.
-With a prefix argument ARG, enable the mode if ARG is positive,
-and disable it otherwise.  If called from Lisp, enable the mode
-if ARG is omitted or nil.
 
 When enabled, portions of the text being edited may be made
 invisible.\\<pascal-outline-map>
@@ -1425,7 +1419,7 @@ Pascal Outline mode provides some additional commands.
 \\[pascal-show-all]\t- Show the whole buffer.
 \\[pascal-hide-other-defuns]\
 \t- Hide everything but the current function (function under the cursor).
-\\[pascal-outline]\t- Leave Pascal Outline mode."
+\\[pascal-outline-mode]\t- Leave Pascal Outline mode."
   :init-value nil :lighter " Outl" :keymap pascal-outline-map
   (add-to-invisibility-spec '(pascal . t))
   (unless pascal-outline-mode

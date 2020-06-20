@@ -1,6 +1,6 @@
 ;;; prog-mode.el --- Generic major mode for programming  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2013-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2013-2020 Free Software Foundation, Inc.
 
 ;; Maintainer: emacs-devel@gnu.org
 ;; Keywords: internal
@@ -19,7 +19,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -39,7 +39,8 @@
 (defcustom prog-mode-hook nil
   "Normal hook run when entering programming modes."
   :type 'hook
-  :options '(flyspell-prog-mode abbrev-mode flymake-mode linum-mode
+  :options '(flyspell-prog-mode abbrev-mode flymake-mode
+                                display-line-numbers-mode
                                 prettify-symbols-mode)
   :group 'prog-mode)
 
@@ -53,8 +54,8 @@
   "When non-nil, provides context for indenting embedded code chunks.
 
 There are languages where part of the code is actually written in
-a sub language, e.g., a Yacc/Bison or ANTLR grammar also consists
-of plain C code.  This variable enables the major mode of the
+a sub language, e.g., a Yacc/Bison or ANTLR grammar can also include
+JS or Python code.  This variable enables the primary mode of the
 main language to use the indentation engine of the sub-mode for
 lines in code chunks written in the sub-mode's language.
 
@@ -64,37 +65,13 @@ mode, it should bind this variable to non-nil around the call.
 
 The non-nil value should be a list of the form:
 
-   (FIRST-COLUMN (START . END) PREVIOUS-CHUNKS)
+   (FIRST-COLUMN . REST)
 
 FIRST-COLUMN is the column the indentation engine of the sub-mode
 should use for top-level language constructs inside the code
 chunk (instead of 0).
 
-START and END specify the region of the code chunk.  END can be
-nil, which stands for the value of `point-max'.  The function
-`prog-widen' uses this to restore restrictions imposed by the
-sub-mode's indentation engine.
-
-PREVIOUS-CHUNKS, if non-nil, provides the indentation engine of
-the sub-mode with the virtual context of the code chunk.  Valid
-values are:
-
- - A string containing text which the indentation engine can
-   consider as standing in front of the code chunk.  To cache the
-   string's calculated syntactic information for repeated calls
-   with the same string, the sub-mode can add text-properties to
-   the string.
-
-   A typical use case is for grammars with code chunks which are
-   to be indented like function bodies -- the string would contain
-   the corresponding function preamble.
-
- - A function, to be called with the start position of the current
-   chunk.  It should return either the region of the previous chunk
-   as (PREV-START . PREV-END), or nil if there is no previous chunk.
-
-   A typical use case are literate programming sources -- the
-   function would successively return the previous code chunks.")
+REST is currently unused.")
 
 (defun prog-indent-sexp (&optional defun)
   "Indent the expression after point.
@@ -112,23 +89,6 @@ instead."
 (defun prog-first-column ()
   "Return the indentation column normally used for top-level constructs."
   (or (car prog-indentation-context) 0))
-
-(defun prog-widen ()
-  "Remove restrictions (narrowing) from current code chunk or buffer.
-This function should be used instead of `widen' in any function used
-by the indentation engine to make it respect the value of
-`prog-indentation-context'.
-
-This function (like `widen') is useful inside a
-`save-restriction' to make the indentation correctly work when
-narrowing is in effect."
-  (let ((chunk (cadr prog-indentation-context)))
-    (if chunk
-        ;; No call to `widen' is necessary here, as narrow-to-region
-        ;; changes (not just narrows) the existing restrictions
-        (narrow-to-region (car chunk) (or (cdr chunk) (point-max)))
-      (widen))))
-
 
 (defvar-local prettify-symbols-alist nil
   "Alist of symbol prettifications.
@@ -179,9 +139,10 @@ Regexp match data 0 specifies the characters to be composed."
       ;; No composition for you.  Let's actually remove any
       ;; composition we may have added earlier and which is now
       ;; incorrect.
-      (remove-text-properties start end '(composition
-                                          prettify-symbols-start
-                                          prettify-symbols-end))))
+      (remove-list-of-text-properties start end
+                                      '(composition
+                                        prettify-symbols-start
+                                        prettify-symbols-end))))
   ;; Return nil because we're not adding any face property.
   nil)
 
@@ -225,21 +186,18 @@ on the symbol."
       (apply #'font-lock-flush prettify-symbols--current-symbol-bounds)
       (setq prettify-symbols--current-symbol-bounds nil))
     ;; Unprettify the current symbol.
-    (when-let ((c (get-prop-as-list 'composition))
-	       (s (get-prop-as-list 'prettify-symbols-start))
-	       (e (get-prop-as-list 'prettify-symbols-end))
-	       (s (apply #'min s))
-	       (e (apply #'max e)))
+    (when-let* ((c (get-prop-as-list 'composition))
+	        (s (get-prop-as-list 'prettify-symbols-start))
+	        (e (get-prop-as-list 'prettify-symbols-end))
+	        (s (apply #'min s))
+	        (e (apply #'max e)))
       (with-silent-modifications
 	(setq prettify-symbols--current-symbol-bounds (list s e))
-	(remove-text-properties s e '(composition))))))
+        (remove-text-properties s e '(composition nil))))))
 
 ;;;###autoload
 (define-minor-mode prettify-symbols-mode
   "Toggle Prettify Symbols mode.
-With a prefix argument ARG, enable Prettify Symbols mode if ARG is
-positive, and disable it otherwise.  If called from Lisp, enable
-the mode if ARG is omitted or nil.
 
 When Prettify Symbols mode and font-locking are enabled, symbols are
 prettified (displayed as composed characters) according to the rules
@@ -255,6 +213,9 @@ You can enable this mode locally in desired buffers, or use
 `global-prettify-symbols-mode' to enable it for all modes that
 support it."
   :init-value nil
+  (when prettify-symbols--keywords
+    (font-lock-remove-keywords nil prettify-symbols--keywords)
+    (setq prettify-symbols--keywords nil))
   (if prettify-symbols-mode
       ;; Turn on
       (when (setq prettify-symbols--keywords (prettify-symbols--make-keywords))
@@ -270,9 +231,6 @@ support it."
         (font-lock-flush))
     ;; Turn off
     (remove-hook 'post-command-hook #'prettify-symbols--post-command-hook t)
-    (when prettify-symbols--keywords
-      (font-lock-remove-keywords nil prettify-symbols--keywords)
-      (setq prettify-symbols--keywords nil))
     (when (memq 'composition font-lock-extra-managed-props)
       (setq font-lock-extra-managed-props (delq 'composition
                                                 font-lock-extra-managed-props))

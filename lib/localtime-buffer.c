@@ -1,6 +1,6 @@
 /* Provide access to the last buffer returned by localtime() or gmtime().
 
-   Copyright (C) 2001-2003, 2005-2007, 2009-2017 Free Software Foundation, Inc.
+   Copyright (C) 2001-2003, 2005-2007, 2009-2020 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,7 +13,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, see <http://www.gnu.org/licenses/>.  */
+   along with this program; if not, see <https://www.gnu.org/licenses/>.  */
 
 /* written by Jim Meyering */
 
@@ -34,6 +34,7 @@ struct tm *localtime_buffer_addr = &tm_zero_buffer;
 
 struct tm *
 rpl_localtime (time_t const *timep)
+#undef localtime
 {
   struct tm *tm = localtime (timep);
 
@@ -46,6 +47,7 @@ rpl_localtime (time_t const *timep)
 /* Same as above, since gmtime and localtime use the same buffer.  */
 struct tm *
 rpl_gmtime (time_t const *timep)
+#undef gmtime
 {
   struct tm *tm = gmtime (timep);
 

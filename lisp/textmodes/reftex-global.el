@@ -1,6 +1,6 @@
 ;;; reftex-global.el --- operations on entire documents with RefTeX
 
-;; Copyright (C) 1997-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1997-2020 Free Software Foundation, Inc.
 
 ;; Author: Carsten Dominik <dominik@science.uva.nl>
 ;; Maintainer: auctex-devel@gnu.org
@@ -18,7 +18,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -27,6 +27,8 @@
 (eval-when-compile (require 'cl-lib))
 (provide 'reftex-global)
 (require 'reftex)
+
+(declare-function fileloop-continue "fileloop")
 ;;;
 
 ;;;###autoload
@@ -98,8 +100,11 @@ No active TAGS table is required."
     (unless to
       (setq to (read-string (format "Replace regexp %s with: " from))))
     (reftex-access-scan-info current-prefix-arg)
-    (tags-query-replace from to (or delimited current-prefix-arg)
-                        (list 'reftex-all-document-files))))
+    (fileloop-initialize-replace
+     from to (reftex-all-document-files)
+     (if (equal from (downcase from)) nil 'default)
+     (or delimited current-prefix-arg))
+    (fileloop-continue)))
 
 (defvar TeX-master)
 (defvar isearch-next-buffer-function)

@@ -1,9 +1,8 @@
 ;;; semantic/wisent/wisent.el --- GNU Bison for Emacs - Runtime
 
-;;; Copyright (C) 2002-2007, 2009-2017 Free Software Foundation, Inc.
+;;; Copyright (C) 2002-2007, 2009-2020 Free Software Foundation, Inc.
 
 ;; Author: David Ponce <david@dponce.com>
-;; Maintainer: David Ponce <david@dponce.com>
 ;; Created: 30 January 2002
 ;; Keywords: syntax
 
@@ -20,7 +19,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 ;;
@@ -56,11 +55,8 @@
 ;;;; Runtime stuff
 ;;;; -------------
 
-;;; Compatibility
-(eval-and-compile
-  (if (fboundp 'char-valid-p)
-      (defalias 'wisent-char-p 'char-valid-p)
-    (defalias 'wisent-char-p 'char-or-char-int-p)))
+(define-obsolete-function-alias 'wisent-char-p
+  #'characterp "28.1")
 
 ;;; Printed representation of terminals and nonterminals
 (defconst wisent-escape-sequence-strings
@@ -81,7 +77,7 @@
 (defsubst wisent-item-to-string (item)
   "Return a printed representation of ITEM.
 ITEM can be a nonterminal or terminal symbol, or a character literal."
-  (if (wisent-char-p item)
+  (if (characterp item)
         (or (cdr (assq item wisent-escape-sequence-strings))
             (format "'%c'" item))
     (symbol-name item)))

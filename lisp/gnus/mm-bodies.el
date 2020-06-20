@@ -1,6 +1,6 @@
 ;;; mm-bodies.el --- Functions for decoding MIME things
 
-;; Copyright (C) 1998-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1998-2020 Free Software Foundation, Inc.
 
 ;; Author: Lars Magne Ingebrigtsen <larsi@gnus.org>
 ;;	MORIOKA Tomohiko <morioka@jaist.ac.jp>
@@ -17,7 +17,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -35,7 +35,7 @@
 ;; BS, vertical TAB, form feed, and ^_
 ;;
 ;; Note that CR is *not* included, as that would allow a non-paired CR
-;; in the body contrary to RFC 2822:
+;; in the body contrary to RFC 822 (or later):
 ;;
 ;;   - CR and LF MUST only occur together as CRLF; they MUST NOT
 ;;     appear independently in the body.
@@ -262,7 +262,7 @@ decoding.  If it is nil, default to `mail-parse-charset'."
 	    (setq coding-system
 		  (mm-charset-to-coding-system mail-parse-charset)))
 	(when (and charset coding-system
-		   (mm-multibyte-p)
+		   enable-multibyte-characters
 		   (or (not (eq coding-system 'ascii))
 		       (setq coding-system mail-parse-charset)))
 	  (decode-coding-region (point-min) (point-max) coding-system))
@@ -289,7 +289,7 @@ decoding.  If it is nil, default to `mail-parse-charset'."
 	 (setq coding-system
 	       (mm-charset-to-coding-system mail-parse-charset)))
      (when (and charset coding-system
-		(mm-multibyte-p)
+		enable-multibyte-characters
 		(or (not (eq coding-system 'ascii))
 		    (setq coding-system mail-parse-charset)))
        (decode-coding-string string coding-system)))

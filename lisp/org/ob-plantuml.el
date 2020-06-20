@@ -1,10 +1,10 @@
 ;;; ob-plantuml.el --- Babel Functions for Plantuml  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2010-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2010-2020 Free Software Foundation, Inc.
 
 ;; Author: Zhang Weize
 ;; Keywords: literate programming, reproducible research
-;; Homepage: http://orgmode.org
+;; Homepage: https://orgmode.org
 
 ;; This file is part of GNU Emacs.
 
@@ -19,7 +19,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -46,6 +46,34 @@
   :version "24.1"
   :type 'string)
 
+(defun org-babel-variable-assignments:plantuml (params)
+  "Return a list of PlantUML statements assigning the block's variables.
+PARAMS is a property list of source block parameters, which may
+contain multiple entries for the key `:var'.  `:var' entries in PARAMS
+are expected to be scalar variables."
+  (mapcar
+   (lambda (pair)
+       (format "!define %s %s"
+	       (car pair)
+	       (replace-regexp-in-string "\"" "" (cdr pair))))
+   (org-babel--get-vars params)))
+
+(defun org-babel-plantuml-make-body (body params)
+  "Return PlantUML input string.
+
+BODY is the content of the source block and PARAMS is a property list
+of source block parameters.  This function relies on the
+`org-babel-expand-body:generic' function to extract `:var' entries
+from PARAMS and on the `org-babel-variable-assignments:plantuml'
+function to convert variables to PlantUML assignments.
+
+If BODY does not contain @startXXX ... @endXXX clauses, @startuml
+... @enduml will be added."
+  (let ((assignments (org-babel-variable-assignments:plantuml params)))
+    (if (string-prefix-p "@start" body t) assignments
+      (format "@startuml\n%s\n@enduml"
+	      (org-babel-expand-body:generic body params assignments)))))
+
 (defun org-babel-execute:plantuml (body params)
   "Execute a block of plantuml code with org-babel.
 This function is called by `org-babel-execute-src-block'."
@@ -54,6 +82,7 @@ This function is called by `org-babel-execute-src-block'."
 	 (cmdline (cdr (assq :cmdline params)))
 	 (in-file (org-babel-temp-file "plantuml-"))
 	 (java (or (cdr (assq :java params)) ""))
+	 (full-body (org-babel-plantuml-make-body body params))
 	 (cmd (if (string= "" org-plantuml-jar-path)
 		  (error "`org-plantuml-jar-path' is not set")
 		(concat "java " java " -jar "
@@ -67,6 +96,8 @@ This function is called by `org-babel-execute-src-block'."
 			    " -teps" "")
 			(if (string= (file-name-extension out-file) "pdf")
 			    " -tpdf" "")
+			(if (string= (file-name-extension out-file) "tex")
+			    " -tlatex" "")
 			(if (string= (file-name-extension out-file) "vdx")
 			    " -tvdx" "")
 			(if (string= (file-name-extension out-file) "xmi")
@@ -85,7 +116,7 @@ This function is called by `org-babel-execute-src-block'."
 			(org-babel-process-file-name out-file)))))
     (unless (file-exists-p org-plantuml-jar-path)
       (error "Could not find plantuml.jar at %s" org-plantuml-jar-path))
-    (with-temp-file in-file (insert (concat "@startuml\n" body "\n@enduml")))
+    (with-temp-file in-file (insert full-body))
     (message "%s" cmd) (org-babel-eval cmd "")
     nil)) ;; signal that output has already been written to file
 

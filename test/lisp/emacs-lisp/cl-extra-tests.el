@@ -1,6 +1,6 @@
 ;;; cl-extra-tests.el --- tests for emacs-lisp/cl-extra.el  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2013-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2013-2020 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -15,7 +15,7 @@
 ;; General Public License for more details.
 ;;
 ;; You should have received a copy of the GNU General Public License
-;; along with this program.  If not, see `http://www.gnu.org/licenses/'.
+;; along with this program.  If not, see `https://www.gnu.org/licenses/'.
 
 ;;; Code:
 
@@ -93,5 +93,18 @@
                    (cl-maplist fn2 lst lst2)))
     (should (equal (list lst3 (cdr lst3) (cddr lst3))
                    (cl-maplist fn3 lst lst2 lst3)))))
+
+(ert-deftest cl-extra-test-cl-make-random-state ()
+  (let ((s (cl-make-random-state)))
+    ;; Test for Bug#33731.
+    (should-not (eq s (cl-make-random-state s)))))
+
+(ert-deftest cl-concatenate ()
+  (should (equal (cl-concatenate 'list '(1 2 3) '(4 5 6))
+                 '(1 2 3 4 5 6)))
+  (should (equal (cl-concatenate 'vector [1 2 3] [4 5 6])
+                 [1 2 3 4 5 6]))
+  (should (equal (cl-concatenate 'string "123" "456")
+                 "123456")))
 
 ;;; cl-extra-tests.el ends here

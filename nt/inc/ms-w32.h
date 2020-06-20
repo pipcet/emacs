@@ -1,6 +1,6 @@
 /* System description file for Windows NT.
 
-Copyright (C) 1993-1995, 2001-2017 Free Software Foundation, Inc.
+Copyright (C) 1993-1995, 2001-2020 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -15,7 +15,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.  */
+along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 
 /* Define symbols to identify the version of Unix this is.
    Define all the symbols that apply correctly.  */
@@ -33,6 +33,11 @@ along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.  */
 # include <_mingw.h>
 # ifdef __MINGW64_VERSION_MAJOR
 #  define MINGW_W64
+# endif
+# if defined __MINGW32_VERSION && __MINGW32_VERSION >= 5001000L
+/* Avoid warnings about gettimeofday being deprecated.  */
+#  undef __POSIX_2008_DEPRECATED
+#  define __POSIX_2008_DEPRECATED
 # endif
 #endif
 
@@ -58,8 +63,8 @@ along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.  */
    Look in <sys/time.h> for a timeval structure.  */
 #define HAVE_TIMEVAL 1
 
-/* And the select implementation does 1-byte read-ahead waiting
-   for received packets, so datagrams are broken too.  */
+/* Our select emulation does 1-byte read-ahead waiting for received
+   packets, so datagrams are broken.  */
 #define BROKEN_DATAGRAM_SOCKETS 1
 
 #define MAIL_USE_SYSTEM_LOCK 1
@@ -295,18 +300,7 @@ extern int sys_umask (int);
 #define execvp    _execvp
 #include <stdint.h>		/* for intptr_t */
 extern intptr_t _execvp (const char *, char **);
-#ifdef MINGW_W64
-/* GCC 6 has a builtin execve with the prototype shown below.  MinGW64
-   changed the prototype in its process.h to match that, although the
-   library function still calls _execve, which still returns intptr_t.
-   However, using the prototype with intptr_t causes GCC to emit
-   warnings.  Fortunately, execve is not used in the MinGW build, but
-   the code that references it is still compiled.  */
-extern int execve (const char *, char * const *, char * const *);
-#else
-extern intptr_t execve (const char *, char * const *, char * const *);
-#endif
-#define fdatasync _commit
+#define tcdrain _commit
 #define fdopen	  _fdopen
 #define fsync	  _commit
 #define ftruncate _chsize
@@ -435,6 +429,7 @@ extern int alarm (int);
 
 extern int sys_kill (pid_t, int);
 
+extern void explicit_bzero (void *, size_t);
 
 /* For integration with MSDOS support.  */
 #define getdisk()               (_getdrive () - 1)
@@ -455,7 +450,12 @@ extern char *get_emacs_configuration_options (void);
    windows.h.  For this to have proper effect, config.h must always be
    included before windows.h.  */
 #define _WINSOCKAPI_    1
-#define _WINSOCK_H
+#if !(defined __MINGW32_VERSION && __MINGW32_VERSION >= 5000002L)
+/* mingw.org's MinGW 5.x changed how it includes winsock.h and time.h,
+   and now defining _WINSOCK_H skips the definition of struct timeval,
+   which we don't want.  */
+# define _WINSOCK_H
+#endif
 
 /* Defines size_t and alloca ().  */
 #include <stdlib.h>
@@ -489,6 +489,8 @@ extern void *malloc_after_dump_9x(size_t);
 extern void *realloc_after_dump_9x(void *, size_t);
 extern void free_after_dump_9x(void *);
 
+extern void *sys_calloc(size_t, size_t);
+
 extern malloc_fn the_malloc_fn;
 extern realloc_fn the_realloc_fn;
 extern free_fn the_free_fn;
@@ -496,6 +498,7 @@ extern free_fn the_free_fn;
 #define malloc(size) (*the_malloc_fn)(size)
 #define free(ptr)   (*the_free_fn)(ptr)
 #define realloc(ptr, size) (*the_realloc_fn)(ptr, size)
+#define calloc(num, size) sys_calloc(num, size)
 
 #endif
 

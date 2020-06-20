@@ -1,11 +1,11 @@
 ;;; ob-picolisp.el --- Babel Functions for Picolisp  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2010-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2010-2020 Free Software Foundation, Inc.
 
 ;; Authors: Thorsten Jolitz
 ;;	 Eric Schulte
 ;; Keywords: literate programming, reproducible research
-;; Homepage: http://orgmode.org
+;; Homepage: https://orgmode.org
 
 ;; This file is part of GNU Emacs.
 
@@ -20,7 +20,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -35,13 +35,13 @@
 ;; (http://picolisp.com/5000/-2.html). PicoLisp is included in some
 ;; GNU/Linux Distributions, and can be downloaded here:
 ;; http://software-lab.de/down.html.  It ships with a picolisp-mode and
-;; a inferior-picolisp-mode for Emacs (to be found in the /lib/el/
+;; an inferior-picolisp-mode for Emacs (to be found in the /lib/el/
 ;; directory).
 
 ;; Although it might seem more natural to use Emacs Lisp for most
-;; Lisp-based programming tasks inside Org-Mode, an Emacs library
-;; written in Emacs Lisp, PicoLisp has at least two outstanding
-;; features that make it a valuable addition to Org-Babel:
+;; Lisp-based programming tasks inside Org, an Emacs library written
+;; in Emacs Lisp, PicoLisp has at least two outstanding features that
+;; make it a valuable addition to Org Babel:
 
 ;; PicoLisp _is_ an object-oriented database with a Prolog-based query
 ;; language implemented in PicoLisp (Pilog). Database objects are
@@ -94,8 +94,8 @@
       body)))
 
 (defun org-babel-execute:picolisp (body params)
-  "Execute a block of Picolisp code with org-babel.  This function is
- called by `org-babel-execute-src-block'"
+  "Execute a block of Picolisp code with org-babel.
+This function is called by `org-babel-execute-src-block'."
   (message "executing Picolisp source code block")
   (let* (
 	 ;; Name of the session or "none".

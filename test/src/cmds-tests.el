@@ -1,6 +1,6 @@
-;;; cmds-tests.el --- Testing some Emacs commands
+;;; cmds-tests.el --- Testing some Emacs commands -*- lexical-binding: t -*-
 
-;; Copyright (C) 2013-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2013-2020 Free Software Foundation, Inc.
 
 ;; Author: Nicolas Richard <youngfrog@members.fsf.org>
 ;; Keywords:
@@ -16,7 +16,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -29,6 +29,14 @@
   "Test `self-insert-command' with a negative argument."
   (let ((last-command-event ?a))
     (should-error (self-insert-command -1))))
+
+(ert-deftest forward-line-with-bignum ()
+  (with-temp-buffer
+    (insert "x\n")
+    (let ((shortage (forward-line (1- most-negative-fixnum))))
+      (should (= shortage most-negative-fixnum)))
+    (let ((shortage (forward-line (+ 2 most-positive-fixnum))))
+      (should (= shortage (1+ most-positive-fixnum))))))
 
 (provide 'cmds-tests)
 ;;; cmds-tests.el ends here

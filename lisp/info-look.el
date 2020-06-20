@@ -1,10 +1,9 @@
 ;;; info-look.el --- major-mode-sensitive Info index lookup facility -*- lexical-binding: t -*-
 ;; An older version of this was known as libc.el.
 
-;; Copyright (C) 1995-1999, 2001-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1995-1999, 2001-2020 Free Software Foundation, Inc.
 
-;; Author: Ralph Schleicher <rs@nunatak.allgaeu.org>
-;;         (did not show signs of life (Nov 2001)  -stef)
+;; Author: Ralph Schleicher <rs@ralph-schleicher.de>
 ;; Keywords: help languages
 
 ;; This file is part of GNU Emacs.
@@ -20,7 +19,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -31,9 +30,9 @@
 ;;
 ;; Scheme: <URL:http://groups.csail.mit.edu/mac/ftpdir/scm/r5rs.info.tar.gz>
 ;; LaTeX:
-;;  <URL:ftp://ctan.tug.org/tex-archive/info/latex2e-help-texinfo/latex2e.texi>
+;;  <URL:http://ctan.tug.org/tex-archive/info/latex2e-help-texinfo/latex2e.texi>
 ;;  (or CTAN mirrors)
-;; Perl: <URL:ftp://ftp.cpan.org/pub/CPAN/doc/manual/texinfo/> (or CPAN mirrors)
+;; Perl: <URL:http://ftp.cpan.org/pub/CPAN/doc/manual/texinfo/> (or CPAN mirrors)
 
 ;; Traditionally, makeinfo quoted `like this', but version 5 and later
 ;; quotes 'like this' or ‘like this’.  Doc specs with patterns
@@ -76,7 +75,7 @@ List elements are cons cells of the form
 
 If a file name matches REGEXP, then use help mode MODE instead of the
 buffer's major mode."
-  :group 'info-lookup :type '(repeat (cons (string :tag "Regexp")
+  :group 'info-lookup :type '(repeat (cons (regexp :tag "Regexp")
 					   (symbol :tag "Mode"))))
 
 (defvar info-lookup-history nil
@@ -619,7 +618,8 @@ Return nil if there is nothing appropriate in the buffer near point."
 	      beg end)
 	  (cond
 	   ((and (memq (get-char-property (point) 'face)
-			 '(custom-variable-tag custom-variable-tag-face))
+			 '(custom-variable-tag custom-variable-obsolete
+			   custom-variable-tag-face))
 		   (setq beg (previous-single-char-property-change
 			      (point) 'face nil (line-beginning-position)))
 		   (setq end (next-single-char-property-change
@@ -959,7 +959,7 @@ Return nil if there is nothing appropriate in the buffer near point."
  :mode 'scheme-mode
  :regexp "[^()`'‘’,\" \t\n]+"
  :ignore-case t
- ;; Aubrey Jaffer's rendition from <URL:ftp://ftp-swiss.ai.mit.edu/pub/scm>
+ ;; Aubrey Jaffer's rendition from <https://people.csail.mit.edu/jaffer/SCM>
  :doc-spec '(("(r5rs)Index" nil
 	      "^[ \t]+-+ [^:]+:[ \t]*" "\\b")))
 

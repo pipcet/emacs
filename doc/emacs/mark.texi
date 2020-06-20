@@ -1,5 +1,5 @@
 @c This is part of the Emacs manual.
-@c Copyright (C) 1985-1987, 1993-1995, 1997, 2001-2017 Free Software
+@c Copyright (C) 1985--1987, 1993--1995, 1997, 2001--2020 Free Software
 @c Foundation, Inc.
 @c See file emacs.texi for copying conditions.
 @node Mark
@@ -17,11 +17,18 @@ one comes earlier in the text; each time you move point, the region
 changes.
 
 @cindex active region
+@cindex activating the mark
   Setting the mark at a position in the text also @dfn{activates} it.
 When the mark is active, we say also that the region is active; Emacs
 indicates its extent by highlighting the text within it, using the
 @code{region} face (@pxref{Face Customization}).
 
+This is one of the few faces that has the @code{:extend t} attribute
+by default, which implies that the same face is used to highlight the
+text and space between end of line and the window border.  To
+highlight only the text you could set this attribute to @code{nil}.
+
+@cindex deactivating the mark
   After certain non-motion commands, including any command that
 changes the text in the buffer, Emacs automatically @dfn{deactivates}
 the mark; this turns off the highlighting.  You can also explicitly
@@ -74,7 +81,7 @@ Set point and the mark around the text you drag across.
 @item mouse-3
 Set the mark at point, then move point to where you click
 (@code{mouse-save-then-kill}).
-@item @samp{Shifted cursor motion keys}
+@item @r{Shifted cursor motion keys}
 Set the mark at point if the mark is inactive, then move point.
 @xref{Shift Selection}.
 @end table
@@ -131,15 +138,15 @@ mouse button (@kbd{mouse-3}) sets the mark at point and then moves
 point to where you clicked.  @xref{Mouse Commands}, for a more
 detailed description of these mouse commands.
 
-@cindex shift-selection
   Finally, you can set the mark by holding down the shift key while
 typing certain cursor motion commands (such as @kbd{S-@key{RIGHT}},
 @kbd{S-C-f}, @kbd{S-C-n}, etc.).  This is called @dfn{shift-selection}.
 It sets the mark at point before moving point, but only if there is no
-active mark set via shift-selection.  The mark set by mouse commands
-and by shift-selection behaves slightly differently from the usual
-mark: any subsequent unshifted cursor motion command deactivates it
-automatically.  For details, @xref{Shift Selection}.
+active mark set via a previous shift-selection or mouse commands.  The
+mark set by mouse commands and by shift-selection behaves slightly
+differently from the usual mark: any subsequent unshifted cursor motion
+command deactivates it automatically.  For details, see @ref{Shift
+Selection}.
 
   Many commands that insert text, such as @kbd{C-y} (@code{yank}), set
 the mark at the other end of the inserted text, without activating it.
@@ -147,7 +154,7 @@ This lets you easily return to that position (@pxref{Mark Ring}).  You
 can tell that a command does this when it shows @samp{Mark set} in the
 echo area.
 
-@cindex primary selection
+@cindex primary selection, when active region changes
   Under X, every time the active region changes, Emacs saves the text
 in the region to the @dfn{primary selection}.  This lets you insert
 that text into other X applications with @kbd{mouse-2} clicks.
@@ -162,7 +169,7 @@ object such as a word, list, paragraph or page:
 
 @table @kbd
 @item M-@@
-Set mark after end of next word (@code{mark-word}).  This does not
+Set mark at the end of the next word (@code{mark-word}).  This does not
 move point.
 @item C-M-@@
 Set mark after end of following balanced expression
@@ -191,8 +198,8 @@ located before point, @kbd{M-@@} moves the mark backwards from its
 current position one word at a time.
 
   This command also accepts a numeric argument @var{n}, which tells it
-to advance the mark by @var{n} words.  A negative argument moves the
-mark back by @var{n} words.
+to advance the mark by @var{n} words.  A negative argument
+@minus{}@var{n} moves the mark back by @var{n} words.
 
 @kindex C-M-@@
 @findex mark-sexp
@@ -260,7 +267,7 @@ change the variable @code{use-empty-active-region} to @code{t}.
 
 @vindex delete-active-region
   As described in @ref{Erasing}, the @key{DEL}
-(@code{backward-delete-char}) and @key{delete}
+(@code{backward-delete-char}) and @key{Delete}
 (@code{delete-forward-char}) commands also act this way.  If the mark
 is active, they delete the text in the region.  (As an exception, if
 you supply a numeric argument @var{n}, where @var{n} is not one, these
@@ -273,7 +280,7 @@ active.  If you change the value to @code{kill}, these commands
 @vindex mark-even-if-inactive
   Other commands always operate on the region, and have no default
 behavior.  Such commands usually have the word @code{region} in their
-names, like @kbd{C-w} (@code{kill-region}) and @code{C-x C-u}
+names, like @kbd{C-w} (@code{kill-region}) and @kbd{C-x C-u}
 (@code{upcase-region}).  If the mark is inactive, they operate on the
 @dfn{inactive region}---that is, on the text between point and the
 position at which the mark was last set (@pxref{Mark Ring}).  To
@@ -289,9 +296,7 @@ active---for example, typing @kbd{a} inserts the character @samp{a},
 then deactivates the mark.  Delete Selection mode, a minor mode,
 modifies this behavior: if you enable that mode, then inserting text
 while the mark is active causes the text in the region to be deleted
-first.  Also, commands that normally delete just one character, such
-as @kbd{C-d} or @kbd{@key{DEL}}, will delete the entire region
-instead.  To toggle Delete Selection mode on or off, type @kbd{M-x
+first.  To toggle Delete Selection mode on or off, type @kbd{M-x
 delete-selection-mode}.
 
 @node Mark Ring
@@ -367,7 +372,7 @@ of buffers that you have been in, and, for each buffer, a place where
 you set the mark.  The length of the global mark ring is controlled by
 @code{global-mark-ring-max}, and is 16 by default.
 
-@kindex C-x C-@key{SPC}
+@kindex C-x C-SPC
 @findex pop-global-mark
   The command @kbd{C-x C-@key{SPC}} (@code{pop-global-mark}) jumps to
 the buffer and position of the latest entry in the global ring.  It also
@@ -420,9 +425,9 @@ commands.
   The default behavior of the mark and region, in which setting the
 mark activates it and highlights the region, is called Transient Mark
 mode.  This is a minor mode that is enabled by default.  It can be
-toggled with @kbd{M-x transient-mark-mode}, or with the @samp{Active
-Region Highlighting} menu item in the @samp{Options} menu.  Turning it
-off switches Emacs to an alternative mode of operation:
+toggled with @kbd{M-x transient-mark-mode}, or with the
+@samp{Highlight Active Region} menu item in the @samp{Options} menu.
+Turning it off switches Emacs to an alternative mode of operation:
 
 @itemize @bullet
 @item
@@ -444,12 +449,13 @@ from point to the end of the buffer.  Commands that act this way are
 identified in their own documentation.
 @end itemize
 
+@cindex enabling Transient Mark mode temporarily
   While Transient Mark mode is off, you can activate it temporarily
 using @kbd{C-@key{SPC} C-@key{SPC}} or @kbd{C-u C-x C-x}.
 
 @table @kbd
 @item C-@key{SPC} C-@key{SPC}
-@kindex C-@key{SPC} C-@key{SPC}
+@kindex C-SPC C-SPC@r{, enabling Transient Mark mode temporarily}
 Set the mark at point (like plain @kbd{C-@key{SPC}}) and enable
 Transient Mark mode just once, until the mark is deactivated.  (This
 is not really a separate command; you are using the @kbd{C-@key{SPC}}

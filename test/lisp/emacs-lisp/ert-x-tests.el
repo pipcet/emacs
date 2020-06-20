@@ -1,6 +1,6 @@
-;;; ert-x-tests.el --- Tests for ert-x.el
+;;; ert-x-tests.el --- Tests for ert-x.el  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2008, 2010-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2008, 2010-2020 Free Software Foundation, Inc.
 
 ;; Author: Phil Hagelberg
 ;; 	   Christian Ohler <ohler@gnu.org>
@@ -18,7 +18,7 @@
 ;; General Public License for more details.
 ;;
 ;; You should have received a copy of the GNU General Public License
-;; along with this program.  If not, see `http://www.gnu.org/licenses/'.
+;; along with this program.  If not, see `https://www.gnu.org/licenses/'.
 
 ;;; Commentary:
 

@@ -1,6 +1,6 @@
 ;;; url-gw.el --- Gateway munging for URL loading
 
-;; Copyright (C) 1997-1998, 2004-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1997-1998, 2004-2020 Free Software Foundation, Inc.
 
 ;; Author: Bill Perry <wmperry@gnu.org>
 ;; Maintainer: emacs-devel@gnu.org
@@ -19,11 +19,12 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Code:
 
 (require 'url-vars)
+(require 'url-parse)
 
 ;; Fixme: support SSH explicitly or via a url-gateway-rlogin-program?
 
@@ -190,7 +191,7 @@ linked Emacs under SunOS 4.x."
 	 proc (concat (mapconcat 'identity
 				 (append url-gateway-telnet-parameters
 					 (list host service)) " ") "\n"))
-	(url-wait-for-string "^\r*Escape character.*\r*\n+" proc)
+	(url-wait-for-string "^\r*Escape character.*\n+" proc)
 	(delete-region (point-min) (match-end 0))
 	(process-send-string proc "\^]\n")
 	(url-wait-for-string "^telnet" proc)
@@ -238,20 +239,21 @@ overriding the value of `url-gateway-method'."
 	  (let ((coding-system-for-read 'binary)
 		(coding-system-for-write 'binary))
 	    (setq conn (pcase gw-method
-			 ((or `tls `ssl `native)
+			 ((or 'tls 'ssl 'native)
 			  (if (eq gw-method 'native)
 			      (setq gw-method 'plain))
 			  (open-network-stream
 			   name buffer host service
 			   :type gw-method
 			   ;; Use non-blocking socket if we can.
-			   :nowait (featurep 'make-network-process
-                                             '(:nowait t))))
-                         (`socks
+			   :nowait (and (featurep 'make-network-process)
+                                        (url-asynchronous url-current-object)
+                                        '(:nowait t))))
+                         ('socks
 			  (socks-open-network-stream name buffer host service))
-			 (`telnet
+			 ('telnet
 			  (url-open-telnet name buffer host service))
-			 (`rlogin
+			 ('rlogin
 			  (url-open-rlogin name buffer host service))
 			 (_
 			  (error "Bad setting of url-gateway-method: %s"

@@ -1,6 +1,6 @@
 ;;; em-alias.el --- creation and management of command aliases  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1999-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1999-2020 Free Software Foundation, Inc.
 
 ;; Author: John Wiegley <johnw@gnu.org>
 
@@ -17,7 +17,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -90,7 +90,7 @@
 
 ;;; Code:
 
-(require 'eshell)
+(require 'esh-mode)
 
 ;;;###autoload
 (progn
@@ -141,12 +141,12 @@ file named by `eshell-aliases-file'.")
 (defvar eshell-failed-commands-alist nil
   "An alist of command name failures.")
 
-(defun eshell-alias-initialize ()
+(defun eshell-alias-initialize ()    ;Called from `eshell-mode' via intern-soft!
   "Initialize the alias handling code."
   (make-local-variable 'eshell-failed-commands-alist)
-  (add-hook 'eshell-alternate-command-hook 'eshell-fix-bad-commands t t)
+  (add-hook 'eshell-alternate-command-hook #'eshell-fix-bad-commands t t)
   (eshell-read-aliases-list)
-  (add-hook 'eshell-named-command-hook 'eshell-maybe-replace-by-alias t t)
+  (add-hook 'eshell-named-command-hook #'eshell-maybe-replace-by-alias t t)
   (make-local-variable 'eshell-complex-commands)
   (add-to-list 'eshell-complex-commands 'eshell-command-aliased-p))
 
@@ -214,8 +214,8 @@ file named by `eshell-aliases-file'.")
 
 (defvar eshell-prevent-alias-expansion nil)
 
-(defun eshell-maybe-replace-by-alias (command args)
-  "If COMMAND has an alias definition, call that instead using ARGS."
+(defun eshell-maybe-replace-by-alias (command _args)
+  "Call COMMAND's alias definition, if it exists."
   (unless (and eshell-prevent-alias-expansion
 	       (member command eshell-prevent-alias-expansion))
     (let ((alias (eshell-lookup-alias command)))
@@ -225,7 +225,7 @@ file named by `eshell-aliases-file'.")
                         (eshell-command-arguments ',eshell-last-arguments)
                         (eshell-prevent-alias-expansion
                          ',(cons command eshell-prevent-alias-expansion)))
-                    ,(eshell-parse-command (nth 1 alias) args)))))))
+                    ,(eshell-parse-command (nth 1 alias))))))))
 
 (defun eshell-alias-completions (name)
   "Find all possible completions for NAME.

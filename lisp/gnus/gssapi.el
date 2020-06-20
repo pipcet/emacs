@@ -1,6 +1,6 @@
 ;;; gssapi.el --- GSSAPI/Kerberos 5 interface for Emacs
 
-;; Copyright (C) 2011-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2011-2020 Free Software Foundation, Inc.
 
 ;; Author: Simon Josefsson <simon@josefsson.org>
 ;;         Lars Magne Ingebrigtsen <larsi@gnus.org>
@@ -19,13 +19,11 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
 ;;; Code:
-
-(require 'format-spec)
 
 (defcustom gssapi-program (list
 			   (concat "gsasl %s %p "
@@ -53,12 +51,9 @@ tried until a successful connection is made."
 	       (coding-system-for-write 'binary)
 	       (process (start-process
 			 name buffer shell-file-name shell-command-switch
-			 (format-spec
-			  cmd
-			  (format-spec-make
-			   ?s server
-			   ?p (number-to-string port)
-			   ?l user))))
+                         (format-spec cmd `((?s . ,server)
+                                            (?p . ,(number-to-string port))
+                                            (?l . ,user)))))
 	       response)
 	  (when process
 	    (while (and (memq (process-status process) '(open run))

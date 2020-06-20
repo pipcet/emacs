@@ -1,5 +1,5 @@
 /* Shared GDI and Uniscribe Font backend declarations for the Windows API.
-   Copyright (C) 2007-2017 Free Software Foundation, Inc.
+   Copyright (C) 2007-2020 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -14,7 +14,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.  */
+along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 
 #ifndef EMACS_W32FONT_H
 #define EMACS_W32FONT_H
@@ -74,7 +74,7 @@ int w32font_open_internal (struct frame *f, Lisp_Object font_entity,
                            int pixel_size, Lisp_Object font_object);
 void w32font_close (struct font *font);
 int w32font_has_char (Lisp_Object entity, int c);
-void w32font_text_extents (struct font *font, unsigned *code, int nglyphs,
+void w32font_text_extents (struct font *font, const unsigned *code, int nglyphs,
 			   struct font_metrics *metrics);
 int w32font_draw (struct glyph_string *s, int from, int to,
                   int x, int y, bool with_background);

@@ -1,6 +1,6 @@
 ;;; meta-mode.el --- major mode for editing Metafont or MetaPost sources -*- lexical-binding:t -*-
 
-;; Copyright (C) 1997, 2001-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1997, 2001-2020 Free Software Foundation, Inc.
 
 ;; Author: Ulrik Vieth <vieth@thphy.uni-duesseldorf.de>
 ;; Version: 1.0
@@ -19,7 +19,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -47,8 +47,8 @@
 ;; `metafont-mode-hook' and `metapost-mode-hook' which apply to the
 ;; individual modes.  In addition, there are several variables and
 ;; regexps controlling e.g. the behavior of the indentation function,
-;; which may be customized via `edit-options'.  Please refer to the
-;; docstrings in the code below for details.
+;; which may be customized.  Please refer to the docstrings in the code
+;; below for details.
 
 ;; Availability:
 ;;
@@ -666,7 +666,7 @@ If the list was changed, sort the list and remove duplicates first."
       (let ((count 0))
         (narrow-to-region
          (point) (save-excursion
-                   (re-search-forward "[^\\\\\"]%\\|\n\\|\\'" nil t)
+                   (re-search-forward "[^\\\"]%\\|\n\\|\\'" nil t)
                    (backward-char) (point)))
         (while (re-search-forward "\\<\\sw+\\>\\|(\\|)" nil t)
           (save-excursion
@@ -871,15 +871,15 @@ The environment marked is the one that contains point or follows point."
        ["Indent Line"                   meta-indent-line t]
        ["Indent Environment"            meta-indent-defun t]
        ["Indent Region"                 meta-indent-region
-        :active (meta-mark-active)]
+        :active mark-active]
        ["Indent Buffer"                 meta-indent-buffer t]
        "--"
        ["Comment Out Environment"       meta-comment-defun t]
        ["Uncomment Environment"         meta-uncomment-defun t]
        ["Comment Out Region"            meta-comment-region
-        :active (meta-mark-active)]
+        :active mark-active]
        ["Uncomment Region"              meta-uncomment-region
-        :active (meta-mark-active)]
+        :active mark-active]
        "--"
        ["Complete Symbol"               completion-at-point t]
 ;      "--"
@@ -888,12 +888,6 @@ The environment marked is the one that contains point or follows point."
 ;      ["Recenter Output Buffer"        meta-recenter-output-buffer t]
        ))
 
-;; Compatibility: XEmacs doesn't have the  `mark-active' variable.
-(defun meta-mark-active ()
-  "Return whether the mark and region are currently active in this buffer."
-  (if (boundp 'mark-active) mark-active (mark)))
-
-
 
 ;;; Hook variables.
 
@@ -901,6 +895,8 @@ The environment marked is the one that contains point or follows point."
   "Hook evaluated when first loading Metafont or MetaPost mode."
   :type 'hook
   :group 'meta-font)
+(make-obsolete-variable 'meta-mode-load-hook
+                        "use `with-eval-after-load' instead." "28.1")
 
 (defcustom meta-common-mode-hook nil
   "Hook evaluated by both `metafont-mode' and `metapost-mode'."

@@ -1,6 +1,6 @@
 ;;; which-func.el --- print current function in mode line  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1994, 1997-1998, 2001-2017 Free Software Foundation,
+;; Copyright (C) 1994, 1997-1998, 2001-2020 Free Software Foundation,
 ;; Inc.
 
 ;; Author:   Alex Rezinsky <alexr@msil.sps.mot.com>
@@ -20,7 +20,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -186,7 +186,7 @@ and you want to simplify them for the mode line
   "Non-nil means display current function name in mode line.
 This makes a difference only if `which-function-mode' is non-nil.")
 
-(add-hook 'find-file-hook 'which-func-ff-hook t)
+(add-hook 'after-change-major-mode-hook 'which-func-ff-hook t)
 
 (defun which-func-try-to-enable ()
   (unless (or (not which-function-mode)
@@ -195,7 +195,7 @@ This makes a difference only if `which-function-mode' is non-nil.")
                               (member major-mode which-func-modes)))))
 
 (defun which-func-ff-hook ()
-  "File find hook for Which Function mode.
+  "`after-change-major-mode-hook' for Which Function mode.
 It creates the Imenu index for the buffer, if necessary."
   (which-func-try-to-enable)
 
@@ -247,9 +247,6 @@ It creates the Imenu index for the buffer, if necessary."
 ;;;###autoload
 (define-minor-mode which-function-mode
   "Toggle mode line display of current function (Which Function mode).
-With a prefix argument ARG, enable Which Function mode if ARG is
-positive, and disable it otherwise.  If called from Lisp, enable
-the mode if ARG is omitted or nil.
 
 Which Function mode is a global minor mode.  When enabled, the
 current function name is continuously displayed in the mode line,
@@ -275,61 +272,65 @@ It calls them sequentially, and if any returns non-nil,
 
 (defun which-function ()
   "Return current function name based on point.
-Uses `which-func-functions', `imenu--index-alist'
-or `add-log-current-defun'.
+Uses `which-func-functions', `add-log-current-defun'.
+or `imenu--index-alist'
 If no function name is found, return nil."
   (let ((name
 	 ;; Try the `which-func-functions' functions first.
 	 (run-hook-with-args-until-success 'which-func-functions)))
-
-    ;; If Imenu is loaded, try to make an index alist with it.
-    (when (and (null name)
-	       (boundp 'imenu--index-alist) (null imenu--index-alist)
-	       (null which-function-imenu-failed))
-      (ignore-errors (imenu--make-index-alist t))
-      (unless imenu--index-alist
-        (set (make-local-variable 'which-function-imenu-failed) t)))
-    ;; If we have an index alist, use it.
-    (when (and (null name)
-	       (boundp 'imenu--index-alist) imenu--index-alist)
-      (let ((alist imenu--index-alist)
-            (minoffset (point-max))
-            offset pair mark imstack namestack)
-        ;; Elements of alist are either ("name" . marker), or
-        ;; ("submenu" ("name" . marker) ... ). The list can be
-        ;; arbitrarily nested.
-        (while (or alist imstack)
-          (if (null alist)
-              (setq alist     (car imstack)
-                    namestack (cdr namestack)
-                    imstack   (cdr imstack))
-
-            (setq pair (car-safe alist)
-                  alist (cdr-safe alist))
-
-            (cond
-             ((atom pair))              ; Skip anything not a cons.
-
-             ((imenu--subalist-p pair)
-              (setq imstack   (cons alist imstack)
-                    namestack (cons (car pair) namestack)
-                    alist     (cdr pair)))
-
-             ((or (number-or-marker-p (setq mark (cdr pair)))
-		  (and (overlayp mark)
-		       (setq mark (overlay-start mark))))
-              (when (and (>= (setq offset (- (point) mark)) 0)
-                         (< offset minoffset)) ; Find the closest item.
-                (setq minoffset offset
-                      name (if (null which-func-imenu-joiner-function)
-                               (car pair)
-                             (funcall
-                              which-func-imenu-joiner-function
-                              (reverse (cons (car pair) namestack))))))))))))
-
     ;; Try using add-log support.
     (when (null name)
       (setq name (add-log-current-defun)))
+    ;; If Imenu is loaded, try to make an index alist with it.
+    ;; If `add-log-current-defun' ran and gave nil, accept that.
+    (when (and (null name)
+               (null add-log-current-defun-function))
+      (when (and (null name)
+	         (boundp 'imenu--index-alist)
+                 (or (null imenu--index-alist)
+                     ;; Update if outdated
+                     (/= (buffer-chars-modified-tick) imenu-menubar-modified-tick))
+	         (null which-function-imenu-failed))
+        (ignore-errors (imenu--make-index-alist t))
+        (unless imenu--index-alist
+          (set (make-local-variable 'which-function-imenu-failed) t)))
+      ;; If we have an index alist, use it.
+      (when (and (null name)
+	         (boundp 'imenu--index-alist) imenu--index-alist)
+        (let ((alist imenu--index-alist)
+              (minoffset (point-max))
+              offset pair mark imstack namestack)
+          ;; Elements of alist are either ("name" . marker), or
+          ;; ("submenu" ("name" . marker) ... ). The list can be
+          ;; arbitrarily nested.
+          (while (or alist imstack)
+            (if (null alist)
+                (setq alist     (car imstack)
+                      namestack (cdr namestack)
+                      imstack   (cdr imstack))
+
+              (setq pair (car-safe alist)
+                    alist (cdr-safe alist))
+
+              (cond
+               ((atom pair))            ; Skip anything not a cons.
+
+               ((imenu--subalist-p pair)
+                (setq imstack   (cons alist imstack)
+                      namestack (cons (car pair) namestack)
+                      alist     (cdr pair)))
+
+               ((or (number-or-marker-p (setq mark (cdr pair)))
+		    (and (overlayp mark)
+		         (setq mark (overlay-start mark))))
+                (when (and (>= (setq offset (- (point) mark)) 0)
+                           (< offset minoffset)) ; Find the closest item.
+                  (setq minoffset offset
+                        name (if (null which-func-imenu-joiner-function)
+                                 (car pair)
+                               (funcall
+                                which-func-imenu-joiner-function
+                                (reverse (cons (car pair) namestack)))))))))))))
     ;; Filter the name if requested.
     (when name
       (if which-func-cleanup-function

@@ -1,6 +1,6 @@
 ;;; rmail-tests.el --- Test suite. -*- lexical-binding: t -*-
 
-;; Copyright (C) 2015-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2015-2020 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -15,7 +15,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Code:
 (require 'ert)
@@ -23,7 +23,7 @@
 
 
 (ert-deftest rmail-autoload ()
-  "Tests to see whether reftex-auc has been autoloaded"
+  "Test that `rmail-edit-current-message' has been autoloaded."
   (should
    (fboundp 'rmail-edit-current-message))
   (should

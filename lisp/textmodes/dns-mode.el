@@ -1,6 +1,6 @@
 ;;; dns-mode.el --- a mode for viewing/editing Domain Name System master files
 
-;; Copyright (C) 2000-2001, 2004-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2000-2001, 2004-2020 Free Software Foundation, Inc.
 
 ;; Author: Simon Josefsson <simon@josefsson.org>
 ;; Keywords: DNS master zone file SOA comm
@@ -18,7 +18,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -35,6 +35,7 @@
 ;; RFC 5155, "DNS Security (DNSSEC) Hashed Authenticated Denial of Existence"
 ;; RFC 6698, "The DNS-Based Authentication of Named Entities (DANE)
 ;;             Transport Layer Security (TLS) Protocol: TLSA"
+;; RFC 6844, "DNS Certification Authority Authorization (CAA) Resource Record"
 
 ;;; Release history:
 
@@ -43,6 +44,8 @@
 ;; 2004-09-14  Installed in Emacs CVS.
 
 ;;; Code:
+
+(eval-when-compile (require 'cl-lib))
 
 (defgroup dns-mode nil
   "DNS master file mode configuration."
@@ -62,7 +65,7 @@
 			   "A6" "DNAME" "SINK" "OPT" "APL" "DS" "SSHFP"
 			   "RRSIG" "NSEC" "DNSKEY" "UINFO" "UID" "GID"
 			   "UNSPEC" "TKEY" "TSIG" "IXFR" "AXFR" "MAILB"
-			   "MAILA" "TLSA" "NSEC3")
+			   "MAILA" "TLSA" "NSEC3" "CAA")
   "List of strings with known DNS types.")
 
 (defface dns-mode-control-entity '((t :inherit font-lock-keyword-face))
@@ -111,9 +114,9 @@
 			"26.1" 'set)
 
 (defcustom dns-mode-font-lock-keywords
-  `((,(concat "^$" (regexp-opt dns-mode-control-entities))
+  `((,(concat "^\\$" (regexp-opt dns-mode-control-entities))
      0 ,dns-mode-control-entity-face)
-    ("^$[a-z0-9A-Z]+" 0 ,dns-mode-bad-control-entity-face)
+    ("^\\$[a-z0-9A-Z]+" 0 ,dns-mode-bad-control-entity-face)
     (,(regexp-opt dns-mode-classes) 0 ,dns-mode-class-face)
     (,(regexp-opt dns-mode-types) 0 ,dns-mode-type-face))
   "Font lock keywords used to highlight text in DNS master file mode."
@@ -131,6 +134,7 @@ manually with \\[dns-mode-soa-increment-serial]."
   :type '(choice (const :tag "Always" t)
 		 (const :tag "Ask" ask)
 		 (const :tag "Never" nil))
+  :safe 'symbolp
   :group 'dns-mode)
 
 ;; Syntax table.
@@ -177,9 +181,8 @@ Turning on DNS mode runs `dns-mode-hook'."
   (set (make-local-variable 'comment-start) ";")
   (set (make-local-variable 'comment-end) "")
   (set (make-local-variable 'comment-start-skip) ";+ *")
-  (unless (featurep 'xemacs)
-    (set (make-local-variable 'font-lock-defaults)
-	 '(dns-mode-font-lock-keywords nil nil ((?_ . "w")))))
+  (set (make-local-variable 'font-lock-defaults)
+       '(dns-mode-font-lock-keywords nil nil ((?_ . "w"))))
   (add-hook 'before-save-hook 'dns-mode-soa-maybe-increment-serial
 	    nil t)
   (easy-menu-add dns-mode-menu dns-mode-map))
@@ -289,9 +292,9 @@ Examples:
   (skip-syntax-backward " ")
   (skip-syntax-backward "w_.")
   (re-search-forward "\\([[:xdigit:]:]+\\)\\(/-?[0-9]\\{2,3\\}\\)?")
-  (kill-new (match-string 0))
   (let ((address (match-string 1))
         (prefix-length (match-string 2)))
+    (kill-new (match-string 0))
     (when prefix-length
       (setq prefix-length (string-to-number (substring prefix-length 1)))
       (if negate-prefix

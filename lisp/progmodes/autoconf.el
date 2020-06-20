@@ -1,6 +1,6 @@
-;;; autoconf.el --- mode for editing Autoconf configure.ac files
+;;; autoconf.el --- mode for editing Autoconf configure.ac files  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2000-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2000-2020 Free Software Foundation, Inc.
 
 ;; Author: Dave Love <fx@gnu.org>
 ;; Keywords: languages
@@ -18,7 +18,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -84,7 +84,7 @@ searching backwards at another AC_... command."
   (setq-local syntax-propertize-function
 	      (syntax-propertize-rules ("\\<dnl\\>" (0 "<"))))
   (setq-local font-lock-defaults
-	      `(autoconf-font-lock-keywords nil nil))
+	      '(autoconf-font-lock-keywords nil nil))
   (setq-local imenu-generic-expression autoconf-imenu-generic-expression)
   (setq-local indent-line-function #'indent-relative)
   (setq-local add-log-current-defun-function

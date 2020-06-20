@@ -1,5 +1,5 @@
 /* Markers: examining, setting and deleting.
-   Copyright (C) 1985, 1997-1998, 2001-2017 Free Software Foundation,
+   Copyright (C) 1985, 1997-1998, 2001-2020 Free Software Foundation,
    Inc.
 
 This file is part of GNU Emacs.
@@ -15,7 +15,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.  */
+along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 
 
 #include <config.h>
@@ -30,7 +30,7 @@ along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.  */
 static ptrdiff_t cached_charpos;
 static ptrdiff_t cached_bytepos;
 static struct buffer *cached_buffer;
-static EMACS_INT cached_modiff;
+static modiff_count cached_modiff;
 
 /* Juanma Barranquero <lekktu@gmail.com> reported ~3x increased
    bootstrap time when byte_char_debug_check is enabled; so this
@@ -90,7 +90,7 @@ clear_charpos_cache (struct buffer *b)
 #define CONSIDER(CHARPOS, BYTEPOS)					\
 {									\
   ptrdiff_t this_charpos = (CHARPOS);					\
-  bool changed = 0;							\
+  bool changed = false;							\
 									\
   if (this_charpos == charpos)						\
     {									\
@@ -105,14 +105,14 @@ clear_charpos_cache (struct buffer *b)
 	{								\
 	  best_above = this_charpos;					\
 	  best_above_byte = (BYTEPOS);					\
-	  changed = 1;							\
+	  changed = true;						\
 	}								\
     }									\
   else if (this_charpos > best_below)					\
     {									\
       best_below = this_charpos;					\
       best_below_byte = (BYTEPOS);					\
-      changed = 1;							\
+      changed = true;							\
     }									\
 									\
   if (changed)								\
@@ -133,6 +133,28 @@ CHECK_MARKER (Lisp_Object x)
   CHECK_TYPE (MARKERP (x), Qmarkerp, x);
 }
 
+/* When converting bytes from/to chars, we look through the list of
+   markers to try and find a good starting point (since markers keep
+   track of both bytepos and charpos at the same time).
+   But if there are many markers, it can take too much time to find a "good"
+   marker from which to start.  Worse yet: if it takes a long time and we end
+   up finding a nearby markers, we won't add a new marker to cache this
+   result, so next time around we'll have to go through this same long list
+   to (re)find this best marker.  So the further down the list of
+   markers we go, the less demanding we are w.r.t what is a good marker.
+
+   The previous code used INITIAL=50 and INCREMENT=0 and this lead to
+   really poor performance when there are many markers.
+   I haven't tried to tweak INITIAL, but experiments on my trusty Thinkpad
+   T61 using various artificial test cases seem to suggest that INCREMENT=50
+   might be "the best compromise": it significantly improved the
+   worst case and it was rarely slower and never by much.
+
+   The asymptotic behavior is still poor, tho, so in largish buffers with many
+   overlays (e.g. 300KB and 30K overlays), it can still be a bottleneck.  */
+#define BYTECHAR_DISTANCE_INITIAL 50
+#define BYTECHAR_DISTANCE_INCREMENT 50
+
 /* Return the byte position corresponding to CHARPOS in B.  */
 
 ptrdiff_t
@@ -141,6 +163,7 @@ buf_charpos_to_bytepos (struct buffer *b, ptrdiff_t charpos)
   struct Lisp_Marker *tail;
   ptrdiff_t best_above, best_above_byte;
   ptrdiff_t best_below, best_below_byte;
+  ptrdiff_t distance = BYTECHAR_DISTANCE_INITIAL;
 
   eassert (BUF_BEG (b) <= charpos && charpos <= BUF_Z (b));
 
@@ -180,8 +203,11 @@ buf_charpos_to_bytepos (struct buffer *b, ptrdiff_t charpos)
       /* If we are down to a range of 50 chars,
 	 don't bother checking any other markers;
 	 scan the intervening chars directly now.  */
-      if (best_above - best_below < 50)
+      if (best_above - charpos < distance
+          || charpos - best_below < distance)
 	break;
+      else
+        distance += BYTECHAR_DISTANCE_INCREMENT;
     }
 
   /* We get here if we did not exactly hit one of the known places.
@@ -195,7 +221,7 @@ buf_charpos_to_bytepos (struct buffer *b, ptrdiff_t charpos)
       while (best_below != charpos)
 	{
 	  best_below++;
-	  BUF_INC_POS (b, best_below_byte);
+	  best_below_byte += buf_next_char_len (b, best_below_byte);
 	}
 
       /* If this position is quite far from the nearest known position,
@@ -220,7 +246,7 @@ buf_charpos_to_bytepos (struct buffer *b, ptrdiff_t charpos)
       while (best_above != charpos)
 	{
 	  best_above--;
-	  BUF_DEC_POS (b, best_above_byte);
+	  best_above_byte -= buf_prev_char_len (b, best_above_byte);
 	}
 
       /* If this position is quite far from the nearest known position,
@@ -248,7 +274,7 @@ buf_charpos_to_bytepos (struct buffer *b, ptrdiff_t charpos)
 #define CONSIDER(BYTEPOS, CHARPOS)					\
 {									\
   ptrdiff_t this_bytepos = (BYTEPOS);					\
-  int changed = 0;							\
+  int changed = false;							\
 									\
   if (this_bytepos == bytepos)						\
     {									\
@@ -263,14 +289,14 @@ buf_charpos_to_bytepos (struct buffer *b, ptrdiff_t charpos)
 	{								\
 	  best_above = (CHARPOS);					\
 	  best_above_byte = this_bytepos;				\
-	  changed = 1;							\
+	  changed = true;						\
 	}								\
     }									\
   else if (this_bytepos > best_below_byte)				\
     {									\
       best_below = (CHARPOS);						\
       best_below_byte = this_bytepos;					\
-      changed = 1;							\
+      changed = true;							\
     }									\
 									\
   if (changed)								\
@@ -293,6 +319,7 @@ buf_bytepos_to_charpos (struct buffer *b, ptrdiff_t bytepos)
   struct Lisp_Marker *tail;
   ptrdiff_t best_above, best_above_byte;
   ptrdiff_t best_below, best_below_byte;
+  ptrdiff_t distance = BYTECHAR_DISTANCE_INITIAL;
 
   eassert (BUF_BEG_BYTE (b) <= bytepos && bytepos <= BUF_Z_BYTE (b));
 
@@ -304,6 +331,10 @@ buf_bytepos_to_charpos (struct buffer *b, ptrdiff_t bytepos)
      This takes care of the case where enable-multibyte-characters is nil.  */
   if (best_above == best_above_byte)
     return bytepos;
+
+  /* Check bytepos is not in the middle of a character. */
+  eassert (bytepos >= BUF_Z_BYTE (b)
+           || CHAR_HEAD_P (BUF_FETCH_BYTE (b, bytepos)));
 
   best_below = BEG;
   best_below_byte = BEG_BYTE;
@@ -323,8 +354,11 @@ buf_bytepos_to_charpos (struct buffer *b, ptrdiff_t bytepos)
       /* If we are down to a range of 50 chars,
 	 don't bother checking any other markers;
 	 scan the intervening chars directly now.  */
-      if (best_above - best_below < 50)
+      if (best_above - bytepos < distance
+          || bytepos - best_below < distance)
 	break;
+      else
+        distance += BYTECHAR_DISTANCE_INCREMENT;
     }
 
   /* We get here if we did not exactly hit one of the known places.
@@ -338,7 +372,7 @@ buf_bytepos_to_charpos (struct buffer *b, ptrdiff_t bytepos)
       while (best_below_byte < bytepos)
 	{
 	  best_below++;
-	  BUF_INC_POS (b, best_below_byte);
+	  best_below_byte += buf_next_char_len (b, best_below_byte);
 	}
 
       /* If this position is quite far from the nearest known position,
@@ -365,7 +399,7 @@ buf_bytepos_to_charpos (struct buffer *b, ptrdiff_t bytepos)
       while (best_above_byte > bytepos)
 	{
 	  best_above--;
-	  BUF_DEC_POS (b, best_above_byte);
+	  best_above_byte -= buf_prev_char_len (b, best_above_byte);
 	}
 
       /* If this position is quite far from the nearest known position,
@@ -417,7 +451,7 @@ DEFUN ("marker-position", Fmarker_position, Smarker_position, 1, 1, 0,
 {
   CHECK_MARKER (marker);
   if (XMARKER (marker)->buffer)
-    return make_number (XMARKER (marker)->charpos);
+    return make_fixnum (XMARKER (marker)->charpos);
 
   return Qnil;
 }
@@ -491,11 +525,22 @@ set_marker_internal (Lisp_Object marker, Lisp_Object position,
     {
       register ptrdiff_t charpos, bytepos;
 
-      /* Do not use CHECK_NUMBER_COERCE_MARKER because we
+      /* Do not use CHECK_FIXNUM_COERCE_MARKER because we
 	 don't want to call buf_charpos_to_bytepos if POSITION
 	 is a marker and so we know the bytepos already.  */
-      if (INTEGERP (position))
-	charpos = XINT (position), bytepos = -1;
+      if (FIXNUMP (position))
+	{
+#if EMACS_INT_MAX > PTRDIFF_MAX
+	  /* A --with-wide-int build.  */
+	  EMACS_INT cpos = XFIXNUM (position);
+	  if (cpos > PTRDIFF_MAX)
+	    cpos = PTRDIFF_MAX;
+	  charpos = cpos;
+	  bytepos = -1;
+#else
+	  charpos = XFIXNUM (position), bytepos = -1;
+#endif
+	}
       else if (MARKERP (position))
 	{
 	  charpos = XMARKER (position)->charpos;
@@ -530,7 +575,7 @@ POSITION is nil, makes marker point nowhere so it no longer slows down
 editing in any buffer.  Returns MARKER.  */)
   (Lisp_Object marker, Lisp_Object position, Lisp_Object buffer)
 {
-  return set_marker_internal (marker, position, buffer, 0);
+  return set_marker_internal (marker, position, buffer, false);
 }
 
 /* Like the above, but won't let the position be outside the visible part.  */
@@ -539,7 +584,7 @@ Lisp_Object
 set_marker_restricted (Lisp_Object marker, Lisp_Object position,
 		       Lisp_Object buffer)
 {
-  return set_marker_internal (marker, position, buffer, 1);
+  return set_marker_internal (marker, position, buffer, true);
 }
 
 /* Set the position of MARKER, specifying both the
@@ -584,6 +629,15 @@ set_marker_restricted_both (Lisp_Object marker, Lisp_Object buffer,
   else
     unchain_marker (m);
   return marker;
+}
+
+/* Detach a marker so that it no longer points anywhere and no longer
+   slows down editing.  Do not free the marker, though, as a change
+   function could have inserted it into an undo list (Bug#30931).  */
+void
+detach_marker (Lisp_Object marker)
+{
+  Fset_marker (marker, Qnil, Qnil);
 }
 
 /* Remove MARKER from the chain of whatever buffer it is in,
@@ -673,7 +727,7 @@ see `marker-insertion-type'.  */)
   register Lisp_Object new;
 
   if (!NILP (marker))
-  CHECK_TYPE (INTEGERP (marker) || MARKERP (marker), Qinteger_or_marker_p, marker);
+  CHECK_TYPE (FIXNUMP (marker) || MARKERP (marker), Qinteger_or_marker_p, marker);
 
   new = Fmake_marker ();
   Fset_marker (new, marker,
@@ -713,7 +767,7 @@ DEFUN ("buffer-has-markers-at", Fbuffer_has_markers_at, Sbuffer_has_markers_at,
   register struct Lisp_Marker *tail;
   register ptrdiff_t charpos;
 
-  charpos = clip_to_bounds (BEG, XINT (position), Z);
+  charpos = clip_to_bounds (BEG, XFIXNUM (position), Z);
 
   for (tail = BUF_MARKERS (current_buffer); tail; tail = tail->next)
     if (tail->charpos == charpos)
@@ -744,13 +798,13 @@ count_markers (struct buffer *buf)
 ptrdiff_t
 verify_bytepos (ptrdiff_t charpos)
 {
-  ptrdiff_t below = 1;
-  ptrdiff_t below_byte = 1;
+  ptrdiff_t below = BEG;
+  ptrdiff_t below_byte = BEG_BYTE;
 
   while (below != charpos)
     {
       below++;
-      BUF_INC_POS (current_buffer, below_byte);
+      below_byte += buf_next_char_len (current_buffer, below_byte);
     }
 
   return below_byte;

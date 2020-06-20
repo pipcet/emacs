@@ -1,10 +1,10 @@
 ;;; ob-io.el --- Babel Functions for Io              -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2012-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2012-2020 Free Software Foundation, Inc.
 
 ;; Author: Andrzej Lichnerowicz
 ;; Keywords: literate programming, reproducible research
-;; Homepage: http://orgmode.org
+;; Homepage: https://orgmode.org
 
 ;; This file is part of GNU Emacs.
 
@@ -19,7 +19,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 ;; Currently only supports the external execution.  No session support yet.
@@ -41,8 +41,8 @@
   "Name of the command to use for executing Io code.")
 
 (defun org-babel-execute:io (body params)
-  "Execute a block of Io code with org-babel.  This function is
-called by `org-babel-execute-src-block'"
+  "Execute a block of Io code with org-babel.
+This function is called by `org-babel-execute-src-block'."
   (message "executing Io source code block")
   (let* ((processed-params (org-babel-process-params params))
          (session (org-babel-io-initiate-session (nth 0 processed-params)))

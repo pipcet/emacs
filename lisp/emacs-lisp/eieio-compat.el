@@ -1,6 +1,6 @@
 ;;; eieio-compat.el --- Compatibility with Older EIEIO versions  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1995-1996, 1998-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1995-1996, 1998-2020 Free Software Foundation, Inc.
 
 ;; Author: Eric M. Ludlam <zappo@gnu.org>
 ;; Keywords: OO, lisp
@@ -19,7 +19,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -182,11 +182,11 @@ Summary:
           ;; `no-applicable-method', which have slightly different calling
           ;; convention than their cl-generic counterpart.
           (pcase method
-            (`no-next-method
+            ('no-next-method
              (setq method 'cl-no-next-method)
              (setq specializers `(generic method ,@specializers))
              (lambda (_generic _method &rest args) (apply code args)))
-            (`no-applicable-method
+            ('no-applicable-method
              (setq method 'cl-no-applicable-method)
              (setq specializers `(generic ,@specializers))
              (lambda (generic arg &rest args)

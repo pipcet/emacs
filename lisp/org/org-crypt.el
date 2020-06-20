@@ -1,5 +1,5 @@
 ;;; org-crypt.el --- Public Key Encryption for Org Entries -*- lexical-binding: t; -*-
-;; Copyright (C) 2007-2017 Free Software Foundation, Inc.
+;; Copyright (C) 2007-2020 Free Software Foundation, Inc.
 
 ;; Emacs Lisp Archive Entry
 ;; Filename: org-crypt.el
@@ -23,7 +23,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -190,7 +190,7 @@ See `org-crypt-disable-auto-save'."
 	     (error (insert contents) (error (nth 1 err)))))
 	 (when folded
 	   (goto-char start-heading)
-	   (outline-hide-subtree))
+	   (org-flag-subtree t))
 	 nil)))))
 
 (defun org-decrypt-entry ()

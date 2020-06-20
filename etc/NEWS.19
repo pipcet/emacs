@@ -1,10 +1,10 @@
 GNU Emacs NEWS -- history of user-visible changes.  1992.
 
-Copyright (C) 1993-1995, 2001, 2006-2017 Free Software Foundation, Inc.
+Copyright (C) 1993-1995, 2001, 2006-2020 Free Software Foundation, Inc.
 See the end of the file for license conditions.
 
 
-This file is about changes in emacs versions 19.
+This file is about changes in Emacs versions 19.
 
 
 
@@ -438,7 +438,7 @@ The other accent characters, not needed for the chosen language,
 remain normal.
 
 ** Posting articles and sending mail now has M-TAB completion on various
-header fields (Newsgroups, To, CC, ...).
+header fields (Newsgroups, To, Cc, ...).
 
 Completion in the Newsgroups header depends on the list of groups
 known to your news reader.  Completion in the Followup-To header
@@ -614,7 +614,7 @@ be different.
 It is generally recommended to use `system-configuration' rather
 than `system-type'.
 
-See <http://www.gnu.org/gnu/linux-and-gnu.html> for more about this.
+See <https://www.gnu.org/gnu/linux-and-gnu.html> for more about this.
 
 ** The functions shell-command and dired-call-process
 now run file name handlers for default-directory, if it has them.
@@ -2087,7 +2087,7 @@ arguments are ARGS.
 for mail-default-reply-to.
 
 ** When you send a message in Emacs, if you specify an Rmail file with
-the FCC: header field, Emacs converts the message to Rmail format
+the Fcc: header field, Emacs converts the message to Rmail format
 before writing it.  Thus, the file never contains anything but Rmail
 format messages.
 
@@ -4341,7 +4341,7 @@ turn the character that follows into a hyper character:
 (defun hyperify (prompt)
   (let ((e (read-event)))
     (vector (if (numberp e)
-		(logior (lsh 1 20) e)
+		(logior (ash 1 20) e)
 	      (if (memq 'hyper (event-modifiers e))
 		  e
 		(add-event-modifier "H-" e))))))
@@ -6533,7 +6533,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 
 Local variables:

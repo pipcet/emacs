@@ -1,6 +1,6 @@
 ;;; informat.el --- info support functions package for Emacs
 
-;; Copyright (C) 1986, 2001-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1986, 2001-2020 Free Software Foundation, Inc.
 
 ;; Maintainer: emacs-devel@gnu.org
 ;; Keywords: help
@@ -18,7 +18,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -337,7 +337,7 @@ Check that every node pointer points to an existing node."
 						     (point))))
 			 (Info-extract-menu-node-name))))
 		  (goto-char (point-min))
-		  (while (re-search-forward "\\*note[ \n]*[^:\t]*:" nil t)
+		  (while (re-search-forward "\\*note\\>[^:\t]*:" nil t)
 		    (goto-char (+ (match-beginning 0) 5))
 		    (skip-chars-forward " \n")
 		    (Info-validate-node-name

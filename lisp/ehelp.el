@@ -1,6 +1,6 @@
 ;;; ehelp.el --- bindings for electric-help mode -*- lexical-binding: t -*-
 
-;; Copyright (C) 1986, 1995, 2000-2017 Free Software Foundation, Inc.
+;; Copyright (C) 1986, 1995, 2000-2020 Free Software Foundation, Inc.
 
 ;; Author: Richard Mlynarik
 ;; (according to ack.texi and authors.el)
@@ -20,7 +20,7 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -355,7 +355,10 @@ will select it.)"
 (defun electric-help-execute-extended (_prefixarg)
   (interactive "p")
   (setq electric-help-form-to-execute
-        (lambda () (execute-extended-command nil)))
+        (lambda ()
+          (with-suppressed-warnings ((interactive-only
+                                      execute-extended-command))
+            (execute-extended-command nil))))
   (electric-help-retain))
 
 ;; This is to be buond to C-x in ehelp mode. Retains ehelp buffer and then
