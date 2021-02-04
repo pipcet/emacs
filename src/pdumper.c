@@ -50,6 +50,9 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 # include "dmpstruct.h"
 #endif
 
+#ifndef SSIZE_MAX
+# define SSIZE_MAX TYPE_MAXIMUM (ssize_t)
+#endif
 /*
   TODO:
 
