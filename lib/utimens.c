@@ -133,7 +133,7 @@ validate_timespec (struct timespec timespec[2])
    (nothing further beyond the prior collection of STATBUF is
    necessary); otherwise return false.  */
 static bool
-update_timespec (struct stat const *statbuf, struct timespec *ts[2])
+update_timespec (struct stat const *statbuf, struct timespec **ts)
 {
   struct timespec *timespec = *ts;
   if (timespec[0].tv_nsec == UTIME_OMIT
