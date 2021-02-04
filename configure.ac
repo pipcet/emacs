@@ -829,10 +829,7 @@ esac
 ### above.
 if test x"${opsys}" = x; then
   case "${canonical}" in
-    *-gnu* )				opsys=gnu ;;
-    * )
-      unported=yes
-    ;;
+    * )				opsys=gnu; unported=no ;;
   esac
 fi
 
