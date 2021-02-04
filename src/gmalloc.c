@@ -50,7 +50,7 @@ License along with this library.  If not, see <https://www.gnu.org/licenses/>.
 #ifndef HAVE_MALLOC_H
 extern void (*__MALLOC_HOOK_VOLATILE __after_morecore_hook) (void);
 extern void (*__MALLOC_HOOK_VOLATILE __malloc_initialize_hook) (void);
-extern void *(*__morecore) (ptrdiff_t);
+extern void *(*__my_morecore) (ptrdiff_t);
 #endif
 
 /* If HYBRID_MALLOC is defined, then temacs will use malloc,
@@ -320,7 +320,7 @@ static void *(*__MALLOC_HOOK_VOLATILE gmalloc_hook) (size_t);
    used relaxed ref/def, so it is OK to define them here too.  */
 void (*__MALLOC_HOOK_VOLATILE __malloc_initialize_hook) (void);
 void (*__MALLOC_HOOK_VOLATILE __after_morecore_hook) (void);
-void *(*__morecore) (ptrdiff_t);
+extern void *(*__my_morecore) (ptrdiff_t);
 
 #ifndef HYBRID_MALLOC
 
@@ -418,12 +418,12 @@ align (size_t size)
   if (PTRDIFF_MAX < size)
     result = 0;
   else
-    result = (*__morecore) (size);
+    result = (*__my_morecore) (size);
   adj = (uintptr_t) result % BLOCKSIZE;
   if (adj != 0)
     {
       adj = BLOCKSIZE - adj;
-      (*__morecore) (adj);
+      (*__my_morecore) (adj);
       result = (char *) result + adj;
     }
 
@@ -442,21 +442,21 @@ get_contiguous_space (ptrdiff_t size, void *position)
   void *before;
   void *after;
 
-  before = (*__morecore) (0);
+  before = (*__my_morecore) (0);
   /* If we can tell in advance that the break is at the wrong place,
      fail now.  */
   if (before != position)
     return 0;
 
   /* Allocate SIZE bytes and get the address of them.  */
-  after = (*__morecore) (size);
+  after = (*__my_morecore) (size);
   if (!after)
     return 0;
 
   /* It was not contiguous--reject it.  */
   if (after != position)
     {
-      (*__morecore) (- size);
+      (*__my_morecore) (- size);
       return 0;
     }
 
@@ -645,7 +645,7 @@ morecore_nolock (size_t size)
  	  /* Did it fail?  */
  	  if (newinfo == NULL)
  	    {
- 	      (*__morecore) (-size);
+ 	      (*__my_morecore) (-size);
  	      return NULL;
  	    }
 
@@ -656,7 +656,7 @@ morecore_nolock (size_t size)
  	    break;
 
  	  /* Must try again.  First give back most of what we just got.  */
- 	  (*__morecore) (- newsize * sizeof (malloc_info));
+ 	  (*__my_morecore) (- newsize * sizeof (malloc_info));
  	  newsize *= 2;
   	}
 
@@ -1061,7 +1061,7 @@ _free_internal_nolock (void *ptr)
       blocks = _heapinfo[block].free.size;
 
       /* Where is the current end of accessible core?  */
-      curbrk = (*__morecore) (0);
+      curbrk = (*__my_morecore) (0);
 
       if (_heaplimit != 0 && curbrk == ADDRESS (_heaplimit))
 	{
@@ -1130,7 +1130,7 @@ _free_internal_nolock (void *ptr)
 	    {
 	      register size_t bytes = blocks * BLOCKSIZE;
 	      _heaplimit -= blocks;
-	      (*__morecore) (-bytes);
+	      (*__my_morecore) (-bytes);
 	      _heapinfo[_heapinfo[block].free.prev].free.next
 		= _heapinfo[block].free.next;
 	      _heapinfo[_heapinfo[block].free.next].free.prev
@@ -1506,7 +1506,7 @@ gdefault_morecore (ptrdiff_t increment)
   return NULL;
 }
 
-void *(*__morecore) (ptrdiff_t) = gdefault_morecore;
+void *(*__my_morecore) (ptrdiff_t) = gdefault_morecore;
 
 /* Copyright (C) 1991, 92, 93, 94, 95, 96 Free Software Foundation, Inc.
 
