@@ -33,6 +33,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #include "lisp.h"
 
 /* Only MS-DOS does not define `subprocesses'.  */
+#undef subprocesses
 #ifdef subprocesses
 
 #include <sys/socket.h>
