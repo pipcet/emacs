@@ -5469,8 +5469,6 @@ Value is nil if this session was not started using a dump file.*/)
 		Fcons (Qdump_file_name, dump_fn));
 }
 
-#endif /* HAVE_PDUMPER */
-
 
 static void
 thaw_hash_tables (void)
@@ -5485,6 +5483,8 @@ init_pdumper_once (void)
 {
   pdumper_do_now_and_after_load (thaw_hash_tables);
 }
+
+#endif /* HAVE_PDUMPER */
 
 void
 syms_of_pdumper (void)
