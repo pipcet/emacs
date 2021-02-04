@@ -154,8 +154,10 @@ bool inhibit_sentinels;
 
 union u_sockaddr
 {
+#ifdef subprocesses
   struct sockaddr sa;
   struct sockaddr_in in;
+#endif
 #ifdef AF_INET6
   struct sockaddr_in6 in6;
 #endif
@@ -8226,6 +8228,7 @@ restore_nofile_limit (void)
 #endif
 }
 
+#ifdef subprocesses
 int
 open_channel_for_module (Lisp_Object process)
 {
@@ -8236,6 +8239,7 @@ open_channel_for_module (Lisp_Object process)
     report_file_error ("Cannot duplicate file descriptor", Qnil);
   return fd;
 }
+#endif
 
 
 /* This is not called "init_process" because that is the name of a
