@@ -1290,8 +1290,6 @@ emacs_spawn (pid_t *newpid, int std_in, int std_out, int std_err,
       bool pty_flag = pty != NULL;
       /* Make the pty be the controlling terminal of the process.  */
 #ifdef HAVE_PTYS
-      dissociate_controlling_tty ();
-
       /* Make the pty's terminal the controlling terminal.  */
       if (pty_flag && std_in >= 0)
 	{
