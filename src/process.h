@@ -274,7 +274,7 @@ extern Lisp_Object system_process_attributes (Lisp_Object);
 
 /* Defined in process.c.  */
 
-extern void record_deleted_pid (pid_t, Lisp_Object);
+#define record_deleted_pid(pid, obj) do { } while (0)
 struct sockaddr;
 extern Lisp_Object conv_sockaddr_to_lisp (struct sockaddr *, ptrdiff_t);
 extern void hold_keyboard_input (void);
