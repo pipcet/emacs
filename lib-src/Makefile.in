@@ -381,7 +381,7 @@ ebrowse${EXEEXT}: ${srcdir}/ebrowse.c ${srcdir}/../lib/min-max.h $(NTLIB) \
 	$(AM_V_CCLD)$(CC) ${ALL_CFLAGS} -o $@ $< $(NTLIB) $(LOADLIBES)
 
 make-docfile${EXEEXT}: ${srcdir}/make-docfile.c $(NTLIB) $(config_h)
-	$(AM_V_CCLD)$(CC) ${ALL_CFLAGS} $< $(NTLIB) $(LOADLIBES) -o $@
+	$(AM_V_CCLD)gcc ${ALL_CFLAGS} $< $(NTLIB) $(LOADLIBES) -o $@
 
 make-fingerprint${EXEEXT}: ${srcdir}/make-fingerprint.c $(NTLIB) $(config_h)
 	$(AM_V_CCLD)$(CC) ${ALL_CFLAGS} $< $(NTLIB) $(LOADLIBES) -o $@
