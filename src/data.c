@@ -1324,12 +1324,7 @@ set_internal (Lisp_Object symbol, Lisp_Object newval, Lisp_Object where,
   switch (sym->u.s.trapped_write)
     {
     case SYMBOL_NOWRITE:
-      if (NILP (Fkeywordp (symbol))
-          || !EQ (newval, Fsymbol_value (symbol)))
-        xsignal1 (Qsetting_constant, symbol);
-      else
-        /* Allow setting keywords to their own value.  */
-        return;
+      return;
 
     case SYMBOL_TRAPPED_WRITE:
       /* Setting due to thread-switching doesn't count.  */
