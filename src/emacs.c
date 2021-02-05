@@ -481,7 +481,7 @@ init_cmdargs (int argc, char **argv, int skip_args, char const *original_pwd)
        Make it absolute.  */
     {
       Lisp_Object odir =
-	original_pwd ? build_unibyte_string (original_pwd) : build_string ("/");
+	original_pwd ? build_unibyte_string (original_pwd) : Qnil;
 
       Vinvocation_directory = Fexpand_file_name (Vinvocation_directory, odir);
     }
