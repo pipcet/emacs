@@ -4591,13 +4591,12 @@ load_path_check (Lisp_Object lpath)
 static Lisp_Object
 load_path_default (void)
 {
-  if (will_dump_p ())
-    /* PATH_DUMPLOADSEARCH is the lisp dir in the source directory.
-       We used to add ../lisp (ie the lisp dir in the build
-       directory) at the front here, but that should not be
-       necessary, since in out of tree builds lisp/ is empty, save
-       for Makefile.  */
-    return decode_env_path (0, PATH_DUMPLOADSEARCH, 0);
+  /* PATH_DUMPLOADSEARCH is the lisp dir in the source directory.
+     We used to add ../lisp (ie the lisp dir in the build
+     directory) at the front here, but that should not be
+     necessary, since in out of tree builds lisp/ is empty, save
+     for Makefile.  */
+  return decode_env_path (0, PATH_DUMPLOADSEARCH, 0);
 
   Lisp_Object lpath = Qnil;
   const char *normal = PATH_LOADSEARCH;
@@ -4704,7 +4703,7 @@ init_lread (void)
   /* First, set Vload_path.  */
 
   /* Ignore EMACSLOADPATH when dumping.  */
-  bool use_loadpath = !will_dump_p ();
+  bool use_loadpath = false;
 
   if (use_loadpath && egetenv ("EMACSLOADPATH"))
     {
