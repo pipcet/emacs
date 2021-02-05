@@ -127,7 +127,7 @@ SUBDIRS_SUBDIRS = $(filter-out ${srcdir}/cedet% ${srcdir}/leim%,${SUBDIRS})
 
 # cus-load and finder-inf are not explicitly requested by anything, so
 # we add them here to make sure they get built.
-all: $(lisp)/cus-load.el $(lisp)/finder-inf.el
+all: compile-main $(lisp)/cus-load.el $(lisp)/finder-inf.el
 
 PHONY_EXTRAS =
 .PHONY: all custom-deps finder-data autoloads update-subdirs $(PHONY_EXTRAS)
