@@ -5187,29 +5187,7 @@ already up-to-date."
 
 (defun byte-compile-refresh-preloaded ()
   "Reload any Lisp file that was changed since Emacs was dumped.
-Use with caution."
-  (let* ((argv0 (car command-line-args))
-         (emacs-file (executable-find argv0)))
-    (if (not (and emacs-file (file-executable-p emacs-file)))
-        (message "Can't find %s to refresh preloaded Lisp files" argv0)
-      (dolist (f (reverse load-history))
-        (setq f (car f))
-        (if (string-match "elc\\'" f) (setq f (substring f 0 -1)))
-        (when (and (file-readable-p f)
-                   (file-newer-than-file-p f emacs-file)
-                   ;; Don't reload the source version of the files below
-                   ;; because that causes subsequent byte-compilation to
-                   ;; be a lot slower and need a higher max-lisp-eval-depth,
-                   ;; so it can cause recompilation to fail.
-                   (not (member (file-name-nondirectory f)
-                                '("pcase.el" "bytecomp.el" "macroexp.el"
-                                  "cconv.el" "byte-opt.el"))))
-          (message "Reloading stale %s" (file-name-nondirectory f))
-          (condition-case nil
-              (load f 'noerror nil 'nosuffix)
-            ;; Probably shouldn't happen, but in case of an error, it seems
-            ;; at least as useful to ignore it as it is to stop compilation.
-            (error nil)))))))
+Use with caution.")
 
 ;;;###autoload
 (defun batch-byte-recompile-directory (&optional arg)
