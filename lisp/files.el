@@ -77,7 +77,7 @@ a regexp matching the name it is linked to."
   :group 'abbrev
   :group 'find-file)
 
-(defcustom make-backup-files t
+(defcustom make-backup-files nil
   "Non-nil means make a backup of a file the first time it is saved.
 This can be done by renaming the file or by copying.
 
