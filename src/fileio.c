@@ -711,7 +711,8 @@ This function does not grok magic file names.  */)
   if (!failed)
     {
       ptrdiff_t count = SPECPDL_INDEX ();
-      record_unwind_protect_int (close_file_unwind, fd);
+      if (fd > 0)
+	record_unwind_protect_int (close_file_unwind, fd);
       val = DECODE_FILE (val);
       if (STRINGP (text) && SBYTES (text) != 0)
 	write_region (text, Qnil, val, Qnil, Qnil, Qnil, Qnil, fd);
