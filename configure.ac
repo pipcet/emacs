@@ -3819,7 +3819,6 @@ if test "${with_nativecomp}" != "no"; then
     emacs_save_LIBS=$LIBS
     LIBS="-lgccjit"
     # Check if libgccjit really works.
-    AC_RUN_IFELSE([libgccjit_smoke_test], [], [libgccjit_broken])
     LIBS=$emacs_save_LIBS
     HAVE_NATIVE_COMP=yes
     case "${opsys}" in
