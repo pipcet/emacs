@@ -308,13 +308,6 @@ set_alarm (void)
 	  struct itimerspec ispec;
 	  ispec.it_value = atimers->expiration;
 	  ispec.it_interval.tv_sec = ispec.it_interval.tv_nsec = 0;
-# ifdef HAVE_TIMERFD
-	  if (timerfd_settime (timerfd, TFD_TIMER_ABSTIME, &ispec, 0) == 0)
-	    {
-	      add_timer_wait_descriptor (timerfd);
-	      return;
-	    }
-# endif
 	  if (alarm_timer_ok
 	      && timer_settime (alarm_timer, TIMER_ABSTIME, &ispec, 0) == 0)
 	    return;
