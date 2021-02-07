@@ -5408,7 +5408,7 @@ dump_do_emacs_relocation (const uintptr_t dump_base,
         break;
       }
     default:
-      fatal ("unrecognied relocation type %d", (int) reloc.type);
+      fatal ("unrecognized relocation type %d", (int) reloc.type);
     }
 }
 
