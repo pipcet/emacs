@@ -6570,7 +6570,6 @@ mark_object (Lisp_Object arg)
   gc_objs = objs;
   gc_obji = 0;
   objs[gc_obji++] = arg;
-#define obj objs[gc_obji-1]
   register Lisp_Object obj;
   void *po;
 #if GC_CHECK_MARKED_OBJECTS
@@ -6583,6 +6582,7 @@ mark_object (Lisp_Object arg)
     {
       gc_obji = old_gc_obji;
       gc_objs = old_gc_objs;
+      return;
     }
   obj = objs[--gc_obji];
 
@@ -6814,7 +6814,7 @@ mark_object (Lisp_Object arg)
 	    goto loop;
 	  }
 	mark_object (ptr->u.s.car);
-	mark_object (ptr->u.s.cdr);
+	mark_object (ptr->u.s.u.cdr);
 	cdr_count++;
 	if (cdr_count == mark_object_loop_halt)
 	  emacs_abort ();
