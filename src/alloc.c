@@ -6551,9 +6551,26 @@ mark_objects (Lisp_Object *obj, ptrdiff_t n)
    a few cold paths are moved out to NO_INLINE functions above.
    In general, inlining them doesn't help you to gain more speed.  */
 
+Lisp_Object *gc_objs;
+ptrdiff_t gc_obji;
+
 void
 mark_object (Lisp_Object arg)
 {
+  if (NILP (arg))
+    return;
+
+  if (gc_objs && gc_obji < 512) {
+    gc_objs[gc_obji++] = arg;
+    return;
+  }
+  Lisp_Object *old_gc_objs = gc_objs;
+  ptrdiff_t old_gc_obji = gc_obji;
+  Lisp_Object objs[512];
+  gc_objs = objs;
+  gc_obji = 0;
+  objs[gc_obji++] = arg;
+#define obj objs[gc_obji-1]
   register Lisp_Object obj;
   void *po;
 #if GC_CHECK_MARKED_OBJECTS
@@ -6561,12 +6578,17 @@ mark_object (Lisp_Object arg)
 #endif
   ptrdiff_t cdr_count = 0;
 
-  obj = arg;
  loop:
+  if (gc_obji == 0)
+    {
+      gc_obji = old_gc_obji;
+      gc_objs = old_gc_objs;
+    }
+  obj = objs[--gc_obji];
 
   po = XPNTR (obj);
   if (PURE_P (po))
-    return;
+    goto loop;
 
   last_marked[last_marked_index++] = obj;
   last_marked_index &= LAST_MARKED_SIZE - 1;
@@ -6677,9 +6699,7 @@ mark_object (Lisp_Object arg)
                returns the COMPILED_CONSTANTS element, which is marked at the
                next iteration of goto-loop here.  This is done to avoid a few
                recursive calls to mark_object.  */
-            obj = mark_compiled (ptr);
-            if (!NILP (obj))
-              goto loop;
+            mark_object (mark_compiled (ptr));
             break;
 
           case PVEC_FRAME:
@@ -6789,12 +6809,12 @@ mark_object (Lisp_Object arg)
 	/* If the cdr is nil, avoid recursion for the car.  */
 	if (NILP (ptr->u.s.u.cdr))
 	  {
-	    obj = ptr->u.s.car;
+	    mark_object (ptr->u.s.car);
 	    cdr_count = 0;
 	    goto loop;
 	  }
 	mark_object (ptr->u.s.car);
-	obj = ptr->u.s.u.cdr;
+	mark_object (ptr->u.s.cdr);
 	cdr_count++;
 	if (cdr_count == mark_object_loop_halt)
 	  emacs_abort ();
@@ -6817,6 +6837,8 @@ mark_object (Lisp_Object arg)
     default:
       emacs_abort ();
     }
+
+  goto loop;
 
 #undef CHECK_LIVE
 #undef CHECK_ALLOCATED
