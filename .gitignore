@@ -89,7 +89,6 @@ lisp/cedet/semantic/wisent/python-wy.el
 lisp/cedet/srecode/srt-wy.el
 lisp/eshell/esh-groups.el
 lisp/finder-inf.el
-lisp/leim/ja-dic/
 lisp/leim/leim-list.el
 lisp/leim/quail/4Corner.el
 lisp/leim/quail/ARRAY30.el
