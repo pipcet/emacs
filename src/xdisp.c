@@ -10706,6 +10706,7 @@ include the height of both, if present, in the return value.  */)
 
   itdata = bidi_shelve_cache ();
   start_display (&it, w, startp);
+  int start_y = it.current_y;
   /* It makes no sense to measure dimensions of region of text that
      crosses the point where bidi reordering changes scan direction.
      By using unidirectional movement here we at least support the use
@@ -10726,7 +10727,7 @@ include the height of both, if present, in the return value.  */)
   int start_x = it.current_x;
   int move_op = MOVE_TO_POS | MOVE_TO_Y;
   int to_x = -1;
-  it.current_y = 0;
+  it.current_y = start_y;
   /* If FROM is on a newline, pretend that we start at the beginning
      of the next line, because the newline takes no place on display.  */
   if (FETCH_BYTE (start) == '\n')
@@ -10776,11 +10777,11 @@ include the height of both, if present, in the return value.  */)
   /* If text spans more than one screen line, we don't need to adjust
      the x-span for start_x, since the second and subsequent lines
      will begin at zero X coordinate.  */
-  if (it.current_y > 0)
+  if (it.current_y > start_y)
     start_x = 0;
 
-  /* Subtract height of header-line which was counted automatically by
-     start_display.  */
+  /* Subtract height of header-line and tab-line which was counted
+     automatically by start_display.  */
   y = it.current_y + it.max_ascent + it.max_descent
     - WINDOW_TAB_LINE_HEIGHT (w) - WINDOW_HEADER_LINE_HEIGHT (w);
   /* Don't return more than Y-LIMIT.  */
