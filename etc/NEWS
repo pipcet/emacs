@@ -87,6 +87,10 @@ useful on systems such as FreeBSD which ships only with "etc/termcap".
 
 ** The new NonGNU ELPA archive is enabled by default alongside GNU ELPA.
 
++++
+** New command 'recenter-other-window', bound to 'S-M-C-l'.
+Like 'recenter-top-bottom' acting in the other window.
+
 ** Minibuffer scrolling is now conservative by default.
 This is controlled by the new variable 'scroll-minibuffer-conservatively'.
 
@@ -234,7 +238,12 @@ still applies for shorter search strings, which avoids flicker in the
 search buffer due to too many matches being highlighted.
 
 +++
-** 'revert-buffer' is now bound to 'C-x g' globally.
+** A new keymap for buffer actions has been added.
+The 'C-x x' keymap now holds keystrokes for various buffer-oriented
+commands.  The new keystrokes are 'C-x x g' ('revert-buffer'),
+'C-x x r' ('rename-buffer'), 'C-x x u' ('rename-uniquely'), 'C-x x n'
+('clone-buffer'), 'C-x x i' ('insert-buffer') and 'C-x x t'
+('toggle-truncate-lines').
 
 
 * Editing Changes in Emacs 28.1
@@ -465,8 +474,13 @@ applied when the option 'tab-line-tab-face-functions' is
 so-configured.  That option may also be used to customize tab-line
 faces in other ways.
 
-** New bindings in occur-mode, 'next-error-no-select' bound to 'n' and
+** Occur mode
+
+*** New bindings in occur-mode, 'next-error-no-select' bound to 'n' and
 'previous-error-no-select' bound to 'p'.
+
+*** The new command 'recenter-current-error', bound to 'l' in Occur or
+compilation buffers, recenters the current displayed occurrence/error.
 
 ** EIEIO
 
@@ -586,6 +600,12 @@ their 'default-directory' under VC.
 *** New face 'log-view-commit-body'.
 This is used when expanding commit messages from 'vc-print-root-log'
 and similar commands.
+
+---
+*** New faces for 'vc-dir' buffers and their Git VC backend.
+Those are: 'vc-dir-header', 'vc-dir-header-value', 'vc-dir-directory',
+'vc-dir-file', 'vc-dir-mark-indicator', 'vc-dir-status-warning',
+'vc-dir-status-edited', 'vc-dir-status-up-to-date', 'vc-dir-ignored'.
 
 ---
 *** The responsible VC backend is now the most specific one.
@@ -1599,6 +1619,13 @@ that makes it a valid button.
 +++
 *** New variable 'thing-at-point-provider-alist'.
 This allows mode-specific alterations to how 'thing-at-point' works.
+
+** Enriched mode
+
+---
+*** 'C-a' is by default no longer bound to 'beginning-of-line-text'.
+This is so 'C-a' works as in other modes, and in particular holding
+Shift while typing 'C-a', i.e. 'C-S-a', will now highlight the text.
 
 ** Miscellaneous
 
