@@ -26924,7 +26924,9 @@ decode_mode_spec (struct window *w, register int c, int field_width,
       obj = Fget_buffer_process (Fcurrent_buffer ());
       if (NILP (obj))
 	return "no process";
+#ifdef __WASM32__
 #undef subprocesses
+#endif
 #ifdef subprocesses
       obj = Fsymbol_name (Fprocess_status (obj));
 #endif
