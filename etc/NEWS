@@ -602,10 +602,11 @@ This is used when expanding commit messages from 'vc-print-root-log'
 and similar commands.
 
 ---
-*** New faces for 'vc-dir' buffers and their Git VC backend.
+*** New faces for 'vc-dir' buffers.
 Those are: 'vc-dir-header', 'vc-dir-header-value', 'vc-dir-directory',
 'vc-dir-file', 'vc-dir-mark-indicator', 'vc-dir-status-warning',
-'vc-dir-status-edited', 'vc-dir-status-up-to-date', 'vc-dir-ignored'.
+'vc-dir-status-edited', 'vc-dir-status-up-to-date',
+'vc-dir-status-ignored'.
 
 ---
 *** The responsible VC backend is now the most specific one.
@@ -2046,6 +2047,11 @@ first).
 
 
 * Incompatible Editing Changes in Emacs 28.1
+
+** The 'M-o' ('facemanu-keymap') global binding has been removed.
+
+** The 'M-o M-s' and 'M-o M-S' global bindings have been removed.
+Use 'M-x center-line' and 'M-x center-paragraph' instead.
 
 ** In 'f90-mode', the backslash character ('\') no longer escapes.
 For about a decade, the backslash character has no longer had a
