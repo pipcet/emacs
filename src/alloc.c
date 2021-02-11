@@ -6872,6 +6872,9 @@ mark_terminals (void)
 bool
 survives_gc_p (Lisp_Object obj)
 {
+  if (NILP (obj))
+    return true;
+
   bool survives_p;
 
   switch (XTYPE (obj))
