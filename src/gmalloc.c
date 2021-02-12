@@ -645,7 +645,7 @@ morecore_nolock (size_t size)
  	  /* Did it fail?  */
  	  if (newinfo == NULL)
  	    {
- 	      (*__my_morecore) (-size);
+	      (*__my_morecore) (-size);
  	      return NULL;
  	    }
 
@@ -656,7 +656,7 @@ morecore_nolock (size_t size)
  	    break;
 
  	  /* Must try again.  First give back most of what we just got.  */
- 	  (*__my_morecore) (- newsize * sizeof (malloc_info));
+	  (*__my_morecore) (- newsize * sizeof (malloc_info));
  	  newsize *= 2;
   	}
 
