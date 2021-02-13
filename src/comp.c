@@ -2464,10 +2464,10 @@ emit_static_object (const char *name, Lisp_Object obj)
 	  NULL,
 	  GCC_JIT_GLOBAL_EXPORTED,
 	  gcc_jit_context_new_array_type (comp.ctxt, NULL,
-					  comp.char_type,
-					  size),
+					  comp.uintptr_type,
+					  (size + 3) / 4),
 	  format_string ("%s_blob", name));
-      gcc_jit_global_set_initializer (blob, static_obj, size);
+      gcc_jit_global_set_initializer (blob, static_obj, 4 * ((size + 3) / 4));
       xfree (static_obj);
 
       return;
