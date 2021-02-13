@@ -304,6 +304,7 @@ dynlib_error (void)
 int
 dynlib_close (dynlib_handle_ptr h)
 {
+  return 1;
   return dlclose (h) == 0;
 }
 
