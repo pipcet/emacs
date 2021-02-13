@@ -954,6 +954,22 @@ primary ones (Bug#42671)."
         (list (intern "edebug-cl-defmethod-qualifier :around ((_ number))")
               (intern "edebug-cl-defmethod-qualifier ((_ number))")))))))
 
+(ert-deftest edebug-tests--conflicting-internal-names ()
+  "Check conflicts between form's head symbols and Edebug spec elements."
+  (edebug-tests-with-normal-env
+   (edebug-tests-setup-@ "cl-flet1" '(10) t)))
+
+(ert-deftest edebug-tests-gv-expander ()
+  "Edebug can instrument `gv-expander' expressions."
+  (edebug-tests-with-normal-env
+   (edebug-tests-setup-@ "use-gv-expander" nil t)
+   (should (equal
+            (catch 'text
+              (run-at-time 0 nil
+                           (lambda () (throw 'text (buffer-substring (point) (+ (point) 5)))))
+              (eval '(setf (edebug-test-code-use-gv-expander (cons 'a 'b)) 3) t))
+            "(func"))))
+
 (ert-deftest edebug-tests-cl-flet ()
   "Check that Edebug can instrument `cl-flet' forms without name
 clashes (Bug#41853)."
