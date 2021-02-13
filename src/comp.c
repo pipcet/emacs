@@ -4850,7 +4850,7 @@ load_comp_unit (struct Lisp_Native_Comp_Unit *comp_u, bool loading_dump,
 	 are necessary exclusively during the first load.  Once these
 	 are collected we don't have to maintain them in the heap
 	 forever.  */
-      Lisp_Object volatile data_ephemeral_vec;
+      Lisp_Object volatile data_ephemeral_vec = Qnil;
       /* In case another load of the same CU is active on the stack
 	 all ephemeral data is hold by that frame.  Re-writing
 	 'data_ephemeral_vec' would be not only a waste of cycles but
@@ -4858,7 +4858,7 @@ load_comp_unit (struct Lisp_Native_Comp_Unit *comp_u, bool loading_dump,
 	 is not cons hashed.  */
       if (!recursive_load)
 	{
-	  Lisp_Object volatile data_ephemeral_vec  =
+	  data_ephemeral_vec =
 	    load_static_obj (comp_u, TEXT_DATA_RELOC_EPHEMERAL_SYM);
 
 	  EMACS_INT d_vec_len = XFIXNUM (Flength (data_ephemeral_vec));
