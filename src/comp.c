@@ -465,6 +465,8 @@ load_gccjit_if_necessary (bool mandatory)
 /* snippet from MINGW-64 setjmp.h */
 # define SETJMP _setjmp
 #endif
+#undef SETJMP
+#define SETJMP sigsetjmp
 #define SETJMP_NAME SETJMP
 
 /* Max number function importable by native compiled code.  */
@@ -624,12 +626,17 @@ Lisp_Object helper_unbind_n (Lisp_Object n);
 void helper_save_restriction (void);
 bool helper_PSEUDOVECTOR_TYPEP_XUNTAG (Lisp_Object a, enum pvec_type code);
 
+int SETJMP_HELPER (void *buf)
+{
+  return __sigsetjmp (buf, 0);
+}
+
 void *helper_link_table[] =
   { wrong_type_argument,
     helper_PSEUDOVECTOR_TYPEP_XUNTAG,
     pure_write_error,
     push_handler,
-    SETJMP_NAME,
+    SETJMP_HELPER,
     record_unwind_protect_excursion,
     helper_unbind_n,
     helper_save_restriction,
