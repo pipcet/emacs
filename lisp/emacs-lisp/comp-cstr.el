@@ -113,7 +113,7 @@ Integer values are handled in the `range' slot.")
 `intersection-mem'."))
 
 (defmacro with-comp-cstr-accessors (&rest body)
-  "Define some quick accessor to reduce code vergosity in BODY."
+  "Define some quick accessor to reduce code verbosity in BODY."
   (declare (debug (form body))
            (indent defun))
   `(cl-macrolet ((typeset (x)
@@ -153,7 +153,7 @@ Integer values are handled in the `range' slot.")
 (defun comp-cstrs-homogeneous (cstrs)
   "Check if constraints CSTRS are all homogeneously negated or non-negated.
 Return `pos' if they are all positive, `neg' if they are all
-negated or nil othewise."
+negated or nil otherwise."
   (cl-loop
    for cstr in cstrs
    unless (comp-cstr-neg cstr)
@@ -198,7 +198,7 @@ Return them as multiple value."
   (comp-normalize-valset (cl-reduce #'cl-union valsets)))
 
 (defun comp-intersection-valsets (&rest valsets)
-  "Union values present into VALSETS."
+  "Intersect possible values of VALSETS."
   (comp-normalize-valset (cl-reduce #'cl-intersection valsets)))
 
 
@@ -228,7 +228,7 @@ Return them as multiple value."
                  (cl-return-from outer res)))))
 
 (defun comp-common-supertype-2 (type1 type2)
-  "Return the first common supertype of TYPE1 TYPE2."
+  "Return the first common supertype of TYPE1 and TYPE2."
   (when-let ((types (cl-intersection
                      (comp-supertypes type1)
                      (comp-supertypes type2)
@@ -337,7 +337,7 @@ Return them as multiple value."
   (caar range))
 
 (defsubst comp-cstr-greatest-in-range (range)
-  "Greater entry in RANGE."
+  "Greatest entry in RANGE."
   (cdar (last range)))
 
 (defun comp-range-union (&rest ranges)
@@ -470,7 +470,7 @@ Return them as multiple value."
 ;;; Union specific code.
 
 (defun comp-cstr-union-homogeneous-no-range (dst &rest srcs)
-  "As `comp-cstr-union' but escluding the irange component.
+  "As `comp-cstr-union' but excluding the irange component.
 All SRCS constraints must be homogeneously negated or non-negated."
 
   ;; Type propagation.
@@ -823,7 +823,7 @@ SRC can be either a comp-cstr or an integer."
       (comp-cstr-set-cmp-range dst old-dst ext-range))))
 
 (defun comp-cstr-<= (dst old-dst src)
-  "Constraint DST being > than SRC.
+  "Constraint DST being <= than SRC.
 SRC can be either a comp-cstr or an integer."
   (with-comp-cstr-accessors
     (let ((ext-range

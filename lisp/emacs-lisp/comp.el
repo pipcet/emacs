@@ -106,7 +106,7 @@ Skip if any is matching."
 When zero use half of the CPUs or at least one."
   :type 'number)
 
-;; FIXME: This an abnormal hook, and should be renamed to something
+;; FIXME: This is an abnormal hook, and should be renamed to something
 ;; like `comp-async-cu-done-function'.
 (defcustom comp-async-cu-done-hook nil
   "Hook run after asynchronously compiling a single compilation unit.
@@ -158,7 +158,7 @@ the .eln output directory."
   "Name of the async compilation buffer log.")
 
 (defvar comp-native-compiling nil
-  "This gets bound to t while native compilation.
+  "This gets bound to t during native compilation.
 Can be used by code that wants to expand differently in this case.")
 
 (defvar comp-pass nil
@@ -674,12 +674,12 @@ This is typically for top-level forms other than defun.")
          :documentation "List of instructions.")
   (closed nil :type boolean
           :documentation "t if closed.")
-  ;; All the following are for SSA and CGF analysis.
+  ;; All the following are for SSA and CFG analysis.
   ;; Keep in sync with `comp-clean-ssa'!!
   (in-edges () :type list
             :documentation "List of incoming edges.")
   (out-edges () :type list
-             :documentation "List of out-coming edges.")
+             :documentation "List of outgoing edges.")
   (idom nil :type (or null comp-block)
         :documentation "Immediate dominator.")
   (df (make-hash-table) :type (or null hash-table)
@@ -892,7 +892,7 @@ To be used by all entry points."
   (when (memq function '(eq eql = equal)) t))
 
 (defun comp-range-cmp-fun-p (function)
-  "Predicate for range comparision functions."
+  "Predicate for range comparison functions."
   (when (memq function '(> < >= <=)) t))
 
 (defun comp-set-op-p (op)
@@ -912,7 +912,7 @@ To be used by all entry points."
   (when (memq op comp-limple-branches) t))
 
 (defsubst comp-limple-insn-call-p (insn)
-  "Limple INSN call predicate."
+  "Limple insn call predicate."
   (comp-call-op-p (car-safe insn)))
 
 (defun comp-type-hint-p (func)
@@ -931,9 +931,9 @@ To be used by all entry points."
                finally return t)
     t))
 
-(defsubst comp-symbol-func-to-fun (symbol-funcion)
-  "Given a function called SYMBOL-FUNCION return its `comp-func'."
-  (gethash (gethash symbol-funcion (comp-ctxt-sym-to-c-name-h
+(defsubst comp-symbol-func-to-fun (symbol-function)
+  "Given a function called SYMBOL-FUNCTION return its `comp-func'."
+  (gethash (gethash symbol-function (comp-ctxt-sym-to-c-name-h
                                     comp-ctxt))
            (comp-ctxt-funcs-h comp-ctxt)))
 
@@ -1063,7 +1063,7 @@ VERBOSITY is a number between 0 and 3."
 
 (defmacro comp-loop-insn-in-block (basic-block &rest body)
   "Loop over all insns in BASIC-BLOCK executing BODY.
-Inside BODY `insn' and `insn-cell'can be used to read or set the
+Inside BODY `insn' and `insn-cell' can be used to read or set the
 current instruction or its cell."
   (declare (debug (form body))
            (indent defun))
@@ -1120,7 +1120,7 @@ clashes."
                              (number-to-string i))
          unless (gethash c-sym h)
          return c-sym)
-      ;; When called out of a compilation context (ex disassembling)
+      ;; When called out of a compilation context (eg disassembling)
       ;; pick the first one.
       (concat prefix crypted "_" human-readable "_0"))))
 
@@ -1420,7 +1420,7 @@ STACK-OFF is the index of the first slot frame involved."
                              collect (comp-slot-n sp))))
 
 (cl-defun make-comp-mvar (&key slot (constant nil const-vld) type)
-  "`comp-mvar' intitializer."
+  "`comp-mvar' initializer."
   (let ((mvar (make--comp-mvar :slot slot)))
     (when const-vld
       (comp-add-const-to-relocs constant)
@@ -1447,7 +1447,7 @@ If SSA non-nil populate it of m-var in ssa form."
     (push insn (comp-block-insns bb))))
 
 (defun comp-emit-set-call (call)
-  "Emit CALL assigning the result the the current slot frame.
+  "Emit CALL assigning the result to the current slot frame.
 If the callee function is known to have a return type propagate it."
   (cl-assert call)
   (comp-emit (list 'set (comp-slot) call)))
@@ -1485,7 +1485,7 @@ Add block to the current function and return it."
 
 (defun comp-latch-make-fill (target)
   "Create a latch pointing to TARGET and fill it.
-Return the created latch"
+Return the created latch."
   (let ((latch (make-comp-latch :name (comp-new-block-sym "latch")))
         (curr-bb (comp-limplify-curr-block comp-pass)))
     ;; See `comp-make-curr-block'.
@@ -2000,7 +2000,7 @@ the annotation emission."
                            (puthash i (comp-func-doc f) h)
                            i)
                          (comp-func-int-spec f)))
-                       ;; This is the compilation unit it-self passed as
+                       ;; This is the compilation unit itself passed as
                        ;; parameter.
                        (make-comp-mvar :slot 0))))))
 
@@ -2043,7 +2043,7 @@ These are stored in the reloc data array."
                     (puthash i (comp-func-doc func) h)
                     i)
                   (comp-func-int-spec func)))
-                ;; This is the compilation unit it-self passed as
+                ;; This is the compilation unit itself passed as
                 ;; parameter.
                 (make-comp-mvar :slot 0)))))
 
@@ -2053,7 +2053,7 @@ When FOR-LATE-LOAD is non-nil the emitted function modifies only
 function definition.
 
 Synthesize a function called 'top_level_run' that gets one single
-parameter (the compilation unit it-self).  To define native
+parameter (the compilation unit itself).  To define native
 functions 'top_level_run' will call back `comp--register-subr'
 into the C code forwarding the compilation unit."
   ;; Once an .eln is loaded and Emacs is dumped 'top_level_run' has no
@@ -2106,7 +2106,7 @@ into the C code forwarding the compilation unit."
                  return (comp-block-name bb)))))
 
 (defun comp-limplify-block (bb)
-  "Limplify basic-block BB and add it to the current function."
+  "Limplify basic block BB and add it to the current function."
   (setf (comp-limplify-curr-block comp-pass) bb
         (comp-limplify-sp comp-pass) (comp-block-lap-sp bb)
         (comp-limplify-pc comp-pass) (comp-block-lap-addr bb))
@@ -2202,7 +2202,7 @@ into the C code forwarding the compilation unit."
 
 
 (defsubst comp-mvar-used-p (mvar)
-  "Non-nil when MVAR is used as lhs in the current funciton."
+  "Non-nil when MVAR is used as lhs in the current function."
   (declare (gv-setter (lambda (val)
 			`(puthash ,mvar ,val comp-pass))))
   (gethash mvar comp-pass))
@@ -2634,19 +2634,19 @@ blocks."
   (cl-loop with blocks = (comp-func-blocks comp-func)
            for bb being each hash-value of blocks
            for last-insn = (car (last (comp-block-insns bb)))
-           for (op first second third forth) = last-insn
+           for (op first second third fourth) = last-insn
            do (cl-case op
                 (jump
                  (make-comp-edge :src bb :dst (gethash first blocks)))
                 (cond-jump
                  (make-comp-edge :src bb :dst (gethash third blocks))
-                 (make-comp-edge :src bb :dst (gethash forth blocks)))
+                 (make-comp-edge :src bb :dst (gethash fourth blocks)))
                 (cond-jump-narg-leq
                  (make-comp-edge :src bb :dst (gethash second blocks))
                  (make-comp-edge :src bb :dst (gethash third blocks)))
                 (push-handler
                  (make-comp-edge :src bb :dst (gethash third blocks))
-                 (make-comp-edge :src bb :dst (gethash forth blocks)))
+                 (make-comp-edge :src bb :dst (gethash fourth blocks)))
                 (return)
                 (unreachable)
                 (otherwise
@@ -2969,7 +2969,7 @@ Return t when one or more block was removed, nil otherwise."
 (defun comp-fwprop-prologue ()
   "Prologue for the propagate pass.
 Here goes everything that can be done not iteratively (read once).
-Forward propagate immediate involed in assignments."
+Forward propagate immediate involved in assignments."
   (cl-loop
    for b being each hash-value of (comp-func-blocks comp-func)
    do (cl-loop
@@ -3645,7 +3645,7 @@ Return the trampoline if found or nil otherwise."
      do (cl-return (native-elisp-load filename))))
 
 (defun comp-trampoline-compile (subr-name)
-  "Synthesize compile and return a trampoline for SUBR-NAME."
+  "Synthesize, compile and return a trampoline for SUBR-NAME."
   (let* ((lambda-list (comp-make-lambda-list-from-subr
                        (symbol-function subr-name)))
          ;; The synthesized trampoline must expose the exact same ABI of

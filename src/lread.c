@@ -5200,7 +5200,7 @@ that are loaded before your customizations are read!  */);
   load_prefer_newer = 0;
 
   DEFVAR_BOOL ("load-no-native", load_no_native,
-               doc: /* Do not try to load the a .eln file in place of
+               doc: /* Do not try to load an .eln file in place of
 		       a .elc one.  */);
   load_no_native = false;
 

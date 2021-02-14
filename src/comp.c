@@ -1761,9 +1761,9 @@ emit_PURE_P (gcc_jit_rvalue *ptr)
 }
 
 
-/*************************************/
-/* Code emitted by LIMPLE statemes.  */
-/*************************************/
+/**************************************/
+/* Code emitted by LIMPLE statements. */
+/**************************************/
 
 /* Emit an r-value from an mvar meta variable.
    In case this is a constant that was propagated return it otherwise load it
@@ -1976,7 +1976,7 @@ emit_setjmp (gcc_jit_rvalue *buf)
 #endif
 }
 
-/* Register an handler for a non local exit.  */
+/* Register a handler for a non local exit.  */
 
 static void
 emit_limple_push_handler (gcc_jit_rvalue *handler, gcc_jit_rvalue *handler_type,
@@ -2316,7 +2316,7 @@ emit_call_with_type_hint (gcc_jit_function *func, Lisp_Object insn,
   return gcc_jit_context_new_call (comp.ctxt, NULL, func, 2, args);
 }
 
-/* Same as before but with two args. The type hint is on the 2th.  */
+/* Same as before but with two args. The type hint is on the 2nd.  */
 static gcc_jit_rvalue *
 emit_call2_with_type_hint (gcc_jit_function *func, Lisp_Object insn,
 			   Lisp_Object type)
@@ -3716,7 +3716,7 @@ define_maybe_gc_or_quit (void)
 							 9)),
     /* 9 translates into checking for GC or quit every 512 calls to
        'maybe_gc_quit'.  This is the smallest value I could find with
-       no performance impact running elisp-banechmarks and the same
+       no performance impact running elisp-benchmarks and the same
        used by the byte interpreter (see 'exec_byte_code').  */
     maybe_do_it_block,
     pass_block);
@@ -4625,7 +4625,7 @@ maybe_defer_native_compilation (Lisp_Object function_name,
 	return;
     }
 
-  /* This is to have deferred compilaiton able to compile comp
+  /* This is to have deferred compilation able to compile comp
      dependencies breaking circularity.  */
   if (!NILP (Ffeaturep (Qcomp, Qnil)))
     {
@@ -4774,7 +4774,7 @@ load_comp_unit (struct Lisp_Native_Comp_Unit *comp_u, bool loading_dump,
     *saved_cu = comp_u_lisp_obj;
 
   /* Once we are sure to have the right compilation unit we want to
-     identify is we have at least another load active on it.  */
+     identify if we have at least another load active on it.  */
   bool recursive_load = comp_u->load_ongoing;
   comp_u->load_ongoing = true;
   ptrdiff_t count = SPECPDL_INDEX ();
@@ -4787,7 +4787,7 @@ load_comp_unit (struct Lisp_Native_Comp_Unit *comp_u, bool loading_dump,
     = dynlib_sym (handle,
 		  late_load ? "late_top_level_run" : "top_level_run");
 
-  /* Always set data_imp_relocs pointer in the compilation unit (in can be
+  /* Always set data_imp_relocs pointer in the compilation unit (it can be
      used in 'dump_do_dump_relocation').  */
   comp_u->data_imp_relocs = dynlib_sym (handle, DATA_RELOC_IMPURE_SYM);
 

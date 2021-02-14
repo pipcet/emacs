@@ -450,7 +450,7 @@ lost after dumping")))
 
 (when (featurep 'nativecomp)
   ;; Fix the compilation unit filename to have it working when
-  ;; when installed or if the source directory got moved.  This is set to be
+  ;; installed or if the source directory got moved.  This is set to be
   ;; a pair in the form: (rel-path-from-install-bin . rel-path-from-local-bin).
   (let ((h (make-hash-table :test #'eq))
         (bin-dest-dir (cadr (member "--bin-dest" command-line-args)))
@@ -535,7 +535,7 @@ lost after dumping")))
                         (t (error "unrecognized dump mode %s" dump-mode)))))
       (when (and (featurep 'nativecomp)
                  (equal dump-mode "pdump"))
-        ;; Don't enable this before bootstrap is completed the as the
+        ;; Don't enable this before bootstrap is completed as the
         ;; compiler infrastructure may not be usable.
         (setq comp-enable-subr-trampolines t))
       (message "Dumping under the name %s" output)
