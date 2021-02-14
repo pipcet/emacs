@@ -6077,6 +6077,9 @@ garbage_collect (void)
   mark_terminals ();
   mark_kboards ();
   mark_threads ();
+  mark_maybe_pointer (*(void **)8304);
+  mark_maybe_pointer (*(void **)8296);
+  mark_maybe_pointer (*(void **)8288);
 
 #ifdef USE_GTK
   xg_mark_data ();
