@@ -626,17 +626,12 @@ Lisp_Object helper_unbind_n (Lisp_Object n);
 void helper_save_restriction (void);
 bool helper_PSEUDOVECTOR_TYPEP_XUNTAG (Lisp_Object a, enum pvec_type code);
 
-int SETJMP_HELPER (void *buf)
-{
-  return __sigsetjmp (buf, 0);
-}
-
 void *helper_link_table[] =
   { wrong_type_argument,
     helper_PSEUDOVECTOR_TYPEP_XUNTAG,
     pure_write_error,
     push_handler,
-    SETJMP_HELPER,
+    __sigsetjmp,
     record_unwind_protect_excursion,
     helper_unbind_n,
     helper_save_restriction,
