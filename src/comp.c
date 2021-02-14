@@ -2938,8 +2938,8 @@ define_jmp_buf (void)
       NULL,
       gcc_jit_context_new_array_type (comp.ctxt,
 				      NULL,
-				      comp.char_type,
-				      sizeof (sys_jmp_buf)),
+				      comp.int_type,
+				      sizeof (sys_jmp_buf) / 4),
       "stuff");
   comp.jmp_buf_s =
     gcc_jit_context_new_struct_type (comp.ctxt,
