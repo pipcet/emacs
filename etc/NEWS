@@ -936,7 +936,13 @@ To customize obsolete user options, use 'customize-option' or
 ** Edebug
 
 ---
-*** 'get-edebug-spec' is obsolete, replaced by 'edebug-get-spec'.
+*** Obsoletions
+**** 'get-edebug-spec' is obsolete, replaced by 'edebug-get-spec'.
+
++++
+**** The spec operator ':name NAME' is obsolete, use '&name' instead.
++++
+**** The spec element 'function-form' is obsolete, use 'form' instead.
 
 +++
 *** New function 'def-edebug-elem-spec' to define Edebug spec elements.
@@ -954,8 +960,7 @@ declared obsolete.
 **** '&error MSG' unconditionally aborts the current edebug instrumentation.
 
 +++
-**** ':unique STRING' appends STRING to the Edebug name of the current
-definition to (hopefully) make it more unique.
+**** '&name SPEC FUN' extracts the current name from the code matching SPEC.
 
 ** ElDoc
 
@@ -2560,6 +2565,12 @@ locales.  They are also available as aliases 'ebcdic-cp-*' (e.g.,
 'ebcdic-cp-fi' for the Finnish variant 'ibm278'), and 'cp2xx' (e.g.,
 'cp278' for 'ibm278').  There are also new charsets 'ibm2xx' to
 support these coding-systems.
+
+** The JSON functions 'json-serialize', 'json-insert',
+'json-parse-string', and 'json-parse-buffer' now implement some of the
+semantics of RFC 8259 instead of the earlier RFC 4627.  In particular,
+these functions now accept top-level JSON values that are neither
+arrays nor objects.
 
 
 * Changes in Emacs 28.1 on Non-Free Operating Systems
