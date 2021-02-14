@@ -659,8 +659,8 @@ Run Perl/Tools/Insert-spaces-if-needed to fix your lazy typing.
 
 Switch auto-help on/off with Perl/Tools/Auto-help.
 
-Though with contemporary Emaxen CPerl mode should maintain the correct
-parsing of Perl even when editing, sometimes it may be lost.  Fix this by
+Though CPerl mode should maintain the correct parsing of Perl even when
+editing, sometimes it may be lost.  Fix this by
 
   \\[normal-mode]
 
@@ -676,63 +676,20 @@ micro-docs on what I know about CPerl problems.")
   "Description of problems in CPerl mode.
 `fill-paragraph' on a comment may leave the point behind the
 paragraph.  It also triggers a bug in some versions of Emacs (CPerl tries
-to detect it and bulk out).
-
-See documentation of a variable `cperl-problems-old-emaxen' for the
-problems which disappear if you upgrade Emacs to a reasonably new
-version (20.3 for Emacs).")
+to detect it and bulk out).")
 
 (defvar cperl-problems-old-emaxen 'please-ignore-this-line
-  "Description of problems in CPerl mode specific for older Emacs versions.
-
-Emacs had a _very_ restricted syntax parsing engine until version
-20.1.  Most problems below are corrected starting from this version of
-Emacs, and all of them should be fixed in version 20.3.  (Or apply
-patches to Emacs 19.33/34 - see tips.)
-
-Note that even with newer Emacsen in some very rare cases the details
-of interaction of `font-lock' and syntaxification may be not cleaned
-up yet.  You may get slightly different colors basing on the order of
-fontification and syntaxification.  Say, the initial faces is correct,
-but editing the buffer breaks this.
-
-Even with older Emacsen CPerl mode tries to corrects some Emacs
-misunderstandings, however, for efficiency reasons the degree of
-correction is different for different operations.  The partially
-corrected problems are: POD sections, here-documents, regexps.  The
-operations are: highlighting, indentation, electric keywords, electric
-braces.
-
-This may be confusing, since the regexp s#//#/#; may be highlighted
-as a comment, but it will be recognized as a regexp by the indentation
-code.  Or the opposite case, when a POD section is highlighted, but
-may break the indentation of the following code (though indentation
-should work if the balance of delimiters is not broken by POD).
-
-The main trick (to make $ a \"backslash\") makes constructions like
-${aaa} look like unbalanced braces.  The only trick I can think of is
-to insert it as $ {aaa} (valid in perl5, not in perl4).
-
-Similar problems arise in regexps, when /(\\s|$)/ should be rewritten
-as /($|\\s)/.  Note that such a transposition is not always possible.
-
-The solution is to upgrade your Emacs or patch an older one.  Note
-that Emacs 20.2 has some bugs related to `syntax-table' text
-properties.  Patches are available on the main CPerl download site,
-and on CPAN.
-
-If these bugs cannot be fixed on your machine (say, you have an inferior
-environment and cannot recompile), you may still disable all the fancy stuff
-via `cperl-use-syntax-table-text-property'.")
+  "This used to contain a description of problems in CPerl mode
+specific for very old Emacs versions.  This is no longer relevant
+and has been removed.")
+(make-obsolete-variable 'cperl-problems-old-emaxen nil "28.1")
 
 (defvar cperl-praise 'please-ignore-this-line
   "Advantages of CPerl mode.
 
 0) It uses the newest `syntax-table' property ;-);
 
-1) It does 99% of Perl syntax correct (as opposed to 80-90% in Perl
-mode - but the latter number may have improved too in last years) even
-with old Emaxen which do not support `syntax-table' property.
+1) It does 99% of Perl syntax correct.
 
 When using `syntax-table' property for syntax assist hints, it should
 handle 99.995% of lines correct - or somesuch.  It automatically
@@ -813,8 +770,7 @@ the settings present before the switch.
 9) When doing indentation of control constructs, may correct
 line-breaks/spacing between elements of the construct.
 
-10) Uses a linear-time algorithm for indentation of regions (on Emaxen with
-capable syntax engines).
+10) Uses a linear-time algorithm for indentation of regions.
 
 11) Syntax-highlight, indentation, sexp-recognition inside regular expressions.
 ")
@@ -838,8 +794,8 @@ syntax-parsing routines, and marks them up so that either
 
     A1) CPerl may work around these deficiencies (for big chunks, mostly
         PODs and HERE-documents), or
-    A2) On capable Emaxen CPerl will use improved syntax-handling
-	which reads mark-up hints directly.
+    A2) CPerl will use improved syntax-handling which reads mark-up
+        hints directly.
 
     The scan in case A2 is much more comprehensive, thus may be slower.
 
@@ -1019,9 +975,12 @@ versions of Emacs."
   "Abbrev table in use in CPerl mode buffers."
   :parents (list cperl-mode-electric-keywords-abbrev-table))
 
-(when (boundp 'edit-var-mode-alist)
-  ;; FIXME: What package uses this?
-  (add-to-list 'edit-var-mode-alist '(perl-mode (regexp . "^cperl-"))))
+;; ;; TODO: Commented out as we don't know what it is used for.  If
+;; ;;       there are no bug reports about this for Emacs 28.1, this
+;; ;;       can probably be removed.  (Code search online reveals nothing.)
+;; (when (boundp 'edit-var-mode-alist)
+;;   ;; FIXME: What package uses this?
+;;   (add-to-list 'edit-var-mode-alist '(perl-mode (regexp . "^cperl-"))))
 
 (defvar cperl-mode-map
   (let ((map (make-sparse-keymap)))
@@ -1396,13 +1355,15 @@ the last)."
 (defvar cperl-font-lock-multiline nil)
 (defvar cperl-font-locking nil)
 
-;; NB as it stands the code in cperl-mode assumes this only has one
-;; element. Since XEmacs 19 support has been dropped, this could all be simplified.
-(defvar cperl-compilation-error-regexp-alist
+(defvar cperl-compilation-error-regexp-list
   ;; This look like a paranoiac regexp: could anybody find a better one? (which WORKS).
-  '(("^[^\n]* \\(file\\|at\\) \\([^ \t\n]+\\) [^\n]*line \\([0-9]+\\)[\\., \n]"
-     2 3))
-  "Alist that specifies how to match errors in perl output.")
+  '("^[^\n]* \\(file\\|at\\) \\([^ \t\n]+\\) [^\n]*line \\([0-9]+\\)[\\., \n]"
+    2 3)
+  "List that specifies how to match errors in Perl output.")
+
+(defvar cperl-compilation-error-regexp-alist)
+(make-obsolete-variable 'cperl-compilation-error-regexp-alist
+                        'cperl-compilation-error-regexp-list "28.1")
 
 (defvar compilation-error-regexp-alist)
 
@@ -1512,8 +1473,7 @@ span the needed amount of lines.
 
 Variables `cperl-pod-here-scan', `cperl-pod-here-fontify',
 `cperl-pod-face', `cperl-pod-head-face' control processing of POD and
-here-docs sections.  With capable Emaxen results of scan are used
-for indentation too, otherwise they are used for highlighting only.
+here-docs sections.  Results of scan are used for indentation too.
 
 Variables controlling indentation style:
  `cperl-tab-always-indent'
@@ -1639,19 +1599,18 @@ or as help on variables `cperl-tips', `cperl-problems',
   (setq-local imenu-sort-function nil)
   (setq-local vc-rcs-header cperl-vc-rcs-header)
   (setq-local vc-sccs-header cperl-vc-sccs-header)
-  (cond ((boundp 'compilation-error-regexp-alist-alist);; xemacs 20.x
-         (setq-local compilation-error-regexp-alist-alist
-                     (cons (cons 'cperl (car cperl-compilation-error-regexp-alist))
-                           compilation-error-regexp-alist-alist))
-	 (if (fboundp 'compilation-build-compilation-error-regexp-alist)
-	     (let ((f 'compilation-build-compilation-error-regexp-alist))
-	       (funcall f))
-	   (make-local-variable 'compilation-error-regexp-alist)
-	   (push 'cperl compilation-error-regexp-alist)))
-	((boundp 'compilation-error-regexp-alist);; xemacs 19.x
-         (setq-local compilation-error-regexp-alist
-                     (append cperl-compilation-error-regexp-alist
-                             compilation-error-regexp-alist))))
+  (when (boundp 'compilation-error-regexp-alist-alist)
+    ;; The let here is just a compatibility kludge for the obsolete
+    ;; variable `cperl-compilation-error-regexp-alist'.  It can be removed
+    ;; when that variable is removed.
+    (let ((regexp (if (boundp 'cperl-compilation-error-regexp-alist)
+                           (car cperl-compilation-error-regexp-alist)
+                         cperl-compilation-error-regexp-list)))
+      (setq-local compilation-error-regexp-alist-alist
+                  (cons (cons 'cperl regexp)
+                        compilation-error-regexp-alist-alist)))
+    (make-local-variable 'compilation-error-regexp-alist)
+    (push 'cperl compilation-error-regexp-alist))
   (setq-local font-lock-defaults
               '((cperl-load-font-lock-keywords
                  cperl-load-font-lock-keywords-1
@@ -5415,120 +5374,79 @@ indentation and initial hashes.  Behaves usually outside of comment."
 	    (cons
 	     (concat
 	      "\\(^\\|[^$@%&\\]\\)\\<\\("
-              ;; FIXME: Use regexp-opt.
-	      (mapconcat
-	       #'identity
+              (regexp-opt
 	       (append
                 cperl-sub-keywords
                 '("if" "until" "while" "elsif" "else"
-                 "given" "when" "default" "break"
-                 "unless" "for"
-                 "try" "catch" "finally"
-		 "foreach" "continue" "exit" "die" "last" "goto" "next"
-		 "redo" "return" "local" "exec"
-                 "do" "dump"
-                 "use" "our"
-		 "require" "package" "eval" "evalbytes" "my" "state"
-                 "BEGIN" "END" "CHECK" "INIT" "UNITCHECK"))
-	       "\\|")			; Flow control
+                  "given" "when" "default" "break"
+                  "unless" "for"
+                  "try" "catch" "finally"
+                  "foreach" "continue" "exit" "die" "last" "goto" "next"
+                  "redo" "return" "local" "exec"
+                  "do" "dump"
+                  "use" "our"
+                  "require" "package" "eval" "evalbytes" "my" "state"
+                  "BEGIN" "END" "CHECK" "INIT" "UNITCHECK"))) ; Flow control
 	      "\\)\\>") 2)		; was "\\)[ \n\t;():,|&]"
 					; In what follows we use `type' style
 					; for overwritable builtins
 	    (list
 	     (concat
 	      "\\(^\\|[^$@%&\\]\\)\\<\\("
-              ;; FIXME: Use regexp-opt.
-	      ;; "CORE" "__FILE__" "__LINE__" "__SUB__" "abs" "accept" "alarm"
-	      ;; "and" "atan2" "bind" "binmode" "bless" "caller"
-	      ;; "chdir" "chmod" "chown" "chr" "chroot" "close"
-	      ;; "closedir" "cmp" "connect" "continue" "cos" "crypt"
-	      ;; "dbmclose" "dbmopen" "die" "dump" "endgrent"
-	      ;; "endhostent" "endnetent" "endprotoent" "endpwent"
-	      ;; "endservent" "eof" "eq" "exec" "exit" "exp" "fc" "fcntl"
-	      ;; "fileno" "flock" "fork" "formline" "ge" "getc"
-	      ;; "getgrent" "getgrgid" "getgrnam" "gethostbyaddr"
-	      ;; "gethostbyname" "gethostent" "getlogin"
-	      ;; "getnetbyaddr" "getnetbyname" "getnetent"
-	      ;; "getpeername" "getpgrp" "getppid" "getpriority"
-	      ;; "getprotobyname" "getprotobynumber" "getprotoent"
-	      ;; "getpwent" "getpwnam" "getpwuid" "getservbyname"
-	      ;; "getservbyport" "getservent" "getsockname"
-	      ;; "getsockopt" "glob" "gmtime" "gt" "hex" "index" "int"
-	      ;; "ioctl" "join" "kill" "lc" "lcfirst" "le" "length"
-	      ;; "link" "listen" "localtime" "lock" "log" "lstat" "lt"
-	      ;; "mkdir" "msgctl" "msgget" "msgrcv" "msgsnd" "ne"
-	      ;; "not" "oct" "open" "opendir" "or" "ord" "pack" "pipe"
-	      ;; "quotemeta" "rand" "read" "readdir" "readline"
-	      ;; "readlink" "readpipe" "recv" "ref" "rename" "require"
-	      ;; "reset" "reverse" "rewinddir" "rindex" "rmdir" "seek"
-	      ;; "seekdir" "select" "semctl" "semget" "semop" "send"
-	      ;; "setgrent" "sethostent" "setnetent" "setpgrp"
-	      ;; "setpriority" "setprotoent" "setpwent" "setservent"
-	      ;; "setsockopt" "shmctl" "shmget" "shmread" "shmwrite"
-	      ;; "shutdown" "sin" "sleep" "socket" "socketpair"
-	      ;; "sprintf" "sqrt" "srand" "stat" "substr" "symlink"
-	      ;; "syscall" "sysopen" "sysread" "sysseek" "system" "syswrite" "tell"
-	      ;; "telldir" "time" "times" "truncate" "uc" "ucfirst"
-	      ;; "umask" "unlink" "unpack" "utime" "values" "vec"
-	      ;; "wait" "waitpid" "wantarray" "warn" "write" "x" "xor"
-	      "a\\(bs\\|ccept\\|tan2\\|larm\\|nd\\)\\|"
-	      "b\\(in\\(d\\|mode\\)\\|less\\)\\|"
-	      "c\\(h\\(r\\(\\|oot\\)\\|dir\\|mod\\|own\\)\\|aller\\|rypt\\|"
-	      "lose\\(\\|dir\\)\\|mp\\|o\\(s\\|n\\(tinue\\|nect\\)\\)\\)\\|"
-	      "CORE\\|d\\(ie\\|bm\\(close\\|open\\)\\|ump\\)\\|"
-	      "e\\(x\\(p\\|it\\|ec\\)\\|q\\|nd\\(p\\(rotoent\\|went\\)\\|"
-	      "hostent\\|servent\\|netent\\|grent\\)\\|of\\)\\|"
-	      "f\\(ileno\\|c\\(ntl\\)?\\|lock\\|or\\(k\\|mline\\)\\)\\|"
-	      "g\\(t\\|lob\\|mtime\\|e\\(\\|t\\(p\\(pid\\|r\\(iority\\|"
-	      "oto\\(byn\\(ame\\|umber\\)\\|ent\\)\\)\\|eername\\|w"
-	      "\\(uid\\|ent\\|nam\\)\\|grp\\)\\|host\\(by\\(addr\\|name\\)\\|"
-	      "ent\\)\\|s\\(erv\\(by\\(port\\|name\\)\\|ent\\)\\|"
-	      "ock\\(name\\|opt\\)\\)\\|c\\|login\\|net\\(by\\(addr\\|name\\)\\|"
-	      "ent\\)\\|gr\\(ent\\|nam\\|gid\\)\\)\\)\\)\\|"
-	      "hex\\|i\\(n\\(t\\|dex\\)\\|octl\\)\\|join\\|kill\\|"
-	      "l\\(i\\(sten\\|nk\\)\\|stat\\|c\\(\\|first\\)\\|t\\|e"
-	      "\\(\\|ngth\\)\\|o\\(c\\(altime\\|k\\)\\|g\\)\\)\\|m\\(sg\\(rcv\\|snd\\|"
-	      "ctl\\|get\\)\\|kdir\\)\\|n\\(e\\|ot\\)\\|o\\(pen\\(\\|dir\\)\\|"
-	      "r\\(\\|d\\)\\|ct\\)\\|p\\(ipe\\|ack\\)\\|quotemeta\\|"
-	      "r\\(index\\|and\\|mdir\\|e\\(quire\\|ad\\(pipe\\|\\|lin"
-	      "\\(k\\|e\\)\\|dir\\)\\|set\\|cv\\|verse\\|f\\|winddir\\|name"
-	      "\\)\\)\\|s\\(printf\\|qrt\\|rand\\|tat\\|ubstr\\|e\\(t\\(p\\(r"
-	      "\\(iority\\|otoent\\)\\|went\\|grp\\)\\|hostent\\|s\\(ervent\\|"
-	      "ockopt\\)\\|netent\\|grent\\)\\|ek\\(\\|dir\\)\\|lect\\|"
-	      "m\\(ctl\\|op\\|get\\)\\|nd\\)\\|h\\(utdown\\|m\\(read\\|ctl\\|"
-	      "write\\|get\\)\\)\\|y\\(s\\(read\\|call\\|open\\|tem\\|write\\|seek\\)\\|"
-	      "mlink\\)\\|in\\|leep\\|ocket\\(pair\\|\\)\\)\\|t\\(runcate\\|"
-	      "ell\\(\\|dir\\)\\|ime\\(\\|s\\)\\)\\|u\\(c\\(\\|first\\)\\|"
-	      "time\\|mask\\|n\\(pack\\|link\\)\\)\\|v\\(alues\\|ec\\)\\|"
-	      "w\\(a\\(rn\\|it\\(pid\\|\\)\\|ntarray\\)\\|rite\\)\\|"
-	      "x\\(\\|or\\)\\|__\\(FILE\\|LINE\\|PACKAGE\\|SUB\\)__"
-	      "\\)\\>") 2 'font-lock-type-face)
+              (regexp-opt
+               '("CORE" "__FILE__" "__LINE__" "__SUB__" "__PACKAGE__"
+                 "abs" "accept" "alarm" "and" "atan2"
+                 "bind" "binmode" "bless" "caller"
+                 "chdir" "chmod" "chown" "chr" "chroot" "close"
+                 "closedir" "cmp" "connect" "continue" "cos" "crypt"
+                 "dbmclose" "dbmopen" "die" "dump" "endgrent"
+                 "endhostent" "endnetent" "endprotoent" "endpwent"
+                 "endservent" "eof" "eq" "exec" "exit" "exp" "fc" "fcntl"
+                 "fileno" "flock" "fork" "formline" "ge" "getc"
+                 "getgrent" "getgrgid" "getgrnam" "gethostbyaddr"
+                 "gethostbyname" "gethostent" "getlogin"
+                 "getnetbyaddr" "getnetbyname" "getnetent"
+                 "getpeername" "getpgrp" "getppid" "getpriority"
+                 "getprotobyname" "getprotobynumber" "getprotoent"
+                 "getpwent" "getpwnam" "getpwuid" "getservbyname"
+                 "getservbyport" "getservent" "getsockname"
+                 "getsockopt" "glob" "gmtime" "gt" "hex" "index" "int"
+                 "ioctl" "join" "kill" "lc" "lcfirst" "le" "length"
+                 "link" "listen" "localtime" "lock" "log" "lstat" "lt"
+                 "mkdir" "msgctl" "msgget" "msgrcv" "msgsnd" "ne"
+                 "not" "oct" "open" "opendir" "or" "ord" "pack" "pipe"
+                 "quotemeta" "rand" "read" "readdir" "readline"
+                 "readlink" "readpipe" "recv" "ref" "rename" "require"
+                 "reset" "reverse" "rewinddir" "rindex" "rmdir" "seek"
+                 "seekdir" "select" "semctl" "semget" "semop" "send"
+                 "setgrent" "sethostent" "setnetent" "setpgrp"
+                 "setpriority" "setprotoent" "setpwent" "setservent"
+                 "setsockopt" "shmctl" "shmget" "shmread" "shmwrite"
+                 "shutdown" "sin" "sleep" "socket" "socketpair"
+                 "sprintf" "sqrt" "srand" "stat" "substr" "symlink"
+                 "syscall" "sysopen" "sysread" "sysseek" "system" "syswrite" "tell"
+                 "telldir" "time" "times" "truncate" "uc" "ucfirst"
+                 "umask" "unlink" "unpack" "utime" "values" "vec"
+                 "wait" "waitpid" "wantarray" "warn" "write" "x" "xor"))
+              "\\)\\>")
+             2 'font-lock-type-face)
 	    ;; In what follows we use `other' style
 	    ;; for nonoverwritable builtins
-	    ;; Somehow 's', 'm' are not auto-generated???
 	    (list
 	     (concat
 	      "\\(^\\|[^$@%&\\]\\)\\<\\("
-	      ;; "AUTOLOAD" "BEGIN" "CHECK" "DESTROY" "END" "INIT" "UNITCHECK" "__END__" "chomp"
-	      ;; "break" "chop" "default" "defined" "delete" "do" "each" "else" "elsif"
-	      ;; "eval" "evalbytes" "exists" "for" "foreach" "format" "given" "goto"
-	      ;; "grep" "if" "keys" "last" "local" "map" "my" "next"
-	      ;; "no" "our" "package" "pop" "pos" "print" "printf" "prototype" "push"
-	      ;; "q" "qq" "qw" "qx" "redo" "return" "say" "scalar" "shift"
-	      ;; "sort" "splice" "split" "state" "study" "sub" "tie" "tr"
-	      ;; "undef" "unless" "unshift" "untie" "until" "use"
-	      ;; "when" "while" "y"
-	      "AUTOLOAD\\|BEGIN\\|\\(UNIT\\)?CHECK\\|break\\|c\\(atch\\|ho\\(p\\|mp\\)\\)\\|d\\(e\\(f\\(inally\\|ault\\|ined\\)\\|lete\\)\\|"
-	      "o\\)\\|DESTROY\\|e\\(ach\\|val\\(bytes\\)?\\|xists\\|ls\\(e\\|if\\)\\)\\|"
-	      "END\\|for\\(\\|each\\|mat\\)\\|g\\(iven\\|rep\\|oto\\)\\|INIT\\|if\\|keys\\|"
-	      "l\\(ast\\|ocal\\)\\|m\\(ap\\|y\\)\\|n\\(ext\\|o\\)\\|our\\|"
-	      "p\\(ackage\\|rototype\\|rint\\(\\|f\\)\\|ush\\|o\\(p\\|s\\)\\)\\|"
-	      "q\\(\\|q\\|w\\|x\\|r\\)\\|re\\(turn\\|do\\)\\|s\\(ay\\|pli\\(ce\\|t\\)\\|"
-	      "calar\\|t\\(ate\\|udy\\)\\|ub\\|hift\\|ort\\)\\|t\\(ry?\\|ied?\\)\\|"
-	      "u\\(se\\|n\\(shift\\|ti\\(l\\|e\\)\\|def\\|less\\)\\)\\|"
-	      "wh\\(en\\|ile\\)\\|y\\|__\\(END\\|DATA\\)__" ;__DATA__ added manually
-	      "\\|[sm]"			; Added manually
-	      "\\)\\>")
+              (regexp-opt
+               '("AUTOLOAD" "BEGIN" "CHECK" "DESTROY" "END" "INIT" "UNITCHECK"
+                 "__END__" "__DATA__" "break" "catch" "chomp" "chop" "default"
+                 "defined" "delete" "do" "each" "else" "elsif" "eval"
+                 "evalbytes" "exists" "finally" "for" "foreach" "format" "given"
+                 "goto" "grep" "if" "keys" "last" "local" "m" "map" "my" "next"
+                 "no" "our" "package" "pop" "pos" "print" "printf" "prototype"
+                 "push" "q" "qq" "qr" "qw" "qx" "redo" "return" "s" "say" "scalar"
+                 "shift" "sort" "splice" "split" "state" "study" "sub" "tie"
+                 "tied" "tr" "try" "undef" "unless" "unshift" "untie" "until"
+                 "use" "when" "while" "y"))
+              "\\)\\>")
 	     2 ''cperl-nonoverridable-face) ; unbound as var, so: doubly quoted
 	    ;;		(mapconcat #'identity
 	    ;;			   '("#endif" "#else" "#ifdef" "#ifndef" "#if"

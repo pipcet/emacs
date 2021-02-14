@@ -82,13 +82,29 @@ Testcover will raise an error."
   form)
 
 (defmacro def-edebug-spec (symbol spec)
-  "Set the `edebug-form-spec' property of SYMBOL according to SPEC.
+  "Set the Edebug SPEC to use for sexps which have SYMBOL as head.
 Both SYMBOL and SPEC are unevaluated.  The SPEC can be:
 0 (instrument no arguments); t (instrument all arguments);
 a symbol (naming a function with an Edebug specification); or a list.
 The elements of the list describe the argument types; see
 Info node `(elisp)Specification List' for details."
+  (declare (indent 1))
   `(put (quote ,symbol) 'edebug-form-spec (quote ,spec)))
+
+(defun def-edebug-elem-spec (name spec)
+  "Define a new Edebug spec element NAME as shorthand for SPEC.
+The SPEC has to be a list or a symbol.
+The elements of the list describe the argument types; see
+Info node `(elisp)Specification List' for details.
+If SPEC is a symbol it should name another pre-existing Edebug element."
+  (declare (indent 1))
+  (when (string-match "\\`[&:]" (symbol-name name))
+    ;; & and : have special meaning in spec element names.
+    (error "Edebug spec name cannot start with '&' or ':'"))
+  (unless (consp spec)
+    (error "Edebug spec has to be a list: %S" spec))
+  (put name 'edebug-elem-spec spec))
+
 
 (defmacro lambda (&rest cdr)
   "Return an anonymous function.
@@ -2307,7 +2323,8 @@ tho trying to avoid AVOIDED-MODES."
 (defun add-minor-mode (toggle name &optional keymap after toggle-fun)
   "Register a new minor mode.
 
-This is an XEmacs-compatibility function.  Use `define-minor-mode' instead.
+This function shouldn't be used directly -- use `define-minor-mode'
+instead (which will then call this function).
 
 TOGGLE is a symbol that is the name of a buffer-local variable that
 is toggled on or off to say whether the minor mode is active or not.
@@ -4335,6 +4352,8 @@ the specified region.  It must not change
 Additionally, the buffer modifications of BODY are recorded on
 the buffer's undo list as a single (apply ...) entry containing
 the function `undo--wrap-and-run-primitive-undo'."
+  (if (markerp beg) (setq beg (marker-position beg)))
+  (if (markerp end) (setq end (marker-position end)))
   (let ((old-bul buffer-undo-list)
 	(end-marker (copy-marker end t))
 	result)

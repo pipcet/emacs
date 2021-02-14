@@ -137,5 +137,21 @@
                                ,(cons func args))))
     (wrap + 1 x)))
 
+(defun edebug-test-code-cl-flet1 ()
+  (cl-flet
+      ;; This `&rest' sexp head should not collide with
+      ;; the Edebug spec elem of the same name.
+      ((f (&rest x) x)
+       (gate (x) (+ x 5)))
+    ;; This call to `gate' shouldn't collide with the Edebug spec elem
+    ;; of the same name.
+    (message "Hi %s" (gate 7))))
+
+(defun edebug-test-code-use-gv-expander (x)
+  (declare (gv-expander
+            (lambda (do)
+              (funcall do `(car ,x) (lambda (v) `(setcar ,x ,v))))))
+  (car x))
+
 (provide 'edebug-test-code)
 ;;; edebug-test-code.el ends here
