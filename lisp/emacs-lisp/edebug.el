@@ -1235,26 +1235,10 @@ purpose by adding an entry to this alist, and setting
       (funcall edebug-after-instrumentation-function result))))
 
 (defvar edebug-def-args) ; args of defining form.
-(defvar edebug-def-interactive) ; is it an emacs interactive function?
 (defvar edebug-inside-func)  ;; whether code is inside function context.
 ;; Currently def-form sets this to nil; def-body sets it to t.
 
 (defvar edebug--cl-macrolet-defs) ;; Fully defined below.
-
-(defun edebug-interactive-p-name ()
-  ;; Return a unique symbol for the variable used to store the
-  ;; status of interactive-p for this function.
-  (intern (format "edebug-%s-interactive-p" edebug-def-name)))
-
-
-(defun edebug-wrap-def-body (forms)
-  "Wrap the FORMS of a definition body."
-  (if edebug-def-interactive
-      `(let ((,(edebug-interactive-p-name)
-	      (called-interactively-p 'interactive)))
-	 ,(edebug-make-enter-wrapper forms))
-    (edebug-make-enter-wrapper forms)))
-
 
 (defun edebug-make-enter-wrapper (forms)
   ;; Generate the enter wrapper for some forms of a definition.
@@ -1404,7 +1388,6 @@ contains a circular object."
 	  (edebug-old-def-name (edebug--form-data-name form-data-entry))
 	  edebug-def-name
 	  edebug-def-args
-	  edebug-def-interactive
 	  edebug-inside-func;; whether wrapped code executes inside a function.
 	  )
 
@@ -1610,11 +1593,6 @@ contains a circular object."
      ((symbolp head)
       (cond
        ((null head) nil) ; () is valid.
-       ((eq head 'interactive-p)
-	;; Special case: replace (interactive-p) with variable
-	(setq edebug-def-interactive 'check-it)
-	(edebug-move-cursor cursor)
-	(edebug-interactive-p-name))
        (t
 	(cons head (edebug-list-form-args
 		    head (edebug-move-cursor cursor))))))
@@ -1748,16 +1726,11 @@ contains a circular object."
 (dolist (pair '((form . edebug-match-form)
 		(sexp . edebug-match-sexp)
 		(body . edebug-match-body)
-		(name . edebug-match-name)
 		(arg . edebug-match-arg)
 		(def-body . edebug-match-def-body)
 		(def-form . edebug-match-def-form)
 		;; Less frequently used:
 		;; (function . edebug-match-function)
-		(lambda-expr . edebug-match-lambda-expr)
-                (cl-generic-method-qualifier
-                 . edebug-match-cl-generic-method-qualifier)
-                (cl-generic-method-args . edebug-match-cl-generic-method-args)
                 (cl-macrolet-expr . edebug-match-cl-macrolet-expr)
                 (cl-macrolet-name . edebug-match-cl-macrolet-name)
                 (cl-macrolet-body . edebug-match-cl-macrolet-body)
@@ -1877,7 +1850,7 @@ and then matches the rest against the output of (FUN ARGS... HEAD)."
   (pcase-let*
       ((`(,spec ,fun . ,args) specs)
        (exps (edebug-cursor-expressions cursor))
-       (instrumented-head (edebug-match-one-spec cursor (or spec 'sexp)))
+       (instrumented-head (edebug-match-one-spec cursor spec))
        (consumed (- (length exps)
                     (length (edebug-cursor-expressions cursor))))
        (newspecs (apply fun (append args (seq-subseq exps 0 consumed)))))
@@ -2030,45 +2003,61 @@ and then matches the rest against the output of (FUN ARGS... HEAD)."
       offsets)
     specs))
 
-(defun edebug-match-lambda-expr (cursor)
-  ;; The expression must be a function.
-  ;; This will match any list form that begins with a symbol
-  ;; that has an edebug-form-spec beginning with &define.  In
-  ;; practice, only lambda expressions should be used.
-  ;; I could add a &lambda specification to avoid confusion.
-  (let* ((sexp (edebug-top-element-required
-		cursor "Expected lambda expression"))
-	 (offset (edebug-top-offset cursor))
-	 (head (and (consp sexp) (car sexp)))
-	 (spec (and (symbolp head) (edebug-get-spec head)))
-	 (edebug-inside-func nil))
-    ;; Find out if this is a defining form from first symbol.
-    (if (and (consp spec) (eq '&define (car spec)))
-	(prog1
-	    (list
-	     (edebug-defining-form
-	      (edebug-new-cursor sexp offset)
-	      (car offset);; before the sexp
-	      (edebug-after-offset cursor)
-	      (cons (symbol-name head) (cdr spec))))
-	  (edebug-move-cursor cursor))
-      (edebug-no-match cursor "Expected lambda expression")
-      )))
+(cl-defmethod edebug--handle-&-spec-op ((_ (eql &name)) cursor specs)
+  "Compute the name for `&name SPEC FUN` spec operator.
 
+The full syntax of that operator is:
+    &name [PRESTRING] SPEC [POSTSTRING] FUN ARGS...
 
-(defun edebug-match-name (cursor)
-  ;; Set the edebug-def-name bound in edebug-defining-form.
-  (let ((name (edebug-top-element-required cursor "Expected name")))
-    ;; Maybe strings and numbers could be used.
-    (if (not (symbolp name))
-	(edebug-no-match cursor "Symbol expected for name of definition"))
-    (setq edebug-def-name
-	  (if edebug-def-name
-	      ;; Construct a new name by appending to previous name.
-	      (intern (format "%s@%s" edebug-def-name name))
-	    name))
-    (edebug-move-cursor cursor)
-    (list name)))
+Extracts the head of the data by matching it against SPEC,
+and then get the new name to use by calling
+  (FUN ARGS... OLDNAME [PRESTRING] HEAD [POSTSTRING])
+FUN should return either a string or a symbol.
+FUN can be missing in which case it defaults to concatenating
+the new name to the end of the old with an \"@\" char between the two.
+PRESTRING and POSTSTRING are optional strings that get prepended
+or appended to the actual name."
+  (pcase-let*
+      ((`(,spec ,fun . ,args) specs)
+       (prestrings (when (stringp spec)
+                     (prog1 (list spec) (setq spec fun fun (pop args)))))
+       (poststrings (when (stringp fun)
+                      (prog1 (list fun) (setq fun (pop args)))))
+       (exps (edebug-cursor-expressions cursor))
+       (instrumented (edebug-match-one-spec cursor spec))
+       (consumed (- (length exps)
+                    (length (edebug-cursor-expressions cursor))))
+       (newname (apply (or fun #'edebug--concat-name)
+                       `(,@args ,edebug-def-name
+                                ,@prestrings
+                                ,@(seq-subseq exps 0 consumed)
+                                ,@poststrings))))
+    (cl-assert (eq (edebug-cursor-expressions cursor) (nthcdr consumed exps)))
+    (setq edebug-def-name (if (stringp newname) (intern newname) newname))
+    instrumented))
+
+(defun edebug--concat-name (oldname &rest newnames)
+  (let ((newname (if (null (cdr newnames))
+                     (car newnames)
+                   ;; Put spaces between each name, but not for the
+                   ;; leading and trailing strings, if any.
+                   (let (beg mid end)
+                     (dolist (name newnames)
+                       (if (stringp name)
+                           (push name (if mid end beg))
+                         (when end (setq mid (nconc end mid) end nil))
+                         (push name mid)))
+                     (apply #'concat `(,@(nreverse beg)
+                                       ,(mapconcat (lambda (x) (format "%s" x))
+                                                   (nreverse mid) " ")
+                                       ,@(nreverse end)))))))
+    (if (null oldname)
+        (if (or (stringp newname) (symbolp newname))
+            newname
+          (format "%s" newname))
+      (format "%s@%s" edebug-def-name newname))))
+
+(def-edebug-elem-spec 'name '(&name symbolp))
 
 (cl-defgeneric edebug--handle-:-spec-op (op cursor spec)
   "Handle :foo spec operators.
@@ -2093,26 +2082,6 @@ SPEC is the symbol name prefix for `gensym'."
 	      (intern (format "%s@%s" edebug-def-name suffix))
 	    suffix)))
   nil)
-
-(defun edebug-match-cl-generic-method-qualifier (cursor)
-  "Match a QUALIFIER for `cl-defmethod' at CURSOR."
-  (let ((args (edebug-top-element-required cursor "Expected qualifier")))
-    ;; Like in CLOS spec, we support any non-list values.
-    (unless (atom args) (edebug-no-match cursor "Atom expected"))
-    ;; Append the arguments to `edebug-def-name' (Bug#42671).
-    (setq edebug-def-name (intern (format "%s %s" edebug-def-name args)))
-    (edebug-move-cursor cursor)
-    (list args)))
-
-(defun edebug-match-cl-generic-method-args (cursor)
-  (let ((args (edebug-top-element-required cursor "Expected arguments")))
-    (if (not (consp args))
-        (edebug-no-match cursor "List expected"))
-    ;; Append the arguments to edebug-def-name.
-    (setq edebug-def-name
-          (intern (format "%s %s" edebug-def-name args)))
-    (edebug-move-cursor cursor)
-    (list args)))
 
 (defvar edebug--cl-macrolet-defs nil
   "List of symbols found within the bindings of enclosing `cl-macrolet' forms.")
@@ -2179,7 +2148,7 @@ into `edebug--cl-macrolet-defs' which is checked in `edebug-list-form-args'."
     ;; This happens to handle bug#20281, tho maybe a better fix would be to
     ;; improve the `defun' spec.
     (when forms
-      (list (edebug-wrap-def-body forms)))))
+      (list (edebug-make-enter-wrapper forms)))))
 
 
 ;;;; Edebug Form Specs
@@ -2253,11 +2222,18 @@ into `edebug--cl-macrolet-defs' which is checked in `edebug-list-form-args'."
      &optional ["&rest" arg]
      )))
 
+(def-edebug-elem-spec 'lambda-expr
+  '(("lambda" &define lambda-list lambda-doc
+     [&optional ("interactive" interactive)]
+     def-body)))
+
 (def-edebug-elem-spec 'arglist '(lambda-list))  ;; deprecated - use lambda-list.
 
 (def-edebug-elem-spec 'lambda-doc
   '(&optional [&or stringp
                    (&define ":documentation" def-form)]))
+
+(def-edebug-elem-spec 'interactive '(&optional &or stringp def-form))
 
 ;; A function-form is for an argument that may be a function or a form.
 ;; This specially recognizes anonymous functions quoted with quote.
@@ -2924,7 +2900,6 @@ See `edebug-behavior-alist' for implementations.")
 (defvar edebug-outside-match-data) ; match data outside of edebug
 (defvar edebug-backtrace-buffer) ; each recursive edit gets its own
 (defvar edebug-inside-windows)
-(defvar edebug-interactive-p)
 
 (defvar edebug-mode-map)		; will be defined fully later.
 
@@ -2940,7 +2915,6 @@ See `edebug-behavior-alist' for implementations.")
 	;;(edebug-number-of-recursions (1+ edebug-number-of-recursions))
 	(edebug-recursion-depth (recursion-depth))
 	edebug-entered			; bind locally to nil
-	(edebug-interactive-p nil)      ; again non-interactive
 	edebug-backtrace-buffer		; each recursive edit gets its own
 	;; The window configuration may be saved and restored
 	;; during a recursive-edit
@@ -4247,7 +4221,8 @@ This should be a list of `edebug---frame' objects.")
   (pop-to-buffer edebug-backtrace-buffer)
   (unless (derived-mode-p 'backtrace-mode)
     (backtrace-mode)
-    (add-hook 'backtrace-goto-source-functions #'edebug--backtrace-goto-source))
+    (add-hook 'backtrace-goto-source-functions
+              #'edebug--backtrace-goto-source nil t))
   (setq edebug-instrumented-backtrace-frames
         (backtrace-get-frames 'edebug-debugger
                               :constructor #'edebug--make-frame)
@@ -4589,13 +4564,18 @@ With prefix argument, make it a temporary breakpoint."
 (add-hook 'called-interactively-p-functions
           #'edebug--called-interactively-skip)
 (defun edebug--called-interactively-skip (i frame1 frame2)
-  (when (and (eq (car-safe (nth 1 frame1)) 'lambda)
-             (eq (nth 1 (nth 1 frame1)) '())
-             (eq (nth 1 frame2) 'edebug-enter))
+  (when (and (memq (car-safe (nth 1 frame1)) '(lambda closure))
+             ;; Lambda value with no arguments.
+             (null (nth (if (eq (car-safe (nth 1 frame1)) 'lambda) 1 2)
+                        (nth 1 frame1)))
+             (memq (nth 1 frame2) '(edebug-enter edebug-default-enter)))
     ;; `edebug-enter' calls itself on its first invocation.
-    (if (eq (nth 1 (backtrace-frame i 'called-interactively-p))
-            'edebug-enter)
-        2 1)))
+    (let ((s 1))
+      (while (memq (nth 1 (backtrace-frame i 'called-interactively-p))
+                   '(edebug-enter edebug-default-enter))
+        (cl-incf s)
+        (cl-incf i))
+      s)))
 
 ;; Finally, hook edebug into the rest of Emacs.
 ;; There are probably some other things that could go here.
