@@ -251,6 +251,11 @@ commands.  The new keystrokes are 'C-x x g' ('revert-buffer'),
 
 * Editing Changes in Emacs 28.1
 
++++
+** New user option 'read-extended-command-predicate'.
+This option controls how 'M-x TAB' performs completions.  The default
+predicate excludes modes for which the command is not applicable.
+
 ---
 ** 'eval-expression' now no longer signals an error on incomplete expressions.
 Previously, typing 'M-: ( RET' would result in Emacs saying "End of
@@ -954,7 +959,10 @@ declared obsolete.
 *** Edebug specification lists can use some new keywords:
 
 +++
-**** '&lookup SPEC FUN ARGS...' lets FUN compute the specs to use
+**** '&interpose SPEC FUN ARGS..' lets FUN control parsing after SPEC.
+More specifically, FUN is called with 'HEAD PF ARGS..' where
+PF is a parsing function that expects a single argument (the specs to
+use) and HEAD is the code that matched SPEC.
 
 +++
 **** '&error MSG' unconditionally aborts the current edebug instrumentation.
@@ -2082,10 +2090,13 @@ first).
 
 * Incompatible Editing Changes in Emacs 28.1
 
-** The 'M-o' ('facemanu-keymap') global binding has been removed.
+** The 'M-o' ('facemenu-keymap') global binding has been removed.
 
 ** The 'M-o M-s' and 'M-o M-S' global bindings have been removed.
 Use 'M-x center-line' and 'M-x center-paragraph' instead.
+
+** The 'M-o M-o' global binding have been removed.
+Use 'M-x font-lock-fontify-block' instead.
 
 ** In 'f90-mode', the backslash character ('\') no longer escapes.
 For about a decade, the backslash character has no longer had a
@@ -2269,6 +2280,40 @@ back in Emacs 23.1.  The affected functions are: 'make-obsolete',
 
 
 * Lisp Changes in Emacs 28.1
+
++++
+** New forms to declare how completion should happen has been added.
+'(declare (completion PREDICATE))' can be used as a general predicate
+to say whether the command should be present when completing with
+'M-x TAB'.  '(declare (modes MODE...))' can be used as a short-hand
+way of saying that the command should be present when completing from
+buffers in major modes derived from MODE..., or, if it's a minor mode,
+whether that minor mode is enabled in the current buffer.
+
++++
+** The 'interactive' syntax has been extended to allow listing applicable modes.
+Forms like '(interactive "p" dired-mode)' can be used to annotate the
+commands as being applicable for modes derived from 'dired-mode',
+or if the mode is a minor mode, that the current buffer has that
+minor mode activated.  Note that using this form will create byte code
+that is not compatible with byte code in previous Emacs versions.
+
++++
+** New buffer-local variable 'minor-modes'.
+This permanently buffer-local variable holds a list of currently
+enabled minor modes in the current buffer (as a list of symbols).
+
++++
+** 'define-minor-mode'  now takes an :interactive argument.
+This can be used for specifying which modes this minor mode is meant
+for, or to make the new minor mode non-interactive.  The default value
+is t.
+
++++
+** 'define-derived-mode' now takes an :interactive argument.
+This can be used to control whether the defined mode is a command
+or not, and is useful when defining commands that aren't meant to be
+used by users directly.
 
 ** The 'values' variable is now obsolete.
 

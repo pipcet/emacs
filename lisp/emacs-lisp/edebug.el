@@ -1091,8 +1091,6 @@ circular objects.  Let `read' read everything else."
 ;; This data is shared by all embedded definitions.
 (defvar edebug-top-window-data)
 
-(defvar edebug-&optional)
-(defvar edebug-&rest)
 (defvar edebug-gate nil) ;; whether no-match forces an error.
 
 (defvar edebug-def-name nil) ; name of definition, used by interactive-form
@@ -1143,8 +1141,6 @@ purpose by adding an entry to this alist, and setting
 	edebug-top-window-data
 	edebug-def-name;; make sure it is locally nil
 	;; I don't like these here!!
-	edebug-&optional
-	edebug-&rest
 	edebug-gate
 	edebug-best-error
 	edebug-error-point
@@ -1188,6 +1184,9 @@ purpose by adding an entry to this alist, and setting
 ;;;(message "all defs: %s   all forms: %s"  edebug-all-defs edebug-all-forms)
     (let ((result
            (cond
+            ;; IIUC, `&define' is treated specially here so as to avoid
+            ;; entering Edebug during the actual function's definition:
+            ;; we only want to enter Edebug later when the thing is called.
             (defining-form-p
               (if (or edebug-all-defs edebug-all-forms)
                   ;; If it is a defining form and we are edebugging defs,
@@ -1238,7 +1237,9 @@ purpose by adding an entry to this alist, and setting
 (defvar edebug-inside-func)  ;; whether code is inside function context.
 ;; Currently def-form sets this to nil; def-body sets it to t.
 
-(defvar edebug--cl-macrolet-defs) ;; Fully defined below.
+
+(defvar edebug-lexical-macro-ctx nil
+  "Alist mapping lexically scoped macro names to their debug spec.")
 
 (defun edebug-make-enter-wrapper (forms)
   ;; Generate the enter wrapper for some forms of a definition.
@@ -1507,6 +1508,9 @@ contains a circular object."
 	 ((consp form)
 	  ;; The first offset for a list form is for the list form itself.
 	  (if (eq 'quote (car form))
+	      ;; This makes sure we don't instrument 'foo
+              ;; which would cause the debugger to single-step
+	      ;; the trivial evaluation of a constant.
 	      form
 	    (let* ((head (car form))
 		   (spec (and (symbolp head) (edebug-get-spec head)))
@@ -1549,13 +1553,10 @@ contains a circular object."
 (defsubst edebug-list-form-args (head cursor)
   ;; Process the arguments of a list form given that head of form is a symbol.
   ;; Helper for edebug-list-form
-  (let ((spec (edebug-get-spec head)))
+  (let* ((lex-spec (assq head edebug-lexical-macro-ctx))
+         (spec (if lex-spec (cdr lex-spec)
+                 (edebug-get-spec head))))
     (cond
-     ;; Treat cl-macrolet bindings like macros with no spec.
-     ((member head edebug--cl-macrolet-defs)
-      (if edebug-eval-macro-args
-	  (edebug-forms cursor)
-	(edebug-sexps cursor)))
      (spec
       (cond
        ((consp spec)
@@ -1569,7 +1570,7 @@ contains a circular object."
 					; but leave it in for compatibility.
        ))
      ;; No edebug-form-spec provided.
-     ((macrop head)
+     ((or lex-spec (macrop head))
       (if edebug-eval-macro-args
 	  (edebug-forms cursor)
 	(edebug-sexps cursor)))
@@ -1582,10 +1583,7 @@ contains a circular object."
   ;; The after offset will be left in the cursor after processing the form.
   (let ((head (edebug-top-element-required cursor "Expected elements"))
 	;; Prevent backtracking whenever instrumenting.
-	(edebug-gate t)
-	;; A list form is never optional because it matches anything.
-	(edebug-&optional nil)
-	(edebug-&rest nil))
+	(edebug-gate t))
     ;; Skip the first offset.
     (edebug-set-cursor cursor (edebug-cursor-expressions cursor)
 		       (cdr (edebug-cursor-offsets cursor)))
@@ -1630,7 +1628,7 @@ contains a circular object."
   (setq edebug-error-point (or edebug-error-point
 			       (edebug-before-offset cursor))
 	edebug-best-error (or edebug-best-error args))
-  (if (and edebug-gate (not edebug-&optional))
+  (if edebug-gate
       (progn
 	(if edebug-error-point
 	    (goto-char edebug-error-point))
@@ -1641,9 +1639,7 @@ contains a circular object."
 (defun edebug-match (cursor specs)
   ;; Top level spec matching function.
   ;; Used also at each lower level of specs.
-  (let (edebug-&optional
-	edebug-&rest
-	edebug-best-error
+  (let (edebug-best-error
 	edebug-error-point
 	(edebug-gate edebug-gate)  ;; locally bound to limit effect
 	)
@@ -1689,7 +1685,7 @@ contains a circular object."
 	     (first-char (and (symbolp spec) (aref (symbol-name spec) 0)))
 	     (match (cond
 		     ((eq ?& first-char);; "&" symbols take all following specs.
-		      (edebug--handle-&-spec-op spec cursor (cdr specs)))
+		      (edebug--match-&-spec-op spec cursor (cdr specs)))
 		     ((eq ?: first-char);; ":" symbols take one following spec.
 		      (setq rest (cdr (cdr specs)))
 		      (edebug--handle-:-spec-op spec cursor (car (cdr specs))))
@@ -1731,9 +1727,6 @@ contains a circular object."
 		(def-form . edebug-match-def-form)
 		;; Less frequently used:
 		;; (function . edebug-match-function)
-                (cl-macrolet-expr . edebug-match-cl-macrolet-expr)
-                (cl-macrolet-name . edebug-match-cl-macrolet-name)
-                (cl-macrolet-body . edebug-match-cl-macrolet-body)
 		(place . edebug-match-place)
 		(gate . edebug-match-gate)
 		;;   (nil . edebug-match-nil)  not this one - special case it.
@@ -1781,13 +1774,12 @@ contains a circular object."
 
 (defsubst edebug-match-body (cursor) (edebug-forms cursor))
 
-(cl-defmethod edebug--handle-&-spec-op ((_ (eql &optional)) cursor specs)
+(cl-defmethod edebug--match-&-spec-op ((_ (eql &optional)) cursor specs)
   ;; Keep matching until one spec fails.
-  (edebug-&optional-wrapper cursor specs 'edebug-&optional-wrapper))
+  (edebug-&optional-wrapper cursor specs #'edebug-&optional-wrapper))
 
 (defun edebug-&optional-wrapper (cursor specs remainder-handler)
   (let (result
-	(edebug-&optional specs)
 	(edebug-gate nil)
 	(this-form (edebug-cursor-expressions cursor))
 	(this-offset (edebug-cursor-offsets cursor)))
@@ -1802,24 +1794,24 @@ contains a circular object."
       nil)))
 
 
-(defun edebug-&rest-wrapper (cursor specs remainder-handler)
-  (if (null specs) (setq specs edebug-&rest))
-  ;; Reuse the &optional handler with this as the remainder handler.
-  (edebug-&optional-wrapper cursor specs remainder-handler))
-
-(cl-defgeneric edebug--handle-&-spec-op (op cursor specs)
+(cl-defgeneric edebug--match-&-spec-op (op cursor specs)
   "Handle &foo spec operators.
 &foo spec operators operate on all the subsequent SPECS.")
 
-(cl-defmethod edebug--handle-&-spec-op ((_ (eql &rest)) cursor specs)
+(cl-defmethod edebug--match-&-spec-op ((_ (eql &rest)) cursor specs)
   ;; Repeatedly use specs until failure.
-  (let ((edebug-&rest specs) ;; remember these
-	edebug-best-error
+  (let (edebug-best-error
 	edebug-error-point)
-    (edebug-&rest-wrapper cursor specs 'edebug-&rest-wrapper)))
+    ;; Reuse the &optional handler with this as the remainder handler.
+    (edebug-&optional-wrapper
+     cursor specs
+     (lambda (c s rh)
+       ;; `s' is the remaining spec to match.
+       ;; When it's nil, start over matching `specs'.
+       (edebug-&optional-wrapper c (or s specs) rh)))))
 
 
-(cl-defmethod edebug--handle-&-spec-op ((_ (eql &or)) cursor specs)
+(cl-defmethod edebug--match-&-spec-op ((_ (eql &or)) cursor specs)
   ;; Keep matching until one spec succeeds, and return its results.
   ;; If none match, fail.
   ;; This needs to be optimized since most specs spend time here.
@@ -1843,40 +1835,48 @@ contains a circular object."
       (apply #'edebug-no-match cursor "Expected one of" original-specs))
     ))
 
-(cl-defmethod edebug--handle-&-spec-op ((_ (eql &lookup)) cursor specs)
-  "Compute the specs for `&lookup SPEC FUN ARGS...'.
+(cl-defmethod edebug--match-&-spec-op ((_ (eql &interpose)) cursor specs)
+  "Compute the specs for `&interpose SPEC FUN ARGS...'.
 Extracts the head of the data by matching it against SPEC,
-and then matches the rest against the output of (FUN ARGS... HEAD)."
+and then matches the rest by calling (FUN HEAD PF ARGS...)
+where PF is the parsing function which FUN can call exactly once,
+passing it the specs that it needs to match.
+Note that HEAD will always be a list, since specs are defined to match
+a sequence of elements."
   (pcase-let*
       ((`(,spec ,fun . ,args) specs)
        (exps (edebug-cursor-expressions cursor))
        (instrumented-head (edebug-match-one-spec cursor spec))
        (consumed (- (length exps)
                     (length (edebug-cursor-expressions cursor))))
-       (newspecs (apply fun (append args (seq-subseq exps 0 consumed)))))
+       (head (seq-subseq exps 0 consumed)))
     (cl-assert (eq (edebug-cursor-expressions cursor) (nthcdr consumed exps)))
-    ;; FIXME: What'd be the difference if we used `edebug-match-sublist',
-    ;; which is what `edebug-list-form-args' uses for the similar purpose
-    ;; when matching "normal" forms?
-    (append instrumented-head (edebug-match cursor newspecs))))
+    (apply fun `(,head
+                 ,(lambda (newspecs)
+                    ;; FIXME: What'd be the difference if we used
+                    ;; `edebug-match-sublist', which is what
+                    ;; `edebug-list-form-args' uses for the similar purpose
+                    ;; when matching "normal" forms?
+                    (append instrumented-head (edebug-match cursor newspecs)))
+                 ,@args))))
 
-(cl-defmethod edebug--handle-&-spec-op ((_ (eql &not)) cursor specs)
+(cl-defmethod edebug--match-&-spec-op ((_ (eql &not)) cursor specs)
   ;; If any specs match, then fail
   (if (null (catch 'no-match
 	      (let ((edebug-gate nil))
 		(save-excursion
-		  (edebug--handle-&-spec-op '&or cursor specs)))
+		  (edebug--match-&-spec-op '&or cursor specs)))
 	      nil))
       ;; This means something matched, so it is a no match.
       (edebug-no-match cursor "Unexpected"))
   ;; This means nothing matched, so it is OK.
   nil) ;; So, return nothing
 
-(cl-defmethod edebug--handle-&-spec-op ((_ (eql &key)) cursor specs)
+(cl-defmethod edebug--match-&-spec-op ((_ (eql &key)) cursor specs)
   ;; Following specs must look like (<name> <spec>) ...
   ;; where <name> is the name of a keyword, and spec is its spec.
   ;; This really doesn't save much over the expanded form and takes time.
-  (edebug--handle-&-spec-op
+  (edebug--match-&-spec-op
    '&rest
    cursor
    (cons '&or
@@ -1885,7 +1885,7 @@ and then matches the rest against the output of (FUN ARGS... HEAD)."
                            (car (cdr pair))))
 		 specs))))
 
-(cl-defmethod edebug--handle-&-spec-op ((_ (eql &error)) cursor specs)
+(cl-defmethod edebug--match-&-spec-op ((_ (eql &error)) cursor specs)
   ;; Signal an error, using the following string in the spec as argument.
   (let ((error-string (car specs))
         (edebug-error-point (edebug-before-offset cursor)))
@@ -1954,19 +1954,15 @@ and then matches the rest against the output of (FUN ARGS... HEAD)."
 
 (defun edebug-match-sublist (cursor specs)
   ;; Match a sublist of specs.
-  (let (edebug-&optional
-	;;edebug-best-error
-	;;edebug-error-point
-	)
-    (prog1
-	;; match with edebug-match-specs so edebug-best-error is not bound.
-	(edebug-match-specs cursor specs 'edebug-match-specs)
-      (if (not (edebug-empty-cursor cursor))
-	  (if edebug-best-error
-	      (apply #'edebug-no-match cursor edebug-best-error)
-	    ;; A failed &rest or &optional spec may leave some args.
-	    (edebug-no-match cursor "Failed matching" specs)
-	    )))))
+  (prog1
+      ;; match with edebug-match-specs so edebug-best-error is not bound.
+      (edebug-match-specs cursor specs 'edebug-match-specs)
+    (if (not (edebug-empty-cursor cursor))
+	(if edebug-best-error
+	    (apply #'edebug-no-match cursor edebug-best-error)
+	  ;; A failed &rest or &optional spec may leave some args.
+	  (edebug-no-match cursor "Failed matching" specs)
+	  ))))
 
 
 (defun edebug-match-string (cursor spec)
@@ -1989,7 +1985,7 @@ and then matches the rest against the output of (FUN ARGS... HEAD)."
 (defun edebug-match-function (_cursor)
   (error "Use function-form instead of function in edebug spec"))
 
-(cl-defmethod edebug--handle-&-spec-op ((_ (eql &define)) cursor specs)
+(cl-defmethod edebug--match-&-spec-op ((_ (eql &define)) cursor specs)
   ;; Match a defining form.
   ;; Normally, &define is interpreted specially other places.
   ;; This should only be called inside of a spec list to match the remainder
@@ -2003,7 +1999,7 @@ and then matches the rest against the output of (FUN ARGS... HEAD)."
       offsets)
     specs))
 
-(cl-defmethod edebug--handle-&-spec-op ((_ (eql &name)) cursor specs)
+(cl-defmethod edebug--match-&-spec-op ((_ (eql &name)) cursor specs)
   "Compute the name for `&name SPEC FUN` spec operator.
 
 The full syntax of that operator is:
@@ -2082,43 +2078,6 @@ SPEC is the symbol name prefix for `gensym'."
 	      (intern (format "%s@%s" edebug-def-name suffix))
 	    suffix)))
   nil)
-
-(defvar edebug--cl-macrolet-defs nil
-  "List of symbols found within the bindings of enclosing `cl-macrolet' forms.")
-(defvar edebug--current-cl-macrolet-defs nil
-  "List of symbols found within the bindings of the current `cl-macrolet' form.")
-
-(defun edebug-match-cl-macrolet-expr (cursor)
-  "Match a `cl-macrolet' form at CURSOR."
-  (let (edebug--current-cl-macrolet-defs)
-    (edebug-match cursor
-                  '((&rest (&define cl-macrolet-name cl-macro-list
-                                    cl-declarations-or-string
-                                    def-body))
-                    cl-declarations cl-macrolet-body))))
-
-(defun edebug-match-cl-macrolet-name (cursor)
-  "Match the name in a `cl-macrolet' binding at CURSOR.
-Collect the names in `edebug--cl-macrolet-defs' where they
-will be checked by `edebug-list-form-args' and treated as
-macros without a spec."
-  (let ((name (edebug-top-element-required cursor "Expected name")))
-    (when (not (symbolp name))
-      (edebug-no-match cursor "Bad name:" name))
-    ;; Change edebug-def-name to avoid conflicts with
-    ;; names at global scope.
-    (setq edebug-def-name (gensym "edebug-anon"))
-    (edebug-move-cursor cursor)
-    (push name edebug--current-cl-macrolet-defs)
-    (list name)))
-
-(defun edebug-match-cl-macrolet-body (cursor)
-  "Match the body of a `cl-macrolet' expression at CURSOR.
-Put the definitions collected in `edebug--current-cl-macrolet-defs'
-into `edebug--cl-macrolet-defs' which is checked in `edebug-list-form-args'."
-  (let ((edebug--cl-macrolet-defs (nconc edebug--current-cl-macrolet-defs
-                                         edebug--cl-macrolet-defs)))
-    (edebug-match-body cursor)))
 
 (defun edebug-match-arg (cursor)
   ;; set the def-args bound in edebug-defining-form
@@ -2210,11 +2169,11 @@ into `edebug--cl-macrolet-defs' which is checked in `edebug-list-form-args'."
        ))
     (put name 'edebug-form-spec spec))
 
-(defun edebug--get-declare-spec (head)
-  (get head 'edebug-declaration-spec))
+(defun edebug--match-declare-arg (head pf)
+  (funcall pf (get (car head) 'edebug-declaration-spec)))
 
 (def-edebug-elem-spec 'def-declarations
-  '(&rest &or (&lookup symbolp edebug--get-declare-spec) sexp))
+  '(&rest &or (&interpose symbolp edebug--match-declare-arg) sexp))
 
 (def-edebug-elem-spec 'lambda-list
   '(([&rest arg]
