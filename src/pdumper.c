@@ -2703,8 +2703,13 @@ dump_hash_table (struct dump_context *ctx,
                  WEIGHT_STRONG);
   dump_field_lv (ctx, out, hash, &hash->test.user_cmp_function,
                  WEIGHT_STRONG);
+#ifndef __WASM32__
   dump_field_emacs_ptr (ctx, out, hash, &hash->test.cmpfn);
   dump_field_emacs_ptr (ctx, out, hash, &hash->test.hashfn);
+#else
+  DUMP_FIELD_COPY (out, hash, test.cmpfn);
+  DUMP_FIELD_COPY (out, hash, test.hashfn);
+#endif
   eassert (hash->next_weak == NULL);
   return finish_dump_pvec (ctx, &out->header);
 }
