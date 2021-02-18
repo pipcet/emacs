@@ -138,6 +138,10 @@ messages are highlighted; this helps to see what messages were visited."
   nil
   "Overlay highlighting the current error message in the `next-error' buffer.")
 
+(defvar global-minor-modes nil
+  "A list of the currently enabled global minor modes.
+This is a list of symbols.")
+
 (defcustom next-error-hook nil
   "List of hook functions run by `next-error' after visiting source file."
   :type 'hook
@@ -1274,7 +1278,19 @@ that uses or sets the mark."
 
 ;; Counting lines, one way or another.
 
-(defvar-local goto-line-history nil
+(defcustom goto-line-history-local nil
+  "If this option is nil, `goto-line-history' is shared between all buffers.
+If it is non-nil, each buffer has its own value of this history list.
+
+Note that on changing from non-nil to nil, the former contents of
+`goto-line-history' for each buffer are discarded on use of
+`goto-line' in that buffer."
+  :group 'editing
+  :type 'boolean
+  :safe #'booleanp
+  :version "28.1")
+
+(defvar goto-line-history nil
   "History of values entered with `goto-line'.")
 
 (defun goto-line-read-args (&optional relative)
@@ -1292,6 +1308,11 @@ that uses or sets the mark."
             (if buffer
                 (concat " in " (buffer-name buffer))
               "")))
+      ;; Has the buffer locality of `goto-line-history' changed?
+      (cond ((and goto-line-history-local (not (local-variable-p 'goto-line-history)))
+             (make-local-variable 'goto-line-history))
+            ((and (not goto-line-history-local) (local-variable-p 'goto-line-history))
+             (kill-local-variable 'goto-line-history)))
       ;; Read the argument, offering that number (if any) as default.
       (list (read-number (format "Goto%s line%s: "
                                  (if (buffer-narrowed-p)
@@ -1900,16 +1921,18 @@ to get different commands to edit and resubmit."
 (defvar extended-command-history nil)
 (defvar execute-extended-command--last-typed nil)
 
-(defcustom read-extended-command-predicate #'completion-in-mode-p
+(defcustom read-extended-command-predicate nil
   "Predicate to use to determine which commands to include when completing.
-The predicate function is called with two parameter: The
-symbol (i.e., command) in question that should be included or
-not, and the current buffer.  The predicate should return non-nil
-if the command should be present when doing `M-x TAB'."
+If it's nil, include all the commands.
+If it's a function, it will be called with two parameters: the
+symbol of the command and a buffer.  The predicate should return
+non-nil if the command should be present when doing `M-x TAB'
+in that buffer."
   :version "28.1"
-  :type '(choice (const :tag "Exclude commands not relevant to this mode"
-                        #'completion-in-mode-p)
-                 (const :tag "All commands" (lambda (_ _) t))
+  :group 'completion
+  :type '(choice (const :tag "Don't exclude any commands" nil)
+                 (const :tag "Exclude commands irrelevant to current buffer's mode"
+                        command-completion-default-include-p)
                  (function :tag "Other function")))
 
 (defun read-extended-command ()
@@ -1966,34 +1989,41 @@ This function uses the `read-extended-command-predicate' user option."
            (complete-with-action action obarray string pred)))
        (lambda (sym)
          (and (commandp sym)
-              ;;; FIXME: This should also be possible to disable by
-              ;;; the user, but I'm not quite sure what the right
-              ;;; design for that would look like.
-              (if (get sym 'completion-predicate)
-                  (funcall (get sym 'completion-predicate) sym buffer)
-                (funcall read-extended-command-predicate sym buffer))))
+              (or (null read-extended-command-predicate)
+                  (and (functionp read-extended-command-predicate)
+                       (funcall read-extended-command-predicate sym buffer)))))
        t nil 'extended-command-history))))
 
-(defun completion-in-mode-p (symbol buffer)
+(defun command-completion-default-include-p (symbol buffer)
   "Say whether SYMBOL should be offered as a completion.
-This is true if the command is applicable to the major mode in
-BUFFER, or any of the active minor modes in BUFFER."
-  (let ((modes (command-modes symbol)))
-    (or (null modes)
-        ;; Common case: Just a single mode.
-        (if (null (cdr modes))
-            (or (provided-mode-derived-p
-                 (buffer-local-value 'major-mode buffer) (car modes))
-                (memq (car modes) (buffer-local-value 'minor-modes buffer)))
-          ;; Uncommon case: Multiple modes.
-          (apply #'provided-mode-derived-p
-                 (buffer-local-value 'major-mode buffer)
-                 modes)
-          (seq-intersection modes
-                            (buffer-local-value 'minor-modes buffer)
-                            #'eq)))))
+If there's a `completion-predicate' for SYMBOL, the result from
+calling that predicate is called.  If there isn't one, this
+predicate is true if the command SYMBOL is applicable to the
+major mode in BUFFER, or any of the active minor modes in
+BUFFER."
+  (if (get symbol 'completion-predicate)
+      ;; An explicit completion predicate takes precedence.
+      (funcall (get symbol 'completion-predicate) symbol buffer)
+    ;; Check the modes.
+    (let ((modes (command-modes symbol)))
+      (or (null modes)
+          ;; Common case: Just a single mode.
+          (if (null (cdr modes))
+              (or (provided-mode-derived-p
+                   (buffer-local-value 'major-mode buffer) (car modes))
+                  (memq (car modes)
+                        (buffer-local-value 'local-minor-modes buffer))
+                  (memq (car modes) global-minor-modes))
+            ;; Uncommon case: Multiple modes.
+            (apply #'provided-mode-derived-p
+                   (buffer-local-value 'major-mode buffer)
+                   modes)
+            (seq-intersection modes
+                              (buffer-local-value 'local-minor-modes buffer)
+                              #'eq)
+            (seq-intersection modes global-minor-modes #'eq))))))
 
-(defun completion-with-modes-p (modes buffer)
+(defun command-completion-with-modes-p (modes buffer)
   "Say whether MODES are in action in BUFFER.
 This is the case if either the major mode is derived from one of MODES,
 or (if one of MODES is a minor mode), if it is switched on in BUFFER."
@@ -2002,10 +2032,11 @@ or (if one of MODES is a minor mode), if it is switched on in BUFFER."
              modes)
       ;; It's a minor mode.
       (seq-intersection modes
-                        (buffer-local-value 'minor-modes buffer)
-                        #'eq)))
+                        (buffer-local-value 'local-minor-modes buffer)
+                        #'eq)
+      (seq-intersection modes global-minor-modes #'eq)))
 
-(defun completion-button-p (category buffer)
+(defun command-completion-button-p (category buffer)
   "Return non-nil if there's a button of CATEGORY at point in BUFFER."
   (with-current-buffer buffer
     (and (get-text-property (point) 'button)

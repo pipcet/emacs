@@ -253,8 +253,12 @@ commands.  The new keystrokes are 'C-x x g' ('revert-buffer'),
 
 +++
 ** New user option 'read-extended-command-predicate'.
-This option controls how 'M-x TAB' performs completions.  The default
-predicate excludes modes for which the command is not applicable.
+This option controls how 'M-x' performs completion of commands when
+you type TAB.  By default, any command that matches what you have
+typed is considered a completion candidate, but you can customize this
+option to exclude commands that are not applicable to the current
+buffer's major and minor modes, and respect the command's completion
+predicate (if any).
 
 ---
 ** 'eval-expression' now no longer signals an error on incomplete expressions.
@@ -341,6 +345,11 @@ trying to be non-destructive.
 This command opens a new buffer called "*Memory Report*" and gives a
 summary of where Emacs is using memory currently.
 
++++
+** The history list for the 'goto-line' command is now a single list
+for all buffers by default.  You can configure a separate list for
+each buffer by customizing the user option 'goto-line-history-local'.
+
 ** Outline
 
 +++
@@ -357,6 +366,11 @@ the buffer cycles the whole buffer between "only top-level headings",
 It used to be enabled when Emacs is started in GUI mode but not when started
 in text mode.  The cursor still only actually blinks in GUI frames.
 
+** Bindat
++++
+*** New types 'u64' and 'u64r'
++++
+*** New macro 'bindat-spec' to define specs, with Edebug support
 ** pcase
 
 +++
@@ -461,6 +475,9 @@ value of 'tab-bar-show'.
 *** New command 'toggle-frame-tab-bar'.
 It can be used to enable/disable the tab bar individually on each frame
 independently from the value of 'tab-bar-mode' and 'tab-bar-show'.
+
+---
+*** New command 'tab-duplicate'.
 
 ---
 *** New user option 'tab-bar-tab-name-format-function'.
@@ -2060,6 +2077,17 @@ the behavior introduced in Octave 3.8 of using a backslash as a line
 continuation marker within double-quoted strings, and an ellipsis
 everywhere else.
 
+** Repeat
+
++++
+*** New transient mode 'repeat-mode' to allow shorter key sequences.
+You can type 'C-x u u' instead of 'C-x u C-x u' to undo many changes,
+'C-x o o' instead of 'C-x o C-x o' to switch several windows,
+'C-x { { } } ^ ^ v v' to resize the selected window interactively,
+'M-g n n p p' to navigate next-error matches.  Any other key exits
+transient mode and then is executed normally.  'repeat-exit-key'
+defines an additional key to exit mode like 'isearch-exit' (RET).
+
 
 * New Modes and Packages in Emacs 28.1
 
@@ -2299,9 +2327,15 @@ minor mode activated.  Note that using this form will create byte code
 that is not compatible with byte code in previous Emacs versions.
 
 +++
-** New buffer-local variable 'minor-modes'.
+** New buffer-local variable 'local-minor-modes'.
 This permanently buffer-local variable holds a list of currently
-enabled minor modes in the current buffer (as a list of symbols).
+enabled non-global minor modes in the current buffer (as a list of
+symbols).
+
++++
+** New variable 'global-minor-modes'.
+This variable holds a list of currently enabled global minor modes (as
+a list of symbols).
 
 +++
 ** 'define-minor-mode'  now takes an :interactive argument.

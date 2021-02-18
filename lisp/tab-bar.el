@@ -161,7 +161,8 @@ update."
                          (t frames))))
     ;; Loop over all frames and update default-frame-alist
     (dolist (frame frame-lst)
-      (set-frame-parameter frame 'tab-bar-lines (tab-bar--tab-bar-lines-for-frame frame))))
+      (unless (frame-parameter frame 'tab-bar-lines-keep-state)
+        (set-frame-parameter frame 'tab-bar-lines (tab-bar--tab-bar-lines-for-frame frame)))))
   (when (eq frames t)
     (setq default-frame-alist
           (cons (cons 'tab-bar-lines (if (and tab-bar-mode (eq tab-bar-show t)) 1 0))
@@ -233,7 +234,9 @@ new frame when the global `tab-bar-mode' is enabled, by using
   (add-hook 'after-make-frame-functions 'toggle-frame-tab-bar)"
   (interactive)
   (set-frame-parameter frame 'tab-bar-lines
-                       (if (> (frame-parameter frame 'tab-bar-lines) 0) 0 1)))
+                       (if (> (frame-parameter frame 'tab-bar-lines) 0) 0 1))
+  (set-frame-parameter frame 'tab-bar-lines-keep-state
+                       (not (frame-parameter frame 'tab-bar-lines-keep-state))))
 
 (defvar tab-bar-map (make-sparse-keymap)
   "Keymap for the tab bar.
@@ -894,6 +897,14 @@ If ARG is zero, create a new tab in place of the current tab."
         (tab-bar-new-tab-to (1+ to-index)))
     (tab-bar-new-tab-to)))
 
+(defun tab-bar-duplicate-tab (&optional arg)
+  "Duplicate the current tab to ARG positions to the right.
+If a negative ARG, duplicate the tab to ARG positions to the left.
+If ARG is zero, duplicate the tab in place of the current tab."
+  (interactive "P")
+  (let ((tab-bar-new-tab-choice nil))
+    (tab-bar-new-tab arg)))
+
 
 (defvar tab-bar-closed-tabs nil
   "A list of closed tabs to be able to undo their closing.")
@@ -1240,6 +1251,7 @@ and can restore them."
 
 (defalias 'tab-new         'tab-bar-new-tab)
 (defalias 'tab-new-to      'tab-bar-new-tab-to)
+(defalias 'tab-duplicate   'tab-bar-duplicate-tab)
 (defalias 'tab-close       'tab-bar-close-tab)
 (defalias 'tab-close-other 'tab-bar-close-other-tabs)
 (defalias 'tab-undo        'tab-bar-undo-close-tab)
