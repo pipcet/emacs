@@ -1461,9 +1461,14 @@ used only with Diff mode.
 other minor modes in effect.  It should be possible to activate and
 deactivate minor modes in any order.
 
-@defvar minor-modes
+@defvar local-minor-modes
 This buffer-local variable lists the currently enabled minor modes in
 the current buffer, and is a list of symbols.
+@end defvar
+
+@defvar global-minor-modes
+This variable lists the currently enabled global minor modes, and is a
+list of symbols.
 @end defvar
 
 @defvar minor-mode-list
