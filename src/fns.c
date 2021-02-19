@@ -102,6 +102,25 @@ list_length (Lisp_Object list)
 }
 
 
+/* Return LIST's length.  Signal an error if LIST is not a proper
+   list.  Return MANY if one of LIST's elements is the special symbol
+   ... . */
+
+ptrdiff_t
+arg_list_length (Lisp_Object list)
+{
+  intptr_t i = 0;
+  FOR_EACH_TAIL (list)
+    {
+      if (EQ (XCAR (list), Qspread))
+	return MANY;
+      i++;
+    }
+  CHECK_LIST_END (list, list);
+  return i;
+}
+
+
 DEFUN ("length", Flength, Slength, 1, 1, 0,
        doc: /* Return the length of vector, list or string SEQUENCE.
 A byte-code function object is also allowed.

@@ -2332,7 +2332,12 @@ eval_sub (Lisp_Object form)
   if (SUBRP (fun))
     {
       Lisp_Object args_left = original_args;
-      ptrdiff_t numargs = list_length (args_left);
+      ptrdiff_t numargs =
+	(XSUBR (fun)->max_args == UNEVALLED ? list_length : arg_list_length)
+	(args_left);
+
+      if (numargs == MANY)
+	return Fslow_apply_eval (fun, original_args);
 
       if (numargs < XSUBR (fun)->min_args
 	  || (XSUBR (fun)->max_args >= 0
@@ -3039,14 +3044,65 @@ fetch_and_exec_byte_code (Lisp_Object fun, Lisp_Object syms_left,
 			 syms_left, nargs, args);
 }
 
+DEFUN ("slow-apply-eval", Fslow_apply_eval, Sslow_apply_eval, 2, 2, 0,
+       /* doc: Evaluate X, slowly. */)
+  (Lisp_Object fun, Lisp_Object arg_sequence)
+{
+  Lisp_Object vec = make_nil_vector (8);
+  ptrdiff_t numargs = 1;
+
+  ASET (vec, 0, fun);
+  if (VECTORP (arg_sequence))
+    for (ptrdiff_t i = 0; i < ASIZE (arg_sequence); i++)
+      {
+	if (numargs == ASIZE (vec))
+	  vec = larger_vector (vec, 8, -1);
+	ASET (vec, numargs++, AREF (arg_sequence, i));
+      }
+  else if (CONSP (arg_sequence) || NILP (arg_sequence))
+    {
+      while (CONSP (arg_sequence))
+	{
+	  if (EQ (XCAR (arg_sequence), Qspread))
+	    {
+	      arg_sequence = XCDR (arg_sequence);
+	      if (CONSP (arg_sequence))
+		{
+		  Lisp_Object spread_args = eval_sub (XCAR (arg_sequence));
+		  while (CONSP (spread_args))
+		    {
+		      if (numargs == ASIZE (vec))
+			vec = larger_vector (vec, 8, -1);
+		      ASET (vec, numargs++, XCAR (spread_args));
+		      spread_args = XCDR (spread_args);
+		    }
+		  CHECK_LIST_END (spread_args, spread_args);
+		}
+	    }
+	  else
+	    {
+	      if (numargs == ASIZE (vec))
+		vec = larger_vector (vec, 8, -1);
+	      ASET (vec, numargs++, eval_sub (XCAR (arg_sequence)));
+	    }
+	  arg_sequence = XCDR (arg_sequence);
+	}
+      CHECK_LIST_END (arg_sequence, arg_sequence);
+    }
+
+  return Ffuncall (numargs, XVECTOR (vec)->contents);
+}
+
 static Lisp_Object
 apply_lambda (Lisp_Object fun, Lisp_Object args, ptrdiff_t count)
 {
   Lisp_Object *arg_vector;
   Lisp_Object tem;
-  USE_SAFE_ALLOCA;
 
-  ptrdiff_t numargs = list_length (args);
+  ptrdiff_t numargs = arg_list_length (args);
+  if (numargs == MANY)
+    return Fslow_apply_eval (fun, args);
+  USE_SAFE_ALLOCA;
   SAFE_ALLOCA_LISP (arg_vector, numargs);
   Lisp_Object args_left = args;
 
@@ -4404,4 +4460,6 @@ alist of active lexical bindings.  */);
   defsubr (&Sbacktrace__locals);
   defsubr (&Sspecial_variable_p);
   defsubr (&Sfunctionp);
+  defsubr (&Sslow_apply_eval);
+  DEFSYM (Qspread, "...");
 }
