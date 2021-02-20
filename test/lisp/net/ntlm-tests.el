@@ -382,18 +382,26 @@ ARGUMENTS are passed to it."
   (concat "HTTP/1.1 200 OK\n\nAuthenticated." (unibyte-string 13) "\n")
   "Expected result of successful NTLM authentication.")
 
-(defvar ntlm-tests--dependencies-present
-  (and (featurep 'url-http-ntlm) (featurep 'web-server))
-  "Non-nil if GNU ELPA test dependencies were loaded.")
+(require 'find-func)
+(defun ntlm-tests--ensure-ws-parse-ntlm-support ()
+  "Ensure NTLM special-case in `ws-parse'."
+  (let* ((hit (find-function-search-for-symbol
+	       'ws-parse nil (locate-file "web-server.el" load-path)))
+	 (buffer (car hit))
+	 (position (cdr hit)))
+    (with-current-buffer buffer
+      (goto-char position)
+      (search-forward-regexp
+       ":NTLM" (save-excursion (forward-sexp) (point)) t))))
 
-(when (not ntlm-tests--dependencies-present)
-  (warn "Cannot find one or more GNU ELPA packages")
-  (when (not (featurep 'url-http-ntlm))
-    (warn "Need url-http-ntlm/url-http-ntlm.el"))
-  (when (not (featurep 'web-server))
-    (warn "Need web-server/web-server.el"))
-  (warn "Skipping NTLM authentication tests")
-  (warn "See GNU_ELPA_DIRECTORY in test/README"))
+(require 'lisp-mnt)
+(defvar ntlm-tests--dependencies-present
+  (and (featurep 'url-http-ntlm)
+       (version<= "2.0.4"
+		  (lm-version (locate-file "url-http-ntlm.el" load-path)))
+       (featurep 'web-server)
+       (ntlm-tests--ensure-ws-parse-ntlm-support))
+  "Non-nil if GNU ELPA test dependencies were loaded.")
 
 (ert-deftest ntlm-authentication ()
   "Check ntlm.el's implementation of NTLM authentication over HTTP."
