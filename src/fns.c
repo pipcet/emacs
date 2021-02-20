@@ -114,6 +114,8 @@ arg_list_length (Lisp_Object list)
     {
       if (EQ (XCAR (list), Qspread))
 	return MANY;
+      if (EQ (XCAR (list), Qand_optional))
+	return MANY;
       i++;
     }
   CHECK_LIST_END (list, list);

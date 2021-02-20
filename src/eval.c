@@ -3079,6 +3079,10 @@ DEFUN ("slow-apply-eval", Fslow_apply_eval, Sslow_apply_eval, 2, 2, 0,
 		  CHECK_LIST_END (spread_args, spread_args);
 		}
 	    }
+	  else if (EQ (XCAR (arg_sequence), Qand_optional))
+	    {
+	      minargs = numargs;
+	    }
 	  else
 	    {
 	      if (numargs == ASIZE (vec))
@@ -3090,7 +3094,17 @@ DEFUN ("slow-apply-eval", Fslow_apply_eval, Sslow_apply_eval, 2, 2, 0,
       CHECK_LIST_END (arg_sequence, arg_sequence);
     }
 
-  return Ffuncall (numargs, XVECTOR (vec)->contents);
+  if (minargs != MANY)
+    {
+      Lisp_Object arity = Ffunc_arity (fun);
+      if (CONSP (arity) && FIXNUMP (XCDR (arity)))
+	{
+	  ptrdiff_t maxargs = XFIXNUM (XCDR (arity)) + 1;
+	  if (numargs > maxargs && maxargs >= minargs)
+	    numargs = maxargs;
+	}
+    }
+  return unbind_to (count, Ffuncall (numargs, XVECTOR (vec)->contents));
 }
 
 static Lisp_Object
