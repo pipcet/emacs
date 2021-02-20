@@ -3190,7 +3190,8 @@ funcall_lambda (Lisp_Object fun, ptrdiff_t nargs,
       if (!SYMBOLP (next))
 	xsignal1 (Qinvalid_function, fun);
 
-      if (EQ (next, Qand_rest))
+      if (EQ (next, Qand_rest) ||
+	  EQ (next, Qspread))
         {
           if (rest)
             xsignal1 (Qinvalid_function, fun);
@@ -3339,7 +3340,8 @@ lambda_arity (Lisp_Object fun)
       if (!SYMBOLP (next))
 	xsignal1 (Qinvalid_function, fun);
 
-      if (EQ (next, Qand_rest))
+      if (EQ (next, Qand_rest) ||
+	  EQ (next, Qspread))
 	return Fcons (make_fixnum (minargs), Qmany);
       else if (EQ (next, Qand_optional))
 	optional = true;
