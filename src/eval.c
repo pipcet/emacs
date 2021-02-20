@@ -63,8 +63,10 @@ Lisp_Object backtrace_function (union specbinding *) EXTERNALLY_VISIBLE;
 union specbinding *backtrace_next (union specbinding *) EXTERNALLY_VISIBLE;
 union specbinding *backtrace_top (void) EXTERNALLY_VISIBLE;
 
-static Lisp_Object funcall_lambda (Lisp_Object, ptrdiff_t, Lisp_Object *);
+static Lisp_Object funcall_lambda (Lisp_Object, Lisp_Object,
+				   ptrdiff_t, Lisp_Object *);
 static Lisp_Object apply_lambda (Lisp_Object, Lisp_Object, ptrdiff_t);
+static Lisp_Object apply_anonymous (Lisp_Object, Lisp_Object, ptrdiff_t);
 static Lisp_Object lambda_arity (Lisp_Object);
 
 static Lisp_Object
@@ -2065,6 +2067,12 @@ then strings and vectors are not accepted.  */)
   /* Lists may represent commands.  */
   if (!CONSP (fun))
     return Qnil;
+  while (EQ (XCAR (fun), Qanonymous) && CONSP (XCDR (fun)))
+    {
+      fun = XCAR (XCDR (fun));
+      if (!CONSP (fun))
+	return Qnil;
+    }
   funcar = XCAR (fun);
   if (EQ (funcar, Qclosure))
     return (!NILP (Fassq (Qinteractive, Fcdr (Fcdr (XCDR (fun)))))
@@ -2337,7 +2345,7 @@ eval_sub (Lisp_Object form)
 	(args_left);
 
       if (numargs == MANY)
-	return Fslow_apply_eval (fun, original_args);
+	return Fslow_apply_eval (fun, original_args, Qnil);
 
       if (numargs < XSUBR (fun)->min_args
 	  || (XSUBR (fun)->max_args >= 0
@@ -2469,6 +2477,8 @@ eval_sub (Lisp_Object form)
       else if (EQ (funcar, Qlambda)
 	       || EQ (funcar, Qclosure))
 	return apply_lambda (fun, original_args, count);
+      else if (EQ (funcar, Qanonymous))
+	return apply_anonymous (fun, original_args, count);
       else
 	xsignal1 (Qinvalid_function, original_fun);
     }
@@ -2869,6 +2879,11 @@ FUNCTIONP (Lisp_Object object)
   else if (CONSP (object))
     {
       Lisp_Object car = XCAR (object);
+      while (EQ (car, Qanonymous) && CONSP (XCDR (object)))
+	{
+	  object = XCDR (object);
+	  car = XCAR (object);
+	}
       return EQ (car, Qlambda) || EQ (car, Qclosure);
     }
   else
@@ -2918,7 +2933,7 @@ usage: (funcall FUNCTION &rest ARGUMENTS)  */)
   if (SUBRP (fun))
     val = funcall_subr (XSUBR (fun), numargs, args + 1);
   else if (COMPILEDP (fun) || MODULE_FUNCTIONP (fun))
-    val = funcall_lambda (fun, numargs, args + 1);
+    val = funcall_lambda (fun, Qnil, numargs, args + 1);
   else
     {
       if (NILP (fun))
@@ -2928,14 +2943,15 @@ usage: (funcall FUNCTION &rest ARGUMENTS)  */)
       funcar = XCAR (fun);
       if (!SYMBOLP (funcar))
 	xsignal1 (Qinvalid_function, original_fun);
-      if (EQ (funcar, Qlambda)
-	  || EQ (funcar, Qclosure))
-	val = funcall_lambda (fun, numargs, args + 1);
+      if (EQ (funcar, Qlambda) || EQ (funcar, Qclosure))
+	val = funcall_lambda (fun, Qnil, numargs, args + 1);
       else if (EQ (funcar, Qautoload))
 	{
 	  Fautoload_do_load (fun, original_fun, Qnil);
 	  goto retry;
 	}
+      else if (EQ (funcar, Qanonymous))
+	val = Fslow_apply_eval (fun, Qnil, Fvector (numargs, args + 1));
       else
 	xsignal1 (Qinvalid_function, original_fun);
     }
@@ -3044,31 +3060,54 @@ fetch_and_exec_byte_code (Lisp_Object fun, Lisp_Object syms_left,
 			 syms_left, nargs, args);
 }
 
-DEFUN ("slow-apply-eval", Fslow_apply_eval, Sslow_apply_eval, 2, 2, 0,
+DEFUN ("slow-apply-eval", Fslow_apply_eval, Sslow_apply_eval, 3, 3, 0,
        /* doc: Evaluate X, slowly. */)
-  (Lisp_Object fun, Lisp_Object arg_sequence)
+  (Lisp_Object fun, Lisp_Object original_args, Lisp_Object arg_vector)
 {
+  while (CONSP (fun) && EQ (XCAR (fun), Qanonymous))
+    {
+      Lisp_Object tmp = XCDR (fun);
+      if (CONSP (tmp) && (fun = XCAR (tmp), tmp = XCDR (tmp), CONSP (tmp)) &&
+	  ! NILP ((tmp = Fplist_get (tmp, Qand_universal_args))))
+	{
+	  if (VECTORP (arg_vector))
+	    {
+	      Lisp_Object new_arg_vector = make_nil_vector (ASIZE (arg_vector) + 1);
+	      for (ptrdiff_t i = 0; i < ASIZE (arg_vector); i++)
+		ASET (new_arg_vector, i + 1, AREF (arg_vector, i));
+	      ASET (new_arg_vector, 0, arg_vector);
+
+	      arg_vector = new_arg_vector;
+	    }
+	  else
+	    {
+	      original_args = Fcons (Fcons (Qquote, list1 (original_args)),
+				     original_args);
+	    }
+	}
+    }
   Lisp_Object vec = make_nil_vector (8);
   ptrdiff_t numargs = 1;
+  ptrdiff_t minargs = MANY;
 
   ASET (vec, 0, fun);
-  if (VECTORP (arg_sequence))
-    for (ptrdiff_t i = 0; i < ASIZE (arg_sequence); i++)
+  if (VECTORP (arg_vector))
+    for (ptrdiff_t i = 0; i < ASIZE (arg_vector); i++)
       {
 	if (numargs == ASIZE (vec))
 	  vec = larger_vector (vec, 8, -1);
-	ASET (vec, numargs++, AREF (arg_sequence, i));
+	ASET (vec, numargs++, AREF (arg_vector, i));
       }
-  else if (CONSP (arg_sequence) || NILP (arg_sequence))
+  else
     {
-      while (CONSP (arg_sequence))
+      while (CONSP (original_args))
 	{
-	  if (EQ (XCAR (arg_sequence), Qspread))
+	  if (EQ (XCAR (original_args), Qspread))
 	    {
-	      arg_sequence = XCDR (arg_sequence);
-	      if (CONSP (arg_sequence))
+	      original_args = XCDR (original_args);
+	      if (CONSP (original_args))
 		{
-		  Lisp_Object spread_args = eval_sub (XCAR (arg_sequence));
+		  Lisp_Object spread_args = eval_sub (XCAR (original_args));
 		  while (CONSP (spread_args))
 		    {
 		      if (numargs == ASIZE (vec))
@@ -3079,7 +3118,7 @@ DEFUN ("slow-apply-eval", Fslow_apply_eval, Sslow_apply_eval, 2, 2, 0,
 		  CHECK_LIST_END (spread_args, spread_args);
 		}
 	    }
-	  else if (EQ (XCAR (arg_sequence), Qand_optional))
+	  else if (EQ (XCAR (original_args), Qand_optional))
 	    {
 	      minargs = numargs;
 	    }
@@ -3087,11 +3126,11 @@ DEFUN ("slow-apply-eval", Fslow_apply_eval, Sslow_apply_eval, 2, 2, 0,
 	    {
 	      if (numargs == ASIZE (vec))
 		vec = larger_vector (vec, 8, -1);
-	      ASET (vec, numargs++, eval_sub (XCAR (arg_sequence)));
+	      ASET (vec, numargs++, eval_sub (XCAR (original_args)));
 	    }
-	  arg_sequence = XCDR (arg_sequence);
+	  original_args = XCDR (original_args);
 	}
-      CHECK_LIST_END (arg_sequence, arg_sequence);
+      CHECK_LIST_END (original_args, original_args);
     }
 
   if (minargs != MANY)
@@ -3104,7 +3143,7 @@ DEFUN ("slow-apply-eval", Fslow_apply_eval, Sslow_apply_eval, 2, 2, 0,
 	    numargs = maxargs;
 	}
     }
-  return unbind_to (count, Ffuncall (numargs, XVECTOR (vec)->contents));
+  return Ffuncall (numargs, XVECTOR (vec)->contents);
 }
 
 static Lisp_Object
@@ -3115,7 +3154,7 @@ apply_lambda (Lisp_Object fun, Lisp_Object args, ptrdiff_t count)
 
   ptrdiff_t numargs = arg_list_length (args);
   if (numargs == MANY)
-    return Fslow_apply_eval (fun, args);
+    return Fslow_apply_eval (fun, args, Qnil);
   USE_SAFE_ALLOCA;
   SAFE_ALLOCA_LISP (arg_vector, numargs);
   Lisp_Object args_left = args;
@@ -3128,7 +3167,7 @@ apply_lambda (Lisp_Object fun, Lisp_Object args, ptrdiff_t count)
     }
 
   set_backtrace_args (specpdl + count, arg_vector, numargs);
-  tem = funcall_lambda (fun, numargs, arg_vector);
+  tem = funcall_lambda (fun, args, numargs, arg_vector);
 
   lisp_eval_depth--;
   /* Do the debug-on-exit now, while arg_vector still exists.  */
@@ -3139,14 +3178,20 @@ apply_lambda (Lisp_Object fun, Lisp_Object args, ptrdiff_t count)
   return tem;
 }
 
+static Lisp_Object
+apply_anonymous (Lisp_Object fun, Lisp_Object args, ptrdiff_t count)
+{
+  return Fslow_apply_eval (fun, args, Qnil);
+}
+
 /* Apply a Lisp function FUN to the NARGS evaluated arguments in ARG_VECTOR
    and return the result of evaluation.
    FUN must be either a lambda-expression, a compiled-code object,
    or a module function.  */
 
 static Lisp_Object
-funcall_lambda (Lisp_Object fun, ptrdiff_t nargs,
-		register Lisp_Object *arg_vector)
+funcall_lambda (Lisp_Object fun, Lisp_Object arg_sequence,
+		ptrdiff_t nargs, register Lisp_Object *arg_vector)
 {
   Lisp_Object val, syms_left, next, lexenv;
   ptrdiff_t count = SPECPDL_INDEX ();
@@ -3155,6 +3200,9 @@ funcall_lambda (Lisp_Object fun, ptrdiff_t nargs,
 
   if (CONSP (fun))
     {
+      if (EQ (XCAR (fun), Qanonymous))
+	return Fslow_apply_eval (fun, arg_sequence,
+				 Fvector (nargs, arg_vector));
       if (EQ (XCAR (fun), Qclosure))
 	{
 	  Lisp_Object cdr = XCDR (fun);	/* Drop `closure'.  */
@@ -4302,7 +4350,9 @@ before making `inhibit-quit' nil.  */);
   DEFSYM (Qcommandp, "commandp");
   DEFSYM (Qand_rest, "&rest");
   DEFSYM (Qand_optional, "&optional");
+  DEFSYM (Qand_universal_args, "&universal-args");
   DEFSYM (Qclosure, "closure");
+  DEFSYM (Qanonymous, "anonymous");
   DEFSYM (QCdocumentation, ":documentation");
   DEFSYM (Qdebug, "debug");
 
