@@ -248,14 +248,13 @@ This will prevent rules from creating duplicate variables or rules."
 (defmacro proj-comp-insert-variable-once (varname &rest body)
   "Add VARNAME into the current Makefile if it doesn't exist.
 Execute BODY in a location where a value can be placed."
-  `(let ((addcr t) (v ,varname))
+  (declare (indent 1) (debug (sexp body)))
+  `(let ((v ,varname))
      (unless (re-search-backward (concat "^" v "\\s-*=") nil t)
        (insert v "=")
        ,@body
-       (if addcr (insert "\n"))
-       (goto-char (point-max)))
-     ))
-(put 'proj-comp-insert-variable-once 'lisp-indent-function 1)
+       (insert "\n")
+       (goto-char (point-max)))))
 
 (cl-defmethod ede-proj-makefile-insert-variables ((this ede-compilation-program))
   "Insert variables needed by the compiler THIS."
@@ -309,7 +308,7 @@ Not all compilers do this."
 (cl-defmethod ede-proj-makefile-insert-rules ((this ede-compilation-program))
   "Insert rules needed for THIS compiler object."
   (ede-compiler-only-once this
-    (mapc 'ede-proj-makefile-insert-rules (oref this rules))))
+    (mapc #'ede-proj-makefile-insert-rules (oref this rules))))
 
 (cl-defmethod ede-proj-makefile-insert-rules ((this ede-makefile-rule))
   "Insert rules needed for THIS rule object."

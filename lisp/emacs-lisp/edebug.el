@@ -3508,7 +3508,7 @@ canceled the first time the function is entered."
 
 (defun edebug-cancel-on-entry (function)
   "Cause Edebug to not stop when FUNCTION is called.
-The removes the effect of `edebug-on-entry'.  If FUNCTION is is
+The removes the effect of `edebug-on-entry'.  If FUNCTION is
 nil, remove `edebug-on-entry' on all functions."
   (interactive
    (list (let ((name (completing-read
@@ -4368,10 +4368,6 @@ It is removed when you hit any char."
 (defun edebug-toggle (variable)
   (set variable (not (symbol-value variable)))
   (message "%s: %s" variable (symbol-value variable)))
-
-;; We have to require easymenu (even for Emacs 18) just so
-;; the easy-menu-define macro call is compiled correctly.
-(require 'easymenu)
 
 (defconst edebug-mode-menus
   '("Edebug"

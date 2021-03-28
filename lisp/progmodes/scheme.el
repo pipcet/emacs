@@ -28,7 +28,7 @@
 ;; the Lisp mode documented in the Emacs manual.  `dsssl-mode' is a
 ;; variant of scheme-mode for editing DSSSL specifications for SGML
 ;; documents.  [As of Apr 1997, some pointers for DSSSL may be found,
-;; for instance, at <URL:http://www.sil.org/sgml/related.html#dsssl>.]
+;; for instance, at <URL:https://www.sil.org/sgml/related.html#dsssl>.]
 ;; All these Lisp-ish modes vary basically in details of the language
 ;; syntax they highlight/indent/index, but dsssl-mode uses "^;;;" as
 ;; the page-delimiter since ^L isn't normally a valid SGML character.
@@ -162,24 +162,25 @@
 (defvar scheme-mode-line-process "")
 
 (defvar scheme-mode-map
-  (let ((smap (make-sparse-keymap))
-        (map (make-sparse-keymap "Scheme")))
-    (set-keymap-parent smap lisp-mode-shared-map)
-    (define-key smap [menu-bar scheme] (cons "Scheme" map))
-    (define-key map [run-scheme] '("Run Inferior Scheme" . run-scheme))
-    (define-key map [uncomment-region]
-      '("Uncomment Out Region" . (lambda (beg end)
-                                   (interactive "r")
-                                   (comment-region beg end '(4)))))
-    (define-key map [comment-region] '("Comment Out Region" . comment-region))
-    (define-key map [indent-region] '("Indent Region" . indent-region))
-    (define-key map [indent-line] '("Indent Line" . lisp-indent-line))
-    (put 'comment-region 'menu-enable 'mark-active)
-    (put 'uncomment-region 'menu-enable 'mark-active)
-    (put 'indent-region 'menu-enable 'mark-active)
-    smap)
+  (let ((map (make-sparse-keymap)))
+    (set-keymap-parent map lisp-mode-shared-map)
+    map)
   "Keymap for Scheme mode.
 All commands in `lisp-mode-shared-map' are inherited by this map.")
+
+(easy-menu-define scheme-mode-menu scheme-mode-map
+  "Menu for Scheme mode."
+  '("Scheme"
+    ["Indent Line" lisp-indent-line]
+    ["Indent Region" indent-region
+     :enable mark-active]
+    ["Comment Out Region" comment-region
+     :enable mark-active]
+    ["Uncomment Out Region" (lambda (beg end)
+                                (interactive "r")
+                                (comment-region beg end '(4)))
+     :enable mark-active]
+    ["Run Inferior Scheme" run-scheme]))
 
 ;; Used by cmuscheme
 (defun scheme-mode-commands (map)

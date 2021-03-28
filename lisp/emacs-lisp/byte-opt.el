@@ -607,9 +607,12 @@ Same format as `byte-optimize--lexvars', with shared structure and contents.")
            (setq args (cddr args)))
          (cons fn (nreverse var-expr-list))))
 
-      (`(defvar ,(and (pred symbolp) name) . ,_)
-       (push name byte-optimize--dynamic-vars)
-       form)
+      (`(defvar ,(and (pred symbolp) name) . ,rest)
+       (let ((optimized-rest (and rest
+                                  (cons (byte-optimize-form (car rest) nil)
+                                        (cdr rest)))))
+         (push name byte-optimize--dynamic-vars)
+         `(defvar ,name . ,optimized-rest)))
 
       (`(,(pred byte-code-function-p) . ,exps)
        (cons fn (mapcar #'byte-optimize-form exps)))
@@ -1324,6 +1327,8 @@ Same format as `byte-optimize--lexvars', with shared structure and contents.")
 	 radians-to-degrees rassq rassoc read-from-string regexp-opt
          regexp-quote region-beginning region-end reverse round
 	 sin sqrt string string< string= string-equal string-lessp
+         string> string-greaterp string-empty-p
+         string-prefix-p string-suffix-p string-blank-p
          string-search string-to-char
 	 string-to-number string-to-syntax substring
 	 sxhash sxhash-equal sxhash-eq sxhash-eql
@@ -1413,7 +1418,8 @@ Same format as `byte-optimize--lexvars', with shared structure and contents.")
          copysign isnan ldexp float logb
          floor ceiling round truncate
          ffloor fceiling fround ftruncate
-         string= string-equal string< string-lessp
+         string= string-equal string< string-lessp string> string-greaterp
+         string-empty-p string-blank-p string-prefix-p string-suffix-p
          string-search
          consp atom listp nlistp proper-list-p
          sequencep arrayp vectorp stringp bool-vector-p hash-table-p

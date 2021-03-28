@@ -66,7 +66,7 @@
 ;;  0.02:
 ;;  - Should work in XEmacs now.  Thanks to Len Trigg for the XEmacs patches!
 ;;  - Added exporting from Emacs diary to ical.
-;;  - Some bugfixes, after testing with calendars from http://icalshare.com.
+;;  - Some bugfixes, after testing with calendars from https://icalshare.com.
 ;;  - Tested with Emacs 21.3.2 and XEmacs 21.4.12
 
 ;;  0.01: (2003-03-21)
@@ -772,9 +772,6 @@ American format: \"month day year\"."
               (nth 5 datetime))         ;year
     ;; datetime == nil
     nil))
-
-(define-obsolete-function-alias 'icalendar--datetime-to-noneuropean-date
-  'icalendar--datetime-to-american-date "icalendar 0.19")
 
 (defun icalendar--datetime-to-european-date (datetime &optional separator)
   "Convert the decoded DATETIME to European format.

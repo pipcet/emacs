@@ -382,7 +382,7 @@ Archives \(such as groups.google.com) respect this header."
   :group 'message-various)
 
 (defcustom message-archive-note
-  "X-No-Archive: Yes - save http://groups.google.com/"
+  "X-No-Archive: Yes - save https://groups.google.com/"
   "Note to insert why you wouldn't want this posting archived.
 If nil, don't insert any text in the body."
   :version "22.1"
@@ -8891,15 +8891,16 @@ used to take the screenshot."
     retval))
 
 ;;;###autoload
-(defun message-mailto ()
+(defun message-mailto (&optional url)
   "Command to parse command line mailto: links.
 This is meant to be used for MIME handlers: Setting the handler
 for \"x-scheme-handler/mailto;\" to \"emacs -f message-mailto %u\"
-will then start up Emacs ready to compose mail."
+will then start up Emacs ready to compose mail.  For emacsclient use
+  emacsclient -e '(message-mailto \"%u\")'"
   (interactive)
   ;; <a href="mailto:someone@example.com?subject=This%20is%20the%20subject&cc=someone_else@example.com&body=This%20is%20the%20body">Send email</a>
   (message-mail)
-  (message-mailto-1 (pop command-line-args-left)))
+  (message-mailto-1 (or url (pop command-line-args-left))))
 
 (defun message-mailto-1 (url)
   (let ((args (message-parse-mailto-url url)))

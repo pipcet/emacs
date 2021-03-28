@@ -2206,10 +2206,13 @@ directory."
     (package-install-from-buffer)))
 
 ;;;###autoload
-(defun package-install-selected-packages ()
+(defun package-install-selected-packages (&optional noconfirm)
   "Ensure packages in `package-selected-packages' are installed.
-If some packages are not installed propose to install them."
+If some packages are not installed, propose to install them.
+If optional argument NOCONFIRM is non-nil, don't ask for
+confirmation to install packages."
   (interactive)
+  (package--archives-initialize)
   ;; We don't need to populate `package-selected-packages' before
   ;; using here, because the outcome is the same either way (nothing
   ;; gets installed).
@@ -2220,10 +2223,11 @@ If some packages are not installed propose to install them."
            (difference (- (length not-installed) (length available))))
       (cond
        (available
-        (when (y-or-n-p
-               (format "Packages to install: %d (%s), proceed? "
-                       (length available)
-                       (mapconcat #'symbol-name available " ")))
+        (when (or noconfirm
+                  (y-or-n-p
+                   (format "Packages to install: %d (%s), proceed? "
+                           (length available)
+                           (mapconcat #'symbol-name available " "))))
           (mapc (lambda (p) (package-install p 'dont-select)) available)))
        ((> difference 0)
         (message "Packages that are not available: %d (the rest is already installed), maybe you need to `M-x package-refresh-contents'"
@@ -2731,6 +2735,7 @@ either a full name or nil, and EMAIL is a valid email address."
     (define-key map "U" 'package-menu-mark-upgrades)
     (define-key map "r" 'revert-buffer)
     (define-key map "~" 'package-menu-mark-obsolete-for-deletion)
+    (define-key map "w" 'package-browse-url)
     (define-key map "x" 'package-menu-execute)
     (define-key map "h" 'package-menu-quick-help)
     (define-key map "H" #'package-menu-hide-package)
@@ -2753,6 +2758,8 @@ either a full name or nil, and EMAIL is a valid email address."
   "Menu for `package-menu-mode'."
   '("Package"
     ["Describe Package" package-menu-describe-package :help "Display information about this package"]
+    ["Open Package Homepage" package-browse-url
+     :help "Open the homepage of this package"]
     ["Help" package-menu-quick-help :help "Show short key binding help for package-menu-mode"]
     "--"
     ["Refresh Package List" revert-buffer
@@ -4024,10 +4031,7 @@ The return value is a string (or nil in case we can't find it)."
   ;; the version at compile time and hardcodes it into the .elc file!
   (declare (pure t))
   ;; Hack alert!
-  (let ((file
-         (or (if (boundp 'byte-compile-current-file) byte-compile-current-file)
-             load-file-name
-             buffer-file-name)))
+  (let ((file (or (macroexp-file-name) buffer-file-name)))
     (cond
      ((null file) nil)
      ;; Packages are normally installed into directories named "<pkg>-<vers>",
@@ -4162,6 +4166,22 @@ beginning of the line."
             (package-desc-name package-desc)
             (package-version-join (package-desc-version package-desc))
             (package-desc-summary package-desc))))
+
+(defun package-browse-url (desc &optional secondary)
+  "Open the home page of the package under point in a browser.
+`browse-url' is used to determine the browser to be used.
+If SECONDARY (interactively, the prefix), use the secondary browser."
+  (interactive (list (tabulated-list-get-id)
+                     current-prefix-arg)
+               package-menu-mode)
+  (unless desc
+    (user-error "No package here"))
+  (let ((url (cdr (assoc :url (package-desc-extras desc)))))
+    (unless url
+      (user-error "No home page for %s" (package-desc-name desc)))
+    (if secondary
+	(funcall browse-url-secondary-browser-function url)
+      (browse-url url))))
 
 ;;;; Introspection
 

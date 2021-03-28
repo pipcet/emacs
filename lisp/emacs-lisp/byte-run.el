@@ -149,7 +149,7 @@ The return value of this function is not used."
 (defalias 'byte-run--set-completion
   #'(lambda (f _args val)
       (list 'function-put (list 'quote f)
-            ''completion-predicate val)))
+            ''completion-predicate (list 'function val))))
 
 (defalias 'byte-run--set-modes
   #'(lambda (f _args &rest val)
@@ -247,7 +247,7 @@ The return value is undefined.
 		  #'(lambda (x)
 		      (let ((f (cdr (assq (car x) macro-declarations-alist))))
 			(if f (apply (car f) name arglist (cdr x))
-			  (macroexp--warn-and-return
+			  (macroexp-warn-and-return
 			   (format-message
 			    "Unknown macro property %S in %S"
 			    (car x) name)
@@ -320,7 +320,7 @@ The return value is undefined.
                               body)))
                     nil)
                    (t
-                    (macroexp--warn-and-return
+                    (macroexp-warn-and-return
                      (format-message "Unknown defun property `%S' in %S"
                                      (car x) name)
                      nil)))))

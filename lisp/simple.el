@@ -238,15 +238,6 @@ all other buffers."
   :group 'next-error
   :version "28.1")
 
-(defcustom next-error-found-function #'ignore
-  "Function called when a next locus is found and displayed.
-Function is called with two arguments: a FROM-BUFFER buffer
-from which next-error navigated, and a target buffer TO-BUFFER."
-  :type '(choice (const :tag "No default" ignore)
-                 (function :tag "Other function"))
-  :group 'next-error
-  :version "27.1")
-
 (defun next-error-buffer-on-selected-frame (&optional _avoid-current
                                                       extra-test-inclusive
                                                       extra-test-exclusive)
@@ -385,6 +376,26 @@ To control which errors are matched, customize the variable
       (when (or next-error-verbose
                 (not (eq prev next-error-last-buffer)))
         (message "Current locus from %s" next-error-last-buffer)))))
+
+(defun next-error-quit-window (from-buffer to-buffer)
+  "Quit window of FROM-BUFFER when the prefix arg is 0.
+Intended to be used in `next-error-found-function'."
+  (when (and (eq current-prefix-arg 0) from-buffer
+             (not (eq from-buffer to-buffer)))
+    (let ((window (get-buffer-window from-buffer)))
+      (when (window-live-p window)
+        (quit-restore-window window)))))
+
+(defcustom next-error-found-function #'ignore
+  "Function called when a next locus is found and displayed.
+Function is called with two arguments: a FROM-BUFFER buffer
+from which next-error navigated, and a target buffer TO-BUFFER."
+  :type '(choice (const :tag "No default" ignore)
+                 (const :tag "Quit previous window with M-0"
+                        next-error-quit-window)
+                 (function :tag "Other function"))
+  :group 'next-error
+  :version "27.1")
 
 (defun next-error-found (&optional from-buffer to-buffer)
   "Function to call when the next locus is found and displayed.
@@ -825,7 +836,10 @@ In programming language modes, this is the same as TAB.
 In some text modes, where TAB inserts a tab, this command indents to the
 column specified by the function `current-left-margin'.
 
-With ARG, perform this action that many times."
+With ARG, perform this action that many times.
+
+Also see `open-line' (bound to \\[open-line]) for a command that
+just inserts a newline without doing any indentation."
   (interactive "*p")
   (delete-horizontal-space t)
   (unless arg
@@ -1980,7 +1994,9 @@ This function uses the `read-extended-command-predicate' user option."
 	       ;; but actually a prompt other than "M-x" would be confusing,
 	       ;; because "M-x" is a well-known prompt to read a command
 	       ;; and it serves as a shorthand for "Extended command: ".
-	       "M-x ")
+               (if (memq 'shift (event-modifiers last-command-event))
+	           "M-X "
+	         "M-x "))
        (lambda (string pred action)
          (if (and suggest-key-bindings (eq action 'metadata))
 	     '(metadata
@@ -1989,9 +2005,14 @@ This function uses the `read-extended-command-predicate' user option."
            (complete-with-action action obarray string pred)))
        (lambda (sym)
          (and (commandp sym)
-              (or (null read-extended-command-predicate)
-                  (and (functionp read-extended-command-predicate)
-                       (funcall read-extended-command-predicate sym buffer)))))
+              (cond ((null read-extended-command-predicate))
+                    ((functionp read-extended-command-predicate)
+                     ;; Don't let bugs break M-x completion; interpret
+                     ;; them as the absence of a predicate.
+                     (condition-case-unless-debug err
+                         (funcall read-extended-command-predicate sym buffer)
+                       (error (message "read-extended-command-predicate: %s: %s"
+                                       sym (error-message-string err))))))))
        t nil 'extended-command-history))))
 
 (defun command-completion-using-modes-p (symbol buffer)
@@ -2822,8 +2843,35 @@ the minibuffer contents."
 
 (defconst undo-equiv-table (make-hash-table :test 'eq :weakness t)
   "Table mapping redo records to the corresponding undo one.
-A redo record for undo-in-region maps to t.
-A redo record for ordinary undo maps to the following (earlier) undo.")
+A redo record for an undo in region maps to 'undo-in-region.
+A redo record for ordinary undo maps to the following (earlier) undo.
+A redo record that undoes to the beginning of the undo list maps to t.
+In the rare case where there are (erroneously) consecutive nil's in
+`buffer-undo-list', `undo' maps the previous valid undo record to
+'empty, if the previous record is a redo record, `undo' doesn't change
+its mapping.
+
+To be clear, a redo record is just an undo record, the only difference
+is that it is created by an undo command (instead of an ordinary buffer
+edit).  Since a record used to undo ordinary change is called undo
+record, a record used to undo an undo is called redo record.
+
+`undo' uses this table to make sure the previous command is `undo'.
+`undo-redo' uses this table to set the correct `pending-undo-list'.
+
+When you undo, `pending-undo-list' shrinks and `buffer-undo-list'
+grows, and Emacs maps the tip of `buffer-undo-list' to the tip of
+`pending-undo-list' in this table.
+
+For example, consider this undo list where each node represents an
+undo record: if we undo from 4, `pending-undo-list' will be at 3,
+`buffer-undo-list' at 5, and 5 will map to 3.
+
+    |
+    3  5
+    | /
+    |/
+    4")
 
 (defvar undo-in-region nil
   "Non-nil if `pending-undo-list' is not just a tail of `buffer-undo-list'.")
@@ -2870,7 +2918,9 @@ as an argument limits undo to changes within the current region."
     ;; the next command should not be a "consecutive undo".
     ;; So set `this-command' to something other than `undo'.
     (setq this-command 'undo-start)
-
+    ;; Here we decide whether to break the undo chain.  If the
+    ;; previous command is `undo', we don't call `undo-start', i.e.,
+    ;; don't break the undo chain.
     (unless (and (eq last-command 'undo)
 		 (or (eq pending-undo-list t)
 		     ;; If something (a timer or filter?) changed the buffer
@@ -2899,7 +2949,7 @@ as an argument limits undo to changes within the current region."
 	;; undo-redo-undo-redo-... so skip to the very last equiv.
 	(while (let ((next (gethash equiv undo-equiv-table)))
 		 (if next (setq equiv next))))
-	(setq pending-undo-list equiv)))
+	(setq pending-undo-list (if (consp equiv) equiv t))))
     (undo-more
      (if (numberp arg)
 	 (prefix-numeric-value arg)
@@ -2915,11 +2965,17 @@ as an argument limits undo to changes within the current region."
       (while (eq (car list) nil)
 	(setq list (cdr list)))
       (puthash list
-               ;; Prevent identity mapping.  This can happen if
-               ;; consecutive nils are erroneously in undo list.
-               (if (or undo-in-region (eq list pending-undo-list))
-                   t
-                 pending-undo-list)
+               (cond
+                (undo-in-region 'undo-in-region)
+                ;; Prevent identity mapping.  This can happen if
+                ;; consecutive nils are erroneously in undo list.  It
+                ;; has to map to _something_ so that the next `undo'
+                ;; command recognizes that the previous command is
+                ;; `undo' and doesn't break the undo chain.
+                ((eq list pending-undo-list)
+                 (or (gethash list undo-equiv-table)
+                     'empty))
+                (t pending-undo-list))
 	       undo-equiv-table))
     ;; Don't specify a position in the undo record for the undo command.
     ;; Instead, undoing this should move point to where the change is.
@@ -3041,8 +3097,7 @@ Return what remains of the list."
                      (and (consp time)
                           (equal (list (car time) (cdr time))
                                  (visited-file-modtime))))
-             (when (fboundp 'unlock-buffer)
-               (unlock-buffer))
+             (unlock-buffer)
              (set-buffer-modified-p nil)))
           ;; Element (nil PROP VAL BEG . END) is property change.
           (`(nil . ,(or `(,prop ,val ,beg . ,end) pcase--dontcare))
@@ -3233,7 +3288,7 @@ list can be applied to the current buffer."
         undo-elt)
     (while ulist
       (when undo-no-redo
-        (while (gethash ulist undo-equiv-table)
+        (while (consp (gethash ulist undo-equiv-table))
           (setq ulist (gethash ulist undo-equiv-table))))
       (setq undo-elt (car ulist))
       (cond
@@ -4668,7 +4723,7 @@ see other processes running on the system, use `list-system-processes'."
     (setq prefix-command--last-echo
           (let ((strs nil))
             (run-hook-wrapped 'prefix-command-echo-keystrokes-functions
-                              (lambda (fun) (push (funcall fun) strs)))
+                              (lambda (fun) (push (funcall fun) strs) nil))
             (setq strs (delq nil strs))
             (when strs (mapconcat #'identity strs " "))))))
 

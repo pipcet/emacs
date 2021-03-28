@@ -2517,7 +2517,7 @@ gnus-summary-show-article-from-menu-as-charset-%s" cs))))
 			       (let ((gnus-summary-show-article-charset-alist
 				      `((1 . ,cs))))
 				 (gnus-summary-show-article 1))))
-		       (put command 'completion-predicate 'ignore)
+                       (function-put command 'completion-predicate #'ignore)
 		       `[,(symbol-name cs) ,command t]))
 		   (sort (coding-system-list) #'string<)))))
 	     ("Washing"
@@ -5977,14 +5977,15 @@ If SELECT-ARTICLES, only select those articles from GROUP."
 			 (input
 			  (read-string
 			   (if only-read-p
-			       (format
-				"How many articles from %s (available %d, default %d): "
-				(gnus-group-real-name gnus-newsgroup-name)
-				number default)
-			     (format
-			      "How many articles from %s (%d default): "
-			      (gnus-group-real-name gnus-newsgroup-name)
-			      default))
+			       (format-prompt
+				    "How many articles from %s (available %d)"
+				    default
+				    (gnus-group-real-name gnus-newsgroup-name)
+				    number)
+			     (format-prompt
+			      "How many articles from %s"
+			      default
+			      (gnus-group-real-name gnus-newsgroup-name)))
 			   nil
 			   nil
 			   (number-to-string default))))
@@ -6354,9 +6355,9 @@ The resulting hash table is returned, or nil if no Xrefs were found."
       ;; First peel off all invalid article numbers.
       (when active
 	(let ((ids articles)
-	      id first)
+	      id) ;; first
 	  (while (setq id (pop ids))
-	    (when (and first (> id (cdr active)))
+	    (when nil ;; (and first (> id (cdr active)))
 	      ;; We'll end up in this situation in one particular
 	      ;; obscure situation.  If you re-scan a group and get
 	      ;; a new article that is cross-posted to a different
@@ -9514,11 +9515,9 @@ If BACKWARD, search backward instead."
   (interactive
    (list
     (read-string
-     (format "Search article %s (regexp%s): "
-	     (if current-prefix-arg "backward" "forward")
-	     (if gnus-last-search-regexp
-		 (concat ", default " gnus-last-search-regexp)
-	       "")))
+     (format-prompt "Search article %s (regexp)"
+                    gnus-last-search-regexp
+                    (if current-prefix-arg "backward" "forward")))
     current-prefix-arg)
    gnus-summary-mode)
   (if (string-equal regexp "")
@@ -9537,10 +9536,8 @@ If BACKWARD, search backward instead."
   (interactive
    (list
     (read-string
-     (format "Search article backward (regexp%s): "
-	     (if gnus-last-search-regexp
-		 (concat ", default " gnus-last-search-regexp)
-	       ""))))
+     (format-prompt "Search article backward (regexp)"
+                    gnus-last-search-regexp)))
    gnus-summary-mode)
   (gnus-summary-search-article-forward regexp 'backward))
 
@@ -12741,7 +12738,7 @@ If REVERSE, save parts that do not match TYPE."
 	;; so we highlight the entire line instead.
 	(when (= (+ to 2) from)
 	  (setq from beg)
-	  (setq to end))
+	  (setq to (1+ end)))
 	(if gnus-newsgroup-selected-overlay
 	    ;; Move old overlay.
 	    (move-overlay
@@ -12796,7 +12793,7 @@ If REVERSE, save parts that do not match TYPE."
     (let ((face (funcall (gnus-summary-highlight-line-0))))
       (unless (eq face (gnus-get-text-property-excluding-characters-with-faces beg 'face))
 	(gnus-put-text-property-excluding-characters-with-faces
-	 beg (point-at-eol) 'face
+	 beg (1+ (point-at-eol)) 'face
 	 (setq face (if (boundp face) (symbol-value face) face)))
 	(when gnus-summary-highlight-line-function
 	  (funcall gnus-summary-highlight-line-function article face))))))

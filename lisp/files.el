@@ -823,7 +823,9 @@ The path separator is colon in GNU and GNU-like systems."
          (expand-file-name dir))
     (locate-file dir cd-path nil
                  (lambda (f) (and (file-directory-p f) 'dir-ok)))
-    (error "No such directory found via CDPATH environment variable"))))
+    (if (getenv "CDPATH")
+        (error "No such directory found via CDPATH environment variable: %s" dir)
+      (error "No such directory: %s" dir)))))
 
 (defun directory-files-recursively (dir regexp
                                         &optional include-directories predicate
@@ -2723,6 +2725,7 @@ since only a single case-insensitive search through the alist is made."
      ("\\.scm\\.[0-9]*\\'" . scheme-mode)
      ("\\.[ckz]?sh\\'\\|\\.shar\\'\\|/\\.z?profile\\'" . sh-mode)
      ("\\.bash\\'" . sh-mode)
+     ("/PKGBUILD\\'" . sh-mode)
      ("\\(/\\|\\`\\)\\.\\(bash_\\(profile\\|history\\|log\\(in\\|out\\)\\)\\|z?log\\(in\\|out\\)\\)\\'" . sh-mode)
      ("\\(/\\|\\`\\)\\.\\(shrc\\|zshrc\\|m?kshrc\\|bashrc\\|t?cshrc\\|esrc\\)\\'" . sh-mode)
      ("\\(/\\|\\`\\)\\.\\([kz]shenv\\|xinitrc\\|startxrc\\|xsession\\)\\'" . sh-mode)
@@ -6234,11 +6237,6 @@ an auto-save file."
              "Cannot revert unreadable file %s")
            file-name))
    (t
-    ;; Bind buffer-file-name to nil
-    ;; so that we don't try to lock the file.
-    (let ((buffer-file-name nil))
-      (or auto-save-p
-          (unlock-buffer)))
     (widen)
     (let ((coding-system-for-read
            ;; Auto-saved file should be read by Emacs's
@@ -7860,9 +7858,22 @@ Otherwise, trash FILENAME using the freedesktop.org conventions,
 
 	       ;; Make a .trashinfo file.  Use O_EXCL, as per trash-spec 1.0.
 	       (let* ((files-base (file-name-nondirectory fn))
-		      (info-fn (expand-file-name
+                      (overwrite nil)
+                      info-fn)
+                 ;; We're checking further down whether the info file
+                 ;; exists, but the file name may exist in the trash
+                 ;; directory even if there is no info file for it.
+                 (when (file-exists-p
+                        (expand-file-name files-base trash-files-dir))
+                   (setq overwrite t
+                         files-base (file-name-nondirectory
+                                     (make-temp-file
+                                      (expand-file-name
+                                       files-base trash-files-dir)))))
+		 (setq info-fn (expand-file-name
 				(concat files-base ".trashinfo")
-				trash-info-dir)))
+				trash-info-dir))
+                 ;; Re-check the existence (sort of).
 		 (condition-case nil
 		     (write-region nil nil info-fn nil 'quiet info-fn 'excl)
 		   (file-already-exists
@@ -7878,7 +7889,7 @@ Otherwise, trash FILENAME using the freedesktop.org conventions,
 		 ;; Finally, try to move the file to the trashcan.
 		 (let ((delete-by-moving-to-trash nil)
 		       (new-fn (expand-file-name files-base trash-files-dir)))
-		   (rename-file fn new-fn)))))))))
+		   (rename-file fn new-fn overwrite)))))))))
 
 (defsubst file-attribute-type (attributes)
   "The type field in ATTRIBUTES returned by `file-attributes'.
