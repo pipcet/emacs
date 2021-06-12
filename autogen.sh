@@ -123,12 +123,11 @@ for arg; do
       --no-check)
         do_check=false;;
       all)
-	do_autoconf=true
-	test -r .git && do_git=true;;
+	do_autoconf=true;;
       autoconf)
 	do_autoconf=true;;
-      git)
-	do_git=true;;
+	       git)
+		   ;;
       *)
 	echo >&2 "$0: $arg: unknown argument"; exit 1;;
     esac
@@ -136,8 +135,7 @@ done
 
 case $do_autoconf,$do_git in
   false,false)
-    do_autoconf=true
-    test -r .git && do_git=true;;
+    do_autoconf=true;;
 esac
 
 # Generate Autoconf-related files, if requested.
