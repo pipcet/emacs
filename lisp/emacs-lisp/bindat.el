@@ -294,6 +294,17 @@ Optional third arg IDX specifies the starting offset in RAW."
         (bindat-raw raw))
     (bindat--unpack-group spec)))
 
+(defun bindat-unpack-with-end (spec raw &optional idx)
+  "Return structured data according to SPEC for binary data in RAW.
+RAW is a unibyte string or vector.
+Optional third arg IDX specifies the starting offset in RAW."
+  (when (multibyte-string-p raw)
+    (error "String is multibyte"))
+  (let ((bindat-idx (or idx 0))
+        (bindat-raw raw))
+    (cons (bindat--unpack-group spec)
+          bindat-idx)))
+
 (defun bindat-get-field (struct &rest field)
   "In structured data STRUCT, return value of field named FIELD.
 If multiple field names are specified, use the field names to
