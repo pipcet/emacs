@@ -1169,6 +1169,11 @@ can provide a better overview in a long list of available bindings.
 ---
 *** New keybinding 'C-h R' prompts for a manual to display and displays it.
 
+---
+*** Closing the *Help* buffer from the toolbar now buries the buffer.
+In previous Emacs versions, the *Help* buffer was killed instead when
+clicking the "X" icon in the tool bar.
+
 +++
 ** New command 'lossage-size'.
 It allows users to set the maximum number of keystrokes and commands
@@ -1218,6 +1223,13 @@ deprecated.  Errors in the Inscript method were corrected.
 ---
 *** New input method 'cham'.
 There's also a Cham greeting in "etc/HELLO".
+
+---
+*** New input methods for Lakota language orthographies.
+Two orthographies are represented here, the Suggested Lakota Orthography
+and what is known as the White Hat Orthography.  Input methods lakota-slo-prefix,
+lakota-slo-postfix, and lakota-white-hat-postfix have been added.
+There is also a Lakota greeting in "etc/HELLO".
 
 ** Ispell
 
