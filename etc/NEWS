@@ -2134,6 +2134,12 @@ summaries will include the failing condition.
 
 ** Miscellaneous
 
+---
+*** `C-x M-x dig' will now prompt for a query type to use.
+
++++
+*** rcirc now supports SASL authentication.
+
 +++
 *** 'save-interprogram-paste-before-kill' can now be a number.
 In that case, it's interpreted as a limit on the size of the clipboard
