@@ -323,6 +323,7 @@ emulators by using the new input-meta-mode with the special value
 ** New frame parameter 'drag-with-tab-line'.
 This parameter, similar to 'drag-with-header-line', allows moving frames
 by dragging the tab lines of their topmost windows with the mouse.
+
 
 * Editing Changes in Emacs 28.1
 
@@ -1185,6 +1186,16 @@ can provide a better overview in a long list of available bindings.
 In previous Emacs versions, the "*Help*" buffer was killed instead when
 clicking the "X" icon in the tool bar.
 
+** Info
+
+---
+*** New user option 'Info-warn-on-index-alternatives-wrap'.
+This option affects what happens when using the ',' command after
+looking up an entry with 'i' in info buffers.  If non-nil (the
+default), the ',' command will now warn you when proceeding beyond the
+final entry, and tapping ',' once more will then take you to the
+first entry.
+
 +++
 ** New command 'lossage-size'.
 It allows users to set the maximum number of keystrokes and commands
@@ -1265,6 +1276,9 @@ To revert to the previous behavior,
 '(setq lisp-indent-function 'lisp-indent-function)' from 'lisp-mode-hook'.
 
 ** Customize
+
+---
+*** Customize buffers can now be reverted with 'C-x x g'.
 
 *** Most customize commands now hide obsolete user options.
 Obsolete user options are no longer shown in the listings produced by
@@ -1454,6 +1468,9 @@ rare cases) Tramp blocks Emacs, and we need further debug information.
 directory must be confirmed.  In order to suppress this confirmation,
 set user option 'tramp-allow-unsafe-temporary-files' to t.
 
++++
+*** Tramp supports file locks now.
+
 ** Tempo
 
 ---
@@ -1616,6 +1633,10 @@ t, which preserves the original behavior.
 *** New user option 'rmail-show-message-set-modified'.
 If set non-nil, showing an unseen message will set the Rmail buffer's
 modified flag.
+
+---
+*** New faces for heading elements.
+Those are 'shr-h1', 'shr-h2', 'shr-h3', 'shr-h4', 'shr-h5', 'shr-h6'.
 
 ** Apropos
 
@@ -2147,6 +2168,11 @@ If the 'EMACS_TEST_VERBOSE' environment variable is set, failure
 summaries will include the failing condition.
 
 ** Miscellaneous
+
++++
+*** New user option 'lock-file-name-transforms'.
+This option allows controlling where lock files are written.  It uses
+the same syntax as 'auto-save-file-name-transforms'.
 
 +++
 *** New user option 'kill-transform-function'.
@@ -2913,6 +2939,9 @@ The former is now declared obsolete.
 
 
 * Lisp Changes in Emacs 28.1
+
+---
+*** ':safe' settings in 'defcustom' are now propagated to the loaddefs files.
 
 +++
 ** New function 'syntax-class-to-char'.
