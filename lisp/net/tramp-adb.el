@@ -107,7 +107,8 @@ It is used for TCP/IP devices."
 
 ;;;###tramp-autoload
 (defconst tramp-adb-file-name-handler-alist
-  '((access-file . tramp-handle-access-file)
+  '(;; `abbreviate-file-name' performed by default handler.
+    (access-file . tramp-handle-access-file)
     (add-name-to-file . tramp-handle-add-name-to-file)
     ;; `byte-compiler-base-file-name' performed by default handler.
     (copy-directory . tramp-handle-copy-directory)
@@ -128,8 +129,7 @@ It is used for TCP/IP devices."
     (file-attributes . tramp-adb-handle-file-attributes)
     (file-directory-p . tramp-handle-file-directory-p)
     (file-equal-p . tramp-handle-file-equal-p)
-    ;; FIXME: This is too sloppy.
-    (file-executable-p . tramp-handle-file-exists-p)
+    (file-executable-p . tramp-adb-handle-file-executable-p)
     (file-exists-p . tramp-handle-file-exists-p)
     (file-in-directory-p . tramp-handle-file-in-directory-p)
     (file-local-copy . tramp-adb-handle-file-local-copy)
@@ -147,7 +147,7 @@ It is used for TCP/IP devices."
     (file-notify-rm-watch . tramp-handle-file-notify-rm-watch)
     (file-notify-valid-p . tramp-handle-file-notify-valid-p)
     (file-ownership-preserved-p . ignore)
-    (file-readable-p . tramp-handle-file-exists-p)
+    (file-readable-p . tramp-adb-handle-file-readable-p)
     (file-regular-p . tramp-handle-file-regular-p)
     (file-remote-p . tramp-handle-file-remote-p)
     (file-selinux-context . tramp-handle-file-selinux-context)
@@ -192,11 +192,10 @@ It is used for TCP/IP devices."
 ;; It must be a `defsubst' in order to push the whole code into
 ;; tramp-loaddefs.el.  Otherwise, there would be recursive autoloading.
 ;;;###tramp-autoload
-(defsubst tramp-adb-file-name-p (filename)
-  "Check if it's a FILENAME for ADB."
-  (and (tramp-tramp-file-p filename)
-       (string= (tramp-file-name-method (tramp-dissect-file-name filename))
-		tramp-adb-method)))
+(defsubst tramp-adb-file-name-p (vec-or-filename)
+  "Check if it's a VEC-OR-FILENAME for ADB."
+  (when-let* ((vec (tramp-ensure-dissected-file-name vec-or-filename)))
+    (string= (tramp-file-name-method vec) tramp-adb-method)))
 
 ;;;###tramp-autoload
 (defun tramp-adb-file-name-handler (operation &rest args)
@@ -307,7 +306,7 @@ arguments to pass to the OPERATION."
   (directory &optional full match nosort id-format count)
   "Like `directory-files-and-attributes' for Tramp files."
   (unless (file-exists-p directory)
-    (tramp-compat-file-missing (tramp-dissect-file-name directory) directory))
+    (tramp-error (tramp-dissect-file-name directory) 'file-missing directory))
   (when (file-directory-p directory)
     (with-parsed-tramp-file-name (expand-file-name directory) nil
       (copy-tree
@@ -416,6 +415,8 @@ Emacs dired can't find files."
 (defun tramp-adb-ls-output-time-less-p (a b)
   "Sort \"ls\" output by time, descending."
   (let (time-a time-b)
+    ;; Once we can assume Emacs 27 or later, the two calls
+    ;; (apply #'encode-time X) can be replaced by (encode-time X).
     (string-match tramp-adb-ls-date-regexp a)
     (setq time-a (apply #'encode-time (parse-time-string (match-string 0 a))))
     (string-match tramp-adb-ls-date-regexp b)
@@ -500,7 +501,7 @@ Emacs dired can't find files."
   "Like `file-local-copy' for Tramp files."
   (with-parsed-tramp-file-name filename nil
     (unless (file-exists-p (file-truename filename))
-      (tramp-compat-file-missing v filename))
+      (tramp-error v 'file-missing filename))
     (let ((tmpfile (tramp-compat-make-temp-file filename)))
       (with-tramp-progress-reporter
 	  v 3 (format "Fetching %s to tmp file %s" filename tmpfile)
@@ -515,28 +516,31 @@ Emacs dired can't find files."
 	(set-file-modes tmpfile (logior (or (file-modes filename) 0) #o0400)))
       tmpfile)))
 
+(defun tramp-adb-handle-file-executable-p (filename)
+  "Like `file-executable-p' for Tramp files."
+  (with-parsed-tramp-file-name filename nil
+    (with-tramp-file-property v localname "file-executable-p"
+      (tramp-adb-send-command-and-check
+       v (format "test -x %s" (tramp-shell-quote-argument localname))))))
+
+(defun tramp-adb-handle-file-readable-p (filename)
+  "Like `file-readable-p' for Tramp files."
+  (with-parsed-tramp-file-name filename nil
+    (with-tramp-file-property v localname "file-readable-p"
+      (or (tramp-handle-file-readable-p filename)
+	  (tramp-adb-send-command-and-check
+	   v (format "test -r %s" (tramp-shell-quote-argument localname)))))))
+
 (defun tramp-adb-handle-file-writable-p (filename)
-  "Like `file-writable-p' for Tramp files.
-But handle the case, if the \"test\" command is not available."
+  "Like `file-writable-p' for Tramp files."
   (with-parsed-tramp-file-name filename nil
     (with-tramp-file-property v localname "file-writable-p"
-      (if (tramp-adb-find-test-command v)
-	  (if (file-exists-p filename)
-	      (tramp-adb-send-command-and-check
-	       v (format "test -w %s" (tramp-shell-quote-argument localname)))
-	    (and
-	     (file-directory-p (file-name-directory filename))
-	     (file-writable-p (file-name-directory filename))))
-
-	;; Missing "test" command on Android < 4.
-       (let ((rw-path "/data/data"))
-	 (tramp-message
-	  v 5
-	  "Not implemented yet (assuming \"/data/data\" is writable): %s"
-	  localname)
-	 (and (>= (length localname) (length rw-path))
-	      (string= (substring localname 0 (length rw-path))
-		       rw-path)))))))
+      (if (file-exists-p filename)
+	  (tramp-adb-send-command-and-check
+	   v (format "test -w %s" (tramp-shell-quote-argument localname)))
+	(and
+	 (file-directory-p (file-name-directory filename))
+	 (file-writable-p (file-name-directory filename)))))))
 
 (defun tramp-adb-handle-write-region
   (start end filename &optional append visit lockname mustbenew)
@@ -589,8 +593,7 @@ But handle the case, if the \"test\" command is not available."
       ;; Set file modification time.
       (when (or (eq visit t) (stringp visit))
 	(set-visited-file-modtime
-	 (or (tramp-compat-file-attribute-modification-time
-	      (file-attributes filename))
+	 (or (file-attribute-modification-time (file-attributes filename))
 	     (current-time))))
 
       ;; Unlock file.
@@ -600,7 +603,7 @@ But handle the case, if the \"test\" command is not available."
 
       ;; The end.
       (when (and (null noninteractive)
-		 (or (eq visit t) (null visit) (stringp visit)))
+		 (or (eq visit t) (string-or-null-p visit)))
 	(tramp-message v 0 "Wrote %s" filename))
       (run-hooks 'tramp-handle-write-region-hook))))
 
@@ -658,7 +661,7 @@ PRESERVE-UID-GID and PRESERVE-EXTENDED-ATTRIBUTES are completely ignored."
 	  (jka-compr-inhibit t))
       (with-parsed-tramp-file-name (if t1 filename newname) nil
 	(unless (file-exists-p filename)
-	  (tramp-compat-file-missing v filename))
+	  (tramp-error v 'file-missing filename))
 	(when (and (not ok-if-already-exists) (file-exists-p newname))
 	  (tramp-error v 'file-already-exists newname))
 	(when (and (file-directory-p newname)
@@ -718,8 +721,7 @@ PRESERVE-UID-GID and PRESERVE-EXTENDED-ATTRIBUTES are completely ignored."
     (when keep-date
       (tramp-compat-set-file-times
        newname
-       (tramp-compat-file-attribute-modification-time
-	(file-attributes filename))
+       (file-attribute-modification-time (file-attributes filename))
        (unless ok-if-already-exists 'nofollow)))))
 
 (defun tramp-adb-handle-rename-file
@@ -740,7 +742,7 @@ PRESERVE-UID-GID and PRESERVE-EXTENDED-ATTRIBUTES are completely ignored."
 	  (jka-compr-inhibit t))
       (with-parsed-tramp-file-name (if t1 filename newname) nil
 	(unless (file-exists-p filename)
-	  (tramp-compat-file-missing v filename))
+	  (tramp-error v 'file-missing filename))
 	(when (and (not ok-if-already-exists) (file-exists-p newname))
 	  (tramp-error v 'file-already-exists newname))
 	(when (and (file-directory-p newname)
@@ -933,8 +935,8 @@ implementation will be used."
 	      (stderr (plist-get args :stderr)))
 	  (unless (stringp name)
 	    (signal 'wrong-type-argument (list #'stringp name)))
-	  (unless (or (null buffer) (bufferp buffer) (stringp buffer))
-	    (signal 'wrong-type-argument (list #'stringp buffer)))
+	  (unless (or (bufferp buffer) (string-or-null-p buffer))
+	    (signal 'wrong-type-argument (list #'bufferp buffer)))
 	  (unless (consp command)
 	    (signal 'wrong-type-argument (list #'consp command)))
 	  (unless (or (null coding)
@@ -947,11 +949,11 @@ implementation will be used."
 	    (setq connection-type 'pty))
 	  (unless (memq connection-type '(nil pipe pty))
 	    (signal 'wrong-type-argument (list #'symbolp connection-type)))
-	  (unless (or (null filter) (functionp filter))
+	  (unless (or (null filter) (eq filter t) (functionp filter))
 	    (signal 'wrong-type-argument (list #'functionp filter)))
 	  (unless (or (null sentinel) (functionp sentinel))
 	    (signal 'wrong-type-argument (list #'functionp sentinel)))
-	  (unless (or (null stderr) (bufferp stderr) (stringp stderr))
+	  (unless (or (bufferp stderr) (string-or-null-p stderr))
 	    (signal 'wrong-type-argument (list #'bufferp stderr)))
 	  (when (and (stringp stderr) (tramp-tramp-file-p stderr)
 		     (not (tramp-equal-remote default-directory stderr)))
@@ -1043,12 +1045,13 @@ implementation will be used."
 			       (rename-file remote-tmpstderr stderr))))
 			  ;; Read initial output.  Remove the first
 			  ;; line, which is the command echo.
-			  (while
-			      (progn
-				(goto-char (point-min))
-				(not (re-search-forward "[\n]" nil t)))
-			    (tramp-accept-process-output p 0))
-			  (delete-region (point-min) (point))
+			  (unless (eq filter t)
+			    (while
+				(progn
+				  (goto-char (point-min))
+				  (not (re-search-forward "[\n]" nil t)))
+			      (tramp-accept-process-output p 0))
+			    (delete-region (point-min) (point)))
 			  ;; Provide error buffer.  This shows only
 			  ;; initial error messages; messages arriving
 			  ;; later on will be inserted when the
@@ -1140,12 +1143,6 @@ error and non-nil on success."
     ;; narrowing might be in effect.
     (let ((inhibit-read-only t)) (delete-region (point-min) (point-max)))
     (zerop (apply #'tramp-call-process vec tramp-adb-program nil t nil args))))
-
-(defun tramp-adb-find-test-command (vec)
-  "Check whether the ash has a builtin \"test\" command.
-This happens for Android >= 4.0."
-  (with-tramp-connection-property vec "test"
-    (tramp-adb-send-command-and-check vec "type test")))
 
 ;; Connection functions
 
@@ -1352,22 +1349,18 @@ connection if a previous connection has died for some reason."
 	    ;; Mark it as connected.
 	    (tramp-set-connection-property p "connected" t)))))))
 
-;;; Default connection-local variables for Tramp:
-;; `connection-local-set-profile-variables' and
-;; `connection-local-set-profiles' exists since Emacs 26.1.
+;;; Default connection-local variables for Tramp.
 (defconst tramp-adb-connection-local-default-shell-variables
   '((shell-file-name . "/system/bin/sh")
     (shell-command-switch . "-c"))
   "Default connection-local shell variables for remote adb connections.")
 
-(tramp-compat-funcall
- 'connection-local-set-profile-variables
+(connection-local-set-profile-variables
  'tramp-adb-connection-local-default-shell-profile
  tramp-adb-connection-local-default-shell-variables)
 
 (with-eval-after-load 'shell
-  (tramp-compat-funcall
-   'connection-local-set-profiles
+  (connection-local-set-profiles
    `(:application tramp :protocol ,tramp-adb-method)
    'tramp-adb-connection-local-default-shell-profile))
 

@@ -22,6 +22,7 @@
 ;;; Code:
 
 (require 'ert)
+(require 'ert-x)
 (require 'python)
 
 ;; Dependencies for testing:
@@ -48,17 +49,17 @@ BODY is code to be executed within the temp buffer.  Point is
 always located at the beginning of buffer."
   (declare (indent 1) (debug t))
   ;; temp-file never actually used for anything?
-  `(let* ((temp-file (make-temp-file "python-tests" nil ".py"))
-          (buffer (find-file-noselect temp-file))
-          (python-indent-guess-indent-offset nil))
-     (unwind-protect
-         (with-current-buffer buffer
-           (python-mode)
-           (insert ,contents)
-           (goto-char (point-min))
-           ,@body)
-       (and buffer (kill-buffer buffer))
-       (delete-file temp-file))))
+  `(ert-with-temp-file temp-file
+     :suffix "-python.py"
+     (let ((buffer (find-file-noselect temp-file))
+           (python-indent-guess-indent-offset nil))
+       (unwind-protect
+           (with-current-buffer buffer
+             (python-mode)
+             (insert ,contents)
+             (goto-char (point-min))
+             ,@body)
+         (and buffer (kill-buffer buffer))))))
 
 (defun python-tests-look-at (string &optional num restore-point)
   "Move point at beginning of STRING in the current buffer.
@@ -5448,15 +5449,21 @@ buffer with overlapping strings."
                     (python-nav-end-of-statement)))
     (should (eolp))))
 
-;; After call `run-python' the buffer running the python process is current.
-(ert-deftest python-tests--bug31398 ()
-  "Test for https://debbugs.gnu.org/31398 ."
+;; Interactively, `run-python' focuses the buffer running the
+;; interpreter.
+(ert-deftest python-tests--run-python-selects-window ()
+  "Test for bug#31398.  See also bug#44421 and bug#52380."
   (skip-unless (executable-find python-tests-shell-interpreter))
-  (let ((buffer (process-buffer (run-python nil nil 'show))))
-    (should (eq buffer (current-buffer)))
+  (let* ((buffer (process-buffer (run-python nil nil 'show)))
+         (window (get-buffer-window buffer)))
+    ;; We look at `selected-window' rather than `current-buffer'
+    ;; because as `(elisp)Current buffer' says, the latter will only
+    ;; be synchronized with the former when returning to the "command
+    ;; loop"; until then, `current-buffer' can change arbitrarily.
+    (should (eq window (selected-window)))
     (pop-to-buffer (other-buffer))
     (run-python nil nil 'show)
-    (should (eq buffer (current-buffer)))))
+    (should (eq window (selected-window)))))
 
 (ert-deftest python-tests--fill-long-first-line ()
   (should

@@ -492,7 +492,7 @@ Used to decide whether to save completions.")
     table))
 
 ;; Old name, non-namespace-clean.
-(defvaralias 'cmpl-syntax-table 'completion-syntax-table)
+(define-obsolete-variable-alias 'cmpl-syntax-table 'completion-syntax-table "29.1")
 
 (defvar-local completion-syntax-table completion-standard-syntax-table
   "This variable holds the current completion syntax table.")
@@ -1088,7 +1088,8 @@ Must be called after `find-exact-completion'."
   #'completion-locate-db-error "27.1")
 (defun completion-locate-db-error ()
   ;; recursive error: really scrod
-  (error "Completion database corrupted.  Try M-x clear-all-completions.  Send bug report"))
+  (error (substitute-command-keys
+          "Completion database corrupted.  Try \\[clear-all-completions].  Send bug report")))
 
 ;; WRITES
 (defun add-completion-to-tail-if-new (string)
@@ -2219,7 +2220,7 @@ TYPE is the type of the wrapper to be added.  Can be :before or :under."
 (completion-def-wrapper 'delete-backward-char-untabify :backward)
 
 ;; Old name, non-namespace-clean.
-(defalias 'initialize-completions #'completion-initialize)
+(define-obsolete-function-alias 'initialize-completions #'completion-initialize "29.1")
 
 (provide 'completion)
 

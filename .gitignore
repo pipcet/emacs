@@ -65,6 +65,7 @@ lib/ieee754.h
 lib/inttypes.h
 lib/libgnu.a
 lib/limits.h
+lib/malloc/*.gl.h
 lib/signal.h
 lib/std*.h
 !lib/std*.in.h
@@ -158,6 +159,7 @@ test/manual/etags/CTAGS
 test/manual/indent/*.new
 test/lisp/gnus/mml-sec-resources/random_seed
 test/lisp/play/fortune-resources/fortunes.dat
+test/**/*.xml
 
 # ctags, etags.
 TAGS
@@ -181,6 +183,7 @@ ID
 # Executables.
 *.exe
 a.out
+lib-src/be-resources
 lib-src/blessmail
 lib-src/ctags
 lib-src/ebrowse
@@ -202,6 +205,7 @@ nextstep/GNUstep/Emacs.base/Resources/Info-gnustep.plist
 src/bootstrap-emacs
 src/emacs
 src/emacs-[0-9]*
+src/Emacs
 src/temacs
 src/dmpstruct.h
 src/*.pdmp
@@ -214,6 +218,7 @@ lisp/international/charprop.el
 lisp/international/charscript.el
 lisp/international/cp51932.el
 lisp/international/emoji-zwj.el
+lisp/international/emoji-labels.el
 lisp/international/eucjp-ms.el
 lisp/international/uni-*.el
 lisp/language/pinyin.el
@@ -312,3 +317,6 @@ lib-src/seccomp-filter.bpf
 lib-src/seccomp-filter.pfc
 lib-src/seccomp-filter-exec.bpf
 lib-src/seccomp-filter-exec.pfc
+
+# gsettings schema
+/etc/*.gschema.valid

@@ -49,8 +49,6 @@
 ;;   an open connection.  Examples: "scripts" keeps shell script
 ;;   definitions already sent to the remote shell, "last-cmd-time" is
 ;;   the time stamp a command has been sent to the remote process.
-;;   "lock-pid" is the timestamp a (network) process is created, it is
-;;   used instead of the pid in file locks.
 ;;
 ;; - The key is nil.  These are temporary properties related to the
 ;;   local machine.  Examples: "parse-passwd" and "parse-group" keep
@@ -101,8 +99,7 @@ details see the info pages."
 		       (choice :tag "           Value" sexp))))
 
 ;;;###tramp-autoload
-(defcustom tramp-persistency-file-name
-  (expand-file-name (locate-user-emacs-file "tramp"))
+(defcustom tramp-persistency-file-name (locate-user-emacs-file "tramp")
   "File which keeps connection history for Tramp connections."
   :group 'tramp
   :type 'file)
@@ -225,7 +222,9 @@ Return VALUE."
 (defun tramp-flush-file-upper-properties (key file)
   "Remove some properties of FILE's upper directory."
   (when (file-name-absolute-p file)
-    (let ((file (directory-file-name (file-name-directory file))))
+    ;; `file-name-directory' can return nil, for example for "~".
+    (when-let ((file (file-name-directory file))
+	       (file (directory-file-name file)))
       ;; Unify localname.  Remove hop from `tramp-file-name' structure.
       (setq file (tramp-compat-file-name-unquote file)
 	    key (copy-tramp-file-name key))
@@ -319,12 +318,7 @@ KEY identifies the connection, it is either a process or a
 used to cache connection properties of the local machine.
 If KEY is `tramp-cache-undefined', or if the value is not set for
 the connection, return DEFAULT."
-  ;; Unify key by removing localname and hop from `tramp-file-name'
-  ;; structure.  Work with a copy in order to avoid side effects.
-  (when (tramp-file-name-p key)
-    (setq key (copy-tramp-file-name key))
-    (setf (tramp-file-name-localname key) nil
-	  (tramp-file-name-hop key) nil))
+  (setq key (tramp-file-name-unify key))
   (let* ((hash (tramp-get-hash-table key))
 	 (cached (if (hash-table-p hash)
 		     (gethash property hash tramp-cache-undefined)
@@ -350,12 +344,7 @@ used to cache connection properties of the local machine.  If KEY
 is `tramp-cache-undefined', nothing is set.
 PROPERTY is set persistent when KEY is a `tramp-file-name' structure.
 Return VALUE."
-  ;; Unify key by removing localname and hop from `tramp-file-name'
-  ;; structure.  Work with a copy in order to avoid side effects.
-  (when (tramp-file-name-p key)
-    (setq key (copy-tramp-file-name key))
-    (setf (tramp-file-name-localname key) nil
-	  (tramp-file-name-hop key) nil))
+  (setq key (tramp-file-name-unify key))
   (when-let ((hash (tramp-get-hash-table key)))
     (puthash property value hash))
   (setq tramp-cache-data-changed
@@ -379,12 +368,7 @@ KEY identifies the connection, it is either a process or a
 `tramp-file-name' structure.  A special case is nil, which is
 used to cache connection properties of the local machine.
 PROPERTY is set persistent when KEY is a `tramp-file-name' structure."
-  ;; Unify key by removing localname and hop from `tramp-file-name'
-  ;; structure.  Work with a copy in order to avoid side effects.
-  (when (tramp-file-name-p key)
-    (setq key (copy-tramp-file-name key))
-    (setf (tramp-file-name-localname key) nil
-	  (tramp-file-name-hop key) nil))
+  (setq key (tramp-file-name-unify key))
   (when-let ((hash (tramp-get-hash-table key)))
     (remhash property hash))
   (setq tramp-cache-data-changed
@@ -397,12 +381,7 @@ PROPERTY is set persistent when KEY is a `tramp-file-name' structure."
 KEY identifies the connection, it is either a process or a
 `tramp-file-name' structure.  A special case is nil, which is
 used to cache connection properties of the local machine."
-  ;; Unify key by removing localname and hop from `tramp-file-name'
-  ;; structure.  Work with a copy in order to avoid side effects.
-  (when (tramp-file-name-p key)
-    (setq key (copy-tramp-file-name key))
-    (setf (tramp-file-name-localname key) nil
-	  (tramp-file-name-hop key) nil))
+  (setq key (tramp-file-name-unify key))
   (tramp-message
    key 7 "%s %s" key
    (when-let ((hash (gethash key tramp-cache-data)))

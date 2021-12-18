@@ -57,6 +57,10 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #include <X11/extensions/Xdbe.h>
 #endif
 
+#ifdef HAVE_XINPUT2
+#include <X11/extensions/XInput2.h>
+#endif
+
 #ifdef USE_X_TOOLKIT
 #include <X11/Shell.h>
 
@@ -2912,6 +2916,60 @@ initial_set_up_x_back_buffer (struct frame *f)
   unblock_input ();
 }
 
+#if defined HAVE_XINPUT2
+static void
+setup_xi_event_mask (struct frame *f)
+{
+  XIEventMask mask;
+  ptrdiff_t l = XIMaskLen (XI_LASTEVENT);
+  unsigned char *m;
+
+  mask.mask = m = alloca (l);
+  memset (m, 0, l);
+  mask.mask_len = l;
+
+  block_input ();
+#ifndef USE_GTK
+  mask.deviceid = XIAllMasterDevices;
+
+  XISetMask (m, XI_ButtonPress);
+  XISetMask (m, XI_ButtonRelease);
+  XISetMask (m, XI_KeyPress);
+  XISetMask (m, XI_KeyRelease);
+  XISetMask (m, XI_Motion);
+  XISetMask (m, XI_Enter);
+  XISetMask (m, XI_Leave);
+#if 0
+  XISetMask (m, XI_FocusIn);
+  XISetMask (m, XI_FocusOut);
+#endif
+  XISelectEvents (FRAME_X_DISPLAY (f),
+		  FRAME_X_WINDOW (f),
+		  &mask, 1);
+
+  memset (m, 0, l);
+#endif /* !USE_GTK */
+
+  mask.deviceid = XIAllDevices;
+
+  XISetMask (m, XI_PropertyEvent);
+  XISetMask (m, XI_HierarchyChanged);
+  XISetMask (m, XI_DeviceChanged);
+#ifdef XI_TouchBegin
+  if (FRAME_DISPLAY_INFO (f)->xi2_version >= 2)
+    {
+      XISetMask (m, XI_TouchBegin);
+      XISetMask (m, XI_TouchUpdate);
+      XISetMask (m, XI_TouchEnd);
+    }
+#endif
+  XISelectEvents (FRAME_X_DISPLAY (f),
+		  FRAME_X_WINDOW (f),
+		  &mask, 1);
+  unblock_input ();
+}
+#endif
+
 #ifdef USE_X_TOOLKIT
 
 /* Create and set up the X widget for frame F.  */
@@ -3074,6 +3132,11 @@ x_window (struct frame *f, long window_prompting)
   class_hints.res_class = SSDATA (Vx_resource_class);
   XSetClassHint (FRAME_X_DISPLAY (f), XtWindow (shell_widget), &class_hints);
 
+#ifdef HAVE_XINPUT2
+  if (FRAME_DISPLAY_INFO (f)->supports_xi2)
+    setup_xi_event_mask (f);
+#endif
+
 #ifdef HAVE_X_I18N
   FRAME_XIC (f) = NULL;
   if (use_xim)
@@ -3200,6 +3263,11 @@ x_window (struct frame *f)
     unblock_input ();
   }
 #endif
+
+#ifdef HAVE_XINPUT2
+  if (FRAME_DISPLAY_INFO (f)->supports_xi2)
+    setup_xi_event_mask (f);
+#endif
 }
 
 #else /*! USE_GTK */
@@ -3253,6 +3321,11 @@ x_window (struct frame *f)
 	}
     }
 #endif /* HAVE_X_I18N */
+
+#ifdef HAVE_XINPUT2
+  if (FRAME_DISPLAY_INFO (f)->supports_xi2)
+    setup_xi_event_mask (f);
+#endif
 
   validate_x_resource_name ();
 
@@ -4416,7 +4489,8 @@ For GNU and Unix system, the first 2 numbers are the version of the X
 Protocol used on TERMINAL and the 3rd number is the distributor-specific
 release number.  For MS Windows, the 3 numbers report the OS major and
 minor version and build number.  For Nextstep, the first 2 numbers are
-hard-coded and the 3rd represents the OS version.
+hard-coded and the 3rd represents the OS version.  For Haiku, all 3
+numbers are hard-coded.
 
 See also the function `x-server-vendor'.
 
@@ -6222,7 +6296,7 @@ Otherwise, the return value is a vector with the following fields:
 static void compute_tip_xy (struct frame *, Lisp_Object, Lisp_Object,
 			    Lisp_Object, int, int, int *, int *);
 
-/* The frame of the currently visible tooltip.  */
+/* The frame of the currently visible tooltip, or nil if none.  */
 static Lisp_Object tip_frame;
 
 /* The window-system window corresponding to the frame of the
@@ -6710,7 +6784,7 @@ x_hide_tip (bool delete)
   if ((NILP (tip_last_frame) && NILP (tip_frame))
       || (!x_gtk_use_system_tooltips
 	  && !delete
-	  && FRAMEP (tip_frame)
+	  && !NILP (tip_frame)
 	  && FRAME_LIVE_P (XFRAME (tip_frame))
 	  && !FRAME_VISIBLE_P (XFRAME (tip_frame))))
     /* Either there's no tooltip to hide or it's an already invisible
@@ -6727,7 +6801,7 @@ x_hide_tip (bool delete)
       specbind (Qinhibit_quit, Qt);
 
       /* Try to hide the GTK+ system tip first.  */
-      if (FRAMEP (tip_last_frame))
+      if (!NILP (tip_last_frame))
 	{
 	  struct frame *f = XFRAME (tip_last_frame);
 
@@ -6745,7 +6819,7 @@ x_hide_tip (bool delete)
 	tip_last_frame = Qnil;
 
       /* Now look whether there's an Emacs tip around.  */
-      if (FRAMEP (tip_frame))
+      if (!NILP (tip_frame))
 	{
 	  struct frame *f = XFRAME (tip_frame);
 
@@ -6775,7 +6849,7 @@ x_hide_tip (bool delete)
 #else /* not USE_GTK */
   if (NILP (tip_frame)
       || (!delete
-	  && FRAMEP (tip_frame)
+	  && !NILP (tip_frame)
 	  && FRAME_LIVE_P (XFRAME (tip_frame))
 	  && !FRAME_VISIBLE_P (XFRAME (tip_frame))))
     return Qnil;
@@ -6788,7 +6862,7 @@ x_hide_tip (bool delete)
       specbind (Qinhibit_redisplay, Qt);
       specbind (Qinhibit_quit, Qt);
 
-      if (FRAMEP (tip_frame))
+      if (!NILP (tip_frame))
 	{
 	  struct frame *f = XFRAME (tip_frame);
 
@@ -6931,7 +7005,7 @@ Text larger than the specified size is clipped.  */)
     }
 #endif /* USE_GTK */
 
-  if (FRAMEP (tip_frame) && FRAME_LIVE_P (XFRAME (tip_frame)))
+  if (!NILP (tip_frame) && FRAME_LIVE_P (XFRAME (tip_frame)))
     {
       if (FRAME_VISIBLE_P (XFRAME (tip_frame))
 	  && EQ (frame, tip_last_frame)
@@ -7016,7 +7090,7 @@ Text larger than the specified size is clipped.  */)
   tip_last_string = string;
   tip_last_parms = parms;
 
-  if (!FRAMEP (tip_frame) || !FRAME_LIVE_P (XFRAME (tip_frame)))
+  if (NILP (tip_frame) || !FRAME_LIVE_P (XFRAME (tip_frame)))
     {
       /* Add default values to frame parameters.  */
       if (NILP (Fassq (Qname, parms)))
@@ -7095,7 +7169,8 @@ Text larger than the specified size is clipped.  */)
   try_window (window, pos, TRY_WINDOW_IGNORE_FONTS_CHANGE);
   /* Calculate size of tooltip window.  */
   size = Fwindow_text_pixel_size (window, Qnil, Qnil, Qnil,
-				  make_fixnum (w->pixel_height), Qnil);
+				  make_fixnum (w->pixel_height), Qnil,
+				  Qnil);
   /* Add the frame's internal border to calculated size.  */
   width = XFIXNUM (Fcar (size)) + 2 * FRAME_INTERNAL_BORDER_WIDTH (tip_f);
   height = XFIXNUM (Fcdr (size)) + 2 * FRAME_INTERNAL_BORDER_WIDTH (tip_f);
@@ -7374,7 +7449,7 @@ Use a file selection dialog.  Select DEFAULT-FILENAME in the dialog's file
 selection box, if specified.  If MUSTMATCH is non-nil, the returned file
 or directory must exist.
 
-This function is defined only on NS, MS Windows, and X Windows with the
+This function is defined only on NS, Haiku, MS Windows, and X Windows with the
 Motif or Gtk toolkits.  With the Motif toolkit, ONLY-DIR-P is ignored.
 Otherwise, if ONLY-DIR-P is non-nil, the user can select only directories.
 On MS Windows 7 and later, the file selection dialog "remembers" the last
@@ -8037,6 +8112,12 @@ eliminated in future versions of Emacs.  */);
 
   /* Tell Emacs about this window system.  */
   Fprovide (Qx, Qnil);
+
+#ifdef HAVE_XINPUT2
+  DEFSYM (Qxinput2, "xinput2");
+
+  Fprovide (Qxinput2, Qnil);
+#endif
 
 #ifdef USE_X_TOOLKIT
   Fprovide (intern_c_string ("x-toolkit"), Qnil);

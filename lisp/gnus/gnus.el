@@ -1467,11 +1467,11 @@ address was listed in gnus-group-split Addresses (see below).")
  :variable-group gnus-group-parameter
  :parameter-type '(gnus-email-address :tag "To List")
  :parameter-document "\
-This address will be used when doing a `a' in the group.
+This address will be used when doing a \\`a' in the group.
 
 It is totally ignored when doing a followup--except that if it is
 present in a news group, you'll get mail group semantics when doing
-`f'.
+\\`f'.
 
 The gnus-group-split mail splitting mechanism will behave as if this
 address was listed in gnus-group-split Addresses (see below).")
@@ -2537,7 +2537,7 @@ are always t.")
      ;; Only used in gnus-util, which has an autoload.
      ("rmailsum" rmail-update-summary)
      ("gnus-xmas" gnus-xmas-splash)
-     ("score-mode" :interactive t gnus-score-mode)
+     ("score-mode" :interactive t gnus-score-mode gnus-score-edit-all-score)
      ("gnus-mh" gnus-summary-save-article-folder
       gnus-Folder-save-name gnus-folder-save-name)
      ("gnus-mh" :interactive (gnus-summary-mode) gnus-summary-save-in-folder)
@@ -2609,7 +2609,11 @@ are always t.")
       gnus-uu-decode-uu-and-save-view gnus-uu-decode-unshar-view
       gnus-uu-decode-unshar-and-save-view gnus-uu-decode-save-view
       gnus-uu-decode-binhex-view gnus-uu-unmark-thread
-      gnus-uu-mark-over gnus-uu-post-news gnus-uu-invert-processable)
+      gnus-uu-mark-over gnus-uu-post-news gnus-uu-invert-processable
+      gnus-uu-decode-postscript-and-save-view
+      gnus-uu-decode-postscript-view gnus-uu-decode-postscript-and-save
+      gnus-uu-decode-yenc gnus-uu-unmark-by-regexp gnus-uu-unmark-region
+      gnus-uu-decode-postscript)
      ("gnus-uu" gnus-uu-delete-work-dir gnus-uu-unmark-thread)
      ("gnus-msg" (gnus-summary-send-map keymap)
       gnus-article-mail gnus-copy-article-buffer gnus-extended-version)
@@ -2656,6 +2660,7 @@ are always t.")
       gnus-article-hide-headers gnus-article-hide-boring-headers
       gnus-article-treat-overstrike
       gnus-article-remove-cr gnus-article-remove-trailing-blank-lines
+      gnus-article-emojize-symbols
       gnus-article-display-x-face gnus-article-de-quoted-unreadable
       gnus-article-de-base64-unreadable
       gnus-article-decode-HZ
@@ -2667,7 +2672,34 @@ are always t.")
       gnus-article-edit-mode gnus-article-edit-article
       gnus-article-edit-done gnus-article-decode-encoded-words
       gnus-start-date-timer gnus-stop-date-timer
-      gnus-mime-view-all-parts)
+      gnus-mime-view-all-parts gnus-article-pipe-part
+      gnus-article-inline-part gnus-article-encrypt-body
+      gnus-article-browse-html-article gnus-article-view-part-externally
+      gnus-article-view-part-as-charset gnus-article-copy-part
+      gnus-article-jump-to-part gnus-article-view-part-as-type
+      gnus-article-delete-part gnus-article-replace-part
+      gnus-article-save-part-and-strip gnus-article-save-part
+      gnus-article-remove-leading-whitespace gnus-article-strip-trailing-space
+      gnus-article-strip-leading-space gnus-article-strip-all-blank-lines
+      gnus-article-strip-blank-lines gnus-article-strip-multiple-blank-lines
+      gnus-article-date-user gnus-article-date-iso8601
+      gnus-article-date-english gnus-article-date-ut
+      gnus-article-decode-charset gnus-article-decode-mime-words
+      gnus-article-toggle-fonts gnus-article-show-images
+      gnus-article-remove-images gnus-article-display-face
+      gnus-article-treat-fold-newsgroups gnus-article-treat-unfold-headers
+      gnus-article-treat-fold-headers gnus-article-highlight-signature
+      gnus-article-highlight-headers gnus-article-highlight
+      gnus-article-strip-banner gnus-article-hide-list-identifiers
+      gnus-article-hide gnus-article-outlook-rearrange-citation
+      gnus-article-treat-non-ascii gnus-article-treat-smartquotes
+      gnus-article-verify-x-pgp-sig gnus-article-strip-headers-in-body
+      gnus-treat-smiley gnus-article-treat-ansi-sequences
+      gnus-article-capitalize-sentences gnus-article-toggle-truncate-lines
+      gnus-article-fill-long-lines gnus-article-emphasize
+      gnus-article-add-buttons-to-head gnus-article-add-button
+      gnus-article-babel gnus-sticky-article gnus-article-view-part
+      gnus-article-add-buttons)
      ("gnus-int" gnus-request-type)
      ("gnus-start" gnus-newsrc-parse-options gnus-1 gnus-no-server-1
       gnus-dribble-enter gnus-read-init-file gnus-dribble-touch
@@ -2717,7 +2749,7 @@ with some simple extensions.
 %F          Contents of the From: header (string)
 %f          Contents of the From: or To: headers (string)
 %x          Contents of the Xref: header (string)
-%D          Date of the article (string)
+%D          Contents of the Date: header article (string)
 %d          Date of the article (string) in DD-MMM format
 %o          Date of the article (string) in YYYYMMDD`T'HHMMSS
             format
@@ -3118,9 +3150,9 @@ g -- Group name."
   "Check whether GROUP supports function FUNC.
 GROUP can either be a string (a group name) or a select method."
   (ignore-errors
-    (let ((method (if (stringp group)
-		      (car (gnus-find-method-for-group group))
-		    group)))
+    (when-let ((method (if (stringp group)
+		           (car (gnus-find-method-for-group group))
+		         group)))
       (unless (featurep method)
 	(require method))
       (fboundp (intern (format "%s-%s" method func))))))
@@ -3754,6 +3786,8 @@ just the host name."
 	  (setq foreign server
 		group (substring group (+ 1 colon))))
 	(setq foreign (concat foreign ":")))
+      ;; Remove braces from name (common in IMAP groups).
+      (setq group (replace-regexp-in-string "[][]+" "" group))
       ;; Collapse group name leaving LEVELS uncollapsed elements
       (let* ((slist (split-string group "/"))
 	     (slen (length slist))

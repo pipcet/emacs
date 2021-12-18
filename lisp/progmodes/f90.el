@@ -345,6 +345,7 @@ The options are `downcase-word', `upcase-word', `capitalize-word' and nil."
                  ;; there are spaces.
                  "contiguous" "submodule" "concurrent" "codimension"
                  "sync all" "sync memory" "critical" "image_index" "error stop"
+                 "impure"
                  ))
    "\\_>")
   "Regexp used by the function `f90-change-keywords'.")
@@ -646,7 +647,7 @@ do\\([ \t]*while\\)?\\|select[ \t]*\\(?:case\\|type\\)\\|where\\|\
 forall\\|block\\|critical\\)\\)\\_>"
       (2 font-lock-constant-face nil t) (3 font-lock-keyword-face))
     ;; Implicit declaration.
-    '("\\_<\\(implicit\\)[ \t]*\\(real\\|integer\\|c\\(haracter\\|omplex\\)\
+    '("\\_<\\(implicit\\)[ \t]+\\(real\\|integer\\|c\\(haracter\\|omplex\\)\
 \\|enumerator\\|procedure\\|\
 logical\\|double[ \t]*precision\\|type[ \t]*(\\(?:\\sw\\|\\s_\\)+)\\|none\\)[ \t]*"
       (1 font-lock-keyword-face) (2 font-lock-type-face))
@@ -656,8 +657,10 @@ logical\\|double[ \t]*precision\\|type[ \t]*(\\(?:\\sw\\|\\s_\\)+)\\|none\\)[ \t
     '("\\(&\\)[ \t]*\\(!\\|$\\)"  (1 font-lock-keyword-face))
     "\\_<\\(then\\|continue\\|format\\|include\\|\\(?:error[ \t]+\\)?stop\\|\
 return\\)\\_>"
-    '("\\_<\\(exit\\|cycle\\)[ \t]*\\(\\(?:\\sw\\|\\s_\\)+\\)?\\_>"
+    '("\\_<\\(exit\\|cycle\\)[ \t]+\\(\\(?:\\sw\\|\\s_\\)+\\)?\\_>"
       (1 font-lock-keyword-face) (2 font-lock-constant-face nil t))
+    '("\\_<\\(exit\\|cycle\\)\\_>"
+      (1 font-lock-keyword-face))
     '("\\_<\\(case\\)[ \t]*\\(default\\|(\\)" . 1)
     ;; F2003 "class default".
     '("\\_<\\(class\\)[ \t]*default" . 1)

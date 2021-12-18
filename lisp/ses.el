@@ -227,12 +227,6 @@ Used for listing local printers or renamed cells.")
 		"w"	  ses-set-column-width
 		"x"	  ses-export-keymap
 		"\M-p"	  ses-read-column-printer))
-	(repl '(;;We'll replace these wherever they appear in the keymap
-		clipboard-kill-region ses-kill-override
-		end-of-line	      ses-end-of-line
-		kill-line	      ses-delete-row
-		kill-region           ses-kill-override
-		open-line	      ses-insert-row))
 	(numeric "0123456789.-")
 	(newmap (make-keymap)))
     ;;Get rid of printables
@@ -240,13 +234,11 @@ Used for listing local printers or renamed cells.")
     ;;These keys insert themselves as the beginning of a numeric value
     (dotimes (x (length numeric))
       (define-key newmap (substring numeric x (1+ x)) 'ses-read-cell))
-    ;;Override these global functions wherever they're bound
-    (while repl
-      (substitute-key-definition (car repl) (cadr repl) newmap
-				 (current-global-map))
-      (setq repl (cddr repl)))
-    ;;Apparently substitute-key-definition doesn't catch this?
-    (define-key newmap [(menu-bar) edit cut] 'ses-kill-override)
+    (define-key newmap [remap clipboard-kill-region] #'ses-kill-override)
+    (define-key newmap [remap end-of-line]           #'ses-end-of-line)
+    (define-key newmap [remap kill-line]             #'ses-delete-row)
+    (define-key newmap [remap kill-region]           #'ses-kill-override)
+    (define-key newmap [remap open-line]             #'ses-insert-row)
     ;;Define our other local keys
     (while keys
       (define-key newmap (car keys) (cadr keys))
@@ -3554,7 +3546,7 @@ With prefix, sorts in REVERSE order."
 	(push (cons (buffer-substring-no-properties (point) end)
 		    (+ minrow x))
 	      keys))
-      (setq keys (sort keys #'(lambda (x y) (string< (car x) (car y)))))
+      (setq keys (sort keys (lambda (x y) (string< (car x) (car y)))))
       ;;Extract the lines in reverse sorted order
       (or reverse
 	  (setq keys (nreverse keys)))
@@ -3774,7 +3766,9 @@ function is redefined."
      (setq name (intern name))
      (let* ((cur-printer (gethash name ses--local-printer-hashmap))
             (default (and cur-printer (ses--locprn-def cur-printer))))
-            (setq def (ses-read-printer (format "Enter definition of printer %S" name)
+            (setq def (ses-read-printer (format-prompt
+                                         "Enter definition of printer %S"
+                                         default name)
                                         default)))
             (list name def)))
 

@@ -375,6 +375,7 @@ static void timer_resume_idle (void);
 static void deliver_user_signal (int);
 static char *find_user_signal_name (int);
 static void store_user_signal_events (void);
+static bool is_ignored_event (union buffered_input_event *);
 
 /* Advance or retreat a buffered input event pointer.  */
 
@@ -2943,20 +2944,8 @@ read_char (int commandflag, Lisp_Object map,
       last_input_event = c;
       call4 (Qcommand_execute, tem, Qnil, Fvector (1, &last_input_event), Qt);
 
-      if (CONSP (c)
-          && (EQ (XCAR (c), Qselect_window)
-              || EQ (XCAR (c), Qfocus_out)
-#ifdef HAVE_DBUS
-	      || EQ (XCAR (c), Qdbus_event)
-#endif
-#ifdef USE_FILE_NOTIFY
-	      || EQ (XCAR (c), Qfile_notify)
-#endif
-#ifdef THREADS_ENABLED
-	      || EQ (XCAR (c), Qthread_event)
-#endif
-	      || EQ (XCAR (c), Qconfig_changed_event))
-          && !end_time)
+      if (CONSP (c) && !NILP (Fmemq (XCAR (c), Vwhile_no_input_ignore_events))
+	  && !end_time)
 	/* We stopped being idle for this event; undo that.  This
 	   prevents automatic window selection (under
 	   mouse-autoselect-window) from acting as a real input event, for
@@ -3458,10 +3447,17 @@ readable_events (int flags)
   if (flags & READABLE_EVENTS_DO_TIMERS_NOW)
     timer_check ();
 
-  /* If the buffer contains only FOCUS_IN/OUT_EVENT events, and
-     READABLE_EVENTS_FILTER_EVENTS is set, report it as empty.  */
+  /* READABLE_EVENTS_FILTER_EVENTS is meant to be used only by
+     input-pending-p and similar callers, which aren't interested in
+     some input events.  If this flag is set, and
+     input-pending-p-filter-events is non-nil, ignore events in
+     while-no-input-ignore-events.  If the flag is set and
+     input-pending-p-filter-events is nil, ignore only
+     FOCUS_IN/OUT_EVENT events.  */
   if (kbd_fetch_ptr != kbd_store_ptr)
     {
+      /* See https://lists.gnu.org/r/emacs-devel/2005-05/msg00297.html
+	 for why we treat toolkit scroll-bar events specially here.  */
       if (flags & (READABLE_EVENTS_FILTER_EVENTS
 #ifdef USE_TOOLKIT_SCROLL_BARS
 		   | READABLE_EVENTS_IGNORE_SQUEEZABLES
@@ -3476,8 +3472,11 @@ readable_events (int flags)
 #ifdef USE_TOOLKIT_SCROLL_BARS
 		    (flags & READABLE_EVENTS_FILTER_EVENTS) &&
 #endif
-		    (event->kind == FOCUS_IN_EVENT
-                     || event->kind == FOCUS_OUT_EVENT))
+		    ((!input_pending_p_filter_events
+		      && (event->kind == FOCUS_IN_EVENT
+			  || event->kind == FOCUS_OUT_EVENT))
+		     || (input_pending_p_filter_events
+			 && is_ignored_event (event))))
 #ifdef USE_TOOLKIT_SCROLL_BARS
 		  && !((flags & READABLE_EVENTS_IGNORE_SQUEEZABLES)
 		       && (event->kind == SCROLL_BAR_CLICK_EVENT
@@ -3659,29 +3658,10 @@ kbd_buffer_store_buffered_event (union buffered_input_event *event,
 #endif	/* subprocesses */
     }
 
-  Lisp_Object ignore_event;
-
-  switch (event->kind)
-    {
-    case FOCUS_IN_EVENT: ignore_event = Qfocus_in; break;
-    case FOCUS_OUT_EVENT: ignore_event = Qfocus_out; break;
-    case HELP_EVENT: ignore_event = Qhelp_echo; break;
-    case ICONIFY_EVENT: ignore_event = Qiconify_frame; break;
-    case DEICONIFY_EVENT: ignore_event = Qmake_frame_visible; break;
-    case SELECTION_REQUEST_EVENT: ignore_event = Qselection_request; break;
-#ifdef USE_FILE_NOTIFY
-    case FILE_NOTIFY_EVENT: ignore_event = Qfile_notify; break;
-#endif
-#ifdef HAVE_DBUS
-    case DBUS_EVENT: ignore_event = Qdbus_event; break;
-#endif
-    default: ignore_event = Qnil; break;
-    }
-
   /* If we're inside while-no-input, and this event qualifies
      as input, set quit-flag to cause an interrupt.  */
   if (!NILP (Vthrow_on_input)
-      && NILP (Fmemq (ignore_event, Vwhile_no_input_ignore_events)))
+      && !is_ignored_event (event))
     Vquit_flag = Vthrow_on_input;
 }
 
@@ -3885,7 +3865,7 @@ kbd_buffer_get_event (KBOARD **kbp,
       /* One way or another, wait until input is available; then, if
 	 interrupt handlers have not read it, read it now.  */
 
-#ifdef USABLE_SIGIO
+#if defined (USABLE_SIGIO) || defined (USABLE_SIGPOLL)
       gobble_input ();
 #endif
       if (kbd_fetch_ptr != kbd_store_ptr)
@@ -3992,6 +3972,9 @@ kbd_buffer_get_event (KBOARD **kbp,
 	  *used_mouse_menu = true;
 	FALLTHROUGH;
 #endif
+#ifdef HAVE_PGTK
+      case PGTK_PREEDIT_TEXT_EVENT:
+#endif
 #ifdef HAVE_NTGUI
       case END_SESSION_EVENT:
       case LANGUAGE_CHANGE_EVENT:
@@ -4013,6 +3996,7 @@ kbd_buffer_get_event (KBOARD **kbp,
 #endif
 #ifdef HAVE_XWIDGETS
       case XWIDGET_EVENT:
+      case XWIDGET_DISPLAY_EVENT:
 #endif
       case SAVE_SESSION_EVENT:
       case NO_EVENT:
@@ -4917,7 +4901,7 @@ static const char *const lispy_kana_keys[] =
 
 /* You'll notice that this table is arranged to be conveniently
    indexed by X Windows keysym values.  */
-static const char *const lispy_function_keys[] =
+const char *const lispy_function_keys[] =
   {
     /* X Keysym value */
 
@@ -5122,7 +5106,21 @@ make_lispy_position (struct frame *f, Lisp_Object x, Lisp_Object y,
 #endif
       )
     {
-      posn = EQ (window_or_frame, f->tab_bar_window) ? Qtab_bar : Qtool_bar;
+      /* While 'track-mouse' is neither nil nor t, do not report this
+	 event as something that happened on the tool or tab bar since
+	 that would break mouse drag operations that originate from an
+	 ordinary window beneath that bar and expect the window to
+	 auto-scroll as soon as the mouse cursor appears above or
+	 beneath it (Bug#50993).  We do allow reports for t, because
+	 applications may have set 'track-mouse' to t and still expect a
+	 click on the tool or tab bar to get through (Bug#51794).
+
+	 FIXME: This is a preliminary fix for the bugs cited above and
+	 awaits a solution that includes a convention for all special
+	 values of 'track-mouse' and their documentation in the Elisp
+	 manual.  */
+      if (NILP (track_mouse) || EQ (track_mouse, Qt))
+	posn = EQ (window_or_frame, f->tab_bar_window) ? Qtab_bar : Qtool_bar;
       /* Kludge alert: for mouse events on the tab bar and tool bar,
 	 keyboard.c wants the frame, not the special-purpose window
 	 we use to display those, and it wants frame-relative
@@ -5130,7 +5128,8 @@ make_lispy_position (struct frame *f, Lisp_Object x, Lisp_Object y,
       window_or_frame = Qnil;
     }
 #endif
-  if (!FRAME_WINDOW_P (f)
+  if (f
+      && !FRAME_WINDOW_P (f)
       && FRAME_TAB_BAR_LINES (f) > 0
       && my >= FRAME_MENU_BAR_LINES (f)
       && my < FRAME_MENU_BAR_LINES (f) + FRAME_TAB_BAR_LINES (f))
@@ -5985,7 +5984,11 @@ make_lispy_event (struct input_event *event)
 				      ASIZE (wheel_syms));
 	}
 
-        if (NUMBERP (event->arg))
+	if (CONSP (event->arg))
+	  return list5 (head, position, make_fixnum (double_click_count),
+			XCAR (event->arg), Fcons (XCAR (XCDR (event->arg)),
+						  XCAR (XCDR (XCDR (event->arg)))));
+        else if (NUMBERP (event->arg))
           return list4 (head, position, make_fixnum (double_click_count),
                         event->arg);
 	else if (event->modifiers & (double_modifier | triple_modifier))
@@ -5994,6 +5997,61 @@ make_lispy_event (struct input_event *event)
 	  return list2 (head, position);
       }
 
+    case TOUCH_END_EVENT:
+      {
+	Lisp_Object position;
+
+	/* Build the position as appropriate for this mouse click.  */
+	struct frame *f = XFRAME (event->frame_or_window);
+
+	if (! FRAME_LIVE_P (f))
+	  return Qnil;
+
+	position = make_lispy_position (f, event->x, event->y,
+					event->timestamp);
+
+	return list2 (Qtouch_end, position);
+      }
+
+    case TOUCHSCREEN_BEGIN_EVENT:
+    case TOUCHSCREEN_END_EVENT:
+      {
+	Lisp_Object x, y, id, position;
+	struct frame *f = XFRAME (event->frame_or_window);
+
+	id = event->arg;
+	x = event->x;
+	y = event->y;
+
+	position = make_lispy_position (f, x, y, event->timestamp);
+
+	return list2 (((event->kind
+			== TOUCHSCREEN_BEGIN_EVENT)
+		       ? Qtouchscreen_begin
+		       : Qtouchscreen_end),
+		      Fcons (id, position));
+      }
+
+    case TOUCHSCREEN_UPDATE_EVENT:
+      {
+	Lisp_Object x, y, id, position, tem, it, evt;
+	struct frame *f = XFRAME (event->frame_or_window);
+	evt = Qnil;
+
+	for (tem = event->arg; CONSP (tem); tem = XCDR (tem))
+	  {
+	    it = XCAR (tem);
+
+	    x = XCAR (it);
+	    y = XCAR (XCDR (it));
+	    id = XCAR (XCDR (XCDR (it)));
+
+	    position = make_lispy_position (f, x, y, event->timestamp);
+	    evt = Fcons (Fcons (id, position), evt);
+	  }
+
+	return list2 (Qtouchscreen_update, evt);
+      }
 
 #ifdef USE_TOOLKIT_SCROLL_BARS
 
@@ -6128,23 +6186,20 @@ make_lispy_event (struct input_event *event)
 
 #ifdef HAVE_DBUS
     case DBUS_EVENT:
-      {
-	return Fcons (Qdbus_event, event->arg);
-      }
+      return Fcons (Qdbus_event, event->arg);
 #endif /* HAVE_DBUS */
 
 #ifdef THREADS_ENABLED
     case THREAD_EVENT:
-      {
-	return Fcons (Qthread_event, event->arg);
-      }
+      return Fcons (Qthread_event, event->arg);
 #endif /* THREADS_ENABLED */
 
 #ifdef HAVE_XWIDGETS
     case XWIDGET_EVENT:
-      {
-        return Fcons (Qxwidget_event, event->arg);
-      }
+      return Fcons (Qxwidget_event, event->arg);
+
+    case XWIDGET_DISPLAY_EVENT:
+      return Fcons (Qxwidget_display_event, event->arg);
 #endif
 
 #ifdef USE_FILE_NOTIFY
@@ -6160,6 +6215,11 @@ make_lispy_event (struct input_event *event)
     case CONFIG_CHANGED_EVENT:
 	return list3 (Qconfig_changed_event,
 		      event->arg, event->frame_or_window);
+
+#ifdef HAVE_PGTK
+    case PGTK_PREEDIT_TEXT_EVENT:
+      return list2 (intern ("pgtk-preedit-text"), event->arg);
+#endif
 
       /* The 'kind' field of the event is something we don't recognize.  */
     default:
@@ -7188,7 +7248,7 @@ tty_read_avail_input (struct terminal *terminal,
 static void
 handle_async_input (void)
 {
-#ifdef USABLE_SIGIO
+#ifndef DOS_NT
   while (1)
     {
       int nread = gobble_input ();
@@ -7251,7 +7311,7 @@ totally_unblock_input (void)
   unblock_input_to (0);
 }
 
-#ifdef USABLE_SIGIO
+#if defined (USABLE_SIGIO) || defined (USABLE_SIGPOLL)
 
 void
 handle_input_available_signal (int sig)
@@ -7267,7 +7327,7 @@ deliver_input_available_signal (int sig)
 {
   deliver_process_signal (sig, handle_input_available_signal);
 }
-#endif /* USABLE_SIGIO */
+#endif /* defined (USABLE_SIGIO) || defined (USABLE_SIGPOLL)  */
 
 
 /* User signal events.  */
@@ -7337,7 +7397,7 @@ handle_user_signal (int sig)
           }
 
 	p->npending++;
-#ifdef USABLE_SIGIO
+#if defined (USABLE_SIGIO) || defined (USABLE_SIGPOLL)
 	if (interrupt_input)
 	  handle_input_available_signal (sig);
 	else
@@ -7840,7 +7900,9 @@ parse_menu_item (Lisp_Object item, int inmenubar)
 	      else if (EQ (tem, QCkeys))
 		{
 		  tem = XCAR (item);
-		  if (CONSP (tem) || STRINGP (tem))
+		  if (FUNCTIONP (tem))
+		    ASET (item_properties, ITEM_PROPERTY_KEYEQ, call0 (tem));
+		  else if (CONSP (tem) || STRINGP (tem))
 		    ASET (item_properties, ITEM_PROPERTY_KEYEQ, tem);
 		}
 	      else if (EQ (tem, QCbutton) && CONSP (XCAR (item)))
@@ -10168,7 +10230,8 @@ read_key_sequence (Lisp_Object *keybuf, Lisp_Object prompt,
 	 use the corresponding lower-case letter instead.  */
       if (NILP (current_binding)
 	  && /* indec.start >= t && fkey.start >= t && */ keytran.start >= t
-	  && FIXNUMP (key))
+	  && FIXNUMP (key)
+	  && translate_upper_case_key_bindings)
 	{
 	  Lisp_Object new_key;
 	  EMACS_INT k = XFIXNUM (key);
@@ -10220,12 +10283,14 @@ read_key_sequence (Lisp_Object *keybuf, Lisp_Object prompt,
 	  int modifiers
 	    = CONSP (breakdown) ? (XFIXNUM (XCAR (XCDR (breakdown)))) : 0;
 
-	  if (modifiers & shift_modifier
-	      /* Treat uppercase keys as shifted.  */
-	      || (FIXNUMP (key)
-		  && (KEY_TO_CHAR (key)
-		      < XCHAR_TABLE (BVAR (current_buffer, downcase_table))->header.size)
-		  && uppercasep (KEY_TO_CHAR (key))))
+	  if (translate_upper_case_key_bindings
+	      && (modifiers & shift_modifier
+		  /* Treat uppercase keys as shifted.  */
+		  || (FIXNUMP (key)
+		      && (KEY_TO_CHAR (key)
+			  < XCHAR_TABLE (BVAR (current_buffer,
+					       downcase_table))->header.size)
+		      && uppercasep (KEY_TO_CHAR (key)))))
 	    {
 	      Lisp_Object new_key
 		= (modifiers & shift_modifier
@@ -11102,7 +11167,7 @@ See also `current-input-mode'.  */)
   (Lisp_Object interrupt)
 {
   bool new_interrupt_input;
-#ifdef USABLE_SIGIO
+#if defined (USABLE_SIGIO) || defined (USABLE_SIGPOLL)
 #ifdef HAVE_X_WINDOWS
   if (x_display_list != NULL)
     {
@@ -11113,9 +11178,9 @@ See also `current-input-mode'.  */)
   else
 #endif /* HAVE_X_WINDOWS */
     new_interrupt_input = !NILP (interrupt);
-#else /* not USABLE_SIGIO */
+#else /* not USABLE_SIGIO || USABLE_SIGPOLL */
   new_interrupt_input = false;
-#endif /* not USABLE_SIGIO */
+#endif /* not USABLE_SIGIO || USABLE_SIGPOLL */
 
   if (new_interrupt_input != interrupt_input)
     {
@@ -11332,6 +11397,8 @@ The elements of this list correspond to the arguments of
 DEFUN ("posn-at-x-y", Fposn_at_x_y, Sposn_at_x_y, 2, 4, 0,
        doc: /* Return position information for pixel coordinates X and Y.
 By default, X and Y are relative to text area of the selected window.
+Note that the text area includes the header-line and the tab-line of
+the window, if any of them are present.
 Optional third arg FRAME-OR-WINDOW non-nil specifies frame or window.
 If optional fourth arg WHOLE is non-nil, X is relative to the left
 edge of the window.
@@ -11542,12 +11609,16 @@ init_keyboard (void)
       sigaction (SIGQUIT, &action, 0);
 #endif /* not DOS_NT */
     }
-#ifdef USABLE_SIGIO
+#if defined (USABLE_SIGIO) || defined (USABLE_SIGPOLL)
   if (!noninteractive)
     {
       struct sigaction action;
       emacs_sigaction_init (&action, deliver_input_available_signal);
+#ifdef USABLE_SIGIO
       sigaction (SIGIO, &action, 0);
+#else
+      sigaction (SIGPOLL, &action, 0);
+#endif
     }
 #endif
 
@@ -11598,6 +11669,52 @@ static const struct event_head head_table[] = {
      in read_key_sequence.  */
   {SYMBOL_INDEX (Qselect_window),       SYMBOL_INDEX (Qswitch_frame)}
 };
+
+static Lisp_Object
+init_while_no_input_ignore_events (void)
+{
+  Lisp_Object events = listn (9, Qselect_window, Qhelp_echo, Qmove_frame,
+			      Qiconify_frame, Qmake_frame_visible,
+			      Qfocus_in, Qfocus_out, Qconfig_changed_event,
+			      Qselection_request);
+
+#ifdef HAVE_DBUS
+  events = Fcons (Qdbus_event, events);
+#endif
+#ifdef USE_FILE_NOTIFY
+  events = Fcons (Qfile_notify, events);
+#endif
+#ifdef THREADS_ENABLED
+  events = Fcons (Qthread_event, events);
+#endif
+
+  return events;
+}
+
+static bool
+is_ignored_event (union buffered_input_event *event)
+{
+  Lisp_Object ignore_event;
+
+  switch (event->kind)
+    {
+    case FOCUS_IN_EVENT: ignore_event = Qfocus_in; break;
+    case FOCUS_OUT_EVENT: ignore_event = Qfocus_out; break;
+    case HELP_EVENT: ignore_event = Qhelp_echo; break;
+    case ICONIFY_EVENT: ignore_event = Qiconify_frame; break;
+    case DEICONIFY_EVENT: ignore_event = Qmake_frame_visible; break;
+    case SELECTION_REQUEST_EVENT: ignore_event = Qselection_request; break;
+#ifdef USE_FILE_NOTIFY
+    case FILE_NOTIFY_EVENT: ignore_event = Qfile_notify; break;
+#endif
+#ifdef HAVE_DBUS
+    case DBUS_EVENT: ignore_event = Qdbus_event; break;
+#endif
+    default: ignore_event = Qnil; break;
+    }
+
+  return !NILP (Fmemq (ignore_event, Vwhile_no_input_ignore_events));
+}
 
 static void syms_of_keyboard_for_pdumper (void);
 
@@ -11685,11 +11802,14 @@ syms_of_keyboard (void)
 
 #ifdef HAVE_XWIDGETS
   DEFSYM (Qxwidget_event, "xwidget-event");
+  DEFSYM (Qxwidget_display_event, "xwidget-display-event");
 #endif
 
 #ifdef USE_FILE_NOTIFY
   DEFSYM (Qfile_notify, "file-notify");
 #endif /* USE_FILE_NOTIFY */
+
+  DEFSYM (Qtouch_end, "touch-end");
 
   /* Menu and tool bar item parts.  */
   DEFSYM (QCenable, ":enable");
@@ -12186,6 +12306,9 @@ See also `pre-command-hook'.  */);
 	       doc: /* Normal hook run when clearing the echo area.  */);
 #endif
   DEFSYM (Qecho_area_clear_hook, "echo-area-clear-hook");
+  DEFSYM (Qtouchscreen_begin, "touchscreen-begin");
+  DEFSYM (Qtouchscreen_end, "touchscreen-end");
+  DEFSYM (Qtouchscreen_update, "touchscreen-update");
   Fset (Qecho_area_clear_hook, Qnil);
 
   DEFVAR_LISP ("lucid-menu-bar-dirty-flag", Vlucid_menu_bar_dirty_flag,
@@ -12493,7 +12616,35 @@ If nil, Emacs crashes immediately in response to fatal signals.  */);
 
   DEFVAR_LISP ("while-no-input-ignore-events",
                Vwhile_no_input_ignore_events,
-               doc: /* Ignored events from while-no-input.  */);
+               doc: /* Ignored events from `while-no-input'.
+Events in this list do not count as pending input while running
+`while-no-input' and do not cause any idle timers to get reset when they
+occur.  */);
+  Vwhile_no_input_ignore_events = init_while_no_input_ignore_events ();
+
+  DEFVAR_BOOL ("translate-upper-case-key-bindings",
+               translate_upper_case_key_bindings,
+               doc: /* If non-nil, interpret upper case keys as lower case (when applicable).
+Emacs allows binding both upper and lower case key sequences to
+commands.  However, if there is a lower case key sequence bound to a
+command, and the user enters an upper case key sequence that is not
+bound to a command, Emacs will use the lower case binding.  Setting
+this variable to nil inhibits this behaviour.  */);
+  translate_upper_case_key_bindings = true;
+
+  DEFVAR_BOOL ("input-pending-p-filter-events",
+               input_pending_p_filter_events,
+               doc: /* If non-nil, `input-pending-p' ignores some input events.
+If this variable is non-nil (the default), `input-pending-p' and
+other similar functions ignore input events in `while-no-input-ignore-events'.
+This flag may eventually be removed once this behavior is deemed safe.  */);
+  input_pending_p_filter_events = true;
+
+  DEFVAR_BOOL ("mwheel-coalesce-scroll-events", mwheel_coalesce_scroll_events,
+	       doc: /* Non-nil means send a wheel event only for scrolling at least one screen line.
+Otherwise, a wheel event will be sent every time the mouse wheel is
+moved.  */);
+  mwheel_coalesce_scroll_events = true;
 
   pdumper_do_now_and_after_load (syms_of_keyboard_for_pdumper);
 }
@@ -12543,6 +12694,8 @@ keys_of_keyboard (void)
 			    "ns-put-working-text");
   initial_define_lispy_key (Vspecial_event_map, "ns-unput-working-text",
 			    "ns-unput-working-text");
+  initial_define_lispy_key (Vspecial_event_map, "pgtk-preedit-text",
+			    "pgtk-preedit-text");
   /* Here we used to use `ignore-event' which would simple set prefix-arg to
      current-prefix-arg, as is done in `handle-switch-frame'.
      But `handle-switch-frame is not run from the special-map.

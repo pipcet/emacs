@@ -372,6 +372,7 @@ This variable is buffer-local."
    "\\(^ *\\|"
    (regexp-opt
     '("Enter" "enter" "Enter same" "enter same" "Enter the" "enter the"
+      "Current"
       "Enter Auth" "enter auth" "Old" "old" "New" "new" "'s" "login"
       "Kerberos" "CVS" "UNIX" " SMB" "LDAP" "PEM" "SUDO"
       "[sudo]" "doas" "Repeat" "Bad" "Retype" "Verify")
@@ -381,10 +382,15 @@ This variable is buffer-local."
    "\\(?:" (regexp-opt password-word-equivalents) "\\|Response\\)"
    "\\(?:\\(?:, try\\)? *again\\| (empty for no passphrase)\\| (again)\\)?"
    ;; "[[:alpha:]]" used to be "for", which fails to match non-English.
-   "\\(?: [[:alpha:]]+ .+\\)?[[:blank:]]*[:：៖][[:space:]]*\\'")
+   "\\(?: [[:alpha:]]+ .+\\)?[[:blank:]]*[:：៖][[:space:]]*\\'"
+   ;; The ccrypt encryption dialogue doesn't end with a colon, so
+   ;; treat it specially.
+   "\\|^Enter encryption key: (repeat) *\\'"
+   ;; openssh-8.6p1 format: "(user@host) Password:".
+   "\\|^([^)@ \t\n]+@[^)@ \t\n]+) Password: *\\'")
   "Regexp matching prompts for passwords in the inferior process.
 This is used by `comint-watch-for-password-prompt'."
-  :version "28.1"
+  :version "29.1"
   :type 'regexp
   :group 'comint)
 
@@ -724,6 +730,8 @@ Entry to this mode runs the hooks on `comint-mode-hook'."
               (or (file-remote-p default-directory) ""))
   (setq-local comint-accum-marker (make-marker))
   (setq-local font-lock-defaults '(nil t))
+  (add-function :filter-return (local 'filter-buffer-substring-function)
+                #'comint--unmark-string-as-output)
   (add-hook 'change-major-mode-hook 'font-lock-defontify nil t)
   (add-hook 'isearch-mode-hook 'comint-history-isearch-setup nil t)
   (add-hook 'completion-at-point-functions 'comint-completion-at-point nil t)
@@ -885,12 +893,13 @@ series of processes in the same Comint buffer.  The hook
   ;; and there is no way for us to define it here.
   ;; Some programs that use terminfo get very confused
   ;; if TERM is not a valid terminal type.
-  (if (and (boundp 'system-uses-terminfo) system-uses-terminfo)
-      (list (format "TERM=%s" comint-terminfo-terminal)
-            "TERMCAP="
-            (format "COLUMNS=%d" (window-width)))
-    (list "TERM=emacs"
-          (format "TERMCAP=emacs:co#%d:tc=unknown:" (window-width)))))
+  (with-connection-local-variables
+   (if system-uses-terminfo
+       (list (format "TERM=%s" comint-terminfo-terminal)
+             "TERMCAP="
+             (format "COLUMNS=%d" (window-width)))
+     (list "TERM=emacs"
+           (format "TERMCAP=emacs:co#%d:tc=unknown:" (window-width))))))
 
 (defun comint-nonblank-p (str)
   "Return non-nil if STR contains non-whitespace syntax."
@@ -1808,7 +1817,8 @@ Ignore duplicates if `comint-input-ignoredups' is non-nil."
     (ring-insert comint-input-ring cmd)))
 
 (defconst comint--prompt-rear-nonsticky
-  '(field inhibit-line-move-field-capture read-only font-lock-face)
+  '( field inhibit-line-move-field-capture read-only font-lock-face
+     insert-in-front-hooks)
   "Text properties we set on the prompt and don't want to leak past it.")
 
 (defun comint-send-input (&optional no-newline artificial)
@@ -1900,6 +1910,14 @@ Similarly for Soar, Scheme, etc."
                           (delete-region pmark start)
                           copy))))
 
+        ;; Delete and reinsert input.  This seems like a no-op, except
+        ;; for the resulting entries in the undo list: undoing this
+        ;; insertion will delete the region, moving the process mark
+        ;; back to its original position.
+        (let ((inhibit-read-only t))
+          (delete-region pmark (point))
+          (insert input))
+
         (unless no-newline
           (insert ?\n))
 
@@ -1943,7 +1961,7 @@ Similarly for Soar, Scheme, etc."
         ;; in case we get output amidst sending the input.
         (set-marker comint-last-input-start pmark)
         (set-marker comint-last-input-end (point))
-        (set-marker (process-mark proc) (point))
+        (set-marker pmark (point))
         ;; clear the "accumulation" marker
         (set-marker comint-accum-marker nil)
         (let ((comint-input-sender-no-newline no-newline))
@@ -1986,6 +2004,7 @@ Similarly for Soar, Scheme, etc."
 
         ;; This used to call comint-output-filter-functions,
         ;; but that scrolled the buffer in undesirable ways.
+        (set-marker comint-last-output-start pmark)
         (run-hook-with-args 'comint-output-filter-functions "")))))
 
 (defvar comint-preoutput-filter-functions nil
@@ -2136,14 +2155,7 @@ Make backspaces delete the previous character."
 	    (goto-char (process-mark process)) ; In case a filter moved it.
 
 	    (unless comint-use-prompt-regexp
-              (with-silent-modifications
-                (add-text-properties comint-last-output-start (point)
-                                     `(rear-nonsticky
-				       ,comint--prompt-rear-nonsticky
-				       front-sticky
-				       (field inhibit-line-move-field-capture)
-				       field output
-				       inhibit-line-move-field-capture t))))
+              (comint--mark-as-output comint-last-output-start (point)))
 
 	    ;; Highlight the prompt, where we define `prompt' to mean
 	    ;; the most recent output that doesn't end with a newline.
@@ -2174,6 +2186,46 @@ Make backspaces delete the previous character."
 	                           `(rear-nonsticky
 	                             ,comint--prompt-rear-nonsticky)))
 	    (goto-char saved-point)))))))
+
+(defun comint--mark-as-output (beg end)
+  (with-silent-modifications
+    (add-text-properties
+     beg end
+     `(rear-nonsticky
+       ,comint--prompt-rear-nonsticky
+       front-sticky
+       (field inhibit-line-move-field-capture)
+       field output
+       inhibit-line-move-field-capture t
+       ;; Text inserted by a user in the middle of process output
+       ;; should be marked as output.  This is needed for commands
+       ;; such as `yank' or `just-one-space' which don't use
+       ;; `insert-and-inherit' and thus bypass default text property
+       ;; inheritance.
+       insert-in-front-hooks
+       (,#'comint--mark-as-output ,#'comint--mark-yanked-as-output)))))
+
+(defun comint--mark-yanked-as-output (beg end)
+  ;; `yank' removes the field text property from the text it inserts
+  ;; due to `yank-excluded-properties', so arrange for this text
+  ;; property to be reapplied in the `after-change-functions'.
+  (let (fun)
+    (setq
+     fun
+     (lambda (beg1 end1 _len1)
+       (remove-hook 'after-change-functions fun t)
+       (when (and (= beg beg1)
+                  (= end end1))
+         (comint--mark-as-output beg1 end1))))
+    (add-hook 'after-change-functions fun nil t)))
+
+(defun comint--unmark-string-as-output (string)
+  (remove-list-of-text-properties
+   0 (length string)
+   '( rear-nonsticky front-sticky field
+      inhibit-line-move-field-capture insert-in-front-hooks)
+   string)
+  string)
 
 (defun comint-preinput-scroll-to-bottom ()
   "Go to the end of buffer in all windows showing it.
@@ -2450,11 +2502,19 @@ This function could be in the list `comint-output-filter-functions'."
   (when (let ((case-fold-search t))
 	  (string-match comint-password-prompt-regexp
                         (string-replace "\r" "" string)))
-    (let ((comint--prompt-recursion-depth (1+ comint--prompt-recursion-depth)))
-      (if (> comint--prompt-recursion-depth 10)
-          (message "Password prompt recursion too deep")
-        (comint-send-invisible
-         (string-trim string "[ \n\r\t\v\f\b\a]+" "\n+"))))))
+    ;; Use `run-at-time' in order not to pause execution of the
+    ;; process filter with a minibuffer
+    (run-at-time
+     0 nil
+     (lambda (current-buf)
+       (with-current-buffer current-buf
+         (let ((comint--prompt-recursion-depth
+                (1+ comint--prompt-recursion-depth)))
+           (if (> comint--prompt-recursion-depth 10)
+               (message "Password prompt recursion too deep")
+             (comint-send-invisible
+              (string-trim string "[ \n\r\t\v\f\b\a]+" "\n+"))))))
+     (current-buffer))))
 
 ;; Low-level process communication
 
@@ -3504,6 +3564,20 @@ to send all the accumulated input, at once.
 The entire accumulated text becomes one item in the input history
 when you send it."
   (interactive)
+  (when-let* ((proc (get-buffer-process (current-buffer)))
+              (pmark (process-mark proc))
+              ((or (marker-position comint-accum-marker)
+                   (set-marker comint-accum-marker pmark)
+                   t))
+              ((>= (point) comint-accum-marker pmark)))
+    ;; Delete and reinsert input.  This seems like a no-op, except for
+    ;; the resulting entries in the undo list: undoing this insertion
+    ;; will delete the region, moving the accumulation marker back to
+    ;; its original position.
+    (let ((text (buffer-substring comint-accum-marker (point)))
+          (inhibit-read-only t))
+      (delete-region comint-accum-marker (point))
+      (insert text)))
   (insert "\n")
   (set-marker comint-accum-marker (point))
   (if comint-input-ring-index

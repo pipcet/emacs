@@ -1133,7 +1133,7 @@ for the MODE to customize."
 
 (defun customize-read-group ()
   (let ((completion-ignore-case t))
-    (completing-read "Customize group (default emacs): "
+    (completing-read (format-prompt "Customize group" "emacs")
                      obarray
                      (lambda (symbol)
                        (or (and (get symbol 'custom-loads)
@@ -1205,7 +1205,7 @@ Show the buffer in another window, but don't select it."
     (unless (eq symbol basevar)
       (message "`%s' is an alias for `%s'" symbol basevar))))
 
-(defvar customize-changed-options-previous-release "26.3"
+(defvar customize-changed-options-previous-release "28.1"
   "Version for `customize-changed' to refer back to by default.")
 
 ;; Packages will update this variable, so make it available.
@@ -2176,7 +2176,7 @@ and `face'."
 ;;; The `custom' Widget.
 
 (defface custom-button
-  '((((type x w32 ns) (class color))	; Like default mode line
+  '((((type x w32 ns haiku pgtk) (class color))	; Like default mode line
      :box (:line-width 2 :style released-button)
      :background "lightgrey" :foreground "black"))
   "Face for custom buffer buttons if `custom-raised-buttons' is non-nil."
@@ -2184,7 +2184,7 @@ and `face'."
   :group 'custom-faces)
 
 (defface custom-button-mouse
-  '((((type x w32 ns) (class color))
+  '((((type x w32 ns haiku pgtk) (class color))
      :box (:line-width 2 :style released-button)
      :background "grey90" :foreground "black")
     (t
@@ -2209,7 +2209,7 @@ and `face'."
       (if custom-raised-buttons 'custom-button-mouse 'highlight))
 
 (defface custom-button-pressed
-  '((((type x w32 ns) (class color))
+  '((((type x w32 ns haiku pgtk) (class color))
      :box (:line-width 2 :style pressed-button)
      :background "lightgrey" :foreground "black")
     (t :inverse-video t))
@@ -3458,6 +3458,10 @@ MS Windows.")
 					   :sibling-args (:help-echo "\
 GNUstep or Macintosh OS Cocoa interface.")
 					   ns)
+				    (const :format "PGTK "
+					   :sibling-args (:help-echo "\
+Pure-GTK interface.")
+					   ns)
 				    (const :format "DOS "
 					   :sibling-args (:help-echo "\
 Plain MS-DOS.")
@@ -4646,8 +4650,8 @@ You can set this option through Custom, if you carefully read the
 last paragraph below.  However, usually it is simpler to write
 something like the following in your init file:
 
-\(setq custom-file \"~/.emacs-custom.el\")
-\(load custom-file)
+(setq custom-file \"~/.config/emacs-custom.el\")
+(load custom-file)
 
 Note that both lines are necessary: the first line tells Custom to
 save all customizations in this file, but does not load it.

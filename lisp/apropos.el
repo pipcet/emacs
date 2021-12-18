@@ -515,9 +515,9 @@ variables, not just user options."
                      current-prefix-arg))
   (apropos-command pattern nil
 		   (if (or do-all apropos-do-all)
-		       #'(lambda (symbol)
-			   (and (boundp symbol)
-				(get symbol 'variable-documentation)))
+                       (lambda (symbol)
+                         (and (boundp symbol)
+                              (get symbol 'variable-documentation)))
 		     #'custom-variable-p)))
 
 ;;;###autoload
@@ -1322,17 +1322,18 @@ as a heading."
 
 (defun apropos-describe-plist (symbol)
   "Display a pretty listing of SYMBOL's plist."
-  (help-setup-xref (list 'apropos-describe-plist symbol)
-		   (called-interactively-p 'interactive))
-  (with-help-window (help-buffer)
-    (set-buffer standard-output)
-    (princ "Symbol ")
-    (prin1 symbol)
-    (princ (substitute-command-keys "'s plist is\n ("))
-    (put-text-property (+ (point-min) 7) (- (point) 14)
-		       'face 'apropos-symbol)
-    (insert (apropos-format-plist symbol "\n  "))
-    (princ ")")))
+  (let ((help-buffer-under-preparation t))
+    (help-setup-xref (list 'apropos-describe-plist symbol)
+		     (called-interactively-p 'interactive))
+    (with-help-window (help-buffer)
+      (set-buffer standard-output)
+      (princ "Symbol ")
+      (prin1 symbol)
+      (princ (substitute-command-keys "'s plist is\n ("))
+      (put-text-property (+ (point-min) 7) (- (point) 14)
+		         'face 'apropos-symbol)
+      (insert (apropos-format-plist symbol "\n  "))
+      (princ ")"))))
 
 
 (provide 'apropos)

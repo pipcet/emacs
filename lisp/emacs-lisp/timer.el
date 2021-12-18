@@ -125,9 +125,12 @@ of SECS seconds since the epoch.  SECS may be a fraction."
       (time-convert (cons (- more-ticks (% more-ticks trunc-s-ticks)) hz)))))
 
 (defun timer-relative-time (time secs &optional usecs psecs)
-  "Advance TIME by SECS seconds and optionally USECS microseconds
-and PSECS picoseconds.  SECS may be either an integer or a
-floating point number."
+  "Advance TIME by SECS seconds.
+
+Optionally also advance it by USECS microseconds and PSECS
+picoseconds.
+
+SECS may be either an integer or a floating point number."
   (let ((delta secs))
     (if (or usecs psecs)
 	(setq delta (time-add delta (list 0 0 (or usecs 0) (or psecs 0)))))
@@ -138,9 +141,13 @@ floating point number."
   (time-less-p (timer--time t1) (timer--time t2)))
 
 (defun timer-inc-time (timer secs &optional usecs psecs)
-  "Increment the time set in TIMER by SECS seconds, USECS microseconds,
-and PSECS picoseconds.  SECS may be a fraction.  If USECS or PSECS are
-omitted, they are treated as zero."
+  "Increment the time set in TIMER by SECS seconds.
+
+Optionally also increment it by USECS microseconds, and PSECS
+picoseconds.  If USECS or PSECS are omitted, they are treated as
+zero.
+
+SECS may be a fraction."
   (setf (timer--time timer)
         (timer-relative-time (timer--time timer) secs usecs psecs)))
 
@@ -307,7 +314,7 @@ This function is called, by name, directly by the C code."
                          (not (timer--idle-delay timer)))
                 (setf (timer--time timer)
                       (timer-next-integral-multiple-of-time
-                       (current-time) (timer--repeat-delay timer))))
+		       nil (timer--repeat-delay timer))))
               ;; Place it back on the timer-list before running
               ;; timer--function, so it can cancel-timer itself.
               (timer-activate timer t cell)
@@ -344,19 +351,27 @@ This function is called, by name, directly by the C code."
 Repeat the action every REPEAT seconds, if REPEAT is non-nil.
 REPEAT may be an integer or floating point number.
 TIME should be one of:
+
 - a string giving today's time like \"11:23pm\"
   (the acceptable formats are HHMM, H:MM, HH:MM, HHam, HHAM,
   HHpm, HHPM, HH:MMam, HH:MMAM, HH:MMpm, or HH:MMPM;
   a period `.' can be used instead of a colon `:' to separate
   the hour and minute parts);
+
 - a string giving a relative time like \"90\" or \"2 hours 35 minutes\"
   (the acceptable forms are a number of seconds without units
   or some combination of values using units in `timer-duration-words');
+
 - nil, meaning now;
+
 - a number of seconds from now;
+
 - a value from `encode-time';
-- or t (with non-nil REPEAT) meaning the next integral
-  multiple of REPEAT.
+
+- or t (with non-nil REPEAT) meaning the next integral multiple
+  of REPEAT.  This is handy when you want the function to run at
+  a certain \"round\" number.  For instance, (run-at-time t 60 ...)
+  will run at 11:04:00, 11:05:00, etc.
 
 The action is to call FUNCTION with arguments ARGS.
 
@@ -376,7 +391,7 @@ This function returns a timer object which you can use in
 
     ;; Special case: t means the next integral multiple of REPEAT.
     (when (and (eq time t) repeat)
-      (setq time (timer-next-integral-multiple-of-time (current-time) repeat))
+      (setq time (timer-next-integral-multiple-of-time nil repeat))
       (setf (timer--integral-multiple timer) t))
 
     ;; Handle numbers as relative times in seconds.

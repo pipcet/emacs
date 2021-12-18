@@ -1015,8 +1015,11 @@ child files."
     (nreverse result)))
 
 (defun vc-dir-child-files-and-states ()
-  "Return the list of conses (FILE . STATE) for child files of the current entry if it's a directory.
-If it is a file, return the corresponding cons for the file itself."
+  "Return the state of one or more files for the current entry.
+If the entry is a directory, return the list of states of its child
+files, where each file is described by a cons of the form (FILE . STATE).
+If the entry is a file, return a single cons cell (FILE . STATE) for
+that file."
   (let* ((crt (ewoc-locate vc-ewoc))
 	 (crt-data (ewoc-data crt))
          result)
@@ -1424,7 +1427,12 @@ These are the commands available for use in the file status buffer:
       (vc-dir-refresh)
     ;; FIXME: find a better way to pass the backend to `vc-dir-mode'.
     (let ((use-vc-backend backend))
-      (vc-dir-mode))))
+      (vc-dir-mode)
+      ;; Activate the backend-specific minor mode, if any.
+      (when-let ((minor-mode
+                  (intern-soft (format "vc-dir-%s-mode"
+                                       (downcase (symbol-name backend))))))
+        (funcall minor-mode 1)))))
 
 (defun vc-default-dir-extra-headers (_backend _dir)
   ;; Be loud by default to remind people to add code to display

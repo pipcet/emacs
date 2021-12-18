@@ -225,7 +225,9 @@ Value is:
  `x' for an Emacs frame that is really an X window,
  `w32' for an Emacs frame that is a window on MS-Windows display,
  `ns' for an Emacs frame on a GNUstep or Macintosh Cocoa display,
- `pc' for a direct-write MS-DOS frame.
+ `pc' for a direct-write MS-DOS frame,
+ `pgtk' for an Emacs frame running on pure GTK.
+ `haiku' for an Emacs frame running in Haiku.
 See also `frame-live-p'.  */)
   (Lisp_Object object)
 {
@@ -244,6 +246,10 @@ See also `frame-live-p'.  */)
       return Qpc;
     case output_ns:
       return Qns;
+    case output_pgtk:
+      return Qpgtk;
+    case output_haiku:
+      return Qhaiku;
     default:
       emacs_abort ();
     }
@@ -2212,7 +2218,8 @@ delete_frame (Lisp_Object frame, Lisp_Object force)
     /* Since a similar behavior was observed on the Lucid and Motif
        builds (see Bug#5802, Bug#21509, Bug#23499, Bug#27816), we now
        don't delete the terminal for these builds either.  */
-    if (terminal->reference_count == 0 && terminal->type == output_x_window)
+    if (terminal->reference_count == 0 &&
+	(terminal->type == output_x_window || terminal->type == output_pgtk))
       terminal->reference_count = 1;
 #endif /* USE_X_TOOLKIT || USE_GTK */
     if (terminal->reference_count == 0)
@@ -5028,8 +5035,6 @@ gui_set_no_special_glyphs (struct frame *f, Lisp_Object new_value, Lisp_Object o
 }
 
 
-#ifndef HAVE_NS
-
 /* Non-zero if mouse is grabbed on DPYINFO
    and we know the frame where it is.  */
 
@@ -5053,8 +5058,6 @@ gui_redo_mouse_highlight (Display_Info *dpyinfo)
 			  dpyinfo->last_mouse_motion_x,
 			  dpyinfo->last_mouse_motion_y);
 }
-
-#endif /* HAVE_NS */
 
 /* Subroutines of creating an X frame.  */
 
@@ -5897,7 +5900,7 @@ This function is for internal use only.  */)
 
 #ifdef HAVE_WINDOW_SYSTEM
 
-# if (defined USE_GTK || defined HAVE_NS || defined HAVE_XINERAMA \
+# if (defined USE_GTK || defined HAVE_PGTK || defined HAVE_NS || defined HAVE_XINERAMA \
       || defined HAVE_XRANDR)
 void
 free_monitors (struct MonitorInfo *monitors, int n_monitors)
@@ -5935,6 +5938,10 @@ make_monitor_attribute_list (struct MonitorInfo *monitors,
                           attributes);
       attributes = Fcons (Fcons (Qframes, AREF (monitor_frames, i)),
 			  attributes);
+#ifdef HAVE_PGTK
+      attributes = Fcons (Fcons (Qscale_factor, make_float (mi->scale_factor)),
+			  attributes);
+#endif
       attributes = Fcons (Fcons (Qmm_size,
                                  list2i (mi->mm_width, mi->mm_height)),
                           attributes);
@@ -6024,6 +6031,8 @@ syms_of_frame (void)
   DEFSYM (Qw32, "w32");
   DEFSYM (Qpc, "pc");
   DEFSYM (Qns, "ns");
+  DEFSYM (Qpgtk, "pgtk");
+  DEFSYM (Qhaiku, "haiku");
   DEFSYM (Qvisible, "visible");
   DEFSYM (Qbuffer_predicate, "buffer-predicate");
   DEFSYM (Qbuffer_list, "buffer-list");
@@ -6046,6 +6055,9 @@ syms_of_frame (void)
 
   DEFSYM (Qworkarea, "workarea");
   DEFSYM (Qmm_size, "mm-size");
+#ifdef HAVE_PGTK
+  DEFSYM (Qscale_factor, "scale-factor");
+#endif
   DEFSYM (Qframes, "frames");
   DEFSYM (Qsource, "source");
 
@@ -6238,7 +6250,10 @@ when the mouse is over clickable text.  */);
 
   DEFVAR_LISP ("make-pointer-invisible", Vmake_pointer_invisible,
                doc: /* If non-nil, make mouse pointer invisible while typing.
-The pointer becomes visible again when the mouse is moved.  */);
+The pointer becomes visible again when the mouse is moved.
+
+When using this, you might also want to disable highlighting of
+clickable text.  See `mouse-highlight'.  */);
   Vmake_pointer_invisible = Qt;
 
   DEFVAR_LISP ("move-frame-functions", Vmove_frame_functions,

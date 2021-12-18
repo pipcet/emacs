@@ -445,6 +445,10 @@ possible return values.  */)
       return Qpc;
     case output_ns:
       return Qns;
+    case output_pgtk:
+      return Qpgtk;
+    case output_haiku:
+      return Qhaiku;
     default:
       emacs_abort ();
     }

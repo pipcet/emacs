@@ -136,9 +136,12 @@ Other uses risk returning non-nil value that point to the wrong file."
 (defvar macroexp--warned (make-hash-table :test #'equal :weakness 'key))
 
 (defun macroexp--warn-wrap (msg form category)
-  (let ((when-compiled (lambda ()
-                         (when (byte-compile-warning-enabled-p category)
-                           (byte-compile-warn "%s" msg)))))
+  (let ((when-compiled
+	 (lambda ()
+           (when (if (consp category)
+                     (apply #'byte-compile-warning-enabled-p category)
+                   (byte-compile-warning-enabled-p category))
+             (byte-compile-warn "%s" msg)))))
     `(progn
        (macroexp--funcall-if-compiled ',when-compiled)
        ,form)))
@@ -220,7 +223,7 @@ is executed without being compiled first."
             fun obsolete
             (if (symbolp (symbol-function fun))
                 "alias" "macro"))
-           new-form 'obsolete))
+           new-form (list 'obsolete fun)))
       new-form)))
 
 (defun macroexp--unfold-lambda (form &optional name)

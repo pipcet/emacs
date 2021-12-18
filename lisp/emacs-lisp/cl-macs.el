@@ -2888,6 +2888,9 @@ Supported keywords for slots are:
 - `:documentation': this is a docstring describing the slot.
 - `:type': the type of the field; currently only used for documentation.
 
+To see the documentation for a defined struct type, use
+\\[describe-symbol] or \\[cl-describe-type].
+
 \(fn NAME &optional DOCSTRING &rest SLOTS)"
   (declare (doc-string 2) (indent 1)
            (debug
@@ -3047,7 +3050,7 @@ Supported keywords for slots are:
                             `(,predicate cl-x))))
     (when pred-form
       (push `(,defsym ,predicate (cl-x)
-               (declare (side-effect-free error-free))
+               (declare (side-effect-free error-free) (pure t))
                ,(if (eq (car pred-form) 'and)
                     (append pred-form '(t))
                   `(and ,pred-form t)))
@@ -3080,12 +3083,21 @@ Supported keywords for slots are:
                            `(nth ,pos cl-x))))))
 	      (push slot slots)
 	      (push default-value defaults)
-	      ;; The arg "cl-x" is referenced by name in eg pred-form
+              ;; The arg "cl-x" is referenced by name in e.g. pred-form
 	      ;; and pred-check, so changing it is not straightforward.
 	      (push `(,defsym ,accessor (cl-x)
-                       ,(format "Access slot \"%s\" of `%s' struct CL-X.%s"
-                                slot name
-                                (if doc (concat "\n" doc) ""))
+                       ,(concat
+                         ;; NB.  This will produce incorrect results
+                         ;; in some cases, as our coding conventions
+                         ;; says that the first line must be a full
+                         ;; sentence.  However, if we don't word wrap
+                         ;; we will have byte-compiler warnings about
+                         ;; overly long docstrings.  So we can't have
+                         ;; a perfect result here, and choose to avoid
+                         ;; the byte-compiler warnings.
+                         (internal--format-docstring-line
+                          "Access slot \"%s\" of `%s' struct CL-X." slot name)
+                         (if doc (concat "\n" doc) ""))
                        (declare (side-effect-free t))
                        ,access-body)
                     forms)
@@ -3353,6 +3365,7 @@ Of course, we really can't know that for sure, so it's just a heuristic."
                  (integer	. integerp)
                  (keyword	. keywordp)
                  (list		. listp)
+                 (natnum	. natnump)
                  (number	. numberp)
                  (null		. null)
                  (real		. numberp)

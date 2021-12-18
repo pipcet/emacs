@@ -47,6 +47,7 @@
 (require 'diff)				;For diff-check-labels.
 (require 'diff-mode)                    ;For diff-refine.
 (require 'newcomment)
+(require 'easy-mmode)
 
 ;;; The real definition comes later.
 (defvar smerge-mode)
@@ -142,36 +143,34 @@ Used in `smerge-diff-base-upper' and related functions."
   "Face used for added characters shown by `smerge-refine'."
   :version "24.3")
 
-(easy-mmode-defmap smerge-basic-map
-  `(("n" . smerge-next)
-    ("p" . smerge-prev)
-    ("r" . smerge-resolve)
-    ("a" . smerge-keep-all)
-    ("b" . smerge-keep-base)
-    ("o" . smerge-keep-lower)           ; for the obsolete keep-other
-    ("l" . smerge-keep-lower)
-    ("m" . smerge-keep-upper)           ; for the obsolete keep-mine
-    ("u" . smerge-keep-upper)
-    ("E" . smerge-ediff)
-    ("C" . smerge-combine-with-next)
-    ("R" . smerge-refine)
-    ("\C-m" . smerge-keep-current)
-    ("=" . ,(make-sparse-keymap "Diff"))
-    ("=<" "base-upper" . smerge-diff-base-upper)
-    ("=>" "base-lower" . smerge-diff-base-lower)
-    ("==" "upper-lower" . smerge-diff-upper-lower))
-  "The base keymap for `smerge-mode'.")
+(defvar-keymap smerge-basic-map
+  "n" #'smerge-next
+  "p" #'smerge-prev
+  "r" #'smerge-resolve
+  "a" #'smerge-keep-all
+  "b" #'smerge-keep-base
+  "o" #'smerge-keep-lower               ; for the obsolete keep-other
+  "l" #'smerge-keep-lower
+  "m" #'smerge-keep-upper               ; for the obsolete keep-mine
+  "u" #'smerge-keep-upper
+  "E" #'smerge-ediff
+  "C" #'smerge-combine-with-next
+  "R" #'smerge-refine
+  "C-m" #'smerge-keep-current
+  "=" (define-keymap :name "Diff"
+        "<" (cons "base-upper" #'smerge-diff-base-upper)
+        ">" (cons "base-lower" #'smerge-diff-base-lower)
+        "=" (cons "upper-lower" #'smerge-diff-upper-lower)))
 
 (defcustom smerge-command-prefix "\C-c^"
   "Prefix for `smerge-mode' commands."
   :type '(choice (const :tag "ESC"   "\e")
-		 (const :tag "C-c ^" "\C-c^" )
+		 (const :tag "C-c ^" "\C-c^")
 		 (const :tag "none"  "")
 		 string))
 
-(easy-mmode-defmap smerge-mode-map
-  `((,smerge-command-prefix . ,smerge-basic-map))
-  "Keymap for `smerge-mode'.")
+(defvar-keymap smerge-mode-map
+  (key-description smerge-command-prefix) smerge-basic-map)
 
 (defvar-local smerge-check-cache nil)
 (defun smerge-check (n)

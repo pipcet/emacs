@@ -138,13 +138,21 @@ verify (BITS_WORD_MAX >> (BITS_PER_BITS_WORD - 1) == 1);
    buffers and strings.  Emacs never allocates objects larger than
    PTRDIFF_MAX bytes, as they cause problems with pointer subtraction.
    In C99, pD can always be "t"; configure it here for the sake of
-   pre-C99 libraries such as glibc 2.0 and Solaris 8.  */
+   pre-C99 libraries such as glibc 2.0 and Solaris 8.
+
+   On Haiku, the size of ptrdiff_t is inconsistent with the value of
+   PTRDIFF_MAX.  In that case, "t" should be sufficient. */
+
+#ifndef HAIKU
 #if PTRDIFF_MAX == INT_MAX
 # define pD ""
 #elif PTRDIFF_MAX == LONG_MAX
 # define pD "l"
 #elif PTRDIFF_MAX == LLONG_MAX
 # define pD "ll"
+#else
+# define pD "t"
+#endif
 #else
 # define pD "t"
 #endif
@@ -250,6 +258,11 @@ DEFINE_GDB_SYMBOL_END (USE_LSB_TAG)
 DEFINE_GDB_SYMBOL_BEGIN (EMACS_INT, VALMASK)
 # define VALMASK (USE_LSB_TAG ? - (1 << GCTYPEBITS) : VAL_MAX)
 DEFINE_GDB_SYMBOL_END (VALMASK)
+
+/* Ignore 'alignas' on compilers lacking it.  */
+#if !defined alignas && !defined __alignas_is_defined
+# define alignas(a)
+#endif
 
 /* Minimum alignment requirement for Lisp objects, imposed by the
    internal representation of tagged pointers.  It is 2**GCTYPEBITS if
@@ -1070,6 +1083,7 @@ enum pvec_type
   PVEC_CONDVAR,
   PVEC_MODULE_FUNCTION,
   PVEC_NATIVE_COMP_UNIT,
+  PVEC_SQLITE,
 
   /* These should be last, for internal_equal and sxhash_obj.  */
   PVEC_COMPILED,
@@ -2083,10 +2097,12 @@ struct Lisp_Subr
       Lisp_Object native_intspec;
     };
     EMACS_INT doc;
-    Lisp_Object native_comp_u[NATIVE_COMP_FLAG];
-    char *native_c_name[NATIVE_COMP_FLAG];
-    Lisp_Object lambda_list[NATIVE_COMP_FLAG];
-    Lisp_Object type[NATIVE_COMP_FLAG];
+#ifdef HAVE_NATIVE_COMP
+    Lisp_Object native_comp_u;
+    char *native_c_name;
+    Lisp_Object lambda_list;
+    Lisp_Object type;
+#endif
   } GCALIGNED_STRUCT;
 union Aligned_Lisp_Subr
   {
@@ -2555,6 +2571,17 @@ xmint_pointer (Lisp_Object a)
   return XUNTAG (a, Lisp_Vectorlike, struct Lisp_Misc_Ptr)->pointer;
 }
 
+struct Lisp_Sqlite
+{
+  union vectorlike_header header;
+  void *db;
+  void *stmt;
+  char *name;
+  void (*finalizer) (void *);
+  bool eof;
+  bool is_statement;
+} GCALIGNED_STRUCT;
+
 struct Lisp_User_Ptr
 {
   union vectorlike_header header;
@@ -2630,6 +2657,31 @@ XUSER_PTR (Lisp_Object a)
 {
   eassert (USER_PTRP (a));
   return XUNTAG (a, Lisp_Vectorlike, struct Lisp_User_Ptr);
+}
+
+INLINE bool
+SQLITEP (Lisp_Object x)
+{
+  return PSEUDOVECTORP (x, PVEC_SQLITE);
+}
+
+INLINE bool
+SQLITE (Lisp_Object a)
+{
+  return PSEUDOVECTORP (a, PVEC_SQLITE);
+}
+
+INLINE void
+CHECK_SQLITE (Lisp_Object x)
+{
+  CHECK_TYPE (SQLITE (x), Qsqlitep, x);
+}
+
+INLINE struct Lisp_Sqlite *
+XSQLITE (Lisp_Object a)
+{
+  eassert (SQLITEP (a));
+  return XUNTAG (a, Lisp_Vectorlike, struct Lisp_Sqlite);
 }
 
 INLINE bool
@@ -2827,9 +2879,8 @@ enum Lisp_Compiled
   };
 
 /* Flag bits in a character.  These also get used in termhooks.h.
-   Richard Stallman <rms@gnu.ai.mit.edu> thinks that MULE
-   (MUlti-Lingual Emacs) might need 22 bits for the character value
-   itself, so we probably shouldn't use any bits lower than 0x0400000.  */
+   Emacs needs 22 bits for the character value itself, see MAX_CHAR,
+   so we shouldn't use any bits lower than 0x0400000.  */
 enum char_bits
   {
     CHAR_ALT = 0x0400000,
@@ -3331,7 +3382,7 @@ struct frame;
 
 /* Define if the windowing system provides a menu bar.  */
 #if defined (USE_X_TOOLKIT) || defined (HAVE_NTGUI) \
-  || defined (HAVE_NS) || defined (USE_GTK)
+  || defined (HAVE_NS) || defined (USE_GTK) || defined (HAVE_HAIKU)
 #define HAVE_EXT_MENU_BAR true
 #endif
 
@@ -3779,6 +3830,9 @@ extern Lisp_Object safe_eval (Lisp_Object);
 extern bool pos_visible_p (struct window *, ptrdiff_t, int *,
 			   int *, int *, int *, int *, int *);
 
+/* Defined in sqlite.c.  */
+extern void syms_of_sqlite (void);
+
 /* Defined in xsettings.c.  */
 extern void syms_of_xsettings (void);
 
@@ -3948,7 +4002,8 @@ build_string (const char *str)
 
 extern Lisp_Object pure_cons (Lisp_Object, Lisp_Object);
 extern Lisp_Object make_vector (ptrdiff_t, Lisp_Object);
-extern struct Lisp_Vector *allocate_nil_vector (ptrdiff_t);
+extern struct Lisp_Vector *allocate_nil_vector (ptrdiff_t)
+  ATTRIBUTE_RETURNS_NONNULL;
 
 /* Make an uninitialized vector for SIZE objects.  NOTE: you must
    be sure that GC cannot happen until the vector is completely
@@ -3961,7 +4016,8 @@ extern struct Lisp_Vector *allocate_nil_vector (ptrdiff_t);
 
    allocate_vector has a similar problem.  */
 
-extern struct Lisp_Vector *allocate_vector (ptrdiff_t);
+extern struct Lisp_Vector *allocate_vector (ptrdiff_t)
+  ATTRIBUTE_RETURNS_NONNULL;
 
 INLINE Lisp_Object
 make_uninit_vector (ptrdiff_t size)
@@ -3993,7 +4049,8 @@ make_nil_vector (ptrdiff_t size)
 }
 
 extern struct Lisp_Vector *allocate_pseudovector (int, int, int,
-						  enum pvec_type);
+						  enum pvec_type)
+  ATTRIBUTE_RETURNS_NONNULL;
 
 /* Allocate uninitialized pseudovector with no Lisp_Object slots.  */
 
@@ -4025,7 +4082,7 @@ extern void free_cons (struct Lisp_Cons *);
 extern void init_alloc_once (void);
 extern void init_alloc (void);
 extern void syms_of_alloc (void);
-extern struct buffer * allocate_buffer (void);
+extern struct buffer *allocate_buffer (void) ATTRIBUTE_RETURNS_NONNULL;
 extern int valid_lisp_object_p (Lisp_Object);
 
 /* Defined in gmalloc.c.  */
@@ -4183,7 +4240,8 @@ extern Lisp_Object internal_condition_case_n
     (Lisp_Object (*) (ptrdiff_t, Lisp_Object *), ptrdiff_t, Lisp_Object *,
      Lisp_Object, Lisp_Object (*) (Lisp_Object, ptrdiff_t, Lisp_Object *));
 extern Lisp_Object internal_catch_all (Lisp_Object (*) (void *), void *, Lisp_Object (*) (enum nonlocal_exit, Lisp_Object));
-extern struct handler *push_handler (Lisp_Object, enum handlertype);
+extern struct handler *push_handler (Lisp_Object, enum handlertype)
+  ATTRIBUTE_RETURNS_NONNULL;
 extern struct handler *push_handler_nosignal (Lisp_Object, enum handlertype);
 extern void specbind (Lisp_Object, Lisp_Object);
 extern void record_unwind_protect (void (*) (Lisp_Object), Lisp_Object);
@@ -4324,9 +4382,10 @@ extern void syms_of_marker (void);
 
 /* Defined in fileio.c.  */
 
-extern char *splice_dir_file (char *, char const *, char const *);
+extern char *splice_dir_file (char *, char const *, char const *)
+  ATTRIBUTE_RETURNS_NONNULL;
 extern bool file_name_absolute_p (const char *);
-extern char const *get_homedir (void);
+extern char const *get_homedir (void) ATTRIBUTE_RETURNS_NONNULL;
 extern Lisp_Object expand_and_dir_to_file (Lisp_Object);
 extern Lisp_Object write_region (Lisp_Object, Lisp_Object, Lisp_Object,
 				 Lisp_Object, Lisp_Object, Lisp_Object,
@@ -4425,7 +4484,7 @@ extern Lisp_Object menu_bar_items (Lisp_Object);
 extern Lisp_Object tab_bar_items (Lisp_Object, int *);
 extern Lisp_Object tool_bar_items (Lisp_Object, int *);
 extern void discard_mouse_events (void);
-#ifdef USABLE_SIGIO
+#if defined (USABLE_SIGIO) || defined (USABLE_SIGPOLL)
 void handle_input_available_signal (int);
 #endif
 extern Lisp_Object pending_funcalls;
@@ -4480,7 +4539,7 @@ INLINE void fixup_locale (void) {}
 INLINE void synchronize_system_messages_locale (void) {}
 INLINE void synchronize_system_time_locale (void) {}
 #endif
-extern char *emacs_strerror (int);
+extern char *emacs_strerror (int) ATTRIBUTE_RETURNS_NONNULL;
 extern void shut_down_emacs (int, Lisp_Object);
 
 /* True means don't do interactive redisplay and don't change tty modes.  */
@@ -4546,7 +4605,7 @@ extern void setup_process_coding_systems (Lisp_Object);
 
 extern int emacs_spawn (pid_t *, int, int, int, char **, char **,
                         const char *, const char *, const sigset_t *);
-extern char **make_environment_block (Lisp_Object);
+extern char **make_environment_block (Lisp_Object) ATTRIBUTE_RETURNS_NONNULL;
 extern void init_callproc_1 (void);
 extern void init_callproc (void);
 extern void set_initial_environment (void);
@@ -4774,19 +4833,19 @@ extern char *emacs_root_dir (void);
 INLINE bool
 SUBR_NATIVE_COMPILEDP (Lisp_Object a)
 {
-  return SUBRP (a) && !NILP (XSUBR (a)->native_comp_u[0]);
+  return SUBRP (a) && !NILP (XSUBR (a)->native_comp_u);
 }
 
 INLINE bool
 SUBR_NATIVE_COMPILED_DYNP (Lisp_Object a)
 {
-  return SUBR_NATIVE_COMPILEDP (a) && !NILP (XSUBR (a)->lambda_list[0]);
+  return SUBR_NATIVE_COMPILEDP (a) && !NILP (XSUBR (a)->lambda_list);
 }
 
 INLINE Lisp_Object
 SUBR_TYPE (Lisp_Object a)
 {
-  return XSUBR (a)->type[0];
+  return XSUBR (a)->type;
 }
 
 INLINE struct Lisp_Native_Comp_Unit *
@@ -4815,17 +4874,24 @@ extern char my_edata[];
 extern char my_endbss[];
 extern char *my_endbss_static;
 
-extern void *xmalloc (size_t) ATTRIBUTE_MALLOC_SIZE ((1));
-extern void *xzalloc (size_t) ATTRIBUTE_MALLOC_SIZE ((1));
-extern void *xrealloc (void *, size_t) ATTRIBUTE_ALLOC_SIZE ((2));
+extern void *xmalloc (size_t)
+  ATTRIBUTE_MALLOC_SIZE ((1)) ATTRIBUTE_RETURNS_NONNULL;
+extern void *xzalloc (size_t)
+  ATTRIBUTE_MALLOC_SIZE ((1)) ATTRIBUTE_RETURNS_NONNULL;
+extern void *xrealloc (void *, size_t)
+  ATTRIBUTE_ALLOC_SIZE ((2)) ATTRIBUTE_RETURNS_NONNULL;
 extern void xfree (void *);
-extern void *xnmalloc (ptrdiff_t, ptrdiff_t) ATTRIBUTE_MALLOC_SIZE ((1,2));
+extern void *xnmalloc (ptrdiff_t, ptrdiff_t)
+  ATTRIBUTE_MALLOC_SIZE ((1,2)) ATTRIBUTE_RETURNS_NONNULL;
 extern void *xnrealloc (void *, ptrdiff_t, ptrdiff_t)
-  ATTRIBUTE_ALLOC_SIZE ((2,3));
-extern void *xpalloc (void *, ptrdiff_t *, ptrdiff_t, ptrdiff_t, ptrdiff_t);
+  ATTRIBUTE_ALLOC_SIZE ((2,3)) ATTRIBUTE_RETURNS_NONNULL;
+extern void *xpalloc (void *, ptrdiff_t *, ptrdiff_t, ptrdiff_t, ptrdiff_t)
+  ATTRIBUTE_RETURNS_NONNULL;
 
-extern char *xstrdup (const char *) ATTRIBUTE_MALLOC;
-extern char *xlispstrdup (Lisp_Object) ATTRIBUTE_MALLOC;
+extern char *xstrdup (char const *)
+  ATTRIBUTE_MALLOC ATTRIBUTE_RETURNS_NONNULL;
+extern char *xlispstrdup (Lisp_Object)
+  ATTRIBUTE_MALLOC ATTRIBUTE_RETURNS_NONNULL;
 extern void dupstring (char **, char const *);
 
 /* Make DEST a copy of STRING's data.  Return a pointer to DEST's terminating
@@ -4875,7 +4941,8 @@ extern void init_system_name (void);
 
 enum MAX_ALLOCA { MAX_ALLOCA = 16 * 1024 };
 
-extern void *record_xmalloc (size_t) ATTRIBUTE_ALLOC_SIZE ((1));
+extern void *record_xmalloc (size_t)
+  ATTRIBUTE_ALLOC_SIZE ((1)) ATTRIBUTE_RETURNS_NONNULL;
 
 #define USE_SAFE_ALLOCA			\
   ptrdiff_t sa_avail = MAX_ALLOCA;	\

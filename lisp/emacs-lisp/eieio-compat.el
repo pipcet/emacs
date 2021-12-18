@@ -5,6 +5,7 @@
 ;; Author: Eric M. Ludlam <zappo@gnu.org>
 ;; Keywords: OO, lisp
 ;; Package: eieio
+;; Obsolete-Since: 25.1
 
 ;; This file is part of GNU Emacs.
 
@@ -70,7 +71,8 @@ is appropriate to use.  Uses `defmethod' to create methods, and calls
 `defgeneric' for you.  With this implementation the ARGS are
 currently ignored.  You can use `defgeneric' to apply specialized
 top level documentation to a method."
-  (declare (doc-string 3) (obsolete cl-defgeneric "25.1"))
+  (declare (doc-string 3) (obsolete cl-defgeneric "25.1")
+           (indent defun))
   `(eieio--defalias ',method
                     (eieio--defgeneric-init-form
                      ',method
@@ -103,6 +105,7 @@ Summary:
     \"doc-string\"
      body)"
   (declare (doc-string 3) (obsolete cl-defmethod "25.1")
+           (indent defun)
            (debug
             (&define                    ; this means we are defining something
              [&name sexp]   ;Allow (setf ...) additionally to symbols.

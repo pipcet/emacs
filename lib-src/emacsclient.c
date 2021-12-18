@@ -80,9 +80,6 @@ char *w32_getenv (const char *);
 #include <sys/stat.h>
 #include <unistd.h>
 
-#ifndef WINDOWSNT
-# include <acl.h>
-#endif
 #include <filename.h>
 #include <intprops.h>
 #include <min-max.h>
@@ -92,10 +89,6 @@ char *w32_getenv (const char *);
 /* Work around GCC bug 88251.  */
 #if GNUC_PREREQ (7, 0, 0)
 # pragma GCC diagnostic ignored "-Wformat-truncation=2"
-#endif
-
-#if !defined O_PATH && !defined WINDOWSNT
-# define O_PATH O_SEARCH
 #endif
 
 
@@ -122,6 +115,9 @@ static bool eval;
 
 /* True means open a new frame.  --create-frame etc.  */
 static bool create_frame;
+
+/* True means reuse a frame if it already exists.  */
+static bool reuse_frame;
 
 /* The display on which Emacs should work.  --display.  */
 static char const *display;
@@ -172,6 +168,7 @@ static struct option const longopts[] =
   { "tty",	no_argument,       NULL, 't' },
   { "nw",	no_argument,       NULL, 't' },
   { "create-frame", no_argument,   NULL, 'c' },
+  { "reuse-frame", no_argument,   NULL, 'r' },
   { "alternate-editor", required_argument, NULL, 'a' },
   { "frame-parameters", required_argument, NULL, 'F' },
 #ifdef SOCKETS_IN_FILE_SYSTEM
@@ -558,6 +555,11 @@ decode_options (int argc, char **argv)
 	  create_frame = true;
           break;
 
+	case 'r':
+	  create_frame = true;
+	  reuse_frame = true;
+	  break;
+
 	case 'p':
 	  parent_id = optarg;
 	  create_frame = true;
@@ -601,9 +603,16 @@ decode_options (int argc, char **argv)
       alt_display = "ns";
 #elif defined (HAVE_NTGUI)
       alt_display = "w32";
+#elif defined (HAVE_HAIKU)
+      alt_display = "be";
 #endif
 
+#ifdef HAVE_PGTK
+      display = egetenv ("WAYLAND_DISPLAY");
+      alt_display = egetenv ("DISPLAY");
+#else
       display = egetenv ("DISPLAY");
+#endif
     }
 
   if (!display)
@@ -653,6 +662,8 @@ The following OPTIONS are accepted:\n\
 -H, --help    		Print this usage information message\n\
 -nw, -t, --tty 		Open a new Emacs frame on the current terminal\n\
 -c, --create-frame    	Create a new frame instead of trying to\n\
+			use the current Emacs frame\n\
+-r, --reuse-frame	Create a new frame if none exists, otherwise\n\
 			use the current Emacs frame\n\
 ", "\
 -F ALIST, --frame-parameters=ALIST\n\
@@ -1135,6 +1146,12 @@ process_grouping (void)
 
 #ifdef SOCKETS_IN_FILE_SYSTEM
 
+# include <acl.h>
+
+# ifndef O_PATH
+#  define O_PATH O_SEARCH
+# endif
+
 /* A local socket address.  The union avoids the need to cast.  */
 union local_sockaddr
 {
@@ -1457,7 +1474,6 @@ set_local_socket (char const *server_name)
   else
     {
       /* socket_name is a file name component.  */
-      sock_status = ENOENT;
       char const *xdg_runtime_dir = egetenv ("XDG_RUNTIME_DIR");
       if (xdg_runtime_dir)
 	{
@@ -1467,7 +1483,7 @@ set_local_socket (char const *server_name)
 			 ? connect_socket (AT_FDCWD, sockname, s, 0)
 			 : ENAMETOOLONG);
 	}
-      if (sock_status == ENOENT)
+      else
 	{
 	  char const *tmpdir = egetenv ("TMPDIR");
 	  if (tmpdir)
@@ -1746,8 +1762,9 @@ start_daemon_and_retry_set_socket (void)
 	}
 
       /* Try connecting, the daemon should have started by now.  */
-      message (true,
-	       "Emacs daemon should have started, trying to connect again\n");
+      if (!quiet)
+        message (true,
+                 "Emacs daemon should have started, trying to connect again\n");
     }
   else if (dpid < 0)
     {
@@ -1838,7 +1855,7 @@ start_daemon_and_retry_set_socket (void)
   /* Try connecting, the daemon should have started by now.  */
   /* It's just a progress message, so don't pop a dialog if this is
      emacsclientw.  */
-  if (!w32_window_app ())
+  if (!quiet && !w32_window_app ())
     message (true,
 	     "Emacs daemon should have started, trying to connect again\n");
 #endif /* WINDOWSNT */
@@ -1942,7 +1959,7 @@ main (int argc, char **argv)
   if (nowait)
     send_to_emacs (emacs_socket, "-nowait ");
 
-  if (!create_frame)
+  if (!create_frame || reuse_frame)
     send_to_emacs (emacs_socket, "-current-frame ");
 
   if (display)

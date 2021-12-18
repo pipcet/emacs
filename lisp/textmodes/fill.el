@@ -396,12 +396,8 @@ and `fill-nobreak-invisible'."
 	  (save-excursion
 	    (skip-chars-backward " ")
 	    (and (eq (preceding-char) ?.)
-		 (looking-at " \\([^ ]\\|$\\)"))))
-     ;; Another approach to the same problem.
-     (save-excursion
-       (skip-chars-backward " ")
-       (and (eq (preceding-char) ?.)
-	    (not (progn (forward-char -1) (looking-at (sentence-end))))))
+                 ;; There's something more after the space.
+		 (looking-at " [^ \n]"))))
      ;; Don't split a line if the rest would look like a new paragraph.
      (unless use-hard-newlines
        (save-excursion
@@ -709,7 +705,10 @@ space does not end a sentence, so don't break a line there."
     (goto-char from-plus-indent))
 
   (if (not (> to (point)))
-      nil ;; There is no paragraph, only whitespace: exit now.
+      ;; There is no paragraph, only whitespace: exit now.
+      (progn
+        (set-marker to nil)
+        nil)
 
     (or justify (setq justify (current-justification)))
 
@@ -768,7 +767,7 @@ space does not end a sentence, so don't break a line there."
               (setq first nil
                     linebeg (+ (point) (length actual-fill-prefix))))
 	    (move-to-column (current-fill-column))
-	    (if (when (< (point) to)
+	    (if (when (and (< (point) to) (< linebeg to))
 		  ;; Find the position where we'll break the line.
 		  ;; Use an immediately following space, if any.
 		  ;; However, note that `move-to-column' may overshoot
@@ -795,6 +794,7 @@ space does not end a sentence, so don't break a line there."
       ;; Leave point after final newline.
       (goto-char to)
       (unless (eobp) (forward-char 1))
+      (set-marker to nil)
       ;; Return the fill-prefix we used
       fill-prefix)))
 

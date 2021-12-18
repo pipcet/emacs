@@ -71,6 +71,7 @@ string, it'll be inserted as is, then the string will be `read',
 and then evaluated.
 
 There can be any number of :example/:result elements."
+  (declare (indent defun))
   `(progn
      (setq shortdoc--groups (delq (assq ',group shortdoc--groups)
                                   shortdoc--groups))
@@ -195,6 +196,13 @@ There can be any number of :example/:result elements."
    :eval (substring-no-properties (propertize "foobar" 'face 'bold) 0 3))
   (try-completion
    :eval (try-completion "foo" '("foobar" "foozot" "gazonk")))
+  "Unicode Strings"
+  (string-glyph-split
+   :eval (string-glyph-split "Hello, 👼🏻🧑🏼‍🤝‍🧑🏻"))
+  (string-glyph-compose
+   :eval (string-glyph-compose "Å"))
+  (string-glyph-decompose
+   :eval (string-glyph-decompose "Å"))
   "Predicates for Strings"
   (string-equal
    :eval (string-equal "foo" "foo"))
@@ -241,7 +249,14 @@ There can be any number of :example/:result elements."
    :eval (number-to-string 42))
   "Data About Strings"
   (length
-   :eval (length "foo"))
+   :eval (length "foo")
+   :eval (length "avocado: 🥑"))
+  (string-width
+   :eval (string-width "foo")
+   :eval (string-width "avocado: 🥑"))
+  (string-pixel-width
+   :eval (string-pixel-width "foo")
+   :eval (string-pixel-width "avocado: 🥑"))
   (string-search
    :eval (string-search "bar" "foobarzot"))
   (assoc-string
@@ -271,6 +286,9 @@ There can be any number of :example/:result elements."
    :eval (file-name-base "/tmp/foo.txt"))
   (file-relative-name
    :eval (file-relative-name "/tmp/foo" "/tmp"))
+  (file-name-split
+   :eval (file-name-split "/tmp/foo")
+   :eval (file-name-split "foo/bar"))
   (make-temp-name
    :eval (make-temp-name "/tmp/foo-"))
   (file-name-concat
@@ -348,6 +366,9 @@ There can be any number of :example/:result elements."
   (file-newer-than-file-p
    :no-eval (file-newer-than-file-p "/tmp/foo" "/tmp/bar")
    :eg-result nil)
+  (file-has-changed-p
+   :no-eval (file-has-changed-p "/tmp/foo")
+   :eg-result t)
   (file-equal-p
    :no-eval (file-equal-p "/tmp/foo" "/tmp/bar")
    :eg-result nil)
@@ -647,10 +668,12 @@ There can be any number of :example/:result elements."
 
 
 (define-short-documentation-group vector
+  "Making Vectors"
   (make-vector
    :eval (make-vector 5 "foo"))
   (vector
    :eval (vector 1 "b" 3))
+  "Operations on Vectors"
   (vectorp
    :eval (vectorp [1])
    :eval (vectorp "1"))
@@ -660,13 +683,16 @@ There can be any number of :example/:result elements."
    :eval (append [1 2] nil))
   (length
    :eval (length [1 2 3]))
-  (mapcar
-   :eval (mapcar #'identity [1 2 3]))
-  (reduce
-   :eval (reduce #'+ [1 2 3]))
+  (seq-reduce
+   :eval (seq-reduce #'+ [1 2 3] 0))
   (seq-subseq
    :eval (seq-subseq [1 2 3 4 5] 1 3)
-   :eval (seq-subseq [1 2 3 4 5] 1)))
+   :eval (seq-subseq [1 2 3 4 5] 1))
+  "Mapping Over Vectors"
+  (mapcar
+   :eval (mapcar #'identity [1 2 3]))
+  (mapc
+   :eval (mapc #'insert ["1" "2" "3"])))
 
 (define-short-documentation-group regexp
   "Matching Strings"
@@ -1158,6 +1184,82 @@ There can be any number of :example/:result elements."
   (sqrt
    :eval (sqrt -1)))
 
+(define-short-documentation-group text-properties
+  "Examining Text Properties"
+  (get-text-property
+   :eval (get-text-property 0 'foo (propertize "x" 'foo t)))
+  (get-char-property
+   :eval (get-char-property 0 'foo (propertize "x" 'foo t)))
+  (get-pos-property
+   :eval (get-pos-property 0 'foo (propertize "x" 'foo t)))
+  (get-char-property-and-overlay
+   :eval (get-char-property-and-overlay 0 'foo (propertize "x" 'foo t)))
+  (text-properties-at
+   :eval (text-properties-at (point)))
+  "Changing Text Properties"
+  (put-text-property
+   :eval (let ((s "abc")) (put-text-property 0 1 'foo t s) s)
+   :no-eval (put-text-property (point) (1+ (point)) 'face 'error))
+  (add-text-properties
+   :no-eval (add-text-properties (point) (1+ (point)) '(face error)))
+  (remove-text-properties
+   :no-eval (remove-text-properties (point) (1+ (point)) '(face nil)))
+  (remove-list-of-text-properties
+   :no-eval (remove-list-of-text-properties (point) (1+ (point)) '(face font-lock-face)))
+  (set-text-properties
+   :no-eval (set-text-properties (point) (1+ (point)) '(face error)))
+  (add-face-text-property
+   (add-face-text-property START END '(:foreground "green")))
+  (propertize
+   :eval (propertize "foo" 'face 'italic 'mouse-face 'bold-italic))
+  "Searching for Text Properties"
+  (next-property-change
+   :no-eval (next-property-change (point) (current-buffer)))
+  (previous-property-change
+   :no-eval (previous-property-change (point) (current-buffer)))
+  (next-single-property-change
+   :no-eval (next-single-property-change (point) 'face (current-buffer)))
+  (previous-single-property-change
+   :no-eval (previous-single-property-change (point) 'face (current-buffer)))
+  ;; TODO: There are some more that could be added here.
+  (text-property-search-forward
+   :no-eval (text-property-search-forward 'face nil t))
+  (text-property-search-backward
+   :no-eval (text-property-search-backward 'face nil t)))
+
+(define-short-documentation-group keymaps
+  "Defining keymaps"
+  (define-keymap
+    :no-eval (define-keymap "C-c C-c" #'quit-buffer))
+  (defvar-keymap
+      :no-eval (defvar-keymap my-keymap "C-c C-c" #'quit-buffer))
+  "Setting keys"
+  (keymap-set
+   :no-eval (keymap-set map "C-c C-c" #'quit-buffer))
+  (keymap-local-set
+   :no-eval (keymap-local-set "C-c C-c" #'quit-buffer))
+  (keymap-global-set
+   :no-eval (keymap-global-set "C-c C-c" #'quit-buffer))
+  (keymap-unset
+   :no-eval (keymap-unset map "C-c C-c"))
+  (keymap-local-unset
+   :no-eval (keymap-local-unset "C-c C-c"))
+  (keymap-global-unset
+   :no-eval (keymap-global-unset "C-c C-c"))
+  (keymap-substitute
+   :no-eval (keymap-substitute map "C-c C-c" "M-a"))
+  (keymap-set-after
+   :no-eval (keymap-set-after map "<separator-2>" menu-bar-separator))
+  "Predicates"
+  (keymapp
+   :eval (keymapp (define-keymap)))
+  (key-valid-p
+   :eval (key-valid-p "C-c C-c")
+   :eval (key-valid-p "C-cC-c"))
+  "Lookup"
+  (keymap-lookup
+   :eval (keymap-lookup (current-global-map) "C-x x g")))
+
 ;;;###autoload
 (defun shortdoc-display-group (group &optional function)
   "Pop to a buffer with short documentation summary for functions in GROUP.
@@ -1276,11 +1378,11 @@ function's documentation in the Info manual")))
                   (princ value (current-buffer))
                   (insert "\n"))
                  (:eg-result
-                  (insert "    eg. " double-arrow " ")
+                  (insert "    e.g. " double-arrow " ")
                   (prin1 value (current-buffer))
                   (insert "\n"))
                  (:eg-result-string
-                  (insert "    eg. " double-arrow " ")
+                  (insert "    e.g. " double-arrow " ")
                   (princ value (current-buffer))
                   (insert "\n")))))
     ;; Insert the arglist after doing the evals, in case that's pulled
@@ -1321,14 +1423,12 @@ Example:
         (setq slist (cdr slist)))
       (setcdr slist (cons elem (cdr slist))))))
 
-(defvar shortdoc-mode-map
-  (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "n") 'shortdoc-next)
-    (define-key map (kbd "p") 'shortdoc-previous)
-    (define-key map (kbd "C-c C-n") 'shortdoc-next-section)
-    (define-key map (kbd "C-c C-p") 'shortdoc-previous-section)
-    map)
-  "Keymap for `shortdoc-mode'.")
+(defvar-keymap shortdoc-mode-map
+  :doc "Keymap for `shortdoc-mode'."
+  "n"       #'shortdoc-next
+  "p"       #'shortdoc-previous
+  "C-c C-n" #'shortdoc-next-section
+  "C-c C-p" #'shortdoc-previous-section)
 
 (define-derived-mode shortdoc-mode special-mode "shortdoc"
   "Mode for shortdoc."

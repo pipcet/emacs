@@ -464,7 +464,7 @@ your status as ``being back'' if you do not.  People can use the
 @cindex help about irc
 Typical IRC servers implement many more commands.  You can read more
 about the fantastic world of IRC online at
-@uref{http://www.irchelp.org/, the Internet Relay Chat (IRC) help
+@uref{https://www.irchelp.org/, the Internet Relay Chat (IRC) help
 archive}.
 
 @node Configuration
@@ -609,12 +609,6 @@ Use this symbol if you need to identify yourself in the Bitlbee channel
 as follows: @code{identify secret}.  The necessary arguments are the
 nickname you want to use this for, and the password to use.
 
-@item sasl
-@cindex sasl authentication
-Use this symbol if you want to use @acronym{SASL} authentication.  The
-necessary arguments are the nickname you want to use this for, and the
-password to use.
-
 @cindex gateway to other IM services
 @cindex instant messaging, other services
 @cindex Jabber
@@ -632,6 +626,19 @@ Later, you will tell Bitlbee about your accounts and passwords on all
 the other instant messaging services, and Bitlbee will log you in.  All
 @code{rcirc} needs to know, is the login to your Bitlbee account.  Don't
 confuse the Bitlbee account with all the other accounts.
+
+@item sasl
+@cindex sasl authentication
+Use this symbol if you want to use @acronym{SASL} authentication.  The
+necessary arguments are the nickname you want to use this for, and the
+password to use.
+
+@item certfp
+@cindex certfp authentication
+Use this symbol if you want to use CertFP authentication.  The
+necessary arguments are the path to the client certificate key and
+password.  The CertFP authentication requires a @acronym{TLS}
+connection.
 
 @end table
 
@@ -823,17 +830,18 @@ active and only omits a message if the nick has not been active.  The
 window @code{rcirc} considers is controlled by the
 @code{rcirc-omit-threshold} variable.
 
-@vindex rcirc-omit-responses-after-join
-Right after connecting to a server, rcirc will also hide all messages
-in @code{rcirc-omit-responses-after-join}, next to
-@code{rcirc-omit-responses}. For example,
+@vindex rcirc-omit-unless-requested
+Certain messages can be omitted by default, unless the user manual
+requests them. For example, if you don't want to display @code{TOPIC}
+and @code{NAMES} messages, after reconnecting, you can configure
+@code{rcirc-omit-unless-requested} to hide:
 
 @example
-(setq rcirc-omit-responses-after-join '("TOPIC" "NICK"))
+(setq rcirc-omit-unless-requested '("TOPIC" "NAMES"))
 @end example
 
-would hide the topic message and the list of users in the current
-channel right after joining a new channel.
+Now NAMES will only be displayed, after it has been requested via the
+@code{rcirc-cmd-name} command.
 
 @node Hacking and Tweaking
 @chapter Hacking and Tweaking
@@ -975,9 +983,6 @@ displayed. A simple configuration to fix the above example might be:
 (setq rcirc-nick-filter #'my/rcirc-remove-suffix
       rcirc-channel-filter #'local/rcirc-soju-suffix)
 @end smallexample
-
-The effect is that buffer names, nicks in messages, nick-completion
-all strip away the suffix introduced by the bouncer.
 
 @node GNU Free Documentation License
 @appendix GNU Free Documentation License

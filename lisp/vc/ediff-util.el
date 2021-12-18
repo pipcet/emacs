@@ -521,7 +521,25 @@ to invocation.")
     (erase-buffer)
     (ediff-set-help-message)
     (insert ediff-help-message)
-    (shrink-window-if-larger-than-buffer)
+    ;; With the fix for Bug#49277 and an 'ediff-setup-windows-plain'
+    ;; layout, the window of the control buffer we want to adjust here
+    ;; is no longer the lower of two windows on their frame both showing
+    ;; that control buffer but rather the bottom-most window in the
+    ;; established ediff layout for that frame.  As a consequence,
+    ;; 'shrink-window-if-larger-than-buffer' will fail to show the whole
+    ;; buffer with 'ediff-toggle-help' because that window's maximum
+    ;; height is not half the height of its frame but the height of the
+    ;; control buffer's window in the established layout (Bug#52504).
+    ;;
+    ;; The form below is an attempt to emulate the behavior of Emacs 27
+    ;; as faithfully as possible in this regard (the use of 'ceiling'
+    ;; mimics the behavior of 'split-window' giving the lower window the
+    ;; residue line when the window to split has an uneven number of
+    ;; lines).
+    (when (and (window-combined-p)
+	       (pos-visible-in-window-p (point-min)))
+      (fit-window-to-buffer
+       nil (ceiling (/ (window-total-height (frame-root-window)) 2.0))))
     (or (ediff-multiframe-setup-p)
 	(ediff-indent-help-message))
     (ediff-set-help-overlays)
@@ -2777,8 +2795,8 @@ up an appropriate window config."
   (interactive)
   (ediff-barf-if-not-control-buffer)
   (run-hooks 'ediff-suspend-hook)
-  (message
-   "To resume, type M-x eregistry and select the desired Ediff session"))
+  (message (substitute-command-keys
+            "To resume, type \\[eregistry] and select the desired Ediff session")))
 
 ;; ediff-barf-if-not-control-buffer ensures only called from ediff.
 (declare-function ediff-version "ediff" ())
@@ -3103,11 +3121,7 @@ Hit \\[ediff-recenter] to reset the windows afterward."
 		(lambda () (when defaults
 			     (setq minibuffer-default defaults)))
 	      (read-file-name
-	       (format "%s%s "
-		       prompt
-		       (cond (default-file
-			       (concat " (default " default-file "):"))
-			     (t (concat " (default " default-dir "):"))))
+               (format-prompt prompt (or default-file default-dir))
 	       default-dir
 	       (or default-file default-dir)
 	       t			; must match, no-confirm
@@ -3220,7 +3234,7 @@ Hit \\[ediff-recenter] to reset the windows afterward."
       (if (buffer-modified-p)
 	  ;; If buffer is not obsolete and is modified, offer to save
 	  (if (yes-or-no-p
-	       (format "Buffer %s has been modified. Save it in file %s? "
+               (format "Buffer %s has been modified.  Save it in file %s?"
 		       (buffer-name)
 		       buffer-file-name))
 	      (condition-case nil

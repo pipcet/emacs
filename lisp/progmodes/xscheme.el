@@ -562,7 +562,7 @@ The strings are concatenated and terminated by a newline."
 
 (defun xscheme-yank (&optional arg)
   "Insert the most recent expression at point.
-With just C-U as argument, same but put point in front (and mark at end).
+With just \\[universal-argument] as argument, same but put point in front (and mark at end).
 With argument n, reinsert the nth most recently sent expression.
 See also the commands \\[xscheme-yank-pop] and \\[xscheme-yank-push]."
   (interactive "*P")
@@ -574,9 +574,8 @@ See also the commands \\[xscheme-yank-pop] and \\[xscheme-yank-push]."
   (if (consp arg)
       (exchange-point-and-mark)))
 
-;; Old name, to avoid errors in users' init files.
-(fset 'xscheme-yank-previous-send
-      'xscheme-yank)
+(define-obsolete-function-alias 'xscheme-yank-previous-send
+  #'xscheme-yank "29.1")
 
 (defun xscheme-yank-pop (arg)
   "Insert or replace a just-yanked expression with an older expression.
@@ -908,8 +907,8 @@ the remaining input.")
 	       xscheme-signal-death-message)
 	  (progn
 	    (beep)
-	    (message
-"The Scheme process has died!  Do M-x reset-scheme to restart it"))))))
+            (message (substitute-command-keys
+"The Scheme process has died!  Type \\[reset-scheme] to restart it")))))))
 
 (defun xscheme-process-filter-initialize (running-p)
   (setq xscheme-process-filter-state 'idle)

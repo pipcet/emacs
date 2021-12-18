@@ -288,7 +288,7 @@ mnemonics of the following coding systems:
 Value is used for `mode-line-frame-identification', which see."
   (if (or (null window-system)
 	  (eq window-system 'pc))
-      "-%F  "
+      " %F  "
     "  "))
 
 ;; We need to defer the call to mode-line-frame-control to the time
@@ -501,11 +501,12 @@ mouse-1: Display Line and Column Mode Menu"))
 
 (defvar mode-line-position
   `((:propertize
-     mode-line-percent-position
+     (" " mode-line-percent-position)
      local-map ,mode-line-column-line-number-mode-map
+     display (min-width (5.0))
      mouse-face mode-line-highlight
      ;; XXX needs better description
-     help-echo "Size indication mode\n\
+     help-echo "Window Scroll Percentage
 mouse-1: Display Line and Column Mode Menu")
     (size-indication-mode
      (8 ,(propertize
@@ -521,26 +522,31 @@ mouse-1: Display Line and Column Mode Menu")))
         (10
          (:propertize
           mode-line-position-column-line-format
+          display (min-width (10.0))
           ,@mode-line-position--column-line-properties))
         (10
          (:propertize
           (:eval (string-replace
                   "%c" "%C" (car mode-line-position-column-line-format)))
+          display (min-width (10.0))
           ,@mode-line-position--column-line-properties)))
        (6
         (:propertize
 	 mode-line-position-line-format
+         display (min-width (6.0))
          ,@mode-line-position--column-line-properties))))
      (column-number-mode
       (column-number-indicator-zero-based
        (6
         (:propertize
          mode-line-position-column-format
+         display (min-width (6.0))
          (,@mode-line-position--column-line-properties)))
        (6
         (:propertize
          (:eval (string-replace
                  "%c" "%C" (car mode-line-position-column-format)))
+         display (min-width (6.0))
          ,@mode-line-position--column-line-properties))))))
   "Mode line construct for displaying the position in the buffer.
 Normally displays the buffer percentage and, optionally, the
@@ -597,10 +603,14 @@ By default, this shows the information specified by `global-mode-string'.")
 (let ((standard-mode-line-format
        (list "%e"
 	     'mode-line-front-space
-	     'mode-line-mule-info
-	     'mode-line-client
-	     'mode-line-modified
-	     'mode-line-remote
+             (list
+              :propertize
+              (list ""
+	            'mode-line-mule-info
+	            'mode-line-client
+	            'mode-line-modified
+	            'mode-line-remote)
+              'display '(min-width (5.0)))
 	     'mode-line-frame-identification
 	     'mode-line-buffer-identification
 	     "   "
@@ -981,7 +991,7 @@ if `inhibit-field-text-motion' is non-nil."
 (define-key ctl-x-map "\M-:" 'repeat-complex-command)
 (define-key ctl-x-map "u" 'undo)
 (put 'undo :advertised-binding [?\C-x ?u])
-;; Many people are used to typing C-/ on X terminals and getting C-_.
+;; Many people are used to typing C-/ on GUI frames and getting C-_.
 (define-key global-map [?\C-/] 'undo)
 (define-key global-map "\C-_" 'undo)
 ;; Richard said that we should not use C-x <uppercase letter> and I have
@@ -993,6 +1003,9 @@ if `inhibit-field-text-motion' is non-nil."
     map)
   "Keymap to repeat undo key sequences `C-x u u'.  Used in `repeat-mode'.")
 (put 'undo 'repeat-map 'undo-repeat-map)
+
+(define-key global-map '[(control ??)] 'undo-redo)
+(define-key global-map [?\C-\M-_] 'undo-redo)
 
 (define-key esc-map "!" 'shell-command)
 (define-key esc-map "|" 'shell-command-on-region)
@@ -1247,6 +1260,8 @@ if `inhibit-field-text-motion' is non-nil."
 ;; (define-key global-map [kp-8]		'function-key-error)
 ;; (define-key global-map [kp-9]		'function-key-error)
 ;; (define-key global-map [kp-equal]	'function-key-error)
+
+(define-key global-map [touch-end] 'ignore)
 
 ;; X11 distinguishes these keys from the non-kp keys.
 ;; Make them behave like the non-kp keys unless otherwise bound.

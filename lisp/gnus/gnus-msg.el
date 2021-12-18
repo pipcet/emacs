@@ -349,39 +349,39 @@ only affect the Gcc copy, but not the original message."
 ;;; Gnus Posting Functions
 ;;;
 
-(gnus-define-keys (gnus-summary-send-map "S" gnus-summary-mode-map)
-  "p" gnus-summary-post-news
-  "i" gnus-summary-news-other-window
-  "f" gnus-summary-followup
-  "F" gnus-summary-followup-with-original
-  "c" gnus-summary-cancel-article
-  "s" gnus-summary-supersede-article
-  "r" gnus-summary-reply
-  "y" gnus-summary-yank-message
-  "R" gnus-summary-reply-with-original
-  "L" gnus-summary-reply-to-list-with-original
-  "w" gnus-summary-wide-reply
-  "W" gnus-summary-wide-reply-with-original
-  "v" gnus-summary-very-wide-reply
-  "V" gnus-summary-very-wide-reply-with-original
-  "n" gnus-summary-followup-to-mail
-  "N" gnus-summary-followup-to-mail-with-original
-  "m" gnus-summary-mail-other-window
-  "u" gnus-uu-post-news
-  "A" gnus-summary-attach-article
-  "\M-c" gnus-summary-mail-crosspost-complaint
-  "Br" gnus-summary-reply-broken-reply-to
-  "BR" gnus-summary-reply-broken-reply-to-with-original
-  "om" gnus-summary-mail-forward
-  "op" gnus-summary-post-forward
-  "Om" gnus-uu-digest-mail-forward
-  "Op" gnus-uu-digest-post-forward)
+(define-keymap :prefix 'gnus-summary-send-map
+  "p" #'gnus-summary-post-news
+  "i" #'gnus-summary-news-other-window
+  "f" #'gnus-summary-followup
+  "F" #'gnus-summary-followup-with-original
+  "c" #'gnus-summary-cancel-article
+  "s" #'gnus-summary-supersede-article
+  "r" #'gnus-summary-reply
+  "y" #'gnus-summary-yank-message
+  "R" #'gnus-summary-reply-with-original
+  "L" #'gnus-summary-reply-to-list-with-original
+  "w" #'gnus-summary-wide-reply
+  "W" #'gnus-summary-wide-reply-with-original
+  "v" #'gnus-summary-very-wide-reply
+  "V" #'gnus-summary-very-wide-reply-with-original
+  "n" #'gnus-summary-followup-to-mail
+  "N" #'gnus-summary-followup-to-mail-with-original
+  "m" #'gnus-summary-mail-other-window
+  "u" #'gnus-uu-post-news
+  "A" #'gnus-summary-attach-article
+  "M-c" #'gnus-summary-mail-crosspost-complaint
+  "B r" #'gnus-summary-reply-broken-reply-to
+  "B R" #'gnus-summary-reply-broken-reply-to-with-original
+  "o m" #'gnus-summary-mail-forward
+  "o p" #'gnus-summary-post-forward
+  "O m" #'gnus-uu-digest-mail-forward
+  "O p" #'gnus-uu-digest-post-forward
 
-(gnus-define-keys (gnus-send-bounce-map "D" gnus-summary-send-map)
-  "b" gnus-summary-resend-bounced-mail
-  ;; "c" gnus-summary-send-draft
-  "r" gnus-summary-resend-message
-  "e" gnus-summary-resend-message-edit)
+  "D" (define-keymap :prefix 'gnus-send-bounce-map
+        "b" #'gnus-summary-resend-bounced-mail
+        ;; "c" gnus-summary-send-draft
+        "r" #'gnus-summary-resend-message
+        "e" #'gnus-summary-resend-message-edit))
 
 ;;; Internal functions.
 
@@ -1305,7 +1305,7 @@ For the \"inline\" alternatives, also see the variable
   (gnus-inews-insert-gcc)
   (let ((gcc (message-unquote-tokens
 	       (message-tokenize-header (mail-fetch-field "gcc" nil t)
-					" ,")))
+					",")))
 	(self (with-current-buffer gnus-summary-buffer
 		gnus-gcc-self-resent-messages)))
     (message-remove-header "gcc")
@@ -1572,7 +1572,7 @@ this is a reply."
 	  (message-remove-header "gcc")
 	  (widen)
 	  (setq groups (message-unquote-tokens
-			(message-tokenize-header gcc " ,\n\t")))
+			(message-tokenize-header gcc ",\n\t")))
 	  ;; Copy the article over to some group(s).
 	  (while (setq group (pop groups))
 	    (setq method (gnus-inews-group-method group))
@@ -1748,7 +1748,7 @@ this is a reply."
 			    (concat "\"" str "\"")
 			  str)))
 	      (when groups
-		(insert " ")))
+		(insert ",")))
 	    (insert "\n")))))))
 
 (defun gnus-mailing-list-followup-to ()

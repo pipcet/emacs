@@ -106,8 +106,17 @@ valid THING.
 
 Return a cons cell (START . END) giving the start and end
 positions of the thing found."
-  (if (get thing 'bounds-of-thing-at-point)
-      (funcall (get thing 'bounds-of-thing-at-point))
+  (cond
+   ((get thing 'bounds-of-thing-at-point)
+    (funcall (get thing 'bounds-of-thing-at-point)))
+   ;; If the buffer is totally empty, give up.
+   ((and (not (eq thing 'whitespace))
+         (save-excursion
+           (goto-char (point-min))
+           (not (re-search-forward "[^\t\n ]" nil t))))
+    nil)
+   ;; Find the thing.
+   (t
     (let ((orig (point)))
       (ignore-errors
 	(save-excursion
@@ -149,7 +158,7 @@ positions of the thing found."
 			    (lambda () (forward-thing thing -1))))
 		       (point))))
 		(if (and (<= real-beg orig) (<= orig end) (< real-beg end))
-		    (cons real-beg end))))))))))
+		    (cons real-beg end)))))))))))
 
 ;;;###autoload
 (defun thing-at-point (thing &optional no-properties)
@@ -231,7 +240,27 @@ The bounds of THING are determined by `bounds-of-thing-at-point'."
 (put 'line 'beginning-op
      (lambda () (if (bolp) (forward-line -1) (beginning-of-line))))
 
-;;  Sexps
+;;  Strings
+
+(put 'string 'bounds-of-thing-at-point 'thing-at-point-bounds-of-string-at-point)
+
+(defun thing-at-point-bounds-of-string-at-point ()
+  "Return the bounds of the string at point.
+Prefer the enclosing string with fallback on sexp at point.
+\[Internal function used by `bounds-of-thing-at-point'.]"
+  (save-excursion
+    (let ((ppss (syntax-ppss)))
+      (if (nth 3 ppss)
+          ;; Inside the string
+          (ignore-errors
+            (goto-char (nth 8 ppss))
+            (cons (point) (progn (forward-sexp) (point))))
+        ;; At the beginning of the string
+        (if (eq (char-syntax (char-after)) ?\")
+            (let ((bound (bounds-of-thing-at-point 'sexp)))
+	      (and bound
+	           (<= (car bound) (point)) (< (point) (cdr bound))
+	           bound)))))))
 
 (defun in-string-p ()
   "Return non-nil if point is in a string."
@@ -240,6 +269,8 @@ The bounds of THING are determined by `bounds-of-thing-at-point'."
     (save-excursion
       (beginning-of-defun)
       (nth 3 (parse-partial-sexp (point) orig)))))
+
+;;  Sexps
 
 (defun thing-at-point--end-of-sexp ()
   "Move point to the end of the current sexp."
@@ -284,28 +315,17 @@ The bounds of THING are determined by `bounds-of-thing-at-point'."
 
 (put 'list 'bounds-of-thing-at-point 'thing-at-point-bounds-of-list-at-point)
 
-(defun thing-at-point-bounds-of-list-at-point (&optional escape-strings no-syntax-crossing)
+(defun thing-at-point-bounds-of-list-at-point ()
   "Return the bounds of the list at point.
 Prefer the enclosing list with fallback on sexp at point.
 \[Internal function used by `bounds-of-thing-at-point'.]"
   (save-excursion
-    (if (ignore-errors (up-list -1 escape-strings no-syntax-crossing))
+    (if (ignore-errors (up-list -1))
 	(ignore-errors (cons (point) (progn (forward-sexp) (point))))
       (let ((bound (bounds-of-thing-at-point 'sexp)))
 	(and bound
 	     (<= (car bound) (point)) (< (point) (cdr bound))
 	     bound)))))
-
-(put 'list-or-string 'bounds-of-thing-at-point
-     'thing-at-point-bounds-of-list-or-string-at-point)
-
-(defun thing-at-point-bounds-of-list-or-string-at-point ()
-  "Return the bounds of the list or string at point.
-Like `thing-at-point-bounds-of-list-at-point', but if
-point is inside a string that's enclosed in the list, this
-function will return the enclosed string and not the
-enclosing list."
-  (thing-at-point-bounds-of-list-at-point t t))
 
 ;; Defuns
 

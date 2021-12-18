@@ -149,8 +149,7 @@ If EXACT is non-nil, don't accept approximate matches."
           (cond ((null epa-keyserver)
                  (user-error "Empty keyserver pool"))
                 ((listp epa-keyserver)
-                 (nth (random (length epa-keyserver))
-                      epa-keyserver))
+                 (seq-random-elt epa-keyserver))
                 ((stringp epa-keyserver)
                  epa-keyserver)
                 ((error "Invalid type for `epa-keyserver'")))
@@ -211,7 +210,8 @@ KEYS is a list of `epa-ks-key' structures, as parsed by
       (with-current-buffer buf
         (setq tabulated-list-entries entries)
         (tabulated-list-print t t))
-      (message "Press `f' to mark a key, `x' to fetch all marked keys."))))
+      (message (substitute-command-keys
+                "Press \\`f' to mark a key, \\`x' to fetch all marked keys.")))))
 
 (defun epa-ks--restart-search ()
   (when epa-ks-last-query
@@ -295,12 +295,12 @@ enough, since keyservers have strict timeout settings."
                :created
                (and  (match-string 4)
                      (not (string-empty-p (match-string 4)))
-                     (seconds-to-time
+		     (time-convert
                       (string-to-number (match-string 4))))
                :expires
                (and (match-string 5)
                     (not (string-empty-p (match-string 5)))
-                    (seconds-to-time
+		    (time-convert
                      (string-to-number (match-string 5))))
                :flags
                (mapcar (lambda (flag)
@@ -319,15 +319,11 @@ enough, since keyservers have strict timeout settings."
                :created
                (and (match-string 2)
                     (not (string-empty-p (match-string 2)))
-                    (decode-time (seconds-to-time
-                                  (string-to-number
-                                   (match-string 2)))))
+		    (decode-time (string-to-number (match-string 2))))
                :expires
                (and (match-string 3)
                     (not (string-empty-p (match-string 3)))
-                    (decode-time (seconds-to-time
-                                  (string-to-number
-                                   (match-string 3)))))
+		    (decode-time (string-to-number (match-string 3))))
                :flags
                (mapcar (lambda (flag)
                          (cdr (assq flag '((?r revoked)

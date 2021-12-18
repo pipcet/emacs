@@ -469,7 +469,7 @@ just FUNCTION is printed."
     (funcall orig-fun nil)))
 
 (defun edebug-eval-defun (edebug-it)
-  (declare (obsolete "use eval-defun or edebug--eval-defun instead" "28.1"))
+  (declare (obsolete "use `eval-defun' or `edebug--eval-defun' instead" "28.1"))
   (interactive "P")
   (if (advice-member-p #'edebug--eval-defun 'eval-defun)
       (eval-defun edebug-it)
@@ -3519,7 +3519,8 @@ The removes the effect of `edebug-on-entry'.  If FUNCTION is
 nil, remove `edebug-on-entry' on all functions."
   (interactive
    (list (let ((name (completing-read
-                      "Cancel edebug on entry to (default all functions): "
+                      (format-prompt "Cancel edebug on entry to"
+                                     "all functions")
                       (let ((functions (edebug--edebug-on-entry-functions)))
                         (unless functions
                           (user-error "No functions have `edebug-on-entry'"))
@@ -4548,7 +4549,8 @@ instrumentation for, defaulting to all functions."
         (user-error "Found no functions to remove instrumentation from"))
       (let ((name
              (completing-read
-              "Remove instrumentation from (default all functions): "
+              (format-prompt "Remove instrumentation from"
+                             "all functions")
               functions)))
         (if (and name
                  (not (equal name "")))

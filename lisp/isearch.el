@@ -488,9 +488,9 @@ and doesn't remove full-buffer highlighting after a search."
   "You have typed %THIS-KEY%, the help character.  Type a Help option:
 \(Type \\<isearch-help-map>\\[help-quit] to exit the Help command.)
 
-\\[isearch-describe-bindings]           Display all Isearch key bindings.
-\\[isearch-describe-key] KEYS      Display full documentation of Isearch key sequence.
-\\[isearch-describe-mode]           Display documentation of Isearch mode.
+  \\[isearch-describe-bindings]	Display all Isearch key bindings.
+  \\[isearch-describe-key]	Display full documentation of Isearch key sequence.
+  \\[isearch-describe-mode]	Display documentation of Isearch mode.
 
 You can't type here other help keys available in the global help map,
 but outside of this help window when you type them in Isearch mode,
@@ -521,14 +521,14 @@ This is like `describe-bindings', but displays only Isearch keys."
   (interactive)
   (let ((display-buffer-overriding-action isearch--display-help-action))
     (call-interactively 'describe-key))
-  (isearch-update))
+  (when isearch-mode (isearch-update)))
 
 (defun isearch-describe-mode ()
   "Display documentation of Isearch mode."
   (interactive)
   (let ((display-buffer-overriding-action isearch--display-help-action))
     (describe-function 'isearch-forward))
-  (isearch-update))
+  (when isearch-mode (isearch-update)))
 
 (defalias 'isearch-mode-help 'isearch-describe-mode)
 
@@ -1096,7 +1096,8 @@ as a regexp.  See the command `isearch-forward' for more information.
 In incremental searches, a space or spaces normally matches any
 whitespace defined by the variable `search-whitespace-regexp'.
 To search for a literal space and nothing else, enter C-q SPC.
-To toggle whitespace matching, use `isearch-toggle-lax-whitespace'.
+To toggle whitespace matching, use `isearch-toggle-lax-whitespace',
+usually bound to `M-s SPC' during isearch.
 This command does not support character folding."
   (interactive "P\np")
   (isearch-mode t (null not-regexp) nil (not no-recursive-edit)))
@@ -2477,8 +2478,8 @@ The arguments passed to `highlight-regexp' are the regexp from
 the last search and the face from `hi-lock-read-face-name'."
   (interactive)
   (isearch--highlight-regexp-or-lines
-   #'(lambda (regexp face lighter)
-       (highlight-regexp regexp face nil lighter))))
+   (lambda (regexp face lighter)
+     (highlight-regexp regexp face nil lighter))))
 
 (defun isearch-highlight-lines-matching-regexp ()
   "Exit Isearch mode and call `highlight-lines-matching-regexp'.
@@ -2486,8 +2487,8 @@ The arguments passed to `highlight-lines-matching-regexp' are the
 regexp from the last search and the face from `hi-lock-read-face-name'."
   (interactive)
   (isearch--highlight-regexp-or-lines
-   #'(lambda (regexp face _lighter)
-       (highlight-lines-matching-regexp regexp face))))
+   (lambda (regexp face _lighter)
+     (highlight-lines-matching-regexp regexp face))))
 
 
 (defun isearch-delete-char ()
@@ -2503,6 +2504,11 @@ If no input items have been entered yet, just beep."
   (if (null (cdr isearch-cmds))
       (ding)
     (isearch-pop-state))
+  ;; When going back to the hidden match, reopen it.
+  (when (and (eq search-invisible 'open) isearch-hide-immediately
+             isearch-other-end)
+    (isearch-range-invisible (min (point) isearch-other-end)
+                             (max (point) isearch-other-end)))
   (isearch-update))
 
 (defun isearch-del-char (&optional arg)
@@ -3786,8 +3792,9 @@ Isearch, at least partially, as determined by `isearch-range-invisible'.
 If `search-invisible' is t, which allows Isearch matches inside
 invisible text, this function will always return non-nil, regardless
 of what `isearch-range-invisible' says."
-  (or (eq search-invisible t)
-      (not (isearch-range-invisible beg end))))
+  (and (not (text-property-not-all beg end 'inhibit-isearch nil))
+       (or (eq search-invisible t)
+           (not (isearch-range-invisible beg end)))))
 
 
 ;; General utilities

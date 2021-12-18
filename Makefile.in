@@ -102,6 +102,8 @@ HAVE_NATIVE_COMP = @HAVE_NATIVE_COMP@
 
 USE_STARTUP_NOTIFICATION = @USE_STARTUP_NOTIFICATION@
 
+HAVE_BE_APP = @HAVE_BE_APP@
+
 # ==================== Where To Install Things ====================
 
 # Location to install Emacs.app under GNUstep / macOS.
@@ -210,6 +212,9 @@ icondir=$(datarootdir)/icons
 # The source directory for the icon files.
 iconsrcdir=$(srcdir)/etc/images/icons
 
+# Where to install the gsettings schema file.
+gsettingsschemadir = @gsettingsschemadir@
+
 # ==================== Emacs-specific directories ====================
 
 # These variables hold the values Emacs will actually use.  They are
@@ -285,10 +290,16 @@ use_gamedir=$(gameuser)$(gamegroup)
 # not use an absolute path.  So we must take care to always run
 # INSTALL-type commands from the directory containing the Makefile.
 # This explains (I think) the cd thisdir seen in several install rules.
+SYSTEM_TYPE = @SYSTEM_TYPE@
 INSTALL = @INSTALL@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
 INSTALL_DATA = @INSTALL_DATA@
 INSTALL_INFO = @INSTALL_INFO@
+ifeq ($(SYSTEM_TYPE),cygwin)
+  INSTALL_ELN = $(INSTALL)
+else
+  INSTALL_ELN = $(INSTALL_DATA)
+endif
 # By default, we uphold the dignity of our programs.
 INSTALL_STRIP =
 MKDIR_P = @MKDIR_P@
@@ -297,6 +308,8 @@ LN_S_FILEONLY = @LN_S_FILEONLY@
 
 # We use gzip to compress installed .el and some .txt files.
 GZIP_PROG = @GZIP_PROG@
+
+GLIB_COMPILE_SCHEMAS = glib-compile-schemas
 
 # ============================= Targets ==============================
 
@@ -307,6 +320,7 @@ TRANSFORM = @program_transform_name@
 EMACS_NAME = `echo emacs | sed '$(TRANSFORM)'`
 EMACS = ${EMACS_NAME}${EXEEXT}
 EMACSFULL = `echo emacs-${version} | sed '$(TRANSFORM)'`${EXEEXT}
+EMACS_PDMP = `./src/emacs${EXEEXT} --fingerprint`.pdmp
 
 # Subdirectories to make recursively.
 SUBDIR = $(NTDIR) lib lib-src src lisp
@@ -336,7 +350,9 @@ BIN_DESTDIR='${ns_appbindir}/'
 ELN_DESTDIR = ${ns_applibdir}/
 endif
 
-all: ${SUBDIR} info
+gsettings_SCHEMAS = etc/org.gnu.emacs.defaults.gschema.xml
+
+all: ${SUBDIR} info $(gsettings_SCHEMAS:.xml=.valid)
 
 .PHONY: all ${SUBDIR} blessmail epaths-force epaths-force-w32 epaths-force-ns-self-contained etc-emacsver
 
@@ -418,6 +434,10 @@ epaths-force-ns-self-contained: epaths-force
 	  -e 's;${ns_appdir}/;;') &&			\
 	${srcdir}/build-aux/move-if-change epaths.h.$$$$ src/epaths.h
 
+ifneq ($(NTDIR),)
+$(NTDIR): lib
+endif
+
 lib-src src: $(NTDIR) lib
 
 src: lib-src
@@ -488,7 +508,7 @@ $(srcdir)/configure: $(srcdir)/configure.ac $(srcdir)/m4/*.m4
 ## don't have to duplicate the list of utilities to install in
 ## this Makefile as well.
 
-install: all install-arch-indep install-etcdoc install-arch-dep install-$(NTDIR) blessmail install-eln
+install: all install-arch-indep install-etcdoc install-arch-dep install-$(NTDIR) blessmail install-eln install-gsettings-schemas
 	@true
 
 ## Ensure that $subdir contains a subdirs.el file.
@@ -514,8 +534,14 @@ install-arch-dep: src install-arch-indep install-etcdoc install-$(NTDIR)
 	$(MAKE) -C lib-src install
 ifeq (${ns_self_contained},no)
 	${INSTALL_PROGRAM} $(INSTALL_STRIP) src/emacs${EXEEXT} "$(DESTDIR)${bindir}/$(EMACSFULL)"
+ifeq (${HAVE_BE_APP},yes)
+	${INSTALL_PROGRAM} $(INSTALL_STRIP) src/Emacs "$(DESTDIR)${prefix}/apps/Emacs"
+endif
 ifeq (${DUMPING},pdumper)
-	${INSTALL_DATA} src/emacs.pdmp "$(DESTDIR)${libexecdir}/emacs/${version}/${configuration}"/emacs.pdmp
+ifeq (${HAVE_BE_APP},yes)
+	${INSTALL_DATA} src/Emacs.pdmp "$(DESTDIR)${libexecdir}/emacs/${version}/${configuration}"/Emacs.pdmp
+endif
+	${INSTALL_DATA} src/emacs.pdmp "$(DESTDIR)${libexecdir}/emacs/${version}/${configuration}"/emacs-${EMACS_PDMP}
 endif
 	-chmod 755 "$(DESTDIR)${bindir}/$(EMACSFULL)"
 ifndef NO_BIN_LINK
@@ -791,7 +817,7 @@ install-eln: lisp
 ifeq ($(HAVE_NATIVE_COMP),yes)
 	umask 022 ; \
 	find native-lisp -type d -exec $(MKDIR_P) "$(ELN_DESTDIR){}" \; ; \
-	find native-lisp -type f -exec ${INSTALL_DATA} "{}" "$(ELN_DESTDIR){}" \;
+	find native-lisp -type f -exec ${INSTALL_ELN} "{}" "$(ELN_DESTDIR){}" \;
 endif
 
 ### Build Emacs and install it, stripping binaries while installing them.
@@ -802,7 +828,7 @@ install-strip:
 ### create (but not the noninstalled files such as 'make all' would create).
 ###
 ### Don't delete the lisp and etc directories if they're in the source tree.
-uninstall: uninstall-$(NTDIR) uninstall-doc
+uninstall: uninstall-$(NTDIR) uninstall-doc uninstall-gsettings-schemas
 	rm -f "$(DESTDIR)$(includedir)/emacs-module.h"
 	$(MAKE) -C lib-src uninstall
 	-unset CDPATH; \
@@ -898,7 +924,7 @@ clean_dirs = $(mostlyclean_dirs) nextstep admin/charsets admin/unidata
 
 $(foreach dir,$(clean_dirs),$(eval $(call submake_template,$(dir),clean)))
 
-clean: $(clean_dirs:=_clean)
+clean: $(clean_dirs:=_clean) clean-gsettings-schemas
 	-rm -f ./*.tmp etc/*.tmp*
 	-rm -rf info-dir.*
 	-rm -rf native-lisp
@@ -1130,14 +1156,23 @@ check-info: info
 
 .PHONY: bootstrap
 
-# Bootstrapping does the following:
+# Without a 'configure' variable, bootstrapping does the following:
 #  * Remove files to start from a bootstrap-clean slate.
 #  * Run autogen.sh.
 #  * Rebuild Makefile, to update the build procedure itself.
 #  * Do the actual build.
-bootstrap: bootstrap-clean
+# With a 'configure' variable, bootstrapping does the following:
+#  * Remove files to start from an extraclean slate.
+#  * Do the actual build, during which the 'configure' variable is
+#    used (see the Makefile goal in GNUmakefile).
+bootstrap:
+ifndef configure
+	$(MAKE) bootstrap-clean
 	cd $(srcdir) && ./autogen.sh autoconf
 	$(MAKE) MAKEFILE_NAME=force-Makefile force-Makefile
+else
+	$(MAKE) extraclean
+endif
 	$(MAKE) all
 
 .PHONY: ChangeLog change-history change-history-commit change-history-nocommit
@@ -1158,7 +1193,7 @@ ChangeLog:
 	  ./$(emacslog) -o $(CHANGELOG) -n $(CHANGELOG_HISTORY_INDEX_MAX)
 
 # Check that we are in a good state for changing history.
-PREFERRED_BRANCH = emacs-27
+PREFERRED_BRANCH = emacs-28
 preferred-branch-is-current:
 	git branch | grep -q '^\* $(PREFERRED_BRANCH)$$'
 unchanged-history-files:
@@ -1209,3 +1244,10 @@ gitmerge:
 	${GITMERGE_EMACS} -batch --no-site-file --no-site-lisp \
 	  -l ${srcdir}/admin/gitmerge.el \
 	  --eval '(setq gitmerge-minimum-missing ${GITMERGE_NMIN})' -f gitmerge
+
+@GSETTINGS_RULES@
+
+install-gsettings-schemas:
+uninstall-gsettings-schemas:
+clean-gsettings-schemas:
+$(gsettings_SCHEMAS:.xml=.valid):

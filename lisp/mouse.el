@@ -184,8 +184,8 @@ items `Turn Off' and `Help'."
 			       "-" " " (format "%S" minor-mode))))
                     (turn-off menu-item "Turn off minor mode" ,mm-fun)
                     (help menu-item "Help for minor mode"
-                          (lambda () (interactive)
-                            (describe-function ',mm-fun)))))))
+                          ,(lambda () (interactive)
+                             (describe-function mm-fun)))))))
       (if menu
           (popup-menu menu)
         (message "No menu available")))))
@@ -271,7 +271,7 @@ not it is actually displayed."
     ;; FIXME: We have a problem here: we have to use the global/local/minor
     ;; so they're displayed in the expected order, but later on in the command
     ;; loop, they're actually looked up in the opposite order.
-    (apply 'append
+    (apply #'append
            global-menu
            local-menu
            minor-mode-menus)))
@@ -290,6 +290,7 @@ and should return the same menu with changes such as added new menu items."
   :type '(repeat
           (choice (function-item context-menu-undo)
                   (function-item context-menu-region)
+                  (function-item context-menu-middle-separator)
                   (function-item context-menu-toolbar)
                   (function-item context-menu-global)
                   (function-item context-menu-local)
@@ -326,13 +327,23 @@ the function `context-menu-filter-function'."
                           (setq menu (funcall fun menu click))
                           nil)))
 
-    ;; Remove duplicate separators
-    (let ((l menu))
-      (while l
-        (when (and (equal (cdr-safe (car l)) menu-bar-separator)
-                   (equal (cdr-safe (cadr l)) menu-bar-separator))
-          (setcdr l (cddr l)))
-        (setq l (cdr l))))
+    ;; Remove duplicate separators as well as ones at the beginning or
+    ;; end of the menu.
+    (let ((l menu) saw-first-item)
+      (while (and (consp l)
+                  (consp (cdr l)))
+        ;; If the next item is a separator, remove it if 1) we haven't
+        ;; seen any other items yet, or 2) it's followed by either
+        ;; another separator or the end of the list.
+        (if (and (equal (cdr-safe (cadr l)) menu-bar-separator)
+                 (or (not saw-first-item)
+                     (null (caddr l))
+                     (equal (cdr-safe (caddr l)) menu-bar-separator)))
+            (setcdr l (cddr l))
+          ;; The "first item" is any cons cell; this excludes the
+          ;; `keymap' symbol and the menu name.
+          (when (consp (cadr l)) (setq saw-first-item t))
+          (setq l (cdr l)))))
 
     (when (functionp context-menu-filter-function)
       (setq menu (funcall context-menu-filter-function menu click)))
@@ -363,7 +374,7 @@ Some context functions add menu items below the separator."
                 (when (consp binding)
                   (define-key-after menu (vector key)
                     (copy-sequence binding))))
-              (lookup-key global-map [menu-bar]))
+              (menu-bar-keymap (lookup-key global-map [menu-bar])))
   menu)
 
 (defun context-menu-local (menu _click)
@@ -376,7 +387,7 @@ Some context functions add menu items below the separator."
                     (when (consp binding)
                       (define-key-after menu (vector key)
                         (copy-sequence binding))))
-                  keymap)))
+                  (menu-bar-keymap keymap))))
   menu)
 
 (defun context-menu-minor (menu _click)
@@ -478,24 +489,19 @@ Some context functions add menu items below the separator."
       `(menu-item "All"
                   ,(lambda (e) (interactive "e") (mark-thing-at-mouse e 'buffer))
                   :help "Mark the whole buffer for a subsequent cut/copy"))
-    (define-key-after submenu [mark-defun]
-      `(menu-item "Defun"
-                  ,(lambda (e) (interactive "e") (mark-thing-at-mouse e 'defun))
-                  :help "Mark the defun at click for a subsequent cut/copy"))
-    (define-key-after submenu [mark-list-or-string]
-      `(menu-item ,(if (nth 8 (save-excursion
-                                (syntax-ppss (posn-point (event-end click)))))
-                       "String" "List")
-                  ,(lambda (e) (interactive "e") (mark-thing-at-mouse e 'list-or-string))
-                  :help "Mark list or string at click for a subsequent cut/copy"))
+    (with-current-buffer (window-buffer (posn-window (event-end click)))
+      (when (let* ((pos (posn-point (event-end click)))
+                   (char (when pos (char-after pos))))
+              (or (and char (eq (char-syntax char) ?\"))
+                  (nth 3 (save-excursion (syntax-ppss pos)))))
+        (define-key-after submenu [mark-string]
+          `(menu-item "String"
+                      ,(lambda (e) (interactive "e") (mark-thing-at-mouse e 'string))
+                      :help "Mark the string at click for a subsequent cut/copy"))))
     (define-key-after submenu [mark-line]
       `(menu-item "Line"
                   ,(lambda (e) (interactive "e") (mark-thing-at-mouse e 'line))
                   :help "Mark the line at click for a subsequent cut/copy"))
-    (define-key-after submenu [mark-symbol]
-      `(menu-item "Symbol"
-                  ,(lambda (e) (interactive "e") (mark-thing-at-mouse e 'symbol))
-                  :help "Mark the symbol at click for a subsequent cut/copy"))
     (when (region-active-p)
       (define-key-after submenu [mark-none]
         `(menu-item "None"
@@ -518,8 +524,8 @@ Some context functions add menu items below the separator."
   menu)
 
 (defvar context-menu-entry
-  `(menu-item ,(purecopy "Context Menu") ignore
-              :filter (lambda (_) (context-menu-map)))
+  `(menu-item ,(purecopy "Context Menu") ,(make-sparse-keymap)
+              :filter ,(lambda (_) (context-menu-map)))
   "Menu item that creates the context menu and can be bound to a mouse key.")
 
 (defvar context-menu-mode-map
@@ -540,16 +546,19 @@ Some context functions add menu items below the separator."
 
 When Context Menu mode is enabled, clicking the mouse button down-mouse-3
 activates the menu whose contents depends on its surrounding context."
-  :global t :group 'mouse)
+  :global t)
 
 (defun context-menu-open ()
   "Start key navigation of the context menu.
 This is the keyboard interface to \\[context-menu-map]."
   (interactive)
-  (let ((inhibit-mouse-event-check t))
-    (popup-menu (context-menu-map) (point))))
+  (let ((inhibit-mouse-event-check t)
+        (map (context-menu-map)))
+    (if (commandp map)
+        (call-interactively map)
+      (popup-menu map (point)))))
 
-(global-set-key [S-f10] 'context-menu-open)
+(global-set-key [S-f10] #'context-menu-open)
 
 (defun mark-thing-at-mouse (click thing)
   "Activate the region around THING found near the mouse CLICK."
@@ -576,7 +585,8 @@ This is the keyboard interface to \\[context-menu-map]."
 
 (defun mouse-minibuffer-check (event)
   (let ((w (posn-window (event-start event))))
-    (and (window-minibuffer-p w)
+    (and (windowp w)
+         (window-minibuffer-p w)
 	 (not (minibuffer-window-active-p w))
 	 (user-error "Minibuffer window is not active")))
   ;; Give temporary modes such as isearch a chance to turn off.
@@ -603,7 +613,7 @@ This command must be bound to a mouse click."
     (or (eq frame oframe)
 	(set-mouse-position (selected-frame) (1- (frame-width)) 0))))
 
-(define-obsolete-function-alias 'mouse-tear-off-window 'tear-off-window "24.4")
+(define-obsolete-function-alias 'mouse-tear-off-window #'tear-off-window "24.4")
 (defun tear-off-window (click)
   "Delete the selected window, and create a new frame displaying its buffer."
   (interactive (list last-nonmenu-event))
@@ -679,7 +689,6 @@ must be one of the symbols `header', `mode', or `vertical'."
 	 ;; previously sampled position.  The difference of `position'
 	 ;; and `last-position' determines the size change of WINDOW.
 	 (last-position position)
-	 (draggable t)
 	 posn-window growth dragged)
     ;; Decide on whether we are allowed to track at all and whose
     ;; window's edge we drag.
@@ -732,7 +741,7 @@ must be one of the symbols `header', `mode', or `vertical'."
 		  (setq dragged t)
 		  (adjust-window-trailing-edge window growth t t))
 		(setq last-position position))
-	       (draggable
+	       (t
 		;; Drag bottom edge of `window'.
 		(setq start (event-start event))
 		;; Set `posn-window' to the window where `event' was recorded.
@@ -1573,8 +1582,7 @@ The region will be defined with mark and point."
   (mouse-minibuffer-check start-event)
   (setq mouse-selection-click-count-buffer (current-buffer))
   (deactivate-mark)
-  (let* ((scroll-margin 0) ; Avoid margin scrolling (Bug#9541).
-	 (start-posn (event-start start-event))
+  (let* ((start-posn (event-start start-event))
 	 (start-point (posn-point start-posn))
 	 (start-window (posn-window start-posn))
 	 (_ (with-current-buffer (window-buffer start-window)
@@ -1596,72 +1604,88 @@ The region will be defined with mark and point."
 		   ;; Don't count the mode line.
 		   (1- (nth 3 bounds))))
 	 (click-count (1- (event-click-count start-event)))
-	 ;; Suppress automatic hscrolling, because that is a nuisance
-	 ;; when setting point near the right fringe (but see below).
+         ;; Save original automatic scrolling behavior (see below).
 	 (auto-hscroll-mode-saved auto-hscroll-mode)
-         (old-track-mouse track-mouse))
+	 (scroll-margin-saved scroll-margin)
+         (old-track-mouse track-mouse)
+         (cleanup (lambda ()
+                    (setq track-mouse old-track-mouse)
+                    (setq auto-hscroll-mode auto-hscroll-mode-saved)
+                    (setq scroll-margin scroll-margin-saved))))
+    (condition-case err
+        (progn
+          (setq mouse-selection-click-count click-count)
 
-    (setq mouse-selection-click-count click-count)
-    ;; In case the down click is in the middle of some intangible text,
-    ;; use the end of that text, and put it in START-POINT.
-    (if (< (point) start-point)
-	(goto-char start-point))
-    (setq start-point (point))
+          ;; Suppress automatic scrolling near the edges while tracking
+          ;; movement, as it interferes with the natural dragging behavior
+          ;; (point will unexpectedly be moved beneath the pointer, making
+          ;; selections in auto-scrolling margins impossible).
+          (setq auto-hscroll-mode nil)
+          (setq scroll-margin 0)
 
-    ;; Activate the region, using `mouse-start-end' to determine where
-    ;; to put point and mark (e.g., double-click will select a word).
-    (setq-local transient-mark-mode
-                (if (eq transient-mark-mode 'lambda)
-                    '(only)
-                  (cons 'only transient-mark-mode)))
-    (let ((range (mouse-start-end start-point start-point click-count)))
-      (push-mark (nth 0 range) t t)
-      (goto-char (nth 1 range)))
+          ;; In case the down click is in the middle of some intangible text,
+          ;; use the end of that text, and put it in START-POINT.
+          (if (< (point) start-point)
+	      (goto-char start-point))
+          (setq start-point (point))
 
-    (setf (terminal-parameter nil 'mouse-drag-start) start-event)
-    (setq track-mouse t)
-    (setq auto-hscroll-mode nil)
+          ;; Activate the region, using `mouse-start-end' to determine where
+          ;; to put point and mark (e.g., double-click will select a word).
+          (setq-local transient-mark-mode
+                      (if (eq transient-mark-mode 'lambda)
+                          '(only)
+                        (cons 'only transient-mark-mode)))
+          (let ((range (mouse-start-end start-point start-point click-count)))
+            (push-mark (nth 0 range) t t)
+            (goto-char (nth 1 range)))
 
-    (set-transient-map
-     (let ((map (make-sparse-keymap)))
-       (define-key map [switch-frame] #'ignore)
-       (define-key map [select-window] #'ignore)
-       (define-key map [mouse-movement]
-         (lambda (event) (interactive "e")
-           (let* ((end (event-end event))
-                  (end-point (posn-point end)))
-             (unless (eq end-point start-point)
-               ;; As soon as the user moves, we can re-enable auto-hscroll.
-               (setq auto-hscroll-mode auto-hscroll-mode-saved)
-               ;; And remember that we have moved, so mouse-set-region can know
-               ;; its event is really a drag event.
-               (setcar start-event 'mouse-movement))
-             (if (and (eq (posn-window end) start-window)
-                      (integer-or-marker-p end-point))
-                 (mouse--drag-set-mark-and-point start-point
-                                                 end-point click-count)
-               (let ((mouse-row (cdr (cdr (mouse-position)))))
-                 (cond
-                  ((null mouse-row))
-                  ((< mouse-row top)
-                   (mouse-scroll-subr start-window (- mouse-row top)
-                                      nil start-point))
-                  ((>= mouse-row bottom)
-                   (mouse-scroll-subr start-window (1+ (- mouse-row bottom))
-                                      nil start-point))))))))
-       map)
-     t (lambda ()
-         (setq track-mouse old-track-mouse)
-         (setq auto-hscroll-mode auto-hscroll-mode-saved)
-         ;; Don't deactivate the mark when the context menu was invoked
-         ;; by down-mouse-3 immediately after down-mouse-1 and without
-         ;; releasing the mouse button with mouse-1. This allows to use
-         ;; region-related context menu to operate on the selected region.
-         (unless (and context-menu-mode
-                      (eq (car-safe (aref (this-command-keys-vector) 0))
-                          'down-mouse-3))
-           (deactivate-mark)
-           (pop-mark))))))
+          (setf (terminal-parameter nil 'mouse-drag-start) start-event)
+          ;; Set 'track-mouse' to something neither nil nor t, so that mouse
+          ;; events are not reported to have happened on the tool bar or the
+          ;; tab bar, as that breaks drag events that originate on the window
+          ;; body below these bars; see make_lispy_position and bug#51794.
+          (setq track-mouse 'drag-tracking)
+
+          (set-transient-map
+           (let ((map (make-sparse-keymap)))
+             (define-key map [switch-frame] #'ignore)
+             (define-key map [select-window] #'ignore)
+             (define-key map [mouse-movement]
+               (lambda (event) (interactive "e")
+                 (let* ((end (event-end event))
+                        (end-point (posn-point end)))
+                   (unless (eq end-point start-point)
+                     ;; And remember that we have moved, so mouse-set-region can know
+                     ;; its event is really a drag event.
+                     (setcar start-event 'mouse-movement))
+                   (if (and (eq (posn-window end) start-window)
+                            (integer-or-marker-p end-point))
+                       (mouse--drag-set-mark-and-point start-point
+                                                       end-point click-count)
+                     (let ((mouse-row (cdr (cdr (mouse-position)))))
+                       (cond
+                        ((null mouse-row))
+                        ((< mouse-row top)
+                         (mouse-scroll-subr start-window (- mouse-row top)
+                                            nil start-point))
+                        ((>= mouse-row bottom)
+                         (mouse-scroll-subr start-window (1+ (- mouse-row bottom))
+                                            nil start-point))))))))
+             map)
+           t (lambda ()
+               (funcall cleanup)
+               ;; Don't deactivate the mark when the context menu was invoked
+               ;; by down-mouse-3 immediately after down-mouse-1 and without
+               ;; releasing the mouse button with mouse-1. This allows to use
+               ;; region-related context menu to operate on the selected region.
+               (unless (and context-menu-mode
+                            (eq (car-safe (aref (this-command-keys-vector) 0))
+                                'down-mouse-3))
+                 (deactivate-mark)
+                 (pop-mark)))))
+      ;; Cleanup on errors
+      (error (funcall cleanup)
+             (signal (car err) (cdr err))))))
 
 (defun mouse--drag-set-mark-and-point (start click click-count)
   (let* ((range (mouse-start-end start click click-count))
@@ -1817,7 +1841,7 @@ If MODE is 2 then do the same for lines."
 	    event)))
     (setcar last new)
     (if (and (not (equal modifiers old-modifiers))
-	     (key-binding (apply 'vector events)))
+	     (key-binding (apply #'vector events)))
 	t
       (setcar last event)
       nil)))
@@ -1871,12 +1895,12 @@ regardless of where you click."
   (setq mouse-selection-click-count 0)
   (yank arg))
 
-(defun mouse-yank-primary (click)
-  "Insert the primary selection at the position clicked on.
+(defun mouse-yank-primary (&optional event)
+  "Insert the primary selection,
 Move point to the end of the inserted text, and set mark at
 beginning.  If `mouse-yank-at-point' is non-nil, insert at point
-regardless of where you click."
-  (interactive "e")
+otherwise insert it at the position of EVENT."
+  (interactive (list last-nonmenu-event))
   ;; Give temporary modes such as isearch a chance to turn off.
   (run-hooks 'mouse-leave-buffer-hook)
   ;; Without this, confusing things happen upon e.g. inserting into
@@ -1884,7 +1908,7 @@ regardless of where you click."
   (when select-active-regions
     (let (select-active-regions)
       (deactivate-mark)))
-  (or mouse-yank-at-point (mouse-set-point click))
+  (or mouse-yank-at-point (mouse-set-point event))
   (let ((primary (gui-get-primary-selection)))
     (push-mark)
     (insert-for-yank primary)))
@@ -2024,11 +2048,11 @@ if `mouse-drag-copy-region' is non-nil)."
       (setq mouse-save-then-kill-posn click-pt)))))
 
 
-(global-set-key [M-mouse-1] 'mouse-start-secondary)
-(global-set-key [M-drag-mouse-1] 'mouse-set-secondary)
-(global-set-key [M-down-mouse-1] 'mouse-drag-secondary)
-(global-set-key [M-mouse-3] 'mouse-secondary-save-then-kill)
-(global-set-key [M-mouse-2] 'mouse-yank-secondary)
+(global-set-key [M-mouse-1] #'mouse-start-secondary)
+(global-set-key [M-drag-mouse-1] #'mouse-set-secondary)
+(global-set-key [M-down-mouse-1] #'mouse-drag-secondary)
+(global-set-key [M-mouse-3] #'mouse-secondary-save-then-kill)
+(global-set-key [M-mouse-2] #'mouse-yank-secondary)
 
 (defconst mouse-secondary-overlay
   (let ((ol (make-overlay (point-min) (point-min))))
@@ -2470,7 +2494,7 @@ a large number if you prefer a mixed multitude.  The default is 4."
     ("Text" . "Text")
     ("Outline" . "Text")
     ("\\(HT\\|SG\\|X\\|XHT\\)ML" . "SGML")
-    ("log\\|diff\\|vc\\|cvs\\|Git\\|Annotate" . "Version Control")
+    ("\\blog\\b\\|diff\\|\\bvc\\b\\|cvs\\|Git\\|Annotate" . "Version Control")
     ("Threads\\|Memory\\|Disassembly\\|Breakpoints\\|Frames\\|Locals\\|Registers\\|Inferior I/O\\|Debugger"
      . "GDB")
     ("Lisp" . "Lisp")))
@@ -3188,78 +3212,78 @@ is copied instead of being cut."
 
 ;;; Bindings for mouse commands.
 
-(global-set-key [down-mouse-1]	'mouse-drag-region)
-(global-set-key [mouse-1]	'mouse-set-point)
-(global-set-key [drag-mouse-1]	'mouse-set-region)
+(global-set-key [down-mouse-1]	#'mouse-drag-region)
+(global-set-key [mouse-1]	#'mouse-set-point)
+(global-set-key [drag-mouse-1]	#'mouse-set-region)
 
 (defun mouse--strip-first-event (_prompt)
   (substring (this-single-command-raw-keys) 1))
 
-(define-key function-key-map [left-fringe mouse-1] 'mouse--strip-first-event)
-(define-key function-key-map [right-fringe mouse-1] 'mouse--strip-first-event)
+(define-key function-key-map [left-fringe mouse-1] #'mouse--strip-first-event)
+(define-key function-key-map [right-fringe mouse-1] #'mouse--strip-first-event)
 
-(global-set-key [mouse-2]	'mouse-yank-primary)
+(global-set-key [mouse-2]	#'mouse-yank-primary)
 ;; Allow yanking also when the corresponding cursor is "in the fringe".
-(define-key function-key-map [right-fringe mouse-2] 'mouse--strip-first-event)
-(define-key function-key-map [left-fringe mouse-2] 'mouse--strip-first-event)
-(global-set-key [mouse-3]	'mouse-save-then-kill)
-(define-key function-key-map [right-fringe mouse-3] 'mouse--strip-first-event)
-(define-key function-key-map [left-fringe mouse-3] 'mouse--strip-first-event)
+(define-key function-key-map [right-fringe mouse-2] #'mouse--strip-first-event)
+(define-key function-key-map [left-fringe mouse-2] #'mouse--strip-first-event)
+(global-set-key [mouse-3]	#'mouse-save-then-kill)
+(define-key function-key-map [right-fringe mouse-3] #'mouse--strip-first-event)
+(define-key function-key-map [left-fringe mouse-3] #'mouse--strip-first-event)
 
 ;; By binding these to down-going events, we let the user use the up-going
 ;; event to make the selection, saving a click.
-(global-set-key [C-down-mouse-1] 'mouse-buffer-menu)
+(global-set-key [C-down-mouse-1] #'mouse-buffer-menu)
 (if (not (eq system-type 'ms-dos))
-    (global-set-key [S-down-mouse-1] 'mouse-appearance-menu))
+    (global-set-key [S-down-mouse-1] #'mouse-appearance-menu))
 ;; C-down-mouse-2 is bound in facemenu.el.
 (global-set-key [C-down-mouse-3]
   `(menu-item ,(purecopy "Menu Bar") ignore
-    :filter (lambda (_)
-              (if (zerop (or (frame-parameter nil 'menu-bar-lines) 0))
-                  (mouse-menu-bar-map)
-                (mouse-menu-major-mode-map)))))
+    :filter ,(lambda (_)
+               (if (zerop (or (frame-parameter nil 'menu-bar-lines) 0))
+                   (mouse-menu-bar-map)
+                 (mouse-menu-major-mode-map)))))
 
 ;; Binding mouse-1 to mouse-select-window when on mode-, header-, or
 ;; vertical-line prevents Emacs from signaling an error when the mouse
 ;; button is released after dragging these lines, on non-toolkit
 ;; versions.
-(global-set-key [header-line down-mouse-1] 'mouse-drag-header-line)
-(global-set-key [header-line mouse-1] 'mouse-select-window)
-(global-set-key [tab-line down-mouse-1] 'mouse-drag-tab-line)
-(global-set-key [tab-line mouse-1] 'mouse-select-window)
+(global-set-key [header-line down-mouse-1] #'mouse-drag-header-line)
+(global-set-key [header-line mouse-1] #'mouse-select-window)
+(global-set-key [tab-line down-mouse-1] #'mouse-drag-tab-line)
+(global-set-key [tab-line mouse-1] #'mouse-select-window)
 ;; (global-set-key [mode-line drag-mouse-1] 'mouse-select-window)
-(global-set-key [mode-line down-mouse-1] 'mouse-drag-mode-line)
-(global-set-key [mode-line mouse-1] 'mouse-select-window)
-(global-set-key [mode-line mouse-2] 'mouse-delete-other-windows)
-(global-set-key [mode-line mouse-3] 'mouse-delete-window)
-(global-set-key [mode-line C-mouse-2] 'mouse-split-window-horizontally)
-(global-set-key [vertical-scroll-bar C-mouse-2] 'mouse-split-window-vertically)
-(global-set-key [horizontal-scroll-bar C-mouse-2] 'mouse-split-window-horizontally)
-(global-set-key [vertical-line down-mouse-1] 'mouse-drag-vertical-line)
-(global-set-key [vertical-line mouse-1] 'mouse-select-window)
-(global-set-key [vertical-line C-mouse-2] 'mouse-split-window-vertically)
-(global-set-key [right-divider down-mouse-1] 'mouse-drag-vertical-line)
-(global-set-key [right-divider mouse-1] 'ignore)
-(global-set-key [right-divider C-mouse-2] 'mouse-split-window-vertically)
-(global-set-key [bottom-divider down-mouse-1] 'mouse-drag-mode-line)
-(global-set-key [bottom-divider mouse-1] 'ignore)
-(global-set-key [bottom-divider C-mouse-2] 'mouse-split-window-horizontally)
-(global-set-key [left-edge down-mouse-1] 'mouse-drag-left-edge)
-(global-set-key [left-edge mouse-1] 'ignore)
-(global-set-key [top-left-corner down-mouse-1] 'mouse-drag-top-left-corner)
-(global-set-key [top-left-corner mouse-1] 'ignore)
-(global-set-key [top-edge down-mouse-1] 'mouse-drag-top-edge)
-(global-set-key [top-edge mouse-1] 'ignore)
-(global-set-key [top-right-corner down-mouse-1] 'mouse-drag-top-right-corner)
-(global-set-key [top-right-corner mouse-1] 'ignore)
-(global-set-key [right-edge down-mouse-1] 'mouse-drag-right-edge)
-(global-set-key [right-edge mouse-1] 'ignore)
-(global-set-key [bottom-right-corner down-mouse-1] 'mouse-drag-bottom-right-corner)
-(global-set-key [bottom-right-corner mouse-1] 'ignore)
-(global-set-key [bottom-edge down-mouse-1] 'mouse-drag-bottom-edge)
-(global-set-key [bottom-edge mouse-1] 'ignore)
-(global-set-key [bottom-left-corner down-mouse-1] 'mouse-drag-bottom-left-corner)
-(global-set-key [bottom-left-corner mouse-1] 'ignore)
+(global-set-key [mode-line down-mouse-1] #'mouse-drag-mode-line)
+(global-set-key [mode-line mouse-1] #'mouse-select-window)
+(global-set-key [mode-line mouse-2] #'mouse-delete-other-windows)
+(global-set-key [mode-line mouse-3] #'mouse-delete-window)
+(global-set-key [mode-line C-mouse-2] #'mouse-split-window-horizontally)
+(global-set-key [vertical-scroll-bar C-mouse-2] #'mouse-split-window-vertically)
+(global-set-key [horizontal-scroll-bar C-mouse-2] #'mouse-split-window-horizontally)
+(global-set-key [vertical-line down-mouse-1] #'mouse-drag-vertical-line)
+(global-set-key [vertical-line mouse-1] #'mouse-select-window)
+(global-set-key [vertical-line C-mouse-2] #'mouse-split-window-vertically)
+(global-set-key [right-divider down-mouse-1] #'mouse-drag-vertical-line)
+(global-set-key [right-divider mouse-1] #'ignore)
+(global-set-key [right-divider C-mouse-2] #'mouse-split-window-vertically)
+(global-set-key [bottom-divider down-mouse-1] #'mouse-drag-mode-line)
+(global-set-key [bottom-divider mouse-1] #'ignore)
+(global-set-key [bottom-divider C-mouse-2] #'mouse-split-window-horizontally)
+(global-set-key [left-edge down-mouse-1] #'mouse-drag-left-edge)
+(global-set-key [left-edge mouse-1] #'ignore)
+(global-set-key [top-left-corner down-mouse-1] #'mouse-drag-top-left-corner)
+(global-set-key [top-left-corner mouse-1] #'ignore)
+(global-set-key [top-edge down-mouse-1] #'mouse-drag-top-edge)
+(global-set-key [top-edge mouse-1] #'ignore)
+(global-set-key [top-right-corner down-mouse-1] #'mouse-drag-top-right-corner)
+(global-set-key [top-right-corner mouse-1] #'ignore)
+(global-set-key [right-edge down-mouse-1] #'mouse-drag-right-edge)
+(global-set-key [right-edge mouse-1] #'ignore)
+(global-set-key [bottom-right-corner down-mouse-1] #'mouse-drag-bottom-right-corner)
+(global-set-key [bottom-right-corner mouse-1] #'ignore)
+(global-set-key [bottom-edge down-mouse-1] #'mouse-drag-bottom-edge)
+(global-set-key [bottom-edge mouse-1] #'ignore)
+(global-set-key [bottom-left-corner down-mouse-1] #'mouse-drag-bottom-left-corner)
+(global-set-key [bottom-left-corner mouse-1] #'ignore)
 
 (provide 'mouse)
 

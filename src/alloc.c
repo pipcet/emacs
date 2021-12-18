@@ -125,6 +125,7 @@ union emacs_align_type
   struct Lisp_Overlay Lisp_Overlay;
   struct Lisp_Sub_Char_Table Lisp_Sub_Char_Table;
   struct Lisp_Subr Lisp_Subr;
+  struct Lisp_Sqlite Lisp_Sqlite;
   struct Lisp_User_Ptr Lisp_User_Ptr;
   struct Lisp_Vector Lisp_Vector;
   struct terminal terminal;
@@ -765,7 +766,7 @@ xmalloc (size_t size)
   val = lmalloc (size, false);
   MALLOC_UNBLOCK_INPUT;
 
-  if (!val && size)
+  if (!val)
     memory_full (size);
   MALLOC_PROBE (size);
   return val;
@@ -782,7 +783,7 @@ xzalloc (size_t size)
   val = lmalloc (size, true);
   MALLOC_UNBLOCK_INPUT;
 
-  if (!val && size)
+  if (!val)
     memory_full (size);
   MALLOC_PROBE (size);
   return val;
@@ -796,15 +797,15 @@ xrealloc (void *block, size_t size)
   void *val;
 
   MALLOC_BLOCK_INPUT;
-  /* We must call malloc explicitly when BLOCK is 0, since some
-     reallocs don't do this.  */
+  /* Call lmalloc when BLOCK is null, for the benefit of long-obsolete
+     platforms lacking support for realloc (NULL, size).  */
   if (! block)
     val = lmalloc (size, false);
   else
     val = lrealloc (block, size);
   MALLOC_UNBLOCK_INPUT;
 
-  if (!val && size)
+  if (!val)
     memory_full (size);
   MALLOC_PROBE (size);
   return val;
@@ -1030,7 +1031,7 @@ lisp_malloc (size_t nbytes, bool clearit, enum mem_type type)
 #endif
 
   MALLOC_UNBLOCK_INPUT;
-  if (!val && nbytes)
+  if (!val)
     memory_full (nbytes);
   MALLOC_PROBE (nbytes);
   return val;
@@ -1329,16 +1330,20 @@ laligned (void *p, size_t size)
 	  || size % LISP_ALIGNMENT != 0);
 }
 
-/* Like malloc and realloc except that if SIZE is Lisp-aligned, make
-   sure the result is too, if necessary by reallocating (typically
-   with larger and larger sizes) until the allocator returns a
-   Lisp-aligned pointer.  Code that needs to allocate C heap memory
+/* Like malloc and realloc except return null only on failure,
+   the result is Lisp-aligned if SIZE is, and lrealloc's pointer
+   argument must be nonnull.  Code allocating C heap memory
    for a Lisp object should use one of these functions to obtain a
    pointer P; that way, if T is an enum Lisp_Type value and L ==
    make_lisp_ptr (P, T), then XPNTR (L) == P and XTYPE (L) == T.
 
+   If CLEARIT, arrange for the allocated memory to be cleared.
+   This might use calloc, as calloc can be faster than malloc+memset.
+
    On typical modern platforms these functions' loops do not iterate.
-   On now-rare (and perhaps nonexistent) platforms, the loops in
+   On now-rare (and perhaps nonexistent) platforms, the code can loop,
+   reallocating (typically with larger and larger sizes) until the
+   allocator returns a Lisp-aligned pointer.  This loop in
    theory could repeat forever.  If an infinite loop is possible on a
    platform, a build would surely loop and the builder can then send
    us a bug report.  Adding a counter to try to detect any such loop
@@ -1352,8 +1357,13 @@ lmalloc (size_t size, bool clearit)
   if (! MALLOC_IS_LISP_ALIGNED && size % LISP_ALIGNMENT == 0)
     {
       void *p = aligned_alloc (LISP_ALIGNMENT, size);
-      if (clearit && p)
-	memclear (p, size);
+      if (p)
+	{
+	  if (clearit)
+	    memclear (p, size);
+	}
+      else if (! (MALLOC_0_IS_NONNULL || size))
+	return aligned_alloc (LISP_ALIGNMENT, LISP_ALIGNMENT);
       return p;
     }
 #endif
@@ -1361,7 +1371,7 @@ lmalloc (size_t size, bool clearit)
   while (true)
     {
       void *p = clearit ? calloc (1, size) : malloc (size);
-      if (laligned (p, size))
+      if (laligned (p, size) && (MALLOC_0_IS_NONNULL || size || p))
 	return p;
       free (p);
       size_t bigger = size + LISP_ALIGNMENT;
@@ -1376,7 +1386,7 @@ lrealloc (void *p, size_t size)
   while (true)
     {
       p = realloc (p, size);
-      if (laligned (p, size))
+      if (laligned (p, size) && (size || p))
 	return p;
       size_t bigger = size + LISP_ALIGNMENT;
       if (size < bigger)
@@ -1929,8 +1939,7 @@ allocate_string_data (struct Lisp_String *s,
    The character is at byte offset CIDX_BYTE in the string.
    The character being replaced is CLEN bytes long,
    and the character that will replace it is NEW_CLEN bytes long.
-   Return the address of where the caller should store the
-   the new character.  */
+   Return the address where the caller should store the new character.  */
 
 unsigned char *
 resize_string_data (Lisp_Object string, ptrdiff_t cidx_byte,
@@ -3152,26 +3161,26 @@ cleanup_vector (struct Lisp_Vector *vector)
       module_finalize_function (function);
     }
 #endif
-  else if (NATIVE_COMP_FLAG
-	   && PSEUDOVECTOR_TYPEP (&vector->header, PVEC_NATIVE_COMP_UNIT))
+#ifdef HAVE_NATIVE_COMP
+  else if (PSEUDOVECTOR_TYPEP (&vector->header, PVEC_NATIVE_COMP_UNIT))
     {
       struct Lisp_Native_Comp_Unit *cu =
 	PSEUDOVEC_STRUCT (vector, Lisp_Native_Comp_Unit);
       unload_comp_unit (cu);
     }
-  else if (NATIVE_COMP_FLAG
-	   && PSEUDOVECTOR_TYPEP (&vector->header, PVEC_SUBR))
+  else if (PSEUDOVECTOR_TYPEP (&vector->header, PVEC_SUBR))
     {
       struct Lisp_Subr *subr =
 	PSEUDOVEC_STRUCT (vector, Lisp_Subr);
-      if (!NILP (subr->native_comp_u[0]))
+      if (!NILP (subr->native_comp_u))
 	{
 	  /* FIXME Alternative and non invasive solution to this
 	     cast?  */
 	  xfree ((char *)subr->symbol_name);
-	  xfree (subr->native_c_name[0]);
+	  xfree (subr->native_c_name);
 	}
     }
+#endif
 }
 
 /* Reclaim space used by unmarked vectors.  */
@@ -6136,9 +6145,16 @@ garbage_collect (void)
   mark_terminals ();
   mark_kboards ();
   mark_threads ();
+#ifdef HAVE_PGTK
+  mark_pgtkterm ();
+#endif
 
 #ifdef USE_GTK
   xg_mark_data ();
+#endif
+
+#ifdef HAVE_HAIKU
+  mark_haiku_display ();
 #endif
 
 #ifdef HAVE_WINDOW_SYSTEM
@@ -6773,15 +6789,17 @@ mark_object (Lisp_Object arg)
 	    break;
 
 	  case PVEC_SUBR:
+#ifdef HAVE_NATIVE_COMP
 	    if (SUBR_NATIVE_COMPILEDP (obj))
 	      {
 		set_vector_marked (ptr);
 		struct Lisp_Subr *subr = XSUBR (obj);
 		mark_object (subr->native_intspec);
-		mark_object (subr->native_comp_u[0]);
-		mark_object (subr->lambda_list[0]);
-		mark_object (subr->type[0]);
+		mark_object (subr->native_comp_u);
+		mark_object (subr->lambda_list);
+		mark_object (subr->type);
 	      }
+#endif
 	    break;
 
 	  case PVEC_FREE:
@@ -7706,6 +7724,12 @@ enum defined_HAVE_X_WINDOWS { defined_HAVE_X_WINDOWS = true };
 enum defined_HAVE_X_WINDOWS { defined_HAVE_X_WINDOWS = false };
 #endif
 
+#ifdef HAVE_PGTK
+enum defined_HAVE_PGTK { defined_HAVE_PGTK = true };
+#else
+enum defined_HAVE_PGTK { defined_HAVE_PGTK = false };
+#endif
+
 /* When compiled with GCC, GDB might say "No enum type named
    pvec_type" if we don't have at least one symbol with that type, and
    then xbacktrace could fail.  Similarly for the other enums and
@@ -7725,5 +7749,6 @@ union
   enum More_Lisp_Bits More_Lisp_Bits;
   enum pvec_type pvec_type;
   enum defined_HAVE_X_WINDOWS defined_HAVE_X_WINDOWS;
+  enum defined_HAVE_PGTK defined_HAVE_PGTK;
 } const EXTERNALLY_VISIBLE gdb_make_enums_visible = {0};
 #endif	/* __GNUC__ */

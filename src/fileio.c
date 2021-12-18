@@ -2286,6 +2286,7 @@ permissions.  */)
       off_t insize = st.st_size;
       ssize_t copied;
 
+#ifndef MSDOS
       for (newsize = 0; newsize < insize; newsize += copied)
 	{
 	  /* Copy at most COPY_MAX bytes at a time; this is min
@@ -2300,6 +2301,7 @@ permissions.  */)
 	    break;
 	  maybe_quit ();
 	}
+#endif /* MSDOS */
 
       /* Fall back on read+write if copy_file_range failed, or if the
 	 input is empty and so could be a /proc file.  read+write will
@@ -2386,7 +2388,9 @@ permissions.  */)
 
   if (!NILP (keep_time))
     {
-      struct timespec ts[] = { get_stat_atime (&st), get_stat_mtime (&st) };
+      struct timespec ts[2];
+      ts[0] = get_stat_atime (&st);
+      ts[1] = get_stat_mtime (&st);
       if (futimens (ofd, ts) != 0)
 	xsignal2 (Qfile_date_error,
 		  build_string ("Cannot set file date"), newname);
@@ -3829,7 +3833,7 @@ restore_window_points (Lisp_Object window_markers, ptrdiff_t inserted,
 	Lisp_Object oldpos = XCDR (car);
 	if (MARKERP (marker) && FIXNUMP (oldpos)
 	    && XFIXNUM (oldpos) > same_at_start
-	    && XFIXNUM (oldpos) < same_at_end)
+	    && XFIXNUM (oldpos) <= same_at_end)
 	  {
 	    ptrdiff_t oldsize = same_at_end - same_at_start;
 	    ptrdiff_t newsize = inserted;
@@ -6190,7 +6194,7 @@ before any other event (mouse or keypress) is handled.  */)
   (void)
 {
 #if (defined USE_GTK || defined USE_MOTIF \
-     || defined HAVE_NS || defined HAVE_NTGUI)
+     || defined HAVE_NS || defined HAVE_NTGUI || defined HAVE_HAIKU)
   if ((NILP (last_nonmenu_event) || CONSP (last_nonmenu_event))
       && use_dialog_box
       && use_file_dialog

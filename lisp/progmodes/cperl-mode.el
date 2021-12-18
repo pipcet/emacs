@@ -507,9 +507,9 @@ Currently used with `cperl-check-syntax' only."
   :group 'cperl-help-system)
 
 (defcustom cperl-indent-region-fix-constructs 1
-  "Amount of space to insert between `}' and `else' or `elsif'
-in `cperl-indent-region'.  Set to nil to leave as is.  Values other
-than 1 and nil will probably not work."
+  "Amount of space to insert between `}' and `else' or `elsif'.
+Used by `cperl-indent-region'.  Set to nil to leave as is.
+Values other than 1 and nil will probably not work."
   :type '(choice (const nil) (const 1))
   :group 'cperl-indentation-details)
 
@@ -1019,15 +1019,9 @@ Unless KEEP, removes the old indentation."
       (define-key map [(control ?c) (control ?h) ?v]
 	;;(concat (char-to-string help-char) "v") ; does not work
 	'cperl-get-help))
-    (substitute-key-definition
-     'indent-sexp 'cperl-indent-exp
-     map global-map)
-    (substitute-key-definition
-     'indent-region 'cperl-indent-region
-     map global-map)
-    (substitute-key-definition
-     'indent-for-comment 'cperl-indent-for-comment
-     map global-map)
+    (define-key map [remap indent-sexp]        #'cperl-indent-exp)
+    (define-key map [remap indent-region]      #'cperl-indent-region)
+    (define-key map [remap indent-for-comment] #'cperl-indent-for-comment)
     map)
   "Keymap used in CPerl mode.")
 
@@ -5951,7 +5945,7 @@ default function."
                                         (eval cperl--basic-identifier-rx)))
                    (0+ blank) "(")
 ;;	    '("\\<for\\(each\\)?\\([ \t]+\\(state\\|my\\|local\\|our\\)\\)?[ \t]*\\(\\$[a-zA-Z_][a-zA-Z_0-9]*\\)[ \t]*("
-	      4 font-lock-variable-name-face)
+	      1 font-lock-variable-name-face)
 	    ;; Avoid $!, and s!!, qq!! etc. when not fontifying syntactically
 	    '("\\(?:^\\|[^smywqrx$]\\)\\(!\\)" 1 font-lock-negation-char-face)
 	    '("\\[\\(\\^\\)" 1 font-lock-negation-char-face prepend)))

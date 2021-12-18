@@ -283,6 +283,7 @@ are also supported; unsupported long options are silently ignored."
       (funcall orig-fun
 	       file switches wildcard full-directory-p)
     ;; We need the directory in order to find the right handler.
+    (setq switches (or switches ""))
     (let ((handler (find-file-name-handler (expand-file-name file)
 					   'insert-directory))
 	  (orig-file file)
@@ -336,18 +337,7 @@ are also supported; unsupported long options are silently ignored."
 		 (ls-lisp-insert-directory
 		  file switches (ls-lisp-time-index switches)
 		  nil full-directory-p))
-	     (signal (car err) (cdr err)))))
-	;; Try to insert the amount of free space.
-	(save-excursion
-	  (goto-char (point-min))
-	  ;; First find the line to put it on.
-	  (when (re-search-forward "^total" nil t)
-	    (let ((available (get-free-disk-space ".")))
-	      (when available
-		;; Replace "total" with "total used", to avoid confusion.
-		(replace-match "total used in directory")
-		(end-of-line)
-		(insert " available " available)))))))))
+	     (signal (car err) (cdr err)))))))))
 (advice-add 'insert-directory :around #'ls-lisp--insert-directory)
 
 (defun ls-lisp-insert-directory

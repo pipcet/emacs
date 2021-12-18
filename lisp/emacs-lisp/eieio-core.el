@@ -450,7 +450,7 @@ See `defclass' for more information."
 	))
 
     ;; Now that everything has been loaded up, all our lists are backwards!
-    ;; Fix that up now and then them into vectors.
+    ;; Fix that up now and turn them into vectors.
     (cl-callf (lambda (slots) (apply #'vector (nreverse slots)))
         (eieio--class-slots newc))
     (cl-callf nreverse (eieio--class-initarg-tuples newc))
@@ -478,7 +478,8 @@ See `defclass' for more information."
       ;; (dotimes (cnt (length cslots))
       ;;   (setf (gethash (cl--slot-descriptor-name (aref cslots cnt)) oa) (- -1 cnt)))
       (dotimes (cnt (length slots))
-        (setf (gethash (cl--slot-descriptor-name (aref slots cnt)) oa) cnt))
+        (setf (gethash (cl--slot-descriptor-name (aref slots cnt)) oa)
+              (+ (eval-when-compile eieio--object-num-slots) cnt)))
       (setf (eieio--class-index-table newc) oa))
 
     ;; Set up a specialized doc string.
@@ -508,6 +509,7 @@ See `defclass' for more information."
     ;; Create the cached default object.
     (let ((cache (make-record newc
                               (+ (length (eieio--class-slots newc))
+                                 ;; FIXME: Why +1 -1 ?
                                  (eval-when-compile eieio--object-num-slots)
                                  -1)
                               nil)))
@@ -702,11 +704,15 @@ an error."
       nil
     ;; Trim off object IDX junk added in for the object index.
     (setq slot-idx (- slot-idx (eval-when-compile eieio--object-num-slots)))
-    (let ((st (cl--slot-descriptor-type (aref (eieio--class-slots class)
-                                              slot-idx))))
-      (if (not (eieio--perform-slot-validation st value))
-	  (signal 'invalid-slot-type
-                  (list (eieio--class-name class) slot st value))))))
+    (let* ((sd (aref (eieio--class-slots class)
+                     slot-idx))
+           (st (cl--slot-descriptor-type sd)))
+      (cond
+       ((not (eieio--perform-slot-validation st value))
+	(signal 'invalid-slot-type
+                (list (eieio--class-name class) slot st value)))
+       ((alist-get :read-only (cl--slot-descriptor-props sd))
+        (signal 'eieio-read-only (list (eieio--class-name class) slot)))))))
 
 (defun eieio--validate-class-slot-value (class slot-idx value slot)
   "Make sure that for CLASS referencing SLOT-IDX, VALUE is valid.
@@ -747,7 +753,7 @@ Argument FN is the function calling this verifier."
                 (_ exp))))
            (gv-setter eieio-oset))
   (cl-check-type slot symbol)
-  (cl-check-type obj (or eieio-object class))
+  (cl-check-type obj (or eieio-object class cl-structure-object))
   (let* ((class (cond ((symbolp obj)
                        (error "eieio-oref called on a class: %s" obj)
                        (eieio--full-class-object obj))
@@ -763,7 +769,7 @@ Argument FN is the function calling this verifier."
 	  ;; to intercept missing slot definitions.  Since it is also the LAST
 	  ;; thing called in this fn, its return value would be retrieved.
 	  (slot-missing obj slot 'oref))
-      (cl-check-type obj eieio-object)
+      (cl-check-type obj (or eieio-object cl-structure-object))
       (eieio-barf-if-slot-unbound (aref obj c) obj slot 'oref))))
 
 
@@ -811,7 +817,7 @@ Fills in CLASS's SLOT with its default value."
 (defun eieio-oset (obj slot value)
   "Do the work for the macro `oset'.
 Fills in OBJ's SLOT with VALUE."
-  (cl-check-type obj eieio-object)
+  (cl-check-type obj (or eieio-object cl-structure-object))
   (cl-check-type slot symbol)
   (let* ((class (eieio--object-class obj))
          (c (eieio--slot-name-index class slot)))
@@ -892,7 +898,7 @@ reverse-lookup that name, and recurse with the associated slot value."
   ;; Removed checks to outside this call
   (let* ((fsi (gethash slot (eieio--class-index-table class))))
     (if (integerp fsi)
-        (+ (eval-when-compile eieio--object-num-slots) fsi)
+        fsi
       (let ((fn (eieio--initarg-to-attribute class slot)))
 	(if fn
             ;; Accessing a slot via its :initarg is accepted by EIEIO
@@ -953,7 +959,7 @@ need be... May remove that later...)"
        class))
 
 (defun eieio--c3-merge-lists (reversed-partial-result remaining-inputs)
-  "Merge REVERSED-PARTIAL-RESULT REMAINING-INPUTS in a consistent order, if possible.
+  "Try to merge REVERSED-PARTIAL-RESULT REMAINING-INPUTS in a consistent order.
 If a consistent order does not exist, signal an error."
   (setq remaining-inputs (delq nil remaining-inputs))
   (if (null remaining-inputs)
@@ -1061,6 +1067,7 @@ method invocation orders of the involved classes."
 ;;
 (define-error 'invalid-slot-name "Invalid slot name")
 (define-error 'invalid-slot-type "Invalid slot type")
+(define-error 'eieio-read-only "Read-only slot")
 (define-error 'unbound-slot "Unbound slot")
 (define-error 'inconsistent-class-hierarchy "Inconsistent class hierarchy")
 

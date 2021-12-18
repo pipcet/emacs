@@ -839,6 +839,24 @@ for a new entry."
       ("eprint") ("eprintclass" nil nil 4) ("primaryclass" nil nil -4)
       ("eprinttype" nil nil 5) ("archiveprefix" nil nil -5)
       ("url") ("urldate")))
+    ("PhdThesis" "PhD Thesis"
+     (("author")
+      ("title" "Title of the PhD thesis")
+      ("school" "School where the PhD thesis was written")
+      ("year"))
+     nil
+     (("type" "Type of the PhD thesis")
+      ("address" "Address of the school (if not part of field \"school\") or country")
+      ("month") ("note")))
+    ("TechReport" "Technical Report"
+     (("author")
+      ("title" "Title of the technical report (BibTeX converts it to lowercase)")
+      ("institution" "Sponsoring institution of the report")
+      ("year"))
+     nil
+     (("type" "Type of the report (if other than \"technical report\")")
+      ("number" "Number of the technical report")
+      ("address") ("month") ("note")))
     ("Unpublished" "Unpublished"
      (("author") ("title") ("date" nil nil 1) ("year" nil nil -1))
      nil
@@ -4317,8 +4335,6 @@ for a crossref key, t otherwise."
           (eqb (goto-char pos))
           (t (set-buffer buffer) (goto-char pos)))
     pos))
-;; backward compatibility
-(defalias 'bibtex-find-crossref 'bibtex-search-crossref)
 
 (defun bibtex-dist (pos beg end)
   "Return distance between POS and region delimited by BEG and END."
@@ -4381,8 +4397,6 @@ A prefix arg negates the value of `bibtex-search-entry-globally'."
              (if display (bibtex-reposition-window)))
             (display (message "Key `%s' not found" key)))
       pnt)))
-;; backward compatibility
-(defalias 'bibtex-find-entry 'bibtex-search-entry)
 
 (defun bibtex-prepare-new-entry (index)
   "Prepare a new BibTeX entry with index INDEX.
@@ -5607,6 +5621,9 @@ If APPEND is non-nil, append ENTRIES to those already displayed."
   (set-buffer-modified-p nil)
   (setq buffer-read-only t)
   (goto-char (point-min)))
+
+(define-obsolete-function-alias 'bibtex-find-crossref #'bibtex-search-crossref "29.1")
+(define-obsolete-function-alias 'bibtex-find-entry #'bibtex-search-entry "29.1")
 
 (provide 'bibtex)
 ;;; bibtex.el ends here

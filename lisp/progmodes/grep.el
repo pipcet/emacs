@@ -203,7 +203,7 @@ by `grep-compute-defaults'; to change the default value, use
   :version "22.1")
 
 (defcustom grep-files-aliases
-  '(("all" .   "* .[!.]* ..?*") ;; Don't match `..'. See bug#22577
+  '(("all" .   "* .*")
     ("el" .    "*.el")
     ("ch" .    "*.[ch]")
     ("c" .     "*.c")
@@ -1057,11 +1057,9 @@ REGEXP is used as a string in the prompt."
 	       default-extension
 	       (car grep-files-history)
 	       (car (car grep-files-aliases))))
-	 (files (completing-read
-		 (concat "Search for \"" regexp
-			 "\" in files matching wildcard"
-			 (if default (concat " (default " default ")"))
-			 ": ")
+         (files (completing-read
+                 (format-prompt "Search for \"%s\" in files matching wildcard"
+                                default regexp)
 		 #'read-file-name-internal
 		 nil nil nil 'grep-files-history
 		 (delete-dups
