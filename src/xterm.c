@@ -9704,6 +9704,8 @@ handle_one_xevent (struct x_display_info *dpyinfo,
 		inev.ie.kind = SELECT_WINDOW_EVENT;
 		inev.ie.frame_or_window = xvw->w;
 	      }
+
+	    *finish = X_EVENT_DROP;
 	    goto OTHER;
 	  }
 #endif
@@ -10329,9 +10331,10 @@ handle_one_xevent (struct x_display_info *dpyinfo,
 #ifdef XIPointerEmulated
 	      /* Ignore emulated scroll events when XI2 native
 		 scroll events are present.  */
-	      if (dpyinfo->xi2_version >= 1
-		  && xev->detail >= 4
-		  && xev->detail <= 8
+	      if (((dpyinfo->xi2_version == 1
+		   && xev->detail >= 4
+		   && xev->detail <= 8)
+		   || (dpyinfo->xi2_version >= 2))
 		  && xev->flags & XIPointerEmulated)
 		{
 		  *finish = X_EVENT_DROP;
@@ -10877,7 +10880,12 @@ handle_one_xevent (struct x_display_info *dpyinfo,
 	  case XI_TouchBegin:
 	    {
 	      struct xi_device_t *device;
+	      bool menu_bar_p = false, tool_bar_p = false;
+#ifdef HAVE_GTK3
+	      GdkRectangle test_rect;
+#endif
 	      device = xi_device_from_id (dpyinfo, xev->deviceid);
+	      x_display_set_last_user_time (dpyinfo, xev->time);
 
 	      if (!device)
 		goto XI_OTHER;
@@ -10887,46 +10895,65 @@ handle_one_xevent (struct x_display_info *dpyinfo,
 
 	      f = x_any_window_to_frame (dpyinfo, xev->event);
 
-	      if (f && device->direct_p)
-		{
-		  x_catch_errors (dpyinfo->display);
-		  XIAllowTouchEvents (dpyinfo->display, xev->deviceid,
-				      xev->detail, xev->event, XIAcceptTouch);
-		  if (!x_had_errors_p (dpyinfo->display))
-		    {
-		      xi_link_touch_point (device, xev->detail, xev->event_x,
-					   xev->event_y);
-
 #ifdef HAVE_GTK3
-		      if (FRAME_X_OUTPUT (f)->menubar_widget
-			  && xg_event_is_for_menubar (f, event))
-			{
-			  bool was_waiting_for_input = waiting_for_input;
-			  /* This hack was adopted from the NS port.  Whether
-			     or not it is actually safe is a different story
-			     altogether.  */
-			  if (waiting_for_input)
-			    waiting_for_input = 0;
-			  set_frame_menubar (f, true);
-			  waiting_for_input = was_waiting_for_input;
-			}
+	      menu_bar_p = (f && FRAME_X_OUTPUT (f)->menubar_widget
+			    && xg_event_is_for_menubar (f, event));
+	      if (f && FRAME_X_OUTPUT (f)->toolbar_widget)
+		{
+		  test_rect.x = xev->event_x;
+		  test_rect.y = xev->event_y;
+		  test_rect.width = 1;
+		  test_rect.height = 1;
+
+		  tool_bar_p = gtk_widget_intersect (FRAME_X_OUTPUT (f)->toolbar_widget,
+						     &test_rect, NULL);
+		}
 #endif
 
-		      inev.ie.kind = TOUCHSCREEN_BEGIN_EVENT;
-		      inev.ie.timestamp = xev->time;
-		      XSETFRAME (inev.ie.frame_or_window, f);
-		      XSETINT (inev.ie.x, lrint (xev->event_x));
-		      XSETINT (inev.ie.y, lrint (xev->event_y));
-		      XSETINT (inev.ie.arg, xev->detail);
+	      if (!menu_bar_p && !tool_bar_p)
+		{
+		  if (f && device->direct_p)
+		    {
+		      *finish = X_EVENT_DROP;
+		      x_catch_errors (dpyinfo->display);
+		      XIAllowTouchEvents (dpyinfo->display, xev->deviceid,
+					  xev->detail, xev->event, XIAcceptTouch);
+		      if (!x_had_errors_p (dpyinfo->display))
+			{
+			  xi_link_touch_point (device, xev->detail, xev->event_x,
+					       xev->event_y);
+
+			  inev.ie.kind = TOUCHSCREEN_BEGIN_EVENT;
+			  inev.ie.timestamp = xev->time;
+			  XSETFRAME (inev.ie.frame_or_window, f);
+			  XSETINT (inev.ie.x, lrint (xev->event_x));
+			  XSETINT (inev.ie.y, lrint (xev->event_y));
+			  XSETINT (inev.ie.arg, xev->detail);
+			}
+		      x_uncatch_errors_after_check ();
 		    }
-		  x_uncatch_errors_after_check ();
+#ifndef HAVE_GTK3
+		  else
+		    {
+		      x_catch_errors (dpyinfo->display);
+		      XIAllowTouchEvents (dpyinfo->display, xev->deviceid,
+					  xev->detail, xev->event, XIRejectTouch);
+		      x_uncatch_errors ();
+		    }
+#endif
 		}
 	      else
 		{
-		  x_catch_errors (dpyinfo->display);
-		  XIAllowTouchEvents (dpyinfo->display, xev->deviceid,
-				      xev->detail, xev->event, XIRejectTouch);
-		  x_uncatch_errors ();
+#ifdef HAVE_GTK3
+		  bool was_waiting_for_input = waiting_for_input;
+		  /* This hack was adopted from the NS port.  Whether
+		     or not it is actually safe is a different story
+		     altogether.  */
+		  if (waiting_for_input)
+		    waiting_for_input = 0;
+		  set_frame_menubar (f, true);
+		  waiting_for_input = was_waiting_for_input;
+#endif
 		}
 
 	      goto XI_OTHER;
@@ -10938,6 +10965,7 @@ handle_one_xevent (struct x_display_info *dpyinfo,
 	      Lisp_Object arg = Qnil;
 
 	      device = xi_device_from_id (dpyinfo, xev->deviceid);
+	      x_display_set_last_user_time (dpyinfo, xev->time);
 
 	      if (!device)
 		goto XI_OTHER;
@@ -10978,6 +11006,7 @@ handle_one_xevent (struct x_display_info *dpyinfo,
 	      bool unlinked_p;
 
 	      device = xi_device_from_id (dpyinfo, xev->deviceid);
+	      x_display_set_last_user_time (dpyinfo, xev->time);
 
 	      if (!device)
 		goto XI_OTHER;
@@ -13194,9 +13223,24 @@ void
 frame_set_mouse_pixel_position (struct frame *f, int pix_x, int pix_y)
 {
   block_input ();
+#ifdef HAVE_XINPUT2
+  int deviceid;
 
-  XWarpPointer (FRAME_X_DISPLAY (f), None, FRAME_X_WINDOW (f),
-		0, 0, 0, 0, pix_x, pix_y);
+  if (FRAME_DISPLAY_INFO (f)->supports_xi2)
+    {
+      if (XIGetClientPointer (FRAME_X_DISPLAY (f), FRAME_X_WINDOW (f),
+			      &deviceid))
+	{
+	  XIWarpPointer (FRAME_X_DISPLAY (f),
+			 deviceid, None,
+			 FRAME_X_WINDOW (f),
+			 0, 0, 0, 0, pix_x, pix_y);
+	}
+    }
+  else
+#endif
+    XWarpPointer (FRAME_X_DISPLAY (f), None, FRAME_X_WINDOW (f),
+		  0, 0, 0, 0, pix_x, pix_y);
   unblock_input ();
 }
 

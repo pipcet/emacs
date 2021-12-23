@@ -64,6 +64,13 @@ this support.
 The named feature 'xinput2' can be used to test for the presence of
 XInput 2 support from Lisp programs.
 
+** Emacs now supports being built with pure GTK.
+To use this option, make sure the GTK 3 and Cairo development files
+are installed, and configure Emacs with the option '--with-pgtk'.
+Unlike the default X and GTK build, the resulting Emacs binary will
+work on any underlying window system supported by GDK, such as
+Wayland and Broadway.
+
 
 * Startup Changes in Emacs 29.1
 
@@ -83,15 +90,6 @@ time.
 ---
 ** 'C-x 8 .' has been moved to 'C-x 8 . .'.
 This is to open up the 'C-x 8 .' map to bind further characters there.
-
----
-** The mode line now uses a proportional font by default.
-To get the old monospaced mode line back, customize the
-'mode-line-active' and 'mode-line-inactive' faces not to inherit from
-the 'variable-pitch' face, or add this to your "~/.emacs":
-
-    (set-face-attribute 'mode-line-active nil :inherit 'mode-line)
-    (set-face-attribute 'mode-line-inactive nil :inherit 'mode-line)
 
 
 * Changes in Emacs 29.1
@@ -294,6 +292,11 @@ case keys.
 This command increases (or decreases) the number of empty lines before
 point.
 
+** The *Completions* buffer can now be automatically selected.
+To enable this behavior, customize the option 'completion-auto-select'
+to t.  Then pressing TAB will switch to the *Completions* buffer when
+it pops up that buffer.
+
 ---
 *** Improved mouse behavior with auto-scrolling modes.
 When clicking inside the 'scroll-margin' or 'hscroll-margin' region
@@ -389,6 +392,11 @@ If non-nil, 'C-c C-a' will put attached files at the end of the message.
 ---
 *** Message Mode now supports image yanking.
 
+---
+*** New user option 'message-server-alist'.
+This controls automatic insertion of the "X-Message-SMTP-Method"
+header before sending a message.
+
 ** HTML Mode
 
 ---
@@ -401,6 +409,11 @@ If non-nil, 'C-c C-a' will put attached files at the end of the message.
 It narrows to the current node.
 
 ** eww/shr
+
++++
+*** New user option 'shr-allowed-images'.
+This complements 'shr-blocked-images', but allows specifying just the
+allowed images.
 
 +++
 *** New user option 'shr-use-xwidgets-for-media'.
@@ -836,6 +849,14 @@ This change is now applied in 'dired-insert-directory'.
 'unify-8859-on-decoding-mode', 'unify-8859-on-encoding-mode',
 'vc-arch-command'.
 
++++
+** Base64 encoding no longer tolerates latin-1 input.
+The functions 'base64-encode-string', 'base64url-encode-string',
+'base64-encode-region' and 'base64url-encode-region' no longer accept
+characters in the range U+0080..U+00FF as substitutes for single bytes
+in the range 128..255, but signal an error for all multibyte characters.
+The input must be encoded text.
+
 
 * Lisp Changes in Emacs 29.1
 
@@ -989,6 +1010,11 @@ character.
 This controls whether or not the last screen line of the text being
 measured will be counted for the purpose of calculating the text
 dimensions.
+
++++
+** 'window-text-pixel-size' understands a new meaning of 'from'.
+Specifying a cons as the from argument allows to start measuring text
+from a specified amount of pixels above or below a position.
 
 ** XDG support
 
@@ -1173,6 +1199,12 @@ assumes a time of 00:00 instead of signaling an error.
 The events 'touchscreen-begin, 'touchscreen-update', and
 'touchscreen-end' have been added to take better advantage of
 touch-capable display panels.
+
++++
+** New error symbol 'permission-denied'.
+This is a subcategory of 'file-error', and is signaled when some file
+operation fails because the OS doesn't allow Emacs to access a file or
+a directory.
 
 
 * Changes in Emacs 29.1 on Non-Free Operating Systems

@@ -17,13 +17,6 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 
-/* FIXME: This code is problematic; it misuses GTK, so the GTK
-   developers don't think they should fix the resulting problems in GTK
-   itself.  The right way to fix this is by rewriting the code in Emacs
-   to use GTK3 properly.  As of 2020, there is a project to do this.
-   Talk with Yuuki Harano <masm+emacs@masm11.me> if you are interested
-   in doing substantial work on this.  */
-
 #include <config.h>
 
 #ifdef USE_GTK
@@ -4045,7 +4038,7 @@ xg_event_is_for_menubar (struct frame *f, const XEvent *event)
 
 #ifdef HAVE_XINPUT2
   XIDeviceEvent *xev = (XIDeviceEvent *) event->xcookie.data;
-  if (event->type == GenericEvent) /* XI_ButtonPress or XI_ButtonRelease */
+  if (event->type == GenericEvent) /* XI_ButtonPress or XI_ButtonRelease or a touch event.  */
     {
       if (! (xev->event_x >= 0
 	     && xev->event_x < FRAME_PIXEL_WIDTH (f)
@@ -4082,8 +4075,21 @@ xg_event_is_for_menubar (struct frame *f, const XEvent *event)
   list = gtk_container_get_children (GTK_CONTAINER (x->menubar_widget));
   if (! list) return 0;
   int scale = xg_get_scale (f);
-  rec.x = event->xbutton.x / scale;
-  rec.y = event->xbutton.y / scale;
+#ifdef HAVE_XINPUT2
+  if (event->type == GenericEvent)
+    {
+      rec.x = xev->event_x / scale;
+      rec.y = xev->event_y / scale;
+    }
+  else
+    {
+#else
+      rec.x = event->xbutton.x / scale;
+      rec.y = event->xbutton.y / scale;
+#endif
+#ifdef HAVE_XINPUT2
+    }
+#endif
   rec.width = 1;
   rec.height = 1;
 
@@ -4799,7 +4805,13 @@ xg_event_is_for_scrollbar (struct frame *f, const EVENT *event)
 #else
       gwin = gdk_display_get_window_at_pointer (gdpy, NULL, NULL);
 #endif
+#ifndef HAVE_XINPUT2
       retval = gwin != gtk_widget_get_window (f->output_data.xp->edit_widget);
+#else
+      retval = (gwin
+		&& (gwin
+		    != gtk_widget_get_window (f->output_data.xp->edit_widget)));
+#endif
 #ifdef HAVE_XINPUT2
       GtkWidget *grab = gtk_grab_get_current ();
       if (event->type == GenericEvent
