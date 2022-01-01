@@ -8267,13 +8267,7 @@ If optional argument QUERY is `current', ignore OMP_NUM_THREADS.
 If QUERY is `all', also count processors not available.  */)
   (Lisp_Object query)
 {
-#ifndef MSDOS
-  return make_uint (num_processors (EQ (query, Qall) ? NPROC_ALL
-				    : EQ (query, Qcurrent) ? NPROC_CURRENT
-				    : NPROC_CURRENT_OVERRIDABLE));
-#else
   return make_fixnum (1);
-#endif
 }
 
 #ifdef subprocesses
