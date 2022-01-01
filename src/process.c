@@ -8546,6 +8546,12 @@ A value of nil means don't delete them until `list-processes' is run.  */);
 
   delete_exited_processes = 1;
 
+  DEFVAR_INT ("process-error-pause-time", process_error_pause_time,
+	      doc: /* The number of seconds to pause after handling process errors.
+This isn't used for all process-related errors, but is used when a
+sentinel or a process filter function has an error.  */);
+  process_error_pause_time = 1;
+
 #ifdef subprocesses
   DEFVAR_LISP ("process-connection-type", Vprocess_connection_type,
 	       doc: /* Control type of device used to communicate with subprocesses.
@@ -8593,12 +8599,6 @@ returns non-nil.  */);
 Enlarge the value only if the subprocess generates very large (megabytes)
 amounts of data in one go.  */);
   read_process_output_max = 4096;
-
-  DEFVAR_INT ("process-error-pause-time", process_error_pause_time,
-	      doc: /* The number of seconds to pause after handling process errors.
-This isn't used for all process-related errors, but is used when a
-sentinel or a process filter function has an error.  */);
-  process_error_pause_time = 1;
 
   DEFSYM (Qinternal_default_interrupt_process,
 	  "internal-default-interrupt-process");
