@@ -1,6 +1,6 @@
 ;;; apropos.el --- apropos commands for users and programmers  -*- lexical-binding: t -*-
 
-;; Copyright (C) 1989, 1994-1995, 2001-2021 Free Software Foundation,
+;; Copyright (C) 1989, 1994-1995, 2001-2022 Free Software Foundation,
 ;; Inc.
 
 ;; Author: Joe Wells <jbw@bigbird.bu.edu>
@@ -78,7 +78,7 @@ This option only controls the default behavior.  Each of the above
 commands also has an optional argument to request a more extensive search.
 
 Additionally, this option makes the function `apropos-library'
-include key-binding information in its output."
+include keybinding information in its output."
   :type 'boolean)
 
 (defface apropos-symbol
@@ -95,6 +95,11 @@ include key-binding information in its output."
   '((t (:inherit font-lock-builtin-face)))
   "Face for property name in Apropos output, or nil for none."
   :version "24.3")
+
+(defface apropos-button
+  '((t (:inherit (font-lock-variable-name-face button))))
+  "Face for buttons that indicate a face in Apropos."
+  :version "28.1")
 
 (defface apropos-function-button
   '((t (:inherit (font-lock-function-name-face button))))
@@ -145,11 +150,11 @@ If value is `verbose', the computed score is shown for each match."
     ;; Use `apropos-follow' instead of just using the button
     ;; definition of RET, so that users can use it anywhere in an
     ;; apropos item, not just on top of a button.
-    (define-key map "\C-m" 'apropos-follow)
+    (define-key map "\C-m" #'apropos-follow)
 
     ;; Movement keys
-    (define-key map "n" 'apropos-next-symbol)
-    (define-key map "p" 'apropos-previous-symbol)
+    (define-key map "n" #'apropos-next-symbol)
+    (define-key map "p" #'apropos-previous-symbol)
     map)
   "Keymap used in Apropos mode.")
 
@@ -276,7 +281,7 @@ before `apropos-mode' makes it buffer-local.")
 (define-button-type 'apropos-face
   'apropos-label "Face"
   'apropos-short-label "F"
-  'face '(font-lock-variable-name-face button)
+  'face 'apropos-button
   'help-echo "mouse-2, RET: Display more help on this face"
   'follow-link t
   'action (lambda (button)
@@ -347,7 +352,7 @@ WILD should be a subexpression matching wildcards between matches."
      (lambda (w)
        (concat "\\(?:" w "\\)" ;; parens for synonyms
                wild "\\(?:"
-               (mapconcat 'identity
+               (mapconcat #'identity
 			  (delq w (copy-sequence words))
 			  "\\|")
                "\\)"))
@@ -389,14 +394,14 @@ This updates variables `apropos-pattern', `apropos-pattern-quoted',
       ;; use a trick that would find a match even if the words are
       ;; on different lines.
       (let ((words pattern))
-	(setq apropos-pattern (mapconcat 'identity pattern " ")
+	(setq apropos-pattern (mapconcat #'identity pattern " ")
 	      apropos-pattern-quoted (regexp-quote apropos-pattern))
 	(dolist (word words)
 	  (let ((syn apropos-synonyms) (s word) (a word))
 	    (while syn
 	      (if (member word (car syn))
 		  (progn
-		    (setq a (mapconcat 'identity (car syn) "\\|"))
+		    (setq a (mapconcat #'identity (car syn) "\\|"))
 		    (if (member word (cdr (car syn)))
 			(setq s a))
 		    (setq syn nil))
@@ -510,10 +515,10 @@ variables, not just user options."
                      current-prefix-arg))
   (apropos-command pattern nil
 		   (if (or do-all apropos-do-all)
-		       #'(lambda (symbol)
-			   (and (boundp symbol)
-				(get symbol 'variable-documentation)))
-		     'custom-variable-p)))
+                       (lambda (symbol)
+                         (and (boundp symbol)
+                              (get symbol 'variable-documentation)))
+		     #'custom-variable-p)))
 
 ;;;###autoload
 (defun apropos-variable (pattern &optional do-not-all)
@@ -556,7 +561,7 @@ or a non-nil `apropos-do-all' argument."
 
 ;; For auld lang syne:
 ;;;###autoload
-(defalias 'command-apropos 'apropos-command)
+(defalias 'command-apropos #'apropos-command)
 ;;;###autoload
 (defun apropos-command (pattern &optional do-all var-predicate)
   "Show commands (interactively callable functions) that match PATTERN.
@@ -611,7 +616,7 @@ while a list of strings is used as a word list."
                              (if (eq doc 'error)
                                  "(documentation error)"
 			       (setq score (+ score (apropos-score-doc doc)))
-			       (substring doc 0 (string-match "\n" doc)))
+			       (substring doc 0 (string-search "\n" doc)))
 			   "(not documented)")))
 		   (and var-predicate
 			(funcall var-predicate symbol)
@@ -620,7 +625,7 @@ while a list of strings is used as a word list."
 			     (progn
 			       (setq score (+ score (apropos-score-doc doc)))
 			       (substring doc 0
-					  (string-match "\n" doc)))))))
+					  (string-search "\n" doc)))))))
 	(setcar (cdr (car p)) score)
 	(setq p (cdr p))))
     (and (let ((apropos-multi-type do-all))
@@ -634,7 +639,7 @@ while a list of strings is used as a word list."
   "Like (documentation-property SYMBOL PROPERTY RAW) but handle errors."
   (condition-case ()
       (let ((doc (documentation-property symbol property raw)))
-	(if doc (substring doc 0 (string-match "\n" doc))
+	(if doc (substring doc 0 (string-search "\n" doc))
 	  "(not documented)"))
     (error "(error retrieving documentation)")))
 
@@ -685,7 +690,7 @@ FILE should be one of the libraries currently loaded and should
 thus be found in `load-history'.  If `apropos-do-all' is non-nil,
 the output includes key-bindings of commands."
   (interactive
-   (let* ((libs (delq nil (mapcar 'car load-history)))
+   (let* ((libs (delq nil (mapcar #'car load-history)))
           (libs
            (nconc (delq nil
                         (mapcar
@@ -719,22 +724,27 @@ the output includes key-bindings of commands."
 	;; (autoload (push (cdr x) autoloads))
 	('require (push (cdr x) requires))
 	('provide (push (cdr x) provides))
-        ('t nil) ; Skip "was an autoload" entries.
+        ('t nil)                     ; Skip "was an autoload" entries.
         ;; FIXME: Print information about each individual method: both
         ;; its docstring and specializers (bug#21422).
         ('cl-defmethod (push (cadr x) provides))
 	(_ (push (or (cdr-safe x) x) symbols))))
-    (let ((apropos-pattern "")) ;Dummy binding for apropos-symbols-internal.
-      (apropos-symbols-internal
-       symbols apropos-do-all
-       (concat
-        (format-message
-                "Library `%s' provides: %s\nand requires: %s"
-                file
-                (mapconcat 'apropos-library-button
-                           (or provides '(nil)) " and ")
-                (mapconcat 'apropos-library-button
-                           (or requires '(nil)) " and ")))))))
+    (let ((apropos-pattern "") ;Dummy binding for apropos-symbols-internal.
+          (text
+           (concat
+            (format-message
+             "Library `%s' provides: %s\nand requires: %s"
+             file
+             (mapconcat #'apropos-library-button
+                        (or provides '(nil)) " and ")
+             (mapconcat #'apropos-library-button
+                        (or requires '(nil)) " and ")))))
+      (if (null symbols)
+          (with-output-to-temp-buffer "*Apropos*"
+	    (with-current-buffer standard-output
+	      (apropos-mode)
+              (apropos--preamble text)))
+        (apropos-symbols-internal symbols apropos-do-all text)))))
 
 (defun apropos-symbols-internal (symbols keys &optional text)
   ;; Filter out entries that are marked as apropos-inhibit.
@@ -757,7 +767,7 @@ the output includes key-bindings of commands."
 				  "(alias for undefined function)")
 				 (error
 				  "(can't retrieve function documentation)")))
-		     (substring doc 0 (string-match "\n" doc))
+		     (substring doc 0 (string-search "\n" doc))
 		   "(not documented)"))
 	       (when (boundp symbol)
 		 (apropos-documentation-property
@@ -809,34 +819,34 @@ Returns list of symbols and values found."
   (apropos-parse-pattern pattern t)
   (or do-all (setq do-all apropos-do-all))
   (setq apropos-accumulator ())
-   (let (f v p)
-     (mapatoms
-      (lambda (symbol)
-	(setq f nil v nil p nil)
-	(or (memq symbol '(apropos-regexp
-			   apropos-pattern apropos-all-words-regexp
-			   apropos-words apropos-all-words
-			   do-all apropos-accumulator
-			   symbol f v p))
-	    (setq v (apropos-value-internal 'boundp symbol 'symbol-value)))
-	(if do-all
-	    (setq f (apropos-value-internal 'fboundp symbol 'symbol-function)
-		  p (apropos-format-plist symbol "\n    " t)))
-	(if (apropos-false-hit-str v)
-	    (setq v nil))
-	(if (apropos-false-hit-str f)
-	    (setq f nil))
-	(if (apropos-false-hit-str p)
-	    (setq p nil))
-	(if (or f v p)
-	    (setq apropos-accumulator (cons (list symbol
-						  (+ (apropos-score-str f)
-						     (apropos-score-str v)
-						     (apropos-score-str p))
-						  f v p)
-					    apropos-accumulator))))))
-   (let ((apropos-multi-type do-all))
-     (apropos-print nil "\n----------------\n")))
+  (let (f v p)
+    (mapatoms
+     (lambda (symbol)
+       (setq f nil v nil p nil)
+       (or (memq symbol '(apropos-regexp
+                          apropos--current apropos-pattern-quoted pattern
+		          apropos-pattern apropos-all-words-regexp
+		          apropos-words apropos-all-words
+		          apropos-accumulator))
+           (setq v (apropos-value-internal #'boundp symbol #'symbol-value)))
+       (if do-all
+           (setq f (apropos-value-internal #'fboundp symbol #'symbol-function)
+	         p (apropos-format-plist symbol "\n    " t)))
+       (if (apropos-false-hit-str v)
+           (setq v nil))
+       (if (apropos-false-hit-str f)
+           (setq f nil))
+       (if (apropos-false-hit-str p)
+           (setq p nil))
+       (if (or f v p)
+           (setq apropos-accumulator (cons (list symbol
+					         (+ (apropos-score-str f)
+					            (apropos-score-str v)
+					            (apropos-score-str p))
+					         f v p)
+				           apropos-accumulator))))))
+  (let ((apropos-multi-type do-all))
+    (apropos-print nil "\n----------------\n")))
 
 ;;;###autoload
 (defun apropos-local-value (pattern &optional buffer)
@@ -851,9 +861,11 @@ Optional arg BUFFER (default: current buffer) is the buffer to check."
   (let ((var             nil))
     (mapatoms
      (lambda (symb)
-       (unless (memq symb '(apropos-regexp apropos-pattern apropos-all-words-regexp
-                            apropos-words apropos-all-words apropos-accumulator symb var))
-         (setq var  (apropos-value-internal 'local-variable-if-set-p symb 'symbol-value)))
+       (unless (memq symb '(apropos-regexp apropos-pattern
+                            apropos-all-words-regexp apropos-words
+                            apropos-all-words apropos-accumulator))
+         (setq var  (apropos-value-internal #'local-variable-if-set-p symb
+                                            #'symbol-value)))
        (when (and (fboundp 'apropos-false-hit-str)  (apropos-false-hit-str var))
          (setq var nil))
        (when var
@@ -928,7 +940,13 @@ Returns list of symbols and documentation found."
 
 (defun apropos-value-internal (predicate symbol function)
   (when (funcall predicate symbol)
-    (setq symbol (prin1-to-string (funcall function symbol)))
+    (setq symbol (prin1-to-string
+                  (if (memq symbol '(command-history minibuffer-history))
+                      ;; The value we're looking for will always be in
+                      ;; the first element of these two lists, so skip
+                      ;; that value.
+                      (cdr (funcall function symbol))
+                    (funcall function symbol))))
     (when (string-match apropos-regexp symbol)
       (if apropos-match-face
           (put-text-property (match-beginning 0) (match-end 0)
@@ -1141,10 +1159,7 @@ as a heading."
 	    symbol item)
 	(set-buffer standard-output)
 	(apropos-mode)
-	(insert (substitute-command-keys "Type \\[apropos-follow] on ")
-		(if apropos-multi-type "a type label" "an entry")
-		" to view its full documentation.\n\n")
-	(if text (insert text "\n\n"))
+        (apropos--preamble text)
 	(dolist (apropos-item p)
 	  (when (and spacing (not (bobp)))
 	    (princ spacing))
@@ -1274,6 +1289,14 @@ as a heading."
 	  (fill-region opoint (point) nil t)))
       (or (bolp) (terpri)))))
 
+(defun apropos--preamble (text)
+  (let ((inhibit-read-only t))
+    (insert (substitute-command-keys "Type \\[apropos-follow] on ")
+	    (if apropos-multi-type "a type label" "an entry")
+	    " to view its full documentation.\n\n")
+    (when text
+      (insert text "\n\n"))))
+
 (defun apropos-follow ()
   "Invokes any button at point, otherwise invokes the nearest label button."
   (interactive)
@@ -1282,7 +1305,7 @@ as a heading."
        (error "There is nothing to follow here"))))
 
 (defun apropos-next-symbol ()
-  "Move cursor down to the next symbol in an apropos-mode buffer."
+  "Move cursor down to the next symbol in an `apropos-mode' buffer."
   (interactive)
   (forward-line)
   (while (and (not (eq (face-at-point) 'apropos-symbol))
@@ -1290,7 +1313,7 @@ as a heading."
     (forward-line)))
 
 (defun apropos-previous-symbol ()
-  "Move cursor back to the last symbol in an apropos-mode buffer."
+  "Move cursor back to the last symbol in an `apropos-mode' buffer."
   (interactive)
   (forward-line -1)
   (while (and (not (eq (face-at-point) 'apropos-symbol))
@@ -1299,17 +1322,18 @@ as a heading."
 
 (defun apropos-describe-plist (symbol)
   "Display a pretty listing of SYMBOL's plist."
-  (help-setup-xref (list 'apropos-describe-plist symbol)
-		   (called-interactively-p 'interactive))
-  (with-help-window (help-buffer)
-    (set-buffer standard-output)
-    (princ "Symbol ")
-    (prin1 symbol)
-    (princ (substitute-command-keys "'s plist is\n ("))
-    (put-text-property (+ (point-min) 7) (- (point) 14)
-		       'face 'apropos-symbol)
-    (insert (apropos-format-plist symbol "\n  "))
-    (princ ")")))
+  (let ((help-buffer-under-preparation t))
+    (help-setup-xref (list 'apropos-describe-plist symbol)
+		     (called-interactively-p 'interactive))
+    (with-help-window (help-buffer)
+      (set-buffer standard-output)
+      (princ "Symbol ")
+      (prin1 symbol)
+      (princ (substitute-command-keys "'s plist is\n ("))
+      (put-text-property (+ (point-min) 7) (- (point) 14)
+		         'face 'apropos-symbol)
+      (insert (apropos-format-plist symbol "\n  "))
+      (princ ")"))))
 
 
 (provide 'apropos)

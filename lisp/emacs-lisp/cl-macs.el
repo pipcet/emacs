@@ -1,6 +1,6 @@
 ;;; cl-macs.el --- Common Lisp macros  -*- lexical-binding: t -*-
 
-;; Copyright (C) 1993, 2001-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1993, 2001-2022 Free Software Foundation, Inc.
 
 ;; Author: Dave Gillespie <daveg@synaptics.com>
 ;; Old-Version: 2.02
@@ -301,24 +301,31 @@ FORM is of the form (ARGS . BODY)."
              (t ;; `simple-args' doesn't handle all the parsing that we need,
               ;; so we pass the rest to cl--do-arglist which will do
               ;; "manual" parsing.
-              (let ((slen (length simple-args)))
-                (when (memq '&optional simple-args)
-                  (cl-decf slen))
-                (setq header
+              (let ((slen (length simple-args))
+                    (usage-str
                       ;; Macro expansion can take place in the middle of
                       ;; apparently harmless computation, so it should not
                       ;; touch the match-data.
                       (save-match-data
-                        (cons (help-add-fundoc-usage
-                               (if (stringp (car header)) (pop header))
-                               ;; Be careful with make-symbol and (back)quote,
-                               ;; see bug#12884.
-                               (help--docstring-quote
-                                (let ((print-gensym nil) (print-quoted t)
-                                      (print-escape-newlines t))
-                                  (format "%S" (cons 'fn (cl--make-usage-args
-                                                          orig-args))))))
-                              header)))
+                        (help--docstring-quote
+                         (let ((print-gensym nil) (print-quoted t)
+                               (print-escape-newlines t))
+                           (format "%S" (cons 'fn (cl--make-usage-args
+                                                   orig-args))))))))
+                (when (memq '&optional simple-args)
+                  (cl-decf slen))
+                (setq header
+                      (cons
+                       (if (eq :documentation (car-safe (car header)))
+                           `(:documentation (help-add-fundoc-usage
+                                             ,(cadr (pop header))
+                                             ,usage-str))
+                         (help-add-fundoc-usage
+                          (if (stringp (car header)) (pop header))
+                          ;; Be careful with make-symbol and (back)quote,
+                          ;; see bug#12884.
+                          usage-str))
+                       header))
                 ;; FIXME: we'd want to choose an arg name for the &rest param
                 ;; and pass that as `expr' to cl--do-arglist, but that ends up
                 ;; generating code with a redundant let-binding, so we instead
@@ -545,7 +552,7 @@ its argument list allows full Common Lisp conventions."
     (let ((p (memq '&body args))) (if p (setcar p '&rest)))
     (if (memq '&environment args) (error "&environment used incorrectly"))
     (let ((restarg (memq '&rest args))
-	  (safety (if (cl--compiling-file) cl--optimize-safety 3))
+	  (safety (if (macroexp-compiling-p) cl--optimize-safety 3))
 	  (keys t)
 	  (laterarg nil) (exactarg nil) minarg)
       (or num (setq num 0))
@@ -565,7 +572,7 @@ its argument list allows full Common Lisp conventions."
                              ,(length (cl-ldiff args p)))
 		  exactarg (not (eq args p)))))
       (while (and args (not (memq (car args) cl--lambda-list-keywords)))
-	(let ((poparg (list (if (or (cdr args) (not exactarg)) 'pop 'car)
+	(let ((poparg (list (if (or (cdr args) (not exactarg)) 'pop 'car-safe)
 			    restarg)))
 	  (cl--do-arglist
 	   (pop args)
@@ -709,7 +716,7 @@ If `eval' is in WHEN, BODY is evaluated when interpreted or at non-top-level.
 
 \(fn (WHEN...) BODY...)"
   (declare (indent 1) (debug (sexp body)))
-  (if (and (fboundp 'cl--compiling-file) (cl--compiling-file)
+  (if (and (macroexp-compiling-p)
 	   (not cl--not-toplevel) (not (boundp 'for-effect))) ;Horrible kludge.
       (let ((comp (or (memq 'compile when) (memq :compile-toplevel when)))
 	    (cl--not-toplevel t))
@@ -723,7 +730,7 @@ If `eval' is in WHEN, BODY is evaluated when interpreted or at non-top-level.
 (defun cl--compile-time-too (form)
   (or (and (symbolp (car-safe form)) (get (car-safe form) 'byte-hunk-handler))
       (setq form (macroexpand
-		  form (cons '(cl-eval-when) byte-compile-macro-environment))))
+		  form (cons '(cl-eval-when) macroexpand-all-environment))))
   (cond ((eq (car-safe form) 'progn)
 	 (cons 'progn (mapcar #'cl--compile-time-too (cdr form))))
 	((eq (car-safe form) 'cl-eval-when)
@@ -738,7 +745,7 @@ If `eval' is in WHEN, BODY is evaluated when interpreted or at non-top-level.
   "Like `progn', but evaluates the body at load time.
 The result of the body appears to the compiler as a quoted constant."
   (declare (debug (form &optional sexp)))
-  (if (cl--compiling-file)
+  (if (macroexp-compiling-p)
       (let* ((temp (cl-gentemp "--cl-load-time--"))
 	     (set `(setq ,temp ,form)))
 	(if (and (fboundp 'byte-compile-file-form-defmumble)
@@ -941,7 +948,8 @@ For more details, see Info node `(cl)Loop Facility'.
                                "above" "below" "by" "in" "on" "=" "across"
                                "repeat" "while" "until" "always" "never"
                                "thereis" "collect" "append" "nconc" "sum"
-                               "count" "maximize" "minimize" "if" "unless"
+                               "count" "maximize" "minimize"
+                               "if" "when" "unless"
                                "return"]
                           form]
                          ["using" (symbolp symbolp)]
@@ -1761,7 +1769,7 @@ Once the END-TEST becomes true, the RESULT forms are evaluated (with
 the VARs still bound to their values) to produce the result
 returned by `cl-do'.
 
-Note that the entire loop is enclosed in an implicit `nil' block, so
+Note that the entire loop is enclosed in an implicit nil block, so
 that you can use `cl-return' to exit at any time.
 
 Also note that END-TEST is checked before evaluating BODY.  If END-TEST
@@ -1790,7 +1798,7 @@ Once the END-TEST becomes true, the RESULT forms are evaluated (with
 the VARs still bound to their values) to produce the result
 returned by `cl-do*'.
 
-Note that the entire loop is enclosed in an implicit `nil' block, so
+Note that the entire loop is enclosed in an implicit nil block, so
 that you can use `cl-return' to exit at any time.
 
 Also note that END-TEST is checked before evaluating BODY.  If END-TEST
@@ -1924,7 +1932,8 @@ from OBARRAY.
 
 \(fn (VAR [OBARRAY [RESULT]]) BODY...)"
   (declare (indent 1)
-           (debug ((symbolp &optional form form) cl-declarations body)))
+           (debug ((symbolp &optional form form) cl-declarations
+                   def-body)))
   ;; Apparently this doesn't have an implicit block.
   `(cl-block nil
      (let (,(car spec))
@@ -1964,7 +1973,7 @@ Each symbol in the first list is bound to the corresponding value in the
 second list (or to nil if VALUES is shorter than SYMBOLS); then the
 BODY forms are executed and their result is returned.  This is much like
 a `let' form, except that the list of symbols can be computed at run-time."
-  (declare (indent 2) (debug (form form body)))
+  (declare (indent 2) (debug (form form def-body)))
   (let ((bodyfun (make-symbol "body"))
         (binds (make-symbol "binds"))
         (syms (make-symbol "syms"))
@@ -1976,7 +1985,8 @@ a `let' form, except that the list of symbols can be computed at run-time."
               (,binds ()))
          (while ,syms
            (push (list (pop ,syms) (list 'quote (pop ,vals))) ,binds))
-         (eval (list 'let ,binds (list 'funcall (list 'quote ,bodyfun))))))))
+         (eval (list 'let (nreverse ,binds)
+                     (list 'funcall (list 'quote ,bodyfun))))))))
 
 (defconst cl--labels-magic (make-symbol "cl--labels-magic"))
 
@@ -2068,6 +2078,8 @@ Like `cl-flet' but the definitions can refer to previous ones.
   ;; even handle mutually recursive functions.
   (letrec
       ((done nil) ;; Non-nil if some TCO happened.
+       ;; This var always holds the value nil until (just before) we
+       ;; exit the loop.
        (retvar (make-symbol "retval"))
        (ofargs (mapcar (lambda (s) (if (memq s cl--lambda-list-keywords) s
                                 (make-symbol (symbol-name s))))
@@ -2100,6 +2112,12 @@ Like `cl-flet' but the definitions can refer to previous ones.
             (`(progn . ,exps) `(progn . ,(funcall opt-exps exps)))
             (`(if ,cond ,then . ,else)
              `(if ,cond ,(funcall opt then) . ,(funcall opt-exps else)))
+            (`(and  . ,exps) `(and . ,(funcall opt-exps exps)))
+            (`(or ,arg) (funcall opt arg))
+            (`(or ,arg . ,args)
+             (let ((val (make-symbol "val")))
+               `(let ((,val ,arg))
+                  (if ,val ,(funcall opt val) ,(funcall opt `(or . ,args))))))
             (`(cond . ,conds)
              (let ((cs '()))
                (while conds
@@ -2109,14 +2127,18 @@ Like `cl-flet' but the definitions can refer to previous ones.
                               ;; This returns the value of `exp' but it's
                               ;; only in tail position if it's the
                               ;; last condition.
+                              ;; Note: This may set the var before we
+                              ;; actually exit the loop, but luckily it's
+                              ;; only the case if we set the var to nil,
+                              ;; so it does preserve the invariant that
+                              ;; the var is nil until we exit the loop.
                               `((setq ,retvar ,exp) nil)
                             `(,(funcall opt exp)))
                           cs))
                    (exps
                     (push (funcall opt-exps exps) cs))))
-               (if (eq t (caar cs))
-                   `(cond . ,(nreverse cs))
-                 `(cond ,@(nreverse cs) (t (setq ,retvar nil))))))
+               ;; No need to set `retvar' to return nil.
+               `(cond . ,(nreverse cs))))
             ((and `(,(or 'let 'let*) ,bindings . ,exps)
                   (guard
                    ;; Note: it's OK for this `let' to shadow any
@@ -2124,12 +2146,26 @@ Like `cl-flet' but the definitions can refer to previous ones.
                    ;; setq the fresh new `ofargs' vars instead ;-)
                    (let ((shadowings
                           (mapcar (lambda (b) (if (consp b) (car b) b)) bindings)))
-                     ;; If `var' is shadowed, then it clearly can't be
-                     ;; tail-called any more.
-                     (not (memq var shadowings)))))
+                     (and
+                      ;; If `var' is shadowed, then it clearly can't be
+                      ;; tail-called any more.
+                      (not (memq var shadowings))
+                      ;; If any of the new bindings is a dynamic
+                      ;; variable, the body is not in tail position.
+                      (not (delq nil (mapcar #'macroexp--dynamic-variable-p
+                                             shadowings)))))))
              `(,(car exp) ,bindings . ,(funcall opt-exps exps)))
-            (_
-             `(progn (setq ,retvar ,exp) nil))))))
+            ((and `(condition-case ,err-var ,bodyform . ,handlers)
+                  (guard (not (eq err-var var))))
+             `(condition-case ,err-var
+                  ,(if (assq :success handlers)
+                       bodyform
+                     `(progn (setq ,retvar ,bodyform) nil))
+                . ,(mapcar (lambda (h)
+                             (cons (car h) (funcall opt-exps (cdr h))))
+                           handlers)))
+            ('nil nil)  ;No need to set `retvar' to return nil.
+            (_ `(progn (setq ,retvar ,exp) nil))))))
 
     (let ((optimized-body (funcall opt-exps body)))
       (if (not done)
@@ -2275,7 +2311,7 @@ of `cl-symbol-macrolet' to additionally expand symbol macros."
             ;; on this behavior (haven't found any yet).
             ;; Such code should explicitly use `cl-letf' instead, I think.
             ;;
-            ;; (`(,(or `let `let*) . ,(or `(,bindings . ,body) dontcare))
+            ;; (`(,(or `let `let*) . ,(or `(,bindings . ,body) pcase--dontcare))
             ;;  (let ((letf nil) (found nil) (nbs ()))
             ;;    (dolist (binding bindings)
             ;;      (let* ((var (if (symbolp binding) binding (car binding)))
@@ -2298,7 +2334,7 @@ of `cl-symbol-macrolet' to additionally expand symbol macros."
             ;; The behavior of CL made sense in a dynamically scoped
             ;; language, but nowadays, lexical scoping semantics is more often
             ;; expected.
-            (`(,(or 'let 'let*) . ,(or `(,bindings . ,body) dontcare))
+            (`(,(or 'let 'let*) . ,(or `(,bindings . ,body) pcase--dontcare))
              (let ((nbs ()) (found nil))
                (dolist (binding bindings)
                  (let* ((var (if (symbolp binding) binding (car binding)))
@@ -2393,7 +2429,7 @@ by EXPANSION, and (setq NAME ...) will act like (setf EXPANSION ...).
                                                (append bindings venv))
                                          macroexpand-all-environment))))
             (if malformed-bindings
-                (macroexp--warn-and-return
+                (macroexp-warn-and-return
                  (format-message "Malformed `cl-symbol-macrolet' binding(s): %S"
                                  (nreverse malformed-bindings))
                  expansion)
@@ -2455,7 +2491,15 @@ values.  For compatibility, (cl-values A B C) is a synonym for (list A B C).
 (defmacro cl-the (type form)
   "Return FORM.  If type-checking is enabled, assert that it is of TYPE."
   (declare (indent 1) (debug (cl-type-spec form)))
-  (if (not (or (not (cl--compiling-file))
+  ;; When native compiling possibly add the appropriate type hint.
+  (when (and (boundp 'byte-native-compiling)
+             byte-native-compiling)
+    (setf form
+          (cl-case type
+            (fixnum `(comp-hint-fixnum ,form))
+            (cons `(comp-hint-cons ,form))
+            (otherwise form))))
+  (if (not (or (not (macroexp-compiling-p))
                (< cl--optimize-speed 3)
                (= cl--optimize-safety 3)))
       form
@@ -2464,6 +2508,28 @@ values.  For compatibility, (cl-values A B C) is a synonym for (list A B C).
                 (signal 'wrong-type-argument
                         (list ',type ,temp ',form)))
               ,temp))))
+
+;;;###autoload
+(or (assq 'cl-optimize defun-declarations-alist)
+    (let ((x (list 'cl-optimize #'cl--optimize)))
+      (push x macro-declarations-alist)
+      (push x defun-declarations-alist)))
+
+(defun cl--optimize (f _args &rest qualities)
+  "Serve 'cl-optimize' in function declarations.
+Example:
+(defun foo (x)
+  (declare (cl-optimize (speed 3) (safety 0)))
+  x)"
+  ;; FIXME this should make use of `cl--declare-stack' but I suspect
+  ;; this mechanism should be reviewed first.
+  (cl-loop for (qly val) in qualities
+           do (cl-ecase qly
+                (speed
+                 (setf cl--optimize-speed val)
+                 (byte-run--set-speed f nil val))
+                (safety
+                 (setf cl--optimize-safety val)))))
 
 (defvar cl--proclaim-history t)    ; for future compilers
 (defvar cl--declare-stack t)       ; for future compilers
@@ -2481,12 +2547,12 @@ values.  For compatibility, (cl-values A B C) is a synonym for (list A B C).
 		     '(nil byte-compile-inline-expand))
 	       (error "%s already has a byte-optimizer, can't make it inline"
 		      (car spec)))
-	   (put (car spec) 'byte-optimizer 'byte-compile-inline-expand)))
+	   (put (car spec) 'byte-optimizer #'byte-compile-inline-expand)))
 
 	((eq (car-safe spec) 'notinline)
 	 (while (setq spec (cdr spec))
 	   (if (eq (get (car spec) 'byte-optimizer)
-		   'byte-compile-inline-expand)
+		   #'byte-compile-inline-expand)
 	       (put (car spec) 'byte-optimizer nil))))
 
 	((eq (car-safe spec) 'optimize)
@@ -2522,7 +2588,7 @@ For instance
 
 will turn off byte-compile warnings in the function.
 See Info node `(cl)Declarations' for details."
-  (if (cl--compiling-file)
+  (if (macroexp-compiling-p)
       (while specs
 	(if (listp cl--declare-stack) (push (car specs) cl--declare-stack))
 	(cl--do-proclaim (pop specs) nil)))
@@ -2814,20 +2880,28 @@ in SLOTs.  It defines a `make-NAME' constructor, a `copy-NAME'
 copier, a `NAME-p' predicate, and slot accessors named `NAME-SLOT'.
 You can use the accessors to set the corresponding slots, via `setf'.
 
-NAME may instead take the form (NAME OPTIONS...), where each
-OPTION is either a single keyword or (KEYWORD VALUE) where
-KEYWORD can be one of `:conc-name', `:constructor', `:copier',
-`:predicate', `:type', `:named', `:initial-offset',
-`:print-function', `:noinline', or `:include'.  See Info
-node `(cl)Structures' for the description of the options.
+NAME is usually a symbol, but may instead take the form (NAME
+OPTIONS...), where each OPTION is either a single keyword
+or (KEYWORD VALUE) where KEYWORD can be one of `:conc-name',
+`:constructor', `:copier', `:predicate', `:type', `:named',
+`:initial-offset', `:print-function', `:noinline', or `:include'.
+See Info node `(cl)Structures' for the description of the
+options.
 
-Each SLOT may instead take the form (SNAME SDEFAULT SOPTIONS...), where
-SDEFAULT is the default value of that slot and SOPTIONS are keyword-value
-pairs for that slot.
+The first element in SLOTS can be a doc string.
+
+The rest of the elements in SLOTS is a list of SLOT elements,
+each of which should either be a symbol, or take the form (SNAME
+SDEFAULT SOPTIONS...), where SDEFAULT is the default value of
+that slot and SOPTIONS are keyword-value pairs for that slot.
+
 Supported keywords for slots are:
 - `:read-only': If this has a non-nil value, that slot cannot be set via `setf'.
 - `:documentation': this is a docstring describing the slot.
 - `:type': the type of the field; currently only used for documentation.
+
+To see the documentation for a defined struct type, use
+\\[describe-symbol] or \\[cl-describe-type].
 
 \(fn NAME &optional DOCSTRING &rest SLOTS)"
   (declare (doc-string 2) (indent 1)
@@ -2859,7 +2933,7 @@ Supported keywords for slots are:
 	 (copier (intern (format "copy-%s" name)))
 	 (predicate (intern (format "%s-p" name)))
 	 (print-func nil) (print-auto nil)
-	 (safety (if (cl--compiling-file) cl--optimize-safety 3))
+	 (safety (if (macroexp-compiling-p) cl--optimize-safety 3))
 	 (include nil)
          ;; There are 4 types of structs:
          ;; - `vector' type: means we should use a vector, which can come
@@ -2988,7 +3062,7 @@ Supported keywords for slots are:
                             `(,predicate cl-x))))
     (when pred-form
       (push `(,defsym ,predicate (cl-x)
-               (declare (side-effect-free error-free))
+               (declare (side-effect-free error-free) (pure t))
                ,(if (eq (car pred-form) 'and)
                     (append pred-form '(t))
                   `(and ,pred-form t)))
@@ -3021,18 +3095,27 @@ Supported keywords for slots are:
                            `(nth ,pos cl-x))))))
 	      (push slot slots)
 	      (push default-value defaults)
-	      ;; The arg "cl-x" is referenced by name in eg pred-form
+              ;; The arg "cl-x" is referenced by name in e.g. pred-form
 	      ;; and pred-check, so changing it is not straightforward.
 	      (push `(,defsym ,accessor (cl-x)
-                       ,(format "Access slot \"%s\" of `%s' struct CL-X.%s"
-                                slot name
-                                (if doc (concat "\n" doc) ""))
+                       ,(concat
+                         ;; NB.  This will produce incorrect results
+                         ;; in some cases, as our coding conventions
+                         ;; says that the first line must be a full
+                         ;; sentence.  However, if we don't word wrap
+                         ;; we will have byte-compiler warnings about
+                         ;; overly long docstrings.  So we can't have
+                         ;; a perfect result here, and choose to avoid
+                         ;; the byte-compiler warnings.
+                         (internal--format-docstring-line
+                          "Access slot \"%s\" of `%s' struct CL-X." slot name)
+                         (if doc (concat "\n" doc) ""))
                        (declare (side-effect-free t))
                        ,access-body)
                     forms)
               (when (cl-oddp (length desc))
                 (push
-                 (macroexp--warn-and-return
+                 (macroexp-warn-and-return
                   (format "Missing value for option `%S' of slot `%s' in struct %s!"
                           (car (last desc)) slot name)
                   'nil)
@@ -3041,7 +3124,7 @@ Supported keywords for slots are:
                            (not (keywordp (car desc))))
                   (let ((kw (car defaults)))
                     (push
-                     (macroexp--warn-and-return
+                     (macroexp-warn-and-return
                       (format "  I'll take `%s' to be an option rather than a default value."
                               kw)
                       'nil)
@@ -3218,10 +3301,18 @@ the form NAME which is a shorthand for (NAME NAME)."
 (defun cl-struct-sequence-type (struct-type)
   "Return the sequence used to build STRUCT-TYPE.
 STRUCT-TYPE is a symbol naming a struct type.  Return `record',
-`vector`, or `list' if STRUCT-TYPE is a struct type, nil otherwise."
+`vector', or `list' if STRUCT-TYPE is a struct type, nil otherwise."
   (declare (side-effect-free t) (pure t))
   (cl--struct-class-type (cl--struct-get-class struct-type)))
 
+(defun cl--alist-to-plist (alist)
+  (let ((res '()))
+    (dolist (x alist)
+      (push (car x) res)
+      (push (cdr x) res))
+    (nreverse res)))
+
+;;;###autoload
 (defun cl-struct-slot-info (struct-type)
   "Return a list of slot names of struct STRUCT-TYPE.
 Each entry is a list (SLOT-NAME . OPTS), where SLOT-NAME is a
@@ -3239,7 +3330,7 @@ slots skipped by :initial-offset may appear in the list."
                 ,(cl--slot-descriptor-initform slot)
                 ,@(if (not (eq (cl--slot-descriptor-type slot) t))
                       `(:type ,(cl--slot-descriptor-type slot)))
-                ,@(cl--slot-descriptor-props slot))
+                ,@(cl--alist-to-plist (cl--slot-descriptor-props slot)))
               descs)))
     (nreverse descs)))
 
@@ -3257,34 +3348,36 @@ does not contain SLOT-NAME."
       (signal 'cl-struct-unknown-slot (list struct-type slot-name))))
 
 (defvar byte-compile-function-environment)
-(defvar byte-compile-macro-environment)
 
 (defun cl--macroexp-fboundp (sym)
   "Return non-nil if SYM will be bound when we run the code.
 Of course, we really can't know that for sure, so it's just a heuristic."
   (or (fboundp sym)
-      (and (cl--compiling-file)
+      (and (macroexp-compiling-p)
            (or (cdr (assq sym byte-compile-function-environment))
-               (cdr (assq sym byte-compile-macro-environment))))))
+               (cdr (assq sym macroexpand-all-environment))))))
 
 (pcase-dolist (`(,type . ,pred)
                ;; Mostly kept in alphabetical order.
                '((array		. arrayp)
                  (atom		. atom)
                  (base-char	. characterp)
+                 (bignum	. bignump)
                  (boolean	. booleanp)
                  (bool-vector	. bool-vector-p)
                  (buffer	. bufferp)
                  (character	. natnump)
                  (char-table	. char-table-p)
+                 (command	. commandp)
                  (hash-table	. hash-table-p)
                  (cons		. consp)
-                 (fixnum	. integerp)
+                 (fixnum	. fixnump)
                  (float		. floatp)
                  (function	. functionp)
                  (integer	. integerp)
                  (keyword	. keywordp)
                  (list		. listp)
+                 (natnum	. natnump)
                  (number	. numberp)
                  (null		. null)
                  (real		. numberp)
@@ -3359,7 +3452,7 @@ Of course, we really can't know that for sure, so it's just a heuristic."
   "Verify that FORM is of type TYPE; signal an error if not.
 STRING is an optional description of the desired type."
   (declare (debug (place cl-type-spec &optional stringp)))
-  (and (or (not (cl--compiling-file))
+  (and (or (not (macroexp-compiling-p))
 	   (< cl--optimize-speed 3) (= cl--optimize-safety 3))
        (macroexp-let2 macroexp-copyable-p temp form
          `(progn (or (cl-typep ,temp ',type)
@@ -3379,7 +3472,7 @@ Other args STRING and ARGS... are arguments to be passed to `error'.
 They are not evaluated unless the assertion fails.  If STRING is
 omitted, a default message listing FORM itself is used."
   (declare (debug (form &rest form)))
-  (and (or (not (cl--compiling-file))
+  (and (or (not (macroexp-compiling-p))
 	   (< cl--optimize-speed 3) (= cl--optimize-safety 3))
        (let ((sargs (and show-args
                          (delq nil (mapcar (lambda (x)
@@ -3535,6 +3628,8 @@ The type name can then be used in `cl-typecase', `cl-check-type', etc."
           (cl-function (lambda (&cl-defs ('*) ,@arglist) ,@body)))))
 
 (cl-deftype extended-char () '(and character (not base-char)))
+;; Define fixnum so `cl-typep' recognize it and the type check emitted
+;; by `cl-the' is effective.
 
 ;;; Additional functions that we can now define because we've defined
 ;;; `cl-defsubst' and `cl-typep'.
@@ -3558,6 +3653,14 @@ STRUCT and SLOT-NAME are symbols.  INST is a structure instance."
 (make-obsolete-variable 'cl-macs-load-hook
                         "use `with-eval-after-load' instead." "28.1")
 (run-hooks 'cl-macs-load-hook)
+
+;;; Pcase type pattern.
+
+;;;###autoload
+(pcase-defmacro cl-type (type)
+  "Pcase pattern that matches objects of TYPE.
+TYPE is a type descriptor as accepted by `cl-typep', which see."
+  `(pred (pcase--flip cl-typep ',type)))
 
 ;; Local variables:
 ;; generated-autoload-file: "cl-loaddefs.el"

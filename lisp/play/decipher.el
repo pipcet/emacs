@@ -1,6 +1,6 @@
 ;;; decipher.el --- cryptanalyze monoalphabetic substitution ciphers  -*- lexical-binding: t; -*-
 ;;
-;; Copyright (C) 1995-1996, 2001-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1995-1996, 2001-2022 Free Software Foundation, Inc.
 ;;
 ;; Author: Christopher J. Madsen <chris_madsen@geocities.com>
 ;; Keywords: games
@@ -138,36 +138,31 @@ the tail of the list."
      (2 font-lock-string-face)))
   "Font Lock keywords for Decipher mode.")
 
-(defvar decipher-mode-map
-  (let ((map (make-keymap)))
-    (suppress-keymap map)
-    (define-key map "A" #'decipher-show-alphabet)
-    (define-key map "C" #'decipher-complete-alphabet)
-    (define-key map "D" #'decipher-digram-list)
-    (define-key map "F" #'decipher-frequency-count)
-    (define-key map "M" #'decipher-make-checkpoint)
-    (define-key map "N" #'decipher-adjacency-list)
-    (define-key map "R" #'decipher-restore-checkpoint)
-    (define-key map "U" #'decipher-undo)
-    (define-key map " " #'decipher-keypress)
-    (define-key map [remap undo] #'decipher-undo)
-    (define-key map [remap advertised-undo] #'decipher-undo)
-    (let ((key ?a))
-      (while (<= key ?z)
-	(define-key map (vector key) #'decipher-keypress)
-	(cl-incf key)))
-    map)
-  "Keymap for Decipher mode.")
+(defvar-keymap decipher-mode-map
+  :doc "Keymap for Decipher mode."
+  :suppress t
+  "A"   #'decipher-show-alphabet
+  "C"   #'decipher-complete-alphabet
+  "D"   #'decipher-digram-list
+  "F"   #'decipher-frequency-count
+  "M"   #'decipher-make-checkpoint
+  "N"   #'decipher-adjacency-list
+  "R"   #'decipher-restore-checkpoint
+  "U"   #'decipher-undo
+  "SPC" #'decipher-keypress
+  "<remap> <undo>" #'decipher-undo
+  "<remap> <advertised-undo>" #'decipher-undo)
+(let ((key ?a))
+  (while (<= key ?z)
+    (keymap-set decipher-mode-map (char-to-string key) #'decipher-keypress)
+    (cl-incf key)))
 
-
-(defvar decipher-stats-mode-map
-  (let ((map (make-keymap)))
-    (suppress-keymap map)
-    (define-key map "D" #'decipher-digram-list)
-    (define-key map "F" #'decipher-frequency-count)
-    (define-key map "N" #'decipher-adjacency-list)
-    map)
-  "Keymap for Decipher-Stats mode.")
+(defvar-keymap decipher-stats-mode-map
+  :doc "Keymap for Decipher-Stats mode."
+  :suppress t
+  "D" #'decipher-digram-list
+  "F" #'decipher-frequency-count
+  "N" #'decipher-adjacency-list)
 
 
 (defvar decipher-mode-syntax-table
@@ -177,7 +172,7 @@ the tail of the list."
       (modify-syntax-entry c "_" table) ;Digits are not part of words
       (cl-incf c))
     table)
-  "Decipher mode syntax table")
+  "Decipher mode syntax table.")
 
 (defvar-local decipher-alphabet nil)
 ;; This is an alist containing entries (PLAIN-CHAR . CIPHER-CHAR),
@@ -292,7 +287,7 @@ The most useful commands are:
 
 (defun decipher-keypress ()
   "Enter a plaintext or ciphertext character."
-  (interactive)
+  (interactive nil decipher-mode)
   (let ((decipher-function 'decipher-set-map)
         buffer-read-only)               ;Make buffer writable
     (save-excursion
@@ -346,7 +341,7 @@ The most useful commands are:
 
 (defun decipher-undo ()
   "Undo a change in Decipher mode."
-  (interactive)
+  (interactive nil decipher-mode)
   ;; If we don't get all the way thru, make last-command indicate that
   ;; for the following command.
   (setq this-command t)
@@ -487,7 +482,7 @@ The most useful commands are:
 This records the current alphabet so you can return to it later.
 You may have any number of checkpoints.
 Type `\\[decipher-restore-checkpoint]' to restore a checkpoint."
-  (interactive "sCheckpoint description: ")
+  (interactive "sCheckpoint description: " decipher-mode)
   (or (stringp desc)
       (setq desc ""))
   (let (alphabet
@@ -514,7 +509,7 @@ If point is not on a checkpoint line, moves to the first checkpoint line.
 If point is on a checkpoint, restores that checkpoint.
 
 Type `\\[decipher-make-checkpoint]' to make a checkpoint."
-  (interactive)
+  (interactive nil decipher-mode)
   (beginning-of-line)
   (if (looking-at "%!\\([A-Z ]+\\)!")
       ;; Restore this checkpoint:
@@ -542,7 +537,7 @@ Type `\\[decipher-make-checkpoint]' to make a checkpoint."
 This fills any blanks in the cipher alphabet with the unused letters
 in alphabetical order.  Use this when you have a keyword cipher and
 you have determined the keyword."
-  (interactive)
+  (interactive nil decipher-mode)
   (let ((cipher-char ?A)
         (ptr decipher-alphabet)
         buffer-read-only                ;Make buffer writable
@@ -559,7 +554,7 @@ you have determined the keyword."
 
 (defun decipher-show-alphabet ()
   "Display the current cipher alphabet in the message line."
-  (interactive)
+  (interactive nil decipher-mode)
   (message "%s"
    (mapconcat (lambda (a)
                 (concat
@@ -572,7 +567,7 @@ you have determined the keyword."
   "Reprocess the buffer using the alphabet from the top.
 This regenerates all deciphered plaintext and clears the undo list.
 You should use this if you edit the ciphertext."
-  (interactive)
+  (interactive nil decipher-mode)
   (message "Reprocessing buffer...")
   (let (alphabet
         buffer-read-only                ;Make buffer writable
@@ -616,13 +611,13 @@ You should use this if you edit the ciphertext."
 
 (defun decipher-frequency-count ()
   "Display the frequency count in the statistics buffer."
-  (interactive)
+  (interactive nil decipher-mode)
   (decipher-analyze)
   (decipher-display-regexp "^A" "^[A-Z][A-Z]"))
 
 (defun decipher-digram-list ()
   "Display the list of digrams in the statistics buffer."
-  (interactive)
+  (interactive nil decipher-mode)
   (decipher-analyze)
   (decipher-display-regexp "[A-Z][A-Z] +[0-9]" "^$"))
 
@@ -639,7 +634,7 @@ words, and ends 3 words (`*' represents a space).  X comes before 8
 different letters, after 7 different letters, and is next to a total
 of 11 different letters.  It occurs 14 times, making up 9% of the
 ciphertext."
-  (interactive (list (upcase (following-char))))
+  (interactive (list (upcase (following-char))) decipher-mode)
   (decipher-analyze)
   (let (start end)
     (with-current-buffer (decipher-stats-buffer)
@@ -769,8 +764,8 @@ TOTAL is the total number of letters in the ciphertext."
       (while temp-list
         (insert (caar temp-list)
                 (format "%4d%3d%%  "
-                        (cl-cadar temp-list)
-                        (floor (* 100.0 (cl-cadar temp-list)) total)))
+                        (cadar temp-list)
+                        (floor (* 100.0 (cadar temp-list)) total)))
         (setq temp-list (nthcdr 4 temp-list)))
       (insert ?\n)
       (setq freq-list (cdr freq-list)

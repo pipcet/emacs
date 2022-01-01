@@ -1,6 +1,6 @@
 ;;; byte-run.el --- byte-compiler support for inlining  -*- lexical-binding: t -*-
 
-;; Copyright (C) 1992, 2001-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1992, 2001-2022 Free Software Foundation, Inc.
 
 ;; Author: Jamie Zawinski <jwz@lucid.com>
 ;;	Hallvard Furuseth <hbf@ulrik.uio.no>
@@ -134,6 +134,7 @@ The return value of this function is not used."
              :autoload-end
              (eval-and-compile
                (defun ,cfname (,@(car data) ,@args)
+                 (ignore ,@(delq '&rest (delq '&optional (copy-sequence args))))
                  ,@(cdr data))))))))
 
 (defalias 'byte-run--set-doc-string
@@ -146,10 +147,15 @@ The return value of this function is not used."
       (list 'function-put (list 'quote f)
             ''lisp-indent-function (list 'quote val))))
 
+(defalias 'byte-run--set-speed
+  #'(lambda (f _args val)
+      (list 'function-put (list 'quote f)
+            ''speed (list 'quote val))))
+
 (defalias 'byte-run--set-completion
   #'(lambda (f _args val)
       (list 'function-put (list 'quote f)
-            ''completion-predicate val)))
+            ''completion-predicate (list 'function val))))
 
 (defalias 'byte-run--set-modes
   #'(lambda (f _args &rest val)
@@ -173,6 +179,7 @@ If `error-free', drop calls even if `byte-compile-delete-errors' is nil.")
    (list 'compiler-macro #'byte-run--set-compiler-macro)
    (list 'doc-string #'byte-run--set-doc-string)
    (list 'indent #'byte-run--set-indent)
+   (list 'speed #'byte-run--set-speed)
    (list 'completion #'byte-run--set-completion)
    (list 'modes #'byte-run--set-modes))
   "List associating function properties to their macro expansion.
@@ -247,7 +254,7 @@ The return value is undefined.
 		  #'(lambda (x)
 		      (let ((f (cdr (assq (car x) macro-declarations-alist))))
 			(if f (apply (car f) name arglist (cdr x))
-			  (macroexp--warn-and-return
+			  (macroexp-warn-and-return
 			   (format-message
 			    "Unknown macro property %S in %S"
 			    (car x) name)
@@ -320,7 +327,7 @@ The return value is undefined.
                               body)))
                     nil)
                    (t
-                    (macroexp--warn-and-return
+                    (macroexp-warn-and-return
                      (format-message "Unknown defun property `%S' in %S"
                                      (car x) name)
                      nil)))))
@@ -374,13 +381,17 @@ You don't need this.  (See bytecomp.el commentary for more details.)
   "Define an inline function.  The syntax is just like that of `defun'.
 
 \(fn NAME ARGLIST &optional DOCSTRING DECL &rest BODY)"
-  (declare (debug defun) (doc-string 3))
+  (declare (debug defun) (doc-string 3) (indent 2))
   (or (memq (get name 'byte-optimizer)
 	    '(nil byte-compile-inline-expand))
       (error "`%s' is a primitive" name))
   `(prog1
        (defun ,name ,arglist ,@body)
      (eval-and-compile
+       ;; Never native-compile defsubsts as we need the byte
+       ;; definition in `byte-compile-unfold-bcf' to perform the
+       ;; inlining (Bug#42664, Bug#43280, Bug#44209).
+       ,(byte-run--set-speed name nil -1)
        (put ',name 'byte-optimizer 'byte-compile-inline-expand))))
 
 (defvar advertised-signature-table (make-hash-table :test 'eq :weakness 'key))
@@ -412,18 +423,19 @@ was first made obsolete, for example a date or a release number."
                                            &optional docstring)
   "Set OBSOLETE-NAME's function definition to CURRENT-NAME and mark it obsolete.
 
-\(define-obsolete-function-alias \\='old-fun \\='new-fun \"22.1\" \"old-fun's doc.\")
+\(define-obsolete-function-alias \\='old-fun \\='new-fun \"28.1\" \
+\"old-fun's doc.\")
 
 is equivalent to the following two lines of code:
 
 \(defalias \\='old-fun \\='new-fun \"old-fun's doc.\")
-\(make-obsolete \\='old-fun \\='new-fun \"22.1\")
+\(make-obsolete \\='old-fun \\='new-fun \"28.1\")
 
 WHEN should be a string indicating when the function was first
 made obsolete, for example a date or a release number.
 
 See the docstrings of `defalias' and `make-obsolete' for more details."
-  (declare (doc-string 4))
+  (declare (doc-string 4) (indent defun))
   `(progn
      (defalias ,obsolete-name ,current-name ,docstring)
      (make-obsolete ,obsolete-name ,current-name ,when)))
@@ -452,7 +464,7 @@ made obsolete, for example a date or a release number.
 This macro evaluates all its parameters, and both OBSOLETE-NAME
 and CURRENT-NAME should be symbols, so a typical usage would look like:
 
-  (define-obsolete-variable-alias 'foo-thing 'bar-thing \"27.1\")
+  (define-obsolete-variable-alias 'foo-thing 'bar-thing \"28.1\")
 
 This macro uses `defvaralias' and `make-obsolete-variable' (which see).
 See the Info node `(elisp)Variable Aliases' for more details.
@@ -472,7 +484,7 @@ For the benefit of Customize, if OBSOLETE-NAME has
 any of the following properties, they are copied to
 CURRENT-NAME, if it does not already have them:
 `saved-value', `saved-variable-comment'."
-  (declare (doc-string 4))
+  (declare (doc-string 4) (indent defun))
   `(progn
      (defvaralias ,obsolete-name ,current-name ,docstring)
      ;; See Bug#4706.
@@ -519,11 +531,11 @@ is enabled."
   (list 'quote (eval (cons 'progn body) lexical-binding)))
 
 (defmacro eval-and-compile (&rest body)
-  "Like `progn', but evaluates the body at compile time and at
-load time.  In interpreted code, this is entirely equivalent to
-`progn', except that the value of the expression may be (but is
-not necessarily) computed at load time if eager macro expansion
-is enabled."
+  "Like `progn', but evaluates the body at compile time and at load time.
+In interpreted code, this is entirely equivalent to `progn',
+except that the value of the expression may be (but is not
+necessarily) computed at load time if eager macro expansion is
+enabled."
   (declare (debug (&rest def-form)) (indent 0))
   ;; When the byte-compiler expands code, this macro is not used, so we're
   ;; either about to run `body' (plain interpretation) or we're doing eager

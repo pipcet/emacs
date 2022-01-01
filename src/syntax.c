@@ -1,5 +1,5 @@
 /* GNU Emacs routines to deal with syntax tables; also word and list parsing.
-   Copyright (C) 1985, 1987, 1993-1995, 1997-1999, 2001-2021 Free
+   Copyright (C) 1985, 1987, 1993-1995, 1997-1999, 2001-2022 Free
    Software Foundation, Inc.
 
 This file is part of GNU Emacs.
@@ -16,7 +16,6 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
-
 
 #include <config.h>
 
@@ -1107,6 +1106,23 @@ this is probably the wrong function to use, because it can't take
   char_int = XFIXNUM (character);
   SETUP_BUFFER_SYNTAX_TABLE ();
   return make_fixnum (syntax_code_spec[SYNTAX (char_int)]);
+}
+
+DEFUN ("syntax-class-to-char", Fsyntax_class_to_char,
+       Ssyntax_class_to_char, 1, 1, 0,
+       doc: /* Return the syntax char of CLASS, described by an integer.
+For example, if SYNTAX is word constituent (the integer 2), the
+character `w' (119) is returned.  */)
+  (Lisp_Object syntax)
+{
+  int syn;
+  CHECK_FIXNUM (syntax);
+  syn = XFIXNUM (syntax);
+
+  if (syn < 0 || syn >= sizeof syntax_code_spec)
+    args_out_of_range (make_fixnum (sizeof syntax_code_spec - 1),
+		       syntax);
+  return make_fixnum (syntax_code_spec[syn]);
 }
 
 DEFUN ("matching-paren", Fmatching_paren, Smatching_paren, 1, 1, 0,
@@ -3530,8 +3546,10 @@ DEFUN ("parse-partial-sexp", Fparse_partial_sexp, Sparse_partial_sexp, 2, 6, 0,
        doc: /* Parse Lisp syntax starting at FROM until TO; return status of parse at TO.
 Parsing stops at TO or when certain criteria are met;
  point is set to where parsing stops.
-If fifth arg OLDSTATE is omitted or nil,
- parsing assumes that FROM is the beginning of a function.
+
+If OLDSTATE is omitted or nil, parsing assumes that FROM is the
+ beginning of a function.  If not, OLDSTATE should be the state at
+ FROM.
 
 Value is a list of elements describing final state of parsing:
  0. depth in parens.
@@ -3576,6 +3594,9 @@ Sixth arg COMMENTSTOP non-nil means stop after the start of a comment.
     }
   else
     target = TYPE_MINIMUM (EMACS_INT);	/* We won't reach this depth.  */
+
+  if (fix_position (to) < fix_position (from))
+    error ("End position is smaller than start position");
 
   validate_region (&from, &to);
   internalize_parse_state (oldstate, &state);
@@ -3782,6 +3803,7 @@ In both cases, LIMIT bounds the search. */);
   defsubr (&Scopy_syntax_table);
   defsubr (&Sset_syntax_table);
   defsubr (&Schar_syntax);
+  defsubr (&Ssyntax_class_to_char);
   defsubr (&Smatching_paren);
   defsubr (&Sstring_to_syntax);
   defsubr (&Smodify_syntax_entry);

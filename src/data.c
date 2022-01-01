@@ -1,5 +1,5 @@
 /* Primitive operations on Lisp data types for GNU Emacs Lisp interpreter.
-   Copyright (C) 1985-1986, 1988, 1993-1995, 1997-2021 Free Software
+   Copyright (C) 1985-1986, 1988, 1993-1995, 1997-2022 Free Software
    Foundation, Inc.
 
 This file is part of GNU Emacs.
@@ -85,12 +85,6 @@ XOBJFWD (lispfwd a)
 {
   eassert (OBJFWDP (a));
   return a.fwdptr;
-}
-
-static void
-CHECK_SUBR (Lisp_Object x)
-{
-  CHECK_TYPE (SUBRP (x), Qsubrp, x);
 }
 
 static void
@@ -259,10 +253,14 @@ for example, (type-of 1) returns `integer'.  */)
           }
         case PVEC_MODULE_FUNCTION:
           return Qmodule_function;
+	case PVEC_NATIVE_COMP_UNIT:
+          return Qnative_comp_unit;
         case PVEC_XWIDGET:
           return Qxwidget;
         case PVEC_XWIDGET_VIEW:
           return Qxwidget_view;
+        case PVEC_SQLITE:
+          return Qsqlite;
         /* "Impossible" cases.  */
 	case PVEC_MISC_PTR:
         case PVEC_OTHER:
@@ -585,8 +583,8 @@ DEFUN ("condition-variable-p", Fcondition_variable_p, Scondition_variable_p,
 /* Extract and set components of lists.  */
 
 DEFUN ("car", Fcar, Scar, 1, 1, 0,
-       doc: /* Return the car of LIST.  If arg is nil, return nil.
-Error if arg is not nil and not a cons cell.  See also `car-safe'.
+       doc: /* Return the car of LIST.  If LIST is nil, return nil.
+Error if LIST is not nil and not a cons cell.  See also `car-safe'.
 
 See Info node `(elisp)Cons Cells' for a discussion of related basic
 Lisp concepts such as car, cdr, cons cell and list.  */)
@@ -603,8 +601,8 @@ DEFUN ("car-safe", Fcar_safe, Scar_safe, 1, 1, 0,
 }
 
 DEFUN ("cdr", Fcdr, Scdr, 1, 1, 0,
-       doc: /* Return the cdr of LIST.  If arg is nil, return nil.
-Error if arg is not nil and not a cons cell.  See also `cdr-safe'.
+       doc: /* Return the cdr of LIST.  If LIST is nil, return nil.
+Error if LIST is not nil and not a cons cell.  See also `cdr-safe'.
 
 See Info node `(elisp)Cons Cells' for a discussion of related basic
 Lisp concepts such as cdr, car, cons cell and list.  */)
@@ -685,7 +683,7 @@ global value outside of any lexical scope.  */)
 /* It has been previously suggested to make this function an alias for
    symbol-function, but upon discussion at Bug#23957, there is a risk
    breaking backward compatibility, as some users of fboundp may
-   expect `t' in particular, rather than any true value.  */
+   expect t in particular, rather than any true value.  */
 DEFUN ("fboundp", Ffboundp, Sfboundp, 1, 1, 0,
        doc: /* Return t if SYMBOL's function definition is not void.  */)
   (Lisp_Object symbol)
@@ -779,6 +777,13 @@ DEFUN ("fset", Ffset, Sfset, 2, 2, 0,
 
   eassert (valid_lisp_object_p (definition));
 
+#ifdef HAVE_NATIVE_COMP
+  if (comp_enable_subr_trampolines
+      && SUBRP (function)
+      && !SUBR_NATIVE_COMPILEDP (function))
+    CALLN (Ffuncall, Qcomp_subr_trampoline_install, symbol);
+#endif
+
   set_symbol_function (symbol, definition);
 
   return definition;
@@ -823,6 +828,8 @@ The return value is undefined.  */)
     else
       Ffset (symbol, definition);
   }
+
+  maybe_defer_native_compilation (symbol, definition);
 
   if (!NILP (docstring))
     Fput (symbol, Qfunction_documentation, docstring);
@@ -870,6 +877,74 @@ SUBR must be a built-in function.  */)
   return build_string (name);
 }
 
+DEFUN ("subr-native-elisp-p", Fsubr_native_elisp_p, Ssubr_native_elisp_p, 1, 1,
+       0, doc: /* Return t if the object is native compiled lisp
+function, nil otherwise.  */)
+  (Lisp_Object object)
+{
+  return SUBR_NATIVE_COMPILEDP (object) ? Qt : Qnil;
+}
+
+DEFUN ("subr-native-lambda-list", Fsubr_native_lambda_list,
+       Ssubr_native_lambda_list, 1, 1, 0,
+       doc: /* Return the lambda list for a native compiled lisp/d
+function or t otherwise.  */)
+  (Lisp_Object subr)
+{
+  CHECK_SUBR (subr);
+
+#ifdef HAVE_NATIVE_COMP
+  if (SUBR_NATIVE_COMPILED_DYNP (subr))
+    return XSUBR (subr)->lambda_list;
+#endif
+  return Qt;
+}
+
+DEFUN ("subr-type", Fsubr_type,
+       Ssubr_type, 1, 1, 0,
+       doc: /* Return the type of SUBR.  */)
+  (Lisp_Object subr)
+{
+  CHECK_SUBR (subr);
+#ifdef HAVE_NATIVE_COMP
+  return SUBR_TYPE (subr);
+#else
+  return Qnil;
+#endif
+}
+
+#ifdef HAVE_NATIVE_COMP
+
+DEFUN ("subr-native-comp-unit", Fsubr_native_comp_unit,
+       Ssubr_native_comp_unit, 1, 1, 0,
+       doc: /* Return the native compilation unit.  */)
+  (Lisp_Object subr)
+{
+  CHECK_SUBR (subr);
+  return XSUBR (subr)->native_comp_u;
+}
+
+DEFUN ("native-comp-unit-file", Fnative_comp_unit_file,
+       Snative_comp_unit_file, 1, 1, 0,
+       doc: /* Return the file of the native compilation unit.  */)
+  (Lisp_Object comp_unit)
+{
+  CHECK_TYPE (NATIVE_COMP_UNITP (comp_unit), Qnative_comp_unit, comp_unit);
+  return XNATIVE_COMP_UNIT (comp_unit)->file;
+}
+
+DEFUN ("native-comp-unit-set-file", Fnative_comp_unit_set_file,
+       Snative_comp_unit_set_file, 2, 2, 0,
+       doc: /* Return the file of the native compilation unit.  */)
+  (Lisp_Object comp_unit, Lisp_Object new_file)
+{
+  CHECK_TYPE (NATIVE_COMP_UNITP (comp_unit), Qnative_comp_unit, comp_unit);
+  XNATIVE_COMP_UNIT (comp_unit)->file = new_file;
+  return comp_unit;
+}
+
+#endif
+
 DEFUN ("interactive-form", Finteractive_form, Sinteractive_form, 1, 1, 0,
        doc: /* Return the interactive form of CMD or nil if none.
 If CMD is not a command, the return value is nil.
@@ -895,6 +970,9 @@ Value, if non-nil, is a list (interactive SPEC).  */)
 
   if (SUBRP (fun))
     {
+      if (SUBR_NATIVE_COMPILEDP (fun) && !NILP (XSUBR (fun)->native_intspec))
+	return XSUBR (fun)->native_intspec;
+
       const char *spec = XSUBR (fun)->intspec;
       if (spec)
 	return list2 (Qinteractive,
@@ -971,6 +1049,8 @@ The value, if non-nil, is a list of mode name symbols.  */)
 
   if (COMPILEDP (fun))
     {
+      if (PVSIZE (fun) <= COMPILED_INTERACTIVE)
+	return Qnil;
       Lisp_Object form = AREF (fun, COMPILED_INTERACTIVE);
       if (VECTORP (form))
 	/* New form -- the second element is the command modes. */
@@ -1584,6 +1664,7 @@ All writes to aliases of SYMBOL will call WATCH-FUNCTION too.  */)
   (Lisp_Object symbol, Lisp_Object watch_function)
 {
   symbol = Findirect_variable (symbol);
+  CHECK_SYMBOL (symbol);
   set_symbol_trapped_write (symbol, SYMBOL_TRAPPED_WRITE);
   map_obarray (Vobarray, harmonize_variable_watchers, symbol);
 
@@ -2120,7 +2201,9 @@ From now on the default value will apply in this buffer.  Return VARIABLE.  */)
 DEFUN ("local-variable-p", Flocal_variable_p, Slocal_variable_p,
        1, 2, 0,
        doc: /* Non-nil if VARIABLE has a local binding in buffer BUFFER.
-BUFFER defaults to the current buffer.  */)
+BUFFER defaults to the current buffer.
+
+Also see `buffer-local-boundp'.*/)
   (Lisp_Object variable, Lisp_Object buffer)
 {
   struct buffer *buf = decode_buffer (buffer);
@@ -3819,6 +3902,7 @@ syms_of_data (void)
   DEFSYM (Qerror, "error");
   DEFSYM (Quser_error, "user-error");
   DEFSYM (Qquit, "quit");
+  DEFSYM (Qminibuffer_quit, "minibuffer-quit");
   DEFSYM (Qwrong_length_argument, "wrong-length-argument");
   DEFSYM (Qwrong_type_argument, "wrong-type-argument");
   DEFSYM (Qargs_out_of_range, "args-out-of-range");
@@ -3891,6 +3975,7 @@ syms_of_data (void)
   Fput (sym, Qerror_message, build_pure_c_string (msg))
 
   PUT_ERROR (Qquit, Qnil, "Quit");
+  PUT_ERROR (Qminibuffer_quit, pure_cons (Qquit, Qnil), "Quit");
 
   PUT_ERROR (Quser_error, error_tail, "");
   PUT_ERROR (Qwrong_length_argument, error_tail, "Wrong length argument");
@@ -3955,6 +4040,7 @@ syms_of_data (void)
   DEFSYM (Qoverlay, "overlay");
   DEFSYM (Qfinalizer, "finalizer");
   DEFSYM (Qmodule_function, "module-function");
+  DEFSYM (Qnative_comp_unit, "native-comp-unit");
   DEFSYM (Quser_ptr, "user-ptr");
   DEFSYM (Qfloat, "float");
   DEFSYM (Qwindow_configuration, "window-configuration");
@@ -3983,6 +4069,8 @@ syms_of_data (void)
 
   DEFSYM (Qinteractive_form, "interactive-form");
   DEFSYM (Qdefalias_fset_function, "defalias-fset-function");
+
+  DEFSYM (Qbyte_code_function_p, "byte-code-function-p");
 
   defsubr (&Sindirect_variable);
   defsubr (&Sinteractive_form);
@@ -4077,6 +4165,14 @@ syms_of_data (void)
   defsubr (&Sbyteorder);
   defsubr (&Ssubr_arity);
   defsubr (&Ssubr_name);
+  defsubr (&Ssubr_native_elisp_p);
+  defsubr (&Ssubr_native_lambda_list);
+  defsubr (&Ssubr_type);
+#ifdef HAVE_NATIVE_COMP
+  defsubr (&Ssubr_native_comp_unit);
+  defsubr (&Snative_comp_unit_file);
+  defsubr (&Snative_comp_unit_set_file);
+#endif
 #ifdef HAVE_MODULES
   defsubr (&Suser_ptrp);
 #endif

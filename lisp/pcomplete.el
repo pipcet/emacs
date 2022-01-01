@@ -1,6 +1,6 @@
 ;;; pcomplete.el --- programmable completion -*- lexical-binding: t -*-
 
-;; Copyright (C) 1999-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1999-2022 Free Software Foundation, Inc.
 
 ;; Author: John Wiegley <johnw@gnu.org>
 ;; Keywords: processes abbrev
@@ -680,8 +680,8 @@ user actually typed in."
 	(match-string which arg)
       (throw 'pcompleted nil))))
 
-(defalias 'pcomplete-match-beginning 'match-beginning)
-(defalias 'pcomplete-match-end 'match-end)
+(define-obsolete-function-alias 'pcomplete-match-beginning #'match-beginning "29.1")
+(define-obsolete-function-alias 'pcomplete-match-end #'match-end "29.1")
 
 (defsubst pcomplete--test (pred arg)
   "Perform a programmable completion predicate match."
@@ -1006,7 +1006,7 @@ Arguments NO-GANGING and ARGS-FOLLOW are currently ignored."
 			     ((eq arg-char ?*) (pcomplete-executables))
 			     ((eq arg-char ??) nil)
 			     ((eq arg-char ?.) (pcomplete-entries))
-			     ((eq arg-char ?\() (eval result))))))
+			     ((eq arg-char ?\() (eval result t))))))
 	    (setq index (1+ index))))))))
 
 (defun pcomplete--here (&optional form stub paring form-only)
@@ -1040,7 +1040,7 @@ See the documentation for `pcomplete-here'."
                (funcall form)
              ;; Old calling convention, might still be used by files
              ;; byte-compiled with the older code.
-             (eval form)))))
+             (eval form t)))))
 
 
 (defmacro pcomplete-here* (&optional form stub form-only)
@@ -1062,9 +1062,9 @@ See the documentation for `pcomplete-here'."
 	pcomplete-window-restore-timer nil))
 
 (define-obsolete-function-alias 'pcomplete-event-matches-key-specifier-p
-  'eq "27.1")
+  #'eq "27.1")
 
-(define-obsolete-function-alias 'pcomplete-read-event 'read-event "27.1")
+(define-obsolete-function-alias 'pcomplete-read-event #'read-event "27.1")
 
 (defun pcomplete-show-completions (completions)
   "List in help buffer sorted COMPLETIONS.
@@ -1244,7 +1244,7 @@ If specific documentation can't be given, be generic."
 		    (fboundp 'Info-goto-node))
 	       (listp pcomplete-help)))
       (if (listp pcomplete-help)
-	  (message "%s" (eval pcomplete-help))
+	  (message "%s" (eval pcomplete-help t))
 	(save-window-excursion (info))
 	(declare-function Info-goto-node
 	                  "info" (nodename &optional fork strict-case))
@@ -1260,18 +1260,9 @@ If specific documentation can't be given, be generic."
 
 (defun pcomplete-uniquify-list (l)
   "Sort and remove multiples in L."
-  (setq l (sort l 'string-lessp))
-  (let ((m l))
-    (while m
-      (while (and (cdr m)
-		  (string= (car m)
-			   (cadr m)))
-	(setcdr m (cddr m)))
-      (setq m (cdr m))))
-  l)
-(define-obsolete-function-alias
-  'pcomplete-uniqify-list
-  'pcomplete-uniquify-list "27.1")
+  (setq l (sort l #'string-lessp))
+  (seq-uniq l))
+(define-obsolete-function-alias 'pcomplete-uniqify-list #'pcomplete-uniquify-list "27.1")
 
 (defun pcomplete-process-result (cmd &rest args)
   "Call CMD using `call-process' and return the simplest result."
@@ -1319,18 +1310,6 @@ If specific documentation can't be given, be generic."
   (if pcomplete-hosts-file
       (pcomplete-read-hosts pcomplete-hosts-file 'pcomplete--host-name-cache
                    'pcomplete--host-name-cache-timestamp)))
-
-;; create a set of aliases which allow completion functions to be not
-;; quite so verbose
-
-;;; jww (1999-10-20): are these a good idea?
-;; (defalias 'pc-here 'pcomplete-here)
-;; (defalias 'pc-test 'pcomplete-test)
-;; (defalias 'pc-opt 'pcomplete-opt)
-;; (defalias 'pc-match 'pcomplete-match)
-;; (defalias 'pc-match-string 'pcomplete-match-string)
-;; (defalias 'pc-match-beginning 'pcomplete-match-beginning)
-;; (defalias 'pc-match-end 'pcomplete-match-end)
 
 (provide 'pcomplete)
 

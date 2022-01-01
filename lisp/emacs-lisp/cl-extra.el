@@ -1,6 +1,6 @@
 ;;; cl-extra.el --- Common Lisp features, part 2  -*- lexical-binding: t -*-
 
-;; Copyright (C) 1993, 2000-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1993, 2000-2022 Free Software Foundation, Inc.
 
 ;; Author: Dave Gillespie <daveg@synaptics.com>
 ;; Keywords: extensions
@@ -94,7 +94,7 @@ strings case-insensitively."
 (defun cl--mapcar-many (cl-func cl-seqs &optional acc)
   (if (cdr (cdr cl-seqs))
       (let* ((cl-res nil)
-	     (cl-n (apply 'min (mapcar 'length cl-seqs)))
+	     (cl-n (apply #'min (mapcar #'length cl-seqs)))
 	     (cl-i 0)
 	     (cl-args (copy-sequence cl-seqs))
 	     cl-p1 cl-p2)
@@ -131,7 +131,7 @@ strings case-insensitively."
   "Map a FUNCTION across one or more SEQUENCEs, returning a sequence.
 TYPE is the sequence type to return.
 \n(fn TYPE FUNCTION SEQUENCE...)"
-  (let ((cl-res (apply 'cl-mapcar cl-func cl-seq cl-rest)))
+  (let ((cl-res (apply #'cl-mapcar cl-func cl-seq cl-rest)))
     (and cl-type (cl-coerce cl-res cl-type))))
 
 ;;;###autoload
@@ -190,14 +190,14 @@ the elements themselves.
   "Like `cl-mapcar', but nconc's together the values returned by the function.
 \n(fn FUNCTION SEQUENCE...)"
   (if cl-rest
-      (apply 'nconc (apply 'cl-mapcar cl-func cl-seq cl-rest))
+      (apply #'nconc (apply #'cl-mapcar cl-func cl-seq cl-rest))
     (mapcan cl-func cl-seq)))
 
 ;;;###autoload
 (defun cl-mapcon (cl-func cl-list &rest cl-rest)
   "Like `cl-maplist', but nconc's together the values returned by the function.
 \n(fn FUNCTION LIST...)"
-  (apply 'nconc (apply 'cl-maplist cl-func cl-list cl-rest)))
+  (apply #'nconc (apply #'cl-maplist cl-func cl-list cl-rest)))
 
 ;;;###autoload
 (defun cl-some (cl-pred cl-seq &rest cl-rest)
@@ -236,13 +236,13 @@ non-nil value.
 (defun cl-notany (cl-pred cl-seq &rest cl-rest)
   "Return true if PREDICATE is false of every element of SEQ or SEQs.
 \n(fn PREDICATE SEQ...)"
-  (not (apply 'cl-some cl-pred cl-seq cl-rest)))
+  (not (apply #'cl-some cl-pred cl-seq cl-rest)))
 
 ;;;###autoload
 (defun cl-notevery (cl-pred cl-seq &rest cl-rest)
   "Return true if PREDICATE is false of some element of SEQ or SEQs.
 \n(fn PREDICATE SEQ...)"
-  (not (apply 'cl-every cl-pred cl-seq cl-rest)))
+  (not (apply #'cl-every cl-pred cl-seq cl-rest)))
 
 ;;;###autoload
 (defun cl--map-keymap-recursively (cl-func-rec cl-map &optional cl-base)
@@ -336,7 +336,7 @@ non-nil value.
 
 ;;;###autoload
 (defun cl-isqrt (x)
-  "Return the integer square root of the (integer) argument."
+  "Return the integer square root of the (integer) argument X."
   (if (and (integerp x) (> x 0))
       (let ((g (ash 2 (/ (logb x) 2)))
 	    g2)
@@ -455,7 +455,7 @@ as an integer unless JUNK-ALLOWED is non-nil."
 
 ;;;###autoload
 (defun cl-random (lim &optional state)
-  "Return a random nonnegative number less than LIM, an integer or float.
+  "Return a pseudo-random nonnegative number less than LIM, an integer or float.
 Optional second arg STATE is a random-state object."
   (or state (setq state cl--random-state))
   ;; Inspired by "ran3" from Numerical Recipes.  Additive congruential method.
@@ -693,12 +693,11 @@ PROPLIST is a list of the sort returned by `symbol-plist'.
   "Expand macros in FORM and insert the pretty-printed result."
   (declare (advertised-calling-convention (form) "27.1"))
   (message "Expanding...")
-  (let ((byte-compile-macro-environment nil))
-    (setq form (macroexpand-all form))
-    (message "Formatting...")
-    (prog1
-        (cl-prettyprint form)
-      (message ""))))
+  (setq form (macroexpand-all form))
+  (message "Formatting...")
+  (prog1
+      (cl-prettyprint form)
+    (message "")))
 
 ;;; Integration into the online help system.
 
@@ -848,7 +847,7 @@ PROPLIST is a list of the sort returned by `symbol-plist'.
               "\n")))
    "\n"))
 
-(defun cl--print-table (header rows)
+(defun cl--print-table (header rows &optional last-slot-on-next-line)
   ;; FIXME: Isn't this functionality already implemented elsewhere?
   (let ((cols (apply #'vector (mapcar #'string-width header)))
         (col-space 2))
@@ -878,7 +877,11 @@ PROPLIST is a list of the sort returned by `symbol-plist'.
                                header))
                 "\n")
         (dolist (row rows)
-          (insert (apply #'format format row) "\n"))))))
+          (insert (apply #'format format row) "\n")
+          (when last-slot-on-next-line
+            (dolist (line (string-lines (car (last row))))
+              (insert "    " line "\n"))
+            (insert "\n")))))))
 
 (defun cl--describe-class-slots (class)
   "Print help description for the slots in CLASS.
@@ -904,8 +907,7 @@ Outputs to the current buffer."
                          (setq has-doc t)
                          (substitute-command-keys doc)))))
              slots)))
-      (cl--print-table `("Name" "Type" "Default" . ,(if has-doc '("Doc")))
-                       slots-strings))
+      (cl--print-table `("Name" "Type" "Default") slots-strings has-doc))
     (insert "\n")
     (when (> (length cslots) 0)
       (insert (propertize "\nClass Allocated Slots:\n\n" 'face 'bold))

@@ -1,6 +1,6 @@
 ;;; titdic-cnv.el --- convert cxterm dictionary (TIT format) to Quail package -*- coding: utf-8-emacs; lexical-binding:t -*-
 
-;; Copyright (C) 1997-1998, 2000-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1997-1998, 2000-2022 Free Software Foundation, Inc.
 ;; Copyright (C) 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004,
 ;;   2005, 2006, 2007, 2008, 2009, 2010, 2011
 ;;   National Institute of Advanced Industrial Science and Technology (AIST)
@@ -627,8 +627,8 @@ To get complete usage, invoke \"emacs -batch -f batch-titdic-convert -h\"."
      py-converter
      "\
 ;; \"pinyin.map\" is included in a free package called CCE.  It is
-;; available at:
-;;	http://ftp.debian.org/debian/dists/potato/main
+;; available at: [link needs updating  -- SK 2021-09-27]
+;;	https://ftp.debian.org/debian/dists/potato/main
 ;;		/source/utils/cce_0.36.orig.tar.gz
 ;; This package contains the following copyright notice.
 ;;
@@ -655,8 +655,8 @@ To get complete usage, invoke \"emacs -batch -f batch-titdic-convert -h\"."
      ziranma-converter
      "\
 ;; \"ziranma.cin\" is included in a free package called CCE.  It is
-;; available at:
-;;	http://ftp.debian.org/debian/dists/potato/main
+;; available at: [link needs updating  -- SK 2021-09-27]
+;;	https://ftp.debian.org/debian/dists/potato/main
 ;;		/source/utils/cce_0.36.orig.tar.gz
 ;; This package contains the following copyright notice.
 ;;
@@ -748,7 +748,7 @@ To get complete usage, invoke \"emacs -batch -f batch-titdic-convert -h\"."
 
    [Q 手] [W 田] [E 水] [R 口] [T 廿] [Y 卜] [U 山] [I 戈] [O 人] [P 心]
 
-    [A 日] [S 尸] [D 木] [F 火] [G 土] [H 竹] [J 十] [L 中]
+    [A 日] [S 尸] [D 木] [F 火] [G 土] [H 竹] [J 十] [K 大] [L 中]
 
       [Z  ] [X 難] [C 金] [V 女] [B 月] [N 弓] [M 一]
 
@@ -781,7 +781,7 @@ To get complete usage, invoke \"emacs -batch -f batch-titdic-convert -h\"."
 	    (if val (setq trans (concat val trans)))
 	    (puthash key trans table)
 	    (forward-line 1)))
-	(maphash #'(lambda (key val) (setq dic (cons (cons key val) dic)))
+        (maphash (lambda (key val) (setq dic (cons (cons key val) dic)))
 		 table)))
     (setq dic (sort dic (lambda (x y) (string< (car x ) (car y)))))
     (dolist (elt dic)
@@ -931,18 +931,18 @@ method `chinese-tonepy' with which you must specify tones by digits
 	  (if val (setq trans (vconcat val trans)))
 	  (puthash key trans table)
 	  (forward-line 1))
-	(maphash #'(lambda (key trans)
-		     (let ((len (length trans))
-			   i)
-		       (if (and (= len 1) (= (length (aref trans 0)) 1))
-			   (setq trans (aref trans 0))
-			 (setq i 0)
-			 (while (and (< i len)
-				     (= (length (aref trans i)) 1))
-			   (setq i (1+ i)))
-			 (if (= i len)
-			     (setq trans (mapconcat #'identity trans "")))))
-		     (setq dic (cons (cons key trans) dic)))
+        (maphash (lambda (key trans)
+                   (let ((len (length trans))
+                         i)
+                     (if (and (= len 1) (= (length (aref trans 0)) 1))
+                         (setq trans (aref trans 0))
+                       (setq i 0)
+                       (while (and (< i len)
+                                   (= (length (aref trans i)) 1))
+                         (setq i (1+ i)))
+                       (if (= i len)
+                           (setq trans (mapconcat #'identity trans "")))))
+                   (setq dic (cons (cons key trans) dic)))
 		 table)))
     (setq dic (sort dic (lambda (x y) (string< (car x) (car y)))))
     (goto-char (point-max))

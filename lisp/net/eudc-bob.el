@@ -1,6 +1,6 @@
 ;;; eudc-bob.el --- Binary Objects Support for EUDC  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 1999-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1999-2022 Free Software Foundation, Inc.
 
 ;; Author: Oscar Figueiredo <oscar@cpe.fr>
 ;;         Pavel Janík <Pavel@Janik.cz>
@@ -41,38 +41,38 @@
 
 (defvar eudc-bob-generic-keymap
   (let ((map (make-sparse-keymap)))
-    (define-key map "s" 'eudc-bob-save-object)
-    (define-key map "!" 'eudc-bob-pipe-object-to-external-program)
-    (define-key map [down-mouse-3] 'eudc-bob-popup-menu)
+    (define-key map "s" #'eudc-bob-save-object)
+    (define-key map "!" #'eudc-bob-pipe-object-to-external-program)
+    (define-key map [down-mouse-3] #'eudc-bob-popup-menu)
     map)
   "Keymap for multimedia objects.")
 
 (defvar eudc-bob-image-keymap
   (let ((map (make-sparse-keymap)))
     (set-keymap-parent map eudc-bob-generic-keymap)
-    (define-key map "t" 'eudc-bob-toggle-inline-display)
+    (define-key map "t" #'eudc-bob-toggle-inline-display)
     map)
   "Keymap for inline images.")
 
 (defvar eudc-bob-sound-keymap
   (let ((map (make-sparse-keymap)))
     (set-keymap-parent map eudc-bob-generic-keymap)
-    (define-key map (kbd "RET") 'eudc-bob-play-sound-at-point)
-    (define-key map [down-mouse-2] 'eudc-bob-play-sound-at-mouse)
+    (define-key map (kbd "RET") #'eudc-bob-play-sound-at-point)
+    (define-key map [down-mouse-2] #'eudc-bob-play-sound-at-mouse)
     map)
   "Keymap for inline sounds.")
 
 (defvar eudc-bob-url-keymap
   (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "RET") 'browse-url-at-point)
-    (define-key map [down-mouse-2] 'browse-url-at-mouse)
+    (define-key map (kbd "RET") #'browse-url-at-point)
+    (define-key map [down-mouse-2] #'browse-url-at-mouse)
     map)
   "Keymap for inline urls.")
 
 (defvar eudc-bob-mail-keymap
   (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "RET") 'goto-address-at-point)
-    (define-key map [down-mouse-2] 'goto-address-at-point)
+    (define-key map (kbd "RET") #'goto-address-at-point)
+    (define-key map [down-mouse-2] #'goto-address-at-point)
     map)
   "Keymap for inline e-mail addresses.")
 
@@ -252,17 +252,14 @@ display a button."
 
 ;; If the first arguments can be nil here, then these 3 can be
 ;; defconsts once more.
-(easy-menu-define eudc-bob-generic-menu
-  eudc-bob-generic-keymap
-  ""
+(easy-menu-define eudc-bob-generic-menu eudc-bob-generic-keymap
+  "EUDC Binary Object Menu."
   eudc-bob-generic-menu)
-(easy-menu-define eudc-bob-image-menu
-  eudc-bob-image-keymap
-  ""
+(easy-menu-define eudc-bob-image-menu eudc-bob-image-keymap
+  "EUDC Image Menu."
   eudc-bob-image-menu)
-(easy-menu-define eudc-bob-sound-menu
-  eudc-bob-sound-keymap
-  ""
+(easy-menu-define eudc-bob-sound-menu eudc-bob-sound-keymap
+  "EUDC Sound Menu."
   eudc-bob-sound-menu)
 
 ;;;###autoload

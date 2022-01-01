@@ -1,6 +1,6 @@
 ;;; battery.el --- display battery status information  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1997-1998, 2000-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1997-1998, 2000-2022 Free Software Foundation, Inc.
 
 ;; Author: Ralph Schleicher <rs@ralph-schleicher.de>
 ;; Maintainer: emacs-devel@gnu.org
@@ -161,9 +161,9 @@ The full `format-spec' formatting syntax is supported."
 
 (defcustom battery-mode-line-format
   (cond ((eq battery-status-function #'battery-linux-proc-acpi)
-	 "[%b%p%%,%d°C]")
+	 "[%b%p%%,%d°C] ")
 	(battery-status-function
-	 "[%b%p%%]"))
+	 "[%b%p%%] "))
   "Control string formatting the string to display in the mode line.
 Ordinary characters in the control string are printed as-is, while
 conversion specifications introduced by a `%' character in the control

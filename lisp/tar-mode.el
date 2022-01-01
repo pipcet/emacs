@@ -1,6 +1,6 @@
 ;;; tar-mode.el --- simple editing of tar files from GNU Emacs  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1990-1991, 1993-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1990-1991, 1993-2022 Free Software Foundation, Inc.
 
 ;; Author: Jamie Zawinski <jwz@lucid.com>
 ;; Maintainer: emacs-devel@gnu.org
@@ -360,7 +360,7 @@ of the file header.  This is used for \"old GNU\" Tar format."
   #'tar-parse-octal-integer "27.1")
 
 (defun tar-parse-octal-integer-safe (string)
-  (if (zerop (length string)) (error "empty string"))
+  (if (zerop (length string)) (error "Empty string"))
   (mapc (lambda (c)
 	  (if (or (< c ?0) (> c ?7))
 	      (error "`%c' is not an octal digit" c)))
@@ -372,7 +372,7 @@ of the file header.  This is used for \"old GNU\" Tar format."
 The header will lack a proper checksum; use `tar-header-block-checksum'
 to compute one, or request `tar-header-serialize' to do that.
 
-Other tar-mode facilities may also require the data-start header
+Other `tar-mode' facilities may also require the data-start header
 field to be set to a valid value.
 
 If SIZE is not given or nil, it defaults to 0.
@@ -467,13 +467,14 @@ checksum before doing the check."
 
 (defun tar-clip-time-string (time)
   (declare (obsolete format-time-string "27.1"))
-  (let ((str (current-time-string time)))
-    (concat " " (substring str 4 16) (format-time-string " %Y" time))))
+  (let ((system-time-locale "C"))
+    (format-time-string " %b %e %H:%M %Y" time)))
 
 (defun tar-grind-file-mode (mode)
   "Construct a `rw-r--r--' string indicating MODE.
 MODE should be an integer which is a file mode value.
 For instance, if mode is #o700, then it produces `rwx------'."
+  (declare (obsolete file-modes-number-to-symbolic "28.1"))
   (substring (file-modes-number-to-symbolic mode) 1))
 
 (defun tar-header-block-summarize (tar-hblock &optional mod-p)
@@ -489,25 +490,26 @@ For instance, if mode is #o700, then it produces `rwx------'."
 	;; (ck (tar-header-checksum tar-hblock))
 	(type (tar-header-link-type tar-hblock))
 	(link-name (tar-header-link-name tar-hblock)))
-    (format "%c%c%s %7s/%-7s %7s%s %s%s"
+    (format "%c%s %7s/%-7s %7s%s %s%s"
 	    (if mod-p ?* ? )
-	    (cond ((or (eq type nil) (eq type 0)) ?-)
-		  ((eq type 1) ?h)	; link
-		  ((eq type 2) ?l)	; symlink
-		  ((eq type 3) ?c)	; char special
-		  ((eq type 4) ?b)	; block special
-		  ((eq type 5) ?d)	; directory
-		  ((eq type 6) ?p)	; FIFO/pipe
-		  ((eq type 20) ?*)	; directory listing
-		  ((eq type 28) ?L)	; next has longname
-		  ((eq type 29) ?M)	; multivolume continuation
-		  ((eq type 35) ?S)	; sparse
-		  ((eq type 38) ?V)	; volume header
-		  ((eq type 55) ?H)	; pax global extended header
-		  ((eq type 72) ?X)	; pax extended header
-		  (t ?\s)
-		  )
-	    (tar-grind-file-mode mode)
+	    (file-modes-number-to-symbolic
+	     mode
+	     (cond ((or (eq type nil) (eq type 0)) ?-)
+		   ((eq type 1) ?h)	; link
+		   ((eq type 2) ?l)	; symlink
+		   ((eq type 3) ?c)	; char special
+		   ((eq type 4) ?b)	; block special
+		   ((eq type 5) ?d)	; directory
+		   ((eq type 6) ?p)	; FIFO/pipe
+		   ((eq type 20) ?*)	; directory listing
+		   ((eq type 28) ?L)	; next has longname
+		   ((eq type 29) ?M)	; multivolume continuation
+		   ((eq type 35) ?S)	; sparse
+		   ((eq type 38) ?V)	; volume header
+		   ((eq type 55) ?H)	; pax global extended header
+		   ((eq type 72) ?X)	; pax extended header
+		   (t ?\s)
+		   ))
 	    (if (= 0 (length uname)) uid uname)
 	    (if (= 0 (length gname)) gid gname)
 	    size
@@ -635,53 +637,37 @@ For instance, if mode is #o700, then it produces `rwx------'."
     ;; Let mouse-1 follow the link.
     (define-key map [follow-link] 'mouse-face)
 
-    ;; Make menu bar items.
-
     ;; Get rid of the Edit menu bar item to save space.
     (define-key map [menu-bar edit] 'undefined)
 
-    (define-key map [menu-bar immediate]
-      (cons "Immediate" (make-sparse-keymap "Immediate")))
-
-    (define-key map [menu-bar immediate woman]
-      '("Read Man Page (WoMan)" . woman-tar-extract-file))
-    (define-key map [menu-bar immediate view]
-      '("View This File" . tar-view))
-    (define-key map [menu-bar immediate display]
-      '("Display in Other Window" . tar-display-other-window))
-    (define-key map [menu-bar immediate find-file-other-window]
-      '("Find in Other Window" . tar-extract-other-window))
-    (define-key map [menu-bar immediate find-file]
-      '("Find This File" . tar-extract))
-
-    (define-key map [menu-bar mark]
-      (cons "Mark" (make-sparse-keymap "Mark")))
-
-    (define-key map [menu-bar mark unmark-all]
-      '("Unmark All" . tar-clear-modification-flags))
-    (define-key map [menu-bar mark deletion]
-      '("Flag" . tar-flag-deleted))
-    (define-key map [menu-bar mark unmark]
-      '("Unflag" . tar-unflag))
-
-    (define-key map [menu-bar operate]
-      (cons "Operate" (make-sparse-keymap "Operate")))
-
-    (define-key map [menu-bar operate chown]
-      '("Change Owner..." . tar-chown-entry))
-    (define-key map [menu-bar operate chgrp]
-      '("Change Group..." . tar-chgrp-entry))
-    (define-key map [menu-bar operate chmod]
-      '("Change Mode..." . tar-chmod-entry))
-    (define-key map [menu-bar operate rename]
-      '("Rename to..." . tar-rename-entry))
-    (define-key map [menu-bar operate copy]
-      '("Copy to..." . tar-copy))
-    (define-key map [menu-bar operate expunge]
-      '("Expunge Marked Files" . tar-expunge))
-    
     map)
   "Local keymap for Tar mode listings.")
+
+(easy-menu-define tar-mode-immediate-menu tar-mode-map
+  "Immediate menu for Tar mode."
+  '("Immediate"
+    ["Find This File" tar-extract]
+    ["Find in Other Window" tar-extract-other-window]
+    ["Display in Other Window" tar-display-other-window]
+    ["View This File" tar-view]
+    ["Read Man Page (WoMan)" woman-tar-extract-file]))
+
+(easy-menu-define tar-mode-mark-menu tar-mode-map
+  "Mark menu for Tar mode."
+  '("Mark"
+    ["Unflag" tar-unflag]
+    ["Flag" tar-flag-deleted]
+    ["Unmark All" tar-clear-modification-flags]))
+
+(easy-menu-define tar-mode-operate-menu tar-mode-map
+  "Operate menu for Tar mode."
+  '("Operate"
+    ["Expunge Marked Files" tar-expunge]
+    ["Copy to..." tar-copy]
+    ["Rename to..." tar-rename-entry]
+    ["Change Mode..." tar-chmod-entry]
+    ["Change Group..." tar-chgrp-entry]
+    ["Change Owner..." tar-chown-entry]))
 
 
 ;; tar mode is suitable only for specially formatted data.
@@ -701,12 +687,12 @@ For instance, if mode is #o700, then it produces `rwx------'."
 (define-derived-mode tar-mode special-mode "Tar"
   "Major mode for viewing a tar file as a dired-like listing of its contents.
 You can move around using the usual cursor motion commands.
-Letters no longer insert themselves.
-Type `e' to pull a file out of the tar file and into its own buffer;
+Letters no longer insert themselves.\\<tar-mode-map>
+Type \\[tar-extract] to pull a file out of the tar file and into its own buffer;
 or click mouse-2 on the file's line in the Tar mode buffer.
-Type `c' to copy an entry from the tar file into another file on disk.
+Type \\[tar-copy] to copy an entry from the tar file into another file on disk.
 
-If you edit a sub-file of this archive (as with the `e' command) and
+If you edit a sub-file of this archive (as with the \\[tar-extract] command) and
 save it with \\[save-buffer], the contents of that buffer will be
 saved back into the tar-file buffer; in this way you can edit a file
 inside of a tar archive without extracting it and re-archiving it.
@@ -767,7 +753,7 @@ into the tar-file buffer that it came from.  The changes will
 actually appear on disk when you save the tar-file's buffer."
   ;; Don't do this, because it is redundant and wastes mode line space.
   ;; :lighter " TarFile"
-  nil nil nil
+  :lighter nil
   (or (and (boundp 'tar-superior-buffer) tar-superior-buffer)
       (error "This buffer is not an element of a tar file"))
   (cond (tar-subfile-mode
@@ -976,7 +962,7 @@ return nil.  Otherwise point is returned."
          (new-buffer-file-name (expand-file-name
                                 ;; `:' is not allowed on Windows
                                 (concat tarname "!"
-                                        (if (string-match "/" name)
+                                        (if (string-search "/" name)
                                             name
                                           ;; Make sure `name' contains a /
                                           ;; so set-auto-mode doesn't try
@@ -1255,7 +1241,7 @@ for this to be permanent."
   (interactive
     (list (read-string "New name: "
 	    (tar-header-name (tar-current-descriptor)))))
-  (if (string= "" new-name) (error "zero length name"))
+  (if (string= "" new-name) (error "Zero length name"))
   (let ((encoded-new-name (encode-coding-string new-name
 						tar-file-name-coding-system))
         (descriptor (tar-current-descriptor))
@@ -1273,7 +1259,7 @@ for this to be permanent."
       (setq prefix (substring encoded-new-name 0 (match-beginning 0)))
       (setq encoded-new-name (substring encoded-new-name (match-end 0))))
 
-    (if (> (length encoded-new-name) 98) (error "name too long"))
+    (if (> (length encoded-new-name) 98) (error "Name too long"))
     (setf (tar-header-name descriptor) new-name)
     (tar-alter-one-field 0
      (substring (concat encoded-new-name (make-string 99 0)) 0 99))

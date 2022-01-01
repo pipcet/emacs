@@ -1,12 +1,12 @@
 ;;; artist.el --- draw ascii graphics with your mouse -*- lexical-binding: t -*-
 
-;; Copyright (C) 2000-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2000-2022 Free Software Foundation, Inc.
 
 ;; Author:       Tomas Abrahamsson <tab@lysator.liu.se>
 ;; Keywords:     mouse
 ;; Old-Version:	 1.2.6
 ;; Release-date: 6-Aug-2004
-;; Location:     http://www.lysator.liu.se/~tab/artist/
+;; Location:     https://www.lysator.liu.se/~tab/artist/
 
 ;; Yoni Rabkin <yoni@rabkins.net> contacted the maintainer of this
 ;; file on 19/3/2008, and the maintainer agreed that when a bug is filed in
@@ -33,7 +33,7 @@
 ;; What is artist?
 ;; ---------------
 ;;
-;; Artist is an Emacs lisp package that allows you to draw lines,
+;; Artist is an Emacs Lisp package that allows you to draw lines,
 ;; rectangles and ellipses by using your mouse and/or keyboard.  The
 ;; shapes are made up with the ascii characters |, -, / and \.
 ;;
@@ -105,13 +105,6 @@
 ;; See the short guide at the end of this file.
 ;; If you add a new drawing mode, send it to me, and I would gladly
 ;; include in the next release!
-
-;;; Installation:
-
-;; To use artist, put this in your .emacs:
-;;
-;;    (autoload 'artist-mode "artist" "Enter artist-mode" t)
-
 
 ;;; Requirements:
 
@@ -345,7 +338,8 @@ Example:
 (defvar artist-pointer-shape (if (eq window-system 'x) x-pointer-crosshair nil)
   "If in X Windows, use this pointer shape while drawing with the mouse.")
 
-(defvaralias 'artist-text-renderer 'artist-text-renderer-function)
+(define-obsolete-variable-alias 'artist-text-renderer
+  'artist-text-renderer-function "29.1")
 
 (defcustom artist-text-renderer-function 'artist-figlet
   "Function for doing text rendering."
@@ -481,50 +475,6 @@ This variable is initialized by the `artist-make-prev-next-op-alist' function.")
 (defvar artist-arrow-point-1 nil)
 (defvar artist-arrow-point-2 nil)
 
-(defvar artist-menu-map
-  (let ((map (make-sparse-keymap)))
-    (define-key map [spray-chars]
-      '(menu-item "Characters for Spray" artist-select-spray-chars
-		  :help "Choose characters for sprayed by the spray-can"))
-    (define-key map [borders]
-      '(menu-item "Draw Shape Borders" artist-toggle-borderless-shapes
-		  :help "Toggle whether shapes are drawn with borders"
-		  :button (:toggle . (not artist-borderless-shapes))))
-    (define-key map [trimming]
-      '(menu-item "Trim Line Endings" artist-toggle-trim-line-endings
-		  :help "Toggle trimming of line-endings"
-		  :button (:toggle . artist-trim-line-endings)))
-    (define-key map [rubber-band]
-      '(menu-item "Rubber-banding" artist-toggle-rubber-banding
-		  :help "Toggle rubber-banding"
-		  :button (:toggle . artist-rubber-banding)))
-    (define-key map [set-erase]
-      '(menu-item "Character to Erase..." artist-select-erase-char
-		  :help "Choose a specific character to erase"))
-    (define-key map [set-line]
-      '(menu-item "Character for Line..." artist-select-line-char
-		  :help "Choose the character to insert when drawing lines"))
-    (define-key map [set-fill]
-      '(menu-item "Character for Fill..." artist-select-fill-char
-		  :help "Choose the character to insert when filling in shapes"))
-    (define-key map [artist-separator] '(menu-item "--"))
-    (dolist (op '(("Vaporize" artist-select-op-vaporize-lines vaporize-lines)
-		  ("Erase" artist-select-op-erase-rectangle erase-rect)
-		  ("Spray-can" artist-select-op-spray-set-size spray-get-size)
-		  ("Text" artist-select-op-text-overwrite text-ovwrt)
-		  ("Ellipse" artist-select-op-circle circle)
-		  ("Poly-line" artist-select-op-straight-poly-line spolyline)
-		  ("Square" artist-select-op-square square)
-		  ("Rectangle" artist-select-op-rectangle rectangle)
-    		  ("Line" artist-select-op-straight-line s-line)
-    		  ("Pen" artist-select-op-pen-line pen-line)))
-      (define-key map (vector (nth 2 op))
-    	`(menu-item ,(nth 0 op)
-    		    ,(nth 1 op)
-    		    :help ,(format "Draw using the %s style" (nth 0 op))
-    		    :button (:radio . (eq artist-curr-go ',(nth 2 op))))))
-    map))
-
 (defvar artist-mode-map
   (let ((map (make-sparse-keymap)))
     (setq artist-mode-map (make-sparse-keymap))
@@ -577,9 +527,49 @@ This variable is initialized by the `artist-make-prev-next-op-alist' function.")
     (define-key map "\C-c\C-a\C-y" 'artist-select-op-paste)
     (define-key map "\C-c\C-af"    'artist-select-op-flood-fill)
     (define-key map "\C-c\C-a\C-b" 'artist-submit-bug-report)
-    (define-key map [menu-bar artist] (cons "Artist" artist-menu-map))
     map)
   "Keymap for `artist-mode'.")
+
+(easy-menu-define artist-menu-map artist-mode-map
+  "Menu for `artist-mode'."
+  `("Artist"
+    ,@(mapcar
+       (lambda (op)
+         `[,(nth 0 op) ,(nth 1 op)
+           :help ,(format "Draw using the %s style" (nth 0 op))
+           :style radio
+           :selected (eq artist-curr-go ',(nth 2 op))])
+       '(("Vaporize" artist-select-op-vaporize-lines vaporize-lines)
+         ("Erase" artist-select-op-erase-rectangle erase-rect)
+         ("Spray-can" artist-select-op-spray-set-size spray-get-size)
+         ("Text" artist-select-op-text-overwrite text-ovwrt)
+         ("Ellipse" artist-select-op-circle circle)
+         ("Poly-line" artist-select-op-straight-poly-line spolyline)
+         ("Square" artist-select-op-square square)
+         ("Rectangle" artist-select-op-rectangle rectangle)
+         ("Line" artist-select-op-straight-line s-line)
+         ("Pen" artist-select-op-pen-line pen-line)))
+    "---"
+    ["Character for Fill..." artist-select-fill-char
+     :help "Choose the character to insert when filling in shapes"]
+    ["Character for Line..." artist-select-line-char
+     :help "Choose the character to insert when drawing lines"]
+    ["Character to Erase..." artist-select-erase-char
+     :help "Choose a specific character to erase"]
+    ["Rubber-banding" artist-toggle-rubber-banding
+     :help "Toggle rubber-banding"
+     :style toggle
+     :selected artist-rubber-banding]
+    ["Trim Line Endings" artist-toggle-trim-line-endings
+     :help "Toggle trimming of line-endings"
+     :style toggle
+     :selected artist-trim-line-endings]
+    ["Draw Shape Borders" artist-toggle-borderless-shapes
+     :help "Toggle whether shapes are drawn with borders"
+     :style toggle
+     :selected (not artist-borderless-shapes)]
+    ["Characters for Spray" artist-select-spray-chars
+     :help "Choose characters for sprayed by the spray-can"]))
 
 (defvar artist-replacement-table (make-vector 256 0)
   "Replacement table for `artist-replace-char'.")
@@ -1288,7 +1278,7 @@ Drawing with keys
 
  \\[artist-key-set-point]		Does one of the following:
 		For lines/rectangles/squares: sets the first/second endpoint
-		For poly-lines: sets a point (use C-u \\[artist-key-set-point] to set last point)
+                For poly-lines: sets a point (use \\[universal-argument] \\[artist-key-set-point] to set last point)
 		When erase characters: toggles erasing
 		When cutting/copying: Sets first/last endpoint of rect/square
 		When pasting: Pastes
@@ -1763,13 +1753,6 @@ info-variant-part."
 (defmacro artist-funcall (fn &rest args)
   "Call function FN with ARGS, if FN is not nil."
   `(if ,fn (funcall ,fn ,@args)))
-
-(defun artist-uniq (l)
-  "Remove consecutive duplicates in list L.  Comparison is done with `equal'."
-  (cond ((null l) nil)
-	((null (cdr l)) l)		; only one element in list
-	((equal (car l) (car (cdr l))) (artist-uniq (cdr l))) ; first 2 equal
-	(t (cons (car l) (artist-uniq (cdr l)))))) ; first 2 are different
 
 (defun artist-string-split (str r)
   "Split string STR at occurrences of regexp R, returning a list of strings."
@@ -2772,7 +2755,7 @@ to append to the end of the list, when doing free-hand drawing)."
 Also, the `artist-key-poly-point-list' is reversed."
 
   (setq artist-key-poly-point-list
-	(artist-uniq artist-key-poly-point-list))
+        (seq-uniq artist-key-poly-point-list))
 
   (if (>= (length artist-key-poly-point-list) 2)
 
@@ -2858,9 +2841,8 @@ Returns a list of strings."
           (if (memq system-type '(windows-nt ms-dos))
               (artist-figlet-get-font-list-windows)
             (artist-figlet-get-font-list)))
-	 (font (completing-read (concat "Select font (default "
-					artist-figlet-default-font
-					"): ")
+         (font (completing-read (format-prompt "Select font"
+                                               artist-figlet-default-font)
 				(mapcar
 				 (lambda (font) (cons font font))
 				 avail-fonts))))
@@ -3470,7 +3452,7 @@ The Y-RADIUS must be 0, but the X-RADIUS must not be 0."
 	(line-char  (if artist-line-char-set artist-line-char ?-))
 	(i          0)
 	(point-list nil)
-	(fill-info  nil)
+	;; (fill-info  nil)
 	(shape-info (make-vector 2 0)))
     (while (< i width)
       (let* ((line-x (+ left-edge i))
@@ -3483,7 +3465,7 @@ The Y-RADIUS must be 0, but the X-RADIUS must not be 0."
 	(setq point-list (append point-list (list new-coord)))
 	(setq i (1+ i))))
     (aset shape-info 0 point-list)
-    (aset shape-info 1 fill-info)
+    (aset shape-info 1 nil) ;; fill-info
     (artist-make-2point-object (artist-make-endpoint x1 y1)
 			       (artist-make-endpoint x-radius y-radius)
 			       shape-info)))
@@ -4909,7 +4891,7 @@ If optional argument STATE is positive, turn borders on."
 	    (+ window-y window-start-y))))
 
 (defun artist--adjust-x (x)
-  "Adjust the X position wrt. `display-line-numbers-mode'."
+  "Adjust the X position with regards to `display-line-numbers-mode'."
   (let ((adjust (line-number-display-width)))
     (if (= adjust 0)
         x
@@ -5383,10 +5365,7 @@ The event, EV, is the mouse event."
 	 (concat "Hello Tomas,\n\n"
 		 "I have a nice bug report on Artist for you! Here it is:")))))
 
-
-;;
-;; Now provide this minor mode
-;;
+(define-obsolete-function-alias 'artist-uniq #'seq-uniq "28.1")
 
 (provide 'artist)
 

@@ -1,6 +1,6 @@
 ;;; coding-tests.el --- tests for text encoding and decoding -*- lexical-binding: t -*-
 
-;; Copyright (C) 2013-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2013-2022 Free Software Foundation, Inc.
 
 ;; Author: Eli Zaretskii <eliz@gnu.org>
 ;; Author: Kenichi Handa <handa@gnu.org>
@@ -56,7 +56,7 @@
     (set-buffer-multibyte nil)
     (insert (encode-coding-string "あ" 'euc-jp) "\xd" "\n")
     (decode-coding-region (point-min) (point-max) 'euc-jp-dos)
-    (should-not (string-match-p "\^M" (buffer-string)))))
+    (should-not (string-search "\^M" (buffer-string)))))
 
 ;; Return the contents (specified by CONTENT-TYPE; ascii, latin, or
 ;; binary) of a test file.
@@ -359,7 +359,7 @@
 	(delete-region (point-min) (point))))))
 
 (defun benchmark-decoder ()
-  (let ((gc-cons-threshold 4000000))
+  (let ((gc-cons-threshold (max gc-cons-threshold 4000000)))
     (insert "Without optimization:\n")
     (dolist (files test-file-list)
       (dolist (file (cdr files))
@@ -434,4 +434,4 @@
 ;; End:
 
 (provide 'coding-tests)
-;; coding-tests.el ends here
+;;; coding-tests.el ends here

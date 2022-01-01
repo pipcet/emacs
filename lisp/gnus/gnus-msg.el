@@ -1,6 +1,6 @@
 ;;; gnus-msg.el --- mail and post interface for Gnus  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 1995-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1995-2022 Free Software Foundation, Inc.
 
 ;; Author: Masanobu UMEDA <umerin@flab.flab.fujitsu.junet>
 ;;	Lars Magne Ingebrigtsen <larsi@gnus.org>
@@ -33,7 +33,7 @@
 (require 'gnus-util)
 
 (defcustom gnus-post-method 'current
-  "Preferred method for posting USENET news.
+  "Preferred method for posting Usenet news.
 
 If this variable is `current' (which is the default), Gnus will use
 the \"current\" select method when posting.  If it is `native', Gnus
@@ -142,9 +142,6 @@ See Info node `(gnus)Posting Styles'."
   :version "22.1"
   :group 'gnus-message
   :type 'boolean)
-
-(make-obsolete-variable 'gnus-inews-mark-gcc-as-read
-			'gnus-gcc-mark-as-read "Emacs 22.1")
 
 (defcustom gnus-gcc-externalize-attachments nil
   "Should local-file attachments be included as external parts in Gcc copies?
@@ -306,7 +303,7 @@ If nil, the address field will always be empty after invoking
 
 (defcustom gnus-message-highlight-citation
   t ;; gnus-treat-highlight-citation ;; gnus-cite dependency
-  "Enable highlighting of different citation levels in message-mode."
+  "Enable highlighting of different citation levels in `message-mode'."
   :version "23.1" ;; No Gnus
   :group 'gnus-cite
   :group 'gnus-message
@@ -352,39 +349,39 @@ only affect the Gcc copy, but not the original message."
 ;;; Gnus Posting Functions
 ;;;
 
-(gnus-define-keys (gnus-summary-send-map "S" gnus-summary-mode-map)
-  "p" gnus-summary-post-news
-  "i" gnus-summary-news-other-window
-  "f" gnus-summary-followup
-  "F" gnus-summary-followup-with-original
-  "c" gnus-summary-cancel-article
-  "s" gnus-summary-supersede-article
-  "r" gnus-summary-reply
-  "y" gnus-summary-yank-message
-  "R" gnus-summary-reply-with-original
-  "L" gnus-summary-reply-to-list-with-original
-  "w" gnus-summary-wide-reply
-  "W" gnus-summary-wide-reply-with-original
-  "v" gnus-summary-very-wide-reply
-  "V" gnus-summary-very-wide-reply-with-original
-  "n" gnus-summary-followup-to-mail
-  "N" gnus-summary-followup-to-mail-with-original
-  "m" gnus-summary-mail-other-window
-  "u" gnus-uu-post-news
-  "A" gnus-summary-attach-article
-  "\M-c" gnus-summary-mail-crosspost-complaint
-  "Br" gnus-summary-reply-broken-reply-to
-  "BR" gnus-summary-reply-broken-reply-to-with-original
-  "om" gnus-summary-mail-forward
-  "op" gnus-summary-post-forward
-  "Om" gnus-uu-digest-mail-forward
-  "Op" gnus-uu-digest-post-forward)
+(define-keymap :prefix 'gnus-summary-send-map
+  "p" #'gnus-summary-post-news
+  "i" #'gnus-summary-news-other-window
+  "f" #'gnus-summary-followup
+  "F" #'gnus-summary-followup-with-original
+  "c" #'gnus-summary-cancel-article
+  "s" #'gnus-summary-supersede-article
+  "r" #'gnus-summary-reply
+  "y" #'gnus-summary-yank-message
+  "R" #'gnus-summary-reply-with-original
+  "L" #'gnus-summary-reply-to-list-with-original
+  "w" #'gnus-summary-wide-reply
+  "W" #'gnus-summary-wide-reply-with-original
+  "v" #'gnus-summary-very-wide-reply
+  "V" #'gnus-summary-very-wide-reply-with-original
+  "n" #'gnus-summary-followup-to-mail
+  "N" #'gnus-summary-followup-to-mail-with-original
+  "m" #'gnus-summary-mail-other-window
+  "u" #'gnus-uu-post-news
+  "A" #'gnus-summary-attach-article
+  "M-c" #'gnus-summary-mail-crosspost-complaint
+  "B r" #'gnus-summary-reply-broken-reply-to
+  "B R" #'gnus-summary-reply-broken-reply-to-with-original
+  "o m" #'gnus-summary-mail-forward
+  "o p" #'gnus-summary-post-forward
+  "O m" #'gnus-uu-digest-mail-forward
+  "O p" #'gnus-uu-digest-post-forward
 
-(gnus-define-keys (gnus-send-bounce-map "D" gnus-summary-send-map)
-  "b" gnus-summary-resend-bounced-mail
-  ;; "c" gnus-summary-send-draft
-  "r" gnus-summary-resend-message
-  "e" gnus-summary-resend-message-edit)
+  "D" (define-keymap :prefix 'gnus-send-bounce-map
+        "b" #'gnus-summary-resend-bounced-mail
+        ;; "c" gnus-summary-send-draft
+        "r" #'gnus-summary-resend-message
+        "e" #'gnus-summary-resend-message-edit))
 
 ;;; Internal functions.
 
@@ -418,11 +415,12 @@ only affect the Gcc copy, but not the original message."
 			     gnus-article-reply)))
 	   (,oarticle gnus-article-reply)
 	   (,yanked gnus-article-yanked-articles)
-	   (,group (when gnus-article-reply
-		     (or (nnselect-article-group
-			  (or (car-safe gnus-article-reply)
-			      gnus-article-reply))
-			 gnus-newsgroup-name)))
+           (,group (if gnus-article-reply
+		       (or (nnselect-article-group
+			    (or (car-safe gnus-article-reply)
+			        gnus-article-reply))
+                           gnus-newsgroup-name)
+                     gnus-newsgroup-name))
 	   (message-header-setup-hook
 	    (copy-sequence message-header-setup-hook))
 	   (mbl mml-buffer-list)
@@ -1305,15 +1303,9 @@ For the \"inline\" alternatives, also see the variable
 (defun gnus-summary-resend-message-insert-gcc ()
   "Insert Gcc header according to `gnus-gcc-self-resent-messages'."
   (gnus-inews-insert-gcc)
-  (let ((gcc (mapcar
-	      (lambda (group)
-		(encode-coding-string
-		 group
-		 (gnus-group-name-charset (gnus-inews-group-method group)
-					  group)))
-	      (message-unquote-tokens
+  (let ((gcc (message-unquote-tokens
 	       (message-tokenize-header (mail-fetch-field "gcc" nil t)
-					" ,"))))
+					",")))
 	(self (with-current-buffer gnus-summary-buffer
 		gnus-gcc-self-resent-messages)))
     (message-remove-header "gcc")
@@ -1324,12 +1316,9 @@ For the \"inline\" alternatives, also see the variable
 	     (insert "Gcc: \"" gnus-newsgroup-name "\"\n"))
 	    ((stringp self)
 	     (insert "Gcc: "
-		     (encode-coding-string
-		      (if (string-match " " self)
-			  (concat "\"" self "\"")
-			self)
-		      (gnus-group-name-charset (gnus-inews-group-method self)
-					       self))
+		     (if (string-search " " self)
+			 (concat "\"" self "\"")
+		       self)
 		     "\n"))
 	    ((null self)
 	     (insert "Gcc: " (mapconcat #'identity gcc ", ") "\n"))
@@ -1583,13 +1572,10 @@ this is a reply."
 	  (message-remove-header "gcc")
 	  (widen)
 	  (setq groups (message-unquote-tokens
-			(message-tokenize-header gcc " ,\n\t")))
+			(message-tokenize-header gcc ",\n\t")))
 	  ;; Copy the article over to some group(s).
 	  (while (setq group (pop groups))
-	    (setq method (gnus-inews-group-method group)
-		  group (encode-coding-string
-			 group
-			 (gnus-group-name-charset method group)))
+	    (setq method (gnus-inews-group-method group))
 	    (unless (gnus-check-server method)
 	      (error "Can't open server %s" (if (stringp method) method
 					      (car method))))
@@ -1599,6 +1585,10 @@ this is a reply."
 		  (if (stringp gnus-gcc-externalize-attachments)
 		      (string-match gnus-gcc-externalize-attachments group)
 		    gnus-gcc-externalize-attachments))
+            ;; If we want to externalize stuff when GCC-ing, then we
+            ;; can't use the cache, because that has all the contents.
+            (when mml-externalize-attachments
+              (setq encoded-cache nil))
 	    (save-excursion
 	      (nnheader-set-temp-buffer " *acc*")
 	      (setq message-options (with-current-buffer cur message-options))
@@ -1659,9 +1649,7 @@ this is a reply."
 			 ;; FIXME: Should gcc-mark-as-read work when
 			 ;; Gnus is not running?
 			 (gnus-alive-p))
-		(if (or gnus-gcc-mark-as-read
-			(and (boundp 'gnus-inews-mark-gcc-as-read)
-			     (symbol-value 'gnus-inews-mark-gcc-as-read)))
+                (if gnus-gcc-mark-as-read
 		    (gnus-group-mark-article-read group (cdr group-art))
 		  (with-current-buffer gnus-group-buffer
 		    (let ((gnus-group-marked (list group))
@@ -1681,7 +1669,7 @@ this is a reply."
 	       (gnus-group-find-parameter group 'gcc-self t)))
 	 (gcc-self-get (lambda (gcc-self-val group)
 			 (if (stringp gcc-self-val)
-			     (if (string-match " " gcc-self-val)
+			     (if (string-search " " gcc-self-val)
 				 (concat "\"" gcc-self-val "\"")
 			       gcc-self-val)
 			   ;; In nndoc groups, we use the parent group name
@@ -1689,7 +1677,7 @@ this is a reply."
 			   (let ((group (or (gnus-group-find-parameter
 					     gnus-newsgroup-name 'parent-group)
 					    group)))
-			     (if (string-match " " group)
+			     (if (string-search " " group)
 				 (concat "\"" group "\"")
 			       group)))))
 	 result
@@ -1752,15 +1740,15 @@ this is a reply."
 		  (gnus-delete-line)))
 	    ;; Use the list of groups.
 	    (while (setq name (pop groups))
-	      (let ((str (if (string-match ":" name)
+	      (let ((str (if (string-search ":" name)
 			     name
 			   (gnus-group-prefixed-name
 			    name gnus-message-archive-method))))
-		(insert (if (string-match " " str)
+		(insert (if (string-search " " str)
 			    (concat "\"" str "\"")
 			  str)))
 	      (when groups
-		(insert " ")))
+		(insert ",")))
 	    (insert "\n")))))))
 
 (defun gnus-mailing-list-followup-to ()

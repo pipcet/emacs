@@ -1,6 +1,6 @@
 ;;; ruby-mode.el --- Major mode for editing Ruby files -*- lexical-binding: t -*-
 
-;; Copyright (C) 1994-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1994-2022 Free Software Foundation, Inc.
 
 ;; Authors: Yukihiro Matsumoto
 ;;	Nobuyoshi Nakada
@@ -151,10 +151,8 @@ This should only be called after matching against `ruby-here-doc-beg-re'."
     map)
   "Keymap used in Ruby mode.")
 
-(easy-menu-define
-  ruby-mode-menu
-  ruby-mode-map
-  "Ruby Mode Menu"
+(easy-menu-define ruby-mode-menu ruby-mode-map
+  "Ruby Mode Menu."
   '("Ruby"
     ["Beginning of Block" ruby-beginning-of-block t]
     ["End of Block" ruby-end-of-block t]
@@ -291,6 +289,7 @@ Only has effect when `ruby-use-smie' is nil."
 
 (defcustom ruby-encoding-map
   '((us-ascii       . nil)       ;; Do not put coding: us-ascii
+    (utf-8          . nil)       ;; Default since Ruby 2.0
     (shift-jis      . cp932)     ;; Emacs charset name of Shift_JIS
     (shift_jis      . cp932)     ;; MIME charset name of Shift_JIS
     (japanese-cp932 . cp932))    ;; Emacs charset name of CP932
@@ -331,7 +330,7 @@ It is used when `ruby-encoding-magic-comment-style' is set to `custom'."
 (require 'smie)
 
 ;; Here's a simplified BNF grammar, for reference:
-;; http://www.cse.buffalo.edu/~regan/cse305/RubyBNF.pdf
+;; https://www.cse.buffalo.edu/~regan/cse305/RubyBNF.pdf
 (defconst ruby-smie-grammar
   (smie-prec2->grammar
    (smie-merge-prec2s
@@ -639,7 +638,15 @@ It is used when `ruby-encoding-magic-comment-style' is set to `custom'."
     ('(:before . "do") (ruby-smie--indent-to-stmt))
     ('(:before . ".")
      (if (smie-rule-sibling-p)
-         (and ruby-align-chained-calls 0)
+         (when ruby-align-chained-calls
+           (while
+               (let ((pos (point))
+                     (parent (smie-backward-sexp ".")))
+                 (if (not (equal (nth 2 parent) "."))
+                     (progn (goto-char pos) nil)
+                   (goto-char (nth 1 parent))
+                   (not (smie-rule-bolp)))))
+           (cons 'column (current-column)))
        (smie-backward-sexp ".")
        (cons 'column (+ (current-column)
                         ruby-indent-level))))
@@ -678,7 +685,7 @@ It is used when `ruby-encoding-magic-comment-style' is set to `custom'."
   (let ((index-alist '()) (case-fold-search nil)
         name next pos decl sing)
     (goto-char beg)
-    (while (re-search-forward "^\\s *\\(\\(class\\s +\\|\\(class\\s *<<\\s *\\)\\|module\\s +\\)\\([^(<\n ]+\\)\\|\\(def\\|alias\\)\\s +\\([^(\n ]+\\)\\)" end t)
+    (while (re-search-forward "^\\s *\\(\\(class\\s +\\|\\(class\\s *<<\\s *\\)\\|module\\s +\\)\\([^(<\n ]+\\)\\|\\(\\(?:\\(?:private\\|protected\\|public\\) +\\)?def\\|alias\\)\\s +\\([^(\n ]+\\)\\)" end t)
       (setq sing (match-beginning 3))
       (setq decl (match-string 5))
       (setq next (match-end 0))
@@ -688,7 +695,7 @@ It is used when `ruby-encoding-magic-comment-style' is set to `custom'."
        ((string= "alias" decl)
         (if prefix (setq name (concat prefix name)))
         (push (cons name pos) index-alist))
-       ((string= "def" decl)
+       ((not (null decl))
         (if prefix
             (setq name
                   (cond
@@ -760,7 +767,7 @@ The style of the comment is controlled by `ruby-encoding-magic-comment-style'."
 
 (defun ruby--detect-encoding ()
   (if (eq ruby-insert-encoding-magic-comment 'always-utf8)
-      "utf-8"
+      'utf-8
     (let ((coding-system
            (or save-buffer-coding-system
                buffer-file-coding-system)))
@@ -769,12 +776,11 @@ The style of the comment is controlled by `ruby-encoding-magic-comment-style'."
                 (or (coding-system-get coding-system 'mime-charset)
                     (coding-system-change-eol-conversion coding-system nil))))
       (if coding-system
-          (symbol-name
-           (if ruby-use-encoding-map
-               (let ((elt (assq coding-system ruby-encoding-map)))
-                 (if elt (cdr elt) coding-system))
-             coding-system))
-        "ascii-8bit"))))
+          (if ruby-use-encoding-map
+              (let ((elt (assq coding-system ruby-encoding-map)))
+                (if elt (cdr elt) coding-system))
+            coding-system)
+        'ascii-8bit))))
 
 (defun ruby--encoding-comment-required-p ()
   (or (eq ruby-insert-encoding-magic-comment 'always-utf8)
@@ -796,7 +802,7 @@ The style of the comment is controlled by `ruby-encoding-magic-comment-style'."
                    (unless (string= (match-string 2) coding-system)
                      (goto-char (match-beginning 2))
                      (delete-region (point) (match-end 2))
-                     (insert coding-system)))
+                     (insert (symbol-name coding-system))))
                   ((looking-at "\\s *#.*coding\\s *[:=]"))
                   (t (when ruby-insert-encoding-magic-comment
                        (ruby--insert-coding-comment coding-system))))
@@ -828,6 +834,7 @@ The style of the comment is controlled by `ruby-encoding-magic-comment-style'."
 ;; `ruby-calculate-indent' in user init files still call it.
 (defun ruby-current-indentation ()
   "Return the indentation level of current line."
+  (declare (obsolete current-indentation "28.1"))
   (save-excursion
     (beginning-of-line)
     (back-to-indentation)
@@ -927,7 +934,7 @@ Can be one of `heredoc', `modifier', `expr-qstr', `expr-re'."
 
 (defun ruby-forward-string (term &optional end no-error expand)
   "Move forward across one balanced pair of string delimiters.
-Skips escaped delimiters. If EXPAND is non-nil, also ignores
+Skips escaped delimiters.  If EXPAND is non-nil, also ignores
 delimiters in interpolated strings.
 
 TERM should be a string containing either a single, self-matching
@@ -1788,8 +1795,8 @@ If the result is do-end block, it will always be multiline."
             (buffer-substring-no-properties (1+ min) (1- max))))
       (setq content
             (if (equal string-quote "'")
-                (replace-regexp-in-string "\\\\\"" "\"" (replace-regexp-in-string "\\(\\`\\|[^\\]\\)'" "\\1\\\\'" content))
-              (replace-regexp-in-string "\\\\'" "'" (replace-regexp-in-string "\\(\\`\\|[^\\]\\)\"" "\\1\\\\\"" content))))
+                (string-replace "\\\"" "\"" (replace-regexp-in-string "\\(\\`\\|[^\\]\\)'" "\\1\\\\'" content))
+              (string-replace "\\'" "'" (replace-regexp-in-string "\\(\\`\\|[^\\]\\)\"" "\\1\\\\\"" content))))
       (let ((orig-point (point)))
         (delete-region min max)
         (insert
@@ -1802,12 +1809,12 @@ FEATURE-NAME is a relative file name, file extension is optional.
 This commands delegates to `gem which', which searches both
 installed gems and the standard library.  When called
 interactively, defaults to the feature name in the `require'
-statement around point."
+or `gem' statement around point."
   (interactive)
   (unless feature-name
     (let ((init (save-excursion
                   (forward-line 0)
-                  (when (looking-at "require [\"']\\(.*\\)[\"']")
+                  (when (looking-at "\\(?:require\\| *gem\\) [\"']\\(.*?\\)[\"']")
                     (match-string 1)))))
       (setq feature-name (read-string "Feature name: " init))))
   (let ((out
@@ -2127,11 +2134,9 @@ It will be properly highlighted even when the call omits parens.")
           "loop"
           "open"
           "p"
-          "print"
           "printf"
           "proc"
           "putc"
-          "puts"
           "require"
           "require_relative"
           "spawn"
@@ -2180,9 +2185,11 @@ It will be properly highlighted even when the call omits parens.")
           "fork"
           "global_variables"
           "local_variables"
+          "print"
           "private"
           "protected"
           "public"
+          "puts"
           "raise"
           "rand"
           "readline"
@@ -2421,6 +2428,15 @@ If there is no Rubocop config file, Rubocop will be passed a flag
    report-fn
    args))
 
+(defconst ruby--prettify-symbols-alist
+  '(("<=" . ?≤)
+    (">=" . ?≥)
+    ("->"  . ?→)
+    ("=>"  . ?⇒)
+    ("::" . ?∷)
+    ("lambda" . ?λ))
+  "Value for `prettify-symbols-alist' in `ruby-mode'.")
+
 ;;;###autoload
 (define-derived-mode ruby-mode prog-mode "Ruby"
   "Major mode for editing Ruby code."
@@ -2437,6 +2453,7 @@ If there is no Rubocop config file, Rubocop will be passed a flag
 
   (setq-local font-lock-defaults '((ruby-font-lock-keywords) nil nil
                                    ((?_ . "w"))))
+  (setq-local prettify-symbols-alist ruby--prettify-symbols-alist)
 
   (setq-local syntax-propertize-function #'ruby-syntax-propertize))
 

@@ -38,7 +38,7 @@ Czech (čeština)	Dobrý den
 Danish (dansk)	Hej / Goddag / Halløj
 Dutch (Nederlands)	Hallo / Dag
 Efik  /ˈɛfɪk/	Mɔkɔm
-Egyptian Hieroglyphs (𓂋𓐰𓏤𓈖𓆎𓅓𓏏𓐰𓊖)	𓅓𓊵𓐰𓐷𓏏𓊪𓐸, 𓇍𓇋𓂻𓍘𓇋
+Egyptian Hieroglyphs (𓂋𓏤𓈖𓆎𓅓‌𓏏𓊖)	𓅓𓊵𓏏𓊪, 𓇍𓇋𓂻𓍘𓇋
 Emacs	emacs --no-splash -f view-hello-file
 Emoji	👋
 English /ˈɪŋɡlɪʃ/	Hello
@@ -59,6 +59,7 @@ Italian (italiano)	Ciao / Buon giorno
 Javanese (ꦧꦱꦗꦮꦶ)	console.log("ꦲꦭꦺꦴ");
 Kannada (ಕನ್ನಡ)	ನಮಸ್ಕಾರ
 Khmer (ភាសាខ្មែរ)	ជំរាបសួរ
+Lakota (Lakȟotiyapi)	Taŋyáŋ yahí!
 Lao (ພາສາລາວ)	ສະບາຍດີ / ຂໍໃຫ້ໂຊກດີ
 Malayalam (മലയാളം)	നമസ്കാരം
 Maldivian (ދިވެހި)	އައްސަލާމު ޢަލައިކުމް / ކިހިނެހް؟
@@ -95,7 +96,7 @@ Vietnamese (tiếng Việt)	Chào bạn
 
 
 
-Copyright (C) 2001-2021 Free Software Foundation, Inc.
+Copyright (C) 2001-2022 Free Software Foundation, Inc.
 
 
 This file is part of GNU Emacs.

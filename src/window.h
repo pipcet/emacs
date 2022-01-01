@@ -1,5 +1,5 @@
 /* Window definitions for GNU Emacs.
-   Copyright (C) 1985-1986, 1993, 1995, 1997-2021 Free Software
+   Copyright (C) 1985-1986, 1993, 1995, 1997-2022 Free Software
    Foundation, Inc.
 
 This file is part of GNU Emacs.
@@ -756,7 +756,7 @@ wset_next_buffers (struct window *w, Lisp_Object val)
 #endif
 
 /* True if W is a tab bar window.  */
-#if defined (HAVE_WINDOW_SYSTEM)
+#if defined (HAVE_WINDOW_SYSTEM) && !defined (HAVE_PGTK)
 # define WINDOW_TAB_BAR_P(W) \
    (WINDOWP (WINDOW_XFRAME (W)->tab_bar_window) \
     && (W) == XWINDOW (WINDOW_XFRAME (W)->tab_bar_window))
@@ -1141,6 +1141,7 @@ extern void wset_redisplay (struct window *w);
 extern void fset_redisplay (struct frame *f);
 extern void bset_redisplay (struct buffer *b);
 extern void bset_update_mode_line (struct buffer *b);
+extern void wset_update_mode_line (struct window *w);
 /* Call this to tell redisplay to look for other windows than selected-window
    that need to be redisplayed.  Calling one of the *set_redisplay functions
    above already does it, so it's only needed in unusual cases.  */

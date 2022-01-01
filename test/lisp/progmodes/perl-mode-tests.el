@@ -1,6 +1,6 @@
-;;; perl-mode-tests --- Test for perl-mode  -*- lexical-binding: t -*-
+;;; perl-mode-tests.el --- Test for perl-mode  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2020-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2020-2022 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -21,6 +21,13 @@
 
 (require 'perl-mode)
 
+(ert-deftest perl-test-lock ()
+  (with-temp-buffer
+    (perl-mode)
+    (insert "$package = foo;")
+    (font-lock-ensure (point-min) (point-max))
+    (should (equal (get-text-property 4 'face) 'font-lock-variable-name-face))))
+
 ;;;; Re-use cperl-mode tests
 
 (defvar cperl-test-mode)
@@ -29,5 +36,7 @@
                              (file-truename
                               (file-name-directory (or load-file-name
                                                        buffer-file-name)))))
+
+(setq ert-load-file-name load-file-name)
 
 ;;; perl-mode-tests.el ends here

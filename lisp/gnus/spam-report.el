@@ -1,6 +1,6 @@
 ;;; spam-report.el --- Reporting spam  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2002-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2002-2022 Free Software Foundation, Inc.
 
 ;; Author: Ted Zlatanov <tzz@lifelogs.com>
 ;; Keywords: network, spam, mail, gmane, report
@@ -159,7 +159,7 @@ submitted at once.  Internal variable.")
 	 rpt-host
 	 (concat
 	  "/"
-	  (replace-regexp-in-string
+	  (string-replace
 	   "/" ":"
 	   (replace-regexp-in-string
 	    "^.*article.gmane.org/" ""
@@ -224,7 +224,7 @@ the function specified by `spam-report-url-ping-function'."
 
 (defcustom spam-report-user-mail-address
   (and (stringp user-mail-address)
-       (replace-regexp-in-string "@" "<at>" user-mail-address))
+       (string-replace "@" "<at>" user-mail-address))
   "Mail address of this user used for spam reports to Gmane.
 This is initialized based on `user-mail-address'."
   :type '(choice string
@@ -378,4 +378,4 @@ Process queued spam reports."
 
 (provide 'spam-report)
 
-;;; spam-report.el ends here.
+;;; spam-report.el ends here

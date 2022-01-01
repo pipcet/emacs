@@ -1,6 +1,6 @@
 ;;; help-tests.el --- Tests for help.el  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2019-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2019-2022 Free Software Foundation, Inc.
 
 ;; Author: Juanma Barranquero <lekktu@gmail.com>
 ;;         Eli Zaretskii <eliz@gnu.org>
@@ -26,6 +26,7 @@
 
 (require 'ert)
 (eval-when-compile (require 'cl-lib))
+(require 'text-property-search) ; for `text-property-search-forward'
 
 (ert-deftest help-split-fundoc-SECTION ()
   "Test new optional arg SECTION."
@@ -60,12 +61,11 @@
 (defmacro with-substitute-command-keys-test (&rest body)
   `(cl-flet* ((test
                (lambda (orig result)
-                 (should (equal-including-properties
-                          (substitute-command-keys orig)
-                          result))))
+                 (should (equal (substitute-command-keys orig)
+                                result))))
               (test-re
                (lambda (orig regexp)
-                 (should (string-match (concat "^" regexp "$")
+                 (should (string-match (concat "\\`" regexp "\\'")
                                        (substitute-command-keys orig))))))
      ,@body))
 
@@ -88,36 +88,77 @@
    (test "\\[emacs-version]\\[next-line]" "M-x emacs-versionC-n")
    (test-re "\\[emacs-version]`foo'" "M-x emacs-version[`'‘]foo['’]")))
 
+(ert-deftest help-tests-substitute-command-keys/literal-key-sequence ()
+  "Literal replacement."
+  (with-substitute-command-keys-test
+   (test "\\`C-m'" "C-m")
+   (test "\\`C-m'\\`C-j'" "C-mC-j")
+   (test "foo\\`C-m'bar\\`C-j'baz" "fooC-mbarC-jbaz")))
+
+(ert-deftest help-tests-substitute-command-keys/literal-key-sequence-errors ()
+  (should-error (substitute-command-keys "\\`'"))
+  (should-error (substitute-command-keys "\\`c-c'"))
+  (should-error (substitute-command-keys "\\`<foo bar baz>'")))
+
+(ert-deftest help-tests-substitute-key-bindings/face-help-key-binding ()
+  (should (eq (get-text-property 0 'face (substitute-command-keys "\\[next-line]"))
+              'help-key-binding))
+  (should (eq (get-text-property 0 'face (substitute-command-keys "\\`f'"))
+              'help-key-binding)))
+
+(defvar-keymap help-tests--test-keymap
+  :doc "Just some keymap for testing."
+  "C-g"           #'abort-minibuffers
+  "TAB"           #'minibuffer-complete
+  "C-j"           #'minibuffer-complete-and-exit
+  "RET"           #'minibuffer-complete-and-exit
+  "SPC"           #'minibuffer-complete-word
+  "?"             #'minibuffer-completion-help
+  "C-<tab>"       #'file-cache-minibuffer-complete
+  "<XF86Back>"    #'previous-history-element
+  "<XF86Forward>" #'next-history-element
+  "<backtab>"     #'minibuffer-complete
+  "<down>"        #'next-line-or-history-element
+  "<next>"        #'next-history-element
+  "<prior>"       #'switch-to-completions
+  "<up>"          #'previous-line-or-history-element
+  "M-v"           #'switch-to-completions
+  "M-<"           #'minibuffer-beginning-of-buffer
+  "M-n"           #'next-history-element
+  "M-p"           #'previous-history-element
+  "M-r"           #'previous-matching-history-element
+  "M-s"           #'next-matching-history-element
+  "M-g M-c"       #'switch-to-completions)
+
 (ert-deftest help-tests-substitute-command-keys/keymaps ()
   (with-substitute-command-keys-test
-   (test "\\{minibuffer-local-must-match-map}"
-         "\
-key             binding
----             -------
-
+   (test-re "\\{help-tests--test-keymap}"
+            "
+Key             Binding
+-+
 C-g		abort-minibuffers
 TAB		minibuffer-complete
 C-j		minibuffer-complete-and-exit
 RET		minibuffer-complete-and-exit
-ESC		Prefix Command
 SPC		minibuffer-complete-word
-?		minibuffer-completion-help
+\\?		minibuffer-completion-help
 C-<tab>		file-cache-minibuffer-complete
 <XF86Back>	previous-history-element
 <XF86Forward>	next-history-element
+<backtab>	minibuffer-complete
 <down>		next-line-or-history-element
 <next>		next-history-element
 <prior>		switch-to-completions
 <up>		previous-line-or-history-element
-
-M-v		switch-to-completions
 
 M-<		minibuffer-beginning-of-buffer
 M-n		next-history-element
 M-p		previous-history-element
 M-r		previous-matching-history-element
 M-s		next-matching-history-element
+M-v		switch-to-completions
 
+M-g M-c		switch-to-completions
 ")))
 
 (ert-deftest help-tests-substitute-command-keys/keymap-change ()
@@ -125,12 +166,11 @@ M-s		next-matching-history-element
    (test "\\<minibuffer-local-must-match-map>\\[abort-recursive-edit]" "C-]")
    (test "\\<emacs-lisp-mode-map>\\[eval-defun]" "C-M-x")))
 
-(defvar help-tests-remap-map
-  (let ((map (make-keymap)))
-    (define-key map (kbd "x") 'foo)
-    (define-key map (kbd "y") 'bar)
-    (define-key map [remap foo] 'bar)
-    map))
+(defvar-keymap help-tests-remap-map
+  :full t
+  "x" 'foo
+  "y" 'bar
+  "<remap> <foo>" 'bar)
 
 (ert-deftest help-tests-substitute-command-keys/remap ()
   (should (equal (substitute-command-keys "\\<help-tests-remap-map>\\[foo]") "y"))
@@ -175,7 +215,7 @@ M-s		next-matching-history-element
    (let ((text-quoting-style 'grave))
      (test "\\=`x\\='" "`x'"))))
 
-(ert-deftest help-tests-substitute-command-keys/no-change ()
+(ert-deftest help-tests-substitute-command-keys/no-change-2 ()
   (with-substitute-command-keys-test
    (test "\\[foobar" "\\[foobar")
    (test "\\=" "\\=")))
@@ -194,43 +234,58 @@ M-s		next-matching-history-element
     (goto-char (point-min))
     (should (looking-at "Type RET on"))))
 
-(defvar help-tests-major-mode-map
-  (let ((map (make-keymap)))
-    (define-key map "x" 'foo-original)
-    (define-key map "1" 'foo-range)
-    (define-key map "2" 'foo-range)
-    (define-key map "3" 'foo-range)
-    (define-key map "4" 'foo-range)
-    (define-key map (kbd "C-e") 'foo-something)
-    (define-key map '[F1] 'foo-function-key1)
-    (define-key map "(" 'short-range)
-    (define-key map ")" 'short-range)
-    (define-key map "a" 'foo-other-range)
-    (define-key map "b" 'foo-other-range)
-    (define-key map "c" 'foo-other-range)
-    map))
+(defvar-keymap help-tests-major-mode-map
+  :full t
+  "x"    'foo-original
+  "1"    'foo-range
+  "2"    'foo-range
+  "3"    'foo-range
+  "4"    'foo-range
+  "C-e"  'foo-something
+  "<f1>" 'foo-function-key1
+  "("    'short-range
+  ")"    'short-range
+  "a"    'foo-other-range
+  "b"    'foo-other-range
+  "c"    'foo-other-range)
 
 (define-derived-mode help-tests-major-mode nil
   "Major mode for testing shadowing.")
 
-(defvar help-tests-minor-mode-map
-  (let ((map (make-keymap)))
-    (define-key map "x" 'foo-shadow)
-    (define-key map (kbd "C-e") 'foo-shadow)
-    map))
+(defvar-keymap help-tests-minor-mode-map
+  :full t
+  "x"   'foo-shadow
+  "C-e" 'foo-shadow)
 
 (define-minor-mode help-tests-minor-mode
   "Minor mode for testing shadowing.")
+
+(ert-deftest help-tests-substitute-command-keys/add-key-face ()
+  (should (equal (substitute-command-keys "\\[next-line]")
+                 (propertize "C-n"
+                             'face 'help-key-binding
+                             'font-lock-face 'help-key-binding))))
+
+(ert-deftest help-tests-substitute-command-keys/add-key-face-listing ()
+  (with-temp-buffer
+    (insert (substitute-command-keys "\\{help-tests-minor-mode-map}"))
+    (goto-char (point-min))
+    (text-property-search-forward 'face 'help-key-binding)
+    (should (looking-at "C-e"))
+    ;; Don't fontify trailing whitespace.
+    (should-not (get-text-property (+ (point) 3) 'face))
+    (text-property-search-forward 'face 'help-key-binding)
+    (should (looking-at "x"))
+    (should-not (get-text-property (+ (point) 1) 'face))))
 
 (ert-deftest help-tests-substitute-command-keys/test-mode ()
   (with-substitute-command-keys-test
    (with-temp-buffer
      (help-tests-major-mode)
-     (test "\\{help-tests-major-mode-map}"
-           "\
-key             binding
----             -------
-
+     (test-re "\\{help-tests-major-mode-map}"
+           "
+Key             Binding
+-+
 ( .. )		short-range
 1 .. 4		foo-range
 a .. c		foo-other-range
@@ -238,7 +293,6 @@ a .. c		foo-other-range
 C-e		foo-something
 x		foo-original
 <F1>		foo-function-key1
-
 "))))
 
 (ert-deftest help-tests-substitute-command-keys/shadow ()
@@ -246,11 +300,10 @@ x		foo-original
    (with-temp-buffer
      (help-tests-major-mode)
      (help-tests-minor-mode)
-     (test "\\{help-tests-major-mode-map}"
-           "\
-key             binding
----             -------
-
+     (test-re "\\{help-tests-major-mode-map}"
+           "
+Key             Binding
+-+
 ( .. )		short-range
 1 .. 4		foo-range
 a .. c		foo-other-range
@@ -260,7 +313,6 @@ C-e		foo-something
 x		foo-original
   (this binding is currently shadowed)
 <F1>		foo-function-key1
-
 "))))
 
 (ert-deftest help-tests-substitute-command-keys/command-remap ()
@@ -269,15 +321,11 @@ x		foo-original
     (with-temp-buffer
       (help-tests-major-mode)
       (define-key help-tests-major-mode-map [remap foo] 'bar)
-      (test "\\{help-tests-major-mode-map}"
-            "\
-key             binding
----             -------
-
-<remap>		Prefix Command
-
+      (test-re "\\{help-tests-major-mode-map}"
+            "
+Key             Binding
+-+
 <remap> <foo>	bar
-
 ")))))
 
 (ert-deftest help-tests-describe-map-tree/no-menu-t ()
@@ -289,12 +337,11 @@ key             binding
                                           :enable mark-active
                                           :help "Help text"))))))
       (describe-map-tree map nil nil nil nil t nil nil nil)
-      (should (equal (buffer-string) "key             binding
----             -------
-
-C-a		foo
-
-")))))
+      (should (string-match "
+Key             Binding
+-+
+C-a		foo\n"
+                            (buffer-string))))))
 
 (ert-deftest help-tests-describe-map-tree/no-menu-nil ()
   (with-temp-buffer
@@ -305,15 +352,13 @@ C-a		foo
                                           :enable mark-active
                                           :help "Help text"))))))
       (describe-map-tree map nil nil nil nil nil nil nil nil)
-      (should (equal (buffer-string) "key             binding
----             -------
-
+      (should (string-match "
+Key             Binding
+-+
 C-a		foo
-<menu-bar>	Prefix Command
 
-<menu-bar> <foo>		foo
-
-")))))
+<menu-bar> <foo>	foo\n"
+                            (buffer-string))))))
 
 (ert-deftest help-tests-describe-map-tree/mention-shadow-t ()
   (with-temp-buffer
@@ -322,14 +367,13 @@ C-a		foo
                            (2 . bar))))
           (shadow-maps '((keymap . ((1 . baz))))))
       (describe-map-tree map t shadow-maps nil nil t nil nil t)
-      (should (equal (buffer-string) "key             binding
----             -------
-
+      (should (string-match "
+Key             Binding
+-+
 C-a		foo
   (this binding is currently shadowed)
-C-b		bar
-
-")))))
+C-b		bar\n"
+                            (buffer-string))))))
 
 (ert-deftest help-tests-describe-map-tree/mention-shadow-nil ()
   (with-temp-buffer
@@ -338,12 +382,11 @@ C-b		bar
                            (2 . bar))))
           (shadow-maps '((keymap . ((1 . baz))))))
       (describe-map-tree map t shadow-maps nil nil t nil nil nil)
-      (should (equal (buffer-string) "key             binding
----             -------
-
-C-b		bar
-
-")))))
+      (should (string-match "
+Key             Binding
+-+
+C-b		bar\n"
+                            (buffer-string))))))
 
 (ert-deftest help-tests-describe-map-tree/partial-t ()
   (with-temp-buffer
@@ -351,12 +394,11 @@ C-b		bar
           (map '(keymap . ((1 . foo)
                            (2 . undefined)))))
       (describe-map-tree map t nil nil nil nil nil nil nil)
-      (should (equal (buffer-string) "key             binding
----             -------
-
-C-a		foo
-
-")))))
+      (should (string-match "
+Key             Binding
+-+
+C-a		foo\n"
+                            (buffer-string))))))
 
 (ert-deftest help-tests-describe-map-tree/partial-nil ()
   (with-temp-buffer
@@ -364,13 +406,12 @@ C-a		foo
           (map '(keymap . ((1 . foo)
                            (2 . undefined)))))
       (describe-map-tree map nil nil nil nil nil nil nil nil)
-      (should (equal (buffer-string) "key             binding
----             -------
-
+      (should (string-match "
+Key             Binding
+-+
 C-a		foo
-C-b		undefined
-
-")))))
+C-b		undefined\n"
+                            (buffer-string))))))
 
 (defvar help-tests--was-in-buffer nil)
 

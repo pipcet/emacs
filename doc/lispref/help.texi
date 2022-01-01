@@ -1,6 +1,6 @@
 @c -*- mode: texinfo; coding: utf-8 -*-
 @c This is part of the GNU Emacs Lisp Reference Manual.
-@c Copyright (C) 1990--1995, 1998--1999, 2001--2021 Free Software
+@c Copyright (C) 1990--1995, 1998--1999, 2001--2022 Free Software
 @c Foundation, Inc.
 @c See the file elisp.texi for copying conditions.
 @node Documentation
@@ -333,6 +333,13 @@ stands for no text itself.  It is used only for a side effect: it
 specifies @var{mapvar}'s value as the keymap for any following
 @samp{\[@var{command}]} sequences in this documentation string.
 
+@item \`@var{KEYSEQ}'
+stands for a key sequence @var{KEYSEQ}, which will use the same face
+as a command substitution.  This should be used only when a key
+sequence has no corresponding command, for example when it is read
+directly with @code{read-key-sequence}.  It must be a valid key
+sequence according to @code{key-valid-p}.
+
 @item `
 (grave accent) stands for a left quote.
 This generates a left single quotation mark, an apostrophe, or a grave
@@ -372,11 +379,15 @@ quotes.  You can customize it freely according to your personal
 preference.
 @end defopt
 
-@defun substitute-command-keys string
+@defun substitute-command-keys string &optional no-face
+@vindex help-key-binding@r{ (face)}
 This function scans @var{string} for the above special sequences and
 replaces them by what they stand for, returning the result as a string.
 This permits display of documentation that refers accurately to the
-user's own customized key bindings.
+user's own customized key bindings.  By default, the key bindings are
+given a special face @code{help-key-binding}, but if the optional
+argument @var{no-face} is non-@code{nil}, the function doesn't add
+this face to the produced string.
 
 @cindex advertised binding
 If a command has multiple bindings, this function normally uses the
@@ -640,7 +651,7 @@ follows:
 
 @smallexample
 @group
-(define-key global-map (string help-char) 'help-command)
+(keymap-set global-map (key-description (string help-char)) 'help-command)
 (fset 'help-command help-map)
 @end group
 @end smallexample
@@ -818,7 +829,7 @@ summaries of using those functions.  The optional argument
 @var{functions} is a list whose elements are of the form:
 
 @lisp
-(@var{func} @var{keyword} @var{val} @dots{})
+(@var{func} [@var{keyword} @var{val}]@dots{})
 @end lisp
 
 The following keywords are recognized:
@@ -839,7 +850,7 @@ evaluated, and the result used.  For instance:
 @end example
 
 @noindent
-will be printed as
+will result in:
 
 @example
 (concat "foo" "bar" "zot")
@@ -866,13 +877,14 @@ should be included.
 @end example
 
 @item :no-eval*
-Like @code{:no-eval}, but alaways inserts @samp{[it depends]} as the
-result.
+Like @code{:no-eval}, but always inserts @samp{[it depends]} as the
+result.  For instance:
 
 @example
 :no-eval* (buffer-string)
 @end example
 
+@noindent
 will result in:
 
 @example
@@ -894,17 +906,26 @@ Used to output the result from non-evaluating example forms.
 
 @item :eg-result
 Used to output an example result from non-evaluating example forms.
+For instance:
 
 @example
 :no-eval (looking-at "f[0-9]")
 :eg-result t
 @end example
 
+@noindent
+will result in:
+
+@example
+(looking-at "f[0-9]")
+eg. @click{} t
+@end example
+
 @item :result-string
 @itemx :eg-result-string
 These two are the same as @code{:result} and @code{:eg-result},
 respectively, but are inserted as is.  This is useful when the result
-is unreadable or should be on a particular form:
+is unreadable or should be of a particular form:
 
 @example
 :no-eval (find-file "/tmp/foo")
@@ -951,7 +972,7 @@ sections.
 
 @defun shortdoc-add-function shortdoc-add-function group section elem
 Lisp packages can add functions to groups with this command.  Each
-@var{elem} should be a function descriptions, as described above.
+@var{elem} should be a function description, as described above.
 @var{group} is the function group, and @var{section} is what section
 in the function group to insert the function into.
 

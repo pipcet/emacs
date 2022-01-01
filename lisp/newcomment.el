@@ -1,6 +1,6 @@
 ;;; newcomment.el --- (un)comment regions of buffers -*- lexical-binding: t -*-
 
-;; Copyright (C) 1999-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1999-2022 Free Software Foundation, Inc.
 
 ;; Author: code extracted from Emacs-20's simple.el
 ;; Maintainer: Stefan Monnier <monnier@gnu.org>
@@ -161,11 +161,11 @@ comments always start in column zero.")
 
 (defvar-local comment-combine-change-calls t
   "If non-nil (the default), use `combine-change-calls' around
-  calls of `comment-region-function' and
-  `uncomment-region-function'.  This Substitutes a single call to
-  each of the hooks `before-change-functions' and
-  `after-change-functions' in place of those hooks being called
-  for each individual buffer change.")
+calls of `comment-region-function' and
+`uncomment-region-function'.  This Substitutes a single call to
+each of the hooks `before-change-functions' and
+`after-change-functions' in place of those hooks being called
+for each individual buffer change.")
 
 (defvar comment-region-function 'comment-region-default
   "Function to comment a region.
@@ -840,9 +840,13 @@ Ensure that `comment-normalize-vars' has been called before you use this."
                      (make-string (min comment-padding
                                        (- (match-end 0) (match-end 1)))
                                   ?\s)
-		   (substring comment-padding ;additional right padding
-			      (min (- (match-end 0) (match-end 1))
-				   (length comment-padding))))))
+                   (if (not (string-match-p "\\`\\s-" comment-padding))
+                       ;; If the padding isn't spaces, then don't
+                       ;; shorten the padding.
+                       comment-padding
+		     (substring comment-padding ;additional right padding
+			        (min (- (match-end 0) (match-end 1))
+				     (length comment-padding)))))))
 	  ;; We can only duplicate C if the comment-end has multiple chars
 	  ;; or if comments can be nested, else the comment-end `}' would
 	  ;; be turned into `}}}' where only the first ends the comment
@@ -876,9 +880,13 @@ Ensure that `comment-normalize-vars' has been called before you use this."
     ;; Only separate the left pad because we assume there is no right pad.
     (string-match "\\`\\s-*" str)
     (let ((s (substring str (match-end 0)))
-	  (pad (concat (substring comment-padding
-				  (min (- (match-end 0) (match-beginning 0))
-				       (length comment-padding)))
+	  (pad (concat (if (not (string-match-p "\\`\\s-" comment-padding))
+                           ;; If the padding isn't spaces, then don't
+                           ;; shorten the padding.
+                           comment-padding
+                         (substring comment-padding
+				    (min (- (match-end 0) (match-beginning 0))
+				         (length comment-padding))))
 		       (match-string 0 str)))
 	  (c (aref str (match-end 0)))	;the first non-space char of STR
 	  ;; We can only duplicate C if the comment-end has multiple chars
@@ -924,7 +932,8 @@ This function is the default value of `uncomment-region-function'."
   (setq end (copy-marker end))
   (let* ((numarg (prefix-numeric-value arg))
 	 (ccs comment-continue)
-	 (srei (comment-padright ccs 're))
+	 (srei (or (comment-padright ccs 're)
+		   (and (stringp comment-continue) comment-continue)))
 	 (csre (comment-padright comment-start 're))
 	 (sre (and srei (concat "^\\s-*?\\(" srei "\\)")))
 	 spt)
@@ -1300,7 +1309,11 @@ out."
 	 (let ((s (comment-padleft comment-end numarg)))
 	   (and s (if (string-match comment-end-skip s) s
 		    (comment-padright comment-end))))
-	 (if multi (comment-padright comment-continue numarg))
+	 (if multi
+             (or (comment-padright comment-continue numarg)
+                 ;; `comment-padright' returns nil when
+                 ;; `comment-continue' contains only whitespace
+                 (and (stringp comment-continue) comment-continue)))
 	 (if multi
 	     (comment-padleft (comment-string-reverse comment-continue) numarg))
 	 block

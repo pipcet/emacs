@@ -1,6 +1,6 @@
 ;;; em-dirs.el --- directory navigation commands  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1999-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1999-2022 Free Software Foundation, Inc.
 
 ;; Author: John Wiegley <johnw@gnu.org>
 
@@ -199,10 +199,10 @@ Thus, this does not include the current directory.")
 
   (when eshell-cd-on-directory
     (setq-local eshell-interpreter-alist
-	  (cons (cons #'(lambda (file _args)
-                          (eshell-lone-directory-p file))
-		      'eshell-dirs-substitute-cd)
-		eshell-interpreter-alist)))
+                (cons (cons (lambda (file _args)
+                              (eshell-lone-directory-p file))
+                            'eshell-dirs-substitute-cd)
+                      eshell-interpreter-alist)))
 
   (add-hook 'eshell-parse-argument-hook
 	    #'eshell-parse-user-reference nil t)
@@ -224,7 +224,7 @@ Thus, this does not include the current directory.")
 
   (add-hook 'eshell-exit-hook #'eshell-write-last-dir-ring nil t)
 
-  (add-hook 'kill-emacs-hook #'eshell-save-some-last-dir))
+  (add-hook 'kill-emacs-query-functions #'eshell-save-some-last-dir))
 
 (defun eshell-save-some-last-dir ()
   "Save the list-dir-ring for any open Eshell buffers."
@@ -238,7 +238,8 @@ Thus, this does not include the current directory.")
 			(format-message
 			 "Save last dir ring for Eshell buffer `%s'? "
 			 (buffer-name buf)))))
-	      (eshell-write-last-dir-ring))))))
+	      (eshell-write-last-dir-ring)))))
+  t)
 
 (defun eshell-lone-directory-p (file)
   "Test whether FILE is just a directory name, and not a command name."

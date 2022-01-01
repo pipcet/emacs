@@ -1,6 +1,6 @@
 ;;; smime.el --- S/MIME support library  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2000-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2000-2022 Free Software Foundation, Inc.
 
 ;; Author: Simon Josefsson <simon@josefsson.org>
 ;; Keywords: SMIME X.509 PEM OpenSSL
@@ -42,7 +42,7 @@
 ;; reflect this.
 ;;
 ;; The home of this file is in Gnus, but also available from
-;; http://josefsson.org/smime.html.
+;; https://josefsson.org/smime.html.
 
 ;;; Quick introduction:
 

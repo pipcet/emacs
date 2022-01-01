@@ -1,11 +1,10 @@
-;;; finder.el --- topic & keyword-based code finder
+;;; finder.el --- topic & keyword-based code finder  -*- lexical-binding: t -*-
 
-;; Copyright (C) 1992, 1997-1999, 2001-2021 Free Software Foundation,
+;; Copyright (C) 1992, 1997-1999, 2001-2022 Free Software Foundation,
 ;; Inc.
 
 ;; Author: Eric S. Raymond <esr@snark.thyrsus.com>
 ;; Created: 16 Jun 1992
-;; Version: 1.0
 ;; Keywords: help
 
 ;; This file is part of GNU Emacs.
@@ -78,8 +77,7 @@
 Each element has the form (KEYWORD . DESCRIPTION).")
 
 (defvar finder-mode-map
-  (let ((map (make-sparse-keymap))
-	(menu-map (make-sparse-keymap "Finder")))
+  (let ((map (make-sparse-keymap)))
     (define-key map " "	'finder-select)
     (define-key map "f"	'finder-select)
     (define-key map [follow-link] 'mouse-face)
@@ -199,8 +197,7 @@ from; the default is `load-path'."
          (progress (make-progress-reporter
                     (byte-compile-info "Scanning files for finder")
                     0 (length files)))
-	 package-override base-name ; processed
-	 summary keywords package version entry desc)
+	 base-name summary keywords package version entry desc)
     (dolist (elem files)
       (let* ((d (car elem))
              (f (cdr elem))
@@ -230,7 +227,7 @@ from; the default is `load-path'."
           ;;	    (push base-name processed)
 	  (with-temp-buffer
 	    (insert-file-contents (expand-file-name f d))
-	    (setq keywords (mapcar 'intern (lm-keywords-list))
+	    (setq keywords (mapcar #'intern (lm-keywords-list))
 		  package  (or package-override
 			       (let ((str (lm-header "package")))
 			         (if str (intern str)))
@@ -250,7 +247,7 @@ from; the default is `load-path'."
 		  ;; The idea here is that eg calc.el gets to define
 		  ;; the description of the calc package.
 		  ;; This does not work for eg nxml-mode.el.
-		  ((or (eq base-name package) version)
+		  ((eq base-name package)
 		   (setq desc (cdr entry))
 		   (aset desc 0 version)
 		   (aset desc 2 summary)))
@@ -290,7 +287,7 @@ from; the default is `load-path'."
 
 (defun finder-compile-keywords-make-dist ()
   "Regenerate `finder-inf.el' for the Emacs distribution."
-  (apply 'finder-compile-keywords command-line-args-left)
+  (apply #'finder-compile-keywords command-line-args-left)
   (kill-emacs))
 
 ;;; Now the retrieval code
@@ -299,7 +296,7 @@ from; the default is `load-path'."
   "Insert, at column COLUMN, other args STRINGS."
   (if (>= (current-column) column) (insert "\n"))
   (move-to-column column t)
-  (apply 'insert strings))
+  (apply #'insert strings))
 
 (defvar finder-help-echo nil)
 
@@ -316,7 +313,7 @@ from; the default is `load-path'."
 		   (keys (nconc (where-is-internal
 				 'finder-mouse-select finder-mode-map)
 				keys1)))
-	      (concat (mapconcat 'key-description keys ", ")
+	      (concat (mapconcat #'key-description keys ", ")
 		      ": select item"))))
     (add-text-properties
      (line-beginning-position) (line-end-position)
@@ -365,24 +362,18 @@ not `finder-known-keywords'."
     (let ((package-list-unversioned t))
       (package-show-package-list packages))))
 
-(define-button-type 'finder-xref 'action #'finder-goto-xref)
-
-(defun finder-goto-xref (button)
-  "Jump to a lisp file for the BUTTON at point."
-  (let* ((file (button-get button 'xref))
-         (lib (locate-library file)))
-    (if lib (finder-commentary lib)
-      (message "Unable to locate `%s'" file))))
-
 ;;;###autoload
 (defun finder-commentary (file)
   "Display FILE's commentary section.
 FILE should be in a form suitable for passing to `locate-library'."
+  ;; FIXME: Merge this function into `describe-package', which is
+  ;; strictly better as it has links to URL's and is in a proper help
+  ;; buffer with navigation forward and backward, etc.
   (interactive
    (list
     (completing-read "Library name: "
 		     (apply-partially 'locate-file-completion-table
-                                      (or find-function-source-path load-path)
+                                      (or find-library-source-path load-path)
                                       (find-library-suffixes)))))
   (let ((str (lm-commentary (find-library-name file))))
     (or str (error "Can't find any Commentary section"))
@@ -394,12 +385,7 @@ FILE should be in a form suitable for passing to `locate-library'."
     (erase-buffer)
     (insert str)
     (goto-char (point-min))
-    (while (re-search-forward "\\<\\([-[:alnum:]]+\\.el\\)\\>" nil t)
-      (if (locate-library (match-string 1))
-          (make-text-button (match-beginning 1) (match-end 1)
-                            'xref (match-string-no-properties 1)
-                            'help-echo "Read this file's commentary"
-                            :type 'finder-xref)))
+    (package--describe-add-library-links)
     (goto-char (point-min))
     (setq buffer-read-only t)
     (set-buffer-modified-p nil)
@@ -418,7 +404,7 @@ FILE should be in a form suitable for passing to `locate-library'."
 
 (defun finder-select ()
   "Select item on current line in a Finder buffer."
-  (interactive)
+  (interactive nil finder-mode)
   (let ((key (finder-current-item)))
       (if (string-match "\\.el$" key)
 	  (finder-commentary key)
@@ -434,6 +420,7 @@ FILE should be in a form suitable for passing to `locate-library'."
 ;;;###autoload
 (defun finder-by-keyword ()
   "Find packages matching a given keyword."
+  ;; FIXME: Why does this function exist?  Should it just be an alias?
   (interactive)
   (finder-list-keywords))
 
@@ -443,13 +430,14 @@ FILE should be in a form suitable for passing to `locate-library'."
 \\[finder-select]	more help for the item on the current line
 \\[finder-exit]	exit Finder mode and kill the Finder buffer."
   :syntax-table finder-mode-syntax-table
+  :interactive nil
   (setq buffer-read-only t
 	buffer-undo-list t)
   (setq-local finder-headmark nil))
 
 (defun finder-summary ()
   "Summarize basic Finder commands."
-  (interactive)
+  (interactive nil finder-mode)
   (message "%s"
    (substitute-command-keys
     "\\<finder-mode-map>\\[finder-select] = select, \
@@ -459,7 +447,7 @@ finder directory, \\[finder-exit] = quit, \\[finder-summary] = help")))
 (defun finder-exit ()
   "Exit Finder mode.
 Quit the window and kill all Finder-related buffers."
-  (interactive)
+  (interactive nil finder-mode)
   (quit-window t)
   (dolist (buf (list finder-buffer "*Finder-package*"))
     (and (get-buffer buf) (kill-buffer buf))))
@@ -469,6 +457,9 @@ Quit the window and kill all Finder-related buffers."
   (with-demoted-errors (unload-feature 'finder-inf t))
   ;; continue standard unloading
   nil)
+
+(define-obsolete-function-alias 'finder-goto-xref
+  #'package--finder-goto-xref "29.1")
 
 
 (provide 'finder)

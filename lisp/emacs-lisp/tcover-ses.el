@@ -1,6 +1,6 @@
-;;;; testcover-ses.el -- Example use of `testcover' to test "SES"  -*- lexical-binding: t; -*-
+;;; tcover-ses.el --- Example use of `testcover' to test "SES"  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2002-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2002-2022 Free Software Foundation, Inc.
 
 ;; Author: Jonathan Yavner <jyavner@member.fsf.org>
 ;; Keywords: spreadsheet lisp utility
@@ -32,8 +32,8 @@
 
 ;;;Here are some macros that exercise SES.  Set `pause' to t if you want the
 ;;;macros to pause after each step.
-(let* ((pause nil)
-       (x (if pause "\^Xq" ""))
+(let* (;; (pause nil)
+       (x (if nil "\^Xq" "")) ;; pause
        (y "\^X\^Fses-test.ses\r\^[<"))
   ;;Fiddle with the existing spreadsheet
   (fset 'ses-exercise-example
@@ -716,4 +716,4 @@ spreadsheet files with invalid formatting."
   ;;Could do this here: (testcover-end "ses.el")
   (message "Done"))
 
-;;; testcover-ses.el ends here.
+;;; tcover-ses.el ends here

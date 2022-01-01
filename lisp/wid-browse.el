@@ -1,7 +1,7 @@
-;;; wid-browse.el --- functions for browsing widgets
-;;
-;; Copyright (C) 1997, 2001-2021 Free Software Foundation, Inc.
-;;
+;;; wid-browse.el --- functions for browsing widgets  -*- lexical-binding: t -*-
+
+;; Copyright (C) 1997, 2001-2022 Free Software Foundation, Inc.
+
 ;; Author: Per Abrahamsen <abraham@dina.kvl.dk>
 ;; Keywords: extensions
 ;; Package: emacs
@@ -22,12 +22,11 @@
 ;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
-;;
+
 ;; Widget browser.  See `widget.el'.
 
 ;;; Code:
 
-(require 'easymenu)
 (require 'wid-edit)
 
 (defgroup widget-browse nil
@@ -39,7 +38,7 @@
 (defvar widget-browse-mode-map
   (let ((map (make-sparse-keymap)))
     (set-keymap-parent map widget-keymap)
-    (define-key map "q" 'bury-buffer)
+    (define-key map "q" #'bury-buffer)
     map)
   "Keymap for `widget-browse-mode'.")
 
@@ -219,7 +218,7 @@ Nothing is assumed about value."
 	      (error (prin1-to-string signal)))))
     (when (string-match "\n\\'" pp)
       (setq pp (substring pp 0 (1- (length pp)))))
-    (if (cond ((string-match "\n" pp)
+    (if (cond ((string-search "\n" pp)
 	       nil)
 	      ((> (length pp) (- (window-width) (current-column)))
 	       nil)

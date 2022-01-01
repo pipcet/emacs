@@ -1,6 +1,6 @@
 ;;; semantic/lex.el --- Lexical Analyzer builder  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1999-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1999-2022 Free Software Foundation, Inc.
 
 ;; Author: Eric M. Ludlam <zappo@gnu.org>
 
@@ -192,9 +192,9 @@ If optional PROPERTY is non-nil, call FUN only on every symbol which
 as a PROPERTY value.  FUN receives a symbol as argument."
   (if (obarrayp table)
       (mapatoms
-       #'(lambda (symbol)
-           (if (or (null property) (get symbol property))
-               (funcall fun symbol)))
+       (lambda (symbol)
+         (if (or (null property) (get symbol property))
+             (funcall fun symbol)))
        table)))
 
 ;;; Lexical keyword table handling.
@@ -286,7 +286,7 @@ If optional PROPERTY is non-nil, return only keywords which have a
 PROPERTY set."
   (let (keywords)
     (semantic-lex-map-keywords
-     #'(lambda (symbol) (setq keywords (cons symbol keywords)))
+     (lambda (symbol) (setq keywords (cons symbol keywords)))
      property)
     keywords))
 
@@ -462,14 +462,14 @@ If optional PROPERTY is non-nil, return only type symbols which have
 PROPERTY set."
   (let (types)
     (semantic-lex-map-types
-     #'(lambda (symbol) (setq types (cons symbol types)))
+     (lambda (symbol) (setq types (cons symbol types)))
      property)
     types))
 
 ;;; Lexical Analyzer framework settings
 ;;
 
-(defvar-local semantic-lex-analyzer 'semantic-lex
+(defvar-local semantic-lex-analyzer #'semantic-lex
   "The lexical analyzer used for a given buffer.
 See `semantic-lex' for documentation.")
 
@@ -760,7 +760,7 @@ If two analyzers can match the same text, it is important to order the
 analyzers so that the one you want to match first occurs first.  For
 example, it is good to put a number analyzer in front of a symbol
 analyzer which might mistake a number for a symbol."
-  (declare (debug (&define name stringp (&rest symbolp))))
+  (declare (debug (&define name stringp (&rest symbolp))) (indent 1))
   `(defun ,name  (start end &optional depth length)
      ,(concat doc "\nSee `semantic-lex' for more information.")
      ;; Make sure the state of block parsing starts over.
@@ -1096,34 +1096,29 @@ Proper action in FORMS is to move the value of `semantic-lex-end-point' to
 after the location of the analyzed entry, and to add any discovered tokens
 at the beginning of `semantic-lex-token-stream'.
 This can be done by using `semantic-lex-push-token'."
-  (declare (debug (&define name stringp form def-body)))
+  (declare (debug (&define name stringp form def-body)) (indent 1))
   `(eval-and-compile
-     (defvar ,name nil ,doc)
-     (defun ,name nil)
-     ;; Do this part separately so that re-evaluation rebuilds this code.
-     (setq ,name '(,condition ,@forms))
+     ;; This is the real info used by `define-lex' (via semantic-lex-one-token).
+     (defconst ,name '(,condition ,@forms) ,doc)
      ;; Build a single lexical analyzer function, so the doc for
      ;; function help is automatically provided, and perhaps the
      ;; function could be useful for testing and debugging one
      ;; analyzer.
-     (fset ',name (lambda () ,doc
-		    (let ((semantic-lex-token-stream nil)
-			  (semantic-lex-end-point (point))
-			  (semantic-lex-analysis-bounds
-			   (cons (point) (point-max)))
-			  (semantic-lex-current-depth 0)
-			  (semantic-lex-maximum-depth
-			   semantic-lex-depth)
-			  )
-		      (when ,condition ,@forms)
-		      semantic-lex-token-stream)))
-     ))
+     (defun ,name ()
+       ,doc
+       (let ((semantic-lex-token-stream nil)
+	     (semantic-lex-end-point (point))
+	     (semantic-lex-analysis-bounds (cons (point) (point-max)))
+	     (semantic-lex-current-depth 0)
+	     (semantic-lex-maximum-depth semantic-lex-depth))
+	 (when ,condition ,@forms)
+	 semantic-lex-token-stream))))
 
 (defmacro define-lex-regex-analyzer (name doc regexp &rest forms)
   "Create a lexical analyzer with NAME and DOC that will match REGEXP.
 FORMS are evaluated upon a successful match.
 See `define-lex-analyzer' for more about analyzers."
-  (declare (debug (&define name stringp form def-body)))
+  (declare (debug (&define name stringp form def-body)) (indent 1))
   `(define-lex-analyzer ,name
      ,doc
      (looking-at ,regexp)
@@ -1142,7 +1137,8 @@ FORMS are evaluated upon a successful match BEFORE the new token is
 created.  It is valid to ignore FORMS.
 See `define-lex-analyzer' for more about analyzers."
   (declare (debug
-            (&define name stringp form symbolp [ &optional form ] def-body)))
+            (&define name stringp form symbolp [ &optional form ] def-body))
+           (indent 1))
   `(define-lex-analyzer ,name
      ,doc
      (looking-at ,regexp)
@@ -1167,7 +1163,8 @@ where BLOCK-SYM is the symbol returned in a block token.  OPEN-DELIM
 and CLOSE-DELIM are respectively the open and close delimiters
 identifying a block.  OPEN-SYM and CLOSE-SYM are respectively the
 symbols returned in open and close tokens."
-  (declare (debug (&define name stringp form (&rest form))))
+  (declare (debug (&define name stringp form (&rest form)))
+           (indent 1))
   (let ((specs (cons spec1 specs))
         spec open olist clist)
     (while specs
@@ -1476,6 +1473,7 @@ syntax as specified by the syntax table."
 (defmacro define-lex-keyword-type-analyzer (name doc syntax)
   "Define a keyword type analyzer NAME with DOC string.
 SYNTAX is the regexp that matches a keyword syntactic expression."
+  (declare (indent 1))
   (let ((key (make-symbol "key")))
     `(define-lex-analyzer ,name
        ,doc
@@ -1491,6 +1489,7 @@ SYNTAX is the regexp that matches a keyword syntactic expression."
   "Define a sexp type analyzer NAME with DOC string.
 SYNTAX is the regexp that matches the beginning of the s-expression.
 TOKEN is the lexical token returned when SYNTAX matches."
+  (declare (indent 1))
   `(define-lex-regex-analyzer ,name
      ,doc
      ,syntax
@@ -1509,6 +1508,7 @@ SYNTAX is the regexp that matches a syntactic expression.
 MATCHES is an alist of lexical elements used to refine the syntactic
 expression.
 DEFAULT is the default lexical token returned when no MATCHES."
+  (declare (indent 1))
   (if matches
       (let* ((val (make-symbol "val"))
              (lst (make-symbol "lst"))
@@ -1541,6 +1541,7 @@ SYNTAX is the regexp that matches a syntactic expression.
 MATCHES is an alist of lexical elements used to refine the syntactic
 expression.
 DEFAULT is the default lexical token returned when no MATCHES."
+  (declare (indent 1))
   (if matches
       (let* ((val (make-symbol "val"))
              (lst (make-symbol "lst"))
@@ -1638,6 +1639,7 @@ When the lexer encounters the open-paren delimiter \"(\":
  - If the maximum depth of parenthesis tracking is reached (current
    depth >= max depth), it returns the whole parenthesis block as
    a (PAREN_BLOCK start . end) token."
+  (declare (indent 1))
   (let* ((val (make-symbol "val"))
          (lst (make-symbol "lst"))
          (elt (make-symbol "elt")))

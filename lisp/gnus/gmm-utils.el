@@ -1,6 +1,6 @@
 ;;; gmm-utils.el --- Utility functions for Gnus, Message and MML  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2006-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2006-2022 Free Software Foundation, Inc.
 
 ;; Author: Reiner Steib <reiner.steib@gmx.de>
 ;; Keywords: news
@@ -239,6 +239,7 @@ DEFAULT-MAP specifies the default key map for ICON-LIST."
   "Create function NAME.
 If FUNCTION exists, then NAME becomes an alias for FUNCTION.
 Otherwise, create function NAME with ARG-LIST and BODY."
+  (declare (indent defun))
   (let ((defined-p (fboundp function)))
     (if defined-p
         `(defalias ',name ',function)

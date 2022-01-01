@@ -276,8 +276,7 @@ this robin package will be the following.
        (?c \"AC\"
 	   (?d \"ACD\")
 	   (?e \"ACE\")))
-   (?b \"B\"))
-")
+   (?b \"B\"))")
 
 ;;;###autoload
 (defmacro robin-define-package (name docstring &rest rules)
@@ -530,10 +529,10 @@ Use the longest match method to select a rule."
       (insert (cadr tree))
       (delete-char (- end begin)))))
 
-;; for backward compatibility
-
-(fset 'robin-transliterate-region 'robin-convert-region)
-(fset 'robin-transliterate-buffer 'robin-convert-buffer)
+(define-obsolete-function-alias 'robin-transliterate-region
+  #'robin-convert-region "29.1")
+(define-obsolete-function-alias 'robin-transliterate-buffer
+  #'robin-convert-buffer "29.1")
 
 ;;; Reverse conversion
 

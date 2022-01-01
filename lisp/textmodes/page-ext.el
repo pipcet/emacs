@@ -1,6 +1,6 @@
 ;;; page-ext.el --- extended page handling commands  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1990-1991, 1993-1994, 2001-2021 Free Software
+;; Copyright (C) 1990-1991, 1993-1994, 2001-2022 Free Software
 ;; Foundation, Inc.
 
 ;; Author: Robert J. Chassell <bob@gnu.org>
@@ -257,7 +257,7 @@
 ;;; Addresses related variables
 
 (defcustom pages-addresses-file-name "~/addresses"
-  "Standard name for file of addresses. Entries separated by page-delimiter.
+  "Standard name for file of addresses.  Entries separated by `page-delimiter'.
 Used by `pages-directory-for-addresses' function."
   :type 'file)
 
@@ -293,7 +293,7 @@ Used by `pages-directory-for-addresses' function."
 ;; FIXME: Merely loading a package shouldn't have this kind of side-effects!
 (global-unset-key "\C-x\C-p")
 (define-key ctl-x-map "\C-p" #'pages-ctl-x-ctl-p-prefix)
-(define-obsolete-function-alias 'ctl-x-ctl-p-prefix 'pages-ctl-x-ctl-p-prefix "27.1")
+(define-obsolete-function-alias 'ctl-x-ctl-p-prefix #'pages-ctl-x-ctl-p-prefix "27.1")
 (defalias 'pages-ctl-x-ctl-p-prefix pages--ctl-x-ctl-p-map)
 
 

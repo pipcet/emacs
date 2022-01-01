@@ -1,6 +1,6 @@
 ;;; calc-prog.el --- user programmability functions for Calc  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1990-1993, 2001-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1990-1993, 2001-2022 Free Software Foundation, Inc.
 
 ;; Author: David Gillespie <daveg@synaptics.com>
 
@@ -124,7 +124,7 @@
 	(or (memq (car-safe (car-safe place)) '(error xxxerror))
 	    (setq place (aref (nth 2 (nth 2 (symbol-function 'calc-do))) 27)))
 	(or (memq (car (car place)) '(error xxxerror))
-	    (error "foo"))
+            (error "Foo"))
 	(setcar (car place) 'xxxerror))
     (error (error "The calc-do function has been modified; unable to patch"))))
 
@@ -205,9 +205,8 @@
 	 (progn
 	   (setq cmd-base-default (concat "User-" keyname))
            (setq cmd (completing-read
-                      (concat "Define M-x command name (default calc-"
-                              cmd-base-default
-                              "): ")
+                      (format-prompt "Define M-x command name"
+                                     (concat "calc-" cmd-base-default))
                       obarray 'commandp nil
                       (if (and odef (symbolp (cdr odef)))
                           (symbol-name (cdr odef))
@@ -241,8 +240,8 @@
 	   (setq func
                  (concat "calcFunc-"
                          (completing-read
-                          (concat "Define algebraic function name (default "
-                                  cmd-base-default "): ")
+                          (format-prompt "Define algebraic function name"
+                                         cmd-base-default)
                           (mapcar (lambda (x) (substring x 9))
                                   (all-completions "calcFunc-"
                                                    obarray))
@@ -604,7 +603,7 @@
 	((equal name "#")
 	 (search-backward "#")
 	 (error "Token `#' is reserved"))
-	((and unquoted (string-match "#" name))
+	((and unquoted (string-search "#" name))
 	 (error "Tokens containing `#' must be quoted"))
 	((not (string-match "[^ ]" name))
 	 (search-backward "\"" nil t)
@@ -802,8 +801,8 @@
     (when match
       (kill-line 1)
       (setq line (concat line (substring curline 0 match))))
-    (setq line (replace-regexp-in-string "SPC" " SPC "
-                  (replace-regexp-in-string " " "" line)))
+    (setq line (string-replace "SPC" " SPC "
+                               (string-replace " " "" line)))
     (insert line "\t\t\t")
     (if (> (current-column) 24)
         (delete-char -1))
@@ -830,7 +829,7 @@
     (when match
       (kill-line 1)
       (setq line (concat line (substring curline 0 match))))
-    (setq line (replace-regexp-in-string " " "" line))
+    (setq line (string-replace " " "" line))
     (insert cmdbeg " " line "\t\t\t")
     (if (> (current-column) 24)
         (delete-char -1))
@@ -857,7 +856,7 @@
       (when match
         (kill-line 1)
         (setq line (concat line (substring curline 0 match))))
-      (setq line (replace-regexp-in-string " " "" line))
+      (setq line (string-replace " " "" line))
       (insert line "\t\t\t")
       (if (> (current-column) 24)
           (delete-char -1))
@@ -1068,7 +1067,7 @@ Redefine the corresponding command."
 	     (insert (setq str (prin1-to-string
 				(cons 'defun (cons cmd (cdr fcmd)))))
 		     "\n")
-	     (or (and (string-match "\"" str) (not q-ok))
+	     (or (and (string-search "\"" str) (not q-ok))
 		 (fill-region pt (point)))
 	     (indent-rigidly pt (point) 2)
 	     (delete-region pt (1+ pt))
@@ -1087,7 +1086,7 @@ Redefine the corresponding command."
 					 (cons 'defun (cons func
 							    (cdr ffunc)))))
 			      "\n")
-		      (or (and (string-match "\"" str) (not q-ok))
+		      (or (and (string-search "\"" str) (not q-ok))
 			  (fill-region pt (point)))
 		      (indent-rigidly pt (point) 2)
 		      (delete-region pt (1+ pt))
@@ -1881,9 +1880,9 @@ Redefine the corresponding command."
 	  (if (fboundp (setq chk (intern (concat "math-" qual-name))))
 	      (append rest
 		      (if is-rest
-			  `((mapcar #'(lambda (x)
-					(or (,chk x)
-					    (math-reject-arg x ',qual)))
+                          `((mapcar (lambda (x)
+                                      (or (,chk x)
+                                          (math-reject-arg x ',qual)))
 				    ,var))
 			`((or (,chk ,var)
 			      (math-reject-arg ,var ',qual)))))
@@ -1894,9 +1893,9 @@ Redefine the corresponding command."
 						  qual-name 1))))))
 		(append rest
 			(if is-rest
-			    `((mapcar #'(lambda (x)
-					  (and (,chk x)
-					       (math-reject-arg x ',qual)))
+                            `((mapcar (lambda (x)
+                                        (and (,chk x)
+                                             (math-reject-arg x ',qual)))
 				      ,var))
 			  `((and
 			     (,chk ,var)
@@ -1985,22 +1984,37 @@ Redefine the corresponding command."
 		      (cons 'quote
 			    (math-define-lambda (nth 1 exp) math-exp-env))
 		    exp))
-		 ((memq func '(let let* for foreach))
-		  (let ((head (nth 1 exp))
-			(body (cdr (cdr exp))))
-		    (if (memq func '(let let*))
-			()
-		      (setq func (cdr (assq func '((for . math-for)
-						   (foreach . math-foreach)))))
-		      (if (not (listp (car head)))
-			  (setq head (list head))))
-		    (macroexpand
-		     (cons func
-			   (cons (math-define-let head)
-				 (math-define-body body
-						   (nconc
-						    (math-define-let-env head)
-						    math-exp-env)))))))
+                 ((eq func 'let)
+                  (let ((bindings (nth 1 exp))
+                        (body (cddr exp)))
+                    `(let ,(math-define-let bindings)
+                       ,@(math-define-body
+                          body (append (math-define-let-env bindings)
+                                       math-exp-env)))))
+                 ((eq func 'let*)
+                  ;; Rewrite in terms of `let'.
+                  (let ((bindings (nth 1 exp))
+                        (body (cddr exp)))
+                    (math-define-exp
+                     (if (> (length bindings) 1)
+                         `(let ,(list (car bindings))
+                            (let* ,(cdr bindings) ,@body))
+                       `(let ,bindings ,@body)))))
+		 ((memq func '(for foreach))
+		  (let ((bindings (nth 1 exp))
+			(body (cddr exp)))
+                    (if (> (length bindings) 1)
+                        ;; Rewrite as nested loops.
+                        (math-define-exp
+                         `(,func ,(list (car bindings))
+                                 (,func ,(cdr bindings) ,@body)))
+                      (let ((mac (cdr (assq func '((for . math-for)
+                                                   (foreach . math-foreach))))))
+                        (macroexpand
+                         `(,mac ,(math-define-let bindings)
+                                ,@(math-define-body
+                                   body (append (math-define-let-env bindings)
+					        math-exp-env))))))))
 		 ((and (memq func '(setq setf))
 		       (math-complicated-lhs (cdr exp)))
 		  (if (> (length exp) 3)
@@ -2017,7 +2031,7 @@ Redefine the corresponding command."
 			(math-define-cond (cdr exp))))
 		 ((and (consp func)   ; ('spam a b) == force use of plain spam
 		       (eq (car func) 'quote))
-		  (cons func (math-define-list (cdr exp))))
+		  (cons (cadr func) (math-define-list (cdr exp))))
 		 ((symbolp func)
 		  (let ((args (math-define-list (cdr exp)))
 			(prim (assq func math-prim-funcs)))
@@ -2117,7 +2131,7 @@ Redefine the corresponding command."
 		  (cdr prim))
 		 ((memq exp math-exp-env)
 		  exp)
-		 ((string-match "-" name)
+		 ((string-search "-" name)
 		  exp)
 		 (t
 		  (intern (concat "var-" name))))))
@@ -2276,20 +2290,16 @@ Redefine the corresponding command."
 
 (defun math-handle-foreach (head body)
   (let ((var (nth 0 (car head)))
+        (loop-var (gensym "foreach"))
 	(data (nth 1 (car head)))
 	(body (if (cdr head)
 		  (list (math-handle-foreach (cdr head) body))
 		body)))
-    (cons 'let
-	  (cons (list (list var data))
-		(list
-		 (cons 'while
-		       (cons var
-			     (append body
-				     (list (list 'setq
-						 var
-						 (list 'cdr var)))))))))))
-
+    `(let ((,loop-var ,data))
+       (while ,loop-var
+         (let ((,var (car ,loop-var)))
+           ,@(append body
+                     `((setq ,loop-var (cdr ,loop-var)))))))))
 
 (defun math-body-refers-to (body thing)
   (or (equal body thing)

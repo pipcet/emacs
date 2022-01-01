@@ -1,6 +1,6 @@
 ;;; cal-persia.el --- calendar functions for the Persian calendar  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 1996-1997, 2001-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1996-1997, 2001-2022 Free Software Foundation, Inc.
 
 ;; Author: Edward M. Reingold <reingold@cs.uiuc.edu>
 ;; Maintainer: emacs-devel@gnu.org
@@ -140,7 +140,7 @@ Gregorian date Sunday, December 31, 1 BC."
                          (or date (calendar-current-date)))))
          (y (calendar-extract-year persian-date))
          (m (calendar-extract-month persian-date)))
-    (calendar-dlet*
+    (calendar-dlet
         ((monthname (aref calendar-persian-month-name-array (1- m)))
          (day (number-to-string (calendar-extract-day persian-date)))
          (year (number-to-string y))

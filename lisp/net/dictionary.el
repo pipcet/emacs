@@ -1,6 +1,6 @@
 ;;; dictionary.el --- Client for rfc2229 dictionary servers  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2021 Free Software Foundation, Inc.
+;; Copyright (C) 2021-2022 Free Software Foundation, Inc.
 
 ;; Author: Torsten Hilbrich <torsten.hilbrich@gmx.net>
 ;; Keywords: interface, dictionary
@@ -25,9 +25,9 @@
 ;; dictionary allows you to interact with dictionary servers.
 ;; Use M-x customize-group dictionary to modify user settings.
 ;;
-;; Main functions for interaction are:
-;; dictionary        - opens a new dictionary buffer
-;; dictionary-search - search for the definition of a word
+;; Main commands for interaction are:
+;; M-x dictionary        - opens a new dictionary buffer
+;; M-x dictionary-search - search for the definition of a word
 ;;
 ;; You can find more information in the README file of the GitHub
 ;; repository https://github.com/myrkr/dictionary-el
@@ -35,7 +35,6 @@
 ;;; Code:
 
 (require 'cl-lib)
-(require 'easymenu)
 (require 'custom)
 (require 'dictionary-connection)
 (require 'button)
@@ -59,11 +58,11 @@ the existing connection."
   (set-default name value))
 
 (defgroup dictionary nil
-  "Client for accessing the dictd server based dictionaries"
+  "Client for accessing the dictd server based dictionaries."
   :group 'hypermedia)
 
 (defgroup dictionary-proxy nil
-  "Proxy configuration options for the dictionary client"
+  "Proxy configuration options for the dictionary client."
   :group 'dictionary)
 
 (defcustom dictionary-server
@@ -77,7 +76,7 @@ You can specify here:
 - dict.org: Only use dict.org
 - User-defined: You can specify your own server here"
   :group 'dictionary
-  :set 'dictionary-set-server-var
+  :set #'dictionary-set-server-var
   :type '(choice (const :tag "Automatic" nil)
                  (const :tag "localhost" "localhost")
                  (const :tag "dict.org" "dict.org")
@@ -87,9 +86,9 @@ You can specify here:
 (defcustom dictionary-port
   2628
   "The port of the dictionary server.
-This port is propably always 2628 so there should be no need to modify it."
+This port is probably always 2628 so there should be no need to modify it."
   :group 'dictionary
-  :set 'dictionary-set-server-var
+  :set #'dictionary-set-server-var
   :type 'number
   :version "28.1")
 
@@ -190,7 +189,7 @@ where the current word was found."
   nil
   "Connects via a HTTP proxy using the CONNECT command when not nil."
   :group 'dictionary-proxy
-  :set 'dictionary-set-server-var
+  :set #'dictionary-set-server-var
   :type 'boolean
   :version "28.1")
 
@@ -198,7 +197,7 @@ where the current word was found."
   "proxy"
   "The name of the HTTP proxy to use when `dictionary-use-http-proxy' is set."
   :group 'dictionary-proxy
-  :set 'dictionary-set-server-var
+  :set #'dictionary-set-server-var
   :type 'string
   :version "28.1")
 
@@ -206,7 +205,7 @@ where the current word was found."
   3128
   "The port of the proxy server, used only when `dictionary-use-http-proxy' is set."
   :group 'dictionary-proxy
-  :set 'dictionary-set-server-var
+  :set #'dictionary-set-server-var
   :type 'number
   :version "28.1")
 
@@ -332,19 +331,19 @@ is utf-8"
     (suppress-keymap map)
     (set-keymap-parent map button-buffer-map)
 
-    (define-key map "q" 'dictionary-close)
-    (define-key map "h" 'dictionary-help)
-    (define-key map "s" 'dictionary-search)
-    (define-key map "d" 'dictionary-lookup-definition)
-    (define-key map "D" 'dictionary-select-dictionary)
-    (define-key map "M" 'dictionary-select-strategy)
-    (define-key map "m" 'dictionary-match-words)
-    (define-key map "l" 'dictionary-previous)
-    (define-key map "n" 'forward-button)
-    (define-key map "p" 'backward-button)
-    (define-key map " " 'scroll-up-command)
-    (define-key map [?\S-\ ] 'scroll-down-command)
-    (define-key map (read-kbd-macro "M-SPC") 'scroll-down-command)
+    (define-key map "q" #'dictionary-close)
+    (define-key map "h" #'dictionary-help)
+    (define-key map "s" #'dictionary-search)
+    (define-key map "d" #'dictionary-lookup-definition)
+    (define-key map "D" #'dictionary-select-dictionary)
+    (define-key map "M" #'dictionary-select-strategy)
+    (define-key map "m" #'dictionary-match-words)
+    (define-key map "l" #'dictionary-previous)
+    (define-key map "n" #'forward-button)
+    (define-key map "p" #'backward-button)
+    (define-key map " " #'scroll-up-command)
+    (define-key map [?\S-\ ] #'scroll-down-command)
+    (define-key map (read-kbd-macro "M-SPC") #'scroll-down-command)
     map)
   "Keymap for the dictionary mode.")
 
@@ -414,7 +413,7 @@ This is a quick reference to this mode describing the default key bindings:
   (make-local-variable 'dictionary-default-dictionary)
   (make-local-variable 'dictionary-default-strategy)
 
-  (add-hook 'kill-buffer-hook 'dictionary-close t t)
+  (add-hook 'kill-buffer-hook #'dictionary-close t t)
   (run-hooks 'dictionary-mode-hook))
 
 ;;;###autoload
@@ -536,7 +535,7 @@ The connection takes the proxy setting in customization group
 ;; Dealing with closing the buffer
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defun dictionary-close (&rest ignored)
+(defun dictionary-close (&rest _ignored)
   "Close the current dictionary buffer and its connection."
   (interactive)
   (if (eq major-mode 'dictionary-mode)
@@ -670,7 +669,7 @@ previous state."
   (setq dictionary-positions (cons (point) (window-start))))
 
 ;; Restore the previous state
-(defun dictionary-restore-state (&rest ignored)
+(defun dictionary-restore-state (&rest _ignored)
   "Restore the state just before the last operation."
   (let ((position (pop dictionary-position-stack))
 	(data (pop dictionary-data-stack)))
@@ -722,13 +721,14 @@ of matching words."
     (if (dictionary-check-reply reply 552)
 	(progn
 	  (unless nomatching
-	    (beep)
-	    (insert "Word not found, maybe you are looking "
-		    "for one of these words\n\n")
-	    (dictionary-do-matching word
-				    dictionary
-				    "."
-				    'dictionary-display-only-match-result)
+	    (insert "Word not found")
+	    (dictionary-do-matching
+             word
+	     dictionary
+	     "."
+	     (lambda (reply)
+               (insert ", maybe you are looking for one of these words\n\n")
+               (dictionary-display-only-match-result reply)))
 	    (dictionary-post-buffer)))
       (if (dictionary-check-reply reply 550)
           (error "Dictionary \"%s\" is unknown, please select an existing one"
@@ -830,7 +830,7 @@ The DICTIONARY is only used for decoding the bytes to display the DESCRIPTION."
 (defun dictionary-display-word-definition (reply word dictionary)
   "Insert the definition in REPLY for the current WORD from DICTIONARY.
 It will replace links which are found in the REPLY and replace
-them with buttons to perform a a new search."
+them with buttons to perform a new search."
   (let ((start (point)))
     (insert (dictionary-decode-charset reply dictionary))
     (insert "\n\n")
@@ -873,7 +873,7 @@ The word is taken from the buffer, the DICTIONARY is given as argument."
                    'help-echo (concat "Press Mouse-2 to lookup \""
                                       word "\" in \"" dictionary "\"")))))
 
-(defun dictionary-select-dictionary (&rest ignored)
+(defun dictionary-select-dictionary (&rest _ignored)
   "Save the current state and start a dictionary selection."
   (interactive)
   (dictionary-ensure-buffer)
@@ -881,7 +881,7 @@ The word is taken from the buffer, the DICTIONARY is given as argument."
   (dictionary-do-select-dictionary)
   (dictionary-store-state 'dictionary-do-select-dictionary nil))
 
-(defun dictionary-do-select-dictionary (&rest ignored)
+(defun dictionary-do-select-dictionary (&rest _ignored)
   "The workhorse for doing the dictionary selection."
 
   (message "Looking up databases and descriptions")
@@ -917,7 +917,7 @@ If PATTERN is omitted, it defaults to \"[ \\f\\t\\n\\r\\v]+\"."
   (dictionary-display-dictionary-line "! \"The first matching dictionary\"")
   (let* ((reply (dictionary-read-answer))
 	 (list (dictionary-simple-split-string reply "\n+")))
-    (mapc 'dictionary-display-dictionary-line list))
+    (mapc #'dictionary-display-dictionary-line list))
   (dictionary-post-buffer))
 
 (defun dictionary-display-dictionary-line (string)
@@ -943,7 +943,6 @@ If PATTERN is omitted, it defaults to \"[ \\f\\t\\n\\r\\v]+\"."
 
 (defun dictionary-set-dictionary (param &optional more)
   "Select the dictionary which is the car of PARAM as new default."
-
   (if more
       (dictionary-display-more-info param)
     (let ((dictionary (car param)))
@@ -985,7 +984,7 @@ If PATTERN is omitted, it defaults to \"[ \\f\\t\\n\\r\\v]+\"."
 
       (dictionary-store-state 'dictionary-display-more-info dictionary))))
 
-(defun dictionary-select-strategy (&rest ignored)
+(defun dictionary-select-strategy (&rest _ignored)
   "Save the current state and start a strategy selection."
   (interactive)
   (dictionary-ensure-buffer)
@@ -1015,7 +1014,7 @@ If PATTERN is omitted, it defaults to \"[ \\f\\t\\n\\r\\v]+\"."
   (dictionary-display-strategy-line ". \"The servers default\"")
   (let* ((reply (dictionary-read-answer))
 	 (list (dictionary-simple-split-string reply "\n+")))
-    (mapc 'dictionary-display-strategy-line list))
+    (mapc #'dictionary-display-strategy-line list))
   (dictionary-post-buffer))
 
 (defun dictionary-display-strategy-line (string)
@@ -1031,7 +1030,7 @@ If PATTERN is omitted, it defaults to \"[ \\f\\t\\n\\r\\v]+\"."
                          'help-echo (purecopy "Mouse-2 to select this matching algorithm"))
 	  (insert "\n")))))
 
-(defun dictionary-set-strategy (strategy &rest ignored)
+(defun dictionary-set-strategy (strategy &rest _ignored)
   "Select this STRATEGY as new default."
   (setq dictionary-default-strategy strategy)
   (dictionary-restore-state)
@@ -1050,8 +1049,7 @@ If PATTERN is omitted, it defaults to \"[ \\f\\t\\n\\r\\v]+\"."
 				'dictionary-display-match-result)))
 
 (defun dictionary-do-matching (word dictionary strategy function)
-  "Find matches for WORD with STRATEGY in DICTIONARY and display them with FUNCTION."
-
+  "Search for WORD with STRATEGY in DICTIONARY and display them with FUNCTION."
   (message "Lookup matching words for %s in %s using %s"
 	   word dictionary strategy)
   (dictionary-send-command
@@ -1075,7 +1073,6 @@ If PATTERN is omitted, it defaults to \"[ \\f\\t\\n\\r\\v]+\"."
 
 (defun dictionary-display-only-match-result (reply)
   "Display the results from the current matches in REPLY without the headers."
-
   (let ((number (nth 1 (dictionary-reply-list reply)))
 	(list (dictionary-simple-split-string (dictionary-read-answer) "\n+")))
     (insert number " matching word" (if (equal number "1") "" "s")
@@ -1195,7 +1192,7 @@ allows editing it."
   (describe-function 'dictionary-mode))
 
 ;;;###autoload
-(defun dictionary-match-words (&optional pattern &rest ignored)
+(defun dictionary-match-words (&optional pattern &rest _ignored)
   "Search PATTERN in current default dictionary using default strategy."
   (interactive)
   ;; can't use interactive because of mouse events
@@ -1212,7 +1209,6 @@ allows editing it."
 		(save-excursion
 		  (mouse-set-point event)
 		  (current-word)))))
-    (selected-window)
     (dictionary-popup-matching-words word)))
 
 ;;;###autoload
@@ -1271,7 +1267,7 @@ allows editing it."
 
 (defun dictionary-read-definition (&ignore)
   (let ((list (dictionary-simple-split-string (dictionary-read-answer) "\n+")))
-    (mapconcat 'identity (cdr list) "\n")))
+    (mapconcat #'identity (cdr list) "\n")))
 
 ;;; Tooltip support for GNU Emacs
 (defvar global-dictionary-tooltip-mode
@@ -1316,15 +1312,15 @@ allows editing it."
   "Turn off or on support for the dictionary tooltip mode.
 
 It is normally internally called with 1 to enable support for the
-tooltip mode. The hook function will check the value of the
-variable dictionary-tooltip-mode to decide if some action must be
-taken. When disabling the tooltip mode the value of this variable
+tooltip mode.  The hook function will check the value of the
+variable `dictionary-tooltip-mode' to decide if some action must be
+taken.  When disabling the tooltip mode the value of this variable
 will be set to nil."
   (interactive)
   (tooltip-mode on)
   (if on
-      (add-hook 'tooltip-functions 'dictionary-display-tooltip)
-    (remove-hook 'tooltip-functions 'dictionary-display-tooltip)))
+      (add-hook 'tooltip-functions #'dictionary-display-tooltip)
+    (remove-hook 'tooltip-functions #'dictionary-display-tooltip)))
 
 ;;;###autoload
 (defun dictionary-tooltip-mode (&optional arg)
@@ -1349,10 +1345,10 @@ active it will overwrite that mode for the current buffer."
 
 ;;;###autoload
 (defun global-dictionary-tooltip-mode (&optional arg)
-  "Enable/disable dictionary-tooltip-mode for all buffers.
+  "Enable/disable `dictionary-tooltip-mode' for all buffers.
 
-Internally it provides a default for the dictionary-tooltip-mode.
-It can be overwritten for each buffer using dictionary-tooltip-mode.
+Internally it provides a default for the `dictionary-tooltip-mode'.
+It can be overwritten for each buffer using `dictionary-tooltip-mode'.
 
 Note: (global-dictionary-tooltip-mode 0) will not disable the mode
 any buffer where (dictionary-tooltip-mode 1) has been called."
@@ -1365,10 +1361,34 @@ any buffer where (dictionary-tooltip-mode 1) has been called."
     (make-local-variable 'dictionary-tooltip-mouse-event)
     (setq-default track-mouse on)
     (dictionary-switch-tooltip-mode 1)
-    (if on
-        (global-set-key [mouse-movement] 'dictionary-tooltip-track-mouse)
-      (global-set-key [mouse-movement] 'ignore))
+    (global-set-key [mouse-movement]
+                    (if on #'dictionary-tooltip-track-mouse #'ignore))
     on))
+
+;;; Context menu support
+
+(defun dictionary-search-word-at-mouse (event)
+  (interactive "e")
+  (let ((word (save-window-excursion
+		(save-excursion
+		  (mouse-set-point event)
+		  (current-word)))))
+    (dictionary-search word)))
+
+;;;###autoload
+(defun context-menu-dictionary (menu click)
+  "Populate MENU with dictionary commands at CLICK.
+When you add this function to `context-menu-functions',
+the context menu will contain an item that searches
+the word at mouse click."
+  (when (thing-at-mouse click 'word)
+    (define-key-after menu [dictionary-separator] menu-bar-separator
+      'middle-separator)
+    (define-key-after menu [dictionary-search-word-at-mouse]
+      '(menu-item "Dictionary Search" dictionary-search-word-at-mouse
+                  :help "Search the word at mouse click in dictionary")
+      'dictionary-separator))
+  menu)
 
 (provide 'dictionary)
 ;;; dictionary.el ends here

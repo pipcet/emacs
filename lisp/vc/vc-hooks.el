@@ -1,6 +1,6 @@
 ;;; vc-hooks.el --- resident support for version-control  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1992-1996, 1998-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1992-1996, 1998-2022 Free Software Foundation, Inc.
 
 ;; Author: FSF (see vc.el for full credits)
 ;; Maintainer: emacs-devel@gnu.org
@@ -50,50 +50,42 @@
 (defface vc-up-to-date-state
   '((default :inherit vc-state-base))
   "Face for VC modeline state when the file is up to date."
-  :version "25.1"
-  :group 'vc-faces)
+  :version "25.1")
 
 (defface vc-needs-update-state
   '((default :inherit vc-state-base))
   "Face for VC modeline state when the file needs update."
-  :version "25.1"
-  :group 'vc-faces)
+  :version "25.1")
 
 (defface vc-locked-state
   '((default :inherit vc-state-base))
   "Face for VC modeline state when the file locked."
-  :version "25.1"
-  :group 'vc-faces)
+  :version "25.1")
 
 (defface vc-locally-added-state
   '((default :inherit vc-state-base))
   "Face for VC modeline state when the file is locally added."
-  :version "25.1"
-  :group 'vc-faces)
+  :version "25.1")
 
 (defface vc-conflict-state
   '((default :inherit vc-state-base))
   "Face for VC modeline state when the file contains merge conflicts."
-  :version "25.1"
-  :group 'vc-faces)
+  :version "25.1")
 
 (defface vc-removed-state
   '((default :inherit vc-state-base))
   "Face for VC modeline state when the file was removed from the VC system."
-  :version "25.1"
-  :group 'vc-faces)
+  :version "25.1")
 
 (defface vc-missing-state
   '((default :inherit vc-state-base))
   "Face for VC modeline state when the file is missing from the file system."
-  :version "25.1"
-  :group 'vc-faces)
+  :version "25.1")
 
 (defface vc-edited-state
   '((default :inherit vc-state-base))
   "Face for VC modeline state when the file is edited."
-  :version "25.1"
-  :group 'vc-faces)
+  :version "25.1")
 
 ;; Customization Variables (the rest is in vc.el)
 
@@ -264,9 +256,9 @@ It is usually called via the `vc-call' macro."
 (defmacro vc-call (fun file &rest args)
   "A convenience macro for calling VC backend functions.
 Functions called by this macro must accept FILE as the first argument.
-ARGS specifies any additional arguments.  FUN should be unquoted.
-BEWARE!! FILE is evaluated twice!!"
-  `(vc-call-backend (vc-backend ,file) ',fun ,file ,@args))
+ARGS specifies any additional arguments.  FUN should be unquoted."
+  (macroexp-let2 nil file file
+    `(vc-call-backend (vc-backend ,file) ',fun ,file ,@args)))
 
 (defsubst vc-parse-buffer (pattern i)
   "Find PATTERN in the current buffer and return its Ith submatch."
@@ -491,7 +483,7 @@ status of this file.  Otherwise, the value returned is one of:
    (vc-call-backend backend 'state file)))
 
 (defsubst vc-up-to-date-p (file)
-  "Convenience function that checks whether `vc-state' of FILE is `up-to-date'."
+  "Convenience function to check whether `vc-state' of FILE is `up-to-date'."
   (eq (vc-state file) 'up-to-date))
 
 (defun vc-working-revision (file &optional backend)
@@ -635,7 +627,7 @@ Before doing that, check if there are any old backups and get rid of them."
 
 (declare-function vc-dir-resynch-file "vc-dir" (&optional fname))
 
-(defvar vc-dir-buffers nil "List of vc-dir buffers.")
+(defvar vc-dir-buffers nil "List of `vc-dir' buffers.")
 
 (defun vc-after-save ()
   "Function to be called by `basic-save-buffer' (in files.el)."
@@ -871,31 +863,32 @@ In the latter case, VC mode is deactivated for this buffer."
 ;; (autoload 'vc-prefix-map "vc" nil nil 'keymap)
 (defvar vc-prefix-map
   (let ((map (make-sparse-keymap)))
-    (define-key map "a" 'vc-update-change-log)
-    (define-key map "b" 'vc-switch-backend)
-    (define-key map "d" 'vc-dir)
-    (define-key map "g" 'vc-annotate)
-    (define-key map "G" 'vc-ignore)
-    (define-key map "h" 'vc-region-history)
-    (define-key map "i" 'vc-register)
-    (define-key map "l" 'vc-print-log)
-    (define-key map "L" 'vc-print-root-log)
-    (define-key map "I" 'vc-log-incoming)
-    (define-key map "O" 'vc-log-outgoing)
-    (define-key map "ML" 'vc-log-mergebase)
-    (define-key map "MD" 'vc-diff-mergebase)
-    (define-key map "m" 'vc-merge)
-    (define-key map "r" 'vc-retrieve-tag)
-    (define-key map "s" 'vc-create-tag)
-    (define-key map "u" 'vc-revert)
-    (define-key map "v" 'vc-next-action)
-    (define-key map "+" 'vc-update)
+    (define-key map "a" #'vc-update-change-log)
+    (with-suppressed-warnings ((obsolete vc-switch-backend))
+      (define-key map "b" #'vc-switch-backend))
+    (define-key map "d" #'vc-dir)
+    (define-key map "g" #'vc-annotate)
+    (define-key map "G" #'vc-ignore)
+    (define-key map "h" #'vc-region-history)
+    (define-key map "i" #'vc-register)
+    (define-key map "l" #'vc-print-log)
+    (define-key map "L" #'vc-print-root-log)
+    (define-key map "I" #'vc-log-incoming)
+    (define-key map "O" #'vc-log-outgoing)
+    (define-key map "ML" #'vc-log-mergebase)
+    (define-key map "MD" #'vc-diff-mergebase)
+    (define-key map "m" #'vc-merge)
+    (define-key map "r" #'vc-retrieve-tag)
+    (define-key map "s" #'vc-create-tag)
+    (define-key map "u" #'vc-revert)
+    (define-key map "v" #'vc-next-action)
+    (define-key map "+" #'vc-update)
     ;; I'd prefer some kind of symmetry with vc-update:
-    (define-key map "P" 'vc-push)
-    (define-key map "=" 'vc-diff)
-    (define-key map "D" 'vc-root-diff)
-    (define-key map "~" 'vc-revision-other-window)
-    (define-key map "x" 'vc-delete-file)
+    (define-key map "P" #'vc-push)
+    (define-key map "=" #'vc-diff)
+    (define-key map "D" #'vc-root-diff)
+    (define-key map "~" #'vc-revision-other-window)
+    (define-key map "x" #'vc-delete-file)
     map))
 (fset 'vc-prefix-map vc-prefix-map)
 (define-key ctl-x-map "v" 'vc-prefix-map)

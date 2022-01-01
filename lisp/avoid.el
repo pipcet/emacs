@@ -1,6 +1,6 @@
-;;; avoid.el --- make mouse pointer stay out of the way of editing
+;;; avoid.el --- make mouse pointer stay out of the way of editing  -*- lexical-binding: t -*-
 
-;; Copyright (C) 1993-1994, 2000-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1993-1994, 2000-2022 Free Software Foundation, Inc.
 
 ;; Author: Boris Goldowsky <boris@gnu.org>
 ;; Keywords: mouse
@@ -43,7 +43,7 @@
 ;;
 ;; (if (eq window-system 'x)
 ;;     (mouse-avoidance-set-pointer-shape
-;;	     (nth (random 4)
+;;	     (seq-random-elt
 ;;		  (list x-pointer-man x-pointer-spider
 ;;			x-pointer-gobbler x-pointer-gumby))))
 ;;
@@ -80,7 +80,6 @@ use either \\[customize] or \\[mouse-avoidance-mode]."
   :initialize 'custom-initialize-default
   :type '(choice (const :tag "none" nil) (const banish) (const jump)
 		 (const animate) (const exile) (const proteus))
-  :group 'avoid
   :require 'avoid
   :version "20.3")
 
@@ -89,25 +88,21 @@ use either \\[customize] or \\[mouse-avoidance-mode]."
   "Average distance that mouse will be moved when approached by cursor.
 Only applies in Mouse Avoidance mode `jump' and its derivatives.
 For best results make this larger than `mouse-avoidance-threshold'."
-  :type 'integer
-  :group 'avoid)
+  :type 'integer)
 
 (defcustom mouse-avoidance-nudge-var 10
   "Variability of `mouse-avoidance-nudge-dist' (which see)."
-  :type 'integer
-  :group 'avoid)
+  :type 'integer)
 
 (defcustom mouse-avoidance-animation-delay .01
   "Delay between animation steps, in seconds."
-  :type 'number
-  :group 'avoid)
+  :type 'number)
 
 (defcustom mouse-avoidance-threshold 5
   "Mouse-pointer's flight distance.
 If the cursor gets closer than this, the mouse pointer will move away.
 Only applies in Mouse Avoidance modes `animate' and `jump'."
-  :type 'integer
-  :group 'avoid)
+  :type 'integer)
 
 (defcustom mouse-avoidance-banish-position '((frame-or-window . frame)
                                              (side . right)
@@ -130,7 +125,6 @@ TOP-OR-BOTTOM-POS: Distance from top or bottom edge of frame or window."
 ;; Internal variables
 (defvar mouse-avoidance-state nil)
 (defvar mouse-avoidance-pointer-shapes nil)
-(defvar mouse-avoidance-n-pointer-shapes 0)
 (defvar mouse-avoidance-old-pointer-shape nil)
 (defvar mouse-avoidance-animating-pointer nil)
 
@@ -311,11 +305,8 @@ redefine this function to suit your own tastes."
 		      (all-completions "x-pointer-" obarray
 				       (lambda (x)
 					  (and (boundp x)
-					       (integerp (symbol-value x)))))))
-	(setq mouse-avoidance-n-pointer-shapes
-	      (length mouse-avoidance-pointer-shapes))))
-  (nth (random mouse-avoidance-n-pointer-shapes)
-       mouse-avoidance-pointer-shapes))
+                                               (integerp (symbol-value x)))))))))
+  (seq-random-elt mouse-avoidance-pointer-shapes))
 
 (defun mouse-avoidance-ignore-p ()
   (let ((mp (mouse-position)))
@@ -380,7 +371,7 @@ redefine this function to suit your own tastes."
 	(mouse-avoidance-nudge-mouse)
 	(if (not (eq (selected-frame) (car old-pos)))
 	    ;; This should never happen.
-	    (apply 'set-mouse-position old-pos)))))
+            (apply #'set-mouse-position old-pos)))))
 
 ;;;###autoload
 (defun mouse-avoidance-mode (&optional mode)

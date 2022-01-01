@@ -1,6 +1,6 @@
 ;;; nnimap.el --- IMAP interface for Gnus  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2010-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2010-2022 Free Software Foundation, Inc.
 
 ;; Author: Lars Magne Ingebrigtsen <larsi@gnus.org>
 ;;         Simon Josefsson <simon@josefsson.org>
@@ -95,7 +95,7 @@ Uses the same syntax as `nnmail-split-methods'.")
   "Articles with the flags in the list will not be considered when splitting.")
 
 (make-obsolete-variable 'nnimap-split-rule "see `nnimap-split-methods'."
-			"Emacs 24.1")
+                        "24.1")
 
 (defvoo nnimap-authenticator nil
   "How nnimap authenticate itself to the server.
@@ -135,6 +135,16 @@ If t, Gnus will fetch only the first part.  If a string, it
 will fetch all parts that have types that match that string.  A
 likely value would be \"text/\" to automatically fetch all
 textual parts.")
+
+(defvoo nnimap-keepalive-intervals (cons (* 60 15)
+                                         (* 60 5))
+  "Configuration for the nnimap keepalive timer.
+The value is a cons of two integers (each representing a number
+of seconds): the first is how often to run the keepalive
+function, the second is the seconds of inactivity required to
+send the actual keepalive command.
+
+Set to nil to disable keepalive commands altogether.")
 
 (defgroup nnimap nil
   "IMAP for Gnus."
@@ -405,20 +415,32 @@ during splitting, which may be slow."
       nil)))
 
 (defun nnimap-keepalive ()
-  (let ((now (current-time)))
+  (let ((now (current-time))
+        ;; Set this so we don't wait for a response.
+        (nnimap-streaming t))
     (dolist (buffer nnimap-process-buffers)
       (when (buffer-live-p buffer)
 	(with-current-buffer buffer
 	  (when (and nnimap-object
 		     (nnimap-last-command-time nnimap-object)
 		     (time-less-p
-		      ;; More than five minutes since the last command.
-		      (* 5 60)
+		      (cdr nnimap-keepalive-intervals)
 		      (time-subtract
 		       now
 		       (nnimap-last-command-time nnimap-object))))
-            (ignore-errors              ;E.g. "buffer foo has no process".
-              (nnimap-send-command "NOOP"))))))))
+            (with-local-quit
+              (ignore-errors        ;E.g. "buffer foo has no process".
+                (nnimap-send-command "NOOP"))
+              ;; If our connection has died in the meantime, clean it
+              ;; and its buffer up.
+              (unless (process-live-p (get-buffer-process buffer))
+	        (setq nnimap-process-buffers
+		      (delq buffer nnimap-process-buffers))
+	        (setq nnimap-connection-alist
+		      (seq-filter (lambda (elt)
+				    (null (eq buffer (cdr elt))))
+				  nnimap-connection-alist))
+	        (kill-buffer buffer)))))))))
 
 (defun nnimap-open-connection (buffer)
   ;; Be backwards-compatible -- the earlier value of nnimap-stream was
@@ -440,6 +462,7 @@ during splitting, which may be slow."
 
 ;; This is only needed for Windows XP or earlier
 (defun nnimap-map-port (port)
+  (declare-function x-server-version "xfns.c" (&optional terminal))
   (if (and (eq system-type 'windows-nt)
            (<= (car (x-server-version)) 5)
            (equal port "imaps"))
@@ -447,9 +470,12 @@ during splitting, which may be slow."
     port))
 
 (defun nnimap-open-connection-1 (buffer)
-  (unless nnimap-keepalive-timer
-    (setq nnimap-keepalive-timer (run-at-time (* 60 15) (* 60 15)
-					      #'nnimap-keepalive)))
+  (unless (or nnimap-keepalive-timer
+              (null nnimap-keepalive-intervals))
+    (setq nnimap-keepalive-timer (run-at-time
+                                  (car nnimap-keepalive-intervals)
+                                  (car nnimap-keepalive-intervals)
+				  #'nnimap-keepalive)))
   (with-current-buffer (nnimap-make-process-buffer buffer)
     (let* ((coding-system-for-read 'binary)
 	   (coding-system-for-write 'binary)
@@ -583,6 +609,13 @@ during splitting, which may be slow."
              (eq nnimap-authenticator 'anonymous)
 	     (eq nnimap-authenticator 'login)))
     (nnimap-command "LOGIN %S %S" user password))
+   ((and (nnimap-capability "AUTH=XOAUTH2")
+         (eq nnimap-authenticator 'xoauth2))
+    (nnimap-command  "AUTHENTICATE XOAUTH2 %s"
+                     (base64-encode-string
+                      (format "user=%s\001auth=Bearer %s\001\001"
+                              (nnimap-quote-specials user)
+                              (nnimap-quote-specials password)))))
    ((and (nnimap-capability "AUTH=CRAM-MD5")
 	 (or (null nnimap-authenticator)
 	     (eq nnimap-authenticator 'cram-md5)))
@@ -639,10 +672,17 @@ during splitting, which may be slow."
 
 (deffoo nnimap-close-server (&optional server defs)
   (when (nnoo-change-server 'nnimap server defs)
-    (ignore-errors
-      (delete-process (get-buffer-process (nnimap-buffer))))
-    (nnoo-close-server 'nnimap server)
-    t))
+    (let ((buf (nnimap-buffer)))
+      (ignore-errors
+        (delete-process (get-buffer-process buf)))
+      (setq nnimap-process-buffers
+            (delq buf nnimap-process-buffers)
+            nnimap-connection-alist
+	    (seq-filter (lambda (elt)
+			  (null (eq buf (cdr elt))))
+			nnimap-connection-alist))
+      (nnoo-close-server 'nnimap server)
+      t)))
 
 (deffoo nnimap-request-close ()
   t)
@@ -1061,7 +1101,9 @@ during splitting, which may be slow."
                   "UID COPY %s %S")
                 (nnimap-article-ranges (gnus-compress-sequence articles))
                 (nnimap-group-to-imap (gnus-group-real-name nnmail-expiry-target)))
-               (set (if can-move 'deleted-articles 'articles-to-delete) articles))))
+               (if can-move
+                   (setq deleted-articles articles)
+                 (setq articles-to-delete articles)))))
       t)
      (t
       (dolist (article articles)
@@ -1274,7 +1316,7 @@ If LIMIT, first try to limit the search to the N last articles."
   (when (and (nnimap-greeting nnimap-object)
 	     (string-match greeting-match (nnimap-greeting nnimap-object))
 	     (eq type 'append)
-	     (string-match "\000" data))
+	     (string-search "\000" data))
     (let ((choice (gnus-multiple-choice
 		   "Message contains NUL characters.  Delete, continue, abort? "
 		   '((?d "Delete NUL characters")
@@ -1734,7 +1776,7 @@ If LIMIT, first try to limit the search to the N last articles."
     (let ((result nil))
       (dolist (elem (split-string irange ","))
 	(push
-	 (if (string-match ":" elem)
+	 (if (string-search ":" elem)
 	     (let ((numbers (split-string elem ":")))
 	       (cons (string-to-number (car numbers))
 		     (string-to-number (cadr numbers))))
@@ -1912,10 +1954,13 @@ Return the server's response to the SELECT or EXAMINE command."
     (when entry
       (if (and (buffer-live-p (cadr entry))
 	       (get-buffer-process (cadr entry))
-	       (memq (process-status (get-buffer-process (cadr entry)))
-		     '(open run)))
+	       (process-live-p (get-buffer-process (cadr entry))))
 	  (get-buffer-process (cadr entry))
-	(setq nnimap-connection-alist (delq entry nnimap-connection-alist))
+	(setq nnimap-connection-alist (delq entry nnimap-connection-alist)
+              nnimap-process-buffers
+	      (delq (cadr entry) nnimap-process-buffers))
+	(when (buffer-live-p (cadr entry))
+	  (kill-buffer (cadr entry)))
 	nil))))
 
 ;; Leave room for `open-network-stream' to issue a couple of IMAP
@@ -2262,7 +2307,7 @@ Return the server's response to the SELECT or EXAMINE command."
 	  nnimap-incoming-split-list)))
 
 (defun nnimap-make-thread-query (header)
-  (let* ((id  (mail-header-id header))
+  (let* ((id (substring-no-properties (mail-header-id header)))
 	 (refs (split-string
 		(or (mail-header-references header)
 		    "")))

@@ -1,6 +1,6 @@
 ;;; macroexp.el --- Additional macro-expansion support -*- lexical-binding: t -*-
 ;;
-;; Copyright (C) 2004-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2004-2022 Free Software Foundation, Inc.
 ;;
 ;; Author: Miles Bader <miles@gnu.org>
 ;; Keywords: lisp, compiler, macros
@@ -112,7 +112,7 @@ and also to avoid outputting the warning during normal execution."
        (funcall (eval (cadr form)))
        (byte-compile-constant nil)))
 
-(defun macroexp--compiling-p ()
+(defun macroexp-compiling-p ()
   "Return non-nil if we're macroexpanding for the compiler."
   ;; FIXME: ¡¡Major Ugly Hack!! To determine whether the output of this
   ;; macro-expansion will be processed by the byte-compiler, we check
@@ -120,30 +120,58 @@ and also to avoid outputting the warning during normal execution."
   (member '(declare-function . byte-compile-macroexpand-declare-function)
           macroexpand-all-environment))
 
+(defun macroexp-file-name ()
+  "Return the name of the file from which the code comes.
+Returns nil when we do not know.
+A non-nil result is expected to be reliable when called from a macro in order
+to find the file in which the macro's call was found, and it should be
+reliable as well when used at the top-level of a file.
+Other uses risk returning non-nil value that point to the wrong file."
+  ;; `eval-buffer' binds `current-load-list' but not `load-file-name',
+  ;; so prefer using it over using `load-file-name'.
+  (let ((file (car (last current-load-list))))
+    (or (if (stringp file) file)
+        (bound-and-true-p byte-compile-current-file))))
+
 (defvar macroexp--warned (make-hash-table :test #'equal :weakness 'key))
 
-(defun macroexp--warn-and-return (msg form &optional compile-only)
-  (let ((when-compiled (lambda () (byte-compile-warn "%s" msg))))
-    (cond
-     ((null msg) form)
-     ((macroexp--compiling-p)
-      (if (and (consp form) (gethash form macroexp--warned))
-          ;; Already wrapped this exp with a warning: avoid inf-looping
-          ;; where we keep adding the same warning onto `form' because
-          ;; macroexpand-all gets right back to macroexpanding `form'.
-          form
-        (puthash form form macroexp--warned)
-        `(progn
-           (macroexp--funcall-if-compiled ',when-compiled)
-           ,form)))
-     (t
-      (unless compile-only
-        (message "%sWarning: %s"
-                 (if (stringp load-file-name)
-                     (concat (file-relative-name load-file-name) ": ")
-                   "")
-                 msg))
-      form))))
+(defun macroexp--warn-wrap (msg form category)
+  (let ((when-compiled
+	 (lambda ()
+           (when (if (consp category)
+                     (apply #'byte-compile-warning-enabled-p category)
+                   (byte-compile-warning-enabled-p category))
+             (byte-compile-warn "%s" msg)))))
+    `(progn
+       (macroexp--funcall-if-compiled ',when-compiled)
+       ,form)))
+
+(define-obsolete-function-alias 'macroexp--warn-and-return
+  #'macroexp-warn-and-return "28.1")
+(defun macroexp-warn-and-return (msg form &optional category compile-only)
+  "Return code equivalent to FORM labeled with warning MSG.
+CATEGORY is the category of the warning, like the categories that
+can appear in `byte-compile-warnings'.
+COMPILE-ONLY non-nil means no warning should be emitted if the code
+is executed without being compiled first."
+  (cond
+   ((null msg) form)
+   ((macroexp-compiling-p)
+    (if (and (consp form) (gethash form macroexp--warned))
+        ;; Already wrapped this exp with a warning: avoid inf-looping
+        ;; where we keep adding the same warning onto `form' because
+        ;; macroexpand-all gets right back to macroexpanding `form'.
+        form
+      (puthash form form macroexp--warned)
+      (macroexp--warn-wrap msg form category)))
+   (t
+    (unless compile-only
+      (message "%sWarning: %s"
+               (if (stringp load-file-name)
+                   (concat (file-relative-name load-file-name) ": ")
+                 "")
+               msg))
+    form)))
 
 (defun macroexp--obsolete-warning (fun obsolescence-data type)
   (let ((instead (car obsolescence-data))
@@ -187,17 +215,15 @@ and also to avoid outputting the warning during normal execution."
     (if (and (not (eq form new-form))   ;It was a macro call.
              (car-safe form)
              (symbolp (car form))
-             (get (car form) 'byte-obsolete-info)
-             (or (not (fboundp 'byte-compile-warning-enabled-p))
-                 (byte-compile-warning-enabled-p 'obsolete (car form))))
+             (get (car form) 'byte-obsolete-info))
         (let* ((fun (car form))
                (obsolete (get fun 'byte-obsolete-info)))
-          (macroexp--warn-and-return
+          (macroexp-warn-and-return
            (macroexp--obsolete-warning
             fun obsolete
             (if (symbolp (symbol-function fun))
                 "alias" "macro"))
-           new-form))
+           new-form (list 'obsolete fun)))
       new-form)))
 
 (defun macroexp--unfold-lambda (form &optional name)
@@ -220,19 +246,19 @@ and also to avoid outputting the warning during normal execution."
     (while arglist
       (cond ((eq (car arglist) '&optional)
              ;; ok, I'll let this slide because funcall_lambda() does...
-             ;; (if optionalp (error "multiple &optional keywords in %s" name))
+             ;; (if optionalp (error "Multiple &optional keywords in %s" name))
              (if restp (error "&optional found after &rest in %s" name))
              (if (null (cdr arglist))
-                 (error "nothing after &optional in %s" name))
+                 (error "Nothing after &optional in %s" name))
              (setq optionalp t))
             ((eq (car arglist) '&rest)
              ;; ...but it is by no stretch of the imagination a reasonable
              ;; thing that funcall_lambda() allows (&rest x y) and
              ;; (&rest x &optional y) in arglists.
              (if (null (cdr arglist))
-                 (error "nothing after &rest in %s" name))
+                 (error "Nothing after &rest in %s" name))
              (if (cdr (cdr arglist))
-                 (error "multiple vars after &rest in %s" name))
+                 (error "Multiple vars after &rest in %s" name))
              (setq restp t))
             (restp
              (setq bindings (cons (list (car arglist)
@@ -247,7 +273,7 @@ and also to avoid outputting the warning during normal execution."
                    values (cdr values))))
       (setq arglist (cdr arglist)))
     (if values
-        (macroexp--warn-and-return
+        (macroexp-warn-and-return
          (format (if (eq values 'too-few)
                      "attempt to open-code `%s' with too few arguments"
                    "attempt to open-code `%s' with too many arguments")
@@ -263,6 +289,16 @@ and also to avoid outputting the warning during normal execution."
           `(let ,(nreverse bindings) . ,body)
         (macroexp-progn body)))))
 
+(defun macroexp--dynamic-variable-p (var)
+  "Whether the variable VAR is dynamically scoped.
+Only valid during macro-expansion."
+  (defvar byte-compile-bound-variables)
+  (or (not lexical-binding)
+      (special-variable-p var)
+      (memq var macroexp--dynvars)
+      (and (boundp 'byte-compile-bound-variables)
+           (memq var byte-compile-bound-variables))))
+
 (defun macroexp--expand-all (form)
   "Expand all macros in FORM.
 This is an internal version of `macroexpand-all'.
@@ -276,10 +312,12 @@ Assumes the caller has bound `macroexpand-all-environment'."
 		   macroexpand-all-environment)
     ;; Normal form; get its expansion, and then expand arguments.
     (setq form (macroexp-macroexpand form macroexpand-all-environment))
+    ;; FIXME: It'd be nice to use `byte-optimize--pcase' here, but when
+    ;; I tried it, it broke the bootstrap :-(
     (pcase form
       (`(cond . ,clauses)
        (macroexp--cons 'cond (macroexp--all-clauses clauses) form))
-      (`(condition-case . ,(or `(,err ,body . ,handlers) dontcare))
+      (`(condition-case . ,(or `(,err ,body . ,handlers) pcase--dontcare))
        (macroexp--cons
         'condition-case
         (macroexp--cons err
@@ -288,25 +326,32 @@ Assumes the caller has bound `macroexpand-all-environment'."
                                         (cddr form))
                         (cdr form))
         form))
-      (`(,(or 'defvar 'defconst) . ,_) (macroexp--all-forms form 2))
+      (`(,(or 'defvar 'defconst) ,(and name (pred symbolp)) . ,_)
+       (push name macroexp--dynvars)
+       (macroexp--all-forms form 2))
       (`(function ,(and f `(lambda . ,_)))
-       (macroexp--cons 'function
-                       (macroexp--cons (macroexp--all-forms f 2)
-                                       nil
-                                       (cdr form))
-                       form))
+       (let ((macroexp--dynvars macroexp--dynvars))
+         (macroexp--cons 'function
+                         (macroexp--cons (macroexp--all-forms f 2)
+                                         nil
+                                         (cdr form))
+                         form)))
       (`(,(or 'function 'quote) . ,_) form)
-      (`(,(and fun (or 'let 'let*)) . ,(or `(,bindings . ,body) dontcare))
-       (macroexp--cons fun
-                       (macroexp--cons (macroexp--all-clauses bindings 1)
-                                       (if (null body)
-                                           (macroexp-unprogn
-                                            (macroexp--warn-and-return
-                                             (format "Empty %s body" fun)
-                                             nil t))
-                                         (macroexp--all-forms body))
-                                       (cdr form))
-                       form))
+      (`(,(and fun (or 'let 'let*)) . ,(or `(,bindings . ,body)
+                                           pcase--dontcare))
+       (let ((macroexp--dynvars macroexp--dynvars))
+         (macroexp--cons
+          fun
+          (macroexp--cons
+           (macroexp--all-clauses bindings 1)
+           (if (null body)
+               (macroexp-unprogn
+                (macroexp-warn-and-return
+                 (format "Empty %s body" fun)
+                 nil nil 'compile-only))
+             (macroexp--all-forms body))
+           (cdr form))
+          form)))
       (`(,(and fun `(lambda . ,_)) . ,args)
        ;; Embedded lambda in function position.
        ;; If the byte-optimizer is loaded, try to unfold this,
@@ -321,27 +366,7 @@ Assumes the caller has bound `macroexpand-all-environment'."
                              form)
 	   (macroexp--expand-all newform))))
 
-      ;; The following few cases are for normal function calls that
-      ;; are known to funcall one of their arguments.  The byte
-      ;; compiler has traditionally handled these functions specially
-      ;; by treating a lambda expression quoted by `quote' as if it
-      ;; were quoted by `function'.  We make the same transformation
-      ;; here, so that any code that cares about the difference will
-      ;; see the same transformation.
-      ;; First arg is a function:
-      (`(,(and fun (or 'funcall 'apply 'mapcar 'mapatoms 'mapconcat 'mapc))
-         ',(and f `(lambda . ,_)) . ,args)
-       (macroexp--warn-and-return
-        (format "%s quoted with ' rather than with #'"
-                (list 'lambda (nth 1 f) '...))
-        (macroexp--expand-all `(,fun #',f . ,args))))
-      ;; Second arg is a function:
-      (`(,(and fun (or 'sort)) ,arg1 ',(and f `(lambda . ,_)) . ,args)
-       (macroexp--warn-and-return
-        (format "%s quoted with ' rather than with #'"
-                (list 'lambda (nth 1 f) '...))
-        (macroexp--expand-all `(,fun ,arg1 #',f . ,args))))
-      (`(funcall ,exp . ,args)
+      (`(funcall . ,(or `(,exp . ,args) pcase--dontcare))
        (let ((eexp (macroexp--expand-all exp))
              (eargs (macroexp--all-forms args)))
          ;; Rewrite (funcall #'foo bar) to (foo bar), in case `foo'
@@ -350,10 +375,22 @@ Assumes the caller has bound `macroexpand-all-environment'."
            (`#',f (macroexp--expand-all `(,f . ,eargs)))
            (_ `(funcall ,eexp . ,eargs)))))
       (`(,func . ,_)
-       ;; Macro expand compiler macros.  This cannot be delayed to
-       ;; byte-optimize-form because the output of the compiler-macro can
-       ;; use macros.
-       (let ((handler (function-get func 'compiler-macro)))
+       (let ((handler (function-get func 'compiler-macro))
+             (funargs (function-get func 'funarg-positions)))
+         ;; Check functions quoted with ' rather than with #'
+         (dolist (funarg funargs)
+           (let ((arg (nth funarg form)))
+             (when (and (eq 'quote (car-safe arg))
+                        (eq 'lambda (car-safe (cadr arg))))
+               (setcar (nthcdr funarg form)
+                       (macroexp-warn-and-return
+                        (format "%S quoted with ' rather than with #'"
+                                (let ((f (cadr arg)))
+                                  (if (symbolp f) f `(lambda ,(nth 1 f) ...))))
+                        arg)))))
+         ;; Macro expand compiler macros.  This cannot be delayed to
+         ;; byte-optimize-form because the output of the compiler-macro can
+         ;; use macros.
          (if (null handler)
              ;; No compiler macro.  We just expand each argument (for
              ;; setq/setq-default this works alright because the variable names
@@ -379,12 +416,33 @@ Assumes the caller has bound `macroexpand-all-environment'."
 
       (_ form))))
 
+;; Record which arguments expect functions, so we can warn when those
+;; are accidentally quoted with ' rather than with #'
+(dolist (f '( funcall apply mapcar mapatoms mapconcat mapc cl-mapcar maphash
+              map-char-table map-keymap map-keymap-internal))
+  (put f 'funarg-positions '(1)))
+(dolist (f '( add-hook remove-hook advice-remove advice--remove-function
+              defalias fset global-set-key run-after-idle-timeout
+              set-process-filter set-process-sentinel sort))
+  (put f 'funarg-positions '(2)))
+(dolist (f '( advice-add define-key
+              run-at-time run-with-idle-timer run-with-timer ))
+  (put f 'funarg-positions '(3)))
+
 ;;;###autoload
 (defun macroexpand-all (form &optional environment)
   "Return result of expanding macros at all levels in FORM.
 If no macros are expanded, FORM is returned unchanged.
 The second optional arg ENVIRONMENT specifies an environment of macro
 definitions to shadow the loaded ones for use in file byte-compilation."
+  (let ((macroexpand-all-environment environment)
+        (macroexp--dynvars macroexp--dynvars))
+    (macroexp--expand-all form)))
+
+;; This function is like `macroexpand-all' but for use with top-level
+;; forms.  It does not dynbind `macroexp--dynvars' because we want
+;; top-level `defvar' declarations to be recorded in that variable.
+(defun macroexpand--all-toplevel (form &optional environment)
   (let ((macroexpand-all-environment environment))
     (macroexp--expand-all form)))
 
@@ -670,7 +728,7 @@ test of free variables in the following ways:
         (let ((macroexp--pending-eager-loads
                (cons load-file-name macroexp--pending-eager-loads)))
           (if full-p
-              (macroexpand-all form)
+              (macroexpand--all-toplevel form)
             (macroexpand form)))
       (error
        ;; Hopefully this shouldn't happen thanks to the cycle detection,

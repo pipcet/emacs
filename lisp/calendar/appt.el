@@ -1,6 +1,6 @@
 ;;; appt.el --- appointment notification functions  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1989-1990, 1994, 1998, 2001-2021 Free Software
+;; Copyright (C) 1989-1990, 1994, 1998, 2001-2022 Free Software
 ;; Foundation, Inc.
 
 ;; Author: Neil Mager <neilm@juliet.ll.mit.edu>
@@ -402,11 +402,12 @@ displayed in a window:
              (appt-display-message string-list min-list))
         (when appt-display-mode-line
           (setq appt-mode-string
-                (concat " " (propertize
-                             (appt-mode-line (mapcar #'number-to-string
-                                                     min-list)
-                                             t)
-                             'face 'mode-line-emphasis))))
+                (concat (propertize
+                         (appt-mode-line (mapcar #'number-to-string
+                                                 min-list)
+                                         t)
+                         'face 'mode-line-emphasis)
+                        " ")))
         ;; Reset count to 0 in case we display another appt on the next cycle.
         (setq appt-display-count (if (eq '(0) min-list) 0
                                    (1+ prev-appt-display-count))))
@@ -700,7 +701,7 @@ ARG is positive, otherwise off."
   (let ((appt-active appt-timer))
     (setq appt-active (if arg (> (prefix-numeric-value arg) 0)
                         (not appt-active)))
-    (remove-hook 'write-file-functions #'appt-update-list 'local)
+    (remove-hook 'write-file-functions #'appt-update-list)
     (or global-mode-string (setq global-mode-string '("")))
     (delq 'appt-mode-string global-mode-string)
     (when appt-timer
@@ -708,7 +709,7 @@ ARG is positive, otherwise off."
       (setq appt-timer nil))
     (if appt-active
         (progn
-          (add-hook 'write-file-functions #'appt-update-list nil t)
+          (add-hook 'write-file-functions #'appt-update-list)
           (setq appt-timer (run-at-time t 60 #'appt-check)
                 global-mode-string
                 (append global-mode-string '(appt-mode-string)))

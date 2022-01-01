@@ -1,6 +1,6 @@
 ;;; process-tests.el --- Testing the process facilities -*- lexical-binding: t -*-
 
-;; Copyright (C) 2013-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2013-2022 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -25,10 +25,15 @@
 
 (require 'cl-lib)
 (require 'ert)
+(require 'ert-x) ; ert-with-temp-directory
 (require 'puny)
-(require 'rx)
 (require 'subr-x)
 (require 'dns)
+(require 'url-http)
+
+(declare-function thread-last-error "thread.c")
+(declare-function thread-join "thread.c")
+(declare-function make-thread "thread.c")
 
 ;; Timeout in seconds; the test fails if the timeout is reached.
 (defvar process-test-sentinel-wait-timeout 2.0)
@@ -64,24 +69,22 @@
 (when (eq system-type 'windows-nt)
   (ert-deftest process-test-quoted-batfile ()
     "Check that Emacs hides CreateProcess deficiency (bug#18745)."
-    (let (batfile)
-      (unwind-protect
-          (progn
-            ;; CreateProcess will fail when both the bat file and 1st
-            ;; argument are quoted, so include spaces in both of those
-            ;; to force quoting.
-            (setq batfile (make-temp-file "echo args" nil ".bat"))
-            (with-temp-file batfile
-              (insert "@echo arg1=%1, arg2=%2\n"))
-            (with-temp-buffer
-              (call-process batfile nil '(t t) t "x &y")
-              (should (string= (buffer-string) "arg1=\"x &y\", arg2=\n")))
-            (with-temp-buffer
-              (call-process-shell-command
-               (mapconcat #'shell-quote-argument (list batfile "x &y") " ")
-               nil '(t t) t)
-              (should (string= (buffer-string) "arg1=\"x &y\", arg2=\n"))))
-        (when batfile (delete-file batfile))))))
+    (ert-with-temp-file batfile
+      ;; CreateProcess will fail when both the bat file and 1st
+      ;; argument are quoted, so include spaces in both of those
+      ;; to force quoting.
+      :prefix "echo args"
+      :suffix ".bat"
+      (with-temp-file batfile
+        (insert "@echo arg1=%1, arg2=%2\n"))
+      (with-temp-buffer
+        (call-process batfile nil '(t t) t "x &y")
+        (should (string= (buffer-string) "arg1=\"x &y\", arg2=\n")))
+      (with-temp-buffer
+        (call-process-shell-command
+         (mapconcat #'shell-quote-argument (list batfile "x &y") " ")
+         nil '(t t) t)
+        (should (string= (buffer-string) "arg1=\"x &y\", arg2=\n"))))))
 
 (ert-deftest process-test-stderr-buffer ()
   (skip-unless (executable-find "bash"))
@@ -348,8 +351,7 @@ See Bug#30460."
                                                   invocation-directory))
                  :stop t))))
 
-;; All the following tests require working DNS, which appears not to
-;; be the case for hydra.nixos.org, so disable them there for now.
+;; The following tests require working DNS
 
 ;; This will need updating when IANA assign more IPv6 global ranges.
 (defun ipv6-is-available ()
@@ -360,9 +362,16 @@ See Bug#30460."
                (= (logand (aref elt 0) #xe000) #x2000)))
         (network-interface-list))))
 
+;; Check if the Internet seems to be working.  Mainly to pacify
+;; Debian's CI system.
+(defvar internet-is-working
+  (progn
+    (require 'dns)
+    (dns-query "google.com")))
+
 (ert-deftest lookup-family-specification ()
   "`network-lookup-address-info' should only accept valid family symbols."
-  (skip-unless (not (getenv "EMACS_HYDRA_CI")))
+  (skip-unless internet-is-working)
   (with-timeout (60 (ert-fail "Test timed out"))
   (should-error (network-lookup-address-info "localhost" 'both))
   (should (network-lookup-address-info "localhost" 'ipv4))
@@ -371,20 +380,20 @@ See Bug#30460."
 
 (ert-deftest lookup-unicode-domains ()
   "Unicode domains should fail."
-  (skip-unless (not (getenv "EMACS_HYDRA_CI")))
+  (skip-unless internet-is-working)
   (with-timeout (60 (ert-fail "Test timed out"))
   (should-error (network-lookup-address-info "faß.de"))
   (should (network-lookup-address-info (puny-encode-domain "faß.de")))))
 
 (ert-deftest unibyte-domain-name ()
   "Unibyte domain names should work."
-  (skip-unless (not (getenv "EMACS_HYDRA_CI")))
+  (skip-unless internet-is-working)
   (with-timeout (60 (ert-fail "Test timed out"))
   (should (network-lookup-address-info (string-to-unibyte "google.com")))))
 
 (ert-deftest lookup-google ()
   "Check that we can look up google IP addresses."
-  (skip-unless (not (getenv "EMACS_HYDRA_CI")))
+  (skip-unless internet-is-working)
   (with-timeout (60 (ert-fail "Test timed out"))
   (let ((addresses-both (network-lookup-address-info "google.com"))
         (addresses-v4 (network-lookup-address-info "google.com" 'ipv4)))
@@ -396,9 +405,11 @@ See Bug#30460."
 
 (ert-deftest non-existent-lookup-failure ()
   "Check that looking up non-existent domain returns nil."
-  (skip-unless (not (getenv "EMACS_HYDRA_CI")))
+  (skip-unless internet-is-working)
   (with-timeout (60 (ert-fail "Test timed out"))
   (should (eq nil (network-lookup-address-info "emacs.invalid")))))
+
+;; End of tests requiring DNS
 
 (defmacro process-tests--ignore-EMFILE (&rest body)
   "Evaluate BODY, ignoring EMFILE errors."
@@ -523,18 +534,6 @@ FD_SETSIZE."
            (delete-process (pop ,processes))
            ,@body)))))
 
-(defmacro process-tests--with-temp-directory (var &rest body)
-  "Bind VAR to the name of a new directory and evaluate BODY.
-Afterwards, delete the directory."
-  (declare (indent 1) (debug (symbolp body)))
-  (cl-check-type var symbol)
-  (let ((dir (make-symbol "dir")))
-    `(let ((,dir (make-temp-file "emacs-test-" :dir)))
-       (unwind-protect
-           (let ((,var ,dir))
-             ,@body)
-         (delete-directory ,dir :recursive)))))
-
 ;; Tests for FD_SETSIZE overflow (Bug#24325).  The following tests
 ;; generate lots of process objects of the various kinds.  Running the
 ;; tests with assertions enabled should not result in any crashes due
@@ -619,8 +618,10 @@ FD_SETSIZE file descriptors (Bug#24325)."
 FD_SETSIZE file descriptors (Bug#24325)."
   (skip-unless (featurep 'make-network-process '(:server t)))
   (skip-unless (featurep 'make-network-process '(:family local)))
+  ;; Avoid hang due to connect/accept handshake on Cygwin (bug#49496).
+  (skip-unless (not (eq system-type 'cygwin)))
   (with-timeout (60 (ert-fail "Test timed out"))
-    (process-tests--with-temp-directory directory
+    (ert-with-temp-directory directory
       (process-tests--with-processes processes
         (let* ((num-clients 10)
                (socket-name (expand-file-name "socket" directory))
@@ -735,7 +736,7 @@ Return nil if that can't be determined."
   process-tests--EMFILE-message)
 
 (ert-deftest process-tests/sentinel-called ()
-  "Check that sentinels are called after processes finish"
+  "Check that sentinels are called after processes finish."
   (let ((command (process-tests--emacs-command)))
     (skip-unless command)
     (dolist (conn-type '(pipe pty))
@@ -790,6 +791,7 @@ have written output."
                            (list (list process "finished\n"))))))))))
 
 (ert-deftest process-tests/multiple-threads-waiting ()
+  :tags (if (getenv "EMACS_EMBA_CI") '(:unstable))
   (skip-unless (fboundp 'make-thread))
   (with-timeout (60 (ert-fail "Test timed out"))
     (process-tests--with-processes processes
@@ -906,6 +908,41 @@ Return nil if FILENAME doesn't exist."
       (should (equal 2 (process-exit-status proc)))
       ;; ...and the change description should be "interrupt".
       (should (equal '("interrupt\n") events)))))
+
+(ert-deftest process-async-https-with-delay ()
+  "Bug#49449: asynchronous TLS connection with delayed completion."
+  (skip-unless (and internet-is-working (gnutls-available-p)))
+  (let* ((status nil)
+         (buf (url-http
+                 #s(url "https" nil nil "elpa.gnu.org" nil
+                        "/packages/archive-contents" nil nil t silent t t)
+                 (lambda (s) (setq status s))
+                 '(nil) nil 'tls)))
+    (unwind-protect
+        (progn
+          ;; Busy-wait for 1 s to allow for the TCP connection to complete.
+          (let ((delay 1.0)
+                (t0 (float-time)))
+            (while (< (float-time) (+ t0 delay))))
+          ;; Wait for the entire operation to finish.
+          (let ((limit 4.0)
+                (t0 (float-time)))
+            (while (and (null status)
+                        (< (float-time) (+ t0 limit)))
+              (sit-for 0.1)))
+          (should status)
+          (should-not (assq :error status))
+          (should buf)
+          (should (> (buffer-size buf) 0))
+          )
+      (when buf
+        (kill-buffer buf)))))
+
+(ert-deftest process-num-processors ()
+  "Sanity checks for num-processors."
+  (should (equal (num-processors) (num-processors)))
+  (should (integerp (num-processors)))
+  (should (< 0 (num-processors))))
 
 (provide 'process-tests)
 ;;; process-tests.el ends here

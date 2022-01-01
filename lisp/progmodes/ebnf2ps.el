@@ -1,11 +1,11 @@
 ;;; ebnf2ps.el --- translate an EBNF to a syntactic chart on PostScript  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1999-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1999-2022 Free Software Foundation, Inc.
 
 ;; Author: Vinicius Jose Latorre <viniciusjl.gnu@gmail.com>
 ;; Keywords: wp, ebnf, PostScript
 ;; Version: 4.4
-;; X-URL: https://www.emacswiki.org/cgi-bin/wiki/ViniciusJoseLatorre
+;; URL: https://www.emacswiki.org/cgi-bin/wiki/ViniciusJoseLatorre
 
 ;; This file is part of GNU Emacs.
 
@@ -330,7 +330,7 @@ Please send all bug fixes and enhancements to
 ;;			("Augmented BNF for Syntax Specifications: ABNF").
 ;;
 ;;    `iso-ebnf'	ebnf2ps recognizes the syntax described in the URL:
-;;			`http://www.cl.cam.ac.uk/~mgk25/iso-ebnf.html'
+;;			`https://www.cl.cam.ac.uk/~mgk25/iso-ebnf.html'
 ;;			("International Standard of the ISO EBNF Notation").
 ;;			The following variables *ONLY* have effect with this
 ;;			setting:
@@ -1165,7 +1165,7 @@ Please send all bug fixes and enhancements to
 ;;; Interface to the command system
 
 (defgroup postscript nil
-  "Printing with PostScript"
+  "Printing with PostScript."
   :tag "PostScript"
   :version "20"
   :group 'environment)
@@ -1783,7 +1783,7 @@ Valid values are:
 		(\"Augmented BNF for Syntax Specifications: ABNF\").
 
    `iso-ebnf'	ebnf2ps recognizes the syntax described in the URL:
-		`http://www.cl.cam.ac.uk/~mgk25/iso-ebnf.html'
+                `https://www.cl.cam.ac.uk/~mgk25/iso-ebnf.html'
 		(\"International Standard of the ISO EBNF Notation\").
 		The following variables *ONLY* have effect with this
 		setting:
@@ -2244,8 +2244,12 @@ the PostScript image in a file with that name.  If FILENAME is a
 number, prompt the user for the name of the file to save in."
   (interactive (list (ps-print-preprint current-prefix-arg)))
   (ebnf-log-header "(ebnf-print-buffer %S)" filename)
-  (ebnf-print-region (point-min) (point-max) filename))
-
+  (cl-letf (((symbol-function 'ps-output-string)
+             ;; Make non-ASCII work (sort of).
+             (lambda (string)
+               (ps-output t (and string
+                                 (encode-coding-string string 'iso-8859-1))))))
+    (ebnf-print-region (point-min) (point-max) filename)))
 
 ;;;###autoload
 (defun ebnf-print-region (from to &optional filename)
@@ -2920,7 +2924,7 @@ See `ebnf-style-database' documentation."
 	value
       (and (car value) (ebnf-apply-style1 (car value)))
       (while (setq value (cdr value))
-	(set (caar value) (eval (cdar value)))))))
+	(set (caar value) (eval (cdar value) t))))))
 
 
 (defun ebnf-check-style-values (values)
@@ -4337,7 +4341,7 @@ end
   (let ((len   (1- (length str)))
 	(index 0)
 	new start fmt)
-    (while (setq start (string-match "%" str index))
+    (while (setq start (string-search "%" str index))
       (setq fmt   (if (< start len) (aref str (1+ start)) ?\?)
 	    new   (concat new
 			  (substring str index start)
@@ -4398,8 +4402,8 @@ end
 
 (defun ebnf-format-float (&rest floats)
   (mapconcat
-   #'(lambda (float)
-       (format ebnf-format-float float))
+   (lambda (float)
+     (format ebnf-format-float float))
    floats
    " "))
 
@@ -4959,8 +4963,8 @@ killed after process termination."
 
 (defvar ebnf-map-name
   (let ((map (make-vector 256 ?\_)))
-    (mapc #'(lambda (char)
-	      (aset map char char))
+    (mapc (lambda (char)
+            (aset map char char))
 	  (concat "#$%&+-.0123456789=?@~"
 		  "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 		  "abcdefghijklmnopqrstuvwxyz"))
@@ -5487,7 +5491,7 @@ killed after process termination."
 		      (ebnf-shape-value ebnf-chart-shape
 					ebnf-terminal-shape-alist))
 	      (format "/UserArrow{%s}def\n"
-		      (let ((arrow (eval ebnf-user-arrow)))
+		      (let ((arrow (eval ebnf-user-arrow t)))
 			(if (stringp arrow)
 			    arrow
 			  "")))
@@ -6290,7 +6294,7 @@ killed after process termination."
 (defun ebnf-log-header (format-str &rest args)
   (when ebnf-log
     (apply
-     'ebnf-log
+     #'ebnf-log
      (concat
       "\n\n===============================================================\n\n"
       format-str)

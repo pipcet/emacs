@@ -1,6 +1,6 @@
 ;;; network-stream-tests.el --- tests for network processes       -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2016-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2016-2022 Free Software Foundation, Inc.
 
 ;; Author: Lars Ingebrigtsen <larsi@gnus.org>
 
@@ -31,6 +31,8 @@
 ;; The require above is needed for 'open-network-stream' to work, but
 ;; it pulls in nsm, which then makes the :nowait t' tests fail unless
 ;; we disable the nsm, which we do by binding 'network-security-level'
+
+(declare-function gnutls-peer-status "gnutls.c")
 
 (ert-deftest make-local-unix-server ()
   (skip-unless (featurep 'make-network-process '(:family local)))
@@ -128,7 +130,7 @@
     (when prev
       (setq string (concat prev string))
       (process-put proc 'previous-string nil)))
-  (if (and (not (string-match "\n" string))
+  (if (and (not (string-search "\n" string))
            (> (length string) 0))
       (process-put proc 'previous-string string))
   (let ((command (split-string string)))
@@ -307,6 +309,7 @@
                                           :name "bar"
                                           :buffer (generate-new-buffer "*foo*")
                                           :nowait t
+                                          :family 'ipv4
                                           :tls-parameters
                                           (cons 'gnutls-x509pki
                                                 (gnutls-boot-parameters
@@ -610,7 +613,7 @@
   (skip-unless (gnutls-available-p))
   (let ((server (make-tls-server 44667))
         (times 0)
-        nowait
+        (nowait nil) ; Workaround Bug#47080
         proc status)
     (unwind-protect
         (progn

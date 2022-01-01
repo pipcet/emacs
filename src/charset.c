@@ -1,6 +1,6 @@
 /* Basic character set support.
 
-Copyright (C) 2001-2021 Free Software Foundation, Inc.
+Copyright (C) 2001-2022 Free Software Foundation, Inc.
 
 Copyright (C) 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004,
   2005, 2006, 2007, 2008, 2009, 2010, 2011
@@ -63,7 +63,7 @@ Lisp_Object Vcharset_hash_table;
 /* Table of struct charset.  */
 struct charset *charset_table;
 int charset_table_size;
-static int charset_table_used;
+int charset_table_used;
 
 /* Special charsets corresponding to symbols.  */
 int charset_ascii;
@@ -486,7 +486,7 @@ load_charset_map_from_file (struct charset *charset, Lisp_Object mapfile,
   ptrdiff_t count = SPECPDL_INDEX ();
   record_unwind_protect_nothing ();
   specbind (Qfile_name_handler_alist, Qnil);
-  fd = openp (Vcharset_map_path, mapfile, suffixes, NULL, Qnil, false);
+  fd = openp (Vcharset_map_path, mapfile, suffixes, NULL, Qnil, false, false);
   fp = fd < 0 ? 0 : fdopen (fd, "r");
   if (!fp)
     {

@@ -1,6 +1,6 @@
-;;; cfengine.el --- mode for editing Cfengine files
+;;; cfengine.el --- mode for editing Cfengine files  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2001-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2001-2022 Free Software Foundation, Inc.
 
 ;; Author: Dave Love <fx@gnu.org>
 ;; Maintainer: Ted Zlatanov <tzz@lifelogs.com>
@@ -47,8 +47,8 @@
 ;; (add-hook 'cfengine3-mode-hook 'eldoc-mode)
 
 ;; You may also find the command `cfengine3-reformat-json-string'
-;; useful, just bind it to a key you prefer. It will take the current
-;; string and reformat it as JSON. So if you're editing JSON inside
+;; useful, just bind it to a key you prefer.  It will take the current
+;; string and reformat it as JSON.  So if you're editing JSON inside
 ;; the policy, it's a quick way to make it more legible without
 ;; manually reindenting it.  For instance:
 
@@ -140,8 +140,7 @@ bundle agent rcfiles
       \"/tmp/netrc\"
               comment => \"my netrc\",
                 perms => mog(\"600\", \"tzz\", \"tzz\");
-}
-"
+}"
   :version "24.4"
   :type '(list
           (choice (const :tag "Anchor at beginning of promise" promise)
@@ -987,13 +986,11 @@ Intended as the value of `indent-line-function'."
     (if (> (- (point-max) pos) (point))
 	(goto-char (- (point-max) pos)))))
 
-;; This doesn't work too well in Emacs 21.2.  See 22.1 development
-;; code.
 (defun cfengine-fill-paragraph (&optional justify)
   "Fill `paragraphs' in Cfengine code."
   (interactive "P")
   (or (if (fboundp 'fill-comment-paragraph)
-	  (fill-comment-paragraph justify) ; post Emacs 21.3
+          (fill-comment-paragraph justify)
 	;; else do nothing in a comment
 	(nth 4 (parse-partial-sexp (save-excursion
 				     (beginning-of-defun)
@@ -1195,7 +1192,7 @@ Intended as the value of `indent-line-function'."
 ;; CATEGORY: [a-zA-Z_]+:
 
 (defun cfengine3--current-function ()
-  "Look up current CFEngine 3 function"
+  "Look up current CFEngine 3 function."
   (let* ((syntax (cfengine3-make-syntax-cache))
          (flist (assq 'functions syntax)))
     (when flist
@@ -1442,7 +1439,7 @@ to the action header."
       (cfengine3-mode)
     (cfengine2-mode)))
 
-(defalias 'cfengine-mode 'cfengine3-mode)
+(defalias 'cfengine-mode #'cfengine3-mode)
 
 (provide 'cfengine3)
 (provide 'cfengine)

@@ -1,6 +1,6 @@
 ;;; ja-dic-cnv.el --- convert a Japanese dictionary (SKK-JISYO.L) to Emacs Lisp  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2001-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2001-2022 Free Software Foundation, Inc.
 
 ;; Copyright (C) 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004,
 ;;   2005, 2006, 2007, 2008, 2009, 2010, 2011
@@ -323,11 +323,9 @@
     (insert ")\n\n")))
 
 (defun skkdic-convert (filename &optional dirname)
-  "Generate Emacs Lisp file form Japanese dictionary file FILENAME.
+  "Generate Emacs Lisp file from Japanese dictionary file FILENAME.
 The format of the dictionary file should be the same as SKK dictionaries.
-Optional argument DIRNAME if specified is the directory name under which
-the generated Emacs Lisp is saved.
-The name of generated file is specified by the variable `ja-dic-filename'."
+Saves the output as `ja-dic-filename', in directory DIRNAME (if specified)."
   (interactive "FSKK dictionary file: ")
   (let* ((skkbuf (get-buffer-create " *skkdic-unannotated*"))
 	 (buf (get-buffer-create "*skkdic-work*")))

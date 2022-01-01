@@ -1,6 +1,6 @@
 ;;; fill.el --- fill commands for Emacs  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 1985-1986, 1992, 1994-1997, 1999, 2001-2021 Free
+;; Copyright (C) 1985-1986, 1992, 1994-1997, 1999, 2001-2022 Free
 ;; Software Foundation, Inc.
 
 ;; Maintainer: emacs-devel@gnu.org
@@ -45,14 +45,16 @@ A value of nil means that any change in indentation starts a new paragraph."
 (defcustom colon-double-space nil
   "Non-nil means put two spaces after a colon when filling."
   :type 'boolean)
-(put 'colon-double-space 'safe-local-variable 'booleanp)
+(put 'colon-double-space 'safe-local-variable #'booleanp)
 
 (defcustom fill-separate-heterogeneous-words-with-space nil
   "Non-nil means to use a space to separate words of a different kind.
-This will be done with a word in the end of a line and a word in
-the beginning of the next line when concatenating them for
-filling those lines.  Whether to use a space depends on how the
-words are categorized."
+For example, when an English word at the end of a line and a CJK word
+at the beginning of the next line are joined into a single line, they
+will be separated by a space if this variable is non-nil.
+Whether to use a space to separate such words also depends on the entry
+in `fill-nospace-between-words-table' for the characters before and
+after the newline."
   :type 'boolean
   :version "26.1")
 
@@ -131,6 +133,8 @@ A nil return value means the function has not determined the fill prefix."
 (defvar fill-indent-according-to-mode nil ;Screws up CC-mode's filling tricks.
   "Whether or not filling should try to use the major mode's indentation.")
 
+(defvar current-fill-column--has-warned nil)
+
 (defun current-fill-column ()
   "Return the fill-column to use for this line.
 The fill-column to use for a buffer is stored in the variable `fill-column',
@@ -156,7 +160,14 @@ number equals or exceeds the local fill-column - right-margin difference."
 			     (< col fill-col)))
 	    (setq here change
 		  here-col col))
-	  (max here-col fill-col)))))
+	  (max here-col fill-col))
+      ;; This warning was added in 28.1.  It should be removed later,
+      ;; and this function changed to never return nil.
+      (unless current-fill-column--has-warned
+        (lwarn '(fill-column) :warning
+               "Setting this variable to nil is obsolete; use `(auto-fill-mode -1)' instead")
+        (setq current-fill-column--has-warned t))
+      most-positive-fixnum)))
 
 (defun canonically-space-region (beg end)
   "Remove extra spaces between words in region.
@@ -385,12 +396,8 @@ and `fill-nobreak-invisible'."
 	  (save-excursion
 	    (skip-chars-backward " ")
 	    (and (eq (preceding-char) ?.)
-		 (looking-at " \\([^ ]\\|$\\)"))))
-     ;; Another approach to the same problem.
-     (save-excursion
-       (skip-chars-backward " ")
-       (and (eq (preceding-char) ?.)
-	    (not (progn (forward-char -1) (looking-at (sentence-end))))))
+                 ;; There's something more after the space.
+		 (looking-at " [^ \n]"))))
      ;; Don't split a line if the rest would look like a new paragraph.
      (unless use-hard-newlines
        (save-excursion
@@ -412,12 +419,12 @@ and `fill-nobreak-invisible'."
   ;; Register `kinsoku' for scripts HAN, KANA, BOPOMOFO, and CJK-MISC.
   ;; Also tell that they don't use space between words.
   (map-char-table
-   #'(lambda (key val)
-       (when (memq val '(han kana bopomofo cjk-misc))
-	 (set-char-table-range fill-find-break-point-function-table
-			       key 'kinsoku)
-	 (set-char-table-range fill-nospace-between-words-table
-			       key t)))
+   (lambda (key val)
+     (when (memq val '(han kana bopomofo cjk-misc))
+       (set-char-table-range fill-find-break-point-function-table
+                             key 'kinsoku)
+       (set-char-table-range fill-nospace-between-words-table
+                             key t)))
    char-script-table)
   ;; Do the same thing also for full width characters and half
   ;; width kana variants.
@@ -698,12 +705,16 @@ space does not end a sentence, so don't break a line there."
     (goto-char from-plus-indent))
 
   (if (not (> to (point)))
-      nil ;; There is no paragraph, only whitespace: exit now.
+      ;; There is no paragraph, only whitespace: exit now.
+      (progn
+        (set-marker to nil)
+        nil)
 
     (or justify (setq justify (current-justification)))
 
     ;; Don't let Adaptive Fill mode alter the fill prefix permanently.
-    (let ((fill-prefix fill-prefix))
+    (let ((actual-fill-prefix fill-prefix)
+          (fill-prefix fill-prefix))
       ;; Figure out how this paragraph is indented, if desired.
       (when (and adaptive-fill-mode
 		 (or (null fill-prefix) (string= fill-prefix "")))
@@ -717,7 +728,7 @@ space does not end a sentence, so don't break a line there."
       (goto-char from)
       (beginning-of-line)
 
-      (if (not justify)	  ; filling disabled: just check indentation
+      (if (not justify)     ; filling disabled: just check indentation
 	  (progn
 	    (goto-char from)
 	    (while (< (point) to)
@@ -747,14 +758,16 @@ space does not end a sentence, so don't break a line there."
               linebeg)
 	  (while (< (point) to)
             ;; On the first line, there may be text in the fill prefix
-            ;; zone.  In that case, don't consider that area when
-            ;; trying to find a place to put a line break (bug#45720).
+            ;; zone (when `fill-prefix' is specified externally, and
+            ;; not computed).  In that case, don't consider that area
+            ;; when trying to find a place to put a line break
+            ;; (bug#45720).
             (if (not first)
 	        (setq linebeg (point))
               (setq first nil
-                    linebeg (+ (point) (length fill-prefix))))
+                    linebeg (+ (point) (length actual-fill-prefix))))
 	    (move-to-column (current-fill-column))
-	    (if (when (< (point) to)
+	    (if (when (and (< (point) to) (< linebeg to))
 		  ;; Find the position where we'll break the line.
 		  ;; Use an immediately following space, if any.
 		  ;; However, note that `move-to-column' may overshoot
@@ -781,6 +794,7 @@ space does not end a sentence, so don't break a line there."
       ;; Leave point after final newline.
       (goto-char to)
       (unless (eobp) (forward-char 1))
+      (set-marker to nil)
       ;; Return the fill-prefix we used
       fill-prefix)))
 
@@ -1050,7 +1064,7 @@ than line breaks untouched, and fifth arg TO-EOP non-nil means
 to keep filling to the end of the paragraph (or next hard newline,
 if variable `use-hard-newlines' is on).
 
-Return the fill-prefix used for filling the last paragraph.
+Return the `fill-prefix' used for filling the last paragraph.
 
 If `sentence-end-double-space' is non-nil, then period followed by one
 space does not end a sentence, so don't break a line there."

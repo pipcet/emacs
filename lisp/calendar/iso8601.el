@@ -1,6 +1,6 @@
 ;;; iso8601.el --- parse ISO 8601 date/time strings  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2019-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2019-2022 Free Software Foundation, Inc.
 
 ;; Keywords: dates
 
@@ -41,7 +41,7 @@
 ;;
 ;; The standard can be found at:
 ;;
-;; http://www.loc.gov/standards/datetime/iso-tc154-wg5_n0038_iso_wd_8601-1_2016-02-16.pdf
+;; https://www.loc.gov/standards/datetime/iso-tc154-wg5_n0038_iso_wd_8601-1_2016-02-16.pdf
 ;;
 ;; The Wikipedia page on the standard is also informative:
 ;;
@@ -57,7 +57,7 @@
 (defun iso8601--concat-regexps (regexps)
   (mapconcat (lambda (regexp)
                (concat "\\(?:"
-                       (replace-regexp-in-string "(" "(?:" regexp)
+                       (string-replace "(" "(?:" regexp)
                        "\\)"))
              regexps "\\|"))
 
@@ -92,13 +92,13 @@
   "\\(Z\\|\\([+-]\\)\\([0-9][0-9]\\):?\\([0-9][0-9]\\)?\\)")
 
 (defconst iso8601--full-time-match
-  (concat "\\(" (replace-regexp-in-string "(" "(?:" iso8601--time-match) "\\)"
+  (concat "\\(" (string-replace "(" "(?:" iso8601--time-match) "\\)"
           "\\(" iso8601--zone-match "\\)?"))
 
 (defconst iso8601--combined-match
   (concat "\\(" iso8601--date-match "\\)"
           "\\(?:T\\("
-          (replace-regexp-in-string "(" "(?:" iso8601--time-match)
+          (string-replace "(" "(?:" iso8601--time-match)
           "\\)"
           "\\(" iso8601--zone-match "\\)?\\)?"))
 
@@ -231,17 +231,22 @@ See `decode-time' for the meaning of FORM."
                            (string-to-number (match-string 2 time))))
               (second (and (match-string 3 time)
                            (string-to-number (match-string 3 time))))
-	      (fraction (and (not (zerop (length (match-string 4 time))))
-                             (string-to-number (match-string 4 time)))))
+              (frac-string (match-string 4 time))
+              fraction fraction-precision)
+          (when frac-string
+            ;; Remove trailing zeroes.
+            (setq frac-string (replace-regexp-in-string "0+\\'" "" frac-string))
+            (when (length> frac-string 0)
+              (setq fraction (string-to-number frac-string)
+                    fraction-precision (length frac-string))))
           (when (and fraction
                      (eq form t))
             (cond
              ;; Sub-second time.
              (second
-              (let ((digits (1+ (truncate (log fraction 10)))))
-                (setq second (cons (+ (* second (expt 10 digits))
-                                      fraction)
-                                   (expt 10 digits)))))
+              (setq second (cons (+ (* second (expt 10 fraction-precision))
+                                    fraction)
+                                 (expt 10 fraction-precision))))
              ;; Fractional minute.
              (minute
               (setq second (iso8601--decimalize fraction 60)))

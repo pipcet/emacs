@@ -1,6 +1,6 @@
 ;;; outline.el --- outline mode commands for Emacs  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 1986, 1993-1995, 1997, 2000-2021 Free Software
+;; Copyright (C) 1986, 1993-1995, 1997, 2000-2022 Free Software
 ;; Foundation, Inc.
 
 ;; Maintainer: emacs-devel@gnu.org
@@ -34,6 +34,8 @@
 ;; - don't bother hiding whitespace
 
 ;;; Code:
+
+(eval-when-compile (require 'cl-lib))
 
 (defgroup outlines nil
   "Support for hierarchical outlining."
@@ -175,6 +177,35 @@ in the file it applies to.")
 				   outline-mode-menu-bar-map))))))
     map))
 
+(defcustom outline-minor-mode-cycle-filter nil
+  "Filter out positions on the heading available for cycling."
+  :type '(choice (const :tag "Everywhere" nil)
+                 (const :tag "At line beginning" bolp)
+                 (const :tag "Not at line beginning"
+                        (lambda () (not (bolp))))
+                 (const :tag "At line end" eolp)
+                 (function :tag "Custom filter"))
+  :version "28.1")
+
+(defun outline-minor-mode-cycle--bind (map key binding &optional filter)
+  (define-key map key
+    `(menu-item
+      "" ,binding
+      ;; Filter out specific positions on the heading.
+      :filter
+      ,(or filter
+           (lambda (cmd)
+             (when (or (not (functionp outline-minor-mode-cycle-filter))
+                       (funcall outline-minor-mode-cycle-filter))
+               cmd))))))
+
+(defvar outline-minor-mode-cycle-map
+  (let ((map (make-sparse-keymap)))
+    (outline-minor-mode-cycle--bind map (kbd "TAB") #'outline-cycle)
+    (outline-minor-mode-cycle--bind map (kbd "<backtab>") #'outline-cycle-buffer)
+    map)
+  "Keymap used by `outline-minor-mode-cycle'.")
+
 (defvar outline-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map "\C-c" outline-mode-prefix-map)
@@ -190,8 +221,22 @@ in the file it applies to.")
 (defvar outline-font-lock-keywords
   '(
     ;; Highlight headings according to the level.
-    (eval . (list (concat "^\\(?:" outline-regexp "\\).+")
-		  0 '(outline-font-lock-face) nil t)))
+    (eval . (list (concat "^\\(?:" outline-regexp "\\).*")
+                  0 '(if outline-minor-mode
+                         (if outline-minor-mode-cycle
+                             (if outline-minor-mode-highlight
+                                 (list 'face (outline-font-lock-face)
+                                       'keymap outline-minor-mode-cycle-map)
+                               (list 'face nil
+                                     'keymap outline-minor-mode-cycle-map))
+                           (if outline-minor-mode-highlight
+                               (list 'face (outline-font-lock-face))))
+                       (outline-font-lock-face))
+                  (when outline-minor-mode
+                    (pcase outline-minor-mode-highlight
+                      ('override t)
+                      ('append 'append)))
+                  t)))
   "Additional expressions to highlight in Outline mode.")
 
 (defface outline-1
@@ -229,6 +274,25 @@ in the file it applies to.")
 (defvar outline-font-lock-faces
   [outline-1 outline-2 outline-3 outline-4
    outline-5 outline-6 outline-7 outline-8])
+
+(defcustom outline-minor-mode-use-buttons nil
+  "If non-nil, use clickable buttons on the headings.
+Note that this feature is not meant to be used in editing
+buffers (yet) -- that will be amended in a future version.
+
+The `outline-minor-mode-buttons' variable specifies how the
+buttons should look."
+  :type 'boolean
+  :safe #'booleanp
+  :version "29.1")
+
+(defcustom outline-minor-mode-buttons
+  '(("▶️" "🔽" outline--valid-emoji-p)
+    ("▶" "▼" outline--valid-char-p))
+  "List of close/open pairs to use if using buttons."
+  :type 'sexp
+  :version "29.1")
+
 
 (defvar outline-level #'outline-level
   "Function of no args to compute a header's nesting level in an outline.
@@ -305,15 +369,68 @@ After that, changing the prefix key requires manipulating keymaps."
          (define-key outline-minor-mode-map val outline-mode-prefix-map)
          (set-default sym val)))
 
+(defcustom outline-minor-mode-cycle nil
+  "Enable cycling of headings in `outline-minor-mode'.
+When enabled, it puts a keymap with cycling keys on heading lines.
+When point is on a heading line, then typing `TAB' cycles between `hide all',
+`headings only' and `show all' (`outline-cycle').  Typing `S-TAB' on
+a heading line cycles the whole buffer (`outline-cycle-buffer').
+Typing these keys anywhere outside heading lines uses their default bindings."
+  :type 'boolean
+  :safe #'booleanp
+  :version "28.1")
+
+(defcustom outline-minor-mode-highlight nil
+  "Highlight headings in `outline-minor-mode' using font-lock keywords.
+Non-nil value works well only when outline font-lock keywords
+don't conflict with the major mode's font-lock keywords.
+When t, it puts outline faces only if there are no major mode's faces
+on headings.  When `override', it completely overwrites major mode's
+faces with outline faces.  When `append', it tries to append outline
+faces to major mode's faces."
+  :type '(choice (const :tag "No highlighting" nil)
+                 (const :tag "Overwrite major mode faces" override)
+                 (const :tag "Append outline faces to major mode faces" append)
+                 (const :tag "Highlight separately from major mode faces" t))
+  :safe #'symbolp
+  :version "28.1")
+
+(defun outline-minor-mode-highlight-buffer ()
+  ;; Fallback to overlays when font-lock is unsupported.
+  (save-excursion
+    (goto-char (point-min))
+    (let ((regexp (concat "^\\(?:" outline-regexp "\\).*$")))
+      (while (re-search-forward regexp nil t)
+        (let ((overlay (make-overlay (match-beginning 0)
+                                     (match-end 0))))
+          (overlay-put overlay 'outline-overlay t)
+          (when (or (eq outline-minor-mode-highlight 'override)
+                    (and (eq outline-minor-mode-highlight t)
+                         (goto-char (match-beginning 0))
+                         (not (get-text-property (point) 'face))))
+            (overlay-put overlay 'face (outline-font-lock-face)))
+          (when outline-minor-mode-use-buttons
+            (outline--insert-open-button))
+          (when outline-minor-mode-cycle
+            (overlay-put overlay 'keymap outline-minor-mode-cycle-map)))
+        (goto-char (match-end 0))))))
+
 ;;;###autoload
 (define-minor-mode outline-minor-mode
   "Toggle Outline minor mode.
 
 See the command `outline-mode' for more information on this mode."
-  nil " Outl" (list (cons [menu-bar] outline-minor-mode-menu-bar-map)
-		    (cons outline-minor-mode-prefix outline-mode-prefix-map))
+  :lighter " Outl"
+  :keymap (list (cons [menu-bar] outline-minor-mode-menu-bar-map)
+		(cons outline-minor-mode-prefix outline-mode-prefix-map))
   (if outline-minor-mode
       (progn
+        (when (or outline-minor-mode-cycle outline-minor-mode-highlight)
+          (if (and global-font-lock-mode (font-lock-specified-p major-mode))
+              (progn
+                (font-lock-add-keywords nil outline-font-lock-keywords t)
+                (font-lock-flush))
+            (outline-minor-mode-highlight-buffer)))
 	;; Turn off this mode if we change major modes.
 	(add-hook 'change-major-mode-hook
 		  (lambda () (outline-minor-mode -1))
@@ -321,6 +438,11 @@ See the command `outline-mode' for more information on this mode."
         (setq-local line-move-ignore-invisible t)
 	;; Cause use of ellipses for invisible text.
 	(add-to-invisibility-spec '(outline . t)))
+    (when (or outline-minor-mode-cycle outline-minor-mode-highlight)
+      (if font-lock-fontified
+          (font-lock-remove-keywords nil outline-font-lock-keywords))
+      (remove-overlays nil nil 'outline-overlay t)
+      (font-lock-flush))
     (setq line-move-ignore-invisible nil)
     ;; Cause use of ellipses for invisible text.
     (remove-from-invisibility-spec '(outline . t))
@@ -708,6 +830,7 @@ If FLAG is nil then text is shown, while if FLAG is t the text is hidden."
       (overlay-put o 'isearch-open-invisible
 		   (or outline-isearch-open-invisible-function
 		       #'outline-isearch-open-invisible))))
+  (outline--fix-up-all-buttons from to)
   ;; Seems only used by lazy-lock.  I.e. obsolete.
   (run-hooks 'outline-view-change-hook))
 
@@ -824,10 +947,81 @@ Note that this does not hide the lines preceding the first heading line."
 
 (define-obsolete-function-alias 'show-all #'outline-show-all "25.1")
 
-(defun outline-hide-subtree ()
-  "Hide everything after this heading at deeper levels."
-  (interactive)
+(defun outline-hide-subtree (&optional event)
+  "Hide everything after this heading at deeper levels.
+If non-nil, EVENT should be a mouse event."
+  (interactive (list last-nonmenu-event))
+  (when (mouse-event-p event)
+    (mouse-set-point event))
+  (when (and outline-minor-mode-use-buttons outline-minor-mode)
+    (outline--insert-close-button))
   (outline-flag-subtree t))
+
+(defun outline--make-button (type)
+  (cl-loop for (close open test) in outline-minor-mode-buttons
+           when (and (funcall test close) (funcall test open))
+           return (concat (if (eq type 'close)
+                              close
+                            open)
+                          " " (buffer-substring (point) (1+ (point))))))
+
+(defun outline--valid-emoji-p (string)
+  (when-let ((font (and (display-multi-font-p)
+                        (car (internal-char-font nil ?😀)))))
+    (font-has-char-p font (aref string 0))))
+
+(defun outline--valid-char-p (string)
+  (char-displayable-p (aref string 0)))
+
+(defun outline--make-button-overlay (type)
+  (let ((o (seq-find (lambda (o)
+                       (overlay-get o 'outline-button))
+                     (overlays-at (point)))))
+    (unless o
+      (setq o (make-overlay (point) (1+ (point))))
+      (overlay-put o 'follow-link 'mouse-face)
+      (overlay-put o 'mouse-face 'highlight)
+      (overlay-put o 'outline-button t))
+    (overlay-put o 'display (outline--make-button type))
+    o))
+
+(defun outline--insert-open-button ()
+  (save-excursion
+    (beginning-of-line)
+    (let ((o (outline--make-button-overlay 'open)))
+      (overlay-put o 'help-echo "Click to hide")
+      (overlay-put o 'keymap
+                   (define-keymap
+                     :parent outline-minor-mode-cycle-map
+                     "RET" #'outline-hide-subtree
+                     "<mouse-2>" #'outline-hide-subtree)))))
+
+(defun outline--insert-close-button ()
+  (save-excursion
+    (beginning-of-line)
+    (let ((o (outline--make-button-overlay 'close)))
+      (overlay-put o 'help-echo "Click to show")
+      (overlay-put o 'keymap
+                   (define-keymap
+                     :parent outline-minor-mode-cycle-map
+                     "RET" #'outline-show-subtree
+                     "<mouse-2>" #'outline-show-subtree)))))
+
+(defun outline--fix-up-all-buttons (&optional from to)
+  (when from
+    (save-excursion
+      (goto-char from)
+      (setq from (line-beginning-position))))
+  (when outline-minor-mode-use-buttons
+    (outline-map-region
+     (lambda ()
+       ;; `outline--cycle-state' will fail if we're in a totally
+       ;; collapsed buffer -- but in that case, we're not in a
+       ;; `show-all' situation.
+       (if (eq (ignore-errors (outline--cycle-state)) 'show-all)
+           (outline--insert-open-button)
+         (outline--insert-close-button)))
+     (or from (point-min)) (or to (point-max)))))
 
 (define-obsolete-function-alias 'hide-subtree #'outline-hide-subtree "25.1")
 
@@ -844,9 +1038,13 @@ Note that this does not hide the lines preceding the first heading line."
 
 (define-obsolete-function-alias 'hide-leaves #'outline-hide-leaves "25.1")
 
-(defun outline-show-subtree ()
+(defun outline-show-subtree (&optional event)
   "Show everything after this heading at deeper levels."
-  (interactive)
+  (interactive (list last-nonmenu-event))
+  (when (mouse-event-p event)
+    (mouse-set-point event))
+  (when (and outline-minor-mode-use-buttons outline-minor-mode)
+    (outline--insert-open-button))
   (outline-flag-subtree nil))
 
 (define-obsolete-function-alias 'show-subtree #'outline-show-subtree "25.1")
@@ -1196,7 +1394,47 @@ Return either 'hide-all, 'headings-only, or 'show-all."
      (t
       (outline-show-all)
       (setq outline--cycle-buffer-state 'show-all)
-      (message "Show all")))))
+      (message "Show all")))
+    (outline--fix-up-all-buttons)))
+
+(defvar outline-navigation-repeat-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "C-b") #'outline-backward-same-level)
+    (define-key map (kbd "b") #'outline-backward-same-level)
+    (define-key map (kbd "C-f") #'outline-forward-same-level)
+    (define-key map (kbd "f") #'outline-forward-same-level)
+    (define-key map (kbd "C-n") #'outline-next-visible-heading)
+    (define-key map (kbd "n") #'outline-next-visible-heading)
+    (define-key map (kbd "C-p") #'outline-previous-visible-heading)
+    (define-key map (kbd "p") #'outline-previous-visible-heading)
+    (define-key map (kbd "C-u") #'outline-up-heading)
+    (define-key map (kbd "u") #'outline-up-heading)
+    map))
+
+(dolist (command '(outline-backward-same-level
+                   outline-forward-same-level
+                   outline-next-visible-heading
+                   outline-previous-visible-heading
+                   outline-up-heading))
+  (put command 'repeat-map 'outline-navigation-repeat-map))
+
+(defvar outline-editing-repeat-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "C-v") #'outline-move-subtree-down)
+    (define-key map (kbd "v") #'outline-move-subtree-down)
+    (define-key map (kbd "C-^") #'outline-move-subtree-up)
+    (define-key map (kbd "^") #'outline-move-subtree-up)
+    (define-key map (kbd "C->") #'outline-demote)
+    (define-key map (kbd ">") #'outline-demote)
+    (define-key map (kbd "C-<") #'outline-promote)
+    (define-key map (kbd "<") #'outline-promote)
+    map))
+
+(dolist (command '(outline-move-subtree-down
+                   outline-move-subtree-up
+                   outline-demote
+                   outline-promote))
+  (put command 'repeat-map 'outline-editing-repeat-map))
 
 (provide 'outline)
 (provide 'noutline)

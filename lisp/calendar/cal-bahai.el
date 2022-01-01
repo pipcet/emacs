@@ -1,6 +1,6 @@
 ;;; cal-bahai.el --- calendar functions for the Bahá’í calendar.  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2001-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2001-2022 Free Software Foundation, Inc.
 
 ;; Author: John Wiegley <johnw@gnu.org>
 ;; Keywords: calendar
@@ -27,7 +27,7 @@
 ;; This collection of functions implements the features of calendar.el
 ;; and diary-lib.el that deal with the Bahá’í calendar.
 
-;; The Bahá’í (http://www.bahai.org) calendar system is based on a
+;; The Bahá’í (https://www.bahai.org) calendar system is based on a
 ;; solar cycle of 19 months with 19 days each.  The four remaining
 ;; "intercalary" days are called the Ayyám-i-Há (days of Há), and are
 ;; placed between the 18th and 19th months.  They are meant as a time
@@ -126,7 +126,7 @@ Defaults to today's date if DATE is not given."
         ""                              ; pre-Bahai
       (let ((m (calendar-extract-month bahai-date))
             (d (calendar-extract-day bahai-date)))
-        (calendar-dlet*
+        (calendar-dlet
             ((monthname (if (and (= m 19)
                                  (<= d 0))
                             "Ayyám-i-Há"

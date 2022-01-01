@@ -1,6 +1,6 @@
 ;;; filesets.el --- handle group of files  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2002-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2002-2022 Free Software Foundation, Inc.
 
 ;; Author: Thomas Link <sanobast-emacs@yahoo.de>
 ;; Maintainer: emacs-devel@gnu.org
@@ -90,7 +90,6 @@
 
 (require 'cl-lib)
 (require 'seq)
-(require 'easymenu)
 
 ;;; Some variables
 
@@ -113,7 +112,8 @@
 (defvar filesets-updated-buffers nil
   "A list of buffers with updated menu bars.")
 (defvar filesets-menu-use-cached-flag nil
-  "Use cached data.  See `filesets-menu-ensure-use-cached' for details.")
+  "Non-nil means use cached data.
+See `filesets-menu-ensure-use-cached' for details.")
 (defvar filesets-update-cache-file-flag nil
   "Non-nil means the cache needs updating.")
 (defvar filesets-ignore-next-set-default nil
@@ -608,8 +608,8 @@ the filename."
 	(:ignore-on-read-text t)
 	;; (:constraintp ,pic-cmd)
 	))))
-  "Association list of file patterns and external viewers for use with
-`filesets-find-or-display-file'.
+  "Alist of file patterns and external viewers.
+This is intended for use with `filesets-find-or-display-file'.
 
 Has the form ((FILE-PATTERN VIEWER PROPERTIES) ...), VIEWER being either a
 function or a command name as string.
@@ -1184,7 +1184,7 @@ Return full path if FULL-FLAG is non-nil."
      (constraint-flag
       (message "Obsolete :constraint-flag %S, use :constraintp instead"
                (cadr constraint-flag))
-      (eval (cadr constraint-flag)))
+      (eval (cadr constraint-flag) t))
      (t
       t))))
 
@@ -1558,18 +1558,20 @@ Replace <file-name> or <<file-name>> with filename."
 		    (completing-read "Select fileset: " filesets-data nil t))))
     (when (and cmd-name name)
       (let* ((event (if (equal cmd-name "Grep <<selection>>")
-		       'on-grep
+		        'on-grep
 		      'on-cmd))
 	     (files (if (and fileset
-			     (or (equal mode ':ingroup)
-				 (equal mode ':tree)))
+			     (or (equal mode :ingroup)
+				 (equal mode :tree)))
 			(filesets-get-filelist fileset mode event)
-		     (filesets-get-filelist
-		      (filesets-get-fileset-from-name name)
-		      mode event))))
+		      (filesets-get-filelist
+		       (filesets-get-fileset-from-name name)
+		       mode event))))
 	(when files
 	  (let ((fn   (filesets-cmd-get-fn cmd-name))
-		(args (filesets-cmd-get-args cmd-name)))
+		(args
+		 (dlet ((filesets--files files))
+		   (filesets-cmd-get-args cmd-name))))
 	    (if (memq fn '(multi-isearch-files multi-isearch-files-regexp))
 		(apply fn args)
 	      (dolist (this files nil)
@@ -1578,28 +1580,27 @@ Replace <file-name> or <<file-name>> with filename."
 		    (let ((buffer (filesets-find-file this)))
 		      (when buffer
 			(goto-char (point-min))
-			(progn
-			  (cond
-			   ((stringp fn)
-			    (let* ((args
-				    (mapconcat
-				     (lambda (this)
-				       (filesets-run-cmd--repl-fn
-						       this
-						       (lambda (this)
-							 (format "%s" this))))
-				     args
-				     " "))
-				   (cmd (concat fn " " args)))
-			      (filesets-cmd-show-result
-			       cmd (shell-command-to-string cmd))))
-			   ((symbolp fn)
-			    (apply fn
-			           (mapcan (lambda (this)
-				             (filesets-run-cmd--repl-fn
-					      this
-					      'list))
-					   args)))))))))))))))))
+			(cond
+			 ((stringp fn)
+			  (let* ((args
+				  (mapconcat
+				   (lambda (this)
+				     (filesets-run-cmd--repl-fn
+				      this
+				      (lambda (this)
+					(format "%s" this))))
+				   args
+				   " "))
+				 (cmd (concat fn " " args)))
+			    (filesets-cmd-show-result
+			     cmd (shell-command-to-string cmd))))
+			 ((symbolp fn)
+			  (apply fn
+			         (mapcan (lambda (this)
+				           (filesets-run-cmd--repl-fn
+					    this
+					    'list))
+					 args))))))))))))))))
 
 (defun filesets-get-cmd-menu ()
   "Create filesets command menu."
@@ -1625,7 +1626,7 @@ Replace <file-name> or <<file-name>> with filename."
 
 (defun filesets-cmd-isearch-getargs ()
   "Get arguments for `multi-isearch-files' and `multi-isearch-files-regexp'."
-  (and (boundp 'files) (list files)))
+  (and (boundp 'filesets--files) (list filesets--files)))
 
 (defun filesets-cmd-shell-command-getargs ()
   "Get arguments for `filesets-cmd-shell-command'."
@@ -1770,7 +1771,7 @@ User will be queried, if no fileset name is provided."
 		      filesets-data nil)))
          (entry  (or (assoc name filesets-data)
                      (when (y-or-n-p
-                            (format "Fileset %s does not exist. Create it? "
+                            (format "Fileset %s does not exist.  Create it?"
                                     name))
                        (progn
       (add-to-list 'filesets-data (list name '(:files)))
@@ -1848,7 +1849,7 @@ User will be queried, if no fileset name is provided."
       (filesets-goto-homepage)))
 
 (defun filesets-goto-homepage ()
-  "Show filesets's homepage."
+  "Show filesets's website."
   (interactive)
   (browse-url filesets-homepage))
 
@@ -2198,8 +2199,9 @@ FS is a fileset's name.  FLIST is a list returned by
     nil))
 
 (defun filesets-build-dir-submenu (entry lookup-name dir patt)
-  "Build a :tree submenu named LOOKUP-NAME with base directory DIR including
-all files matching PATT for filesets ENTRY."
+  "Build a `:tree' submenu named LOOKUP-NAME.
+It has base directory DIR including all files matching PATT for
+filesets ENTRY."
   (let ((fd (filesets-entry-get-filter-dirs-flag entry))
 	(depth (or (filesets-entry-get-tree-max-level entry)
 		   filesets-tree-max-level)))

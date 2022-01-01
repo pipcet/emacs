@@ -1,6 +1,6 @@
 ;;; pcmpl-unix.el --- standard UNIX completions  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1999-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1999-2022 Free Software Foundation, Inc.
 
 ;; Package: pcomplete
 
@@ -82,7 +82,8 @@ being via `pcmpl-ssh-known-hosts-file'."
 ;;;###autoload
 (defun pcomplete/xargs ()
   "Completion for `xargs'."
-  ;; FIXME: Add completion of xargs-specific arguments.
+  (while (string-prefix-p "-" (pcomplete-arg 0))
+    (pcomplete-here (funcall pcomplete-default-completion-function)))
   (funcall pcomplete-command-completion-function)
   (funcall (or (pcomplete-find-completion-function (pcomplete-arg 1))
 	       pcomplete-default-completion-function)))
@@ -213,7 +214,7 @@ Includes files as well as host names followed by a colon."
 			   (list string)
 			 (completion-table-subvert (pcomplete-all-entries)
                                                    "" "/ssh:")))
-                      ((string-match "/" string) ; Local file name.
+                      ((string-search "/" string) ; Local file name.
                        (pcomplete-all-entries))
                       (t                ;Host name or local file name.
                        (append (all-completions string (pcomplete-all-entries))

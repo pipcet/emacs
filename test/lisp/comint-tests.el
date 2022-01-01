@@ -1,6 +1,6 @@
-;;; comint-tests.el  -*- lexical-binding:t -*-
+;;; comint-tests.el --- Tests for comint.el  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2010-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2010-2022 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -43,7 +43,13 @@
     "PIN for user:"        ; Bug#35523
     "Password (again):"
     "Enter password:"
+    "(user@host) Password: " ; openssh-8.6p1
+    "Current password:"    ; "passwd" (to change password) in Debian.
+    "Enter encryption key: " ; ccrypt
+    "Enter decryption key: " ; ccrypt
+    "Enter encryption key: (repeat) " ; ccrypt
     "Enter Auth Password:" ; OpenVPN (Bug#35724)
+    "Verify password: "    ; zip -e zipfile.zip ... (Bug#47209)
     "Mot de Passe :" ; localized (Bug#29729)
     "Passwort:") ; localized
   "List of strings that should match `comint-password-prompt-regexp'.")
@@ -93,4 +99,4 @@ password flow if it returns a nil value."
 ;; no-byte-compile: t
 ;; End:
 
-;;; comint-testsuite.el ends here
+;;; comint-tests.el ends here

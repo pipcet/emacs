@@ -1,5 +1,5 @@
 /* Indentation functions.
-   Copyright (C) 1985-1988, 1993-1995, 1998, 2000-2021 Free Software
+   Copyright (C) 1985-1988, 1993-1995, 1998, 2000-2022 Free Software
    Foundation, Inc.
 
 This file is part of GNU Emacs.
@@ -1967,9 +1967,13 @@ line_number_display_width (struct window *w, int *width, int *pixel_width)
       struct it it;
       struct text_pos startpos;
       bool saved_restriction = false;
+      struct buffer *old_buf = current_buffer;
       ptrdiff_t count = SPECPDL_INDEX ();
       SET_TEXT_POS_FROM_MARKER (startpos, w->start);
       void *itdata = bidi_shelve_cache ();
+
+      /* Make sure W's buffer is the current one.  */
+      set_buffer_internal_1 (XBUFFER (w->contents));
       /* We want to start from window's start point, but it could be
 	 outside the accessible region, in which case we widen the
 	 buffer temporarily.  It could even be beyond the buffer's end
@@ -1998,6 +2002,7 @@ line_number_display_width (struct window *w, int *width, int *pixel_width)
       *pixel_width = it.lnum_pixel_width;
       if (saved_restriction)
 	unbind_to (count, Qnil);
+      set_buffer_internal_1 (old_buf);
       bidi_unshelve_cache (itdata, 0);
     }
 }
@@ -2046,6 +2051,7 @@ window_column_x (struct window *w, Lisp_Object window,
 
 /* Restore window's buffer and point.  */
 
+/* FIXME: Merge with `with_echo_area_buffer_unwind_data`?  */
 static void
 restore_window_buffer (Lisp_Object list)
 {

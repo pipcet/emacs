@@ -1,5 +1,5 @@
 /* Definitions and headers for communication on the Microsoft Windows API.
-   Copyright (C) 1995, 2001-2021 Free Software Foundation, Inc.
+   Copyright (C) 1995, 2001-2022 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -761,7 +761,7 @@ extern bool w32_image_rotations_p (void);
 extern void setup_w32_kbdhook (void);
 extern void remove_w32_kbdhook (void);
 extern int check_w32_winkey_state (int);
-#define w32_kbdhook_active (os_subtype != OS_9X)
+#define w32_kbdhook_active (os_subtype != OS_SUBTYPE_9X)
 #else
 #define w32_kbdhook_active 0
 #endif

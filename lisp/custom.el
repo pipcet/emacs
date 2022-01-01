@@ -1,6 +1,6 @@
 ;;; custom.el --- tools for declaring and initializing options  -*- lexical-binding: t -*-
 ;;
-;; Copyright (C) 1996-1997, 1999, 2001-2021 Free Software Foundation,
+;; Copyright (C) 1996-1997, 1999, 2001-2022 Free Software Foundation,
 ;; Inc.
 ;;
 ;; Author: Per Abrahamsen <abraham@dina.kvl.dk>
@@ -117,9 +117,10 @@ For the standard setting, use `set-default'."
        (set-default symbol (eval exp)))))))
 
 (defvar custom-delayed-init-variables nil
-  "List of variables whose initialization is pending.")
+  "List of variables whose initialization is pending until startup.
+Once this list has been processed, this var is set to a non-list value.")
 
-(defun custom-initialize-delay (symbol _value)
+(defun custom-initialize-delay (symbol value)
   "Delay initialization of SYMBOL to the next Emacs start.
 This is used in files that are preloaded (or for autoloaded
 variables), so that the initialization is done in the run-time
@@ -133,7 +134,11 @@ the :set function."
   ;; This seemed to be at least as good as setting it to an arbitrary
   ;; value like nil (evaluating `value' is not an option because it
   ;; may have undesirable side-effects).
-  (push symbol custom-delayed-init-variables))
+  (if (listp custom-delayed-init-variables)
+      (push symbol custom-delayed-init-variables)
+    ;; In case this is called after startup, there is no "later" to which to
+    ;; delay it, so initialize it "normally" (bug#47072).
+    (custom-initialize-reset symbol value)))
 
 (defun custom-declare-variable (symbol default doc &rest args)
   "Like `defcustom', but SYMBOL and DEFAULT are evaluated as normal arguments.
@@ -202,7 +207,22 @@ set to nil, as the value is no longer rogue."
     (put symbol 'custom-requests requests)
     ;; Do the actual initialization.
     (unless custom-dont-initialize
-      (funcall initialize symbol default))
+      (funcall initialize symbol default)
+      ;; If there is a value under saved-value that wasn't saved by the user,
+      ;; reset it: we used that property to stash the value, but we don't need
+      ;; it anymore.
+      ;; This can happen given the following:
+      ;; 1. The user loaded a theme that had a setting for an unbound
+      ;; variable, so we stashed the theme setting under the saved-value
+      ;; property in `custom-theme-recalc-variable'.
+      ;; 2. Then, Emacs evaluated the defcustom for the option
+      ;; (e.g., something required the file where the option is defined).
+      ;; If we don't reset it and the user later sets this variable via
+      ;; Customize, we might end up saving the theme setting in the custom-file.
+      ;; See the test `custom-test-no-saved-value-after-customizing-option'.
+      (let ((theme (caar (get symbol 'theme-value))))
+        (when (and theme (not (eq theme 'user)) (get symbol 'saved-value))
+          (put symbol 'saved-value nil))))
     (when buffer-local
       (make-variable-buffer-local symbol)))
   (run-hooks 'custom-define-hook)
@@ -344,7 +364,8 @@ call that function directly.
 
 See Info node `(elisp) Customization' in the Emacs Lisp manual
 for more information."
-  (declare (doc-string 3) (debug (name body)))
+  (declare (doc-string 3) (debug (name body))
+           (indent defun))
   ;; It is better not to use backquote in this file,
   ;; because that makes a bootstrapping problem
   ;; if you need to recompile all the Lisp files using interpreted code.
@@ -358,7 +379,7 @@ for more information."
          ;; expression is checked by the byte-compiler, and that
          ;; lexical-binding is obeyed, so quote the expression with
          ;; `lambda' rather than with `quote'.
-         ``(funcall #',(lambda () ,standard))
+         ``(funcall #',(lambda () "" ,standard))
        `',standard)
     ,doc
     ,@args))
@@ -427,7 +448,7 @@ In the ATTS property list, possible attributes are `:family',
 
 See Info node `(elisp) Faces' in the Emacs Lisp manual for more
 information."
-  (declare (doc-string 3))
+  (declare (doc-string 3) (indent defun))
   ;; It is better not to use backquote in this file,
   ;; because that makes a bootstrapping problem
   ;; if you need to recompile all the Lisp files using interpreted code.
@@ -487,11 +508,15 @@ The remaining arguments should have the form
    [KEYWORD VALUE]...
 
 For a list of valid keywords, see the common keywords listed in
-`defcustom'.
+`defcustom'.  The keyword :prefix can only be used for
+customization groups, and means that the given string should be
+removed from variable names before creating unlispified names,
+when the user option `custom-unlispify-remove-prefixes' is
+non-nil.
 
 See Info node `(elisp) Customization' in the Emacs Lisp manual
 for more information."
-  (declare (doc-string 3))
+  (declare (doc-string 3) (indent defun))
   ;; It is better not to use backquote in this file,
   ;; because that makes a bootstrapping problem
   ;; if you need to recompile all the Lisp files using interpreted code.
@@ -906,7 +931,7 @@ See `custom-known-themes' for a list of known themes."
 	  ;; the value to a fake theme, `changed'.  If the theme is
 	  ;; later disabled, we use this to bring back the old value.
 	  ;;
-	  ;; For faces, we just use `face-new-frame-defaults' to
+	  ;; For faces, we just use `face--new-frame-defaults' to
 	  ;; recompute when the theme is disabled.
 	  (when (and (eq prop 'theme-value)
 		     (boundp symbol))
@@ -1111,29 +1136,24 @@ list, in which A occurs before B if B was defined with a
 ;;   (provide-theme 'THEME)
 
 
-;; The IGNORED arguments to deftheme come from the XEmacs theme code, where
-;; they were used to supply keyword-value pairs like `:immediate',
-;; `:variable-reset-string', etc.  We don't use any of these, so ignore them.
-
-(defmacro deftheme (theme &optional doc &rest _ignored)
+(defmacro deftheme (theme &optional doc)
   "Declare THEME to be a Custom theme.
 The optional argument DOC is a doc string describing the theme.
 
 Any theme `foo' should be defined in a file called `foo-theme.el';
 see `custom-make-theme-feature' for more information."
   (declare (doc-string 2)
-           (advertised-calling-convention (theme &optional doc) "22.1"))
+           (indent 1))
   (let ((feature (custom-make-theme-feature theme)))
     ;; It is better not to use backquote in this file,
     ;; because that makes a bootstrapping problem
     ;; if you need to recompile all the Lisp files using interpreted code.
     (list 'custom-declare-theme (list 'quote theme) (list 'quote feature) doc)))
 
-(defun custom-declare-theme (theme feature &optional doc &rest _ignored)
+(defun custom-declare-theme (theme feature &optional doc)
   "Like `deftheme', but THEME is evaluated as a normal argument.
 FEATURE is the feature this theme provides.  Normally, this is a symbol
 created from THEME by `custom-make-theme-feature'."
-  (declare (advertised-calling-convention (theme feature &optional doc) "22.1"))
   (unless (custom-theme-name-valid-p theme)
     (error "Custom theme cannot be named %S" theme))
   (unless (memq theme custom-known-themes)
@@ -1199,6 +1219,32 @@ property `theme-feature' (which is usually a symbol created by
     (error "Custom theme cannot be named %S" theme))
   (custom-check-theme theme)
   (provide (get theme 'theme-feature)))
+
+(defun require-theme (feature &optional noerror)
+  "Load FEATURE from a file along `custom-theme-load-path'.
+
+This function is like `require', but searches along
+`custom-theme-load-path' instead of `load-path'.  It can be used
+by Custom themes to load supporting Lisp files when `require' is
+unsuitable.
+
+If FEATURE is not already loaded, search for a file named FEATURE
+with an added `.elc' or `.el' suffix, in that order, in the
+directories specified by `custom-theme-load-path'.
+
+Return FEATURE if the file is successfully found and loaded, or
+if FEATURE was already loaded.  If the file fails to load, signal
+an error.  If optional argument NOERROR is non-nil, return nil
+instead of signaling an error.  If the file loads but does not
+provide FEATURE, signal an error.  This cannot be suppressed."
+  (cond
+   ((featurep feature) feature)
+   ((let* ((path (custom-theme--load-path))
+           (file (locate-file (symbol-name feature) path '(".elc" ".el"))))
+      (and file (require feature (file-name-sans-extension file) noerror))))
+   ((not noerror)
+    (signal 'file-missing `("Cannot open load file" "No such file or directory"
+                            ,(symbol-name feature))))))
 
 (defcustom custom-safe-themes '(default)
   "Themes that are considered safe to load.
@@ -1285,6 +1331,13 @@ Return t if THEME was successfully loaded, nil otherwise."
                  t))))
           (t
            (error "Unable to load theme `%s'" theme))))
+  (when-let ((obs (get theme 'byte-obsolete-info)))
+    (display-warning 'initialization
+                     (format "The `%s' theme is obsolete%s"
+                             theme
+                             (if (nth 2 obs)
+                                 (format " since Emacs %s" (nth 2 obs))
+                               ""))))
   ;; Optimization: if the theme changes the `default' face, put that
   ;; entry first.  This avoids some `frame-set-background-mode' rigmarole
   ;; by assigning the new background immediately.
@@ -1482,10 +1535,18 @@ See `custom-enabled-themes' for a list of enabled themes."
 	(let* ((prop   (car s))
 	       (symbol (cadr s))
 	       (val (assq-delete-all theme (get symbol prop))))
-          (custom-push-theme prop symbol theme 'reset)
+          (put symbol prop val)
 	  (cond
 	   ((eq prop 'theme-value)
-	    (custom-theme-recalc-variable symbol))
+            (custom-theme-recalc-variable symbol)
+            ;; We might have to reset the stashed value of the variable, if
+            ;; no other theme is customizing it.  Without this, loading a theme
+            ;; that has a setting for an unbound user option and then disabling
+            ;; it will leave this lingering setting for the option, and if then
+            ;; Emacs evaluates the defcustom the saved-value might be used to
+            ;; set the variable.  (Bug#20766)
+            (unless (get symbol 'theme-value)
+              (put symbol 'saved-value nil)))
 	   ((eq prop 'theme-face)
 	    ;; If the face spec specified by this theme is in the
 	    ;; saved-face property, reset that property.
@@ -1534,8 +1595,16 @@ This function returns nil if no custom theme specifies a value for VARIABLE."
 (defun custom-theme-recalc-variable (variable)
   "Set VARIABLE according to currently enabled custom themes."
   (let ((valspec (custom-variable-theme-value variable)))
-    (if valspec
-	(put variable 'saved-value valspec)
+    ;; We used to save VALSPEC under the saved-value property unconditionally,
+    ;; but that is a recipe for trouble because we might end up saving session
+    ;; customizations if the user loads a theme.  (Bug#21355)
+    ;; It's better to only use the saved-value property to stash the value only
+    ;; if we really need to stash it (i.e., VARIABLE is void).
+    (condition-case nil
+        (default-toplevel-value variable) ; See if it doesn't fail.
+      (void-variable (when valspec
+                       (put variable 'saved-value valspec))))
+    (unless valspec
       (setq valspec (get variable 'standard-value)))
     (if (and valspec
 	     (or (get variable 'force-value)
@@ -1596,8 +1665,6 @@ If a choice with the same tag already exists, no action is taken."
       ;; Put the new choice at the end.
       (put variable 'custom-type
            (append choices (list choice))))))
-
-;;; The End.
 
 (provide 'custom)
 

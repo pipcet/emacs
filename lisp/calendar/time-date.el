@@ -1,6 +1,6 @@
 ;;; time-date.el --- Date and time handling functions  -*- lexical-binding: t -*-
 
-;; Copyright (C) 1998-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1998-2022 Free Software Foundation, Inc.
 
 ;; Author: Lars Magne Ingebrigtsen <larsi@gnus.org>
 ;;	Masanobu Umeda <umerin@mse.kyutech.ac.jp>
@@ -69,7 +69,7 @@ list (HIGH LOW MICRO PICO)."
 		     (pop elt)))
 	     (time-value (car elt))
 	     (gensym (make-symbol "time")))
-	`(let* ,(append `((,gensym (or ,time-value (current-time)))
+	`(let* ,(append `((,gensym (or ,time-value (time-convert nil 'list)))
 			  (,gensym
 			   (cond
 			    ((integerp ,gensym)
@@ -154,7 +154,10 @@ it is assumed that PICO was omitted and should be treated as zero."
 DATE should be in one of the forms recognized by `parse-time-string'.
 If DATE lacks timezone information, GMT is assumed."
   (condition-case err
-      (encode-time (parse-time-string date))
+      (let ((parsed (parse-time-string date)))
+	(when (decoded-time-year parsed)
+	  (decoded-time-set-defaults parsed))
+	(encode-time parsed))
     (error
      (let ((overflow-error '(error "Specified time is not representable")))
        (if (equal err overflow-error)
@@ -357,7 +360,7 @@ is output until the first non-zero unit is encountered."
                            (format " %s%s" name
                                    (if (= num 1) "" "s"))))
                  t t string))))))
-  (replace-regexp-in-string "%%" "%" string))
+  (string-replace "%%" "%" string))
 
 (defvar seconds-to-string
   (list (list 1 "ms" 0.001)
@@ -406,7 +409,11 @@ entries only for the values that should be altered.
 
 For instance, if you want to \"add two months\" to TIME, then
 leave all other fields but the month field in DELTA nil, and make
-the month field 2.  The values in DELTA can be negative.
+the month field 2.  For instance:
+
+  (decoded-time-add (decode-time) (make-decoded-time :month 2))
+
+The values in DELTA can be negative.
 
 If applying a month/year delta leaves the time spec invalid, it
 is decreased to be valid (\"add one month\" to January 31st 2019
@@ -525,6 +532,8 @@ changes in daylight saving time are not taken into account."
 (defun decoded-time-set-defaults (time &optional default-zone)
   "Set any nil values in `decoded-time' TIME to default values.
 The default value is based on January 1st, 1970 at midnight.
+This year is used to guarantee portability; see Info
+node `(elisp) Time of Day'.
 
 TIME is modified and returned."
   (unless (decoded-time-second time)
@@ -539,7 +548,7 @@ TIME is modified and returned."
   (unless (decoded-time-month time)
     (setf (decoded-time-month time) 1))
   (unless (decoded-time-year time)
-    (setf (decoded-time-year time) 0))
+    (setf (decoded-time-year time) 1970))
 
   ;; When we don't have a time zone, default to DEFAULT-ZONE without
   ;; DST if DEFAULT-ZONE if given, and to unknown DST otherwise.

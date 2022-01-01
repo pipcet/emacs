@@ -1,6 +1,6 @@
 ;;; nnfolder.el --- mail folder access for Gnus  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 1995-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1995-2022 Free Software Foundation, Inc.
 
 ;; Author: Simon Josefsson <simon@josefsson.org>
 ;;      ShengHuo Zhu <zsh@cs.rochester.edu> (adding NOV)
@@ -706,7 +706,7 @@ deleted.  Point is left where the deleted region was."
       (if dont-check
 	  (setq nnfolder-current-group group
 		nnfolder-current-buffer nil)
-	(let (inf file)
+	(let (file) ;; inf
 	  ;; If we have to change groups, see if we don't already have
 	  ;; the folder in memory.  If we do, verify the modtime and
 	  ;; destroy the folder if needed so we can rescan it.
@@ -718,7 +718,7 @@ deleted.  Point is left where the deleted region was."
 	  ;; touched the file since last time.
 	  (when (and nnfolder-current-buffer
 		     (not (gnus-buffer-live-p nnfolder-current-buffer)))
-	    (setq nnfolder-buffer-alist (delq inf nnfolder-buffer-alist)
+	    (setq nnfolder-buffer-alist (delq nil nnfolder-buffer-alist) ;; inf
 		  nnfolder-current-buffer nil))
 
 	  (setq nnfolder-current-group group)

@@ -1,6 +1,6 @@
 ;;; url-news.el --- News Uniform Resource Locator retrieval code  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 1996-1999, 2004-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1996-1999, 2004-2022 Free Software Foundation, Inc.
 
 ;; Keywords: comm, data, processes
 
@@ -19,6 +19,8 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
+;;; Commentary:
+
 ;;; Code:
 
 (require 'url-vars)
@@ -26,11 +28,6 @@
 (require 'url-parse)
 (require 'nntp)
 (autoload 'gnus-group-read-ephemeral-group "gnus-group")
-
-;; Unused.
-;;; (defgroup url-news nil
-;;;   "News related options."
-;;;   :group 'url)
 
 (defun url-news-open-host (host port user pass)
   (if (fboundp 'nnheader-init-server-buffer)
@@ -111,7 +108,7 @@
 	 (article (url-unhex-string (url-filename url))))
     (url-news-open-host host port (url-user url) (url-password url))
     (cond
-     ((string-match "@" article)	; Its a specific article
+     ((string-search "@" article)	; Its a specific article
       (setq buf (url-news-fetch-message-id host article)))
      ((string= article "")		; List all newsgroups
       (gnus))

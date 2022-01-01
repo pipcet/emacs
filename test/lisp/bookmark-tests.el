@@ -1,6 +1,6 @@
 ;;; bookmark-tests.el --- Tests for bookmark.el  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2019-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2019-2022 Free Software Foundation, Inc.
 
 ;; Author: Stefan Kangas <stefankangas@gmail.com>
 
@@ -371,16 +371,14 @@ Same as `with-bookmark-test' but also sets a temporary
 `bookmark-default-file', evaluates BODY, and then runs the test
 that saves and then loads the bookmark file."
   `(with-bookmark-test
-    (let ((file (make-temp-file "bookmark-tests-")))
-      (unwind-protect
-          (let ((bookmark-default-file file)
-                (old-alist bookmark-alist))
-            ,@body
-            (bookmark-save nil file t)
-            (setq bookmark-alist nil)
-            (bookmark-load file nil t)
-            (should (equal bookmark-alist old-alist)))
-        (delete-file file)))))
+    (ert-with-temp-file file
+      (let ((bookmark-default-file file)
+            (old-alist bookmark-alist))
+        ,@body
+        (bookmark-save nil file t)
+        (setq bookmark-alist nil)
+        (bookmark-load file nil t)
+        (should (equal bookmark-alist old-alist))))))
 
 (defvar bookmark-tests-non-ascii-data
   (concat "Здра́вствуйте!" "中文,普通话,汉语" "åäöøñ"

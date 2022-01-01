@@ -1,6 +1,6 @@
 ;;; cus-test.el --- tests for custom types and load problems  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 1998, 2000, 2002-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1998, 2000, 2002-2022 Free Software Foundation, Inc.
 
 ;; Author: Markus Rost <rost@math.uni-bielefeld.de>
 ;; Created: 13 Sep 1998
@@ -36,6 +36,13 @@
 ;;   src/emacs -batch -l admin/cus-test.el -f cus-test-libs [all]
 ;;
 ;;   src/emacs -batch -l admin/cus-test.el -f cus-test-noloads
+;;
+;; or as a part of the test suite with
+;;
+;;   make -C test test-custom-opts
+;;   make -C test test-custom-deps
+;;   make -C test test-custom-libs
+;;   make -C test test-custom-noloads
 ;;
 ;; in the emacs source directory.
 ;;

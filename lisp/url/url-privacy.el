@@ -1,6 +1,6 @@
 ;;; url-privacy.el --- Global history tracking for URL package  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 1996-1999, 2004-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1996-1999, 2004-2022 Free Software Foundation, Inc.
 
 ;; Keywords: comm, data, processes, hypermedia
 
@@ -18,6 +18,8 @@
 
 ;; You should have received a copy of the GNU General Public License
 ;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
+
+;;; Commentary:
 
 ;;; Code:
 
@@ -46,6 +48,7 @@
 	  (pcase (or window-system 'tty)
 	    ('x "X11")
 	    ('ns "OpenStep")
+            ('pgtk "PureGTK")
 	    ('tty "TTY")
 	    (_ nil)))))
 

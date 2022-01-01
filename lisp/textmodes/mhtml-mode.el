@@ -1,6 +1,6 @@
 ;;; mhtml-mode.el --- HTML editing mode that handles CSS and JS -*- lexical-binding:t -*-
 
-;; Copyright (C) 2017-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2017-2022 Free Software Foundation, Inc.
 
 ;; Keywords: wp, hypermedia, comm, languages
 
@@ -18,6 +18,8 @@
 
 ;; You should have received a copy of the GNU General Public License
 ;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
+
+;;; Commentary:
 
 ;;; Code:
 
@@ -313,7 +315,7 @@ Prefix arg specifies how many times to move (default 1)."
   (interactive "P")
   (pcase (get-text-property (point) 'mhtml-submode)
     ('nil (sgml-skip-tag-forward arg))
-    (submode (forward-sexp arg))))
+    (_submode (forward-sexp arg))))
 
 ;;;###autoload
 (define-derived-mode mhtml-mode html-mode

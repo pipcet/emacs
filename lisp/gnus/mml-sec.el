@@ -1,6 +1,6 @@
 ;;; mml-sec.el --- A package with security functions for MML documents  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2000-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2000-2022 Free Software Foundation, Inc.
 
 ;; Author: Simon Josefsson <simon@josefsson.org>
 
@@ -140,7 +140,7 @@ by default identifies the used encryption keys, giving away the
 Bcc'ed identities.  Clearly, this contradicts the original goal of
 *blind* copies.
 For an academic paper explaining the problem, see URL
-`http://crypto.stanford.edu/portia/papers/bb-bcc.pdf'.
+`https://crypto.stanford.edu/portia/papers/bb-bcc.pdf'.
 Use this variable to specify e-mail addresses whose owners do not
 mind if they are identifiable as recipients.  This may be useful if
 you use Bcc headers to encrypt e-mails to yourself."
@@ -238,7 +238,7 @@ You can also customize or set `mml-signencrypt-style-alist' instead."
 	     (goto-char (match-end 0))
 	     (apply #'mml-insert-tag 'part (cons (if sign 'sign 'encrypt)
 						(cons method tags))))
-	    (t (error "The message is corrupted. No mail header separator"))))))
+            (t (error "The message is corrupted.  No mail header separator"))))))
 
 (defvar mml-secure-method
   (if (equal mml-default-encrypt-method mml-default-sign-method)
@@ -328,7 +328,7 @@ either an error is raised or not."
 	    (unless (yes-or-no-p "Message for encryption contains Bcc header.\
   This may give away all Bcc'ed identities to all recipients.\
   Are you sure that this is safe?\
-  (Customize `mml-secure-safe-bcc-list' to avoid this warning.) ")
+  (Customize `mml-secure-safe-bcc-list' to avoid this warning.)")
 	      (error "Aborted"))))))))
 
 ;; defuns that add the proper <#secure ...> tag to the top of the message body
@@ -352,7 +352,7 @@ either an error is raised or not."
 	       (apply #'mml-insert-tag
 		      'secure 'method method 'mode mode tags)))
 	    (t (error
-		"The message is corrupted. No mail header separator"))))
+                "The message is corrupted.  No mail header separator"))))
     (when (eql insert-loc (point))
       (forward-line 1))))
 
@@ -1022,7 +1022,7 @@ Returns non-nil if the user has chosen to use SENDER."
 	      (if (eq 'OpenPGP protocol)
 		  (epg-sign-string context (buffer-string) mode)
 		(epg-sign-string context
-				 (replace-regexp-in-string
+				 (string-replace
 				  "\n" "\r\n" (buffer-string))
 				 t))
 	      mml-secure-secret-key-id-list nil)

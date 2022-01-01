@@ -1,6 +1,6 @@
-;;; semantic/grammar.el --- Major mode framework for Semantic grammars
+;;; semantic/grammar.el --- Major mode framework for Semantic grammars  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2002-2005, 2007-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2002-2005, 2007-2022 Free Software Foundation, Inc.
 
 ;; Author: David Ponce <david@dponce.com>
 
@@ -23,9 +23,6 @@
 ;;
 ;; Major mode framework for editing Semantic's input grammar files.
 
-;;; History:
-;;
-
 ;;; Code:
 
 (require 'semantic)
@@ -34,7 +31,12 @@
 (require 'semantic/format)
 ;; FIXME this is a generated file, but we need to load this file to
 ;; generate it!
-(require 'semantic/grammar-wy)
+;; We need `semantic/grammar-wy.el' but we're also needed to generate
+;; that file from `grammar.wy', so to break the dependency, we keep
+;; a bootstrap copy of `grammar-wy.el' in `grm-wy-boot.el'.  See bug#16008.
+(eval-and-compile
+  (unless (require 'semantic/grammar-wy nil t)
+    (load "semantic/grm-wy-boot")))
 (require 'semantic/idle)
 (require 'help-fns)
 (require 'semantic/analyze)
@@ -143,12 +145,12 @@ It ignores whitespaces, newlines and comments."
 ARGS are ASSOC's key value list."
   (let ((key t))
     `(semantic-tag-make-plist
-      ,@(mapcar #'(lambda (i)
-                    (prog1
-                        (if key
-                            (list 'quote i)
-                          i)
-                      (setq key (not key))))
+      ,@(mapcar (lambda (i)
+                  (prog1
+                      (if key
+                          (list 'quote i)
+                        i)
+                    (setq key (not key))))
                 args))))
 
 (defsubst semantic-grammar-quote-p (sym)
@@ -191,13 +193,13 @@ Warn if other tags of class CLASS exist."
 That is tag names plus names defined in tag attribute `:rest'."
   (let* ((tags (semantic-find-tags-by-class
                 class (current-buffer))))
-    (apply 'append
+    (apply #'append
            (mapcar
-            #'(lambda (tag)
-                (mapcar
-                 'intern
-                 (cons (semantic-tag-name tag)
-                       (semantic-tag-get-attribute tag :rest))))
+            (lambda (tag)
+              (mapcar
+               #'intern
+               (cons (semantic-tag-name tag)
+                     (semantic-tag-get-attribute tag :rest))))
             tags))))
 
 (defsubst semantic-grammar-item-text (item)
@@ -298,9 +300,9 @@ foo.by it is foo-by."
 That is an alist of (VALUE . TOKEN) where VALUE is the string value of
 the keyword and TOKEN is the terminal symbol identifying the keyword."
   (mapcar
-   #'(lambda (key)
-       (cons (semantic-tag-get-attribute key :value)
-             (intern (semantic-tag-name key))))
+   (lambda (key)
+     (cons (semantic-tag-get-attribute key :value)
+           (intern (semantic-tag-name key))))
    (semantic-find-tags-by-class 'keyword (current-buffer))))
 
 (defun semantic-grammar-keyword-properties (keywords)
@@ -312,7 +314,7 @@ the keyword and TOKEN is the terminal symbol identifying the keyword."
       (setq put   (car puts)
             puts  (cdr puts)
             keys  (mapcar
-                   'intern
+                   #'intern
                    (cons (semantic-tag-name put)
                          (semantic-tag-get-attribute put :rest))))
       (while keys
@@ -565,6 +567,10 @@ Typically a DEFINE expression should look like this:
       (goto-char start)
       (indent-sexp))))
 
+(defvar semantic-grammar-require-form
+  '(eval-when-compile (require 'semantic/bovine))
+  "The form to use to load the parser engine.")
+
 (defconst semantic-grammar-header-template
   '("\
 ;;; " file " --- Generated parser support file
@@ -596,13 +602,10 @@ Typically a DEFINE expression should look like this:
 ;; PLEASE DO NOT MANUALLY EDIT THIS FILE!  It is automatically
 ;; generated from the grammar file " gram ".
 
-;;; History:
-;;
-
 ;;; Code:
 
 (require 'semantic/lex)
-(eval-when-compile (require 'semantic/bovine))
+" require-form "
 ")
   "Generated header template.
 The symbols in the template are local variables in
@@ -651,6 +654,7 @@ The symbols in the list are local variables in
                semantic--grammar-output-buffer))
      (gram . ,(semantic-grammar-buffer-file))
      (date . ,(format-time-string "%Y-%m-%d %T%z"))
+     (require-form . ,(format "%S" semantic-grammar-require-form))
      (vcid . ,(concat "$" "Id" "$")) ;; Avoid expansion
      ;; Try to get the copyright from the input grammar, or
      ;; generate a new one if not found.
@@ -818,7 +822,7 @@ Block definitions are read from the current table of lexical types."
     (let ((semantic-lex-types-obarray
            (semantic-lex-make-type-table tokens props))
           semantic-grammar--lex-block-specs)
-      (mapatoms 'semantic-grammar-insert-defanalyzer
+      (mapatoms #'semantic-grammar-insert-defanalyzer
                 semantic-lex-types-obarray))))
 
 ;;; Generation of the grammar support file.
@@ -836,7 +840,7 @@ If optional argument FORCE is non-nil, unconditionally re-generate the
 Lisp code."
   (interactive "P")
   (unless (semantic-active-p)
-    (error "You have to activate semantic-mode to create a package."))
+    (error "You have to activate semantic-mode to create a package"))
   (setq force (or force current-prefix-arg))
   (semantic-fetch-tags)
   (let* (
@@ -846,7 +850,8 @@ Lisp code."
          (semantic--grammar-package (semantic-grammar-package))
 	 (semantic--grammar-provide (semantic-grammar-first-tag-name 'provide))
          (output   (concat (or semantic--grammar-provide
-			       semantic--grammar-package) ".el"))
+			       semantic--grammar-package)
+			   ".el"))
          (semantic--grammar-input-buffer  (current-buffer))
          (semantic--grammar-output-buffer
 	  (find-file-noselect
@@ -1063,7 +1068,7 @@ See also the variable `semantic-grammar-file-regexp'."
            (setq semantic--grammar-macros-regexp-1
                  (concat "(\\s-*"
                          (regexp-opt
-                          (mapcar #'(lambda (e) (symbol-name (car e)))
+                          (mapcar (lambda (e) (symbol-name (car e)))
                                   semantic-grammar-macros)
                           t)
                          "\\>"))
@@ -1197,20 +1202,20 @@ END is the limit of the search."
 (defvar semantic-grammar-mode-map
   (let ((km (make-sparse-keymap)))
 
-    (define-key km "|" 'semantic-grammar-electric-punctuation)
-    (define-key km ";" 'semantic-grammar-electric-punctuation)
-    (define-key km "%" 'semantic-grammar-electric-punctuation)
-    (define-key km "(" 'semantic-grammar-electric-punctuation)
-    (define-key km ")" 'semantic-grammar-electric-punctuation)
-    (define-key km ":" 'semantic-grammar-electric-punctuation)
+    (define-key km "|" #'semantic-grammar-electric-punctuation)
+    (define-key km ";" #'semantic-grammar-electric-punctuation)
+    (define-key km "%" #'semantic-grammar-electric-punctuation)
+    (define-key km "(" #'semantic-grammar-electric-punctuation)
+    (define-key km ")" #'semantic-grammar-electric-punctuation)
+    (define-key km ":" #'semantic-grammar-electric-punctuation)
 
-    (define-key km "\t"       'semantic-grammar-indent)
-    (define-key km "\M-\t"    'semantic-grammar-complete)
-    (define-key km "\C-c\C-c" 'semantic-grammar-create-package)
-    (define-key km "\C-cm"    'semantic-grammar-find-macro-expander)
-    (define-key km "\C-cik"    'semantic-grammar-insert-keyword)
-;;  (define-key km "\C-cc"    'semantic-grammar-generate-and-load)
-;;  (define-key km "\C-cr"    'semantic-grammar-generate-one-rule)
+    (define-key km "\t"       #'semantic-grammar-indent)
+    (define-key km "\M-\t"    #'semantic-grammar-complete)
+    (define-key km "\C-c\C-c" #'semantic-grammar-create-package)
+    (define-key km "\C-cm"    #'semantic-grammar-find-macro-expander)
+    (define-key km "\C-cik"   #'semantic-grammar-insert-keyword)
+;;  (define-key km "\C-cc"    #'semantic-grammar-generate-and-load)
+;;  (define-key km "\C-cr"    #'semantic-grammar-generate-one-rule)
 
     km)
   "Keymap used in `semantic-grammar-mode'.")
@@ -1322,7 +1327,7 @@ the change bounds to encompass the whole nonterminal tag."
   ;; Setup Semantic to parse grammar
   (semantic-grammar-wy--install-parser)
   (setq semantic-lex-comment-regex ";;"
-        semantic-lex-analyzer 'semantic-grammar-lexer
+        semantic-lex-analyzer #'semantic-grammar-lexer
         semantic-type-relation-separator-character '(":")
         semantic-symbol->name-assoc-list
         '(
@@ -1343,10 +1348,10 @@ the change bounds to encompass the whole nonterminal tag."
   ;; Before each change, clear the cached regexp used to highlight
   ;; macros local in this grammar.
   (add-hook 'before-change-functions
-            'semantic--grammar-clear-macros-regexp-2 nil t)
+            #'semantic--grammar-clear-macros-regexp-2 nil t)
   ;; Handle safe re-parse of grammar rules.
   (add-hook 'semantic-edits-new-change-functions
-            'semantic-grammar-edits-new-change-hook-fcn
+            #'semantic-grammar-edits-new-change-hook-fcn
             nil t))
 
 ;;;;
@@ -1734,7 +1739,7 @@ If it is a macro name, return a description of the associated expander
 function parameter list.
 If it is a function name, return a description of this function
 parameter list.
-It it is a variable name, return a brief (one-line) documentation
+If it is a variable name, return a brief (one-line) documentation
 string for the variable.
 If a default description of the current context can be obtained,
 return it.
@@ -1856,11 +1861,11 @@ Optional argument COLOR determines if color is added to the text."
       (setq label "Keyword: ")
       (let (summary)
         (semantic--find-tags-by-function
-         #'(lambda (put)
-             (unless summary
-               (setq summary (cdr (assoc "summary"
-                                         (semantic-tag-get-attribute
-                                          put :value))))))
+         (lambda (put)
+           (unless summary
+             (setq summary (cdr (assoc "summary"
+                                       (semantic-tag-get-attribute
+                                        put :value))))))
          ;; Get `put' tag with TAG name.
          (semantic-find-tags-by-name-regexp
           (regexp-quote (semantic-tag-name tag))
@@ -1876,7 +1881,7 @@ Optional argument COLOR determines if color is added to the text."
             (names (semantic-tag-get-attribute tag :rest))
             (type  (semantic-tag-type tag)))
         (if names
-            (setq name (mapconcat 'identity (cons name names) " ")))
+            (setq name (mapconcat #'identity (cons name names) " ")))
         (setq desc (concat
                     (if type
                         (format " <%s>" type)
@@ -1893,7 +1898,7 @@ Optional argument COLOR determines if color is added to the text."
                         (format " <%s>" type)
                       "")
                     (if val
-                        (concat " " (mapconcat 'identity val " "))
+                        (concat " " (mapconcat #'identity val " "))
                       "")))))
      (t
       (setq desc (semantic-format-tag-abbreviate tag parent color))))
@@ -1944,7 +1949,7 @@ Optional argument COLOR determines if color is added to the text."
       context-return)))
 
 (define-mode-local-override semantic-analyze-possible-completions
-  semantic-grammar-mode (context &rest flags)
+  semantic-grammar-mode (context &rest _flags)
   "Return a list of possible completions based on CONTEXT."
   (require 'semantic/analyze/complete)
   (if (semantic-grammar-in-lisp-p)

@@ -1,6 +1,6 @@
-;;; semantic-utest.el --- Miscellaneous Semantic tests.
+;;; semantic-tests.el --- Miscellaneous Semantic tests.  -*- lexical-binding: t; -*-
 
-;;; Copyright (C) 2003-2004, 2007-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2003-2022 Free Software Foundation, Inc.
 
 ;; Author: Eric M. Ludlam <zappo@gnu.org>
 
@@ -24,6 +24,8 @@
 ;; Originally, there are many test functions scattered among the
 ;; Semantic source files.  This file consolidates them.
 
+;;; Code:
+
 (require 'data-debug)
 
 ;;; From semantic-complete
@@ -46,7 +48,7 @@
 All systems are different.  Ask questions along the way."
   (interactive)
   (let ((doload nil))
-    (when (y-or-n-p "Create a system database to test with? ")
+    (when (y-or-n-p "Create a system database to test with?")
       (call-interactively 'semanticdb-create-ebrowse-database)
       (setq doload t))
     ;;  Should we load in caches
@@ -64,10 +66,12 @@ run the test again")))
   "Find the first loaded ebrowse table, and dump out the contents."
   (interactive)
   (let ((db semanticdb-database-list)
-	(ab nil))
+	;; (ab nil)
+	)
     (while db
       (when (semanticdb-project-database-ebrowse-p (car db))
-	(setq ab (data-debug-new-buffer "*EBROWSE Database*"))
+	;; (setq ab
+	      (data-debug-new-buffer "*EBROWSE Database*") ;;)
 	(data-debug-insert-thing (car db) "*" "")
 	(setq db nil)
 	)
@@ -100,7 +104,7 @@ If optional arg STANDARDFILE is non-nil, use a standard file w/ global enabled."
 		 (set-buffer (find-file-noselect semanticdb-test-gnu-global-startfile)))
 	       (semanticdb-enable-gnu-global-in-buffer))))
 
-    (let* ((db (semanticdb-project-database-global "global"))
+    (let* ((db (semanticdb-project-database-global)) ;; "global"
 	   (tab (semanticdb-file-table db (buffer-file-name)))
 	   (result (semanticdb-deep-find-tags-for-completion-method tab searchfor))
 	   )
@@ -127,8 +131,7 @@ Optional argument ARG specifies not to use color."
 	(princ (car fns))
 	(princ ":\n ")
 	(let ((s (funcall (car fns) tag par (not arg))))
-	  (save-excursion
-	    (set-buffer "*format-tag*")
+	  (with-current-buffer "*format-tag*"
 	    (goto-char (point-max))
 	    (insert s)))
 	(setq fns (cdr fns))))
@@ -163,7 +166,7 @@ Optional argument ARG specifies not to use color."
   "Test `semantic-idle-scheduler-work-parse-neighboring-files' and time it."
   (interactive)
   (let ((start (current-time))
-	(junk (semantic-idle-scheduler-work-parse-neighboring-files)))
+	(_junk (semantic-idle-scheduler-work-parse-neighboring-files)))
     (message "Work took %.2f seconds." (semantic-elapsed-time start nil))))
 
 ;;; From semantic-lex:
@@ -209,6 +212,8 @@ Analyze the area between BEG and END."
   (with-output-to-temp-buffer "*SPP Write Test*"
     (semantic-lex-spp-table-write-slot-value
      (semantic-lex-spp-save-table))))
+
+(defvar cedet-utest-directory) ;From test/manual/cedet/cedet-utests.el?
 
 (defun semantic-lex-spp-write-utest ()
   "Unit test using the test spp file to test the slot write fcn."
@@ -258,7 +263,7 @@ tag that contains point, and return that."
 	 (Lcount 0))
     (when (semantic-tag-p target)
       (semantic-symref-hits-in-region
-       target (lambda (start end prefix) (setq Lcount (1+ Lcount)))
+       target (lambda (_start _end _prefix) (setq Lcount (1+ Lcount)))
        (semantic-tag-start tag)
        (semantic-tag-end tag))
       (when (called-interactively-p 'interactive)
@@ -266,3 +271,5 @@ tag that contains point, and return that."
 		 Lcount (semantic-tag-name target)
 		 (semantic-elapsed-time start nil)))
       Lcount)))
+
+;;; semantic-tests.el ends here

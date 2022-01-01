@@ -1,6 +1,6 @@
 ;;; epa-mail.el --- the EasyPG Assistant, minor-mode for mail composer -*- lexical-binding: t -*-
 
-;; Copyright (C) 2006-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2006-2022 Free Software Foundation, Inc.
 
 ;; Author: Daiki Ueno <ueno@unixuser.org>
 ;; Keywords: PGP, GnuPG, mail, message
@@ -21,8 +21,9 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
+;;; Commentary:
+
 ;;; Code:
-;;; Dependencies
 
 (require 'epa)
 (require 'mail-utils)
@@ -59,7 +60,7 @@ Otherwise, signal an error."
 ;;;###autoload
 (define-minor-mode epa-mail-mode
   "A minor-mode for composing encrypted/clearsigned mails."
-  nil " epa-mail" epa-mail-mode-map)
+  :lighter " epa-mail")
 
 ;;; Utilities
 
@@ -108,8 +109,9 @@ use from your key ring."
   (interactive
    (save-excursion
      (goto-char (point-min))
-     (if (search-forward mail-header-separator nil t)
-	 (forward-line))
+     (rfc822-goto-eoh)
+     (unless (eobp)
+       (forward-line))
      (setq epa-last-coding-system-specified
 	   (or coding-system-for-write
 	       (select-safe-coding-system (point) (point-max))))
@@ -135,9 +137,7 @@ If no one is selected, default secret key is used.  "
       (goto-char (point-min))
       (save-restriction
 	(narrow-to-region (point)
-			  (if (search-forward mail-header-separator nil 0)
-			      (match-beginning 0)
-			    (point)))
+                          (progn (rfc822-goto-eoh) (point)))
 	(setq recipients-string
 	      (mapconcat #'identity
 			 (nconc (mail-fetch-field "to" nil nil t)
@@ -170,7 +170,7 @@ If no one is selected, default secret key is used.  "
 	    (apply #'nconc
 		   (mapcar
 		    (lambda (recipient)
-		      (let ((tem (assoc recipient epa-mail-aliases)))
+		      (let ((tem (assoc (downcase recipient) epa-mail-aliases)))
 			(if tem (copy-sequence (cdr tem))
 			  (list recipient))))
 		    real-recipients)))
@@ -220,7 +220,7 @@ If no one is selected, symmetric encryption will be performed.  "
 			      (epa-mail--find-usable-key
 			       (epg-list-keys
 				(epg-make-context epa-protocol)
-				(if (string-match "@" recipient)
+				(if (string-search "@" recipient)
 				    (concat "<" recipient ">")
 				  recipient))
 			       'encrypt)))
@@ -236,8 +236,9 @@ If no one is selected, symmetric encryption will be performed.  "
 		       default-recipients)))))
 
       (goto-char (point-min))
-      (if (search-forward mail-header-separator nil t)
-	  (forward-line))
+      (rfc822-goto-eoh)
+      (unless (eobp)
+	(forward-line))
       (setq start (point))
 
       (setq epa-last-coding-system-specified

@@ -1,6 +1,6 @@
-;;; edmacro.el --- keyboard macro editor
+;;; edmacro.el --- keyboard macro editor  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 1993-1994, 2001-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1993-1994, 2001-2022 Free Software Foundation, Inc.
 
 ;; Author: Dave Gillespie <daveg@synaptics.com>
 ;; Keywords: abbrev
@@ -74,8 +74,8 @@ Default nil means to write characters above \\177 in octal notation."
 
 (defvar edmacro-mode-map
   (let ((map (make-sparse-keymap)))
-    (define-key map "\C-c\C-c" 'edmacro-finish-edit)
-    (define-key map "\C-c\C-q" 'edmacro-insert-key)
+    (define-key map "\C-c\C-c" #'edmacro-finish-edit)
+    (define-key map "\C-c\C-q" #'edmacro-insert-key)
     map))
 
 (defvar edmacro-store-hook)
@@ -108,7 +108,7 @@ With a prefix argument, format the macro in a more concise way."
                  (memq cmd-noremap '(call-last-kbd-macro kmacro-call-macro kmacro-end-or-call-macro kmacro-end-and-call-macro))
 		 (member keys '("\r" [return])))
 	     (or last-kbd-macro
-		 (y-or-n-p "No keyboard macro defined.  Create one? ")
+                 (y-or-n-p "No keyboard macro defined.  Create one?")
 		 (keyboard-quit))
 	     (setq mac (or last-kbd-macro ""))
 	     (setq keys nil)
@@ -177,8 +177,8 @@ With a prefix argument, format the macro in a more concise way."
 	  (set-buffer-modified-p nil))
 	(run-hooks 'edmacro-format-hook)))))
 
-;;; The next two commands are provided for convenience and backward
-;;; compatibility.
+;; The next two commands are provided for convenience and backward
+;; compatibility.
 
 ;;;###autoload
 (defun edit-last-kbd-macro (&optional prefix)
@@ -237,24 +237,23 @@ or nil, use a compact 80-column format."
 		   ((looking-at "Command:[ \t]*\\([^ \t\n]*\\)[ \t]*$")
 		    (when edmacro-store-hook
 		      (error "\"Command\" line not allowed in this context"))
-		    (let ((str (buffer-substring (match-beginning 1)
-						 (match-end 1))))
+		    (let ((str (match-string 1)))
 		      (unless (equal str "")
 			(setq cmd (and (not (equal str "none"))
 				       (intern str)))
 			(and (fboundp cmd) (not (arrayp (symbol-function cmd)))
 			     (not (get cmd 'kmacro))
 			     (not (y-or-n-p
-				   (format "Command %s is already defined; %s"
-					   cmd "proceed? ")))
+                                   (format
+                                    "Command %s is already defined; proceed?"
+                                    cmd)))
 			     (keyboard-quit))))
 		    t)
 		   ((looking-at "Key:\\(.*\\)$")
 		    (when edmacro-store-hook
 		      (error "\"Key\" line not allowed in this context"))
 		    (let ((key (edmacro-parse-keys
-				(buffer-substring (match-beginning 1)
-						  (match-end 1)))))
+				(match-string 1))))
 		      (unless (equal key "")
 			(if (equal key "none")
 			    (setq no-keys t)
@@ -266,24 +265,22 @@ or nil, use a compact 80-column format."
 				     (not (or (arrayp (symbol-function b))
 					      (get b 'kmacro))))
 				 (not (y-or-n-p
-				       (format "Key %s is already defined; %s"
-					       (edmacro-format-keys key 1)
-					       "proceed? ")))
+                                       (format
+                                        "Key %s is already defined; proceed?"
+                                        (edmacro-format-keys key 1))))
 				 (keyboard-quit))))))
 		    t)
 		   ((looking-at "Counter:[ \t]*\\([^ \t\n]*\\)[ \t]*$")
 		    (when edmacro-store-hook
 		      (error "\"Counter\" line not allowed in this context"))
-		    (let ((str (buffer-substring (match-beginning 1)
-						 (match-end 1))))
+		    (let ((str (match-string 1)))
 		      (unless (equal str "")
 			(setq mac-counter (string-to-number str))))
 		    t)
 		   ((looking-at "Format:[ \t]*\"\\([^\n]*\\)\"[ \t]*$")
 		    (when edmacro-store-hook
 		      (error "\"Format\" line not allowed in this context"))
-		    (let ((str (buffer-substring (match-beginning 1)
-						 (match-end 1))))
+		    (let ((str (match-string 1)))
 		      (unless (equal str "")
 			(setq mac-format str)))
 		    t)
@@ -341,7 +338,7 @@ or nil, use a compact 80-column format."
 	(funcall finish-hook)))))
 
 (defun edmacro-insert-key (key)
-  "Insert the written name of a key in the buffer."
+  "Insert the written name of a KEY in the buffer."
   (interactive "kKey to insert: ")
   (if (bolp)
       (insert (edmacro-format-keys key t) "\n")
@@ -475,7 +472,7 @@ doubt, use whitespace."
 			 (and (not (memq (aref rest-mac i) pkeys))
 			      (prog1 (vconcat "C-u " (cl-subseq rest-mac 1 i) " ")
 				(cl-callf cl-subseq rest-mac i)))))))
-	     (bind-len (apply 'max 1
+	     (bind-len (apply #'max 1
 			      (cl-loop for map in maps
                                        for b = (lookup-key map rest-mac)
                                        when b collect b)))
@@ -506,7 +503,7 @@ doubt, use whitespace."
                        finally return i))
 	     desc)
 	(if (stringp bind) (setq bind nil))
-	(cond ((and (eq bind 'self-insert-command) (not prefix)
+	(cond ((and (eq bind #'self-insert-command) (not prefix)
 		    (> text 1) (integerp first)
 		    (> first 32) (<= first maxkey) (/= first 92)
 		    (progn
@@ -520,11 +517,11 @@ doubt, use whitespace."
 			    desc))))
 	       (when (or (string-match "^\\^.$" desc)
 			 (member desc res-words))
-		 (setq desc (mapconcat 'char-to-string desc " ")))
+		 (setq desc (mapconcat #'char-to-string desc " ")))
 	       (when verbose
 		 (setq bind (format "%s * %d" bind text)))
 	       (setq bind-len text))
-	      ((and (eq bind 'execute-extended-command)
+	      ((and (eq bind #'execute-extended-command)
 		    (> text bind-len)
 		    (memq (aref rest-mac text) '(return 13))
 		    (progn
@@ -563,7 +560,7 @@ doubt, use whitespace."
 			   (or fkey key) " "))))
 	(if prefix
 	    (setq desc (concat (edmacro-sanitize-for-string prefix) desc)))
-	(unless (string-match " " desc)
+	(unless (string-search " " desc)
 	  (let ((times 1) (pos bind-len))
 	    (while (not (cl-mismatch rest-mac rest-mac
 				     :start1 0 :end1 bind-len
@@ -604,9 +601,21 @@ This function assumes that the events can be stored in a string."
              (setf (aref seq i) (logand (aref seq i) 127))))
   seq)
 
+;; These are needed in a --without-x build.
+(defvar mouse-wheel-down-event)
+(defvar mouse-wheel-up-event)
+(defvar mouse-wheel-right-event)
+(defvar mouse-wheel-left-event)
+
 (defun edmacro-fix-menu-commands (macro &optional noerror)
   (if (vectorp macro)
       (let (result)
+        ;; Not preloaded in without-x builds.
+        (require 'mwheel)
+        (defvar mouse-wheel-down-event)
+        (defvar mouse-wheel-left-event)
+        (defvar mouse-wheel-right-event)
+        (defvar mouse-wheel-up-event)
 	;; Make a list of the elements.
 	(setq macro (append macro nil))
 	(dolist (ev macro)
@@ -616,7 +625,7 @@ This function assumes that the events can be stored in a string."
 		((eq (car ev) 'switch-frame))
 		((equal ev '(menu-bar))
 		 (push 'menu-bar result))
-		((equal (cl-cadadr ev) '(menu-bar))
+                ((equal (cadadr ev) '(menu-bar))
 		 (push (vector 'menu-bar (car ev)) result))
 		;; It would be nice to do pop-up menus, too, but not enough
 		;; info is recorded in macros to make this possible.
@@ -637,103 +646,10 @@ This function assumes that the events can be stored in a string."
 ;;; Parsing a human-readable keyboard macro.
 
 (defun edmacro-parse-keys (string &optional need-vector)
-  (let ((case-fold-search nil)
-	(len (length string)) ; We won't alter string in the loop below.
-	(pos 0)
-	(res []))
-    (while (and (< pos len)
-		(string-match "[^ \t\n\f]+" string pos))
-      (let* ((word-beg (match-beginning 0))
-	     (word-end (match-end 0))
-	     (word (substring string word-beg len))
-	     (times 1)
-	     key)
-	;; Try to catch events of the form "<as df>".
-	(if (string-match "\\`<[^ <>\t\n\f][^>\t\n\f]*>" word)
-	    (setq word (match-string 0 word)
-		  pos (+ word-beg (match-end 0)))
-	  (setq word (substring string word-beg word-end)
-		pos word-end))
-	(when (string-match "\\([0-9]+\\)\\*." word)
-	  (setq times (string-to-number (substring word 0 (match-end 1))))
-	  (setq word (substring word (1+ (match-end 1)))))
-	(cond ((string-match "^<<.+>>$" word)
-	       (setq key (vconcat (if (eq (key-binding [?\M-x])
-					  'execute-extended-command)
-				      [?\M-x]
-				    (or (car (where-is-internal
-					      'execute-extended-command))
-					[?\M-x]))
-				  (substring word 2 -2) "\r")))
-	      ((and (string-match "^\\(\\([ACHMsS]-\\)*\\)<\\(.+\\)>$" word)
-		    (progn
-		      (setq word (concat (substring word (match-beginning 1)
-						    (match-end 1))
-					 (substring word (match-beginning 3)
-						    (match-end 3))))
-		      (not (string-match
-			    "\\<\\(NUL\\|RET\\|LFD\\|ESC\\|SPC\\|DEL\\)$"
-			    word))))
-	       (setq key (list (intern word))))
-	      ((or (equal word "REM") (string-match "^;;" word))
-	       (setq pos (string-match "$" string pos)))
-	      (t
-	       (let ((orig-word word) (prefix 0) (bits 0))
-		 (while (string-match "^[ACHMsS]-." word)
-		   (cl-incf bits (cdr (assq (aref word 0)
-					 '((?A . ?\A-\^@) (?C . ?\C-\^@)
-					   (?H . ?\H-\^@) (?M . ?\M-\^@)
-					   (?s . ?\s-\^@) (?S . ?\S-\^@)))))
-		   (cl-incf prefix 2)
-		   (cl-callf substring word 2))
-		 (when (string-match "^\\^.$" word)
-		   (cl-incf bits ?\C-\^@)
-		   (cl-incf prefix)
-		   (cl-callf substring word 1))
-		 (let ((found (assoc word '(("NUL" . "\0") ("RET" . "\r")
-					    ("LFD" . "\n") ("TAB" . "\t")
-					    ("ESC" . "\e") ("SPC" . " ")
-					    ("DEL" . "\177")))))
-		   (when found (setq word (cdr found))))
-		 (when (string-match "^\\\\[0-7]+$" word)
-		   (cl-loop for ch across word
-                            for n = 0 then (+ (* n 8) ch -48)
-                            finally do (setq word (vector n))))
-		 (cond ((= bits 0)
-			(setq key word))
-		       ((and (= bits ?\M-\^@) (stringp word)
-			     (string-match "^-?[0-9]+$" word))
-			(setq key (cl-loop for x across word
-                                           collect (+ x bits))))
-		       ((/= (length word) 1)
-			(error "%s must prefix a single character, not %s"
-			       (substring orig-word 0 prefix) word))
-		       ((and (/= (logand bits ?\C-\^@) 0) (stringp word)
-			     ;; We used to accept . and ? here,
-			     ;; but . is simply wrong,
-			     ;; and C-? is not used (we use DEL instead).
-			     (string-match "[@-_a-z]" word))
-			(setq key (list (+ bits (- ?\C-\^@)
-					   (logand (aref word 0) 31)))))
-		       (t
-			(setq key (list (+ bits (aref word 0)))))))))
-	(when key
-	  (cl-loop repeat times do (cl-callf vconcat res key)))))
-    (when (and (>= (length res) 4)
-	       (eq (aref res 0) ?\C-x)
-	       (eq (aref res 1) ?\()
-	       (eq (aref res (- (length res) 2)) ?\C-x)
-	       (eq (aref res (- (length res) 1)) ?\)))
-      (setq res (cl-subseq res 2 -2)))
-    (if (and (not need-vector)
-	     (cl-loop for ch across res
-                      always (and (characterp ch)
-                                  (let ((ch2 (logand ch (lognot ?\M-\^@))))
-                                    (and (>= ch2 0) (<= ch2 127))))))
-	(concat (cl-loop for ch across res
-                         collect (if (= (logand ch ?\M-\^@) 0)
-                                     ch (+ ch 128))))
-      res)))
+  (let ((result (kbd string)))
+    (if (and need-vector (stringp result))
+        (seq-into result 'vector)
+      result)))
 
 (provide 'edmacro)
 

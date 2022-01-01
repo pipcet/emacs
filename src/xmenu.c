@@ -1,6 +1,6 @@
 /* X Communication module for terminals which understand the X protocol.
 
-Copyright (C) 1986, 1988, 1993-1994, 1996, 1999-2021 Free Software
+Copyright (C) 1986, 1988, 1993-1994, 1996, 1999-2022 Free Software
 Foundation, Inc.
 
 Author: Jon Arnold
@@ -49,6 +49,10 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 
 #ifdef MSDOS
 #include "msdos.h"
+#endif
+
+#ifdef HAVE_XINPUT2
+#include <X11/extensions/XInput2.h>
 #endif
 
 #ifdef HAVE_X_WINDOWS
@@ -105,7 +109,11 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 
 /* Flag which when set indicates a dialog or menu has been posted by
    Xt on behalf of one of the widget sets.  */
+#ifndef HAVE_XINPUT2
 static int popup_activated_flag;
+#else
+int popup_activated_flag;
+#endif
 
 
 #ifdef USE_X_TOOLKIT
@@ -440,6 +448,19 @@ x_activate_menubar (struct frame *f)
   XPutBackEvent (f->output_data.x->display_info->display,
                  f->output_data.x->saved_menu_event);
 #else
+#if defined USE_X_TOOLKIT && defined HAVE_XINPUT2
+  struct x_display_info *dpyinfo = FRAME_DISPLAY_INFO (f);
+  /* Clear the XI2 grab so Motif or lwlib can set a core grab.
+     Otherwise some versions of Motif will emit a warning and hang,
+     and lwlib will fail to destroy the menu window.  */
+
+  if (dpyinfo->num_devices)
+    {
+      for (int i = 0; i < dpyinfo->num_devices; ++i)
+	XIUngrabDevice (dpyinfo->display, dpyinfo->devices[i].device_id,
+			CurrentTime);
+    }
+#endif
   XtDispatchEvent (f->output_data.x->saved_menu_event);
 #endif
   unblock_input ();
@@ -641,7 +662,7 @@ update_frame_menubar (struct frame *f)
   lw_refigure_widget (x->column_widget, True);
 
   /* Force the pane widget to resize itself.  */
-  adjust_frame_size (f, -1, -1, 2, false, Qupdate_frame_menubar);
+  adjust_frame_size (f, -1, -1, 2, false, Qmenu_bar_lines);
   unblock_input ();
 #endif /* USE_GTK */
 }
@@ -1044,6 +1065,7 @@ free_frame_menubar (struct frame *f)
   /* Motif automatically shrinks the frame in lw_destroy_all_widgets.
      If we want to preserve the old height, calculate it now so we can
      restore it below.  */
+  int old_width = FRAME_TEXT_WIDTH (f);
   int old_height = FRAME_TEXT_HEIGHT (f) + FRAME_MENUBAR_HEIGHT (f);
 #endif
 
@@ -1077,26 +1099,43 @@ free_frame_menubar (struct frame *f)
       lw_destroy_all_widgets ((LWLIB_ID) f->output_data.x->id);
       f->output_data.x->menubar_widget = NULL;
 
+      /* When double-buffering is enabled and the frame shall not be
+	 resized either because resizing is inhibited or the frame is
+	 fullheight, some (usually harmless) display artifacts like a
+	 doubled mode line may show up.  Sometimes the configuration
+	 gets messed up in a more serious fashion though and you may
+	 have to resize the frame to get it back in a normal state.  */
       if (f->output_data.x->widget)
 	{
 #ifdef USE_MOTIF
 	  XtVaGetValues (f->output_data.x->widget, XtNx, &x1, XtNy, &y1, NULL);
 	  if (x1 == 0 && y1 == 0)
 	    XtVaSetValues (f->output_data.x->widget, XtNx, x0, XtNy, y0, NULL);
-	  if (frame_inhibit_resize (f, false, Qmenu_bar_lines))
-	    adjust_frame_size (f, -1, old_height, 1, false, Qfree_frame_menubar_1);
+	  /* When resizing is inhibited and a normal Motif frame is not
+	     fullheight, we have to explicitly request its old sizes
+	     here since otherwise turning off the menu bar will shrink
+	     the frame but turning them on again will not resize it
+	     back.  For a fullheight frame we let the window manager
+	     deal with this problem.  */
+	  if (frame_inhibit_resize (f, false, Qmenu_bar_lines)
+	      && !EQ (get_frame_param (f, Qfullscreen), Qfullheight))
+	    adjust_frame_size (f, old_width, old_height, 1, false,
+			       Qmenu_bar_lines);
 	  else
-	    adjust_frame_size (f, -1, -1, 2, false, Qfree_frame_menubar_1);
+	    adjust_frame_size (f, -1, -1, 2, false, Qmenu_bar_lines);
 #else
-	  adjust_frame_size (f, -1, -1, 2, false, Qfree_frame_menubar_1);
+	  adjust_frame_size (f, -1, -1, 2, false, Qmenu_bar_lines);
 #endif /* USE_MOTIF */
 	}
       else
 	{
 #ifdef USE_MOTIF
 	  if (WINDOWP (FRAME_ROOT_WINDOW (f))
-	      && frame_inhibit_resize (f, false, Qmenu_bar_lines))
-	    adjust_frame_size (f, -1, old_height, 1, false, Qfree_frame_menubar_2);
+	      /* See comment above.  */
+	      && frame_inhibit_resize (f, false, Qmenu_bar_lines)
+	      && !EQ (get_frame_param (f, Qfullscreen), Qfullheight))
+	    adjust_frame_size (f, old_width, old_height, 1, false,
+			       Qmenu_bar_lines);
 #endif
 	}
 
@@ -1423,7 +1462,17 @@ create_and_show_popup_menu (struct frame *f, widget_value *first_wv,
   /* Don't allow any geometry request from the user.  */
   XtSetArg (av[ac], (char *) XtNgeometry, 0); ac++;
   XtSetValues (menu, av, ac);
+#if defined HAVE_XINPUT2 && defined USE_LUCID
+  struct x_display_info *dpyinfo = FRAME_DISPLAY_INFO (f);
+  /* Clear the XI2 grab so lwlib can set a core grab.  */
 
+  if (dpyinfo->num_devices)
+    {
+      for (int i = 0; i < dpyinfo->num_devices; ++i)
+	XIUngrabDevice (dpyinfo->display, dpyinfo->devices[i].device_id,
+			CurrentTime);
+    }
+#endif
   /* Display the menu.  */
   lw_popup_menu (menu, &dummy);
   popup_activated_flag = 1;
@@ -1585,6 +1634,14 @@ x_menu_show (struct frame *f, int x, int y, int menuflags,
 				  STRINGP (help) ? help : Qnil);
 	  if (prev_wv)
 	    prev_wv->next = wv;
+	  else if (!save_wv)
+	    {
+	      /* This emacs_abort call pacifies gcc 11.2.1 when Emacs
+		 is configured with --enable-gcc-warnings.  FIXME: If
+		 save_wv can be null, do something better; otherwise,
+		 explain why save_wv cannot be null.  */
+	      emacs_abort ();
+	    }
 	  else
 	    save_wv->contents = wv;
 	  if (!NILP (descrip))

@@ -1,6 +1,6 @@
 ;;; arc-mode.el --- simple editing of archives  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 1995, 1997-1998, 2001-2021 Free Software Foundation,
+;; Copyright (C) 1995, 1997-1998, 2001-2022 Free Software Foundation,
 ;; Inc.
 
 ;; Author: Morten Welinder <terra@gnu.org>
@@ -431,12 +431,8 @@ be added."
     ;; Let mouse-1 follow the link.
     (define-key map [follow-link] 'mouse-face)
 
-    (if (fboundp 'command-remapping)
-        (progn
-          (define-key map [remap advertised-undo] 'archive-undo)
-          (define-key map [remap undo] 'archive-undo))
-      (substitute-key-definition 'advertised-undo 'archive-undo map global-map)
-      (substitute-key-definition 'undo 'archive-undo map global-map))
+    (define-key map [remap advertised-undo] #'archive-undo)
+    (define-key map [remap undo] #'archive-undo)
 
     (define-key map [mouse-2] 'archive-extract)
 
@@ -621,12 +617,8 @@ OLDMODE will be modified accordingly just like chmod(2) would have done."
 
 (defun archive-unixdate (low high)
   "Stringify Unix (LOW HIGH) date."
-  (let* ((time (list high low))
-	 (str (current-time-string time)))
-    (format "%s-%s-%s"
-	    (substring str 8 10)
-	    (substring str 4 7)
-	    (format-time-string "%Y" time))))
+  (let ((system-time-locale "C"))
+    (format-time-string "%e-%b-%Y" (list high low))))
 
 (defun archive-unixtime (low high)
   "Stringify Unix (LOW HIGH) time."
@@ -660,11 +652,11 @@ Does not signal an error if optional argument NOERROR is non-nil."
 (defun archive-mode (&optional force)
   "Major mode for viewing an archive file in a dired-like way.
 You can move around using the usual cursor motion commands.
-Letters no longer insert themselves.
-Type `e' to pull a file out of the archive and into its own buffer;
+Letters no longer insert themselves.\\<archive-mode-map>
+Type \\[archive-extract] to pull a file out of the archive and into its own buffer;
 or click mouse-2 on the file's line in the archive mode buffer.
 
-If you edit a sub-file of this archive (as with the `e' command) and
+If you edit a sub-file of this archive (as with the \\[archive-extract] command) and
 save it, the contents of that buffer will be saved back into the
 archive.
 
@@ -1707,7 +1699,7 @@ This doesn't recover lost files, it just undoes changes in the buffer itself."
 		(= (get-byte p) ?\C-z)
 		(> (get-byte (1+ p)) 0))
       (let* ((namefld (buffer-substring (+ p 2) (+ p 2 13)))
-	     (fnlen   (or (string-match "\0" namefld) 13))
+	     (fnlen   (or (string-search "\0" namefld) 13))
 	     (efnname (decode-coding-string (substring namefld 0 fnlen)
 					    archive-file-name-coding-system))
              (csize   (archive-l-e (+ p 15) 4))
@@ -1759,7 +1751,7 @@ This doesn't recover lost files, it just undoes changes in the buffer itself."
 	     neh	;beginning of next extension header (level 1 and 2)
 	     mode uid gid dir prname
 	     gname uname modtime moddate)
-	(if (= hdrlvl 3) (error "can't handle lzh level 3 header type"))
+        (if (= hdrlvl 3) (error "Can't handle lzh level 3 header type"))
 	(when (or (= hdrlvl 0) (= hdrlvl 1))
 	  (setq fnlen   (get-byte (+ p 21))) ;filename length
 	  (setq efnname (let ((str (buffer-substring (+ p 22) (+ p 22 fnlen))))	;filename from offset 22
@@ -2089,7 +2081,7 @@ This doesn't recover lost files, it just undoes changes in the buffer itself."
 	     (dirtype (get-byte (+ p 4)))
 	     (lfnlen  (if (= dirtype 2) (get-byte (+ p 56)) 0))
 	     (ldirlen (if (= dirtype 2) (get-byte (+ p 57)) 0))
-	     (fnlen   (or (string-match "\0" namefld) 13))
+	     (fnlen   (or (string-search "\0" namefld) 13))
 	     (efnname (let ((str
 			     (concat
 			      (if (> ldirlen 0)

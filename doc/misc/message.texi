@@ -9,7 +9,7 @@
 @copying
 This file documents Message, the Emacs message composition mode.
 
-Copyright @copyright{} 1996--2021 Free Software Foundation, Inc.
+Copyright @copyright{} 1996--2022 Free Software Foundation, Inc.
 
 @quotation
 Permission is granted to copy, distribute and/or modify this document
@@ -540,6 +540,7 @@ better than you do.
 @node System Mailer Setup
 @section System Mailer Setup
 @cindex mailto:
+@cindex System Mailer
 
 Emacs can be set up as the system mailer, so that Emacs is opened when
 you click on @samp{mailto:} links in other programs.
@@ -548,10 +549,11 @@ How this is done varies from system to system, but commonly there's a
 way to set the default application for a @acronym{MIME} type, and the
 relevant type here is @samp{x-scheme-handler/mailto;}.
 
-The application to start should be @samp{"emacs -f message-mailto %u"}.
+The application to start should be @w{@samp{emacs -f message-mailto %u}}.
 This will start Emacs, and then run the @code{message-mailto}
 command.  It will parse the given @acronym{URL}, and set up a Message
-buffer with the given parameters.
+buffer with the given parameters.  If you prefer to use emacsclient,
+use @w{@samp{emacsclient -e '(message-mailto "%u")'}} as the application.
 
 For instance, @samp{mailto:larsi@@gnus.org?subject=This+is+a+test}
 will open a Message buffer with the @samp{To:} header filled in with
@@ -1697,14 +1699,15 @@ result is inserted.
 @cindex Sv
 @cindex Re
 Responses to messages have subjects that start with @samp{Re: }.  This
-is @emph{not} an abbreviation of the English word ``response'', but is
-Latin, and means ``in response to''.  Some illiterate nincompoops have
-failed to grasp this fact, and have ``internationalized'' their software
-to use abominations like @samp{Aw: } (``antwort'') or @samp{Sv: }
-(``svar'') instead, which is meaningless and evil.  However, you may
-have to deal with users that use these evil tools, in which case you may
-set this variable to a regexp that matches these prefixes.  Myself, I
-just throw away non-compliant mail.
+is @emph{not} an abbreviation of the English word ``response'', but it
+comes from the Latin ``res'', and means ``in the matter of''.  Some
+illiterate nincompoops have failed to grasp this fact, and have
+``internationalized'' their software to use abominations like
+@samp{Aw: } (``antwort'') or @samp{Sv: } (``svar'') instead, which is
+meaningless and evil.  However, you may have to deal with users that
+use these evil tools, in which case you may set this variable to a
+regexp that matches these prefixes.  Myself, I just throw away
+non-compliant mail.
 
 Here's an example of a value to deal with these headers when
 responding to a message:
@@ -1790,8 +1793,89 @@ member list with elements @code{CC} and @code{To}, then
 @code{message-carefully-insert-headers} will not insert a @code{To}
 header when the message is already @code{CC}ed to the recipient.
 
+@item message-syntax-checks
+@vindex message-syntax-checks
+Controls what syntax checks should not be performed on outgoing posts.
+To disable checking of long signatures, for instance, add
+
+@lisp
+(signature . disabled)
+@end lisp
+
+to this list.
+
+Valid checks are:
+
+@table @code
+@item approved
+@cindex approved
+Check whether the article has an @code{Approved} header, which is
+something only moderators should include.
+@item continuation-headers
+Check whether there are continuation header lines that don't begin with
+whitespace.
+@item control-chars
+Check for invalid characters.
+@item empty
+Check whether the article is empty.
+@item existing-newsgroups
+Check whether the newsgroups mentioned in the @code{Newsgroups} and
+@code{Followup-To} headers exist.
+@item from
+Check whether the @code{From} header seems nice.
+@item illegible-text
+Check whether there is any non-printable character in the body.
+@item invisible-text
+Check whether there is any invisible text in the buffer.
+@item long-header-lines
+Check for too long header lines.
+@item long-lines
+@cindex long lines
+Check for too long lines in the body.
+@item message-id
+Check whether the @code{Message-ID} looks syntactically ok.
+@item multiple-headers
+Check for the existence of multiple equal headers.
+@item new-text
+Check whether there is any new text in the messages.
+@item newsgroups
+Check whether the @code{Newsgroups} header exists and is not empty.
+@item quoting-style
+Check whether text follows last quoted portion.
+@item repeated-newsgroups
+Check whether the @code{Newsgroups} and @code{Followup-To} headers
+contains repeated group names.
+@item reply-to
+Check whether the @code{Reply-To} header looks ok.
+@item sender
+@cindex Sender
+Insert a new @code{Sender} header if the @code{From} header looks odd.
+@item sendsys
+@cindex sendsys
+Check for the existence of version and sendsys commands.
+@item shoot
+Check whether the domain part of the @code{Message-ID} header looks ok.
+@item shorten-followup-to
+Check whether to add a @code{Followup-To} header to shorten the number
+of groups to post to.
+@item signature
+Check the length of the signature.
+@item size
+Check for excessive size.
+@item subject
+Check whether the @code{Subject} header exists and is not empty.
+@item subject-cmsg
+Check the subject for commands.
+@item valid-newsgroups
+Check whether the @code{Newsgroups} and @code{Followup-To} headers
+are valid syntactically.
 @end table
 
+All these conditions are checked by default, except for @code{sender}
+for which the check is disabled by default if
+@code{message-insert-canlock} is non-@code{nil} (@pxref{Canceling News}).
+
+@end table
 
 @node Mail Headers
 @section Mail Headers
@@ -2001,7 +2085,7 @@ This optional header will be computed by Message.
 @vindex user-mail-address
 @findex system-name
 @cindex Sun
-@cindex i-did-not-set--mail-host-address--so-tickle-me
+@cindex mail-host-address-is-not-set
 This required header will be generated by Message.  A unique ID will be
 created based on the date, time, user name (for the local part) and the
 domain part.  For the domain part, message will look (in this order) at
@@ -2069,88 +2153,6 @@ another element.
 Other variables for customizing outgoing news articles:
 
 @table @code
-
-@item message-syntax-checks
-@vindex message-syntax-checks
-Controls what syntax checks should not be performed on outgoing posts.
-To disable checking of long signatures, for instance, add
-
-@lisp
-(signature . disabled)
-@end lisp
-
-to this list.
-
-Valid checks are:
-
-@table @code
-@item approved
-@cindex approved
-Check whether the article has an @code{Approved} header, which is
-something only moderators should include.
-@item continuation-headers
-Check whether there are continuation header lines that don't begin with
-whitespace.
-@item control-chars
-Check for invalid characters.
-@item empty
-Check whether the article is empty.
-@item existing-newsgroups
-Check whether the newsgroups mentioned in the @code{Newsgroups} and
-@code{Followup-To} headers exist.
-@item from
-Check whether the @code{From} header seems nice.
-@item illegible-text
-Check whether there is any non-printable character in the body.
-@item invisible-text
-Check whether there is any invisible text in the buffer.
-@item long-header-lines
-Check for too long header lines.
-@item long-lines
-@cindex long lines
-Check for too long lines in the body.
-@item message-id
-Check whether the @code{Message-ID} looks syntactically ok.
-@item multiple-headers
-Check for the existence of multiple equal headers.
-@item new-text
-Check whether there is any new text in the messages.
-@item newsgroups
-Check whether the @code{Newsgroups} header exists and is not empty.
-@item quoting-style
-Check whether text follows last quoted portion.
-@item repeated-newsgroups
-Check whether the @code{Newsgroups} and @code{Followup-To} headers
-contains repeated group names.
-@item reply-to
-Check whether the @code{Reply-To} header looks ok.
-@item sender
-@cindex Sender
-Insert a new @code{Sender} header if the @code{From} header looks odd.
-@item sendsys
-@cindex sendsys
-Check for the existence of version and sendsys commands.
-@item shoot
-Check whether the domain part of the @code{Message-ID} header looks ok.
-@item shorten-followup-to
-Check whether to add a @code{Followup-To} header to shorten the number
-of groups to post to.
-@item signature
-Check the length of the signature.
-@item size
-Check for excessive size.
-@item subject
-Check whether the @code{Subject} header exists and is not empty.
-@item subject-cmsg
-Check the subject for commands.
-@item valid-newsgroups
-Check whether the @code{Newsgroups} and @code{Followup-To} headers
-are valid syntactically.
-@end table
-
-All these conditions are checked by default, except for @code{sender}
-for which the check is disabled by default if
-@code{message-insert-canlock} is non-@code{nil} (@pxref{Canceling News}).
 
 @item message-ignored-news-headers
 @vindex message-ignored-news-headers
@@ -2550,6 +2552,22 @@ if @code{nil} let the mailer mail back a message to report errors.
 @vindex message-confirm-send
 When non-@code{nil}, Gnus will ask for confirmation when sending a
 message.
+
+@item message-server-alist
+@vindex message-server-alist
+An alist describing the rules for generating the
+@code{X-Message-SMTP-Method} header to insert before sending out a new
+message, if the message doesn't yet have such a header.  Each element
+of the alist should be of the form
+@w{@code{(@var{cond} . @var{method})}}.  If @var{cond} is a string, it
+will be compared with the @code{From} header, and if they compare
+equal, the corresponding @var{method} will be inserted as a string
+into the message headers as the SMTP Method.  If @var{cond} is a
+function, it will be called in the message buffer without any
+arguments, and the corresponding @var{method} will be inserted into
+the message headers as the SMTP Method if the function returns a
+non-@code{nil} value; if @var{method} is nil, the value returned by
+the function @code{cond} is used instead.
 
 @end table
 

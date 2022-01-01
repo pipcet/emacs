@@ -1,6 +1,6 @@
 ;;; shell.el --- specialized comint.el for running the shell -*- lexical-binding: t -*-
 
-;; Copyright (C) 1988, 1993-1997, 2000-2021 Free Software Foundation,
+;; Copyright (C) 1988, 1993-1997, 2000-2022 Free Software Foundation,
 ;; Inc.
 
 ;; Author: Olin Shivers <shivers@cs.cmu.edu>
@@ -109,11 +109,6 @@
 (defgroup shell-directories nil
   "Directory support in shell mode."
   :group 'shell)
-
-;; Unused.
-;;; (defgroup shell-faces nil
-;;;   "Faces in shell buffers."
-;;;   :group 'shell)
 
 ;;;###autoload
 (defcustom shell-dumb-shell-regexp (purecopy "cmd\\(proxy\\)?\\.exe")
@@ -326,6 +321,15 @@ Thus, this does not include the shell's current directory.")
 (defvar shell-dirstack-query nil
   "Command used by `shell-resync-dirs' to query the shell.")
 
+(defcustom shell-has-auto-cd nil
+  "If non-nil, `shell-mode' handles implicit \"cd\" commands.
+Implicit \"cd\" is changing the directory if the command is a directory.
+You can make this variable buffer-local to change it, per shell-mode instance.
+Useful for shells like zsh that has this feature."
+  :type 'boolean
+  :group 'shell-directories
+  :version "28.1")
+
 (defvar shell-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map "\C-c\C-f" 'shell-forward-command)
@@ -455,6 +459,16 @@ Thus, this does not include the shell's current directory.")
           (push (mapconcat #'identity (nreverse arg) "") args)))
       (cons (nreverse args) (nreverse begins)))))
 
+;;;###autoload
+(defun split-string-shell-command (string)
+  "Split STRING (a shell command) into a list of strings.
+General shell syntax, like single and double quoting, as well as
+backslash quoting, is respected."
+  (with-temp-buffer
+    (insert string)
+    (let ((comint-file-name-quote-list shell-file-name-quote-list))
+      (car (shell--parse-pcomplete-arguments)))))
+
 (defun shell-command-completion-function ()
   "Completion function for shell command names.
 This is the value of `pcomplete-command-completion-function' for
@@ -503,7 +517,8 @@ Shell buffers.  It implements `shell-completion-execonly' for
 (put 'shell-mode 'mode-class 'special)
 
 (define-derived-mode shell-mode comint-mode "Shell"
-  "Major mode for interacting with an inferior shell.\\<shell-mode-map>
+  "Major mode for interacting with an inferior shell.
+\\<shell-mode-map>
 \\[comint-send-input] after the end of the process' output sends the text from
     the end of process to the end of the current line.
 \\[comint-send-input] before end of process output copies the current line minus the prompt to
@@ -751,11 +766,16 @@ Make the shell buffer the current buffer, and return it.
               (called-interactively-p 'any)
               (null explicit-shell-file-name)
               (null (getenv "ESHELL")))
+     ;; `expand-file-name' shall not add the MS Windows volume letter
+     ;; (Bug#49229).
      (setq-local explicit-shell-file-name
-                 (file-local-name
-                  (expand-file-name
-                   (read-file-name "Remote shell path: " default-directory
-                                   shell-file-name t shell-file-name)))))
+                 (replace-regexp-in-string
+                  "^[[:alpha:]]:" ""
+                  (file-local-name
+                   (expand-file-name
+                    (read-file-name "Remote shell path: " default-directory
+                                    shell-file-name t shell-file-name
+                                    #'file-remote-p))))))
 
    ;; Rain or shine, BUFFER must be current by now.
    (unless (comint-check-proc buffer)
@@ -765,7 +785,8 @@ Make the shell buffer the current buffer, and return it.
             (startfile (concat "~/.emacs_" name))
             (xargs-name (intern-soft (concat "explicit-" name "-args"))))
        (unless (file-exists-p startfile)
-         (setq startfile (concat user-emacs-directory "init_" name ".sh")))
+         (setq startfile (locate-user-emacs-file
+                          (concat "init_" name ".sh"))))
        (setq-local shell--start-prog (file-name-nondirectory prog))
        (apply #'make-comint-in-buffer "shell" buffer prog
               (if (file-exists-p startfile) startfile)
@@ -841,13 +862,15 @@ Environment variables are expanded, see function `substitute-in-file-name'."
 			       str) ; skip whitespace
 			      (match-end 0)))
 		(case-fold-search)
-		end cmd arg1)
+		end cmd arg1 cmd-subst-fn)
 	    (while (string-match shell-command-regexp str start)
 	      (setq end (match-end 0)
 		    cmd (comint-arguments (substring str start end) 0 0)
 		    arg1 (comint-arguments (substring str start end) 1 1))
 	      (if arg1
 		  (setq arg1 (shell-unquote-argument arg1)))
+              (if shell-has-auto-cd
+                  (setq cmd-subst-fn (comint-substitute-in-file-name cmd)))
 	      (cond ((string-match (concat "\\`\\(" shell-popd-regexp
 					   "\\)\\($\\|[ \t]\\)")
 				   cmd)
@@ -864,7 +887,9 @@ Environment variables are expanded, see function `substitute-in-file-name'."
 			  (string-match (concat "\\`\\(" shell-chdrive-regexp
 						"\\)\\($\\|[ \t]\\)")
 					cmd))
-		     (shell-process-cd (comint-substitute-in-file-name cmd))))
+		     (shell-process-cd (comint-substitute-in-file-name cmd)))
+                    ((and shell-has-auto-cd (file-directory-p cmd-subst-fn))
+                     (shell-process-cd cmd-subst-fn)))
 	      (setq start (progn (string-match shell-command-separator-regexp
 					       str end)
 				 ;; skip again
@@ -985,7 +1010,7 @@ Environment variables are expanded, see function `substitute-in-file-name'."
 
 The `dirtrack' package provides an alternative implementation of
 this feature; see the function `dirtrack-mode'."
-  nil nil nil
+  :lighter nil
   (setq list-buffers-directory (if shell-dirtrack-mode default-directory))
   (if shell-dirtrack-mode
       (add-hook 'comint-input-filter-functions #'shell-directory-tracker nil t)
@@ -1180,7 +1205,7 @@ Returns t if successful."
     (if data
 	(prog2 (unless (window-minibuffer-p)
 		 (message "Completing command name..."))
-	    (apply #'completion-in-region data)))))
+            (completion-in-region (nth 0 data) (nth 1 data) (nth 2 data))))))
 
 (defun shell-command-completion ()
   "Return the completion data for the command at point, if any."
@@ -1233,7 +1258,7 @@ Returns t if successful."
     (list
      start end
      (lambda (string pred action)
-       (if (string-match "/" string)
+       (if (string-search "/" string)
            (completion-file-name-table string pred action)
          (complete-with-action action completions string pred)))
      :exit-function
@@ -1295,7 +1320,7 @@ Returns non-nil if successful."
     (if data
 	(prog2 (unless (window-minibuffer-p)
 		 (message "Completing variable name..."))
-	    (apply #'completion-in-region data)))))
+	    (completion-in-region (nth 0 data) (nth 1 data) (nth 2 data))))))
 
 
 (defun shell-environment-variable-completion ()
@@ -1309,7 +1334,7 @@ Returns non-nil if successful."
                 (looking-at "\\$?[({]*")
                 (match-end 0)))
              (variables (mapcar (lambda (x)
-                                  (substring x 0 (string-match "=" x)))
+                                  (substring x 0 (string-search "=" x)))
                                 process-environment))
              (suffix (pcase (char-before start) (?\{ "}") (?\( ")") (_ ""))))
         (list start end variables

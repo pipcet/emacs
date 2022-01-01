@@ -1,6 +1,6 @@
 ;;; tramp-crypt.el --- Tramp crypt utilities  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2020-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2020-2022 Free Software Foundation, Inc.
 
 ;; Author: Michael Albinus <michael.albinus@gmx.de>
 ;; Keywords: comm, processes
@@ -112,6 +112,18 @@ initializing a new crypted remote directory."
   "Non-nil when encryption support is available.")
 (setq tramp-crypt-enabled (executable-find tramp-crypt-encfs-program))
 
+;; This function takes action since Emacs 28.1, when
+;; `read-extended-command-predicate' is set to
+;; `command-completion-default-include-p'.
+(defun tramp-crypt-command-completion-p (symbol _buffer)
+  "A predicate for Tramp interactive commands.
+They are completed by \"M-x TAB\" only when encryption support is enabled."
+  (and tramp-crypt-enabled
+       ;; `tramp-crypt-remove-directory' needs to be completed only in
+       ;; case we have already crypted directories.
+       (or (not (eq symbol #'tramp-crypt-remove-directory))
+	   tramp-crypt-directories)))
+
 ;;;###tramp-autoload
 (defconst tramp-crypt-encfs-config ".encfs6.xml"
   "Encfs configuration file name.")
@@ -145,7 +157,8 @@ If NAME doesn't belong to a crypted remote directory, retun nil."
 ;; New handlers should be added here.
 ;;;###tramp-autoload
 (defconst tramp-crypt-file-name-handler-alist
-  '((access-file . tramp-crypt-handle-access-file)
+  '(;; `abbreviate-file-name' performed by default handler.
+    (access-file . tramp-crypt-handle-access-file)
     (add-name-to-file . tramp-handle-add-name-to-file)
     ;; `byte-compiler-base-file-name' performed by default handler.
     (copy-directory . tramp-handle-copy-directory)
@@ -170,6 +183,7 @@ If NAME doesn't belong to a crypted remote directory, retun nil."
     (file-exists-p . tramp-handle-file-exists-p)
     (file-in-directory-p . tramp-handle-file-in-directory-p)
     (file-local-copy . tramp-handle-file-local-copy)
+    (file-locked-p . tramp-crypt-handle-file-locked-p)
     (file-modes . tramp-handle-file-modes)
     (file-name-all-completions . tramp-crypt-handle-file-name-all-completions)
     ;; `file-name-as-directory' performed by default handler.
@@ -196,9 +210,11 @@ If NAME doesn't belong to a crypted remote directory, retun nil."
     (insert-directory . tramp-crypt-handle-insert-directory)
     ;; `insert-file-contents' performed by default handler.
     (load . tramp-handle-load)
+    (lock-file . tramp-crypt-handle-lock-file)
     (make-auto-save-file-name . tramp-handle-make-auto-save-file-name)
     (make-directory . tramp-crypt-handle-make-directory)
     (make-directory-internal . ignore)
+    (make-lock-file-name . tramp-handle-make-lock-file-name)
     (make-nearby-temp-file . tramp-handle-make-nearby-temp-file)
     (make-process . ignore)
     (make-symbolic-link . tramp-handle-make-symbolic-link)
@@ -217,6 +233,7 @@ If NAME doesn't belong to a crypted remote directory, retun nil."
     ;; `tramp-get-remote-uid' performed by default handler.
     (tramp-set-file-uid-gid . tramp-crypt-handle-set-file-uid-gid)
     (unhandled-file-name-directory . ignore)
+    (unlock-file . tramp-crypt-handle-unlock-file)
     (vc-registered . ignore)
     (verify-visited-file-modtime . tramp-handle-verify-visited-file-modtime)
     (write-region . tramp-handle-write-region))
@@ -231,7 +248,7 @@ Operations not mentioned here will be handled by the default Emacs primitives.")
     (unless (tramp-crypt-file-name-p tfnfo)
       (setq tfnfo (apply
 		   #'tramp-file-name-for-operation operation
-		   (cons (tramp-compat-temporary-file-directory) (cdr args)))))
+		   (cons tramp-compat-temporary-file-directory (cdr args)))))
     tfnfo))
 
 (defun tramp-crypt-run-real-handler (operation args)
@@ -278,8 +295,8 @@ arguments to pass to the OPERATION."
 (defun tramp-crypt-config-file-name (vec)
   "Return the encfs config file name for VEC."
   (expand-file-name
-   (concat "tramp-" (tramp-file-name-host vec) tramp-crypt-encfs-config)
-   user-emacs-directory))
+   (locate-user-emacs-file
+    (concat "tramp-" (tramp-file-name-host vec) tramp-crypt-encfs-config))))
 
 (defun tramp-crypt-maybe-open-connection (vec)
   "Maybe open a connection VEC.
@@ -306,14 +323,14 @@ connection if a previous connection has died for some reason."
 	   tramp-crypt-encfs-config (tramp-crypt-get-remote-dir vec)))
 	 (local-config (tramp-crypt-config-file-name vec)))
     ;; There is no local encfs6 config file.
-    (when (not (file-exists-p local-config))
+    (unless (file-exists-p local-config)
       (if (and tramp-crypt-save-encfs-config-remote
 	       (file-exists-p remote-config))
 	  ;; Copy remote encfs6 config file if possible.
 	  (copy-file remote-config local-config 'ok 'keep)
 
 	;; Create local encfs6 config file otherwise.
-	(let* ((default-directory (tramp-compat-temporary-file-directory))
+	(let* ((default-directory tramp-compat-temporary-file-directory)
 	       (tmpdir1 (file-name-as-directory
 			 (tramp-compat-make-temp-file " .crypt" 'dir-flag)))
 	       (tmpdir2 (file-name-as-directory
@@ -367,7 +384,7 @@ ARGS are the arguments.  It returns t if ran successful, and nil otherwise."
   (with-temp-buffer
     (let* (;; Don't check for a proper method.
 	   (non-essential t)
-	   (default-directory (tramp-compat-temporary-file-directory))
+	   (default-directory tramp-compat-temporary-file-directory)
 	   ;; We cannot add it to `process-environment', because
 	   ;; `tramp-call-process-region' doesn't use it.
 	   (encfs-config
@@ -411,7 +428,7 @@ Otherwise, return NAME."
 	      crypt-vec localname (concat (symbol-name op) "-file-name")
 	    (unless (tramp-crypt-send-command
 		     crypt-vec (if (eq op 'encrypt) "encode" "decode")
-		     (tramp-compat-temporary-file-directory) localname)
+		     tramp-compat-temporary-file-directory localname)
 	      (tramp-error
 	       crypt-vec 'file-error "%s of file name %s failed."
 	       (if (eq op 'encrypt) "Encoding" "Decoding") name))
@@ -469,6 +486,7 @@ See `tramp-crypt-do-encrypt-or-decrypt-file'."
 Files in that directory and all subdirectories will be encrypted
 before copying to, and decrypted after copying from that
 directory.  File names will be also encrypted."
+  ;; (declare (completion tramp-crypt-command-completion-p))
   (interactive "DRemote directory name: ")
   (unless tramp-crypt-enabled
     (tramp-user-error nil "Feature is not enabled."))
@@ -481,10 +499,17 @@ directory.  File names will be also encrypted."
     (setq tramp-crypt-directories (cons name tramp-crypt-directories)))
   (tramp-register-file-name-handlers))
 
+;; `tramp-crypt-command-completion-p' is not autoloaded, and this
+;; setting isn't either.
+(function-put
+ #'tramp-crypt-add-directory 'completion-predicate
+ #'tramp-crypt-command-completion-p)
+
 (defun tramp-crypt-remove-directory (name)
   "Unmark remote directory NAME for encryption.
 Existing files in that directory and its subdirectories will be
 kept in their encrypted form."
+  ;; (declare (completion tramp-crypt-command-completion-p))
   (interactive "DRemote directory name: ")
   (unless tramp-crypt-enabled
     (tramp-user-error nil "Feature is not enabled."))
@@ -494,9 +519,14 @@ kept in their encrypted form."
 	      tramp-crypt-encfs-config
 	      (directory-files name nil directory-files-no-dot-files-regexp))
 	     (yes-or-no-p
-	      "There exist encrypted files, do you want to continue? "))
+	      "There exist encrypted files, do you want to continue?"))
     (setq tramp-crypt-directories (delete name tramp-crypt-directories))
     (tramp-register-file-name-handlers)))
+
+;; Starting with Emacs 28.1, this can be replaced by the "(declare ...)" form.
+(function-put
+ #'tramp-crypt-remove-directory 'completion-predicate
+ #'tramp-crypt-command-completion-p)
 
 ;; `auth-source' requires a user.
 (defun tramp-crypt-dissect-file-name (name)
@@ -568,7 +598,7 @@ absolute file names."
 
       (with-parsed-tramp-file-name (if t1 filename newname) nil
 	(unless (file-exists-p filename)
-	  (tramp-compat-file-missing v filename))
+	  (tramp-error v 'file-missing filename))
 	(when (and (not ok-if-already-exists) (file-exists-p newname))
 	  (tramp-error v 'file-already-exists newname))
 	(when (and (file-directory-p newname)
@@ -670,7 +700,7 @@ absolute file names."
     (directory &optional full match nosort count)
   "Like `directory-files' for Tramp files."
   (unless (file-exists-p directory)
-    (tramp-compat-file-missing (tramp-dissect-file-name directory) directory))
+    (tramp-error (tramp-dissect-file-name directory) 'file-missing directory))
   (when (file-directory-p directory)
     (setq directory (file-name-as-directory (expand-file-name directory)))
     (let* (tramp-crypt-enabled
@@ -709,6 +739,11 @@ absolute file names."
   "Like `file-executable-p' for Tramp files."
   (let (tramp-crypt-enabled)
     (file-executable-p (tramp-crypt-encrypt-file-name filename))))
+
+(defun tramp-crypt-handle-file-locked-p (filename)
+  "Like `file-locked-p' for Tramp files."
+  (let (tramp-crypt-enabled)
+    (file-locked-p (tramp-crypt-encrypt-file-name filename))))
 
 (defun tramp-crypt-handle-file-name-all-completions (filename directory)
   "Like `file-name-all-completions' for Tramp files."
@@ -773,6 +808,13 @@ WILDCARD is not supported."
 	  (delete-region (prop-match-beginning match) (prop-match-end match))
 	  (insert (propertize string 'dired-filename t)))))))
 
+(defun tramp-crypt-handle-lock-file (filename)
+  "Like `lock-file' for Tramp files."
+  (let (tramp-crypt-enabled)
+    ;; `lock-file' exists since Emacs 28.1.
+    (tramp-compat-funcall
+     'lock-file (tramp-crypt-encrypt-file-name filename))))
+
 (defun tramp-crypt-handle-make-directory (dir &optional parents)
   "Like `make-directory' for Tramp files."
   (with-parsed-tramp-file-name (expand-file-name dir) nil
@@ -823,6 +865,13 @@ WILDCARD is not supported."
     (let (tramp-crypt-enabled)
       (tramp-set-file-uid-gid
        (tramp-crypt-encrypt-file-name filename) uid gid))))
+
+(defun tramp-crypt-handle-unlock-file (filename)
+  "Like `unlock-file' for Tramp files."
+  (let (tramp-crypt-enabled)
+    ;; `unlock-file' exists since Emacs 28.1.
+    (tramp-compat-funcall
+     'unlock-file (tramp-crypt-encrypt-file-name filename))))
 
 (add-hook 'tramp-unload-hook
 	  (lambda ()

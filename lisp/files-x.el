@@ -1,6 +1,6 @@
-;;; files-x.el --- extended file handling commands
+;;; files-x.el --- extended file handling commands  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2009-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2009-2022 Free Software Foundation, Inc.
 
 ;; Author: Juri Linkov <juri@jurta.org>
 ;; Maintainer: emacs-devel@gnu.org
@@ -602,7 +602,7 @@ PROFILES is a list of connection profiles (symbols).")
   "Normalize plist CRITERIA according to properties.
 Return a reordered plist."
   (apply
-   'append
+   #'append
    (mapcar
     (lambda (property)
       (when (and (plist-member criteria property) (plist-get criteria property))
@@ -673,7 +673,7 @@ in order."
 (defun hack-connection-local-variables (criteria)
   "Read connection-local variables according to CRITERIA.
 Store the connection-local variables in buffer local
-variable`connection-local-variables-alist'.
+variable `connection-local-variables-alist'.
 
 This does nothing if `enable-connection-local-variables' is nil."
   (when enable-connection-local-variables
@@ -699,13 +699,14 @@ will not be changed."
         (copy-tree connection-local-variables-alist)))
    (hack-local-variables-apply)))
 
-(defsubst connection-local-criteria-for-default-directory ()
-  "Return a connection-local criteria, which represents `default-directory'."
+(defsubst connection-local-criteria-for-default-directory (&optional application)
+  "Return a connection-local criteria, which represents `default-directory'.
+If APPLICATION is nil, the symbol `tramp' is used."
   (when (file-remote-p default-directory)
-    `(:application tramp
-       :protocol ,(file-remote-p default-directory 'method)
-       :user     ,(file-remote-p default-directory 'user)
-       :machine  ,(file-remote-p default-directory 'host))))
+    `(:application ,(or application 'tramp)
+       :protocol   ,(file-remote-p default-directory 'method)
+       :user       ,(file-remote-p default-directory 'user)
+       :machine    ,(file-remote-p default-directory 'host))))
 
 ;;;###autoload
 (defmacro with-connection-local-variables (&rest body)

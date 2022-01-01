@@ -1,6 +1,6 @@
 ;;; epa.el --- the EasyPG Assistant -*- lexical-binding: t -*-
 
-;; Copyright (C) 2006-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2006-2022 Free Software Foundation, Inc.
 
 ;; Author: Daiki Ueno <ueno@unixuser.org>
 ;; Keywords: PGP, GnuPG
@@ -20,8 +20,9 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
+;;; Commentary:
+
 ;;; Code:
-;;; Dependencies
 
 (require 'epg)
 (eval-when-compile (require 'subr-x))
@@ -30,7 +31,7 @@
 ;;; Options
 
 (defgroup epa nil
-  "The EasyPG Assistant"
+  "The EasyPG Assistant."
   :version "23.1"
   :link '(custom-manual "(epa) Top")
   :group 'epg)
@@ -183,8 +184,7 @@ You should bind this variable with `let', but do not set it globally.")
 (defvar epa-last-coding-system-specified nil)
 
 (defvar epa-key-list-mode-map
-  (let ((keymap (make-sparse-keymap))
-	(menu-map (make-sparse-keymap)))
+  (let ((keymap (make-sparse-keymap)))
     (define-key keymap "\C-m" 'epa-show-key)
     (define-key keymap [?\t] 'forward-button)
     (define-key keymap [backtab] 'backward-button)
@@ -204,46 +204,35 @@ You should bind this variable with `let', but do not set it globally.")
     (define-key keymap [?\S-\ ] 'scroll-down-command)
     (define-key keymap [delete] 'scroll-down-command)
     (define-key keymap "q" 'epa-exit-buffer)
-    (define-key keymap [menu-bar epa-key-list-mode] (cons "Keys" menu-map))
-    (define-key menu-map [epa-key-list-unmark-key]
-      '(menu-item "Unmark Key" epa-unmark-key
-		  :help "Unmark a key"))
-    (define-key menu-map [epa-key-list-mark-key]
-      '(menu-item "Mark Key" epa-mark-key
-		  :help "Mark a key"))
-    (define-key menu-map [separator-epa-file] '(menu-item "--"))
-    (define-key menu-map [epa-verify-file]
-      '(menu-item "Verify File..." epa-verify-file
-		  :help "Verify FILE"))
-    (define-key menu-map [epa-sign-file]
-      '(menu-item "Sign File..." epa-sign-file
-		  :help "Sign FILE by SIGNERS keys selected"))
-    (define-key menu-map [epa-decrypt-file]
-      '(menu-item "Decrypt File..." epa-decrypt-file
-		  :help "Decrypt FILE"))
-    (define-key menu-map [epa-encrypt-file]
-      '(menu-item "Encrypt File..." epa-encrypt-file
-		  :help "Encrypt FILE for RECIPIENTS"))
-    (define-key menu-map [separator-epa-key-list] '(menu-item "--"))
-    (define-key menu-map [epa-key-list-delete-keys]
-      '(menu-item "Delete Keys" epa-delete-keys
-		  :help "Delete Marked Keys"))
-    (define-key menu-map [epa-key-list-import-keys]
-      '(menu-item "Import Keys" epa-import-keys
-		  :help "Import keys from a file"))
-    (define-key menu-map [epa-key-list-export-keys]
-      '(menu-item "Export Keys" epa-export-keys
-		  :help "Export marked keys to a file"))
     keymap))
+
+(easy-menu-define epa-key-list-mode-menu epa-key-list-mode-map
+  "Menu for `epa-key-list-mode'."
+  '("Keys"
+    ["Export Keys" epa-export-keys
+     :help "Export marked keys to a file"]
+    ["Import Keys" epa-import-keys
+     :help "Import keys from a file"]
+    ["Delete Keys" epa-delete-keys
+     :help "Delete Marked Keys"]
+    "---"
+    ["Encrypt File..." epa-encrypt-file
+     :help "Encrypt file for recipients"]
+    ["Decrypt File..." epa-decrypt-file
+     :help "Decrypt file"]
+    ["Sign File..." epa-sign-file
+     :help "Sign file by signers keys selected"]
+    ["Verify File..." epa-verify-file
+     :help "Verify file"]
+    "---"
+    ["Mark Key" epa-mark-key
+     :help "Mark a key"]
+    ["Unmark Key" epa-unmark-key
+     :help "Unmark a key"]))
 
 (defvar epa-key-mode-map
   (let ((keymap (make-sparse-keymap)))
     (define-key keymap "q" 'epa-exit-buffer)
-    keymap))
-
-(defvar epa-info-mode-map
-  (let ((keymap (make-sparse-keymap)))
-    (define-key keymap "q" 'delete-window)
     keymap))
 
 (defvar epa-exit-buffer-function #'quit-window)
@@ -340,7 +329,10 @@ If ARG is non-nil, mark the key."
     (insert
      (propertize
       (concat "  " (epa--button-key-text key))
-      'epa-key key))
+      'epa-key key
+      ;; Allow TAB to tab to the key.
+      'button t
+      'category t))
     (insert "\n")))
 
 (defun epa--list-keys (name secret &optional doc)
@@ -465,7 +457,7 @@ q  trust status questionable.  -  trust status unspecified.
 ;;;###autoload
 (defun epa-select-keys (context prompt &optional names secret)
   "Display a user's keyring and ask him to select keys.
-CONTEXT is an epg-context.
+CONTEXT is an `epg-context'.
 PROMPT is a string to prompt with.
 NAMES is a list of strings to be matched with keys.  If it is nil, all
 the keys are listed.
@@ -610,7 +602,11 @@ If SECRET is non-nil, list secret keys instead of public keys."
 		       (_ "Error while executing \"%s\":\n\n"))
 		     (epg-context-program context))
 		    "\n\n"
-		    (epg-context-error-output context)))
+		    (epg-context-error-output context)
+                    (if (string-search "Unexpected error"
+                                       (epg-context-error-output context))
+                        "\n(File possibly not an encrypted file, but is perhaps a key ring file?)\n"
+                      "")))
 	  (epa-info-mode)
 	  (goto-char (point-min)))
 	(display-buffer buffer)))))
@@ -651,7 +647,7 @@ If SECRET is non-nil, list secret keys instead of public keys."
   (setq input (file-name-sans-extension (expand-file-name input)))
   (expand-file-name
    (read-file-name
-    (concat "To file (default " (file-name-nondirectory input) ") ")
+    (format-prompt "To file" (file-name-nondirectory input))
     (file-name-directory input)
     input)))
 
@@ -972,8 +968,7 @@ For example:
 
 ;;;###autoload
 (defun epa-verify-cleartext-in-region (start end)
-  "Verify OpenPGP cleartext signed messages in the current region
-between START and END.
+  "Verify OpenPGP cleartext signed messages in current region from START to END.
 
 Don't use this command in Lisp programs!
 See the reason described in the `epa-verify-region' documentation."
@@ -1206,8 +1201,7 @@ If no one is selected, symmetric encryption will be performed.  ")
 
 ;;;###autoload
 (defun epa-import-armor-in-region (start end)
-  "Import keys in the OpenPGP armor format in the current region
-between START and END."
+  "Import keys in the OpenPGP armor format in the current region from START to END."
   (interactive "r")
   (save-excursion
     (save-restriction
@@ -1241,9 +1235,7 @@ between START and END."
      (list keys
 	   (expand-file-name
 	    (read-file-name
-	     (concat "To file (default "
-		     (file-name-nondirectory default-name)
-		     ") ")
+             (format-prompt "To file" (file-name-nondirectory default-name))
 	     (file-name-directory default-name)
 	     default-name)))))
   (let ((context (epg-make-context epa-protocol)))

@@ -1,6 +1,6 @@
 ;;; nnselect.el --- a virtual group backend   -*- lexical-binding:t -*-
 
-;; Copyright (C) 2020-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2020-2022 Free Software Foundation, Inc.
 
 ;; Author: Andrew Cohen <cohen@andy.bu.edu>
 ;; Keywords: news mail
@@ -100,8 +100,8 @@
 	(setq selection
 	      (vconcat
 	       (cl-map 'vector
-		    #'(lambda (art)
-			(vector artgroup art artrsv))
+                       (lambda (art)
+                         (vector artgroup art artrsv))
 		    (gnus-uncompress-sequence artseq)) selection)))
       selection)))
 
@@ -211,12 +211,12 @@ as `(keyfunc member)' and the corresponding element is just
 			  #'nnselect-article-group #'nnselect-article-number))
     ((eq ,type 'tuple)
      (nnselect-categorize ,articles
-			  #'(lambda (elem)
-			      (nnselect-article-group (car elem)))
-			  #'(lambda (elem)
-			      (cons (nnselect-article-number
-				     (car elem))
-				    (cdr elem)))))
+                  (lambda (elem)
+                    (nnselect-article-group (car elem)))
+                  (lambda (elem)
+                    (cons (nnselect-article-number
+                           (car elem))
+                          (cdr elem)))))
     (t
      (nnselect-categorize ,articles
 			  #'nnselect-article-group
@@ -395,8 +395,7 @@ If this variable is nil, or if the provided function returns nil,
 	    (gnus-search-run-query
 	     (list
 	      (cons 'search-query-spec
-		    (list (cons 'query `((id . ,article)))
-			  (cons 'criteria "")  (cons 'shortcut t)))
+		    (list (cons 'query (format "id:%s" article))))
 	      (cons 'search-group-spec servers))))
       (unless (zerop (nnselect-artlist-length artlist))
 	(setq
@@ -464,8 +463,8 @@ If this variable is nil, or if the provided function returns nil,
 	      (error "Group %s does not support article expiration" artgroup))
 	    (unless (gnus-check-server (gnus-find-method-for-group artgroup))
 	      (error "Couldn't open server for group %s" artgroup))
-	    (push (mapcar #'(lambda (art)
-			      (car (rassq art artids)))
+            (push (mapcar (lambda (art)
+                            (car (rassq art artids)))
 			  (let ((nnimap-expunge 'immediately))
 			    (gnus-request-expire-articles
 			     artlist artgroup force)))
@@ -549,8 +548,8 @@ If this variable is nil, or if the provided function returns nil,
 	      (gnus-add-to-range
 	       (gnus-info-read info)
 	       (delq nil (mapcar
-			  #'(lambda (art)
-			      (unless (memq (cdr art) unread) (car art)))
+                          (lambda (art)
+                            (unless (memq (cdr art) unread) (car art)))
 			  artids))))
 	(pcase-dolist (`(,type . ,mark-list) marks)
 	  (let ((mark-type (gnus-article-mark-to-type type)) new)
@@ -560,19 +559,19 @@ If this variable is nil, or if the provided function returns nil,
 			    (cond
 			     ((eq mark-type 'tuple)
 			      (mapcar
-			       #'(lambda (id)
-				   (let (mark)
-				     (when
-					 (setq mark (assq (cdr id) mark-list))
-				       (cons (car id) (cdr mark)))))
+                               (lambda (id)
+                                 (let (mark)
+                                   (when
+                                       (setq mark (assq (cdr id) mark-list))
+                                     (cons (car id) (cdr mark)))))
 			       artids))
 			     (t
 			      (setq mark-list
 				    (gnus-uncompress-range mark-list))
 			      (mapcar
-			       #'(lambda (id)
-				   (when (memq (cdr id) mark-list)
-				     (car id)))  artids)))))
+                               (lambda (id)
+                                 (when (memq (cdr id) mark-list)
+                                   (car id)))  artids)))))
 	      (let ((previous (alist-get type newmarks)))
 		(if previous
 		    (nconc previous new)
@@ -607,8 +606,8 @@ If this variable is nil, or if the provided function returns nil,
 			 (let ((thread
 				(gnus-id-to-thread (mail-header-id header))))
 			   (when thread
-			     (cl-some #'(lambda (x)
-					  (when (and x (> x 0)) x))
+                             (cl-some (lambda (x)
+                                        (when (and x (> x 0)) x))
 				      (gnus-articles-in-thread thread)))))))))
       ;; Check if search-based thread referral is permitted, and
       ;; available.
@@ -642,15 +641,15 @@ If this variable is nil, or if the provided function returns nil,
 		 old-arts seq
 		 headers)
 	    (mapc
-	     #'(lambda (article)
-		 (if
-		     (setq seq
-			   (cl-position article
-					gnus-newsgroup-selection :test 'equal))
-		     (push (1+ seq) old-arts)
-		   (setq gnus-newsgroup-selection
-			 (vconcat gnus-newsgroup-selection (vector article)))
-		   (cl-incf last)))
+             (lambda (article)
+               (if
+                   (setq seq
+                         (cl-position article
+                                      gnus-newsgroup-selection :test 'equal))
+                   (push (1+ seq) old-arts)
+                 (setq gnus-newsgroup-selection
+                       (vconcat gnus-newsgroup-selection (vector article)))
+                 (cl-incf last)))
 	     new-nnselect-artlist)
 	    (setq headers
 		  (gnus-fetch-headers
@@ -671,9 +670,9 @@ If this variable is nil, or if the provided function returns nil,
 		    (when (setq new-marks
 				(delq nil
 				      (mapcar
-				       #'(lambda (art)
-					   (when (memq (cdr art) marked)
-					     (car art)))
+                                       (lambda (art)
+                                         (when (memq (cdr art) marked)
+                                           (car art)))
 				       artids)))
 		      (nconc
 		       (symbol-value
@@ -777,8 +776,12 @@ If this variable is nil, or if the provided function returns nil,
 Return an article list."
   (let ((func (alist-get 'nnselect-function specs))
 	(args (alist-get 'nnselect-args specs)))
-    (condition-case err
+    (condition-case-unless-debug err
 	(funcall func args)
+      ;; Don't swallow gnus-search errors; the user should be made
+      ;; aware of them.
+      (gnus-search-error
+       (signal (car err) (cdr err)))
       (error (gnus-error 3 "nnselect-run: %s on %s gave error %s" func args err)
 	     []))))
 
@@ -901,7 +904,7 @@ article came from is also searched."
 		;; make sure
 		(setq list
 		      (sort (map-merge
-			     'list list
+			     'alist list
 			     (alist-get type (gnus-info-marks group-info)))
 			    (lambda (elt1 elt2)
 			      (< (car elt1) (car elt2))))))
@@ -968,7 +971,6 @@ Pass NO-PARSE on to the search engine."
     (gnus-group-make-search-group no-parse spec)))
 
 
-;; The end.
 (provide 'nnselect)
 
 ;;; nnselect.el ends here

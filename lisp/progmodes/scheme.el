@@ -1,6 +1,6 @@
 ;;; scheme.el --- Scheme (and DSSSL) editing mode    -*- lexical-binding: t; -*-
 
-;; Copyright (C) 1986-1988, 1997-1998, 2001-2021 Free Software
+;; Copyright (C) 1986-1988, 1997-1998, 2001-2022 Free Software
 ;; Foundation, Inc.
 
 ;; Author: Bill Rozas <jinx@martigny.ai.mit.edu>
@@ -28,7 +28,7 @@
 ;; the Lisp mode documented in the Emacs manual.  `dsssl-mode' is a
 ;; variant of scheme-mode for editing DSSSL specifications for SGML
 ;; documents.  [As of Apr 1997, some pointers for DSSSL may be found,
-;; for instance, at <URL:http://www.sil.org/sgml/related.html#dsssl>.]
+;; for instance, at <URL:https://www.sil.org/sgml/related.html#dsssl>.]
 ;; All these Lisp-ish modes vary basically in details of the language
 ;; syntax they highlight/indent/index, but dsssl-mode uses "^;;;" as
 ;; the page-delimiter since ^L isn't normally a valid SGML character.
@@ -143,7 +143,6 @@
   (setq-local comment-start-skip ";+[ \t]*")
   (setq-local comment-use-syntax t)
   (setq-local comment-column 40)
-  (setq-local parse-sexp-ignore-comments t)
   (setq-local lisp-indent-function 'scheme-indent-function)
   (setq mode-line-process '("" scheme-mode-line-process))
   (setq-local imenu-case-fold-search t)
@@ -162,24 +161,25 @@
 (defvar scheme-mode-line-process "")
 
 (defvar scheme-mode-map
-  (let ((smap (make-sparse-keymap))
-        (map (make-sparse-keymap "Scheme")))
-    (set-keymap-parent smap lisp-mode-shared-map)
-    (define-key smap [menu-bar scheme] (cons "Scheme" map))
-    (define-key map [run-scheme] '("Run Inferior Scheme" . run-scheme))
-    (define-key map [uncomment-region]
-      '("Uncomment Out Region" . (lambda (beg end)
-                                   (interactive "r")
-                                   (comment-region beg end '(4)))))
-    (define-key map [comment-region] '("Comment Out Region" . comment-region))
-    (define-key map [indent-region] '("Indent Region" . indent-region))
-    (define-key map [indent-line] '("Indent Line" . lisp-indent-line))
-    (put 'comment-region 'menu-enable 'mark-active)
-    (put 'uncomment-region 'menu-enable 'mark-active)
-    (put 'indent-region 'menu-enable 'mark-active)
-    smap)
+  (let ((map (make-sparse-keymap)))
+    (set-keymap-parent map lisp-mode-shared-map)
+    map)
   "Keymap for Scheme mode.
 All commands in `lisp-mode-shared-map' are inherited by this map.")
+
+(easy-menu-define scheme-mode-menu scheme-mode-map
+  "Menu for Scheme mode."
+  '("Scheme"
+    ["Indent Line" lisp-indent-line]
+    ["Indent Region" indent-region
+     :enable mark-active]
+    ["Comment Out Region" comment-region
+     :enable mark-active]
+    ["Uncomment Out Region" (lambda (beg end)
+                                (interactive "r")
+                                (comment-region beg end '(4)))
+     :enable mark-active]
+    ["Run Inferior Scheme" run-scheme]))
 
 ;; Used by cmuscheme
 (defun scheme-mode-commands (map)
@@ -298,7 +298,9 @@ See `run-hooks'."
        (concat
         "(" (regexp-opt
              '("begin" "call-with-current-continuation" "call/cc"
-               "call-with-input-file" "call-with-output-file" "case" "cond"
+               "call-with-input-file" "call-with-output-file"
+               "call-with-port"
+               "case" "cond"
                "do" "else" "for-each" "if" "lambda" "λ"
                "let" "let*" "let-syntax" "letrec" "letrec-syntax"
                ;; R6RS library subforms.
@@ -541,6 +543,7 @@ indentation."
 (put 'library 'scheme-indent-function 1) ; R6RS
 
 (put 'call-with-input-file 'scheme-indent-function 1)
+(put 'call-with-port 'scheme-indent-function 1)
 (put 'with-input-from-file 'scheme-indent-function 1)
 (put 'with-input-from-port 'scheme-indent-function 1)
 (put 'call-with-output-file 'scheme-indent-function 1)

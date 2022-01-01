@@ -1,6 +1,6 @@
 ;;; eldoc.el --- Show function arglist or variable docstring in echo area  -*- lexical-binding:t; -*-
 
-;; Copyright (C) 1996-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1996-2022 Free Software Foundation, Inc.
 
 ;; Author: Noah Friedman <friedman@splode.com>
 ;; Keywords: extensions
@@ -63,7 +63,7 @@ If this variable is set to 0, no idle time is required."
   :type 'number)
 
 (defcustom eldoc-print-after-edit nil
-  "If non-nil eldoc info is only shown when editing.
+  "If non-nil, eldoc info is only shown when editing.
 Changing the value requires toggling `eldoc-mode'."
   :type 'boolean)
 
@@ -380,7 +380,15 @@ Also store it in `eldoc-last-message' and return that value."
 ;; it undesirable to print eldoc messages right this instant.
 (defun eldoc-display-message-no-interference-p ()
   "Return nil if displaying a message would cause interference."
-  (not (or executing-kbd-macro (bound-and-true-p edebug-active))))
+  (not (or executing-kbd-macro
+           (bound-and-true-p edebug-active)
+           ;; The following configuration shows "Matches..." in the
+           ;; echo area when point is after a closing bracket, which
+           ;; conflicts with eldoc.
+           (and (boundp 'show-paren-context-when-offscreen)
+                show-paren-context-when-offscreen
+                (not (pos-visible-in-window-p
+                      (overlay-end show-paren--overlay)))))))
 
 
 (defvar eldoc-documentation-functions nil
@@ -391,12 +399,12 @@ name, inside its arg list, or on any object with some associated
 information.
 
 Each hook function is called with at least one argument CALLBACK,
-a function, and decides whether to display a doc short string
+a function, and decides whether to display a short doc string
 about the context around point.
 
 - If that decision can be taken quickly, the hook function may
-  call CALLBACK immediately following the protocol described
-  below.  Alternatively it may ignore CALLBACK entirely and
+  call CALLBACK immediately, following the protocol described
+  below.  Alternatively, it may ignore CALLBACK entirely and
   return either the doc string, or nil if there's no doc
   appropriate for the context.
 
@@ -437,7 +445,7 @@ return any documentation.")
 (defvar eldoc-display-functions
   '(eldoc-display-in-echo-area eldoc-display-in-buffer)
   "Hook of functions tasked with displaying ElDoc results.
-Each function is passed two arguments: DOCS and INTERACTIVE. DOCS
+Each function is passed two arguments: DOCS and INTERACTIVE.  DOCS
 is a list (DOC ...) where DOC looks like (STRING :KEY VALUE :KEY2
 VALUE2 ...).  STRING is a string containing the documentation's
 text and the remainder of DOC is an optional list of
@@ -477,6 +485,7 @@ This holds the results of the last documentation request."
       (let ((inhibit-read-only t)
             (things-reported-on))
         (erase-buffer) (setq buffer-read-only t)
+        (setq-local nobreak-char-display nil)
         (local-set-key "q" 'quit-window)
         (cl-loop for (docs . rest) on docs
                  for (this-doc . plist) = docs
@@ -538,7 +547,7 @@ documentation to potentially appear in the echo are is truncated."
            (and truncatedp
                 (eq eldoc-echo-area-prefer-doc-buffer
                     'maybe)))
-       (get-buffer-window eldoc--doc-buffer)))
+       (get-buffer-window eldoc--doc-buffer 'visible)))
 
 (defun eldoc-display-in-echo-area (docs _interactive)
   "Display DOCS in echo area.
@@ -688,11 +697,11 @@ following values are allowed:
 - `eldoc-documentation-compose': calls all functions in the
   special hook and displays all of the resulting doc strings
   together.  Wait for all strings to be ready, and preserve their
-  relative as specified by the order of functions in the hook;
+  relative order as specified by the order of functions in the hook;
 
 - `eldoc-documentation-compose-eagerly': calls all functions in
-  the special hook and display as many of the resulting doc
-  strings as possible, as soon as possible.  Preserving the
+  the special hook and displays as many of the resulting doc
+  strings as possible, as soon as possible.  Preserves the
   relative order of doc strings;
 
 - `eldoc-documentation-enthusiast': calls all functions in the
@@ -793,7 +802,7 @@ function passes responsibility to the functions in
 Other third-party values of `eldoc-documentation-strategy' should
 not use `eldoc--make-callback'.  They must find some alternate
 way to produce callbacks to feed to
-`eldoc-documentation-function' and should endeavour to display
+`eldoc-documentation-functions' and should endeavour to display
 the docstrings eventually produced, using
 `eldoc-display-functions'."
   (let* (;; How many callbacks have been created by the strategy

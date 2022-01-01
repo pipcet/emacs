@@ -1,6 +1,6 @@
 ;;; tree-widget.el --- Tree widget  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2004-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2004-2022 Free Software Foundation, Inc.
 
 ;; Author: David Ponce <david@dponce.com>
 ;; Created: 16 Feb 2001
@@ -110,10 +110,8 @@
 ;; `tree-widget-themes-directory', and `tree-widget-theme' options for
 ;; more details.
 
-;;; History:
-;;
-
 ;;; Code:
+
 (require 'wid-edit)
 
 ;;; Customization
@@ -216,8 +214,8 @@ Give the image the specified properties PROPS."
 See also the option `widget-image-conversion'."
   (delq nil
         (mapcar
-         #'(lambda (fmt)
-             (and (image-type-available-p (car fmt)) fmt))
+         (lambda (fmt)
+           (and (image-type-available-p (car fmt)) fmt))
          widget-image-conversion)))
 
 ;; Buffer local cache of theme data.

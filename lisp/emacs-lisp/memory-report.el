@@ -1,6 +1,6 @@
 ;;; memory-report.el --- Short function summaries  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2020-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2020-2022 Free Software Foundation, Inc.
 
 ;; Keywords: lisp, help
 
@@ -29,9 +29,9 @@
 
 (require 'seq)
 (require 'subr-x)
-(eval-when-compile (require 'cl-lib))
+(require 'cl-lib)
 
-(defvar memory-report--type-size (make-hash-table))
+(defvar memory-report--type-size nil)
 
 ;;;###autoload
 (defun memory-report ()
@@ -44,6 +44,8 @@ by counted more than once."
   (pop-to-buffer "*Memory Report*")
   (special-mode)
   (button-mode 1)
+  (setq-local revert-buffer-function (lambda (_ignore-auto _noconfirm)
+                                       (memory-report)))
   (setq truncate-lines t)
   (message "Gathering data...")
   (let ((reports (append (memory-report--garbage-collect)
@@ -82,6 +84,7 @@ by counted more than once."
       (gethash 'object memory-report--type-size)))
 
 (defun memory-report--set-size (elems)
+  (setq memory-report--type-size (make-hash-table))
   (setf (gethash 'string memory-report--type-size)
         (cadr (assq 'strings elems)))
   (setf (gethash 'cons memory-report--type-size)
@@ -182,7 +185,7 @@ by counted more than once."
 
 (cl-defmethod memory-report--object-size-1 (_ (value symbol))
   ;; Don't count global symbols -- makes sizes of lists of symbols too
-  ;; heavey.
+  ;; heavy.
   (if (intern-soft value obarray)
       0
     (memory-report--size 'symbol)))
@@ -214,22 +217,21 @@ by counted more than once."
       (setf (gethash value counted) t)
       (when (car value)
         (cl-incf total (memory-report--object-size counted (car value))))
-      (if (cdr value)
-          (if (consp (cdr value))
-              (if (gethash (cdr value) counted)
-                  (setq value nil)
-                (setq value (cdr value)))
-            (cl-incf total (memory-report--object-size counted (cdr value)))
-            (setq value nil))
-        (setq value nil)))
+      (let ((next (cdr value)))
+        (setq value (when next
+                      (if (consp next)
+                          (unless (gethash next counted)
+                            (cdr value))
+                        (cl-incf total (memory-report--object-size
+                                        counted next))
+                        nil)))))
     total))
 
 (cl-defmethod memory-report--object-size-1 (counted (value vector))
   (let ((total (+ (memory-report--size 'vector)
                   (* (memory-report--size 'object) (length value)))))
     (cl-loop for elem across value
-             do (setf (gethash elem counted) t)
-             (cl-incf total (memory-report--object-size counted elem)))
+             do (cl-incf total (memory-report--object-size counted elem)))
     total))
 
 (cl-defmethod memory-report--object-size-1 (counted (value hash-table))
@@ -237,12 +239,23 @@ by counted more than once."
                   (* (memory-report--size 'object) (hash-table-size value)))))
     (maphash
      (lambda (key elem)
-       (setf (gethash key counted) t)
-       (setf (gethash elem counted) t)
        (cl-incf total (memory-report--object-size counted key))
        (cl-incf total (memory-report--object-size counted elem)))
      value)
     total))
+
+;; All cl-defstruct types.
+(cl-defmethod memory-report--object-size-1 (counted (value cl-structure-object))
+  (let ((struct-type (type-of value)))
+    (apply #'+
+           (memory-report--size 'vector)
+           (mapcar (lambda (slot)
+                     (if (eq (car slot) 'cl-tag-slot)
+                         0
+                       (memory-report--object-size
+                        counted
+                        (cl-struct-slot-value struct-type (car slot) value))))
+                   (cl-struct-slot-info struct-type)))))
 
 (defun memory-report--format (bytes)
   (setq bytes (/ bytes 1024.0))
@@ -270,7 +283,7 @@ by counted more than once."
                                                       buffers)
                      do (insert (memory-report--format size)
                                 "  "
-                                (button-buttonize
+                                (buttonize
                                  (buffer-name buffer)
                                  #'memory-report--buffer-details buffer)
                                 "\n"))
@@ -295,7 +308,7 @@ by counted more than once."
 	       (- (position-bytes (point-min)))
 	       (gap-size)))
           (seq-reduce #'+ (mapcar (lambda (elem)
-                                    (if (cdr elem)
+                                    (if (and (consp elem) (cdr elem))
                                         (memory-report--object-size
                                          (make-hash-table :test #'eq)
                                          (cdr elem))

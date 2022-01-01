@@ -1,6 +1,6 @@
 /* Graphical user interface functions for the Microsoft Windows API.
 
-Copyright (C) 1989, 1992-2021 Free Software Foundation, Inc.
+Copyright (C) 1989, 1992-2022 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -72,6 +72,20 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #include <dlgs.h>
 #include <imm.h>
 #include <windowsx.h>
+
+/*
+  Internal/undocumented constants for Windows Dark mode.
+  See: https://github.com/microsoft/WindowsAppSDK/issues/41
+*/
+#define DARK_MODE_APP_NAME L"DarkMode_Explorer"
+/* For Windows 10 version 1809, 1903, 1909. */
+#ifndef DWMWA_USE_IMMERSIVE_DARK_MODE_OLD
+#define DWMWA_USE_IMMERSIVE_DARK_MODE_OLD 19
+#endif
+/* For Windows 10 version 2004 and higher, and Windows 11. */
+#ifndef DWMWA_USE_IMMERSIVE_DARK_MODE
+#define DWMWA_USE_IMMERSIVE_DARK_MODE 20
+#endif
 
 #ifndef FOF_NO_CONNECTED_ELEMENTS
 #define FOF_NO_CONNECTED_ELEMENTS 0x2000
@@ -185,6 +199,11 @@ typedef BOOL (WINAPI *IsDebuggerPresent_Proc) (void);
 typedef HRESULT (WINAPI *SetThreadDescription_Proc)
   (HANDLE hThread, PCWSTR lpThreadDescription);
 
+typedef HRESULT (WINAPI * SetWindowTheme_Proc)
+  (IN HWND hwnd, IN LPCWSTR pszSubAppName, IN LPCWSTR pszSubIdList);
+typedef HRESULT (WINAPI * DwmSetWindowAttribute_Proc)
+  (HWND hwnd, DWORD dwAttribute, IN LPCVOID pvAttribute, DWORD cbAttribute);
+
 TrackMouseEvent_Proc track_mouse_event_fn = NULL;
 ImmGetCompositionString_Proc get_composition_string_fn = NULL;
 ImmGetContext_Proc get_ime_context_fn = NULL;
@@ -199,6 +218,8 @@ EnumDisplayMonitors_Proc enum_display_monitors_fn = NULL;
 GetTitleBarInfo_Proc get_title_bar_info_fn = NULL;
 IsDebuggerPresent_Proc is_debugger_present = NULL;
 SetThreadDescription_Proc set_thread_description = NULL;
+SetWindowTheme_Proc SetWindowTheme_fn = NULL;
+DwmSetWindowAttribute_Proc DwmSetWindowAttribute_fn = NULL;
 
 extern AppendMenuW_Proc unicode_append_menu;
 
@@ -251,6 +272,9 @@ DWORD_PTR syspage_mask = 0;
 int w32_major_version;
 int w32_minor_version;
 int w32_build_number;
+
+/* If the OS is set to use dark mode.  */
+BOOL w32_darkmode = FALSE;
 
 /* Distinguish between Windows NT and Windows 95.  */
 int os_subtype;
@@ -1701,7 +1725,7 @@ w32_change_tab_bar_height (struct frame *f, int height)
   int unit = FRAME_LINE_HEIGHT (f);
   int old_height = FRAME_TAB_BAR_HEIGHT (f);
   int lines = (height + unit - 1) / unit;
-  Lisp_Object fullscreen;
+  Lisp_Object fullscreen = get_frame_param (f, Qfullscreen);
 
   /* Make sure we redisplay all windows in this frame.  */
   fset_redisplay (f);
@@ -1728,25 +1752,21 @@ w32_change_tab_bar_height (struct frame *f, int height)
   if ((height < old_height) && WINDOWP (f->tab_bar_window))
     clear_glyph_matrix (XWINDOW (f->tab_bar_window)->current_matrix);
 
-  /* Recalculate tabbar height.  */
-  f->n_tab_bar_rows = 0;
-  if (old_height == 0
-      && (!f->after_make_frame
-	  || NILP (frame_inhibit_implied_resize)
-	  || (CONSP (frame_inhibit_implied_resize)
-	      && NILP (Fmemq (Qtab_bar_lines, frame_inhibit_implied_resize)))))
-    f->tab_bar_redisplayed = f->tab_bar_resized = false;
+  if (!f->tab_bar_resized)
+    {
+      /* As long as tab_bar_resized is false, effectively try to change
+	 F's native height.  */
+      if (NILP (fullscreen) || EQ (fullscreen, Qfullwidth))
+	adjust_frame_size (f, FRAME_TEXT_WIDTH (f), FRAME_TEXT_HEIGHT (f),
+			   1, false, Qtab_bar_lines);
+      else
+	adjust_frame_size (f, -1, -1, 4, false, Qtab_bar_lines);
 
-  adjust_frame_size (f, -1, -1,
-		     ((!f->tab_bar_resized
-		       && (NILP (fullscreen =
-				 get_frame_param (f, Qfullscreen))
-			   || EQ (fullscreen, Qfullwidth))) ? 1
-		      : (old_height == 0 || height == 0) ? 2
-		      : 4),
-		     false, Qtab_bar_lines);
-
-  f->tab_bar_resized = f->tab_bar_redisplayed;
+      f->tab_bar_resized = f->tab_bar_redisplayed;
+    }
+  else
+    /* Any other change may leave the native size of F alone.  */
+    adjust_frame_size (f, -1, -1, 3, false, Qtab_bar_lines);
 
   /* adjust_frame_size might not have done anything, garbage frame
      here.  */
@@ -1790,7 +1810,7 @@ w32_change_tool_bar_height (struct frame *f, int height)
   int unit = FRAME_LINE_HEIGHT (f);
   int old_height = FRAME_TOOL_BAR_HEIGHT (f);
   int lines = (height + unit - 1) / unit;
-  Lisp_Object fullscreen;
+  Lisp_Object fullscreen = get_frame_param (f, Qfullscreen);
 
   /* Make sure we redisplay all windows in this frame.  */
   windows_or_buffers_changed = 23;
@@ -1811,25 +1831,21 @@ w32_change_tool_bar_height (struct frame *f, int height)
   if ((height < old_height) && WINDOWP (f->tool_bar_window))
     clear_glyph_matrix (XWINDOW (f->tool_bar_window)->current_matrix);
 
-  /* Recalculate toolbar height.  */
-  f->n_tool_bar_rows = 0;
-  if (old_height == 0
-      && (!f->after_make_frame
-	  || NILP (frame_inhibit_implied_resize)
-	  || (CONSP (frame_inhibit_implied_resize)
-	      && NILP (Fmemq (Qtool_bar_lines, frame_inhibit_implied_resize)))))
-    f->tool_bar_redisplayed = f->tool_bar_resized = false;
+  if (!f->tool_bar_resized)
+    {
+      /* As long as tool_bar_resized is false, effectively try to change
+	 F's native height.  */
+      if (NILP (fullscreen) || EQ (fullscreen, Qfullwidth))
+	adjust_frame_size (f, FRAME_TEXT_WIDTH (f), FRAME_TEXT_HEIGHT (f),
+			   1, false, Qtool_bar_lines);
+      else
+	adjust_frame_size (f, -1, -1, 4, false, Qtool_bar_lines);
 
-  adjust_frame_size (f, -1, -1,
-		     ((!f->tool_bar_resized
-		       && (NILP (fullscreen =
-				 get_frame_param (f, Qfullscreen))
-			   || EQ (fullscreen, Qfullwidth))) ? 1
-		      : (old_height == 0 || height == 0) ? 2
-		      : 4),
-		     false, Qtool_bar_lines);
-
-  f->tool_bar_resized = f->tool_bar_redisplayed;
+      f->tool_bar_resized =  f->tool_bar_redisplayed;
+    }
+  else
+    /* Any other change may leave the native size of F alone.  */
+    adjust_frame_size (f, -1, -1, 3, false, Qtool_bar_lines);
 
   /* adjust_frame_size might not have done anything, garbage frame
      here.  */
@@ -2287,10 +2303,36 @@ w32_init_class (HINSTANCE hinst)
     }
 }
 
+/* Applies the Windows system theme (light or dark) to the window
+   handle HWND.  */
+static void
+w32_applytheme (HWND hwnd)
+{
+  if (w32_darkmode)
+    {
+      /* Set window theme to that of a built-in Windows app (Explorer),
+	 because it has dark scroll bars and other UI elements.  */
+      if (SetWindowTheme_fn)
+	SetWindowTheme_fn (hwnd, DARK_MODE_APP_NAME, NULL);
+
+      /* Set the titlebar to system dark mode.  */
+      if (DwmSetWindowAttribute_fn)
+	{
+	  /* Windows 10 version 2004 and up, Windows 11.  */
+	  DWORD attr = DWMWA_USE_IMMERSIVE_DARK_MODE;
+	  /* Windows 10 older than 2004.  */
+	  if (w32_build_number < 19041)
+	    attr = DWMWA_USE_IMMERSIVE_DARK_MODE_OLD;
+	  DwmSetWindowAttribute_fn (hwnd, attr,
+				    &w32_darkmode, sizeof (w32_darkmode));
+	}
+    }
+}
+
 static HWND
 w32_createvscrollbar (struct frame *f, struct scroll_bar * bar)
 {
-  return CreateWindow ("SCROLLBAR", "",
+  HWND hwnd = CreateWindow ("SCROLLBAR", "",
 		       /* Clip siblings so we don't draw over child
 			  frames.  Apparently this is not always
 			  sufficient so we also try to make bar windows
@@ -2299,12 +2341,15 @@ w32_createvscrollbar (struct frame *f, struct scroll_bar * bar)
 		       /* Position and size of scroll bar.  */
 		       bar->left, bar->top, bar->width, bar->height,
 		       FRAME_W32_WINDOW (f), NULL, hinst, NULL);
+  if (hwnd)
+    w32_applytheme (hwnd);
+  return hwnd;
 }
 
 static HWND
 w32_createhscrollbar (struct frame *f, struct scroll_bar * bar)
 {
-  return CreateWindow ("SCROLLBAR", "",
+  HWND hwnd = CreateWindow ("SCROLLBAR", "",
 		       /* Clip siblings so we don't draw over child
 			  frames.  Apparently this is not always
 			  sufficient so we also try to make bar windows
@@ -2313,6 +2358,9 @@ w32_createhscrollbar (struct frame *f, struct scroll_bar * bar)
 		       /* Position and size of scroll bar.  */
 		       bar->left, bar->top, bar->width, bar->height,
 		       FRAME_W32_WINDOW (f), NULL, hinst, NULL);
+  if (hwnd)
+    w32_applytheme (hwnd);
+  return hwnd;
 }
 
 static void
@@ -2397,6 +2445,9 @@ w32_createwindow (struct frame *f, int *coords)
 
       /* Enable drag-n-drop.  */
       DragAcceptFiles (hwnd, TRUE);
+
+      /* Enable system light/dark theme.  */
+      w32_applytheme (hwnd);
 
       /* Do this to discard the default setting specified by our parent. */
       ShowWindow (hwnd, SW_HIDE);
@@ -5122,6 +5173,13 @@ w32_wnd_proc (HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
       my_post_msg (&wmsg, hwnd, msg, wParam, lParam);
       goto dflt;
 
+    case WM_SETTINGCHANGE:
+      /* Inform the Lisp thread that some system-wide setting has
+	 changed, so if Emacs is interested in some of them, it could
+	 update its internal values.  */
+      my_post_msg (&wmsg, hwnd, msg, wParam, lParam);
+      goto dflt;
+
     case WM_SETFOCUS:
       dpyinfo->faked_key = 0;
       reset_modifiers ();
@@ -5718,7 +5776,6 @@ DEFUN ("x-create-frame", Fx_create_frame, Sx_create_frame,
   struct w32_display_info *dpyinfo = NULL;
   Lisp_Object parent, parent_frame;
   struct kboard *kb;
-  int x_width = 0, x_height = 0;
 
   if (!FRAME_W32_P (SELECTED_FRAME ())
       && !FRAME_INITIAL_P (SELECTED_FRAME ()))
@@ -6045,8 +6102,7 @@ DEFUN ("x-create-frame", Fx_create_frame, Sx_create_frame,
 
   f->output_data.w32->current_cursor = f->output_data.w32->nontext_cursor;
 
-  window_prompting = gui_figure_window_size (f, parameters, true, true,
-                                             &x_width, &x_height);
+  window_prompting = gui_figure_window_size (f, parameters, true, true);
 
   tem = gui_display_get_arg (dpyinfo, parameters, Qunsplittable, 0, 0,
                              RES_TYPE_BOOLEAN);
@@ -6081,11 +6137,6 @@ DEFUN ("x-create-frame", Fx_create_frame, Sx_create_frame,
   /* Allow set_window_size_hook, now.  */
   f->can_set_window_size = true;
 
-  if (x_width > 0)
-    SET_FRAME_WIDTH (f, x_width);
-  if (x_height > 0)
-    SET_FRAME_HEIGHT (f, x_height);
-
   /* Tell the server what size and position, etc, we want, and how
      badly we want them.  This should be done after we have the menu
      bar so that its size can be taken into account.  */
@@ -6093,8 +6144,8 @@ DEFUN ("x-create-frame", Fx_create_frame, Sx_create_frame,
   w32_wm_set_size_hint (f, window_prompting, false);
   unblock_input ();
 
-  adjust_frame_size (f, FRAME_TEXT_WIDTH (f), FRAME_TEXT_HEIGHT (f), 0, true,
-		     Qx_create_frame_2);
+  adjust_frame_size (f, FRAME_TEXT_WIDTH (f), FRAME_TEXT_HEIGHT (f),
+		     0, true, Qx_create_frame_2);
 
   /* Process fullscreen parameter here in the hope that normalizing a
      fullheight/fullwidth frame will produce the size set by the last
@@ -6122,6 +6173,8 @@ DEFUN ("x-create-frame", Fx_create_frame, Sx_create_frame,
 
 	  if (!NILP (visibility))
 	    w32_make_frame_visible (f);
+	  else
+	    f->was_invisible = true;
 	}
 
       store_frame_param (f, Qvisibility, visibility);
@@ -6888,11 +6941,9 @@ w32_create_tip_frame (struct w32_display_info *dpyinfo, Lisp_Object parms)
   struct frame *f;
   Lisp_Object frame;
   Lisp_Object name;
-  int width, height;
   ptrdiff_t count = SPECPDL_INDEX ();
   struct kboard *kb;
   bool face_change_before = face_change;
-  int x_width = 0, x_height = 0;
 
   /* Use this general default value to start with until we know if
      this frame has a specified name.  */
@@ -7013,7 +7064,7 @@ w32_create_tip_frame (struct w32_display_info *dpyinfo, Lisp_Object parms)
   f->output_data.w32->parent_desc = FRAME_DISPLAY_INFO (f)->root_window;
   f->output_data.w32->explicit_parent = false;
 
-  gui_figure_window_size (f, parms, true, true, &x_width, &x_height);
+  gui_figure_window_size (f, parms, true, true);
 
   /* No fringes on tip frame.  */
   f->fringe_cols = 0;
@@ -7039,15 +7090,6 @@ w32_create_tip_frame (struct w32_display_info *dpyinfo, Lisp_Object parms)
   gui_default_parameter (f, parms, Qalpha, Qnil,
                          "alpha", "Alpha", RES_TYPE_NUMBER);
 
-  /* Dimensions, especially FRAME_LINES (f), must be done via
-     change_frame_size.  Change will not be effected unless different
-     from the current FRAME_LINES (f).  */
-  width = FRAME_COLS (f);
-  height = FRAME_LINES (f);
-  SET_FRAME_COLS (f, 0);
-  SET_FRAME_LINES (f, 0);
-  adjust_frame_size (f, width * FRAME_COLUMN_WIDTH (f),
-		     height * FRAME_LINE_HEIGHT (f), 0, true, Qtip_frame);
   /* Add `tooltip' frame parameter's default value. */
   if (NILP (Fframe_parameter (frame, Qtooltip)))
     Fmodify_frame_parameters (frame, Fcons (Fcons (Qtooltip, Qt), Qnil));
@@ -7088,6 +7130,8 @@ w32_create_tip_frame (struct w32_display_info *dpyinfo, Lisp_Object parms)
      visible won't work.  */
   Vframe_list = Fcons (frame, Vframe_list);
   f->can_set_window_size = true;
+  adjust_frame_size (f, FRAME_TEXT_WIDTH (f), FRAME_TEXT_HEIGHT (f),
+		     0, true, Qtip_frame);
 
   /* Setting attributes of faces of the tooltip frame from resources
      and similar will set face_change, which leads to the
@@ -7434,6 +7478,8 @@ DEFUN ("x-show-tip", Fx_show_tip, Sx_show_tip, 1, 6, 0,
   set_window_buffer (window, tip_buf, false, false);
   w = XWINDOW (window);
   w->pseudo_window_p = true;
+  /* Try to avoid that `other-window' select us (Bug#47207).  */
+  Fset_window_parameter (window, Qno_other_window, Qt);
 
   /* Set up the frame's root window.  Note: The following code does not
      try to size the window or its frame correctly.  Its only purpose is
@@ -7479,7 +7525,8 @@ DEFUN ("x-show-tip", Fx_show_tip, Sx_show_tip, 1, 6, 0,
   try_window (window, pos, TRY_WINDOW_IGNORE_FONTS_CHANGE);
   /* Calculate size of tooltip window.  */
   size = Fwindow_text_pixel_size (window, Qnil, Qnil, Qnil,
-				  make_fixnum (w->pixel_height), Qnil);
+				  make_fixnum (w->pixel_height), Qnil,
+				  Qnil);
   /* Add the frame's internal border to calculated size.  */
   width = XFIXNUM (Fcar (size)) + 2 * FRAME_INTERNAL_BORDER_WIDTH (tip_f);
   height = XFIXNUM (Fcdr (size)) + 2 * FRAME_INTERNAL_BORDER_WIDTH (tip_f);
@@ -8013,7 +8060,7 @@ DEFUN ("system-move-file-to-trash", Fsystem_move_file_to_trash,
 
       /* The Unicode version of SHFileOperation is not supported on
 	 Windows 9X. */
-      if (w32_unicode_filenames && os_subtype != OS_9X)
+      if (w32_unicode_filenames && os_subtype != OS_SUBTYPE_9X)
 	{
 	  SHFILEOPSTRUCTW file_op_w;
 	  /* We need one more element beyond MAX_PATH because this is
@@ -9142,7 +9189,7 @@ The coordinates X and Y are interpreted in pixels relative to a position
   /* When "mouse trails" are in effect, moving the mouse cursor
      sometimes leaves behind an annoying "ghost" of the pointer.
      Avoid that by momentarily switching off mouse trails.  */
-  if (os_subtype == OS_NT
+  if (os_subtype == OS_SUBTYPE_NT
       && w32_major_version + w32_minor_version >= 6)
     ret = SystemParametersInfo (SPI_GETMOUSETRAILS, 0, &trail_num, 0);
   SetCursorPos (xval, yval);
@@ -9317,7 +9364,7 @@ DEFUN ("default-printer-name", Fdefault_printer_name, Sdefault_printer_name,
   if (!OpenPrinter (pname_buf, &hPrn, NULL))
     return Qnil;
   /* GetPrinterW is not supported by unicows.dll.  */
-  if (w32_unicode_filenames && os_subtype != OS_9X)
+  if (w32_unicode_filenames && os_subtype != OS_SUBTYPE_9X)
     GetPrinterW (hPrn, 2, NULL, 0, &dwNeeded);
   else
     GetPrinterA (hPrn, 2, NULL, 0, &dwNeeded);
@@ -9327,7 +9374,7 @@ DEFUN ("default-printer-name", Fdefault_printer_name, Sdefault_printer_name,
       return Qnil;
     }
   /* Call GetPrinter again with big enough memory block.  */
-  if (w32_unicode_filenames && os_subtype != OS_9X)
+  if (w32_unicode_filenames && os_subtype != OS_SUBTYPE_9X)
     {
       /* Allocate memory for the PRINTER_INFO_2 struct.  */
       ppi2w = xmalloc (dwNeeded);
@@ -9463,9 +9510,9 @@ cache_system_info (void)
   w32_minor_version = version.info.minor;
 
   if (version.info.platform & 0x8000)
-    os_subtype = OS_9X;
+    os_subtype = OS_SUBTYPE_9X;
   else
-    os_subtype = OS_NT;
+    os_subtype = OS_SUBTYPE_NT;
 
   /* Cache page size, allocation unit, processor type, etc.  */
   GetSystemInfo (&sysinfo_cache);
@@ -9476,7 +9523,7 @@ cache_system_info (void)
   GetVersionEx (&osinfo_cache);
 
   w32_build_number = osinfo_cache.dwBuildNumber;
-  if (os_subtype == OS_9X)
+  if (os_subtype == OS_SUBTYPE_9X)
     w32_build_number &= 0xffff;
 
   w32_num_mouse_buttons = GetSystemMetrics (SM_CMOUSEBUTTONS);
@@ -9655,7 +9702,7 @@ w32_kbd_patch_key (KEY_EVENT_RECORD *event, int cpId)
 
   /* On NT, call ToUnicode instead and then convert to the current
      console input codepage.  */
-  if (os_subtype == OS_NT)
+  if (os_subtype == OS_SUBTYPE_NT)
     {
       WCHAR buf[128];
 
@@ -10277,6 +10324,60 @@ to be converted to forward slashes by the caller.  */)
 }
 
 #endif	/* WINDOWSNT */
+
+/* Query a value from the Windows Registry (under HKCU and HKLM),
+   where `key` is the registry key, `name` is the name, and `lpdwtype`
+   is a pointer to the return value's type. `lpwdtype` can be NULL if
+   you do not care about the type.
+
+   Returns: pointer to the value, or null pointer if the key/name does
+   not exist. */
+LPBYTE
+w32_get_resource (const char *key, const char *name, LPDWORD lpdwtype)
+{
+  LPBYTE lpvalue;
+  HKEY hrootkey = NULL;
+  DWORD cbData;
+
+  /* Check both the current user and the local machine to see if
+     we have any resources.  */
+
+  if (RegOpenKeyEx (HKEY_CURRENT_USER, key, 0, KEY_READ, &hrootkey) == ERROR_SUCCESS)
+    {
+      lpvalue = NULL;
+
+      if (RegQueryValueEx (hrootkey, name, NULL, NULL, NULL, &cbData) == ERROR_SUCCESS
+	  && (lpvalue = xmalloc (cbData)) != NULL
+	  && RegQueryValueEx (hrootkey, name, NULL, lpdwtype, lpvalue, &cbData) == ERROR_SUCCESS)
+	{
+          RegCloseKey (hrootkey);
+	  return (lpvalue);
+	}
+
+      xfree (lpvalue);
+
+      RegCloseKey (hrootkey);
+    }
+
+  if (RegOpenKeyEx (HKEY_LOCAL_MACHINE, key, 0, KEY_READ, &hrootkey) == ERROR_SUCCESS)
+    {
+      lpvalue = NULL;
+
+      if (RegQueryValueEx (hrootkey, name, NULL, NULL, NULL, &cbData) == ERROR_SUCCESS
+	  && (lpvalue = xmalloc (cbData)) != NULL
+	  && RegQueryValueEx (hrootkey, name, NULL, lpdwtype, lpvalue, &cbData) == ERROR_SUCCESS)
+	{
+          RegCloseKey (hrootkey);
+	  return (lpvalue);
+	}
+
+      xfree (lpvalue);
+
+      RegCloseKey (hrootkey);
+    }
+
+  return (NULL);
+}
 
 /***********************************************************************
 			    Initialization
@@ -11048,6 +11149,37 @@ globals_of_w32fns (void)
   set_thread_description = (SetThreadDescription_Proc)
     get_proc_addr (hm_kernel32, "SetThreadDescription");
 
+  /* Support OS dark mode on Windows 10 version 1809 and higher.
+     See `w32_applytheme` which uses appropriate APIs per version of Windows.
+     For future wretches who may need to understand Windows build numbers:
+     https://docs.microsoft.com/en-us/windows/release-health/release-information
+  */
+  if (os_subtype == OS_SUBTYPE_NT
+      && w32_major_version >= 10 && w32_build_number >= 17763)
+    {
+      /* Load dwmapi.dll and uxtheme.dll, which will be needed to set
+	 window themes.  */
+      HMODULE dwmapi_lib = LoadLibrary("dwmapi.dll");
+      DwmSetWindowAttribute_fn = (DwmSetWindowAttribute_Proc)
+	get_proc_addr (dwmapi_lib, "DwmSetWindowAttribute");
+      HMODULE uxtheme_lib = LoadLibrary("uxtheme.dll");
+      SetWindowTheme_fn = (SetWindowTheme_Proc)
+	get_proc_addr (uxtheme_lib, "SetWindowTheme");
+
+      /* Check Windows Registry for system theme and set w32_darkmode.
+	 TODO: "Nice to have" would be to create a lisp setting (which
+	 defaults to this Windows Registry value), then read that lisp
+	 value here instead. This would allow the user to forcibly
+	 override the system theme (which is also user-configurable in
+	 Windows settings; see MS-Windows section in Emacs manual). */
+      LPBYTE val =
+	w32_get_resource ("Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
+			  "AppsUseLightTheme",
+			  NULL);
+      if (val && *val == 0)
+	w32_darkmode = TRUE;
+    }
+
   except_code = 0;
   except_addr = 0;
 #ifndef CYGWIN
@@ -11069,7 +11201,7 @@ see `w32-ansi-code-page'.  */);
   w32_multibyte_code_page = _getmbcp ();
 #endif
 
-  if (os_subtype == OS_NT)
+  if (os_subtype == OS_SUBTYPE_NT)
     w32_unicode_gui = 1;
   else
     w32_unicode_gui = 0;

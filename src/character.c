@@ -1,6 +1,6 @@
 /* Basic character support.
 
-Copyright (C) 2001-2021 Free Software Foundation, Inc.
+Copyright (C) 2001-2022 Free Software Foundation, Inc.
 Copyright (C) 1995, 1997, 1998, 2001 Electrotechnical Laboratory, JAPAN.
   Licensed to the Free Software Foundation.
 Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
@@ -34,6 +34,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #include "lisp.h"
 #include "character.h"
 #include "buffer.h"
+#include "frame.h"
 #include "dispextern.h"
 #include "composite.h"
 #include "disptab.h"
@@ -321,28 +322,41 @@ strwidth (const char *str, ptrdiff_t len)
   return c_string_width ((const unsigned char *) str, len, -1, NULL, NULL);
 }
 
-/* Return width of Lisp string STRING when displayed in the current
-   buffer.  The width is measured by how many columns it occupies on
-   the screen while paying attention to compositions.  If PRECISION >
-   0, return the width of longest substring that doesn't exceed
-   PRECISION, and set number of characters and bytes of the substring
-   in *NCHARS and *NBYTES respectively.  */
+/* Return width of a (substring of a) Lisp string STRING when
+   displayed in the current buffer.  The width is measured by how many
+   columns it occupies on the screen while paying attention to
+   compositions.  If PRECISION > 0, return the width of longest
+   substring that doesn't exceed PRECISION, and set number of
+   characters and bytes of the substring in *NCHARS and *NBYTES
+   respectively.  FROM and TO are zero-based character indices that
+   define the substring of STRING to consider.  If AUTO_COMP is
+   non-zero, account for automatic compositions in STRING.  */
 
 ptrdiff_t
-lisp_string_width (Lisp_Object string, ptrdiff_t precision,
-		   ptrdiff_t *nchars, ptrdiff_t *nbytes)
+lisp_string_width (Lisp_Object string, ptrdiff_t from, ptrdiff_t to,
+		   ptrdiff_t precision, ptrdiff_t *nchars, ptrdiff_t *nbytes,
+		   bool auto_comp)
 {
-  ptrdiff_t len = SCHARS (string);
   /* This set multibyte to 0 even if STRING is multibyte when it
      contains only ascii and eight-bit-graphic, but that's
      intentional.  */
-  bool multibyte = len < SBYTES (string);
-  unsigned char *str = SDATA (string);
-  ptrdiff_t i = 0, i_byte = 0;
+  bool multibyte = SCHARS (string) < SBYTES (string);
+  ptrdiff_t i = from, i_byte = from ? string_char_to_byte (string, from) : 0;
+  ptrdiff_t from_byte = i_byte;
   ptrdiff_t width = 0;
   struct Lisp_Char_Table *dp = buffer_display_table ();
+#ifdef HAVE_WINDOW_SYSTEM
+  struct frame *f =
+    (FRAMEP (selected_frame) && FRAME_LIVE_P (XFRAME (selected_frame)))
+    ? XFRAME (selected_frame)
+    : NULL;
+  int font_width = -1;
+  Lisp_Object default_font, frame_font;
+#endif
 
-  while (i < len)
+  eassert (precision <= 0 || (nchars && nbytes));
+
+  while (i < to)
     {
       ptrdiff_t chars, bytes, thiswidth;
       Lisp_Object val;
@@ -357,9 +371,53 @@ lisp_string_width (Lisp_Object string, ptrdiff_t precision,
 	  chars = end - i;
 	  bytes = string_char_to_byte (string, end) - i_byte;
 	}
+#ifdef HAVE_WINDOW_SYSTEM
+      else if (auto_comp
+	       && f && FRAME_WINDOW_P (f)
+	       && multibyte
+	       && find_automatic_composition (i, -1, i, &ignore,
+					      &end, &val, string)
+	       && end > i)
+	{
+	  int j;
+	  for (j = 0; j < LGSTRING_GLYPH_LEN (val); j++)
+	    if (NILP (LGSTRING_GLYPH (val, j)))
+	      break;
+
+	  int pixelwidth = composition_gstring_width (val, 0, j, NULL);
+
+	  /* The below is somewhat expensive, so compute it only once
+	     for the entire loop, and only if needed.  */
+	  if (font_width < 0)
+	    {
+	      font_width = FRAME_COLUMN_WIDTH (f);
+	      default_font = Fface_font (Qdefault, Qnil, Qnil);
+	      frame_font = Fframe_parameter (Qnil, Qfont);
+
+	      if (STRINGP (default_font) && STRINGP (frame_font)
+		  && (SCHARS (default_font) != SCHARS (frame_font)
+		      || SBYTES (default_font) != SBYTES (frame_font)
+		      || memcmp (SDATA (default_font), SDATA (frame_font),
+				 SBYTES (default_font))))
+		{
+		  Lisp_Object font_info = Ffont_info (default_font, Qnil);
+		  if (VECTORP (font_info))
+		    {
+		      font_width = XFIXNUM (AREF (font_info, 11));
+		      if (font_width <= 0)
+			font_width = XFIXNUM (AREF (font_info, 10));
+		    }
+		}
+	    }
+	  thiswidth = (double) pixelwidth / font_width + 0.5;
+	  chars = end - i;
+	  bytes = string_char_to_byte (string, end) - i_byte;
+	}
+#endif	/* HAVE_WINDOW_SYSTEM */
       else
 	{
 	  int c;
+	  unsigned char *str = SDATA (string);
 
 	  if (multibyte)
 	    {
@@ -375,8 +433,8 @@ lisp_string_width (Lisp_Object string, ptrdiff_t precision,
 
       if (0 < precision && precision - width < thiswidth)
 	{
-	  *nchars = i;
-	  *nbytes = i_byte;
+	  *nchars = i - from;
+	  *nbytes = i_byte - from_byte;
 	  return width;
 	}
       if (INT_ADD_WRAPV (thiswidth, width, &width))
@@ -387,27 +445,37 @@ lisp_string_width (Lisp_Object string, ptrdiff_t precision,
 
   if (precision > 0)
     {
-      *nchars = i;
-      *nbytes = i_byte;
+      *nchars = i - from;
+      *nbytes = i_byte - from_byte;
     }
 
   return width;
 }
 
-DEFUN ("string-width", Fstring_width, Sstring_width, 1, 1, 0,
+DEFUN ("string-width", Fstring_width, Sstring_width, 1, 3, 0,
        doc: /* Return width of STRING when displayed in the current buffer.
 Width is measured by how many columns it occupies on the screen.
+Optional arguments FROM and TO specify the substring of STRING to
+consider, and are interpreted as in `substring'.
+
 When calculating width of a multibyte character in STRING,
 only the base leading-code is considered; the validity of
 the following bytes is not checked.  Tabs in STRING are always
-taken to occupy `tab-width' columns.
-usage: (string-width STRING)  */)
-  (Lisp_Object str)
+taken to occupy `tab-width' columns.  The effect of faces and fonts
+used for non-Latin and other unusual characters (such as emoji) is
+ignored as well, as are display properties and invisible text.
+For these reasons, the results are not generally reliable;
+for accurate dimensions of text as it will be displayed,
+use `window-text-pixel-size' instead.
+usage: (string-width STRING &optional FROM TO)  */)
+  (Lisp_Object str, Lisp_Object from, Lisp_Object to)
 {
   Lisp_Object val;
+  ptrdiff_t ifrom, ito;
 
   CHECK_STRING (str);
-  XSETFASTINT (val, lisp_string_width (str, -1, NULL, NULL));
+  validate_subarray (str, from, to, SCHARS (str), &ifrom, &ito);
+  XSETFASTINT (val, lisp_string_width (str, ifrom, ito, -1, NULL, NULL, true));
   return val;
 }
 

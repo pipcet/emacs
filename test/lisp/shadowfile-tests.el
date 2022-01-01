@@ -1,6 +1,6 @@
 ;;; shadowfile-tests.el --- Tests of shadowfile  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2018-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2018-2022 Free Software Foundation, Inc.
 
 ;; Author: Michael Albinus <michael.albinus@gmx.de>
 
@@ -69,8 +69,14 @@
       (format "/mock::%s" temporary-file-directory)))
   "Temporary directory for Tramp tests.")
 
-(setq password-cache-expiry nil
-      shadow-debug (getenv "EMACS_HYDRA_CI")
+(setq auth-source-save-behavior nil
+      password-cache-expiry nil
+      shadow-debug (or (getenv "EMACS_HYDRA_CI") (getenv "EMACS_EMBA_CI"))
+      ;; When the remote user id is 0, Tramp refuses unsafe temporary files.
+      tramp-allow-unsafe-temporary-files
+      (or tramp-allow-unsafe-temporary-files noninteractive)
+      tramp-cache-read-persistent-data t ;; For auth-sources.
+      tramp-persistency-file-name nil
       tramp-verbose 0
       ;; On macOS, `temporary-file-directory' is a symlinked directory.
       temporary-file-directory (file-truename temporary-file-directory)
@@ -117,8 +123,8 @@
   (ignore-errors (delete-file shadow-info-file))
   (ignore-errors (delete-file shadow-todo-file))
   ;; Reset variables.
+  (shadow-invalidate-hashtable)
   (setq shadow-info-buffer nil
-        shadow-hashtable nil
         shadow-todo-buffer nil
         shadow-files-to-copy nil))
 
@@ -640,7 +646,9 @@ guaranteed by the originator of a cluster definition."
 		 (expand-file-name
 		  "shadowfile-tests"
 		  shadow-test-remote-temporary-file-directory))
-		mocked-input `(,cluster1 ,file1 ,cluster2 ,file2 ,(kbd "RET")))
+		mocked-input
+                `(,cluster1 ,file1 ,cluster2 ,file2
+                  ,primary ,file1 ,(kbd "RET")))
 	  (with-temp-buffer
             (set-visited-file-name file1)
 	    (call-interactively #'shadow-define-literal-group)
@@ -654,7 +662,31 @@ guaranteed by the originator of a cluster definition."
 	  (should (member (format "/%s:%s" cluster1 (file-local-name file1))
                           (car shadow-literal-groups)))
 	  (should (member (format "/%s:%s" cluster2 (file-local-name file2))
-                          (car shadow-literal-groups))))
+                          (car shadow-literal-groups)))
+          ;; Bug#49596.
+	  (should (member (concat primary file1) (car shadow-literal-groups)))
+
+          ;; Error handling.
+          (setq shadow-literal-groups nil)
+          ;; There's no `buffer-file-name'.
+          (with-temp-buffer
+            (call-interactively #'shadow-define-literal-group)
+            (set-buffer-modified-p nil))
+          (should-not shadow-literal-groups)
+	  ;; Define an empty literal group.
+	  (setq mocked-input `(,(kbd "RET")))
+	  (with-temp-buffer
+            (set-visited-file-name file1)
+	    (call-interactively #'shadow-define-literal-group)
+            (set-buffer-modified-p nil))
+          (should-not shadow-literal-groups)
+          ;; Use a non-existing site name.
+	  (setq mocked-input `("foo" ,(kbd "RET")))
+	  (with-temp-buffer
+            (set-visited-file-name file1)
+	    (call-interactively #'shadow-define-literal-group)
+            (set-buffer-modified-p nil))
+          (should-not shadow-literal-groups))
 
       ;; Cleanup.
       (shadow--tests-cleanup))))
@@ -729,6 +761,7 @@ guaranteed by the originator of a cluster definition."
   (skip-unless (file-writable-p shadow-test-remote-temporary-file-directory))
 
   (let ((backup-inhibited t)
+        create-lockfiles
         (shadow-info-file shadow-test-info-file)
 	(shadow-todo-file shadow-test-todo-file)
         (shadow-inhibit-message t)
@@ -874,6 +907,7 @@ guaranteed by the originator of a cluster definition."
   (skip-unless (file-writable-p shadow-test-remote-temporary-file-directory))
 
   (let ((backup-inhibited t)
+        create-lockfiles
         (shadow-info-file shadow-test-info-file)
 	(shadow-todo-file shadow-test-todo-file)
         (shadow-inhibit-message t)

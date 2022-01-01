@@ -1,6 +1,6 @@
 ;;; elisp-mode.el --- Emacs Lisp mode  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1985-1986, 1999-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1985-1986, 1999-2022 Free Software Foundation, Inc.
 
 ;; Maintainer: emacs-devel@gnu.org
 ;; Keywords: lisp, languages
@@ -45,160 +45,182 @@ It has `lisp-mode-abbrev-table' as its parent."
     table)
   "Syntax table used in `emacs-lisp-mode'.")
 
-(defvar emacs-lisp-mode-map
-  (let ((map (make-sparse-keymap))
-	(menu-map (make-sparse-keymap "Emacs-Lisp"))
-	(lint-map (make-sparse-keymap))
-	(prof-map (make-sparse-keymap))
-	(tracing-map (make-sparse-keymap)))
-    (set-keymap-parent map lisp-mode-shared-map)
-    (define-key map "\e\t" 'completion-at-point)
-    (define-key map "\e\C-x" 'eval-defun)
-    (define-key map "\e\C-q" 'indent-pp-sexp)
-    (bindings--define-key map [menu-bar emacs-lisp]
-      (cons "Emacs-Lisp" menu-map))
-    (bindings--define-key menu-map [eldoc]
-      '(menu-item "Auto-Display Documentation Strings" eldoc-mode
-		  :button (:toggle . (bound-and-true-p eldoc-mode))
-		  :help "Display the documentation string for the item under cursor"))
-    (bindings--define-key menu-map [checkdoc]
-      '(menu-item "Check Documentation Strings" checkdoc
-		  :help "Check documentation strings for style requirements"))
-    (bindings--define-key menu-map [re-builder]
-      '(menu-item "Construct Regexp" re-builder
-		  :help "Construct a regexp interactively"))
-    (bindings--define-key menu-map [tracing] (cons "Tracing" tracing-map))
-    (bindings--define-key tracing-map [tr-a]
-      '(menu-item "Untrace All" untrace-all
-		  :help "Untrace all currently traced functions"))
-    (bindings--define-key tracing-map [tr-uf]
-      '(menu-item "Untrace Function..." untrace-function
-		  :help "Untrace function, and possibly activate all remaining advice"))
-    (bindings--define-key tracing-map [tr-sep] menu-bar-separator)
-    (bindings--define-key tracing-map [tr-q]
-      '(menu-item "Trace Function Quietly..." trace-function-background
-		  :help "Trace the function with trace output going quietly to a buffer"))
-    (bindings--define-key tracing-map [tr-f]
-      '(menu-item "Trace Function..." trace-function
-		  :help "Trace the function given as an argument"))
-    (bindings--define-key menu-map [profiling] (cons "Profiling" prof-map))
-    (bindings--define-key prof-map [prof-restall]
-      '(menu-item "Remove Instrumentation for All Functions" elp-restore-all
-		  :help "Restore the original definitions of all functions being profiled"))
-    (bindings--define-key prof-map [prof-restfunc]
-      '(menu-item "Remove Instrumentation for Function..." elp-restore-function
-		  :help "Restore an instrumented function to its original definition"))
+(defvar-keymap emacs-lisp-mode-map
+  :doc "Keymap for Emacs Lisp mode.
+All commands in `lisp-mode-shared-map' are inherited by this map."
+  :parent lisp-mode-shared-map
+  "M-TAB" #'completion-at-point
+  "C-M-x" #'eval-defun
+  "C-M-q" #'indent-pp-sexp)
 
-    (bindings--define-key prof-map [sep-rem] menu-bar-separator)
-    (bindings--define-key prof-map [prof-resall]
-      '(menu-item "Reset Counters for All Functions" elp-reset-all
-		  :help "Reset the profiling information for all functions being profiled"))
-    (bindings--define-key prof-map [prof-resfunc]
-      '(menu-item "Reset Counters for Function..." elp-reset-function
-		  :help "Reset the profiling information for a function"))
-    (bindings--define-key prof-map [prof-res]
-      '(menu-item "Show Profiling Results" elp-results
-		  :help "Display current profiling results"))
-    (bindings--define-key prof-map [prof-pack]
-      '(menu-item "Instrument Package..." elp-instrument-package
-		  :help "Instrument for profiling all function that start with a prefix"))
-    (bindings--define-key prof-map [prof-func]
-      '(menu-item "Instrument Function..." elp-instrument-function
-		  :help "Instrument a function for profiling"))
-    ;; Maybe this should be in a separate submenu from the ELP stuff?
-    (bindings--define-key prof-map [sep-natprof] menu-bar-separator)
-    (bindings--define-key prof-map [prof-natprof-stop]
-      '(menu-item "Stop Native Profiler" profiler-stop
-		  :help "Stop recording profiling information"
-		  :enable (and (featurep 'profiler)
-			       (profiler-running-p))))
-    (bindings--define-key prof-map [prof-natprof-report]
-      '(menu-item "Show Profiler Report" profiler-report
-		  :help "Show the current profiler report"
-		  :enable (and (featurep 'profiler)
-			       (profiler-running-p))))
-    (bindings--define-key prof-map [prof-natprof-start]
-      '(menu-item "Start Native Profiler..." profiler-start
-		  :help "Start recording profiling information"))
+(easy-menu-define emacs-lisp-mode-menu emacs-lisp-mode-map
+  "Menu for Emacs Lisp mode."
+  '("Emacs-Lisp"
+    ["Indent Line" lisp-indent-line]
+    ["Indent Region" indent-region
+     :help "Indent each nonblank line in the region"
+     :active mark-active]
+    ["Comment Out Region" comment-region
+     :help "Comment or uncomment each line in the region"
+     :active mark-active]
+    "---"
+    ["Evaluate Last S-expression" eval-last-sexp
+     :help "Evaluate sexp before point; print value in echo area"]
+    ["Evaluate Region" eval-region
+     :help "Execute the region as Lisp code"
+     :active mark-active]
+    ["Evaluate Buffer" eval-buffer
+     :help "Execute the current buffer as Lisp code"]
+    ["Interactive Expression Evaluation" ielm
+     :help "Interactively evaluate Emacs Lisp expressions"]
+    "---"
+    ["Byte-compile This File" emacs-lisp-byte-compile
+     :help "Byte compile the file containing the current buffer"]
+    ["Byte-compile and Load" emacs-lisp-byte-compile-and-load
+     :help "Byte-compile the current file (if it has changed), then load compiled code"]
+    ["Byte-recompile Directory..." byte-recompile-directory
+     :help "Recompile every `.el' file in DIRECTORY that needs recompilation"]
+    ["Disassemble Byte Compiled Object..." disassemble
+     :help "Print disassembled code for OBJECT in a buffer"]
+    "---"
+    ["Instrument Function for Debugging" edebug-defun
+     :help "Evaluate the top level form point is in, stepping through with Edebug"
+     :keys "C-u C-M-x"]
+    ("Navigation"
+     ["Forward Sexp" forward-sexp
+      :help "Go to the next s-expression"]
+     ["Backward Sexp" backward-sexp
+      :help "Go to the previous s-expression"]
+     ["Beginning Of Defun" beginning-of-defun
+      :help "Go to the start of the current function definition"]
+     ["Up List" up-list
+      :help "Go one level up and forward"])
+    ("Linting"
+     ["Lint Defun" elint-defun
+      :help "Lint the function at point"]
+     ["Lint Buffer" elint-current-buffer
+      :help "Lint the current buffer"]
+     ["Lint File..." elint-file
+      :help "Lint a file"]
+     ["Lint Directory..." elint-directory
+      :help "Lint a directory"])
+    ("Profiling"
+     ;; Maybe this should be in a separate submenu from the ELP stuff?
+     ["Start Native Profiler..." profiler-start
+      :help "Start recording profiling information"]
+     ["Show Profiler Report" profiler-report
+      :help "Show the current profiler report"
+      :active (and (featurep 'profiler)
+                   (profiler-running-p))]
+     ["Stop Native Profiler" profiler-stop
+      :help "Stop recording profiling information"
+      :active (and (featurep 'profiler)
+                   (profiler-running-p))]
+     "---"
+     ["Instrument Function..." elp-instrument-function
+      :help "Instrument a function for profiling"]
+     ["Instrument Package..." elp-instrument-package
+      :help "Instrument for profiling all function that start with a prefix"]
+     ["Show Profiling Results" elp-results
+      :help "Display current profiling results"]
+     ["Reset Counters for Function..." elp-reset-function
+      :help "Reset the profiling information for a function"]
+     ["Reset Counters for All Functions" elp-reset-all
+      :help "Reset the profiling information for all functions being profiled"]
+     "---"
+     ["Remove Instrumentation for All Functions" elp-restore-all
+      :help "Restore the original definitions of all functions being profiled"]
+     ["Remove Instrumentation for Function..." elp-restore-function
+      :help "Restore an instrumented function to its original definition"])
+    ("Tracing"
+     ["Trace Function..." trace-function
+      :help "Trace the function given as an argument"]
+     ["Trace Function Quietly..." trace-function-background
+      :help "Trace the function with trace output going quietly to a buffer"]
+     "---"
+     ["Untrace All" untrace-all
+      :help "Untrace all currently traced functions"]
+     ["Untrace Function..." untrace-function
+      :help "Untrace function, and possibly activate all remaining advice"])
+    ["Construct Regexp" re-builder
+     :help "Construct a regexp interactively"]
+    ["Check Documentation Strings" checkdoc
+     :help "Check documentation strings for style requirements"]
+    ["Auto-Display Documentation Strings" eldoc-mode
+     :help "Display the documentation string for the item under cursor"
+     :style toggle
+     :selected (bound-and-true-p eldoc-mode)]))
 
-    (bindings--define-key menu-map [lint] (cons "Linting" lint-map))
-    (bindings--define-key lint-map [lint-di]
-      '(menu-item "Lint Directory..." elint-directory
-		  :help "Lint a directory"))
-    (bindings--define-key lint-map [lint-f]
-      '(menu-item "Lint File..." elint-file
-		  :help "Lint a file"))
-    (bindings--define-key lint-map [lint-b]
-      '(menu-item "Lint Buffer" elint-current-buffer
-		  :help "Lint the current buffer"))
-    (bindings--define-key lint-map [lint-d]
-      '(menu-item "Lint Defun" elint-defun
-		  :help "Lint the function at point"))
-    (bindings--define-key menu-map [edebug-defun]
-      '(menu-item "Instrument Function for Debugging" edebug-defun
-		  :help "Evaluate the top level form point is in, stepping through with Edebug"
-		  :keys "C-u C-M-x"))
-    (bindings--define-key menu-map [separator-byte] menu-bar-separator)
-    (bindings--define-key menu-map [disas]
-      '(menu-item "Disassemble Byte Compiled Object..." disassemble
-		  :help "Print disassembled code for OBJECT in a buffer"))
-    (bindings--define-key menu-map [byte-recompile]
-      '(menu-item "Byte-recompile Directory..." byte-recompile-directory
-		  :help "Recompile every `.el' file in DIRECTORY that needs recompilation"))
-    (bindings--define-key menu-map [emacs-byte-compile-and-load]
-      '(menu-item "Byte-compile and Load" emacs-lisp-byte-compile-and-load
-		  :help "Byte-compile the current file (if it has changed), then load compiled code"))
-    (bindings--define-key menu-map [byte-compile]
-      '(menu-item "Byte-compile This File" emacs-lisp-byte-compile
-		  :help "Byte compile the file containing the current buffer"))
-    (bindings--define-key menu-map [separator-eval] menu-bar-separator)
-    (bindings--define-key menu-map [ielm]
-      '(menu-item "Interactive Expression Evaluation" ielm
-		  :help "Interactively evaluate Emacs Lisp expressions"))
-    (bindings--define-key menu-map [eval-buffer]
-      '(menu-item "Evaluate Buffer" eval-buffer
-		  :help "Execute the current buffer as Lisp code"))
-    (bindings--define-key menu-map [eval-region]
-      '(menu-item "Evaluate Region" eval-region
-		  :help "Execute the region as Lisp code"
-		  :enable mark-active))
-    (bindings--define-key menu-map [eval-sexp]
-      '(menu-item "Evaluate Last S-expression" eval-last-sexp
-		  :help "Evaluate sexp before point; print value in echo area"))
-    (bindings--define-key menu-map [separator-format] menu-bar-separator)
-    (bindings--define-key menu-map [comment-region]
-      '(menu-item "Comment Out Region" comment-region
-		  :help "Comment or uncomment each line in the region"
-		  :enable mark-active))
-    (bindings--define-key menu-map [indent-region]
-      '(menu-item "Indent Region" indent-region
-		  :help "Indent each nonblank line in the region"
-		  :enable mark-active))
-    (bindings--define-key menu-map [indent-line]
-      '(menu-item "Indent Line" lisp-indent-line))
-    map)
-  "Keymap for Emacs Lisp mode.
-All commands in `lisp-mode-shared-map' are inherited by this map.")
+(defun elisp-context-menu (menu click)
+  "Populate MENU with symbol help commands at CLICK."
+  (when (thing-at-mouse click 'symbol)
+    (define-key-after menu [elisp-separator] menu-bar-separator
+      'middle-separator)
+
+    (let* ((string (thing-at-mouse click 'symbol t))
+           (symbol (when (stringp string) (intern string)))
+           (title (cond
+                   ((not (symbolp symbol)) nil)
+                   ((and (facep symbol) (not (fboundp symbol)))
+                    "Face")
+                   ((and (fboundp symbol)
+                         (not (or (boundp symbol) (facep symbol))))
+                    "Function")
+                   ((and (boundp symbol)
+                         (not (or (fboundp symbol) (facep symbol))))
+                    "Variable")
+                   ((or (fboundp symbol) (boundp symbol) (facep symbol))
+                    "Symbol"))))
+      (when title
+        (define-key-after menu [info-lookup-symbol]
+          `(menu-item "Look up in Manual"
+                      (lambda (_click) (interactive "e")
+                        (info-lookup-symbol ',symbol))
+                      :help ,(format "Find `%s' in relevant manual" symbol))
+          'elisp-separator)
+        (define-key-after menu [describe-symbol]
+          `(menu-item (format "Describe %s" ,title)
+                      (lambda (_click) (interactive "e")
+                        (describe-symbol ',symbol))
+                      :help ,(format "Display the documentation of `%s'" symbol))
+          'elisp-separator))))
+  menu)
 
 (defun emacs-lisp-byte-compile ()
   "Byte compile the file containing the current buffer."
-  (interactive)
+  (interactive nil emacs-lisp-mode)
   (if buffer-file-name
       (byte-compile-file buffer-file-name)
     (error "The buffer must be saved in a file first")))
 
-(defun emacs-lisp-byte-compile-and-load ()
-  "Byte-compile the current file (if it has changed), then load compiled code."
-  (interactive)
+(defun emacs-lisp--before-compile-buffer ()
+  "Make sure the buffer is saved before compiling."
   (or buffer-file-name
       (error "The buffer must be saved in a file first"))
-  (require 'bytecomp)
   ;; Recompile if file or buffer has changed since last compilation.
   (if (and (buffer-modified-p)
 	   (y-or-n-p (format "Save buffer %s first? " (buffer-name))))
-      (save-buffer))
+      (save-buffer)))
+
+(defun emacs-lisp-byte-compile-and-load ()
+  "Byte-compile the current file (if it has changed), then load compiled code."
+  (interactive nil emacs-lisp-mode)
+  (emacs-lisp--before-compile-buffer)
+  (require 'bytecomp)
   (byte-recompile-file buffer-file-name nil 0)
-  (load buffer-file-name))
+  (load (byte-compile-dest-file buffer-file-name)))
+
+(declare-function native-compile "comp")
+(defun emacs-lisp-native-compile-and-load ()
+  "Native-compile synchronously the current file (if it has changed).
+Load the compiled code when finished.
+
+Use `emacs-lisp-byte-compile-and-load' in combination with
+`native-comp-deferred-compilation' set to t to achieve asynchronous
+native compilation."
+  (interactive nil emacs-lisp-mode)
+  (emacs-lisp--before-compile-buffer)
+  (load (native-compile buffer-file-name)))
 
 (defun emacs-lisp-macroexpand ()
   "Macroexpand the form after point.
@@ -246,10 +268,8 @@ Comments in the form will be lost."
       (setq-local lexical-binding t)
       (add-file-local-variable-prop-line 'lexical-binding t interactive))))
 
-(defvar elisp--dynlex-modeline-map
-  (let ((map (make-sparse-keymap)))
-    (define-key map [mode-line mouse-1] 'elisp-enable-lexical-binding)
-    map))
+(defvar-keymap elisp--dynlex-modeline-map
+  "<mode-line> <mouse-1>" #'elisp-enable-lexical-binding)
 
 ;;;###autoload
 (define-derived-mode emacs-lisp-mode lisp-data-mode
@@ -266,6 +286,9 @@ mouse-1: Enable lexical-binding mode"
 Commands:
 Delete converts tabs to spaces as it moves back.
 Blank lines separate paragraphs.  Semicolons start comments.
+
+When editing Lisp data (as opposed to code), `lisp-data-mode' can
+be used instead.
 
 \\{emacs-lisp-mode-map}"
   :group 'lisp
@@ -291,7 +314,8 @@ Blank lines separate paragraphs.  Semicolons start comments.
             #'elisp-completion-at-point nil 'local)
   (add-hook 'flymake-diagnostic-functions #'elisp-flymake-checkdoc nil t)
   (add-hook 'flymake-diagnostic-functions
-              #'elisp-flymake-byte-compile nil t))
+              #'elisp-flymake-byte-compile nil t)
+  (add-hook 'context-menu-functions #'elisp-context-menu 10 t))
 
 ;; Font-locking support.
 
@@ -504,6 +528,53 @@ It can be quoted, or be inside a quoted form."
             0))
      ((facep sym) (find-definition-noselect sym 'defface)))))
 
+(defvar obarray-cache nil
+  "If non-nil, a hash table of cached obarray-related information.
+The cache holds information specific to the current state of the
+Elisp obarray.  If the obarray is modified by any means (such as
+interning or uninterning a symbol), this variable is set to nil.")
+
+(defun elisp--completion-local-symbols ()
+  "Compute collections of all Elisp symbols for completion purposes.
+The return value is compatible with the COLLECTION form described
+in `completion-at-point-functions' (which see)."
+  (cl-flet ((obarray-plus-shorthands ()
+              (let (retval)
+                (mapatoms
+                 (lambda (s)
+                   (push s retval)
+                   (cl-loop
+                    for (shorthand . longhand) in read-symbol-shorthands
+                    for full-name = (symbol-name s)
+                    when (string-prefix-p longhand full-name)
+                    do (let ((sym (make-symbol
+                                   (concat shorthand
+                                           (substring full-name
+                                                      (length longhand))))))
+                         (put sym 'shorthand t)
+                         (push sym retval)
+                         retval))))
+                retval)))
+    (cond ((null read-symbol-shorthands) obarray)
+          ((and obarray-cache
+                (gethash (cons (current-buffer) read-symbol-shorthands)
+                         obarray-cache)))
+          (obarray-cache
+            (puthash (cons (current-buffer) read-symbol-shorthands)
+                     (obarray-plus-shorthands)
+                     obarray-cache))
+          (t
+            (setq obarray-cache (make-hash-table :test #'equal))
+            (puthash (cons (current-buffer) read-symbol-shorthands)
+                     (obarray-plus-shorthands)
+                     obarray-cache)))))
+
+(defun elisp--shorthand-aware-fboundp (sym)
+  (fboundp (intern-soft (symbol-name sym))))
+
+(defun elisp--shorthand-aware-boundp (sym)
+  (boundp (intern-soft (symbol-name sym))))
+
 (defun elisp-completion-at-point ()
   "Function used for `completion-at-point-functions' in `emacs-lisp-mode'.
 If the context at point allows only a certain category of
@@ -523,7 +594,7 @@ functions are annotated with \"<f>\" via the
 	   (end
 	    (unless (or (eq beg (point-max))
 			(member (char-syntax (char-after beg))
-                                '(?\s ?\" ?\( ?\))))
+                                '(?\" ?\()))
 	      (condition-case nil
 		  (save-excursion
 		    (goto-char beg)
@@ -551,38 +622,51 @@ functions are annotated with \"<f>\" via the
                     ;; the current form and use it to provide a more
                     ;; specific completion table in more cases.
                     ((eq fun-sym 'ignore-error)
-                     (list t obarray
+                     (list t (elisp--completion-local-symbols)
                            :predicate (lambda (sym)
                                         (get sym 'error-conditions))))
                     ((elisp--expect-function-p beg)
-                     (list nil obarray
-                           :predicate #'fboundp
+                     (list nil (elisp--completion-local-symbols)
+                           :predicate
+                           #'elisp--shorthand-aware-fboundp
+                           :company-kind #'elisp--company-kind
                            :company-doc-buffer #'elisp--company-doc-buffer
                            :company-docsig #'elisp--company-doc-string
-                           :company-location #'elisp--company-location))
+                           :company-location #'elisp--company-location
+                           :company-deprecated #'elisp--company-deprecated))
                     (quoted
-                     (list nil obarray
+                     (list nil (elisp--completion-local-symbols)
                            ;; Don't include all symbols (bug#16646).
                            :predicate (lambda (sym)
-                                        (or (boundp sym)
-                                            (fboundp sym)
-                                            (featurep sym)
-                                            (symbol-plist sym)))
+                                        ;; shorthand-aware
+                                        (let ((sym (intern-soft (symbol-name sym))))
+                                          (or (boundp sym)
+                                              (fboundp sym)
+                                              (featurep sym)
+                                              (symbol-plist sym))))
                            :annotation-function
                            (lambda (str) (if (fboundp (intern-soft str)) " <f>"))
+                           :company-kind #'elisp--company-kind
                            :company-doc-buffer #'elisp--company-doc-buffer
                            :company-docsig #'elisp--company-doc-string
-                           :company-location #'elisp--company-location))
+                           :company-location #'elisp--company-location
+                           :company-deprecated #'elisp--company-deprecated))
                     (t
                      (list nil (completion-table-merge
                                 elisp--local-variables-completion-table
                                 (apply-partially #'completion-table-with-predicate
-                                                 obarray
-                                                 #'boundp
+                                                 (elisp--completion-local-symbols)
+                                                 #'elisp--shorthand-aware-boundp
                                                  'strict))
+                           :company-kind
+                           (lambda (s)
+                             (if (test-completion s elisp--local-variables-completion-table)
+                                 'value
+                               'variable))
                            :company-doc-buffer #'elisp--company-doc-buffer
                            :company-docsig #'elisp--company-doc-string
-                           :company-location #'elisp--company-location)))
+                           :company-location #'elisp--company-location
+                           :company-deprecated #'elisp--company-deprecated)))
                  ;; Looks like a funcall position.  Let's double check.
                  (save-excursion
                    (goto-char (1- beg))
@@ -610,11 +694,11 @@ functions are annotated with \"<f>\" via the
                                       (ignore-errors
                                         (forward-sexp 2)
                                         (< (point) beg)))))
-                        (list t obarray
+                        (list t (elisp--completion-local-symbols)
                               :predicate (lambda (sym) (get sym 'error-conditions))))
                        ;; `ignore-error' with a list CONDITION parameter.
                        ('ignore-error
-                        (list t obarray
+                        (list t (elisp--completion-local-symbols)
                               :predicate (lambda (sym)
                                            (get sym 'error-conditions))))
                        ((and (or ?\( 'let 'let*)
@@ -624,16 +708,20 @@ functions are annotated with \"<f>\" via the
                                         (up-list -1))
                                       (forward-symbol -1)
                                       (looking-at "\\_<let\\*?\\_>"))))
-                        (list t obarray
-                              :predicate #'boundp
+                        (list t (elisp--completion-local-symbols)
+                              :predicate #'elisp--shorthand-aware-boundp
+                              :company-kind (lambda (_) 'variable)
                               :company-doc-buffer #'elisp--company-doc-buffer
                               :company-docsig #'elisp--company-doc-string
-                              :company-location #'elisp--company-location))
-                       (_ (list nil obarray
-                                :predicate #'fboundp
+                              :company-location #'elisp--company-location
+                              :company-deprecated #'elisp--company-deprecated))
+                       (_ (list nil (elisp--completion-local-symbols)
+                                :predicate #'elisp--shorthand-aware-fboundp
+                                :company-kind #'elisp--company-kind
                                 :company-doc-buffer #'elisp--company-doc-buffer
                                 :company-docsig #'elisp--company-doc-string
                                 :company-location #'elisp--company-location
+                                :company-deprecated #'elisp--company-deprecated
                                 ))))))))
           (nconc (list beg end)
                  (if (null (car table-etc))
@@ -646,6 +734,21 @@ functions are annotated with \"<f>\" via the
                                        " " (cadr table-etc)))
                     (cddr table-etc)))))))))
 
+(defun elisp--company-kind (str)
+  (let ((sym (intern-soft str)))
+    (cond
+     ((or (macrop sym) (special-form-p sym)) 'keyword)
+     ((fboundp sym) 'function)
+     ((boundp sym) 'variable)
+     ((featurep sym) 'module)
+     ((facep sym) 'color)
+     (t 'text))))
+
+(defun elisp--company-deprecated (str)
+  (let ((sym (intern-soft str)))
+    (or (get sym 'byte-obsolete-variable)
+        (get sym 'byte-obsolete-info))))
+
 (defun lisp-completion-at-point (&optional _predicate)
   (declare (obsolete elisp-completion-at-point "25.1"))
   (elisp-completion-at-point))
@@ -653,6 +756,7 @@ functions are annotated with \"<f>\" via the
 ;;; Xref backend
 
 (declare-function xref-make "xref" (summary location))
+(declare-function xref-item-location "xref" (this))
 
 (defun elisp--xref-backend () 'elisp)
 
@@ -688,21 +792,214 @@ Each function should return a list of xrefs, or nil; the first
 non-nil result supersedes the xrefs produced by
 `elisp--xref-find-definitions'.")
 
-(cl-defmethod xref-backend-definitions ((_backend (eql elisp)) identifier)
+(defun elisp--xref-list-index ()
+  "Return the list index of the form at point, moving to the start.
+If the buffer start was reached, return nil."
+  (let ((i 0))
+    (while (condition-case nil
+               (let ((pt (point)))
+                 (backward-sexp)
+                 (< (point) pt))
+             (scan-error nil))
+      (setq i (1+ i)))
+    (and (not (bobp)) i)))
+
+(defun elisp--xref-infer-namespace (pos)
+  "Find the likely namespace of the identifier at POS.
+Return one of `function', `variable' `maybe-variable', `feature', `face', or
+`any' (indicating any namespace).  `maybe-variable' indicates a variable
+namespace but with lower confidence."
+  (save-excursion
+    (goto-char pos)
+    (cl-flet ((looking-at-sym ()
+                (let ((val (save-excursion
+                             (ignore-errors (read (current-buffer))))))
+                  (and (symbolp val) val))))
+      (cond
+       ((and (eq (char-before pos) ?\')
+             (eq (char-before (1- pos)) ?#))
+        ;; #'IDENT
+        'function)
+       ((memq (char-before pos) '(?\' ?`))
+        ;; 'IDENT or `IDENT -- try to disambiguate.
+        (backward-char)                 ; Step over '
+        (let ((i (elisp--xref-list-index))
+              (sym (looking-at-sym)))
+          (cond
+           ((eql i 1)
+            (cond
+             ((memq sym '( featurep require provide))
+              'feature)
+             ((memq sym
+                    '(
+                      ;; We are mostly interested in functions that take a
+                      ;; function symbol as argument:
+                      fboundp symbol-function fset
+                      ;; ... but we include some common higher-order functions
+                      ;; as well, even though the argument really should
+                      ;; be #'-quoted:
+                      function-get function-put
+                      func-arity functionp
+                      funcall funcall-interactively
+                      apply mapcar mapc mapcan mapconcat
+                      apply-partially
+                      substitute-key-definition))
+              'function)
+             ((memq sym
+                    '(
+                      ;; Functions taking a variable symbol as first argument.
+                      ;; More of these could be added for greater precision.
+                      boundp set symbol-value
+                      special-variable-p local-variable-p
+                      local-variable-if-set-p
+                      make-variable-buffer-local
+                      default-value set-default make-local-variable
+                      buffer-local-value))
+              'variable)
+             ((memq sym
+                    '(
+                      ;; FIXME: Add more functions taking a face
+                      ;; symbol for greater precision.
+                      facep face-name face-id))
+              'face)
+             (t 'any)))
+           ((and (eql i 2)
+                 (memq sym '( global-set-key local-set-key
+                              substitute-key-definition
+                              add-hook)))
+            'function)
+           ((and (eql i 3)
+                 (memq sym '( define-key add-function)))
+            'function)
+           (t 'any))))
+       ((or (and (eq (char-before (1- pos)) ?,)
+                 (eq (char-before pos) ?@))
+            (eq (char-before pos) ?,))
+        ;; ,IDENT or ,@IDENT
+        'variable)
+       (t
+        ;; Unquoted name -- look at the context.  General scheme:
+        ;; (K-HEAD ... (J-HEAD ... (I-HEAD ... IDENT
+        ;;             ^ index K   ^ index J   ^ index I
+        (let* ((i (elisp--xref-list-index))
+               (i-head (looking-at-sym))
+               (i-paren (and i (eq (char-before) ?\()
+                             (progn (backward-char) t)))
+               (i-quoted (and i-paren (memq (char-before) '(?\' ?`))))
+               (j (and i-paren (elisp--xref-list-index)))
+               (j-head (and j (looking-at-sym)))
+               (j-paren (and j (eq (char-before) ?\()
+                             (progn (backward-char) t)))
+               (j-quoted (and j-paren (memq (char-before) '(?\' ?`))))
+               (k (and j-paren (elisp--xref-list-index)))
+               (k-head (and k (looking-at-sym)))
+               (k-paren (and k (eq (char-before) ?\()
+                             (progn (backward-char) t)))
+               (k-quoted (and k-paren (memq (char-before) '(?\' ?`)))))
+          (cond
+           ((or i-quoted j-quoted k-quoted)
+            ;; '(... IDENT or '(... (... IDENT or '(... (... (... IDENT
+            'any)
+           ((and (eql j 1)
+                 (memq j-head '( let let* letrec dlet lambda)))
+            ;; (let (... IDENT
+            'variable)
+           ((and (eql j 2)
+                 (memq j-head '( defun defmacro defsubst
+                                 define-inline declare-function
+                                 defadvice
+                                 cl-defmethod cl-defgeneric)))
+            ;; (defun FUNC (... IDENT
+            'variable)
+           ((eq j-head 'cond)
+            ;; (cond ... (... IDENT
+            'variable)
+           ((and (eql k 1)
+                 (memq k-head '( let let* letrec dlet )))
+            ;; (let (... (... IDENT
+            'variable)
+           ((eql i 0)
+            ;; (IDENT ...
+            'function)
+           ((functionp i-head)
+            ;; (FUNC ... IDENT
+            'variable)
+           ((and (eql i 1)
+                 (cond
+                  ((memq i-head '( function
+                                   defun defmacro defsubst
+                                   define-inline declare-function
+                                   defadvice
+                                   cl-defmethod cl-defgeneric))
+                   'function)
+                  ((memq i-head '( defvar defvar-local defconst defcustom))
+                   'variable)
+                  ((eq i-head 'defface)
+                   'face))))
+           ((memq i-head '( if while and or when unless progn prog1
+                            let let* lambda defun defsubst defvar defconst))
+            ;; arg to some common non-function forms
+            'variable)
+           ;; Anything else: probably a variable, but since i-head may be
+           ;; a macro we cannot be sure.
+           (t 'maybe-variable))))))))
+
+(cl-defmethod xref-backend-identifier-at-point ((_backend (eql 'elisp)))
+  (let ((bounds (bounds-of-thing-at-point 'symbol)))
+    (and bounds
+         (let ((ident (buffer-substring-no-properties
+                       (car bounds) (cdr bounds))))
+           ;; Use a property to transport the location of the identifier.
+           (propertize ident 'pos (car bounds))))))
+
+(cl-defmethod xref-backend-definitions ((_backend (eql 'elisp)) identifier)
   (require 'find-func)
-  ;; FIXME: use information in source near point to filter results:
-  ;; (dvc-log-edit ...) - exclude 'feature
-  ;; (require 'dvc-log-edit) - only 'feature
-  ;; Semantic may provide additional information
-  ;;
   (let ((sym (intern-soft identifier)))
     (when sym
-      (elisp--xref-find-definitions sym))))
+      (let* ((pos (get-text-property 0 'pos identifier))
+             (namespace (if pos
+                            (elisp--xref-infer-namespace pos)
+                          'any))
+             (defs (elisp--xref-find-definitions sym)))
+        (if (eq namespace 'maybe-variable)
+            (or (elisp--xref-filter-definitions defs 'variable sym)
+                (elisp--xref-filter-definitions defs 'any sym))
+          (elisp--xref-filter-definitions defs namespace sym))))))
+
+(defun elisp--xref-filter-definitions (definitions namespace symbol)
+  (if (eq namespace 'any)
+      (if (memq symbol minor-mode-list)
+          ;; The symbol is a minor mode. These should be defined by
+          ;; "define-minor-mode", which means the variable and the
+          ;; function are declared in the same place. So we return only
+          ;; the function, arbitrarily.
+          ;;
+          ;; There is an exception, when the variable is defined in C
+          ;; code, as for abbrev-mode.
+          (cl-loop for d in definitions
+                   for loc = (xref-item-location d)
+                   for file = (xref-elisp-location-file loc)
+                   when (or (not (eq (xref-elisp-location-type loc) 'defvar))
+                            (null file)
+                            (string-prefix-p "src/" file))
+                   collect d)
+        definitions)
+    (let ((expected-types
+           (pcase-exhaustive namespace
+             ('function '( nil defalias define-type
+                           cl-defgeneric cl-defmethod))
+             ('variable '(defvar))
+             ('face '(defface))
+             ('feature '(feature)))))
+      (cl-loop for d in definitions
+               when (memq
+                     (xref-elisp-location-type (xref-item-location d))
+                     expected-types)
+               collect d))))
 
 (defun elisp--xref-find-definitions (symbol)
   ;; The file name is not known when `symbol' is defined via interactive eval.
   (let (xrefs)
-
     (let ((temp elisp-xref-find-def-functions))
       (while (and (null xrefs)
                   temp)
@@ -746,7 +1043,7 @@ non-nil result supersedes the xrefs produced by
               ;; First call to find-lisp-object-file-name for an object
               ;; defined in C; the doc strings from the C source have
               ;; not been loaded yet.  Second call will return "src/*.c"
-              ;; in file; handled by 't' case below.
+              ;; in file; handled by t case below.
               (push (elisp--xref-make-xref nil symbol (help-C-file-name (symbol-function symbol) 'subr)) xrefs))
 
              ((and (setq doc (documentation symbol t))
@@ -766,6 +1063,8 @@ non-nil result supersedes the xrefs produced by
 
              ((setq generic (cl--generic symbol))
               ;; FIXME: move this to elisp-xref-find-def-functions, in cl-generic.el
+              ;; XXX: How are we going to support using newer xref
+              ;; with older versions of Emacs, though?
 
               ;; A generic function. If there is a default method, it
               ;; will appear in the method table, with no
@@ -788,7 +1087,7 @@ non-nil result supersedes the xrefs produced by
                                   specializers))
                        (file (find-lisp-object-file-name met-name 'cl-defmethod)))
                   (dolist (item specializers)
-                    ;; default method has all 't' in specializers
+                    ;; Default method has all t in specializers.
                     (setq non-default (or non-default (not (equal t item)))))
 
                   (when (and file
@@ -828,29 +1127,6 @@ non-nil result supersedes the xrefs produced by
               ;; return "src/*.c" in file; handled below.
               (push (elisp--xref-make-xref 'defvar symbol (help-C-file-name symbol 'var)) xrefs))
 
-             ((string= "src/" (substring file 0 4))
-              ;; The variable is defined in a C source file; don't check
-              ;; for define-minor-mode.
-              (push (elisp--xref-make-xref 'defvar symbol file) xrefs))
-
-             ((memq symbol minor-mode-list)
-              ;; The symbol is a minor mode. These should be defined by
-              ;; "define-minor-mode", which means the variable and the
-              ;; function are declared in the same place. So we return only
-              ;; the function, arbitrarily.
-              ;;
-              ;; There is an exception, when the variable is defined in C
-              ;; code, as for abbrev-mode.
-              ;;
-              ;; IMPROVEME: If the user is searching for the identifier at
-              ;; point, we can determine whether it is a variable or
-              ;; function by looking at the source code near point.
-              ;;
-              ;; IMPROVEME: The user may actually be asking "do any
-              ;; variables by this name exist"; we need a way to specify
-              ;; that.
-              nil)
-
              (t
               (push (elisp--xref-make-xref 'defvar symbol file) xrefs))
 
@@ -867,7 +1143,7 @@ non-nil result supersedes the xrefs produced by
 
 (declare-function xref-apropos-regexp "xref" (pattern))
 
-(cl-defmethod xref-backend-apropos ((_backend (eql elisp)) pattern)
+(cl-defmethod xref-backend-apropos ((_backend (eql 'elisp)) pattern)
   (apply #'nconc
          (let ((regexp (xref-apropos-regexp pattern))
                lst)
@@ -885,7 +1161,8 @@ non-nil result supersedes the xrefs produced by
                          (facep sym)))
                    'strict))
 
-(cl-defmethod xref-backend-identifier-completion-table ((_backend (eql elisp)))
+(cl-defmethod xref-backend-identifier-completion-table ((_backend
+                                                         (eql 'elisp)))
   elisp--xref-identifier-completion-table)
 
 (cl-defstruct (xref-elisp-location
@@ -919,35 +1196,29 @@ non-nil result supersedes the xrefs produced by
 
 ;;; Elisp Interaction mode
 
-(defvar lisp-interaction-mode-map
-  (let ((map (make-sparse-keymap))
-	(menu-map (make-sparse-keymap "Lisp-Interaction")))
-    (set-keymap-parent map lisp-mode-shared-map)
-    (define-key map "\e\C-x" 'eval-defun)
-    (define-key map "\e\C-q" 'indent-pp-sexp)
-    (define-key map "\e\t" 'completion-at-point)
-    (define-key map "\n" 'eval-print-last-sexp)
-    (bindings--define-key map [menu-bar lisp-interaction]
-      (cons "Lisp-Interaction" menu-map))
-    (bindings--define-key menu-map [eval-defun]
-      '(menu-item "Evaluate Defun" eval-defun
-		  :help "Evaluate the top-level form containing point, or after point"))
-    (bindings--define-key menu-map [eval-print-last-sexp]
-      '(menu-item "Evaluate and Print" eval-print-last-sexp
-		  :help "Evaluate sexp before point; print value into current buffer"))
-    (bindings--define-key menu-map [edebug-defun-lisp-interaction]
-      '(menu-item "Instrument Function for Debugging" edebug-defun
-		  :help "Evaluate the top level form point is in, stepping through with Edebug"
-		  :keys "C-u C-M-x"))
-    (bindings--define-key menu-map [indent-pp-sexp]
-      '(menu-item "Indent or Pretty-Print" indent-pp-sexp
-		  :help "Indent each line of the list starting just after point, or prettyprint it"))
-    (bindings--define-key menu-map [complete-symbol]
-      '(menu-item "Complete Lisp Symbol" completion-at-point
-		  :help "Perform completion on Lisp symbol preceding point"))
-    map)
-  "Keymap for Lisp Interaction mode.
-All commands in `lisp-mode-shared-map' are inherited by this map.")
+(defvar-keymap lisp-interaction-mode-map
+  :doc "Keymap for Lisp Interaction mode.
+All commands in `lisp-mode-shared-map' are inherited by this map."
+  :parent lisp-mode-shared-map
+  "C-M-x" #'eval-defun
+  "C-M-q" #'indent-pp-sexp
+  "M-TAB" #'completion-at-point
+  "C-j"   #'eval-print-last-sexp)
+
+(easy-menu-define lisp-interaction-mode-menu lisp-interaction-mode-map
+  "Menu for Lisp Interaction mode."
+  '("Lisp-Interaction"
+    ["Complete Lisp Symbol" completion-at-point
+     :help "Perform completion on Lisp symbol preceding point"]
+    ["Indent or Pretty-Print" indent-pp-sexp
+     :help "Indent each line of the list starting just after point, or prettyprint it"]
+    ["Instrument Function for Debugging" edebug-defun
+     :help "Evaluate the top level form point is in, stepping through with Edebug"
+     :keys "C-u C-M-x"]
+    ["Evaluate and Print" eval-print-last-sexp
+     :help "Evaluate sexp before point; print value into current buffer"]
+    ["Evaluate Defun" eval-defun
+     :help "Evaluate the top-level form containing point, or after point"]))
 
 (define-derived-mode lisp-interaction-mode emacs-lisp-mode "Lisp Interaction"
   "Major mode for typing and evaluating Lisp forms.
@@ -1046,7 +1317,7 @@ this command arranges for all errors to enter the debugger."
 
 (defun last-sexp-setup-props (beg end value alt1 alt2)
   "Set up text properties for the output of `elisp--eval-last-sexp'.
-BEG and END are the start and end of the output in current-buffer.
+BEG and END are the start and end of the output in current buffer.
 VALUE is the Lisp value printed, ALT1 and ALT2 are strings for the
 alternative printed representations that can be displayed."
   (let ((map (make-sparse-keymap)))
@@ -1321,8 +1592,7 @@ Reinitialize the face according to the `defface' specification."
 	((eq (car form) 'custom-declare-face)
 	 ;; Reset the face.
 	 (let ((face-symbol (eval (nth 1 form) lexical-binding)))
-	   (setq face-new-frame-defaults
-		 (assq-delete-all face-symbol face-new-frame-defaults))
+	   (remhash face-symbol face--new-frame-defaults)
 	   (put face-symbol 'face-defface-spec nil)
 	   (put face-symbol 'face-override-spec nil))
 	 form)
@@ -1406,6 +1676,7 @@ which see."
   (interactive "P")
   (cond (edebug-it
 	 (require 'edebug)
+	 (defvar edebug-all-defs)
 	 (eval-defun (not edebug-all-defs)))
 	(t
 	 (if (null eval-expression-debug-on-error)
@@ -1447,7 +1718,7 @@ Elisp eldoc behaviour.  Consider variable docstrings and function
 signatures only, in this order.  If none applies, returns nil.
 Changes to `eldoc-documentation-functions' and
 `eldoc-documentation-strategy' are _not_ reflected here.  As such
-it is preferrable to use ElDoc's interfaces directly.")
+it is preferable to use ElDoc's interfaces directly.")
 
 (make-obsolete 'elisp-eldoc-documentation-function
                "use ElDoc's interfaces instead." "28.1")
@@ -1857,6 +2128,9 @@ Runs in a batch-mode Emacs.  Interactively use variable
     (prin1 :elisp-flymake-output-start)
     (terpri)
     (pp collected)))
+
+
+(put 'read-symbol-shorthands 'safe-local-variable #'consp)
 
 (provide 'elisp-mode)
 ;;; elisp-mode.el ends here

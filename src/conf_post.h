@@ -1,6 +1,6 @@
 /* conf_post.h --- configure.ac includes this via AH_BOTTOM
 
-Copyright (C) 1988, 1993-1994, 1999-2002, 2004-2021 Free Software
+Copyright (C) 1988, 1993-1994, 1999-2002, 2004-2022 Free Software
 Foundation, Inc.
 
 This file is part of GNU Emacs.
@@ -99,10 +99,28 @@ typedef bool bool_bf;
 # define ADDRESS_SANITIZER false
 #endif
 
+#ifdef emacs
+/* We include stdlib.h here, because Gnulib's stdlib.h might redirect
+   'free' to its replacement, and we want to avoid that in unexec
+   builds.  Inclduing it here will render its inclusion after config.h
+   a no-op.  */
+# if (defined DARWIN_OS && defined HAVE_UNEXEC) || defined HYBRID_MALLOC
+#  include <stdlib.h>
+# endif
+#endif
+
 #if defined DARWIN_OS && defined emacs && defined HAVE_UNEXEC
+# undef malloc
 # define malloc unexec_malloc
+# undef realloc
 # define realloc unexec_realloc
+# undef free
 # define free unexec_free
+
+extern void *unexec_malloc (size_t);
+extern void *unexec_realloc (void *, size_t);
+extern void unexec_free (void *);
+
 #endif
 
 /* If HYBRID_MALLOC is defined (e.g., on Cygwin), emacs will use
@@ -111,12 +129,23 @@ typedef bool bool_bf;
    accomplish this.  */
 #ifdef HYBRID_MALLOC
 #ifdef emacs
+#undef malloc
 #define malloc hybrid_malloc
+#undef realloc
 #define realloc hybrid_realloc
+#undef aligned_alloc
 #define aligned_alloc hybrid_aligned_alloc
+#undef calloc
 #define calloc hybrid_calloc
+#undef free
 #define free hybrid_free
-#endif
+
+extern void *hybrid_malloc (size_t);
+extern void *hybrid_calloc (size_t, size_t);
+extern void hybrid_free (void *);
+extern void *hybrid_aligned_alloc (size_t, size_t);
+extern void *hybrid_realloc (void *, size_t);
+#endif	/* emacs */
 #endif	/* HYBRID_MALLOC */
 
 /* We have to go this route, rather than the old hpux9 approach of
@@ -264,7 +293,6 @@ extern int emacs_setenv_TZ (char const *);
   ATTRIBUTE_FORMAT ((PRINTF_ARCHETYPE, string_index, first_to_check))
 
 #define ARG_NONNULL ATTRIBUTE_NONNULL
-#define ATTRIBUTE_UNUSED MAYBE_UNUSED
 
 /* Declare NAME to be a pointer to an object of type TYPE, initialized
    to the address ADDR, which may be of a different type.  Accesses

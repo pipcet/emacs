@@ -1,6 +1,6 @@
 ;;; semantic/symref/list.el --- Symref Output List UI  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2008-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2008-2022 Free Software Foundation, Inc.
 
 ;; Author: Eric M. Ludlam <zappo@gnu.org>
 
@@ -108,20 +108,20 @@ Display the references in `semantic-symref-results-mode'."
 (defvar semantic-symref-results-mode-map
   (let ((km (make-sparse-keymap)))
     (suppress-keymap km)
-    (define-key km "\C-i" 'forward-button)
-    (define-key km "\M-C-i" 'backward-button)
-    (define-key km " " 'push-button)
-    (define-key km "-" 'semantic-symref-list-toggle-showing)
-    (define-key km "=" 'semantic-symref-list-toggle-showing)
-    (define-key km "+" 'semantic-symref-list-toggle-showing)
-    (define-key km "n" 'semantic-symref-list-next-line)
-    (define-key km "p" 'semantic-symref-list-prev-line)
-    (define-key km "q" 'quit-window)
-    (define-key km "\C-c\C-e" 'semantic-symref-list-expand-all)
-    (define-key km "\C-c\C-r" 'semantic-symref-list-contract-all)
-    (define-key km "R" 'semantic-symref-list-rename-open-hits)
-    (define-key km "(" 'semantic-symref-list-create-macro-on-open-hit)
-    (define-key km "E" 'semantic-symref-list-call-macro-on-open-hits)
+    (define-key km "\C-i" #'forward-button)
+    (define-key km "\M-C-i" #'backward-button)
+    (define-key km " " #'push-button)
+    (define-key km "-" #'semantic-symref-list-toggle-showing)
+    (define-key km "=" #'semantic-symref-list-toggle-showing)
+    (define-key km "+" #'semantic-symref-list-toggle-showing)
+    (define-key km "n" #'semantic-symref-list-next-line)
+    (define-key km "p" #'semantic-symref-list-prev-line)
+    (define-key km "q" #'quit-window)
+    (define-key km "\C-c\C-e" #'semantic-symref-list-expand-all)
+    (define-key km "\C-c\C-r" #'semantic-symref-list-contract-all)
+    (define-key km "R" #'semantic-symref-list-rename-open-hits)
+    (define-key km "(" #'semantic-symref-list-create-macro-on-open-hit)
+    (define-key km "E" #'semantic-symref-list-call-macro-on-open-hits)
     km)
   "Keymap used in `semantic-symref-results-mode'.")
 
@@ -152,7 +152,7 @@ Display the references in `semantic-symref-results-mode'."
 
 (easy-menu-define semantic-symref-list-menu
   semantic-symref-results-mode-map
-  "Symref Mode Menu"
+  "Symref Mode Menu."
   semantic-symref-list-menu-entries)
 
 (defcustom semantic-symref-auto-expand-results nil

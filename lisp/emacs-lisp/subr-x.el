@@ -1,6 +1,6 @@
 ;;; subr-x.el --- extra Lisp functions  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2013-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2013-2022 Free Software Foundation, Inc.
 
 ;; Maintainer: emacs-devel@gnu.org
 ;; Keywords: convenience
@@ -62,7 +62,7 @@ Is equivalent to:
     (+ (- (/ (+ 5 20) 25)) 40)
 Note how the single `-' got converted into a list before
 threading."
-  (declare (indent 1)
+  (declare (indent 0)
            (debug (form &rest [&or symbolp (sexp &rest form)])))
   `(internal--thread-argument t ,@forms))
 
@@ -79,7 +79,7 @@ Is equivalent to:
     (+ 40 (- (/ 25 (+ 20 5))))
 Note how the single `-' got converted into a list before
 threading."
-  (declare (indent 1) (debug thread-first))
+  (declare (indent 0) (debug thread-first))
   `(internal--thread-argument nil ,@forms))
 
 (defsubst internal--listify (elt)
@@ -107,7 +107,7 @@ If ELT is of the form ((EXPR)), listify (EXPR) with a dummy symbol."
 (defun internal--build-binding (binding prev-var)
   "Check and build a single BINDING with PREV-VAR."
   (thread-first
-      binding
+    binding
     internal--listify
     internal--check-binding
     (internal--build-binding-value-form prev-var)))
@@ -127,7 +127,7 @@ This is like `if-let' but doesn't handle a VARLIST of the form
 \(SYMBOL SOMETHING) specially."
   (declare (indent 2)
            (debug ((&rest [&or symbolp (symbolp form) (form)])
-                   form body)))
+                   body)))
   (if varlist
       `(let* ,(setq varlist (internal--build-bindings varlist))
          (if ,(caar (last varlist))
@@ -146,9 +146,7 @@ This is like `when-let' but doesn't handle a VARLIST of the form
   "Bind variables according to VARLIST and conditionally evaluate BODY.
 Like `when-let*', except if BODY is empty and all the bindings
 are non-nil, then the result is non-nil."
-  (declare (indent 1)
-           (debug ((&rest [&or symbolp (symbolp form) (form)])
-                   body)))
+  (declare (indent 1) (debug if-let*))
   (let (res)
     (if varlist
         `(let* ,(setq varlist (internal--build-bindings varlist))
@@ -174,9 +172,9 @@ As a special case, interprets a SPEC of the form \(SYMBOL SOMETHING)
 like \((SYMBOL SOMETHING)).  This exists for backward compatibility
 with an old syntax that accepted only one binding."
   (declare (indent 2)
-           (debug ([&or (&rest [&or symbolp (symbolp form) (form)])
-                        (symbolp form)]
-                   form body)))
+           (debug ([&or (symbolp form)  ; must be first, Bug#48489
+                        (&rest [&or symbolp (symbolp form) (form)])]
+                   body)))
   (when (and (<= (length spec) 2)
              (not (listp (car spec))))
     ;; Adjust the single binding case
@@ -210,32 +208,12 @@ The variable list SPEC is the same as in `if-let'."
   (string= string ""))
 
 (defsubst string-join (strings &optional separator)
-  "Join all STRINGS using SEPARATOR."
+  "Join all STRINGS using SEPARATOR.
+Optional argument SEPARATOR must be a string, a vector, or a list of
+characters; nil stands for the empty string."
   (mapconcat #'identity strings separator))
 
 (define-obsolete-function-alias 'string-reverse 'reverse "25.1")
-
-(defsubst string-trim-left (string &optional regexp)
-  "Trim STRING of leading string matching REGEXP.
-
-REGEXP defaults to \"[ \\t\\n\\r]+\"."
-  (if (string-match (concat "\\`\\(?:" (or regexp "[ \t\n\r]+") "\\)") string)
-      (substring string (match-end 0))
-    string))
-
-(defsubst string-trim-right (string &optional regexp)
-  "Trim STRING of trailing string matching REGEXP.
-
-REGEXP defaults to  \"[ \\t\\n\\r]+\"."
-  (let ((i (string-match-p (concat "\\(?:" (or regexp "[ \t\n\r]+") "\\)\\'")
-                           string)))
-    (if i (substring string 0 i) string)))
-
-(defsubst string-trim (string &optional trim-left trim-right)
-  "Trim STRING of leading and trailing strings matching TRIM-LEFT and TRIM-RIGHT.
-
-TRIM-LEFT and TRIM-RIGHT default to \"[ \\t\\n\\r]+\"."
-  (string-trim-left (string-trim-right string trim-right) trim-left))
 
 ;;;###autoload
 (defun string-truncate-left (string length)
@@ -264,6 +242,7 @@ carriage return."
       (substring string 0 (- (length string) (length suffix)))
     string))
 
+;;;###autoload
 (defun string-clean-whitespace (string)
   "Clean up whitespace in STRING.
 All sequences of whitespaces in STRING are collapsed into a
@@ -287,13 +266,13 @@ result will have lines that are longer than LENGTH."
     (buffer-string)))
 
 (defun string-limit (string length &optional end coding-system)
-  "Return (up to) a LENGTH substring of STRING.
-If STRING is shorter than or equal to LENGTH, the entire string
-is returned unchanged.
+  "Return a substring of STRING that is (up to) LENGTH characters long.
+If STRING is shorter than or equal to LENGTH characters, return the
+entire string unchanged.
 
-If STRING is longer than LENGTH, return a substring consisting of
-the first LENGTH characters of STRING.  If END is non-nil, return
-the last LENGTH characters instead.
+If STRING is longer than LENGTH characters, return a substring
+consisting of the first LENGTH characters of STRING.  If END is
+non-nil, return the last LENGTH characters instead.
 
 If CODING-SYSTEM is non-nil, STRING will be encoded before
 limiting, and LENGTH is interpreted as the number of bytes to
@@ -311,6 +290,18 @@ than this function."
       (let ((result nil)
             (result-length 0)
             (index (if end (1- (length string)) 0)))
+        ;; FIXME: This implementation, which uses encode-coding-char
+        ;; to encode the string one character at a time, is in general
+        ;; incorrect: coding-systems that produce prefix or suffix
+        ;; bytes, such as ISO-2022-based or UTF-8/16 with BOM, will
+        ;; produce those bytes for each character, instead of just
+        ;; once for the entire string.  encode-coding-char attempts to
+        ;; remove those extra bytes at least in some situations, but
+        ;; it cannot do that in all cases.  And in any case, producing
+        ;; what is supposed to be a UTF-16 or ISO-2022-CN encoded
+        ;; string which lacks the BOM bytes at the beginning and the
+        ;; charset designation sequences at the head and tail of the
+        ;; result will definitely surprise the callers in some cases.
         (while (let ((encoded (encode-coding-char
                                (aref string index) coding-system)))
                  (and (<= (+ (length encoded) result-length) length)
@@ -329,6 +320,7 @@ than this function."
      (end (substring string (- (length string) length)))
      (t (substring string 0 length)))))
 
+;;;###autoload
 (defun string-lines (string &optional omit-nulls)
   "Split STRING into a list of lines.
 If OMIT-NULLS, empty lines will be removed from the results."
@@ -410,6 +402,114 @@ as the new values of the bound variables in the recursive invocation."
       (cl-labels ((,name ,fargs . ,body)) #',name)
       . ,aargs)))
 
+(defmacro with-memoization (place &rest code)
+  "Return the value of CODE and stash it in PLACE.
+If PLACE's value is non-nil, then don't bother evaluating CODE
+and return the value found in PLACE instead."
+  (declare (indent 1) (debug (gv-place body)))
+  (gv-letplace (getter setter) place
+    `(or ,getter
+         ,(macroexp-let2 nil val (macroexp-progn code)
+            `(progn
+               ,(funcall setter val)
+               ,val)))))
+
+;;;###autoload
+(defun ensure-empty-lines (&optional lines)
+  "Ensure that there are LINES number of empty lines before point.
+If LINES is nil or omitted, ensure that there is a single empty
+line before point.
+
+If called interactively, LINES is given by the prefix argument.
+
+If there are more than LINES empty lines before point, the number
+of empty lines is reduced to LINES.
+
+If point is not at the beginning of a line, a newline character
+is inserted before adjusting the number of empty lines."
+  (interactive "p")
+  (unless (bolp)
+    (insert "\n"))
+  (let ((lines (or lines 1))
+        (start (save-excursion
+                 (if (re-search-backward "[^\n]" nil t)
+                     (+ (point) 2)
+                   (point-min)))))
+    (cond
+     ((> (- (point) start) lines)
+      (delete-region (point) (- (point) (- (point) start lines))))
+     ((< (- (point) start) lines)
+      (insert (make-string (- lines (- (point) start)) ?\n))))))
+
+;;;###autoload
+(defun string-pixel-width (string)
+  "Return the width of STRING in pixels."
+  (with-temp-buffer
+    (insert string)
+    (car (buffer-text-pixel-size nil nil t))))
+
+;;;###autoload
+(defun string-glyph-split (string)
+  "Split STRING into a list of strings representing separate glyphs.
+This takes into account combining characters and grapheme clusters."
+  (let ((result nil)
+        (start 0)
+        comp)
+    (while (< start (length string))
+      (if (setq comp (find-composition-internal
+                      start
+                      ;; Don't search backward in the string for the
+                      ;; start of the composition.
+                      (min (length string) (1+ start))
+                      string nil))
+          (progn
+            (push (substring string (car comp) (cadr comp)) result)
+            (setq start (cadr comp)))
+        (push (substring string start (1+ start)) result)
+        (setq start (1+ start))))
+    (nreverse result)))
+
+;;;###autoload
+(defun add-display-text-property (start end prop value
+                                        &optional object)
+  "Add display property PROP with VALUE to the text from START to END.
+If any text in the region has a non-nil `display' property, those
+properties are retained.
+
+If OBJECT is non-nil, it should be a string or a buffer.  If nil,
+this defaults to the current buffer."
+  (let ((sub-start start)
+        (sub-end 0)
+        disp)
+    (while (< sub-end end)
+      (setq sub-end (next-single-property-change sub-start 'display object
+                                                 (if (stringp object)
+                                                     (min (length object) end)
+                                                   (min end (point-max)))))
+      (if (not (setq disp (get-text-property sub-start 'display object)))
+          ;; No old properties in this range.
+          (put-text-property sub-start sub-end 'display (list prop value))
+        ;; We have old properties.
+        (let ((vector nil))
+          ;; Make disp into a list.
+          (setq disp
+                (cond
+                 ((vectorp disp)
+                  (setq vector t)
+                  (seq-into disp 'list))
+                 ((not (consp (car disp)))
+                  (list disp))
+                 (t
+                  disp)))
+          ;; Remove any old instances.
+          (when-let ((old (assoc prop disp)))
+            (setq disp (delete old disp)))
+          (setq disp (cons (list prop value) disp))
+          (when vector
+            (setq disp (seq-into disp 'vector)))
+          ;; Finally update the range.
+          (put-text-property sub-start sub-end 'display disp)))
+      (setq sub-start sub-end))))
 
 (provide 'subr-x)
 

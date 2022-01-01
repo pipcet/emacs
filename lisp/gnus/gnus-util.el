@@ -1,6 +1,6 @@
 ;;; gnus-util.el --- utility functions for Gnus  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 1996-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1996-2022 Free Software Foundation, Inc.
 
 ;; Author: Lars Magne Ingebrigtsen <larsi@gnus.org>
 ;; Keywords: news
@@ -154,7 +154,7 @@ is slower."
 	(and (string-match "(.+)" from)
 	     (setq name (substring from (1+ (match-beginning 0))
 				   (1- (match-end 0)))))
-	(and (string-match "()" from)
+	(and (string-search "()" from)
 	     (setq name address))
 	;; XOVER might not support folded From headers.
 	(and (string-match "(.*" from)
@@ -265,7 +265,7 @@ If END is non-nil, use the end of the span instead."
 (defun gnus-newsgroup-directory-form (newsgroup)
   "Make hierarchical directory name from NEWSGROUP name."
   (let* ((newsgroup (gnus-newsgroup-savable-name newsgroup))
-	 (idx (string-match ":" newsgroup)))
+	 (idx (string-search ":" newsgroup)))
     (concat
      (if idx (substring newsgroup 0 idx))
      (if idx "/")
@@ -300,25 +300,26 @@ Symbols are also allowed; their print names are used instead."
 
 (defmacro gnus-local-set-keys (&rest plist)
   "Set the keys in PLIST in the current keymap."
-  (declare (indent 1))
+  (declare (obsolete define-keymap "29.1") (indent 1))
   `(gnus-define-keys-1 (current-local-map) ',plist))
 
 (defmacro gnus-define-keys (keymap &rest plist)
   "Define all keys in PLIST in KEYMAP."
-  (declare (indent 1))
+  (declare (obsolete define-keymap "29.1") (indent 1))
   `(gnus-define-keys-1 ,(if (symbolp keymap) keymap `',keymap) (quote ,plist)))
 
 (defmacro gnus-define-keys-safe (keymap &rest plist)
   "Define all keys in PLIST in KEYMAP without overwriting previous definitions."
-  (declare (indent 1))
+  (declare (obsolete define-keymap "29.1") (indent 1))
   `(gnus-define-keys-1 (quote ,keymap) (quote ,plist) t))
 
 (defmacro gnus-define-keymap (keymap &rest plist)
   "Define all keys in PLIST in KEYMAP."
-  (declare (indent 1))
+  (declare (obsolete define-keymap "29.1") (indent 1))
   `(gnus-define-keys-1 ,keymap (quote ,plist)))
 
 (defun gnus-define-keys-1 (keymap plist &optional safe)
+  (declare (obsolete define-keymap "29.1"))
   (when (null keymap)
     (error "Can't set keys in a null keymap"))
   (cond ((symbolp keymap) (error "First arg should be a keymap object"))
@@ -408,7 +409,7 @@ Cache the result as a text property stored in DATE."
 
 (defun gnus-mode-string-quote (string)
   "Quote all \"%\"'s in STRING."
-  (replace-regexp-in-string "%" "%%" string))
+  (string-replace "%" "%%" string))
 
 (defsubst gnus-make-hashtable (&optional size)
   "Make a hash table of SIZE, testing on `equal'."
@@ -533,7 +534,7 @@ ARGS are passed to `message'."
 
 (defun gnus-extract-references (references)
   "Return a list of Message-IDs in REFERENCES (in In-Reply-To
-  format), trimmed to only contain the Message-IDs."
+format), trimmed to only contain the Message-IDs."
   (let ((ids (gnus-split-references references))
 	refs)
     (dolist (id ids)
@@ -857,126 +858,9 @@ variables and then do only the assignment atomically."
   `(let ((inhibit-quit gnus-atomic-be-safe))
      ,@forms))
 
-;;; Functions for saving to babyl/mail files.
-
-(require 'rmail)
-(autoload 'rmail-update-summary "rmailsum")
-
 (defvar mm-text-coding-system)
-
 (declare-function mm-append-to-file "mm-util"
                   (start end filename &optional codesys inhibit))
-(declare-function rmail-swap-buffers-maybe "rmail" ())
-(declare-function rmail-maybe-set-message-counters "rmail" ())
-(declare-function rmail-count-new-messages "rmail" (&optional nomsg))
-(declare-function rmail-summary-exists "rmail" ())
-(declare-function rmail-show-message "rmail" (&optional n no-summary))
-;; Macroexpansion of rmail-select-summary:
-(declare-function rmail-summary-displayed "rmail" ())
-(declare-function rmail-pop-to-buffer "rmail" (&rest args))
-(declare-function rmail-maybe-display-summary "rmail" ())
-
-(defun gnus-output-to-rmail (filename &optional ask)
-  "Append the current article to an Rmail file named FILENAME.
-In Emacs 22 this writes Babyl format; in Emacs 23 it writes mbox unless
-FILENAME exists and is Babyl format."
-  (require 'rmail)
-  (require 'mm-util)
-  (require 'nnmail)
-  ;; Some of this codes is borrowed from rmailout.el.
-  (setq filename (expand-file-name filename))
-  ;; FIXME should we really be messing with this defcustom?
-  ;; It is not needed for the operation of this function.
-  (if (boundp 'rmail-default-rmail-file)
-      (setq rmail-default-rmail-file filename) ; 22
-    (setq rmail-default-file filename))        ; 23
-  (let ((artbuf (current-buffer))
-	(tmpbuf (gnus-get-buffer-create " *Gnus-output*"))
-        ;; Babyl rmail.el defines this, mbox does not.
-        (babyl (fboundp 'rmail-insert-rmail-file-header)))
-    (save-excursion
-      ;; Note that we ignore the possibility of visiting a Babyl
-      ;; format buffer in Emacs 23, since Rmail no longer supports that.
-     (or (get-file-buffer filename)
-         (progn
-           ;; In case someone wants to write to a Babyl file from Emacs 23.
-           (when (file-exists-p filename)
-             (setq babyl (mail-file-babyl-p filename))
-             t))
-	  (if (or (not ask)
-		  (gnus-yes-or-no-p
-		   (concat "\"" filename "\" does not exist, create it? ")))
-	      (let ((file-buffer (create-file-buffer filename)))
-		(with-current-buffer file-buffer
-                  (if (fboundp 'rmail-insert-rmail-file-header)
-                      (rmail-insert-rmail-file-header))
-		  (let ((require-final-newline nil)
-			(coding-system-for-write mm-text-coding-system))
-		    (gnus-write-buffer filename)))
-		(kill-buffer file-buffer))
-	    (error "Output file does not exist")))
-      (set-buffer tmpbuf)
-      (erase-buffer)
-      (insert-buffer-substring artbuf)
-      (if babyl
-          (gnus-convert-article-to-rmail)
-        ;; Non-Babyl case copied from gnus-output-to-mail.
-        (goto-char (point-min))
-        (if (looking-at "From ")
-            (forward-line 1)
-          (insert "From nobody " (current-time-string) "\n"))
-        (let (case-fold-search)
-          (while (re-search-forward "^From " nil t)
-            (beginning-of-line)
-            (insert ">"))))
-      ;; Decide whether to append to a file or to an Emacs buffer.
-      (let ((outbuf (get-file-buffer filename)))
-	(if (not outbuf)
-            (progn
-              (unless babyl             ; from gnus-output-to-mail
-                (let ((buffer-read-only nil))
-                  (goto-char (point-max))
-                  (forward-char -2)
-                  (unless (looking-at "\n\n")
-                    (goto-char (point-max))
-                    (unless (bolp)
-                      (insert "\n"))
-                    (insert "\n"))))
-              (let ((file-name-coding-system nnmail-pathname-coding-system))
-                (mm-append-to-file (point-min) (point-max) filename)))
-	  ;; File has been visited, in buffer OUTBUF.
-	  (set-buffer outbuf)
-	  (let ((buffer-read-only nil)
-		(msg (and (boundp 'rmail-current-message)
-			  (symbol-value 'rmail-current-message))))
-	    ;; If MSG is non-nil, buffer is in RMAIL mode.
-            ;; Compare this with rmail-output-to-rmail-buffer in Emacs 23.
-	    (when msg
-              (unless babyl
-                (rmail-swap-buffers-maybe)
-                (rmail-maybe-set-message-counters))
-              (widen)
-              (unless babyl
-		(goto-char (point-max))
-		;; Ensure we have a blank line before the next message.
-		(unless (bolp)
-		  (insert "\n"))
-		(insert "\n"))
-              (narrow-to-region (point-max) (point-max)))
-	    (insert-buffer-substring tmpbuf)
-	    (when msg
-              (when babyl
-                (goto-char (point-min))
-                (widen)
-                (search-backward "\n\^_")
-                (narrow-to-region (point) (point-max)))
-	      (rmail-count-new-messages t)
-	      (when (rmail-summary-exists)
-		(rmail-select-summary
-		 (rmail-update-summary)))
-	      (rmail-show-message msg))
-	    (save-buffer)))))
-    (kill-buffer tmpbuf)))
 
 (defun gnus-output-to-mail (filename &optional ask)
   "Append the current article to a mail file named FILENAME."
@@ -1033,17 +917,6 @@ FILENAME exists and is Babyl format."
 	    (insert "\n")
 	    (insert-buffer-substring tmpbuf)))))
     (kill-buffer tmpbuf)))
-
-(defun gnus-convert-article-to-rmail ()
-  "Convert article in current buffer to Rmail message format."
-  (let ((buffer-read-only nil))
-    ;; Convert article directly into Babyl format.
-    (goto-char (point-min))
-    (insert "\^L\n0, unseen,,\n*** EOOH ***\n")
-    (while (search-forward "\n\^_" nil t) ;single char
-      (replace-match "\n^_" t t))	;2 chars: "^" and "_"
-    (goto-char (point-max))
-    (insert "\^_")))
 
 (defun gnus-map-function (funs arg)
   "Apply the result of the first function in FUNS to the second, and so on.
@@ -1291,61 +1164,6 @@ forbidden in URL encoding."
     (setq tmp (concat tmp str))
     tmp))
 
-(defun gnus-base64-repad (str &optional reject-newlines line-length no-check)
-  "Take a base 64-encoded string and return it padded correctly.
-Existing padding is ignored.
-
-If any combination of CR and LF characters are present and
-REJECT-NEWLINES is nil, remove them; otherwise raise an error.
-If LINE-LENGTH is set and the string (or any line in the string
-if REJECT-NEWLINES is nil) is longer than that number, raise an
-error.  Common line length for input characters are 76 plus CRLF
-\(RFC 2045 MIME), 64 plus CRLF (RFC 1421 PEM), and 1000 including
-CRLF (RFC 5321 SMTP).
-
-If NOCHECK, don't check anything, but just repad."
-  ;; RFC 4648 specifies that:
-  ;; - three 8-bit inputs make up a 24-bit group
-  ;; - the 24-bit group is broken up into four 6-bit values
-  ;; - each 6-bit value is mapped to one character of the base 64 alphabet
-  ;; - if the final 24-bit quantum is filled with only 8 bits the output
-  ;;   will be two base 64 characters followed by two "=" padding characters
-  ;; - if the final 24-bit quantum is filled with only 16 bits the output
-  ;;   will be three base 64 character followed by one "=" padding character
-  ;;
-  ;; RFC 4648 section 3 considerations:
-  ;; - if reject-newlines is nil (default), concatenate multi-line
-  ;;   input (3.1, 3.3)
-  ;; - if line-length is set, error on input exceeding the limit (3.1)
-  ;; - reject characters outside base encoding (3.3, also section 12)
-  ;;
-  ;; RFC 5322 section 2.2.3 consideration:
-  ;; Because base 64-encoded strings can appear in long header fields, remove
-  ;; folding whitespace while still observing the RFC 4648 decisions above.
-  (when no-check
-    (setq str (replace-regexp-in-string "[\n\r \t]+" "" str)));
-  (let ((splitstr (split-string str "[ \t]*[\r\n]+[ \t]?" t)))
-    (when (and reject-newlines (> (length splitstr) 1))
-      (error "Invalid Base64 string"))
-    (dolist (substr splitstr)
-      (when (and line-length (> (length substr) line-length))
-	(error "Base64 string exceeds line-length"))
-      (when (string-match "[^A-Za-z0-9+/=]" substr)
-	(error "Invalid Base64 string")))
-    (let* ((str (string-join splitstr))
-	   (len (length str)))
-      (when (string-match "=" str)
-	(setq len (match-beginning 0)))
-      (concat
-       (substring str 0 len)
-       (make-string (/
-		     (- 24
-			(pcase (mod (* len 6) 24)
-			  (`0 24)
-			  (n n)))
-		     6)
-		    ?=)))))
-
 (defun gnus-make-predicate (spec)
   "Transform SPEC into a function that can be called.
 SPEC is a predicate specifier that contains stuff like `or', `and',
@@ -1365,9 +1183,7 @@ SPEC is a predicate specifier that contains stuff like `or', `and',
                                     initial-input history def)
   "Call `gnus-completing-read-function'."
   (funcall gnus-completing-read-function
-           (concat prompt (when def
-                            (concat " (default " def ")"))
-                   ": ")
+           (format-prompt prompt def)
            collection require-match initial-input history def))
 
 (defun gnus-emacs-completing-read (prompt collection &optional require-match
@@ -1583,8 +1399,8 @@ sequence, this is like `mapcar'.  With several, it is like the Common Lisp
      (t emacs-version))))
 
 (defun gnus-rename-file (old-path new-path &optional trim)
-  "Rename OLD-PATH as NEW-PATH.  If TRIM, recursively delete
-empty directories from OLD-PATH."
+  "Rename OLD-PATH as NEW-PATH.
+If TRIM, recursively delete empty directories from OLD-PATH."
   (when (file-exists-p old-path)
     (let* ((old-dir (file-name-directory old-path))
 	   ;; (old-name (file-name-nondirectory old-path))
@@ -1604,7 +1420,7 @@ empty directories from OLD-PATH."
 			  (concat old-dir "..")))))))))
 
 (defun gnus-set-file-modes (filename mode &optional flag)
-  "Wrapper for set-file-modes."
+  "Wrapper for `set-file-modes'."
   (ignore-errors
     (set-file-modes filename mode flag)))
 
@@ -1612,8 +1428,8 @@ empty directories from OLD-PATH."
   "Rescale IMAGE to SIZE if possible.
 SIZE is in format (WIDTH . HEIGHT).  Return a new image.
 Sizes are in pixels."
-  (if (not (display-graphic-p))
-      image
+  (when (display-images-p)
+    (declare-function image-size "image.c" (spec &optional pixels frame))
     (let ((new-width (car size))
           (new-height (cdr size)))
       (when (> (cdr (image-size image t)) new-height)
@@ -1621,8 +1437,8 @@ Sizes are in pixels."
                                   :max-height new-height)))
       (when (> (car (image-size image t)) new-width)
 	(setq image (create-image (plist-get (cdr image) :data) nil t
-                                  :max-width new-width)))
-      image)))
+                                  :max-width new-width)))))
+  image)
 
 (defun gnus-recursive-directory-files (dir)
   "Return all regular files below DIR.
@@ -1730,6 +1546,11 @@ lists of strings."
 	 (overlays (delq nil (nconc (car overlayss) (cdr overlayss)))))
     (while overlays
       (delete-overlay (pop overlays)))))
+
+;; This function used to live in this file, but was moved to a
+;; separate file to avoid pulling in rmail.el when requiring
+;; gnus-util.
+(autoload 'gnus-output-to-rmail "gnus-rmail")
 
 (provide 'gnus-util)
 

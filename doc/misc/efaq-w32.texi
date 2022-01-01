@@ -15,7 +15,7 @@ Answers to Frequently asked Questions about using Emacs on Microsoft Windows.
 @include emacsver.texi
 
 @copying
-Copyright @copyright{} 2008, 2010--2021 Free Software Foundation, Inc.
+Copyright @copyright{} 2008, 2010--2022 Free Software Foundation, Inc.
 
 @quotation
 This list of frequently asked questions about GNU Emacs on MS Windows
@@ -370,11 +370,10 @@ On Windows, the @file{.emacs} file may be called @file{_emacs} for
 backward compatibility with DOS and FAT filesystems where filenames
 could not start with a dot.  Some users prefer to continue using such
 a name due to historical problems various Windows tools had in the
-past with file names that begin with a dot.  In Emacs 22 and later,
-the init file may also be called @file{.emacs.d/init.el}.  Many of the
-other files that are created by lisp packages are now stored in the
-@file{.emacs.d} directory too, so this keeps all your Emacs related
-files in one place.
+past with file names that begin with a dot.  The init file may also be
+called @file{.emacs.d/init.el}.  Many of the other files that are
+created by Lisp packages are stored in the @file{.emacs.d} directory
+too, which keeps all your Emacs related files in one place.
 
 All the files mentioned above should go in your @env{HOME} directory.
 The @env{HOME} directory is determined by following the steps below:
@@ -629,7 +628,7 @@ REGEDIT4
 @node Swap Caps 98
 @subsubsection Windows 95/98/ME
 
-Microsoft has a tool called keyremap that is part of their Kernel Toys add ons
+Microsoft has a tool called keyremap that is part of their Kernel Toys add-ons
 for Windows 95.  The tool has also been confirmed to work on Windows 98.
 
 @node Make Emacs like a Windows app
@@ -688,9 +687,9 @@ question also.
 @node CUA
 @subsection Standard Windows key bindings
 @findex cua-mode
-@cindex CUA keybindings
+@cindex CUA key bindings
 @cindex shift key, selecting with
-@cindex standard Windows keybindings
+@cindex standard Windows key bindings
 @cindex paste with C-v
 @cindex cut with C-x
 @cindex copy with C-c
@@ -698,7 +697,7 @@ question also.
 @cindex C-x to cut
 @cindex C-v to paste
 
-The keybindings of Emacs predate modern GUIs, and the keys that were
+The key bindings of Emacs predate modern GUIs, and the keys that were
 chosen by later GUIs for cut and copy were given important functions
 as extended keymaps in Emacs.  CUA mode attempts to let both bindings
 co-exist by defining C-x and C-c as @code{kill-region} and
@@ -2279,7 +2278,7 @@ In Emacs, you can browse the manual using Info by typing @kbd{C-h r},
 and you can view the FAQ by typing @kbd{C-h C-f}. Other resources include:
 
 @itemize
-@item @uref{https://www.gnu.org/software/emacs/, The Emacs homepage}
+@item @uref{https://www.gnu.org/software/emacs/, The Emacs website}
 @item @uref{https://www.gnu.org/software/emacs/manual/, Other Emacs manuals}
 @item @uref{https://www.emacswiki.org/, Emacs Wiki}
 @end itemize

@@ -1,6 +1,6 @@
 ;;; semantic/lex-spp.el --- Semantic Lexical Pre-processor  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2006-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2006-2022 Free Software Foundation, Inc.
 
 ;; Author: Eric M. Ludlam <zappo@gnu.org>
 
@@ -278,10 +278,10 @@ The return list is meant to be saved in a semanticdb table."
   (let (macros)
     (when (obarrayp semantic-lex-spp-dynamic-macro-symbol-obarray)
       (mapatoms
-       #'(lambda (symbol)
-	   (setq macros (cons (cons (symbol-name symbol)
-				    (symbol-value symbol))
-			      macros)))
+       (lambda (symbol)
+         (setq macros (cons (cons (symbol-name symbol)
+                                  (symbol-value symbol))
+                            macros)))
        semantic-lex-spp-dynamic-macro-symbol-obarray))
     macros))
 
@@ -291,18 +291,18 @@ The value of each symbol is the replacement stream."
   (let (macros)
     (when (obarrayp semantic-lex-spp-macro-symbol-obarray)
       (mapatoms
-       #'(lambda (symbol)
-	   (setq macros (cons symbol macros)))
+       (lambda (symbol)
+         (setq macros (cons symbol macros)))
        semantic-lex-spp-macro-symbol-obarray))
     (when (obarrayp semantic-lex-spp-project-macro-symbol-obarray)
       (mapatoms
-       #'(lambda (symbol)
-	   (setq macros (cons symbol macros)))
+       (lambda (symbol)
+         (setq macros (cons symbol macros)))
        semantic-lex-spp-project-macro-symbol-obarray))
     (when (obarrayp semantic-lex-spp-dynamic-macro-symbol-obarray)
       (mapatoms
-       #'(lambda (symbol)
-	   (setq macros (cons symbol macros)))
+       (lambda (symbol)
+         (setq macros (cons symbol macros)))
        semantic-lex-spp-dynamic-macro-symbol-obarray))
     macros))
 
@@ -850,7 +850,7 @@ Argument BEG and END specify the bounds of SYM in the buffer."
     ))
 (define-obsolete-function-alias
   'semantic-lex-spp-anlyzer-do-replace
-  'semantic-lex-spp-analyzer-do-replace "25.1")
+  #'semantic-lex-spp-analyzer-do-replace "25.1")
 
 (defvar semantic-lex-spp-replacements-enabled t
   "Non-nil means do replacements when finding keywords.
@@ -1070,7 +1070,7 @@ and variable state from the current buffer."
 	    (semantic-lex-init)
 	    (semantic-clear-toplevel-cache)
 	    (remove-hook 'semantic-lex-reset-functions
-			 'semantic-lex-spp-reset-hook t)
+			 #'semantic-lex-spp-reset-hook t)
 	    ))
 
 	;; Second Cheat: copy key variables regarding macro state from the
@@ -1165,7 +1165,8 @@ of type `spp-macro-def' is to be created.
 VALFORM are forms that return the value to be saved for this macro, or nil.
 When implementing a macro, you can use `semantic-lex-spp-stream-for-macro'
 to convert text into a lexical stream for storage in the macro."
-  (declare (debug (&define name stringp stringp form def-body)))
+  (declare (debug (&define name stringp stringp form def-body))
+           (indent 1))
   (let ((start (make-symbol "start"))
 	(end (make-symbol "end"))
 	(val (make-symbol "val"))
@@ -1199,7 +1200,8 @@ REGEXP is a regular expression for the analyzer to match.
 See `define-lex-regex-analyzer' for more on regexp.
 TOKIDX is an index into REGEXP for which a new lexical token
 of type `spp-macro-undef' is to be created."
-  (declare (debug (&define name stringp stringp form)))
+  (declare (debug (&define name stringp stringp form))
+           (indent 1))
   (let ((start (make-symbol "start"))
 	(end (make-symbol "end")))
     `(define-lex-regex-analyzer ,name
@@ -1260,7 +1262,8 @@ type of include.  The return value should be of the form:
   (NAME . TYPE)
 where NAME is the name of the include, and TYPE is the type of the include,
 where a valid symbol is `system', or nil."
-  (declare (debug (&define name stringp stringp form def-body)))
+  (declare (debug (&define name stringp stringp form def-body))
+           (indent 1))
   (let ((start (make-symbol "start"))
 	(end (make-symbol "end"))
 	(val (make-symbol "val"))

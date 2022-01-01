@@ -1,6 +1,6 @@
 ;;; copyright-tests.el --- tests for copyright.el  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2020-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2020-2022 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -37,8 +37,12 @@
      . ";; Copyright (C) 2017, 2019 Free Software Foundation, Inc.")
     (";; Copyright (C) 2017-2018 Free Software Foundation, Inc."
      . ";; Copyright (C) 2017-2019 Free Software Foundation, Inc.")
+    (";; Copyright (C) 2017–2018 Free Software Foundation, Inc."
+     . ";; Copyright (C) 2017–2019 Free Software Foundation, Inc.")
     (";; Copyright (C) 2005-2006, 2015, 2017-2018 Free Software Foundation, Inc."
      . ";; Copyright (C) 2005-2006, 2015, 2017-2019 Free Software Foundation, Inc.")
+    (";; Copyright (C) 2005–2006, 2015, 2017–2018 Free Software Foundation, Inc."
+     . ";; Copyright (C) 2005–2006, 2015, 2017–2019 Free Software Foundation, Inc.")
     (";; copyright '18 FSF"
      . ";; copyright '18, '19 FSF")))
 

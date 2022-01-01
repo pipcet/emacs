@@ -1,6 +1,6 @@
 @c -*- coding: utf-8 -*-
 @c This is part of the Emacs manual.
-@c Copyright (C) 1985--1987, 1993--1995, 1997, 2000--2021 Free Software
+@c Copyright (C) 1985--1987, 1993--1995, 1997, 2000--2022 Free Software
 @c Foundation, Inc.
 
 @c See file emacs.texi for copying conditions.
@@ -149,6 +149,14 @@ positive number such as 0.25, or even 0.1 if you type quickly.  This
 gives you less jerky scrolling when you hold down @kbd{C-v}, but the
 window contents after any action which scrolls into a fresh portion of
 the buffer will be momentarily unfontified.
+
+@vindex redisplay-skip-fontification-on-input
+Finally, a third alternative to these variables is
+@code{redisplay-skip-fontification-on-input}.  If this variable is
+non-@code{nil}, skip some fontifications is there's input pending.
+This usually does not affect the display because redisplay is
+completely skipped anyway if input was pending, but it can make
+scrolling smoother by avoiding unnecessary fontification.
 
 @vindex scroll-up
 @vindex scroll-down
@@ -634,24 +642,41 @@ apply them to specific text when you want the effects they produce.
 @item default
 This face is used for ordinary text that doesn't specify any face.
 Its background color is used as the frame's background color.
+
 @item bold
 This face uses a bold variant of the default font.
+
 @item italic
 This face uses an italic variant of the default font.
+
 @item bold-italic
 This face uses a bold italic variant of the default font.
+
 @item underline
 This face underlines text.
+
 @item fixed-pitch
 This face forces use of a fixed-width font.  It's reasonable to
 customize this face to use a different fixed-width font, if you like,
 but you should not make it a variable-width font.
+
 @item fixed-pitch-serif
 This face is like @code{fixed-pitch}, except the font has serifs and
 looks more like traditional typewriting.
+
 @cindex @code{variable-pitch} face
 @item variable-pitch
-This face forces use of a variable-width font.
+This face forces use of a variable-width (i.e., proportional) font.
+The font size picked for this face matches the font picked for the
+default (usually fixed-width) font.
+
+@item variable-pitch-text
+This is like the @code{variable-pitch} face (from which it inherits),
+but is slightly larger.  A proportional font of the same height as a
+monospace font usually appears visually smaller, and can therefore be
+harder to read.  When displaying longer texts, this face can be a good
+choice over the (slightly smaller) @code{variable-pitch} face.
+
 @cindex @code{shadow} face
 @item shadow
 This face is used for making the text less noticeable than the surrounding
@@ -708,46 +733,62 @@ frame:
 @table @code
 @item mode-line
 @cindex @code{mode-line} face
-@cindex faces for mode lines
-This face is used for the mode line of the currently selected window,
+This is the base face used for the mode lines, as well as header lines
 and for menu bars when toolkit menus are not used.  By default, it's
 drawn with shadows for a raised effect on graphical displays, and
 drawn as the inverse of the default face on non-windowed terminals.
+
+The @code{mode-line-active} and @code{mode-line-inactive} faces (which
+are the ones used on the mode lines) inherit from this face.
+
+@item mode-line-active
+@cindex faces for mode lines
+Like @code{mode-line}, but used for the mode line of the currently
+selected window.  This face inherits from @code{mode-line}, so changes
+in that face affect mode lines in all windows.
+
 @item mode-line-inactive
 @cindex @code{mode-line-inactive} face
 Like @code{mode-line}, but used for mode lines of the windows other
 than the selected one (if @code{mode-line-in-non-selected-windows} is
 non-@code{nil}).  This face inherits from @code{mode-line}, so changes
 in that face affect mode lines in all windows.
+
 @item mode-line-highlight
 @cindex @code{mode-line-highlight} face
 Like @code{highlight}, but used for mouse-sensitive portions of text
 on mode lines.  Such portions of text typically pop up tooltips
 (@pxref{Tooltips}) when the mouse pointer hovers above them.
+
 @item mode-line-buffer-id
 @cindex @code{mode-line-buffer-id} face
 This face is used for buffer identification parts in the mode line.
+
 @item header-line
 @cindex @code{header-line} face
 Similar to @code{mode-line} for a window's header line, which appears
 at the top of a window just as the mode line appears at the bottom.
 Most windows do not have a header line---only some special modes, such
 Info mode, create one.
+
 @item header-line-highlight
 @cindex @code{header-line-highlight} face
 Similar to @code{highlight} and @code{mode-line-highlight}, but used
 for mouse-sensitive portions of text on header lines.  This is a
 separate face because the @code{header-line} face might be customized
 in a way that does not interact well with @code{highlight}.
+
 @item tab-line
 @cindex @code{tab-line} face
 Similar to @code{mode-line} for a window's tab line, which appears
 at the top of a window with tabs representing window buffers.
 @xref{Tab Line}.
+
 @item vertical-border
 @cindex @code{vertical-border} face
 This face is used for the vertical divider between windows on text
 terminals.
+
 @item minibuffer-prompt
 @cindex @code{minibuffer-prompt} face
 @vindex minibuffer-prompt-properties
@@ -757,19 +798,23 @@ By default, Emacs automatically adds this face to the value of
 properties (@pxref{Text Properties,,, elisp, the Emacs Lisp Reference
 Manual}) used to display the prompt text.  (This variable takes effect
 when you enter the minibuffer.)
+
 @item fringe
 @cindex @code{fringe} face
 The face for the fringes to the left and right of windows on graphic
 displays.  (The fringes are the narrow portions of the Emacs frame
 between the text area and the window's right and left borders.)
 @xref{Fringes}.
+
 @item cursor
 The @code{:background} attribute of this face specifies the color of
 the text cursor.  @xref{Cursor Display}.
+
 @item tooltip
 This face is used for tooltip text.  By default, if Emacs is built
 with GTK+ support, tooltips are drawn via GTK+ and this face has no
 effect.  @xref{Tooltips}.
+
 @item mouse
 This face determines the color of the mouse pointer.
 @end table
@@ -857,6 +902,20 @@ prefix argument.
   The above commands automatically enable the minor mode
 @code{text-scale-mode} if the current font scaling is other than 1,
 and disable it otherwise.
+
+@cindex pinch to scale
+@findex text-scale-pinch
+  The command @code{text-scale-pinch} increases or decreases the text
+scale based on the distance between fingers on a touchpad when a pinch
+gesture is performed by placing two fingers on a touchpad and moving
+them towards or apart from each other.  This is only available on some
+systems with supported hardware.
+
+@findex mouse-wheel-text-scale
+  The command @code{mouse-wheel-text-scale} also changes the text
+scale.  Normally, it is run when you press @key{Ctrl} while moving the
+mouse wheel.  The text scale is increased when the wheel is moved
+downwards, and it is decreased when the wheel is moved upwards.
 
 @node Font Lock
 @section Font Lock mode
@@ -1189,8 +1248,8 @@ that has some special meaning for formatting the source code of a
 program.
 
   To activate the fill-column indication display, use the minor modes
-@w{@kbd{M-x display-fill-column-indicator-mode}} and
-@w{@kbd{M-x global-display-fill-column-indicator-mode}}, which enable
+@code{display-fill-@-column-indicator-mode} and
+@code{global-display-fill-column-indicator-mode}, which enable
 the indicator locally or globally, respectively.
 
 Alternatively, you can set the two buffer-local variables
@@ -1220,8 +1279,8 @@ The value @code{nil} disables the indicator.  When the mode is enabled
 through the functions @code{display-fill-column-indicator-mode} or
 @code{global-display-fill-column-indicator-mode}, they will use the
 character specified by this variable, if it is non-@code{nil};
-otherwise Emacs will use the character @samp{U+2502 VERTICAL LINE},
-falling back to @samp{|} if @code{U+2502} cannot be displayed.
+otherwise Emacs will use the character U+2502 @sc{box drawings light vertical},
+falling back to @samp{|} if U+2502 cannot be displayed.
 
 @item fill-column-indicator
 @vindex fill-column-indicator
@@ -1577,8 +1636,8 @@ characters, as well as many non-@acronym{ASCII} characters.
 @cindex control characters on display
   The @acronym{ASCII} character set contains non-printing @dfn{control
 characters}.  Two of these are displayed specially: the newline
-character (Unicode code point @code{U+000A}) is displayed by starting
-a new line, while the tab character (@code{U+0009}) is displayed as a
+character (Unicode code point U+000A) is displayed by starting
+a new line, while the tab character (U+0009) is displayed as a
 space that extends to the next tab stop column (normally every 8
 columns).  The number of spaces per tab is controlled by the
 buffer-local variable @code{tab-width}, which must have an integer
@@ -1587,17 +1646,17 @@ character in the buffer is displayed has nothing to do with the
 definition of @key{TAB} as a command.
 
   Other @acronym{ASCII} control characters, whose codes are below
-@code{U+0020} (octal 40, decimal 32), are displayed as a caret
+U+0020 (octal 40, decimal 32), are displayed as a caret
 (@samp{^}) followed by the non-control version of the character, with
 the @code{escape-glyph} face.  For instance, the @samp{control-A}
-character, @code{U+0001}, is displayed as @samp{^A}.
+character, U+0001, is displayed as @samp{^A}.
 
 @cindex octal escapes
 @vindex ctl-arrow
-  The raw bytes with codes @code{U+0080} (octal 200) through
-@code{U+009F} (octal 237) are displayed as @dfn{octal escape
+  The raw bytes with codes U+0080 (octal 200) through
+U+009F (octal 237) are displayed as @dfn{octal escape
 sequences}, with the @code{escape-glyph} face.  For instance,
-character code @code{U+0098} (octal 230) is displayed as @samp{\230}.
+character code U+0098 (octal 230) is displayed as @samp{\230}.
 If you change the buffer-local variable @code{ctl-arrow} to
 @code{nil}, the @acronym{ASCII} control characters are also displayed
 as octal escape sequences instead of caret escape sequences.  (You can
@@ -1616,11 +1675,11 @@ can cause problems if they are entered into a buffer without your
 realization, e.g., by yanking; for instance, source code compilers
 typically do not treat non-@acronym{ASCII} spaces as whitespace
 characters.  To deal with this problem, Emacs displays such characters
-specially: it displays @code{U+00A0} (no-break space) and other
+specially: it displays U+00A0 @sc{no-break space} and other
 characters from the Unicode horizontal space class with the
-@code{nobreak-space} face, and it displays @code{U+00AD} (soft
-hyphen), @code{U+2010} (hyphen), and @code{U+2011} (non-breaking
-hyphen) with the @code{nobreak-hyphen} face.  To disable this, change
+@code{nobreak-space} face, and it displays U+00AD @sc{soft
+hyphen}, U+2010 @sc{hyphen}, and U+2011 @sc{non-breaking
+hyphen} with the @code{nobreak-hyphen} face.  To disable this, change
 the variable @code{nobreak-char-display} to @code{nil}.  If you give
 this variable a non-@code{nil} and non-@code{t} value, Emacs instead
 displays such characters as a highlighted backslash followed by a
@@ -1645,14 +1704,20 @@ characters more prominent on display.  @xref{Glyphless Chars,,
 Glyphless Character Display, elisp, The Emacs Lisp Reference Manual},
 for details.
 
+@findex glyphless-display-mode
+  The @code{glyphless-display-mode} minor mode can be used to toggle
+the display of glyphless characters in the current buffer.  The
+glyphless characters will be displayed as boxes with acronyms of their
+names inside.
+
 @cindex curly quotes, and terminal capabilities
 @cindex curved quotes, and terminal capabilities
 @cindex @code{homoglyph} face
 
-Emacs tries to determine if the curved quotes @samp{‘} and @samp{’}
+Emacs tries to determine if the curved quotes @t{‘} and @t{’}
 can be displayed on the current display.  By default, if this seems to
-be so, then Emacs will translate the @acronym{ASCII} quotes (@samp{`}
-and @samp{'}), when they appear in messages and help texts, to these
+be so, then Emacs will translate the @acronym{ASCII} quotes @w{(@samp{`}
+and @samp{'})}, when they appear in messages and help texts, to these
 curved quotes.  You can influence or inhibit this translation by
 customizing the user option @code{text-quoting-style} (@pxref{Keys in
 Documentation,,, elisp, The Emacs Lisp Reference Manual}).
@@ -1661,7 +1726,7 @@ Documentation,,, elisp, The Emacs Lisp Reference Manual}).
 known to look just like @acronym{ASCII} characters, they are shown
 with the @code{homoglyph} face.  Curved quotes that are known not to
 be displayable are shown as their @acronym{ASCII} approximations
-@t{`}, @t{'}, and @t{"} with the @code{homoglyph} face.
+@samp{`}, @samp{'}, and @samp{"} with the @code{homoglyph} face.
 
 @node Cursor Display
 @section Displaying the Cursor
@@ -1767,6 +1832,10 @@ multiple screen lines.  Setting the variable @code{truncate-lines} in
 any way makes it local to the current buffer; until that time, the
 default value, which is normally @code{nil}, is in effect.
 
+  Since line truncation and word wrap (described in the next section)
+are contradictory, @code{toggle-truncate-lines} disables word wrap
+when it turns on line truncation.
+
   If a split window becomes too narrow, Emacs may automatically enable
 line truncation.  @xref{Split Window}, for the variable
 @code{truncate-partial-width-windows} which controls this.
@@ -1796,6 +1865,10 @@ the @samp{Word Wrap (Visual Line mode)} menu item.  While Visual Line
 mode is enabled, the mode line shows the string @samp{wrap} in the
 mode display.  The command @kbd{M-x global-visual-line-mode} toggles
 Visual Line mode in all buffers.
+
+  Since word wrap and line truncation (described in the previous
+section) are contradictory, turning on @code{visual-line-mode}
+disables line truncation.
 
 @findex beginning-of-visual-line
 @findex end-of-visual-line
@@ -1829,15 +1902,15 @@ variable @code{visual-line-fringe-indicators}.
 That produces incorrect results when CJK and Latin text are mixed
 together (because CJK characters don't use whitespace to separate
 words).  You can customize the option @code{word-wrap-by-category} to
-allow Emacs to break lines after any character with ``|'' category
+allow Emacs to break lines after any character with @samp{|} category
 (@pxref{Categories,,, elisp, the Emacs Lisp Reference Manual}), which
 provides better support for CJK characters.  Also, if this variable is
 set using Customize, Emacs automatically loads @file{kinsoku.el}.
 When @file{kinsoku.el} is loaded, Emacs respects kinsoku rules when
-breaking lines.  That means characters with the ``>'' category don't
-appear at the beginning of a line (e.g., U+FF0C FULLWIDTH COMMA), and
-characters with the ``<'' category don't appear at the end of a line
-(e.g., U+300A LEFT DOUBLE ANGLE BRACKET).  You can view the category
+breaking lines.  That means characters with the @samp{>} category don't
+appear at the beginning of a line (e.g., U+FF0C @sc{fullwidth comma}), and
+characters with the @samp{<} category don't appear at the end of a line
+(e.g., U+300A @sc{left double angle bracket}).  You can view the category
 set of a character using the commands @code{char-category-set} and
 @code{category-set-mnemonics}, or by typing @kbd{C-u C-x =} with point
 on the character and looking at the ``category'' section in the

@@ -1,6 +1,6 @@
 ;;; fns-tests.el --- tests for src/fns.c  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2014-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2014-2022 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -23,6 +23,29 @@
 
 (require 'cl-lib)
 
+(ert-deftest fns-tests-identity ()
+  (let ((num 12345)) (should (eq (identity num) num)))
+  (let ((str "foo")) (should (eq (identity str) str)))
+  (let ((lst '(11))) (should (eq (identity lst) lst))))
+
+(ert-deftest fns-tests-random ()
+  (should (integerp (random)))
+  (should (>= (random 10) 0))
+  (should (< (random 10) 10)))
+
+(ert-deftest fns-tests-length ()
+  (should (= (length nil) 0))
+  (should (= (length '(1 2 3)) 3))
+  (should (= (length '[1 2 3]) 3))
+  (should (= (length "foo") 3))
+  (should-error (length t)))
+
+(ert-deftest fns-tests-safe-length ()
+  (should (= (safe-length '(1 2 3)) 3)))
+
+(ert-deftest fns-tests-string-bytes ()
+  (should (= (string-bytes "abc") 3)))
+
 ;; Test that equality predicates work correctly on NaNs when combined
 ;; with hash tables based on those predicates.  This was not the case
 ;; for eql in Emacs 26.
@@ -33,6 +56,33 @@
            (-nan (- nan)))
       (puthash nan t h)
       (should (eq (funcall test nan -nan) (gethash -nan h))))))
+
+(ert-deftest fns-tests-equal-including-properties ()
+  (should (equal-including-properties "" ""))
+  (should (equal-including-properties "foo" "foo"))
+  (should (equal-including-properties #("foo" 0 3 (a b))
+                                      (propertize "foo" 'a 'b)))
+  (should (equal-including-properties #("foo" 0 3 (a b c d))
+                                      (propertize "foo" 'a 'b 'c 'd)))
+  (should (equal-including-properties #("a" 0 1 (k v))
+                                      #("a" 0 1 (k v))))
+  (should-not (equal-including-properties #("a" 0 1 (k v))
+                                          #("a" 0 1 (k x))))
+  (should-not (equal-including-properties #("a" 0 1 (k v))
+                                          #("b" 0 1 (k v))))
+  (should-not (equal-including-properties #("foo" 0 3 (a b c e))
+                                          (propertize "foo" 'a 'b 'c 'd))))
+
+(ert-deftest fns-tests-equal-including-properties/string-prop-vals ()
+  "Handle string property values.  (Bug#6581)"
+  (should (equal-including-properties #("a" 0 1 (k "v"))
+                                      #("a" 0 1 (k "v"))))
+  (should (equal-including-properties #("foo" 0 3 (a (t)))
+                                      (propertize "foo" 'a (list t))))
+  (should-not (equal-including-properties #("a" 0 1 (k "v"))
+                                          #("a" 0 1 (k "x"))))
+  (should-not (equal-including-properties #("a" 0 1 (k "v"))
+                                          #("b" 0 1 (k "v")))))
 
 (ert-deftest fns-tests-reverse ()
   (should-error (reverse))
@@ -268,7 +318,10 @@
   (should (equal (base64-encode-string "fooba") "Zm9vYmE="))
   (should (equal (base64-encode-string "foobar") "Zm9vYmFy"))
   (should (equal (base64-encode-string "\x14\xfb\x9c\x03\xd9\x7e") "FPucA9l+"))
-  (should (equal (base64-encode-string "\x14\xfb\x9c\x03\xd9\x7f") "FPucA9l/")))
+  (should (equal (base64-encode-string "\x14\xfb\x9c\x03\xd9\x7f") "FPucA9l/"))
+
+  (should-error (base64-encode-string "ƒ"))
+  (should-error (base64-encode-string "ü")))
 
 (ert-deftest fns-test-base64url-encode-region ()
   ;; url variant with padding
@@ -310,7 +363,11 @@
   (should (equal (fns-tests--with-region base64url-encode-region (fns-tests--string-repeat "\x14\xfb\x9c\x03\xd9\x7e" 10) t)
                  (fns-tests--string-repeat "FPucA9l-" 10)))
   (should (equal (fns-tests--with-region base64url-encode-region (fns-tests--string-repeat "\x14\xfb\x9c\x03\xd9\x7f" 10) t)
-                 (fns-tests--string-repeat "FPucA9l_" 10))))
+                 (fns-tests--string-repeat "FPucA9l_" 10)))
+
+  (should-error (fns-tests--with-region base64url-encode-region "ƒ"))
+  (should-error (fns-tests--with-region base64url-encode-region "ü")))
+
 
 (ert-deftest fns-test-base64url-encode-string ()
   ;; url variant with padding
@@ -344,7 +401,10 @@
   (should (equal (base64url-encode-string (fns-tests--string-repeat "fooba" 15) t) (fns-tests--string-repeat "Zm9vYmFmb29iYWZvb2Jh" 5)))
   (should (equal (base64url-encode-string (fns-tests--string-repeat "foobar" 15) t) (concat (fns-tests--string-repeat "Zm9vYmFyZm9vYmFy" 7) "Zm9vYmFy")))
   (should (equal (base64url-encode-string (fns-tests--string-repeat "\x14\xfb\x9c\x03\xd9\x7e" 10) t) (fns-tests--string-repeat "FPucA9l-" 10)))
-  (should (equal (base64url-encode-string (fns-tests--string-repeat "\x14\xfb\x9c\x03\xd9\x7f" 10) t) (fns-tests--string-repeat "FPucA9l_" 10))))
+  (should (equal (base64url-encode-string (fns-tests--string-repeat "\x14\xfb\x9c\x03\xd9\x7f" 10) t) (fns-tests--string-repeat "FPucA9l_" 10)))
+
+  (should-error (base64url-encode-string "ƒ"))
+  (should-error (base64url-encode-string "ü")))
 
 (ert-deftest fns-tests-base64-decode-string ()
   ;; standard variant RFC2045
@@ -429,6 +489,23 @@
                    (backward-delete-char 1)
                    (buffer-hash))
                  (sha1 "foo"))))
+
+(ert-deftest fns-tests-mapconcat ()
+  (should (string= (mapconcat #'identity '()) ""))
+  (should (string= (mapconcat #'identity '("a" "b")) "ab"))
+  (should (string= (mapconcat #'identity '() "_") ""))
+  (should (string= (mapconcat #'identity '("A") "_") "A"))
+  (should (string= (mapconcat #'identity '("A" "B") "_") "A_B"))
+  (should (string= (mapconcat #'identity '("A" "B" "C") "_") "A_B_C"))
+  ;; non-ASCII strings
+  (should (string= (mapconcat #'identity '("Ä" "ø" "☭" "தமிழ்") "_漢字_")
+                   "Ä_漢字_ø_漢字_☭_漢字_தமிழ்"))
+  ;; vector
+  (should (string= (mapconcat #'identity ["a" "b"] "") "ab"))
+  ;; bool-vector
+  (should (string= (mapconcat #'identity [nil nil] "") ""))
+  (should-error (mapconcat #'identity [nil nil t])
+                :type 'wrong-type-argument))
 
 (ert-deftest fns-tests-mapcan ()
   (should-error (mapcan))
@@ -786,7 +863,15 @@
   ;; string containing hanzi character, compare by character
   (should (equal 2 (string-distance "ab" "ab我她")))
   (should (equal 1 (string-distance "ab" "a我b")))
-  (should (equal 1 (string-distance "我" "她"))))
+  (should (equal 1 (string-distance "我" "她")))
+
+  ;; correct behaviour with empty strings
+  (should (equal 0 (string-distance "" "")))
+  (should (equal 0 (string-distance "" "" t)))
+  (should (equal 1 (string-distance "x" "")))
+  (should (equal 1 (string-distance "x" "" t)))
+  (should (equal 1 (string-distance "" "x")))
+  (should (equal 1 (string-distance "" "x" t))))
 
 (ert-deftest test-bignum-eql ()
   "Test that `eql' works for bignums."
@@ -1106,3 +1191,5 @@
     (should (= (line-number-at-pos nil) 11))
     (should-error (line-number-at-pos -1))
     (should-error (line-number-at-pos 100))))
+
+;;; fns-tests.el ends here

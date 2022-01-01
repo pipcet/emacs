@@ -1,6 +1,6 @@
 /* Functions for the X Window System.
 
-Copyright (C) 1989, 1992-2021 Free Software Foundation, Inc.
+Copyright (C) 1989, 1992-2022 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -55,6 +55,10 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 
 #ifdef HAVE_XDBE
 #include <X11/extensions/Xdbe.h>
+#endif
+
+#ifdef HAVE_XINPUT2
+#include <X11/extensions/XInput2.h>
 #endif
 
 #ifdef USE_X_TOOLKIT
@@ -1563,7 +1567,6 @@ x_set_menu_bar_lines (struct frame *f, Lisp_Object value, Lisp_Object oldval)
 #else /* not USE_X_TOOLKIT && not USE_GTK */
   FRAME_MENU_BAR_LINES (f) = nlines;
   FRAME_MENU_BAR_HEIGHT (f) = nlines * FRAME_LINE_HEIGHT (f);
-  adjust_frame_size (f, -1, -1, 2, true, Qx_set_menu_bar_lines);
   if (FRAME_X_WINDOW (f))
     x_clear_under_internal_border (f);
 
@@ -1576,6 +1579,8 @@ x_set_menu_bar_lines (struct frame *f, Lisp_Object value, Lisp_Object oldval)
       int height = FRAME_INTERNAL_BORDER_WIDTH (f);
       int width = FRAME_PIXEL_WIDTH (f);
       int y;
+
+      adjust_frame_size (f, -1, -1, 3, true, Qmenu_bar_lines);
 
       /* height can be zero here. */
       if (FRAME_X_WINDOW (f) && height > 0 && width > 0)
@@ -1607,13 +1612,15 @@ x_set_menu_bar_lines (struct frame *f, Lisp_Object value, Lisp_Object oldval)
 
 /* Set the number of lines used for the tab bar of frame F to VALUE.
    VALUE not an integer, or < 0 means set the lines to zero.  OLDVAL
-   is the old number of tab bar lines.  This function changes the
+   is the old number of tab bar lines.  This function may change the
    height of all windows on frame F to match the new tab bar height.
-   The frame's height doesn't change.  */
+   The frame's height may change if frame_inhibit_implied_resize was
+   set accordingly.  */
 
 static void
 x_set_tab_bar_lines (struct frame *f, Lisp_Object value, Lisp_Object oldval)
 {
+  int olines = FRAME_TAB_BAR_LINES (f);
   int nlines;
 
   /* Treat tab bars like menu bars.  */
@@ -1626,7 +1633,8 @@ x_set_tab_bar_lines (struct frame *f, Lisp_Object value, Lisp_Object oldval)
   else
     nlines = 0;
 
-  x_change_tab_bar_height (f, nlines * FRAME_LINE_HEIGHT (f));
+  if (nlines != olines && (olines == 0 || nlines == 0))
+    x_change_tab_bar_height (f, nlines * FRAME_LINE_HEIGHT (f));
 }
 
 
@@ -1637,7 +1645,7 @@ x_change_tab_bar_height (struct frame *f, int height)
   int unit = FRAME_LINE_HEIGHT (f);
   int old_height = FRAME_TAB_BAR_HEIGHT (f);
   int lines = (height + unit - 1) / unit;
-  Lisp_Object fullscreen;
+  Lisp_Object fullscreen = get_frame_param (f, Qfullscreen);
 
   /* Make sure we redisplay all windows in this frame.  */
   fset_redisplay (f);
@@ -1645,16 +1653,8 @@ x_change_tab_bar_height (struct frame *f, int height)
   /* Recalculate tab bar and frame text sizes.  */
   FRAME_TAB_BAR_HEIGHT (f) = height;
   FRAME_TAB_BAR_LINES (f) = lines;
-  /* Store the `tab-bar-lines' and `height' frame parameters.  */
   store_frame_param (f, Qtab_bar_lines, make_fixnum (lines));
-  store_frame_param (f, Qheight, make_fixnum (FRAME_LINES (f)));
 
-  /* We also have to make sure that the internal border at the top of
-     the frame, below the menu bar or tab bar, is redrawn when the
-     tab bar disappears.  This is so because the internal border is
-     below the tab bar if one is displayed, but is below the menu bar
-     if there isn't a tab bar.  The tab bar draws into the area
-     below the menu bar.  */
   if (FRAME_X_WINDOW (f) && FRAME_TAB_BAR_HEIGHT (f) == 0)
     {
       clear_frame (f);
@@ -1664,25 +1664,21 @@ x_change_tab_bar_height (struct frame *f, int height)
   if ((height < old_height) && WINDOWP (f->tab_bar_window))
     clear_glyph_matrix (XWINDOW (f->tab_bar_window)->current_matrix);
 
-  /* Recalculate tabbar height.  */
-  f->n_tab_bar_rows = 0;
-  if (old_height == 0
-      && (!f->after_make_frame
-	  || NILP (frame_inhibit_implied_resize)
-	  || (CONSP (frame_inhibit_implied_resize)
-	      && NILP (Fmemq (Qtab_bar_lines, frame_inhibit_implied_resize)))))
-    f->tab_bar_redisplayed = f->tab_bar_resized = false;
+  if (!f->tab_bar_resized)
+    {
+      /* As long as tab_bar_resized is false, effectively try to change
+	 F's native height.  */
+      if (NILP (fullscreen) || EQ (fullscreen, Qfullwidth))
+	adjust_frame_size (f, FRAME_TEXT_WIDTH (f), FRAME_TEXT_HEIGHT (f),
+			   1, false, Qtab_bar_lines);
+      else
+	adjust_frame_size (f, -1, -1, 4, false, Qtab_bar_lines);
 
-  adjust_frame_size (f, -1, -1,
-		     ((!f->tab_bar_resized
-		       && (NILP (fullscreen =
-				 get_frame_param (f, Qfullscreen))
-			   || EQ (fullscreen, Qfullwidth))) ? 1
-		      : (old_height == 0 || height == 0) ? 2
-		      : 4),
-		     false, Qtab_bar_lines);
-
-  f->tab_bar_resized = f->tab_bar_redisplayed;
+      f->tab_bar_resized = f->tab_bar_redisplayed;
+    }
+  else
+    /* Any other change may leave the native size of F alone.  */
+    adjust_frame_size (f, -1, -1, 3, false, Qtab_bar_lines);
 
   /* adjust_frame_size might not have done anything, garbage frame
      here.  */
@@ -1743,24 +1739,15 @@ x_change_tool_bar_height (struct frame *f, int height)
   int unit = FRAME_LINE_HEIGHT (f);
   int old_height = FRAME_TOOL_BAR_HEIGHT (f);
   int lines = (height + unit - 1) / unit;
-  Lisp_Object fullscreen;
+  Lisp_Object fullscreen = get_frame_param (f, Qfullscreen);
 
   /* Make sure we redisplay all windows in this frame.  */
   fset_redisplay (f);
 
-  /* Recalculate tool bar and frame text sizes.  */
   FRAME_TOOL_BAR_HEIGHT (f) = height;
   FRAME_TOOL_BAR_LINES (f) = lines;
-  /* Store the `tool-bar-lines' and `height' frame parameters.  */
   store_frame_param (f, Qtool_bar_lines, make_fixnum (lines));
-  store_frame_param (f, Qheight, make_fixnum (FRAME_LINES (f)));
 
-  /* We also have to make sure that the internal border at the top of
-     the frame, below the menu bar or tool bar, is redrawn when the
-     tool bar disappears.  This is so because the internal border is
-     below the tool bar if one is displayed, but is below the menu bar
-     if there isn't a tool bar.  The tool bar draws into the area
-     below the menu bar.  */
   if (FRAME_X_WINDOW (f) && FRAME_TOOL_BAR_HEIGHT (f) == 0)
     {
       clear_frame (f);
@@ -1770,25 +1757,21 @@ x_change_tool_bar_height (struct frame *f, int height)
   if ((height < old_height) && WINDOWP (f->tool_bar_window))
     clear_glyph_matrix (XWINDOW (f->tool_bar_window)->current_matrix);
 
-  /* Recalculate toolbar height.  */
-  f->n_tool_bar_rows = 0;
-  if (old_height == 0
-      && (!f->after_make_frame
-	  || NILP (frame_inhibit_implied_resize)
-	  || (CONSP (frame_inhibit_implied_resize)
-	      && NILP (Fmemq (Qtool_bar_lines, frame_inhibit_implied_resize)))))
-    f->tool_bar_redisplayed = f->tool_bar_resized = false;
+  if (!f->tool_bar_resized)
+    {
+      /* As long as tool_bar_resized is false, effectively try to change
+	 F's native height.  */
+      if (NILP (fullscreen) || EQ (fullscreen, Qfullwidth))
+	adjust_frame_size (f, FRAME_TEXT_WIDTH (f), FRAME_TEXT_HEIGHT (f),
+			   1, false, Qtool_bar_lines);
+      else
+	adjust_frame_size (f, -1, -1, 4, false, Qtool_bar_lines);
 
-  adjust_frame_size (f, -1, -1,
-		     ((!f->tool_bar_resized
-		       && (NILP (fullscreen =
-				 get_frame_param (f, Qfullscreen))
-			   || EQ (fullscreen, Qfullwidth))) ? 1
-		      : (old_height == 0 || height == 0) ? 2
-		      : 4),
-		     false, Qtool_bar_lines);
-
-  f->tool_bar_resized = f->tool_bar_redisplayed;
+      f->tool_bar_resized =  f->tool_bar_redisplayed;
+    }
+  else
+    /* Any other change may leave the native size of F alone.  */
+    adjust_frame_size (f, -1, -1, 3, false, Qtool_bar_lines);
 
   /* adjust_frame_size might not have done anything, garbage frame
      here.  */
@@ -2783,7 +2766,7 @@ xic_set_preeditarea (struct window *w, int x, int y)
   XVaNestedList attr;
   XPoint spot;
 
-  spot.x = WINDOW_TO_FRAME_PIXEL_X (w, x) + WINDOW_LEFT_FRINGE_WIDTH (w);
+  spot.x = WINDOW_TO_FRAME_PIXEL_X (w, x) + WINDOW_LEFT_FRINGE_WIDTH (w) + WINDOW_LEFT_MARGIN_WIDTH(w);
   spot.y = WINDOW_TO_FRAME_PIXEL_Y (w, y) + FONT_BASE (FRAME_FONT (f));
   attr = XVaCreateNestedList (0, XNSpotLocation, &spot, NULL);
   XSetICValues (FRAME_XIC (f), XNPreeditAttributes, attr, NULL);
@@ -2932,6 +2915,68 @@ initial_set_up_x_back_buffer (struct frame *f)
     set_up_x_back_buffer (f);
   unblock_input ();
 }
+
+#if defined HAVE_XINPUT2
+static void
+setup_xi_event_mask (struct frame *f)
+{
+  XIEventMask mask;
+  ptrdiff_t l = XIMaskLen (XI_LASTEVENT);
+  unsigned char *m;
+
+  mask.mask = m = alloca (l);
+  memset (m, 0, l);
+  mask.mask_len = l;
+
+  block_input ();
+#ifndef USE_GTK
+  mask.deviceid = XIAllMasterDevices;
+
+  XISetMask (m, XI_ButtonPress);
+  XISetMask (m, XI_ButtonRelease);
+  XISetMask (m, XI_KeyPress);
+  XISetMask (m, XI_KeyRelease);
+  XISetMask (m, XI_Motion);
+  XISetMask (m, XI_Enter);
+  XISetMask (m, XI_Leave);
+#if 0
+  XISetMask (m, XI_FocusIn);
+  XISetMask (m, XI_FocusOut);
+#endif
+  XISelectEvents (FRAME_X_DISPLAY (f),
+		  FRAME_X_WINDOW (f),
+		  &mask, 1);
+
+  memset (m, 0, l);
+#endif /* !USE_GTK */
+
+  mask.deviceid = XIAllDevices;
+
+  XISetMask (m, XI_PropertyEvent);
+  XISetMask (m, XI_HierarchyChanged);
+  XISetMask (m, XI_DeviceChanged);
+#ifdef XI_TouchBegin
+  if (FRAME_DISPLAY_INFO (f)->xi2_version >= 2)
+    {
+      XISetMask (m, XI_TouchBegin);
+      XISetMask (m, XI_TouchUpdate);
+      XISetMask (m, XI_TouchEnd);
+#ifdef XI_GesturePinchBegin
+      if (FRAME_DISPLAY_INFO (f)->xi2_version >= 4)
+	{
+	  XISetMask (m, XI_GesturePinchBegin);
+	  XISetMask (m, XI_GesturePinchUpdate);
+	  XISetMask (m, XI_GesturePinchEnd);
+	}
+#endif
+    }
+#endif
+  XISelectEvents (FRAME_X_DISPLAY (f),
+		  FRAME_X_WINDOW (f),
+		  &mask, 1);
+  unblock_input ();
+}
+#endif
 
 #ifdef USE_X_TOOLKIT
 
@@ -3095,6 +3140,11 @@ x_window (struct frame *f, long window_prompting)
   class_hints.res_class = SSDATA (Vx_resource_class);
   XSetClassHint (FRAME_X_DISPLAY (f), XtWindow (shell_widget), &class_hints);
 
+#ifdef HAVE_XINPUT2
+  if (FRAME_DISPLAY_INFO (f)->supports_xi2)
+    setup_xi_event_mask (f);
+#endif
+
 #ifdef HAVE_X_I18N
   FRAME_XIC (f) = NULL;
   if (use_xim)
@@ -3221,6 +3271,11 @@ x_window (struct frame *f)
     unblock_input ();
   }
 #endif
+
+#ifdef HAVE_XINPUT2
+  if (FRAME_DISPLAY_INFO (f)->supports_xi2)
+    setup_xi_event_mask (f);
+#endif
 }
 
 #else /*! USE_GTK */
@@ -3274,6 +3329,11 @@ x_window (struct frame *f)
 	}
     }
 #endif /* HAVE_X_I18N */
+
+#ifdef HAVE_XINPUT2
+  if (FRAME_DISPLAY_INFO (f)->supports_xi2)
+    setup_xi_event_mask (f);
+#endif
 
   validate_x_resource_name ();
 
@@ -3382,17 +3442,19 @@ x_icon (struct frame *f, Lisp_Object parms)
     = gui_frame_get_and_record_arg (f, parms, Qicon_top, 0, 0, RES_TYPE_NUMBER);
   int icon_xval, icon_yval;
 
-  if (!EQ (icon_x, Qunbound) && !EQ (icon_y, Qunbound))
+  bool xgiven = !EQ (icon_x, Qunbound);
+  bool ygiven = !EQ (icon_y, Qunbound);
+  if (xgiven != ygiven)
+    error ("Both left and top icon corners of icon must be specified");
+  if (xgiven)
     {
       icon_xval = check_integer_range (icon_x, INT_MIN, INT_MAX);
       icon_yval = check_integer_range (icon_y, INT_MIN, INT_MAX);
     }
-  else if (!EQ (icon_x, Qunbound) || !EQ (icon_y, Qunbound))
-    error ("Both left and top icon corners of icon must be specified");
 
   block_input ();
 
-  if (! EQ (icon_x, Qunbound))
+  if (xgiven)
     x_wm_set_icon_position (f, icon_xval, icon_yval);
 
 #if false /* gui_display_get_arg removes the visibility parameter as a
@@ -3687,7 +3749,6 @@ This function is an internal primitive--use `make-frame' instead.  */)
   struct x_display_info *dpyinfo = NULL;
   Lisp_Object parent, parent_frame;
   struct kboard *kb;
-  int x_width = 0, x_height = 0;
 
   parms = Fcopy_alist (parms);
 
@@ -3999,18 +4060,6 @@ This function is an internal primitive--use `make-frame' instead.  */)
      init_iterator with a null face cache, which should not happen.  */
   init_frame_faces (f);
 
-  /* We have to call adjust_frame_size here since otherwise
-     x_set_tool_bar_lines will already work with the character sizes
-     installed by init_frame_faces while the frame's pixel size is still
-     calculated from a character size of 1 and we subsequently hit the
-     (height >= 0) assertion in window_box_height.
-
-     The non-pixelwise code apparently worked around this because it
-     had one frame line vs one toolbar line which left us with a zero
-     root window height which was obviously wrong as well ...
-
-     Also process `min-width' and `min-height' parameters right here
-     because `frame-windows-min-size' needs them.  */
   tem = gui_display_get_arg (dpyinfo, parms, Qmin_width, NULL, NULL,
                              RES_TYPE_NUMBER);
   if (FIXNUMP (tem))
@@ -4019,6 +4068,7 @@ This function is an internal primitive--use `make-frame' instead.  */)
                              RES_TYPE_NUMBER);
   if (FIXNUMP (tem))
     store_frame_param (f, Qmin_height, tem);
+
   adjust_frame_size (f, FRAME_COLS (f) * FRAME_COLUMN_WIDTH (f),
 		     FRAME_LINES (f) * FRAME_LINE_HEIGHT (f), 5, true,
 		     Qx_create_frame_1);
@@ -4055,8 +4105,7 @@ This function is an internal primitive--use `make-frame' instead.  */)
                          RES_TYPE_BOOLEAN);
 
   /* Compute the size of the X window.  */
-  window_prompting = gui_figure_window_size (f, parms, true, true,
-                                             &x_width, &x_height);
+  window_prompting = gui_figure_window_size (f, parms, true, true);
 
   tem = gui_display_get_arg (dpyinfo, parms, Qunsplittable, 0, 0,
                              RES_TYPE_BOOLEAN);
@@ -4140,11 +4189,6 @@ This function is an internal primitive--use `make-frame' instead.  */)
   /* Consider frame official, now.  */
   f->can_set_window_size = true;
 
-  if (x_width > 0)
-    SET_FRAME_WIDTH (f, x_width);
-  if (x_height > 0)
-    SET_FRAME_HEIGHT (f, x_height);
-
   /* Tell the server what size and position, etc, we want, and how
      badly we want them.  This should be done after we have the menu
      bar so that its size can be taken into account.  */
@@ -4166,12 +4210,21 @@ This function is an internal primitive--use `make-frame' instead.  */)
      cannot control visibility, so don't try.  */
   if (!f->output_data.x->explicit_parent)
     {
+      /* When called from `x-create-frame-with-faces' visibility is
+	 always explicitly nil.  */
       Lisp_Object visibility
 	= gui_display_get_arg (dpyinfo, parms, Qvisibility, 0, 0,
                                RES_TYPE_SYMBOL);
+      Lisp_Object height
+	= gui_display_get_arg (dpyinfo, parms, Qheight, 0, 0, RES_TYPE_NUMBER);
+      Lisp_Object width
+	= gui_display_get_arg (dpyinfo, parms, Qwidth, 0, 0, RES_TYPE_NUMBER);
 
       if (EQ (visibility, Qicon))
-	x_iconify_frame (f);
+	{
+	  f->was_invisible = true;
+	  x_iconify_frame (f);
+	}
       else
 	{
 	  if (EQ (visibility, Qunbound))
@@ -4179,7 +4232,16 @@ This function is an internal primitive--use `make-frame' instead.  */)
 
 	  if (!NILP (visibility))
 	    x_make_frame_visible (f);
+	  else
+	    f->was_invisible = true;
 	}
+
+      /* Leave f->was_invisible true only if height or width were
+	 specified too.  This takes effect only when we are not called
+	 from `x-create-frame-with-faces' (see above comment).  */
+      f->was_invisible
+	= (f->was_invisible
+	   && (!EQ (height, Qunbound) || !EQ (width, Qunbound)));
 
       store_frame_param (f, Qvisibility, visibility);
     }
@@ -4435,7 +4497,8 @@ For GNU and Unix system, the first 2 numbers are the version of the X
 Protocol used on TERMINAL and the 3rd number is the distributor-specific
 release number.  For MS Windows, the 3 numbers report the OS major and
 minor version and build number.  For Nextstep, the first 2 numbers are
-hard-coded and the 3rd represents the OS version.
+hard-coded and the 3rd represents the OS version.  For Haiku, all 3
+numbers are hard-coded.
 
 See also the function `x-server-vendor'.
 
@@ -4449,6 +4512,27 @@ If omitted or nil, that stands for the selected frame's display.  */)
 
   return list3i (ProtocolVersion (dpy), ProtocolRevision (dpy),
 		 VendorRelease (dpy));
+}
+
+DEFUN ("x-server-input-extension-version", Fx_server_input_extension_version,
+       Sx_server_input_extension_version, 0, 1, 0,
+       doc: /* Return the version of the X Input Extension supported by TERMINAL.
+The value is nil if TERMINAL's X server doesn't support the X Input
+Extension extension, or if Emacs doesn't support the version present
+on that server.  Otherwise, the return value is a list of the the
+major and minor versions of the X Input Extension extension running on
+that server.  */)
+  (Lisp_Object terminal)
+{
+#ifdef HAVE_XINPUT2
+  struct x_display_info *dpyinfo = check_x_display_info (terminal);
+
+  return (dpyinfo->supports_xi2
+	  ? list2i (2, dpyinfo->xi2_version)
+	  : Qnil);
+#else
+  return Qnil;
+#endif
 }
 
 DEFUN ("x-display-screens", Fx_display_screens, Sx_display_screens, 0, 1, 0,
@@ -4849,6 +4933,70 @@ x_get_monitor_attributes_xrandr (struct x_display_info *dpyinfo)
   int i, n_monitors, primary = -1;
   RROutput pxid = None;
   struct MonitorInfo *monitors;
+  bool randr15_p = false;
+
+#if RANDR_MAJOR > 1 || (RANDR_MAJOR == 1 && RANDR_MINOR >= 5)
+  XRRMonitorInfo *rr_monitors;
+
+  /* If RandR 1.5 or later is available, use that instead, as some
+     video drivers don't report correct dimensions via other versions
+     of RandR.  */
+  if (dpyinfo->xrandr_major_version > 1
+      || (dpyinfo->xrandr_major_version == 1
+	  && dpyinfo->xrandr_minor_version >= 5))
+    {
+      XRectangle workarea;
+      char *name;
+
+      rr_monitors = XRRGetMonitors (dpyinfo->display,
+				    dpyinfo->root_window,
+				    True, &n_monitors);
+      if (!rr_monitors)
+	goto fallback;
+
+      monitors = xzalloc (n_monitors * sizeof *monitors);
+
+      for (int i = 0; i < n_monitors; ++i)
+	{
+	  monitors[i].geom.x = rr_monitors[i].x;
+	  monitors[i].geom.y = rr_monitors[i].y;
+	  monitors[i].geom.width = rr_monitors[i].width;
+	  monitors[i].geom.height = rr_monitors[i].height;
+	  monitors[i].mm_width = rr_monitors[i].mwidth;
+	  monitors[i].mm_height = rr_monitors[i].mheight;
+
+	  name = XGetAtomName (dpyinfo->display, rr_monitors[i].name);
+	  if (name)
+	    {
+	      monitors[i].name = xstrdup (name);
+	      XFree (name);
+	    }
+	  else
+	    monitors[i].name = xstrdup ("Unknown Monitor");
+
+	  if (rr_monitors[i].primary)
+	    primary = i;
+
+	  if (rr_monitors[i].primary
+	      && x_get_net_workarea (dpyinfo, &workarea))
+	    {
+              monitors[i].work = workarea;
+              if (!gui_intersect_rectangles (&monitors[i].geom,
+					     &monitors[i].work,
+					     &monitors[i].work))
+		monitors[i].work = monitors[i].geom;
+	    }
+	  else
+	    monitors[i].work = monitors[i].geom;
+	}
+
+      XRRFreeMonitors (rr_monitors);
+      randr15_p = true;
+      goto out;
+    }
+
+ fallback:;
+#endif
 
 #define RANDR13_LIBRARY \
   (RANDR_MAJOR > 1 || (RANDR_MAJOR == 1 && RANDR_MINOR >= 3))
@@ -4937,12 +5085,16 @@ x_get_monitor_attributes_xrandr (struct x_display_info *dpyinfo)
       XRRFreeOutputInfo (info);
     }
   XRRFreeScreenResources (resources);
-
+#if RANDR_MAJOR > 1 || (RANDR_MAJOR == 1 && RANDR_MINOR >= 5)
+ out:
+#endif
   attributes_list = x_make_monitor_attribute_list (monitors,
                                                    n_monitors,
                                                    primary,
                                                    dpyinfo,
-                                                   "XRandr");
+                                                   (randr15_p
+						    ? "XRandR 1.5"
+						    : "XRandr"));
   free_monitors (monitors, n_monitors);
   return attributes_list;
 }
@@ -4957,17 +5109,9 @@ x_get_monitor_attributes (struct x_display_info *dpyinfo)
   (void) dpy; /* Suppress unused variable warning.  */
 
 #ifdef HAVE_XRANDR
-  int xrr_event_base, xrr_error_base;
-  bool xrr_ok = false;
-  xrr_ok = XRRQueryExtension (dpy, &xrr_event_base, &xrr_error_base);
-  if (xrr_ok)
-    {
-      XRRQueryVersion (dpy, &dpyinfo->xrandr_major_version,
-		       &dpyinfo->xrandr_minor_version);
-      xrr_ok = ((dpyinfo->xrandr_major_version == 1
-		 && dpyinfo->xrandr_minor_version >= 2)
-		|| dpyinfo->xrandr_major_version > 1);
-    }
+  bool xrr_ok = ((dpyinfo->xrandr_major_version == 1
+		  && dpyinfo->xrandr_minor_version >= 2)
+		 || dpyinfo->xrandr_major_version > 1);
 
   if (xrr_ok)
     attributes_list = x_get_monitor_attributes_xrandr (dpyinfo);
@@ -4991,6 +5135,65 @@ x_get_monitor_attributes (struct x_display_info *dpyinfo)
 }
 
 #endif /* !USE_GTK */
+
+#ifdef USE_LUCID
+/* This is used by the Lucid menu widget, but it's defined here so we
+   can make use of a great deal of existing code.  */
+static void
+xlw_monitor_dimensions_at_pos_1 (struct x_display_info *dpyinfo,
+				 Screen *screen, int src_x, int src_y,
+				 int *x, int *y, int *width, int *height)
+{
+  Lisp_Object attrs, tem, val;
+
+  attrs = x_get_monitor_attributes (dpyinfo);
+
+  for (tem = attrs; CONSP (tem); tem = XCDR (tem))
+    {
+      int sx, sy, swidth, sheight;
+      val = assq_no_quit (Qworkarea, XCAR (tem));
+      if (!NILP (val))
+	{
+	  sx = XFIXNUM (XCAR (XCDR (val)));
+	  sy = XFIXNUM (XCAR (XCDR (XCDR (val))));
+	  swidth = XFIXNUM (XCAR (XCDR (XCDR (XCDR (val)))));
+	  sheight = XFIXNUM (XCAR (XCDR (XCDR (XCDR (XCDR (val))))));
+
+	  if (sx <= src_x && src_x < (sx + swidth)
+	      && sy <= src_y && src_y < (sy + swidth))
+	    {
+	      *x = sx;
+	      *y = sy;
+	      *width = swidth;
+	      *height = sheight;
+	      return;
+	    }
+	}
+    }
+
+  *x = 0;
+  *y = 0;
+  *width = WidthOfScreen (screen);
+  *height = HeightOfScreen (screen);
+}
+
+void
+xlw_monitor_dimensions_at_pos (Display *dpy, Screen *screen, int src_x,
+			       int src_y, int *x, int *y, int *width, int *height)
+{
+  struct x_display_info *dpyinfo = x_display_info_for_display (dpy);
+
+  if (!dpyinfo)
+    emacs_abort ();
+
+  block_input ();
+  xlw_monitor_dimensions_at_pos_1 (dpyinfo, screen, src_x, src_y,
+				   x, y, width, height);
+
+  unblock_input ();
+}
+#endif
+
 
 DEFUN ("x-display-monitor-attributes-list", Fx_display_monitor_attributes_list,
        Sx_display_monitor_attributes_list,
@@ -5588,8 +5791,25 @@ The coordinates X and Y are interpreted in pixels relative to a position
   int yval = check_integer_range (y, INT_MIN, INT_MAX);
 
   block_input ();
-  XWarpPointer (FRAME_X_DISPLAY (f), None, DefaultRootWindow (FRAME_X_DISPLAY (f)),
-		0, 0, 0, 0, xval, yval);
+#ifdef HAVE_XINPUT2
+  int deviceid;
+
+  if (FRAME_DISPLAY_INFO (f)->supports_xi2)
+    {
+      XGrabServer (FRAME_X_DISPLAY (f));
+      if (XIGetClientPointer (FRAME_X_DISPLAY (f), FRAME_X_WINDOW (f),
+			      &deviceid))
+	{
+	  XIWarpPointer (FRAME_X_DISPLAY (f), deviceid, None,
+			 DefaultRootWindow (FRAME_X_DISPLAY (f)),
+			 0, 0, 0, 0, xval, yval);
+	}
+      XUngrabServer (FRAME_X_DISPLAY (f));
+    }
+  else
+#endif
+    XWarpPointer (FRAME_X_DISPLAY (f), None, DefaultRootWindow (FRAME_X_DISPLAY (f)),
+		  0, 0, 0, 0, xval, yval);
   unblock_input ();
 
   return Qnil;
@@ -6241,7 +6461,7 @@ Otherwise, the return value is a vector with the following fields:
 static void compute_tip_xy (struct frame *, Lisp_Object, Lisp_Object,
 			    Lisp_Object, int, int, int *, int *);
 
-/* The frame of the currently visible tooltip.  */
+/* The frame of the currently visible tooltip, or nil if none.  */
 static Lisp_Object tip_frame;
 
 /* The window-system window corresponding to the frame of the
@@ -6291,10 +6511,8 @@ x_create_tip_frame (struct x_display_info *dpyinfo, Lisp_Object parms)
   struct frame *f;
   Lisp_Object frame;
   Lisp_Object name;
-  int width, height;
   ptrdiff_t count = SPECPDL_INDEX ();
   bool face_change_before = face_change;
-  int x_width = 0, x_height = 0;
 
   if (!dpyinfo->terminal->name)
     error ("Terminal is not live, can't create new frames on it");
@@ -6418,7 +6636,7 @@ x_create_tip_frame (struct x_display_info *dpyinfo, Lisp_Object parms)
   gui_default_parameter (f, parms, Qborder_width, make_fixnum (0),
                          "borderWidth", "BorderWidth", RES_TYPE_NUMBER);
 
-  /* This defaults to 2 in order to match xterm.  We recognize either
+  /* This defaults to 1 in order to match xterm.  We recognize either
      internalBorderWidth or internalBorder (which is what xterm calls
      it).  */
   if (NILP (Fassq (Qinternal_border_width, parms)))
@@ -6466,7 +6684,7 @@ x_create_tip_frame (struct x_display_info *dpyinfo, Lisp_Object parms)
                          "inhibitDoubleBuffering", "InhibitDoubleBuffering",
                          RES_TYPE_BOOLEAN);
 
-  gui_figure_window_size (f, parms, false, false, &x_width, &x_height);
+  gui_figure_window_size (f, parms, false, false);
 
   {
     XSetWindowAttributes attrs;
@@ -6517,15 +6735,6 @@ x_create_tip_frame (struct x_display_info *dpyinfo, Lisp_Object parms)
                          "cursorType", "CursorType", RES_TYPE_SYMBOL);
   gui_default_parameter (f, parms, Qalpha, Qnil,
                          "alpha", "Alpha", RES_TYPE_NUMBER);
-
-  /* Dimensions, especially FRAME_LINES (f), must be done via change_frame_size.
-     Change will not be effected unless different from the current
-     FRAME_LINES (f).  */
-  width = FRAME_COLS (f);
-  height = FRAME_LINES (f);
-  SET_FRAME_COLS (f, 0);
-  SET_FRAME_LINES (f, 0);
-  change_frame_size (f, width, height, true, false, false, false);
 
   /* Add `tooltip' frame parameter's default value. */
   if (NILP (Fframe_parameter (frame, Qtooltip)))
@@ -6588,6 +6797,8 @@ x_create_tip_frame (struct x_display_info *dpyinfo, Lisp_Object parms)
      visible won't work.  */
   Vframe_list = Fcons (frame, Vframe_list);
   f->can_set_window_size = true;
+  adjust_frame_size (f, FRAME_TEXT_WIDTH (f), FRAME_TEXT_HEIGHT (f),
+		     0, true, Qtip_frame);
 
   /* Setting attributes of faces of the tooltip frame from resources
      and similar will set face_change, which leads to the clearing of
@@ -6738,7 +6949,7 @@ x_hide_tip (bool delete)
   if ((NILP (tip_last_frame) && NILP (tip_frame))
       || (!x_gtk_use_system_tooltips
 	  && !delete
-	  && FRAMEP (tip_frame)
+	  && !NILP (tip_frame)
 	  && FRAME_LIVE_P (XFRAME (tip_frame))
 	  && !FRAME_VISIBLE_P (XFRAME (tip_frame))))
     /* Either there's no tooltip to hide or it's an already invisible
@@ -6755,7 +6966,7 @@ x_hide_tip (bool delete)
       specbind (Qinhibit_quit, Qt);
 
       /* Try to hide the GTK+ system tip first.  */
-      if (FRAMEP (tip_last_frame))
+      if (!NILP (tip_last_frame))
 	{
 	  struct frame *f = XFRAME (tip_last_frame);
 
@@ -6773,7 +6984,7 @@ x_hide_tip (bool delete)
 	tip_last_frame = Qnil;
 
       /* Now look whether there's an Emacs tip around.  */
-      if (FRAMEP (tip_frame))
+      if (!NILP (tip_frame))
 	{
 	  struct frame *f = XFRAME (tip_frame);
 
@@ -6803,7 +7014,7 @@ x_hide_tip (bool delete)
 #else /* not USE_GTK */
   if (NILP (tip_frame)
       || (!delete
-	  && FRAMEP (tip_frame)
+	  && !NILP (tip_frame)
 	  && FRAME_LIVE_P (XFRAME (tip_frame))
 	  && !FRAME_VISIBLE_P (XFRAME (tip_frame))))
     return Qnil;
@@ -6816,7 +7027,7 @@ x_hide_tip (bool delete)
       specbind (Qinhibit_redisplay, Qt);
       specbind (Qinhibit_quit, Qt);
 
-      if (FRAMEP (tip_frame))
+      if (!NILP (tip_frame))
 	{
 	  struct frame *f = XFRAME (tip_frame);
 
@@ -6959,7 +7170,7 @@ Text larger than the specified size is clipped.  */)
     }
 #endif /* USE_GTK */
 
-  if (FRAMEP (tip_frame) && FRAME_LIVE_P (XFRAME (tip_frame)))
+  if (!NILP (tip_frame) && FRAME_LIVE_P (XFRAME (tip_frame)))
     {
       if (FRAME_VISIBLE_P (XFRAME (tip_frame))
 	  && EQ (frame, tip_last_frame)
@@ -7044,7 +7255,7 @@ Text larger than the specified size is clipped.  */)
   tip_last_string = string;
   tip_last_parms = parms;
 
-  if (!FRAMEP (tip_frame) || !FRAME_LIVE_P (XFRAME (tip_frame)))
+  if (NILP (tip_frame) || !FRAME_LIVE_P (XFRAME (tip_frame)))
     {
       /* Add default values to frame parameters.  */
       if (NILP (Fassq (Qname, parms)))
@@ -7076,6 +7287,8 @@ Text larger than the specified size is clipped.  */)
   set_window_buffer (window, tip_buf, false, false);
   w = XWINDOW (window);
   w->pseudo_window_p = true;
+  /* Try to avoid that `other-window' select us (Bug#47207).  */
+  Fset_window_parameter (window, Qno_other_window, Qt);
 
   /* Set up the frame's root window.  Note: The following code does not
      try to size the window or its frame correctly.  Its only purpose is
@@ -7121,7 +7334,8 @@ Text larger than the specified size is clipped.  */)
   try_window (window, pos, TRY_WINDOW_IGNORE_FONTS_CHANGE);
   /* Calculate size of tooltip window.  */
   size = Fwindow_text_pixel_size (window, Qnil, Qnil, Qnil,
-				  make_fixnum (w->pixel_height), Qnil);
+				  make_fixnum (w->pixel_height), Qnil,
+				  Qnil);
   /* Add the frame's internal border to calculated size.  */
   width = XFIXNUM (Fcar (size)) + 2 * FRAME_INTERNAL_BORDER_WIDTH (tip_f);
   height = XFIXNUM (Fcdr (size)) + 2 * FRAME_INTERNAL_BORDER_WIDTH (tip_f);
@@ -7400,7 +7614,7 @@ Use a file selection dialog.  Select DEFAULT-FILENAME in the dialog's file
 selection box, if specified.  If MUSTMATCH is non-nil, the returned file
 or directory must exist.
 
-This function is defined only on NS, MS Windows, and X Windows with the
+This function is defined only on NS, Haiku, MS Windows, and X Windows with the
 Motif or Gtk toolkits.  With the Motif toolkit, ONLY-DIR-P is ignored.
 Otherwise, if ONLY-DIR-P is non-nil, the user can select only directories.
 On MS Windows 7 and later, the file selection dialog "remembers" the last
@@ -7538,27 +7752,11 @@ present and mapped to the usual X keysyms.  */)
   struct frame *f = decode_window_system_frame (frame);
   Display *dpy = FRAME_X_DISPLAY (f);
   Lisp_Object have_keys;
-  int major, minor, op, event, error_code;
+
+  if (!FRAME_DISPLAY_INFO (f)->supports_xkb)
+    return Qlambda;
 
   block_input ();
-
-  /* Check library version in case we're dynamically linked.  */
-  major = XkbMajorVersion;
-  minor = XkbMinorVersion;
-  if (!XkbLibraryVersion (&major, &minor))
-    {
-      unblock_input ();
-      return Qlambda;
-    }
-
-  /* Check that the server supports XKB.  */
-  major = XkbMajorVersion;
-  minor = XkbMinorVersion;
-  if (!XkbQueryExtension (dpy, &op, &event, &error_code, &major, &minor))
-    {
-      unblock_input ();
-      return Qlambda;
-    }
 
   /* In this code we check that the keyboard has physical keys with names
      that start with BKSP (Backspace) and DELE (Delete), and that they
@@ -7862,7 +8060,6 @@ syms_of_xfns (void)
   DEFSYM (Qfont_parameter, "font-parameter");
   DEFSYM (Qmono, "mono");
   DEFSYM (Qassq_delete_all, "assq-delete-all");
-  DEFSYM (Qhide, "hide");
   DEFSYM (Qresize_mode, "resize-mode");
 
 #ifdef USE_CAIRO
@@ -8065,6 +8262,12 @@ eliminated in future versions of Emacs.  */);
   /* Tell Emacs about this window system.  */
   Fprovide (Qx, Qnil);
 
+#ifdef HAVE_XINPUT2
+  DEFSYM (Qxinput2, "xinput2");
+
+  Fprovide (Qxinput2, Qnil);
+#endif
+
 #ifdef USE_X_TOOLKIT
   Fprovide (intern_c_string ("x-toolkit"), Qnil);
 #ifdef USE_MOTIF
@@ -8122,6 +8325,7 @@ eliminated in future versions of Emacs.  */);
   defsubr (&Sx_server_max_request_size);
   defsubr (&Sx_server_vendor);
   defsubr (&Sx_server_version);
+  defsubr (&Sx_server_input_extension_version);
   defsubr (&Sx_display_pixel_width);
   defsubr (&Sx_display_pixel_height);
   defsubr (&Sx_display_mm_width);

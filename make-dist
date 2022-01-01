@@ -1,7 +1,7 @@
 #!/bin/sh
 ### make-dist: create an Emacs distribution tar file from current srcdir
 
-## Copyright (C) 1995, 1997-1998, 2000-2021 Free Software Foundation,
+## Copyright (C) 1995, 1997-1998, 2000-2022 Free Software Foundation,
 ## Inc.
 
 ## This file is part of GNU Emacs.
@@ -52,7 +52,6 @@ make_tar=no
 default_gzip=gzip
 newer=""
 with_info=yes
-with_tests=yes
 changelog=yes
 verbose=no
 
@@ -109,16 +108,10 @@ while [ $# -gt 0 ]; do
       update=no
      ;;
 
-    ## Include the test/ directory.
-    ## This is for backward compatibility to when --no-tests was the default.
-    "--tests")
-      with_tests=yes
+    "--tests"|"--no-tests")
+      echo "The option $1 no longer does anything"
      ;;
 
-    ## Exclude the test/ directory.
-    "--no-tests")
-      with_tests=no
-     ;;
 
     "--verbose")
       verbose=yes
@@ -136,7 +129,6 @@ while [ $# -gt 0 ]; do
       echo "  --no-update	don't recompile or do analogous things"
       echo "  --no-changelog	don't generate the top-level ChangeLog"
       echo "  --no-info		don't include info files"
-      echo "  --no-tests	don't include the test/ directory"
       echo "  --snapshot	same as --clean-up --no-update --tar"
       echo "  --tar		make a tar file"
       echo "  --verbose		noisier output"
@@ -307,13 +299,6 @@ if [ $check = yes ]; then
     echo "${bogosities}"
   fi
 
-  ## This exits with non-zero status if any .info files need
-  ## rebuilding.
-  if [ -r Makefile ] && [ "$with_info" = "yes" ]; then
-      echo "Checking to see if info files are up-to-date..."
-      make --question info || error=yes
-  fi
-
   ## Is this a release?
   case $version in
       [1-9][0-9].[0-9])
@@ -374,9 +359,9 @@ possibly_non_vc_files="
   src/config.in
 "$(
   find admin doc etc lisp \
-    \( -name '*.el' -o -name '*.elc' -o -name '*.map' -o -name '*.stamp' \
-       -o -name '*.texi' -o -name '*.tex' -o -name '*.txt' \) \
-    ! -name 'site-init*' ! -name 'site-load*' ! -name 'default*'
+   \( -name '*.el' -o -name '*.elc' -o -name '*.map' -o -name '*.stamp' \
+      -o -name '*.texi' -o -name '*.tex' -o -name '*.txt' -o -name '*.pdf' \) \
+   ! -name 'site-init*' ! -name 'site-load*' ! -name 'default*'
 ) || exit
 
 if [ $with_info = yes ]; then
@@ -400,13 +385,11 @@ manifest=MANIFEST
 # other way when adding or deleting a distributed file while not using Git.
 # TODO: maybe this should ignore $update, and always update MANIFEST
 # if .git is present.
+# Filter out the files in msdos/autogen/, as they aren't useful in the
+# tarball, and get in the way during the build of the MSDOS port.
 if ( [ $update = yes ] || [ ! -f $manifest ] ) && [ -r .git ]; then
   echo "Updating $manifest"
-  if [ $with_tests = yes ]; then
-    git ls-files > $manifest
-  else
-    git ls-files | grep -v '^test' >$manifest
-  fi || exit
+  git ls-files | sed -e '/^msdos\/autogen\//d' > $manifest || exit
   printf '%s\n' $possibly_non_vc_files $info_files >>$manifest || exit
   sort -u -o $manifest $manifest || exit
 fi

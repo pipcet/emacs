@@ -1,6 +1,6 @@
 ;;; select.el --- lisp portion of standard selection support  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1993-1994, 2001-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1993-1994, 2001-2022 Free Software Foundation, Inc.
 
 ;; Maintainer: emacs-devel@gnu.org
 ;; Keywords: internal
@@ -140,24 +140,27 @@ MS-Windows does not have a \"primary\" selection."
 (defcustom x-select-request-type nil
   "Data type request for X selection.
 The value is one of the following data types, a list of them, or nil:
-  `COMPOUND_TEXT', `UTF8_STRING', `STRING', `TEXT'
+  `COMPOUND_TEXT', `UTF8_STRING', `STRING', `TEXT', `text/plain\\;charset=utf-8'
 
 If the value is one of the above symbols, try only the specified type.
 
 If the value is a list of them, try each of them in the specified
 order until succeed.
 
-The value nil is the same as the list (UTF8_STRING COMPOUND_TEXT STRING)."
+The value nil is the same as the list (UTF8_STRING COMPOUND_TEXT STRING
+text/plain\\;charset=utf-8)."
   :type '(choice (const :tag "Default" nil)
 		 (const COMPOUND_TEXT)
 		 (const UTF8_STRING)
 		 (const STRING)
 		 (const TEXT)
+                 (const text/plain\;charset=utf-8)
 		 (set :tag "List of values"
 		      (const COMPOUND_TEXT)
 		      (const UTF8_STRING)
 		      (const STRING)
-		      (const TEXT)))
+		      (const TEXT)
+                      (const text/plain\;charset=utf-8)))
   :group 'killing)
 
 (defun gui--selection-value-internal (type)
@@ -165,9 +168,9 @@ The value nil is the same as the list (UTF8_STRING COMPOUND_TEXT STRING)."
 Call `gui-get-selection' with an appropriate DATA-TYPE argument
 decided by `x-select-request-type'.  The return value is already
 decoded.  If `gui-get-selection' signals an error, return nil."
-  (let ((request-type (if (eq window-system 'x)
+  (let ((request-type (if (memq window-system '(x pgtk))
                           (or x-select-request-type
-                              '(UTF8_STRING COMPOUND_TEXT STRING))
+                              '(UTF8_STRING COMPOUND_TEXT STRING text/plain\;charset=utf-8))
                         'STRING))
 	text)
     (with-demoted-errors "gui-get-selection: %S"
@@ -184,11 +187,17 @@ decoded.  If `gui-get-selection' signals an error, return nil."
   (let ((clip-text
          (when select-enable-clipboard
            (let ((text (gui--selection-value-internal 'CLIPBOARD)))
-             (if (string= text "") (setq text nil))
-
-             ;; Check the CLIPBOARD selection for 'newness', is it different
-             ;; from what we remembered them to be last time we did a
-             ;; cut/paste operation.
+             (when (string= text "")
+               (setq text nil))
+             ;; When `select-enable-clipboard' is non-nil,
+             ;; killing/copying text (with, say, `C-w') will push the
+             ;; text to the clipboard (and store it in
+             ;; `gui--last-selected-text-clipboard').  We check
+             ;; whether the text on the clipboard is identical to this
+             ;; text, and if so, we report that the clipboard is
+             ;; empty.  See (bug#27442) for further discussion about
+             ;; this DWIM action, and possible ways to make this check
+             ;; less fragile, if so desired.
              (prog1
                  (unless (equal text gui--last-selected-text-clipboard)
                    text)
@@ -298,22 +307,33 @@ the formats available in the clipboard if TYPE is `CLIPBOARD'."
   (let ((data (gui-backend-get-selection (or type 'PRIMARY)
                                          (or data-type 'STRING))))
     (when (and (stringp data)
-	       (setq data-type (get-text-property 0 'foreign-selection data)))
+               ;; If this text property is set, then the data needs to
+               ;; be decoded -- otherwise it has already been decoded
+               ;; by the lower level functions.
+               (get-text-property 0 'foreign-selection data))
       (let ((coding (or next-selection-coding-system
                         selection-coding-system
                         (pcase data-type
                           ('UTF8_STRING 'utf-8)
+                          ('text/plain\;charset=utf-8 'utf-8)
                           ('COMPOUND_TEXT 'compound-text-with-extensions)
                           ('C_STRING nil)
-                          ('STRING 'iso-8859-1)
-                          (_ (error "Unknown selection data type: %S"
-                                    type))))))
-        (setq data (if coding (decode-coding-string data coding)
-                     ;; This is for C_STRING case.
+                          ('STRING 'iso-8859-1)))))
+        (setq data
+              (cond (coding (decode-coding-string data coding))
                      ;; We want to convert each non-ASCII byte to the
                      ;; corresponding eight-bit character, which has
                      ;; a codepoint >= #x3FFF00.
-                     (string-to-multibyte data))))
+                    ((eq data-type 'C_STRING)
+                     (string-to-multibyte data))
+                    ;; Guess at the charset for types like text/html
+                    ;; -- it can be anything, and different
+                    ;; applications use different encodings.
+                    ((string-match-p "\\`text/" (symbol-name data-type))
+                     (decode-coding-string
+                      data (car (detect-coding-string data))))
+                    ;; Do nothing.
+                    (t data))))
       (setq next-selection-coding-system nil)
       (put-text-property 0 (length data) 'foreign-selection data-type data))
     data))
@@ -434,13 +454,13 @@ two markers or an overlay.  Otherwise, it is nil."
 	      (setq type 'C_STRING))
 	     (t
 	      (let (non-latin-1 non-unicode eight-bit)
-		(mapc #'(lambda (x)
-			  (if (>= x #x100)
-			      (if (< x #x110000)
-				  (setq non-latin-1 t)
-				(if (< x #x3FFF80)
-				    (setq non-unicode t)
-				  (setq eight-bit t)))))
+                (mapc (lambda (x)
+                        (if (>= x #x100)
+                            (if (< x #x110000)
+                                (setq non-latin-1 t)
+                              (if (< x #x3FFF80)
+                                  (setq non-unicode t)
+                                (setq eight-bit t)))))
 		      str)
 		(setq type (if (or non-unicode
 				   (and
@@ -490,7 +510,7 @@ two markers or an overlay.  Otherwise, it is nil."
 	    (error "Unknown selection type: %S" type)))))
 
       ;; Most programs are unable to handle NUL bytes in strings.
-      (setq str (replace-regexp-in-string "\0" "\\0" str t t))
+      (setq str (string-replace "\0" "\\0" str))
 
       (setq next-selection-coding-system nil)
       (cons type str))))

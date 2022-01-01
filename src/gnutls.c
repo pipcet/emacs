@@ -1,5 +1,5 @@
 /* GnuTLS glue for GNU Emacs.
-   Copyright (C) 2010-2021 Free Software Foundation, Inc.
+   Copyright (C) 2010-2022 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -625,14 +625,11 @@ gnutls_try_handshake (struct Lisp_Process *proc)
 
   while ((ret = gnutls_handshake (state)) < 0)
     {
-      do
-	ret = gnutls_handshake (state);
-      while (ret == GNUTLS_E_INTERRUPTED);
-
-      if (0 <= ret || emacs_gnutls_handle_error (state, ret) == 0
-	  || non_blocking)
+      if (emacs_gnutls_handle_error (state, ret) == 0) /* fatal */
 	break;
       maybe_quit ();
+      if (non_blocking && ret != GNUTLS_E_INTERRUPTED)
+	break;
     }
 
   proc->gnutls_initstage = GNUTLS_STAGE_HANDSHAKE_TRIED;

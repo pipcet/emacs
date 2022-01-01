@@ -1,6 +1,6 @@
 ;;; mail-utils.el --- utility functions used both by rmail and rnews  -*- lexical-binding: t -*-
 
-;; Copyright (C) 1985, 2001-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1985, 2001-2022 Free Software Foundation, Inc.
 
 ;; Maintainer: emacs-devel@gnu.org
 ;; Keywords: mail, news
@@ -134,7 +134,7 @@ we expect to find and remove the wrapper characters =?ISO-8859-1?Q?....?=."
 				       (aref string (1+ (match-beginning 1))))))
 		      strings)))
 	(setq i (match-end 0)))
-      (apply 'concat (nreverse (cons (substring string i) strings))))))
+      (apply #'concat (nreverse (cons (substring string i) strings))))))
 
 ;; FIXME Gnus for some reason has `quoted-printable-decode-region' in qp.el.
 ;;;###autoload
@@ -194,7 +194,7 @@ Also delete leading/trailing whitespace and replace FOO <BAR> with just BAR.
 Return a modified address list."
   (when address
     (if mail-use-rfc822
-	(mapconcat 'identity (rfc822-addresses address) ", ")
+	(mapconcat #'identity (rfc822-addresses address) ", ")
       (let (pos)
 
         ;; Strip comments.
@@ -252,7 +252,7 @@ comma-separated list, and return the pruned list."
       (setq cur-pos (string-match "[,\"]" destinations cur-pos))
       (if (and cur-pos (equal (match-string 0 destinations) "\""))
 	  ;; Search for matching quote.
-	  (let ((next-pos (string-match "\"" destinations (1+ cur-pos))))
+	  (let ((next-pos (string-search "\"" destinations (1+ cur-pos))))
 	    (if next-pos
 		(setq cur-pos (1+ next-pos))
 	      ;; If the open-quote has no close-quote,
@@ -282,7 +282,7 @@ comma-separated list, and return the pruned list."
     destinations))
 
 ;; Legacy name
-(define-obsolete-function-alias 'rmail-dont-reply-to 'mail-dont-reply-to "24.1")
+(define-obsolete-function-alias 'rmail-dont-reply-to #'mail-dont-reply-to "24.1")
 
 
 ;;;###autoload
@@ -368,19 +368,12 @@ matches may be returned from the message body."
   labels)
 
 (defun mail-rfc822-time-zone (time)
-  (let* ((sec (or (car (current-time-zone time)) 0))
-	 (absmin (/ (abs sec) 60)))
-    (format "%c%02d%02d" (if (< sec 0) ?- ?+) (/ absmin 60) (% absmin 60))))
+  (declare (obsolete format-time-string "29.1"))
+  (format-time-string "%z" time))
 
 (defun mail-rfc822-date ()
-  (let* ((time (current-time))
-	 (s (current-time-string time)))
-    (string-match "[^ ]+ +\\([^ ]+\\) +\\([^ ]+\\) \\([^ ]+\\) \\([^ ]+\\)" s)
-    (concat (substring s (match-beginning 2) (match-end 2)) " "
-	    (substring s (match-beginning 1) (match-end 1)) " "
-	    (substring s (match-beginning 4) (match-end 4)) " "
-	    (substring s (match-beginning 3) (match-end 3)) " "
-	    (mail-rfc822-time-zone time))))
+  (let ((system-time-locale "C"))
+    (format-time-string "%-d %b %Y %T %z")))
 
 (defun mail-mbox-from ()
   "Return an mbox \"From \" line for the current message.

@@ -1,6 +1,6 @@
 ;;; octave.el --- editing octave source files under emacs  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 1997, 2001-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1997, 2001-2022 Free Software Foundation, Inc.
 
 ;; Author: Kurt Hornik <Kurt.Hornik@wu-wien.ac.at>
 ;;	   John Eaton <jwe@octave.org>
@@ -351,7 +351,7 @@ Non-nil means always go to the next Octave code line after sending."
 ;; corresponding continuation lines).
 
 (defun octave-smie--funcall-p ()
-  "Return non-nil if we're in an expression context.  Moves point."
+  "Return non-nil if we're in an expression context.  Move point."
   (looking-at "[ \t]*("))
 
 (defun octave-smie--end-index-p ()
@@ -460,7 +460,8 @@ Non-nil means always go to the next Octave code line after sending."
          (smie-rule-parent octave-block-offset)
        ;; For (invalid) code between switch and case.
        ;; (if (smie-rule-parent-p "switch") 4)
-       nil))))
+       nil))
+    ('(:after . "=") (smie-rule-parent octave-block-offset))))
 
 (defun octave-indent-comment ()
   "A function for `smie-indent-functions' (which see)."
@@ -491,8 +492,8 @@ Non-nil means always go to the next Octave code line after sending."
          'font-lock-keyword-face)
    ;; Note: 'end' also serves as the last index in an indexing expression,
    ;; and 'enumerate' is also a function.
-   ;; Ref: http://www.mathworks.com/help/matlab/ref/end.html
-   ;; Ref: http://www.mathworks.com/help/matlab/ref/enumeration.html
+   ;; Ref: https://www.mathworks.com/help/matlab/ref/end.html
+   ;; Ref: https://www.mathworks.com/help/matlab/ref/enumeration.html
    (list (lambda (limit)
            (while (re-search-forward "\\_<en\\(?:d\\|umeratio\\(n\\)\\)\\_>"
                                      limit 'move)
@@ -894,7 +895,7 @@ startup file, `~/.emacs-octave'."
 (defun inferior-octave-completion-at-point ()
   "Return the data to complete the Octave symbol at point."
   ;; https://debbugs.gnu.org/14300
-  (unless (string-match-p "/" (or (comint--match-partial-filename) ""))
+  (unless (string-search "/" (or (comint--match-partial-filename) ""))
     (let ((beg (save-excursion
                  (skip-syntax-backward "w_" (comint-line-beginning-position))
                  (point)))
@@ -1033,7 +1034,7 @@ directory and makes this the current buffer's default directory."
   (nth 8 (syntax-ppss)))
 
 (defun octave-looking-at-kw (regexp)
-  "Like `looking-at', but sets `case-fold-search' nil."
+  "Like `looking-at', but set `case-fold-search' nil first."
   (let ((case-fold-search nil))
     (looking-at regexp)))
 
@@ -1769,8 +1770,8 @@ sentence."
           (insert "\nRetry with ")
           (insert-text-button "'-all'"
                               'follow-link t
-                              'action #'(lambda (_b)
-                                          (octave-lookfor str '-all)))
+                              'action (lambda (_b)
+                                        (octave-lookfor str '-all)))
           (insert ".\n"))
         (octave-help-mode)))))
 
@@ -1813,18 +1814,18 @@ If the environment variable OCTAVE_SRCDIR is set, it is searched first."
        (user-error "Aborted")))
     (_ name)))
 
-(defvar find-tag-marker-ring)
+(declare-function xref-push-marker-stack "xref" (&optional m))
 
 (defun octave-find-definition (fn)
   "Find the definition of FN.
 Functions implemented in C++ can be found if
 variable `octave-source-directories' is set correctly."
   (interactive (list (octave-completing-read)))
-  (require 'etags)
+  (require 'xref)
   (let ((orig (point)))
     (if (and (derived-mode-p 'octave-mode)
              (octave-goto-function-definition fn))
-        (ring-insert find-tag-marker-ring (copy-marker orig))
+        (xref-push-marker-stack (copy-marker orig))
       (inferior-octave-send-list-and-digest
        ;; help NAME is more verbose
        (list (format "\
@@ -1839,7 +1840,7 @@ if iskeyword('%s') disp('`%s'' is a keyword') else which('%s') endif\n"
             (setq file (match-string 1 line))))
         (if (not file)
             (user-error "%s" (or line (format-message "`%s' not found" fn)))
-          (ring-insert find-tag-marker-ring (point-marker))
+          (xref-push-marker-stack)
           (setq file (funcall octave-find-definition-filename-function file))
           (when file
             (find-file file)

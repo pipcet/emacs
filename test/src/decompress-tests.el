@@ -1,6 +1,6 @@
 ;;; decompress-tests.el --- Test suite for decompress. -*- lexical-binding: t -*-
 
-;; Copyright (C) 2013-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2013-2022 Free Software Foundation, Inc.
 
 ;; Author: Lars Ingebrigtsen <larsi@gnus.org>
 
@@ -23,6 +23,8 @@
 
 (require 'ert)
 
+(declare-function zlib-decompress-region "decompress.c")
+
 (defvar zlib-tests-data-directory
   (expand-file-name "data/decompress" (getenv "EMACS_TEST_DIRECTORY"))
   "Directory containing zlib test data.")
@@ -42,4 +44,4 @@
 
 (provide 'decompress-tests)
 
-;;; decompress-tests.el ends here.
+;;; decompress-tests.el ends here

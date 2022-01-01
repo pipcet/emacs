@@ -1,5 +1,5 @@
 /* Font driver on macOS Core text.
-   Copyright (C) 2009-2021 Free Software Foundation, Inc.
+   Copyright (C) 2009-2022 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -598,9 +598,9 @@ mac_screen_font_shape (ScreenFontRef font, CFStringRef string,
 }
 
 static CGColorRef
-get_cgcolor(unsigned long idx, struct frame *f)
+get_cgcolor(unsigned long color)
 {
-  NSColor *nsColor = ns_lookup_indexed_color (idx, f);
+  NSColor *nsColor = [NSColor colorWithUnsignedLong:color];
   [nsColor set];
   CGColorSpaceRef colorSpace = [[nsColor colorSpace] CGColorSpace];
   NSInteger noc = [nsColor numberOfComponents];
@@ -613,21 +613,36 @@ get_cgcolor(unsigned long idx, struct frame *f)
   return cgColor;
 }
 
-#define CG_SET_FILL_COLOR_WITH_FACE_FOREGROUND(context, face, f)        \
+static CGColorRef
+get_cgcolor_from_nscolor (NSColor *nsColor, struct frame *f)
+{
+  [nsColor set];
+  CGColorSpaceRef colorSpace = [[nsColor colorSpace] CGColorSpace];
+  NSInteger noc = [nsColor numberOfComponents];
+  CGFloat *components = xmalloc (sizeof(CGFloat)*(1+noc));
+  CGColorRef cgColor;
+
+  [nsColor getComponents: components];
+  cgColor = CGColorCreate (colorSpace, components);
+  xfree (components);
+  return cgColor;
+}
+
+#define CG_SET_FILL_COLOR_WITH_FACE_FOREGROUND(context, face)           \
   do {                                                                  \
-    CGColorRef refcol_ = get_cgcolor (NS_FACE_FOREGROUND (face), f);    \
+    CGColorRef refcol_ = get_cgcolor (NS_FACE_FOREGROUND (face));       \
     CGContextSetFillColorWithColor (context, refcol_) ;                 \
     CGColorRelease (refcol_);                                           \
   } while (0)
-#define CG_SET_FILL_COLOR_WITH_FACE_BACKGROUND(context, face, f)        \
+#define CG_SET_FILL_COLOR_WITH_FACE_BACKGROUND(context, face)           \
   do {                                                                  \
-    CGColorRef refcol_ = get_cgcolor (NS_FACE_BACKGROUND (face), f);    \
+    CGColorRef refcol_ = get_cgcolor (NS_FACE_BACKGROUND (face));       \
     CGContextSetFillColorWithColor (context, refcol_);                  \
     CGColorRelease (refcol_);                                           \
   } while (0)
-#define CG_SET_STROKE_COLOR_WITH_FACE_FOREGROUND(context, face, f)      \
+#define CG_SET_STROKE_COLOR_WITH_FACE_FOREGROUND(context, face)         \
   do {                                                                  \
-    CGColorRef refcol_ = get_cgcolor (NS_FACE_FOREGROUND (face), f);    \
+    CGColorRef refcol_ = get_cgcolor (NS_FACE_FOREGROUND (face));       \
     CGContextSetStrokeColorWithColor (context, refcol_);                \
     CGColorRelease (refcol_);                                           \
   } while (0)
@@ -2415,8 +2430,12 @@ macfont_list (struct frame *f, Lisp_Object spec)
             continue;
 
           /* Don't use a color bitmap font unless its family is
-             explicitly specified.  */
-          if ((sym_traits & kCTFontTraitColorGlyphs) && NILP (family))
+             explicitly specified or we're looking for a font for
+             emoji.  */
+          if ((sym_traits & kCTFontTraitColorGlyphs)
+              && NILP (family)
+              && !EQ (CDR_SAFE (assq_no_quit (QCscript, AREF (spec, FONT_EXTRA_INDEX))),
+                      Qemoji))
             continue;
 
           if (j > 0
@@ -2907,14 +2926,14 @@ macfont_draw (struct glyph_string *s, int from, int to, int x, int y,
 
   if (!CGRectIsNull (background_rect))
     {
-      if (s->hl == DRAW_MOUSE_FACE)
+      if (s->hl == DRAW_CURSOR)
         {
-          face = FACE_FROM_ID_OR_NULL (s->f,
-				       MOUSE_HL_INFO (s->f)->mouse_face_face_id);
-          if (!face)
-            face = FACE_FROM_ID (s->f, MOUSE_FACE_ID);
+	  CGColorRef colorref = get_cgcolor_from_nscolor (FRAME_CURSOR_COLOR (f), f);
+	  CGContextSetFillColorWithColor (context, colorref);
+	  CGColorRelease (colorref);
         }
-      CG_SET_FILL_COLOR_WITH_FACE_BACKGROUND (context, face, f);
+      else
+        CG_SET_FILL_COLOR_WITH_FACE_BACKGROUND (context, face);
       CGContextFillRects (context, &background_rect, 1);
     }
 
@@ -2923,7 +2942,14 @@ macfont_draw (struct glyph_string *s, int from, int to, int x, int y,
       CGAffineTransform atfm;
 
       CGContextScaleCTM (context, 1, -1);
-      CG_SET_FILL_COLOR_WITH_FACE_FOREGROUND (context, face, s->f);
+      if (s->hl == DRAW_CURSOR)
+        {
+	  CGColorRef colorref = get_cgcolor_from_nscolor (FRAME_BACKGROUND_COLOR (f), f);
+	  CGContextSetFillColorWithColor (context, colorref);
+	  CGColorRelease (colorref);
+        }
+      else
+        CG_SET_FILL_COLOR_WITH_FACE_FOREGROUND (context, face);
       if (macfont_info->synthetic_italic_p)
         atfm = synthetic_italic_atfm;
       else
@@ -2952,7 +2978,7 @@ macfont_draw (struct glyph_string *s, int from, int to, int x, int y,
 #if MAC_OS_X_VERSION_MIN_REQUIRED < 1070
             CGContextSetLineWidth (context, synthetic_bold_factor * font_size);
 #endif
-          CG_SET_STROKE_COLOR_WITH_FACE_FOREGROUND (context, face, f);
+          CG_SET_STROKE_COLOR_WITH_FACE_FOREGROUND (context, face);
         }
       if (no_antialias_p)
         CGContextSetShouldAntialias (context, false);

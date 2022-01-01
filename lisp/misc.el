@@ -1,6 +1,6 @@
 ;;; misc.el --- some nonstandard editing and utility commands for Emacs  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1989, 2001-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1989, 2001-2022 Free Software Foundation, Inc.
 
 ;; Maintainer: emacs-devel@gnu.org
 ;; Keywords: convenience
@@ -41,7 +41,7 @@ The characters copied are inserted in the buffer before point."
     (save-excursion
       (beginning-of-line)
       (backward-char 1)
-      (skip-chars-backward "\ \t\n")
+      (skip-chars-backward " \t\n")
       (move-to-column cc)
       ;; Default is enough to copy the whole rest of the line.
       (setq n (if arg (prefix-numeric-value arg) (point-max)))

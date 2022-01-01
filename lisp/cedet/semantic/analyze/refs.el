@@ -1,6 +1,6 @@
-;;; semantic/analyze/refs.el --- Analysis of the references between tags.
+;;; semantic/analyze/refs.el --- Analysis of the references between tags.  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2008-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2008-2022 Free Software Foundation, Inc.
 
 ;; Author: Eric M. Ludlam <zappo@gnu.org>
 
@@ -296,7 +296,7 @@ Only works for tags in the global namespace."
 	(let* ((classmatch (semantic-tag-class tag))
 	       (RES
 		(semanticdb-find-tags-collector
-		 (lambda (table tags)
+		 (lambda (_table tags)
 		   (semantic-find-tags-by-class classmatch tags)
 		   ;; @todo - Add parent check also.
 		   )

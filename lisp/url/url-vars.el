@@ -1,6 +1,6 @@
 ;;; url-vars.el --- Variables for Uniform Resource Locator tool  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1996-1999, 2001, 2004-2021 Free Software Foundation,
+;; Copyright (C) 1996-1999, 2001, 2004-2022 Free Software Foundation,
 ;; Inc.
 
 ;; Keywords: comm, data, processes, hypermedia
@@ -20,11 +20,9 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
-;;; Code:
+;;; Commentary:
 
-(defconst url-version "Emacs"
-  "Version number of URL package.")
-(make-obsolete-variable 'url-version nil "28.1")
+;;; Code:
 
 (defgroup url nil
   "Uniform Resource Locator tool."
@@ -162,8 +160,7 @@ none          -- Always send last location.
 domain-match  -- Send last location if the new location is within the
                  same domain
 host-match    -- Send last location if the new location is on the
-                 same host
-"
+                 same host"
   :version "27.1"
   :type '(radio (const :tag "Always send" none)
                 (const :tag "Domains match" domain-match)
@@ -426,6 +423,11 @@ Should be one of:
   "Non-nil means don't open new network connections.
 This should be set, e.g. by mail user agents rendering HTML to avoid
 `bugs' which call home.")
+
+;; Obsolete
+
+(defconst url-version "Emacs" "Version number of URL package.")
+(make-obsolete-variable 'url-version 'emacs-version "28.1")
 
 (provide 'url-vars)
 

@@ -1,6 +1,6 @@
 ;;; diff-mode-tests.el --- Tests for diff-mode.el  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2017-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2017-2022 Free Software Foundation, Inc.
 
 ;; Author: Dima Kogan <dima@secretsauce.net>
 ;; Maintainer: emacs-devel@gnu.org
@@ -173,35 +173,175 @@ wristwatches
 wrongheadedly
 wrongheadedness
 youthfulness
-")
-        (temp-dir (make-temp-file "diff-mode-test" 'dir)))
+"))
+    (ert-with-temp-directory temp-dir
+     (let ((buf  (find-file-noselect (format "%s/%s" temp-dir "fil" )))
+           (buf2 (find-file-noselect (format "%s/%s" temp-dir "fil2"))))
+       (unwind-protect
+           (progn
+             (with-current-buffer buf  (insert fil_before)  (save-buffer))
+             (with-current-buffer buf2 (insert fil2_before) (save-buffer))
 
-    (let ((buf  (find-file-noselect (format "%s/%s" temp-dir "fil" )))
-          (buf2 (find-file-noselect (format "%s/%s" temp-dir "fil2"))))
-      (unwind-protect
-          (progn
-            (with-current-buffer buf  (insert fil_before)  (save-buffer))
-            (with-current-buffer buf2 (insert fil2_before) (save-buffer))
+             (with-temp-buffer
+               (cd temp-dir)
+               (insert patch)
+               (goto-char (point-min))
+               (diff-apply-hunk)
+               (diff-apply-hunk)
+               (diff-apply-hunk))
 
-            (with-temp-buffer
-              (cd temp-dir)
-              (insert patch)
-              (goto-char (point-min))
-              (diff-apply-hunk)
-              (diff-apply-hunk)
-              (diff-apply-hunk))
+             (should (equal (with-current-buffer buf (buffer-string))
+                            fil_after))
+             (should (equal (with-current-buffer buf2 (buffer-string))
+                            fil2_after)))
 
-            (should (equal (with-current-buffer buf (buffer-string))
-                           fil_after))
-            (should (equal (with-current-buffer buf2 (buffer-string))
-                           fil2_after)))
+         (ignore-errors
+           (with-current-buffer buf (set-buffer-modified-p nil))
+           (kill-buffer buf)
+           (with-current-buffer buf2 (set-buffer-modified-p nil))
+           (kill-buffer buf2)))))))
 
-        (ignore-errors
-          (with-current-buffer buf (set-buffer-modified-p nil))
-          (kill-buffer buf)
-          (with-current-buffer buf2 (set-buffer-modified-p nil))
-          (kill-buffer buf2)
-          (delete-directory temp-dir 'recursive))))))
+(ert-deftest diff-mode-test-hunk-text-no-newline ()
+  "Check output of `diff-hunk-text' with no newline at end of file."
+
+  ;; First check unified change/remove/add cases with newline
+  (let ((hunk "\
+@@ -1 +1 @@
+-foo
++bar
+"))
+    (should (equal (diff-hunk-text hunk nil nil) "\
+foo
+"))
+    (should (equal (diff-hunk-text hunk t nil) "\
+bar
+")))
+
+  (let ((hunk "\
+@@ -1 +0,0 @@
+-foo
+"))
+    (should (equal (diff-hunk-text hunk nil nil) "\
+foo
+"))
+    (should (equal (diff-hunk-text hunk t nil) "\
+")))
+
+  (let ((hunk "\
+@@ -0,0 +1 @@
++bar
+"))
+    (should (equal (diff-hunk-text hunk nil nil) "\
+"))
+    (should (equal (diff-hunk-text hunk t nil) "\
+bar
+")))
+
+  ;; Check unified change/remove cases with no newline in old file
+  (let ((hunk "\
+@@ -1 +1 @@
+-foo
+\\ No newline at end of file
++bar
+"))
+    (should (equal (diff-hunk-text hunk nil nil) "\
+foo"))
+    (should (equal (diff-hunk-text hunk t nil) "\
+bar
+")))
+
+  (let ((hunk "\
+@@ -1 +0,0 @@
+-foo
+\\ No newline at end of file
+"))
+    (should (equal (diff-hunk-text hunk nil nil) "\
+foo"))
+    (should (equal (diff-hunk-text hunk t nil) "\
+")))
+
+  ;; Check unified change/add cases with no newline in new file
+  (let ((hunk "\
+@@ -1 +1 @@
+-foo
++bar
+\\ No newline at end of file
+"))
+    (should (equal (diff-hunk-text hunk nil nil) "\
+foo
+"))
+    (should (equal (diff-hunk-text hunk t nil) "\
+bar")))
+
+  (let ((hunk "\
+@@ -0,0 +1 @@
++bar
+\\ No newline at end of file
+"))
+    (should (equal (diff-hunk-text hunk nil nil) "\
+"))
+    (should (equal (diff-hunk-text hunk t nil) "\
+bar")))
+
+  ;; Check unified change case with no newline in both old/new file
+  (let ((hunk "\
+@@ -1 +1 @@
+-foo
+\\ No newline at end of file
++bar
+\\ No newline at end of file
+"))
+    (should (equal (diff-hunk-text hunk nil nil) "\
+foo"))
+    (should (equal (diff-hunk-text hunk t nil) "\
+bar")))
+
+  ;; Check context-after unified change case with no newline in both old/new file
+  (let ((hunk "\
+@@ -1,2 +1,2 @@
+-foo
++bar
+ baz
+\\ No newline at end of file
+"))
+    (should (equal (diff-hunk-text hunk nil nil) "\
+foo
+baz"))
+    (should (equal (diff-hunk-text hunk t nil) "\
+bar
+baz")))
+
+  (let ((hunk "\
+@@ -1,2 +1,2 @@
+-foo
+-baz
+\\ No newline at end of file
++bar
++baz
+"))
+    (should (equal (diff-hunk-text hunk nil nil) "\
+foo
+baz"))
+    (should (equal (diff-hunk-text hunk t nil) "\
+bar
+baz
+")))
+
+  (let ((hunk "\
+@@ -1,2 +1,2 @@
+-foo
+-baz
++bar
++baz
+\\ No newline at end of file
+"))
+    (should (equal (diff-hunk-text hunk nil nil) "\
+foo
+baz
+"))
+    (should (equal (diff-hunk-text hunk t nil) "\
+bar
+baz"))))
 
 (ert-deftest diff-mode-test-font-lock ()
   "Check font-locking of diff hunks."
@@ -326,4 +466,17 @@ youthfulness
                        (114 131 (diff-mode syntax face font-lock-string-face))
                        (134 140 (diff-mode syntax face font-lock-keyword-face))))))))
 
+(ert-deftest test-hunk-file-names ()
+  (with-temp-buffer
+    (insert "diff -c /tmp/ange-ftp13518wvE.el /tmp/ange-ftp1351895K.el\n")
+    (goto-char (point-min))
+    (should (equal (diff-hunk-file-names)
+                   '("/tmp/ange-ftp1351895K.el" "/tmp/ange-ftp13518wvE.el"))))
+  (with-temp-buffer
+    (insert "diff -c -L /ftp:slbhao:/home/albinus/src/tramp/lisp/tramp.el -L /ftp:slbhao:/home/albinus/src/emacs/lisp/net/tramp.el /tmp/ange-ftp13518wvE.el /tmp/ange-ftp1351895K.el\n")
+    (goto-char (point-min))
+    (should (equal (diff-hunk-file-names)
+                   '("/tmp/ange-ftp1351895K.el" "/tmp/ange-ftp13518wvE.el")))))
+
 (provide 'diff-mode-tests)
+;;; diff-mode-tests.el ends here

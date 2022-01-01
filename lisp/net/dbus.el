@@ -1,6 +1,6 @@
 ;;; dbus.el --- Elisp bindings for D-Bus. -*- lexical-binding: t -*-
 
-;; Copyright (C) 2007-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2007-2022 Free Software Foundation, Inc.
 
 ;; Author: Michael Albinus <michael.albinus@gmx.de>
 ;; Keywords: comm, hardware
@@ -36,6 +36,7 @@
 ;; Declare used subroutines and variables.
 (declare-function dbus-message-internal "dbusbind.c")
 (declare-function dbus--init-bus "dbusbind.c")
+(declare-function libxml-parse-xml-region "xml.c")
 (defvar dbus-message-type-invalid)
 (defvar dbus-message-type-method-call)
 (defvar dbus-message-type-method-return)
@@ -1144,6 +1145,7 @@ compound type arguments (TYPE VALUE) will be kept as is."
 EVENT is a D-Bus event, see `dbus-check-event'.  HANDLER, being
 part of the event, is called with arguments ARGS (without type information).
 If the HANDLER returns a `dbus-error', it is propagated as return message."
+  (declare (completion ignore))
   (interactive "e")
   (condition-case err
       (let (monitor args result)
@@ -2028,8 +2030,9 @@ either a method name, a signal name, or an error name."
            ",")
           rule (or rule ""))
 
-    (unless (ignore-errors (dbus-get-unique-name bus-private))
-      (dbus-init-bus bus 'private))
+    (when (fboundp 'dbus-get-unique-name)
+      (unless (ignore-errors (dbus-get-unique-name bus-private))
+        (dbus-init-bus bus 'private)))
     (dbus-call-method
      bus-private dbus-service-dbus dbus-path-dbus dbus-interface-monitoring
      "BecomeMonitor" `(:array :string ,rule) :uint32 0)
@@ -2071,7 +2074,8 @@ either a method name, a signal name, or an error name."
     (goto-char point)))
 
 (defun dbus-monitor-handler (&rest _args)
-  "Default handler for the \"org.freedesktop.DBus.Monitoring.BecomeMonitor\" interface.
+  "Default handler for the \"Monitoring.BecomeMonitor\" interface.
+Its full name is \"org.freedesktop.DBus.Monitoring.BecomeMonitor\".
 It will be applied for all objects created by `dbus-register-monitor'
 which don't declare an own handler.  The printed timestamps do
 not reflect the time the D-Bus message has passed the D-Bus
@@ -2099,7 +2103,7 @@ has been handled by this function."
 	   (interface (dbus-event-interface-name event))
 	   (member (dbus-event-member-name event))
            (arguments (dbus-event-arguments event))
-           (time (time-to-seconds (current-time))))
+	   (time (float-time)))
       (save-excursion
         ;; Check for matching method-call.
         (goto-char (point-max))
@@ -2249,15 +2253,19 @@ keywords `:system-private' or `:session-private', respectively."
      bus nil dbus-path-local dbus-interface-local
      "Disconnected" #'dbus-handle-bus-disconnect)))
 
- 
-;; Initialize `:system' and `:session' buses.  This adds their file
-;; descriptors to input_wait_mask, in order to detect incoming
-;; messages immediately.
-(when (featurep 'dbusbind)
-  (dbus-ignore-errors
-    (dbus-init-bus :system))
-  (dbus-ignore-errors
-    (dbus-init-bus :session)))
+
+(defun dbus--init ()
+  ;; Initialize `:system' and `:session' buses.  This adds their file
+  ;; descriptors to input_wait_mask, in order to detect incoming
+  ;; messages immediately.
+  (when (featurep 'dbusbind)
+    (dbus-ignore-errors
+      (dbus-init-bus :system))
+    (dbus-ignore-errors
+      (dbus-init-bus :session))))
+
+(add-hook 'after-pdump-load-hook #'dbus--init)
+(dbus--init)
 
 (provide 'dbus)
 

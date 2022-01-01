@@ -1,6 +1,6 @@
 ;;; url-handlers.el --- file-name-handler stuff for URL loading  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1996-1999, 2004-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1996-1999, 2004-2022 Free Software Foundation, Inc.
 
 ;; Keywords: comm, data, processes, hypermedia
 
@@ -102,7 +102,16 @@
 
 ;;;###autoload
 (define-minor-mode url-handler-mode
-  "Toggle using `url' library for URL filenames (URL Handler mode)."
+  ;; Can't use "\\[find-file]" below as it produces "[open]":
+  "Handle URLs as if they were file names throughout Emacs.
+After switching on this minor mode, Emacs file primitives handle
+URLs.  For instance:
+
+  (file-exists-p \"https://www.gnu.org/\")
+  => t
+
+and `C-x C-f https://www.gnu.org/ RET' will give you the HTML at
+that URL in a buffer."
   :global t :group 'url
   ;; Remove old entry, if any.
   (setq file-name-handler-alist
@@ -387,7 +396,8 @@ if it had been inserted from a file named URL."
 (url-handlers-create-wrapper file-writable-p (url))
 (url-handlers-create-wrapper file-directory-p (url))
 (url-handlers-create-wrapper file-executable-p (url))
-(url-handlers-create-wrapper directory-files (url &optional full match nosort))
+(url-handlers-create-wrapper
+ directory-files (url &optional full match nosort count))
 (url-handlers-create-wrapper file-truename (url &optional counter prev-dirs))
 
 (add-hook 'find-file-hook #'url-handlers-set-buffer-mode)

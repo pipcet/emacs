@@ -1,5 +1,5 @@
 @c This is part of the Emacs manual.
-@c Copyright (C) 1985--1987, 1993--1995, 1997, 2000--2021 Free Software
+@c Copyright (C) 1985--1987, 1993--1995, 1997, 2000--2022 Free Software
 @c Foundation, Inc.
 @c See file emacs.texi for copying conditions.
 @node Buffers
@@ -586,9 +586,6 @@ every @code{auto-revert-interval} seconds if you enable Auto Revert
 mode in this buffer, as long as it is not marked modified.  Global
 Auto Revert mode applies to the @file{*Buffer List*} buffer only if
 @code{global-auto-revert-non-file-buffers} is non-@code{nil}.
-@iftex
-@inforef{Auto Reverting the Buffer Menu,, emacs-xtra}, for details.
-@end iftex
 @ifnottex
 @xref{Auto Reverting the Buffer Menu, global-auto-revert-non-file-buffers}, for details.
 @end ifnottex
@@ -764,6 +761,15 @@ your initialization file (@pxref{Init File}):
   To enable Fido mode, type @kbd{M-x fido-mode}, or customize
 the variable @code{fido-mode} to @code{t} (@pxref{Easy
 Customization}).
+
+@findex icomplete-vertical-mode
+@cindex Icomplete vertical mode
+
+  Icomplete mode and Fido mode display the possible completions on the
+same line as the prompt by default.  To display the completion candidates
+vertically under the prompt, type @kbd{M-x icomplete-vertical-mode}, or
+customize the variable @code{icomplete-vertical-mode} to @code{t}
+(@pxref{Easy Customization}).
 
 @node Buffer Menus
 @subsection Customizing Buffer Menus

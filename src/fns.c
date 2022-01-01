@@ -1,6 +1,6 @@
 /* Random utility Lisp functions.
 
-Copyright (C) 1985-1987, 1993-1995, 1997-2021 Free Software Foundation,
+Copyright (C) 1985-1987, 1993-1995, 1997-2022 Free Software Foundation,
 Inc.
 
 This file is part of GNU Emacs.
@@ -39,8 +39,9 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #include "puresize.h"
 #include "gnutls.h"
 
-static void sort_vector_copy (Lisp_Object, ptrdiff_t,
-			      Lisp_Object *restrict, Lisp_Object *restrict);
+static void sort_vector_copy (Lisp_Object pred, ptrdiff_t len,
+			      Lisp_Object src[restrict VLA_ELEMS (len)],
+			      Lisp_Object dest[restrict VLA_ELEMS (len)]);
 enum equal_kind { EQUAL_NO_QUIT, EQUAL_PLAIN, EQUAL_INCLUDING_PROPERTIES };
 static bool internal_equal (Lisp_Object, Lisp_Object,
 			    enum equal_kind, int, Lisp_Object);
@@ -54,10 +55,55 @@ DEFUN ("identity", Fidentity, Sidentity, 1, 1, 0,
   return argument;
 }
 
+static Lisp_Object
+ccall2 (Lisp_Object (f) (ptrdiff_t nargs, Lisp_Object *args),
+        Lisp_Object arg1, Lisp_Object arg2)
+{
+  Lisp_Object args[2] = {arg1, arg2};
+  return f (2, args);
+}
+
+static Lisp_Object
+get_random_bignum (Lisp_Object limit)
+{
+  /* This is a naive transcription into bignums of the fixnum algorithm.
+     I'd be quite surprised if that's anywhere near the best algorithm
+     for it.  */
+  while (true)
+    {
+      Lisp_Object val = make_fixnum (0);
+      Lisp_Object lim = limit;
+      int bits = 0;
+      int bitsperiteration = FIXNUM_BITS - 1;
+      do
+        {
+          /* Shift by one so it is a valid positive fixnum.  */
+          EMACS_INT rand = get_random () >> 1;
+          Lisp_Object lrand = make_fixnum (rand);
+          bits += bitsperiteration;
+          val = ccall2 (Flogior,
+                        Fash (val, make_fixnum (bitsperiteration)),
+                        lrand);
+          lim = Fash (lim, make_fixnum (- bitsperiteration));
+        }
+      while (!EQ (lim, make_fixnum (0)));
+      /* Return the remainder, except reject the rare case where
+	 get_random returns a number so close to INTMASK that the
+	 remainder isn't random.  */
+      Lisp_Object remainder = Frem (val, limit);
+      if (!NILP (ccall2 (Fleq,
+	                 ccall2 (Fminus, val, remainder),
+	                 ccall2 (Fminus,
+	                         Fash (make_fixnum (1), make_fixnum (bits)),
+	                         limit))))
+	return remainder;
+    }
+}
+
 DEFUN ("random", Frandom, Srandom, 0, 1, 0,
        doc: /* Return a pseudo-random integer.
 By default, return a fixnum; all fixnums are equally likely.
-With positive fixnum LIMIT, return random integer in interval [0,LIMIT).
+With positive integer LIMIT, return random integer in interval [0,LIMIT).
 With argument t, set the random number seed from the system's entropy
 pool if available, otherwise from less-random volatile data such as the time.
 With a string argument, set the seed based on the string's contents.
@@ -71,6 +117,12 @@ See Info node `(elisp)Random Numbers' for more details.  */)
     init_random ();
   else if (STRINGP (limit))
     seed_random (SSDATA (limit), SBYTES (limit));
+  if (BIGNUMP (limit))
+    {
+      if (0 > mpz_sgn (*xbignum_val (limit)))
+        xsignal2 (Qwrong_type_argument, Qnatnump, limit);
+      return get_random_bignum (limit);
+    }
 
   val = get_random ();
   if (FIXNUMP (limit) && 0 < XFIXNUM (limit))
@@ -270,7 +322,7 @@ Letter-case is significant, but text properties are ignored. */)
 
   USE_SAFE_ALLOCA;
   ptrdiff_t *column = SAFE_ALLOCA ((len1 + 1) * sizeof (ptrdiff_t));
-  for (y = 1; y <= len1; y++)
+  for (y = 0; y <= len1; y++)
     column[y] = y;
 
   if (use_byte_compare)
@@ -620,6 +672,9 @@ DEFUN ("concat", Fconcat, Sconcat, 0, MANY, 0,
        doc: /* Concatenate all the arguments and make the result a string.
 The result is a string whose elements are the elements of all the arguments.
 Each argument may be a string or a list or vector of characters (integers).
+
+Values of the `composition' property of the result are not guaranteed
+to be `eq'.
 usage: (concat &rest SEQUENCES)  */)
   (ptrdiff_t nargs, Lisp_Object *args)
 {
@@ -1122,7 +1177,7 @@ string_make_multibyte (Lisp_Object string)
 
 
 /* Convert STRING (if unibyte) to a multibyte string without changing
-   the number of characters.  Characters 0200 trough 0237 are
+   the number of characters.  Characters 0200 through 0237 are
    converted to eight-bit characters. */
 
 Lisp_Object
@@ -1703,7 +1758,8 @@ DEFUN ("assoc", Fassoc, Sassoc, 2, 3, 0,
        doc: /* Return non-nil if KEY is equal to the car of an element of ALIST.
 The value is actually the first element of ALIST whose car equals KEY.
 
-Equality is defined by TESTFN if non-nil or by `equal' if nil.  */)
+Equality is defined by the function TESTFN, defaulting to `equal'.
+TESTFN is called with 2 arguments: a car of an alist element and KEY.  */)
      (Lisp_Object key, Lisp_Object alist, Lisp_Object testfn)
 {
   if (eq_comparable_value (key) && NILP (testfn))
@@ -1816,7 +1872,8 @@ If SEQ is not a list, deletion is never performed destructively;
 instead this function creates and returns a new vector or string.
 
 Write `(setq foo (delete element foo))' to be sure of correctly
-changing the value of a sequence `foo'.  */)
+changing the value of a sequence `foo'.  See also `remove', which
+does not modify the argument.  */)
   (Lisp_Object elt, Lisp_Object seq)
 {
   if (VECTORP (seq))
@@ -2227,6 +2284,52 @@ merge (Lisp_Object org_l1, Lisp_Object org_l2, Lisp_Object pred)
     }
 }
 
+Lisp_Object
+merge_c (Lisp_Object org_l1, Lisp_Object org_l2, bool (*less) (Lisp_Object, Lisp_Object))
+{
+  Lisp_Object l1 = org_l1;
+  Lisp_Object l2 = org_l2;
+  Lisp_Object tail = Qnil;
+  Lisp_Object value = Qnil;
+
+  while (1)
+    {
+      if (NILP (l1))
+	{
+	  if (NILP (tail))
+	    return l2;
+	  Fsetcdr (tail, l2);
+	  return value;
+	}
+      if (NILP (l2))
+	{
+	  if (NILP (tail))
+	    return l1;
+	  Fsetcdr (tail, l1);
+	  return value;
+	}
+
+      Lisp_Object tem;
+      if (less (Fcar (l1), Fcar (l2)))
+	{
+	  tem = l1;
+	  l1 = Fcdr (l1);
+	  org_l1 = l1;
+	}
+      else
+	{
+	  tem = l2;
+	  l2 = Fcdr (l2);
+	  org_l2 = l2;
+	}
+      if (NILP (tail))
+	value = tem;
+      else
+	Fsetcdr (tail, tem);
+      tail = tem;
+    }
+}
+
 
 /* This does not check for quits.  That is safe since it must terminate.  */
 
@@ -2271,7 +2374,10 @@ This is the last value stored with `(put SYMBOL PROPNAME VALUE)'.  */)
 DEFUN ("plist-put", Fplist_put, Splist_put, 3, 3, 0,
        doc: /* Change value in PLIST of PROP to VAL.
 PLIST is a property list, which is a list of the form
-\(PROP1 VALUE1 PROP2 VALUE2 ...).  PROP is a symbol and VAL is any object.
+\(PROP1 VALUE1 PROP2 VALUE2 ...).
+
+The comparison with PROP is done using `eq'.
+
 If PROP is already a property on the list, its value is set to VAL,
 otherwise the new PROP VAL pair is added.  The new plist is returned;
 use `(setq x (plist-put x prop val))' to be sure to use the new value.
@@ -2749,12 +2855,16 @@ mapcar1 (EMACS_INT leni, Lisp_Object *vals, Lisp_Object fn, Lisp_Object seq)
   return leni;
 }
 
-DEFUN ("mapconcat", Fmapconcat, Smapconcat, 3, 3, 0,
+DEFUN ("mapconcat", Fmapconcat, Smapconcat, 2, 3, 0,
        doc: /* Apply FUNCTION to each element of SEQUENCE, and concat the results as strings.
 In between each pair of results, stick in SEPARATOR.  Thus, " " as
   SEPARATOR results in spaces between the values returned by FUNCTION.
+
 SEQUENCE may be a list, a vector, a bool-vector, or a string.
-SEPARATOR must be a string, a vector, or a list of characters.
+
+Optional argument SEPARATOR must be a string, a vector, or a list of
+characters; nil stands for the empty string.
+
 FUNCTION must be a function of one argument, and must return a value
   that is a sequence of characters: either a string, or a vector or
   list of numbers that are valid character codepoints.  */)
@@ -2847,8 +2957,10 @@ do_yes_or_no_p (Lisp_Object prompt)
 DEFUN ("yes-or-no-p", Fyes_or_no_p, Syes_or_no_p, 1, 1, 0,
        doc: /* Ask user a yes-or-no question.
 Return t if answer is yes, and nil if the answer is no.
-PROMPT is the string to display to ask the question.  It should end in
-a space; `yes-or-no-p' adds \"(yes or no) \" to it.
+
+PROMPT is the string to display to ask the question; `yes-or-no-p'
+adds \"(yes or no) \" to it.  It does not need to end in space, but if
+it does up to one space will be removed.
 
 The user must confirm the answer with RET, and can edit it until it
 has been confirmed.
@@ -2872,6 +2984,9 @@ if `last-nonmenu-event' is nil, and `use-dialog-box' is non-nil.  */)
       obj = Fx_popup_dialog (Qt, menu, Qnil);
       return obj;
     }
+
+  if (use_short_answers)
+    return call1 (intern ("y-or-n-p"), prompt);
 
   AUTO_STRING (yes_or_no, "(yes or no) ");
   prompt = CALLN (Fconcat, prompt, yes_or_no);
@@ -3110,7 +3225,10 @@ suppressed.  */)
 DEFUN ("plist-member", Fplist_member, Splist_member, 2, 2, 0,
        doc: /* Return non-nil if PLIST has the property PROP.
 PLIST is a property list, which is a list of the form
-\(PROP1 VALUE1 PROP2 VALUE2 ...).  PROP is a symbol.
+\(PROP1 VALUE1 PROP2 VALUE2 ...).
+
+The comparison with PROP is done using `eq'.
+
 Unlike `plist-get', this allows you to distinguish between a missing
 property and a property with the value nil.
 The value is actually the tail of PLIST whose car is PROP.  */)
@@ -3535,7 +3653,7 @@ base64_encode_1 (const char *from, char *to, ptrdiff_t length,
 	  c = string_char_and_length ((unsigned char *) from + i, &bytes);
 	  if (CHAR_BYTE8_P (c))
 	    c = CHAR_TO_BYTE8 (c);
-	  else if (c >= 256)
+	  else if (c >= 128)
 	    return -1;
 	  i += bytes;
 	}
@@ -3578,7 +3696,7 @@ base64_encode_1 (const char *from, char *to, ptrdiff_t length,
 	  c = string_char_and_length ((unsigned char *) from + i, &bytes);
 	  if (CHAR_BYTE8_P (c))
 	    c = CHAR_TO_BYTE8 (c);
-	  else if (c >= 256)
+	  else if (c >= 128)
 	    return -1;
 	  i += bytes;
 	}
@@ -3603,7 +3721,7 @@ base64_encode_1 (const char *from, char *to, ptrdiff_t length,
 	  c = string_char_and_length ((unsigned char *) from + i, &bytes);
 	  if (CHAR_BYTE8_P (c))
 	    c = CHAR_TO_BYTE8 (c);
-	  else if (c >= 256)
+	  else if (c >= 128)
 	    return -1;
 	  i += bytes;
 	}
@@ -3847,7 +3965,7 @@ base64_decode_1 (const char *from, char *to, ptrdiff_t length,
       if (c == '=')
 	continue;
 
-      if (v1 < 0)
+      if (v1 == 0)
 	return -1;
       value += v1 - 1;
 
@@ -4385,6 +4503,15 @@ check_mutable_hash_table (Lisp_Object obj, struct Lisp_Hash_Table *h)
   eassert (!PURE_P (h));
 }
 
+static void
+collect_interval (INTERVAL interval, Lisp_Object collector)
+{
+  nconc2 (collector,
+	  list1(list3 (make_fixnum (interval->position),
+		       make_fixnum (interval->position + LENGTH (interval)),
+		       interval->plist)));
+}
+
 /* Put an entry into hash table H that associates KEY with VALUE.
    HASH is a previously computed hash code of KEY.
    Value is the index of the entry in H matching KEY.  */
@@ -4839,6 +4966,30 @@ If (equal A B), then (= (sxhash-equal A) (sxhash-equal B)).
 Hash codes are not guaranteed to be preserved across Emacs sessions.  */)
   (Lisp_Object obj)
 {
+  return hashfn_equal (obj, NULL);
+}
+
+DEFUN ("sxhash-equal-including-properties", Fsxhash_equal_including_properties,
+       Ssxhash_equal_including_properties, 1, 1, 0,
+       doc: /* Return an integer hash code for OBJ suitable for
+`equal-including-properties'.
+If (sxhash-equal-including-properties A B), then
+(= (sxhash-equal-including-properties A) (sxhash-equal-including-properties B)).
+
+Hash codes are not guaranteed to be preserved across Emacs sessions.  */)
+  (Lisp_Object obj)
+{
+  if (STRINGP (obj))
+    {
+      Lisp_Object collector = Fcons (Qnil, Qnil);
+      traverse_intervals (string_intervals (obj), 0, collect_interval,
+			  collector);
+      return
+	make_ufixnum (
+	  SXHASH_REDUCE (sxhash_combine (sxhash (obj),
+					 sxhash (CDR (collector)))));
+    }
+
   return hashfn_equal (obj, NULL);
 }
 
@@ -5628,16 +5779,6 @@ characters.  */ )
   return list3 (make_int (lines), make_int (longest), make_float (mean));
 }
 
-static bool
-string_ascii_p (Lisp_Object string)
-{
-  ptrdiff_t nbytes = SBYTES (string);
-  for (ptrdiff_t i = 0; i < nbytes; i++)
-    if (SREF (string, i) > 127)
-      return false;
-  return true;
-}
-
 DEFUN ("string-search", Fstring_search, Sstring_search, 2, 3, 0,
        doc: /* Search for the string NEEDLE in the string HAYSTACK.
 The return value is the position of the first occurrence of NEEDLE in
@@ -5725,15 +5866,6 @@ Case is always significant and text properties are ignored. */)
   return make_int (string_byte_to_char (haystack, res - SSDATA (haystack)));
 }
 
-static void
-collect_interval (INTERVAL interval, Lisp_Object collector)
-{
-  nconc2 (collector,
-	  list1(list3 (make_fixnum (interval->position),
-		       make_fixnum (interval->position + LENGTH (interval)),
-		       interval->plist)));
-}
-
 DEFUN ("object-intervals", Fobject_intervals, Sobject_intervals, 1, 1, 0,
        doc: /* Return a copy of the text properties of OBJECT.
 OBJECT must be a buffer or a string.
@@ -5761,12 +5893,14 @@ in OBJECT.  */)
 
 DEFUN ("line-number-at-pos", Fline_number_at_pos,
        Sline_number_at_pos, 0, 2, 0,
-       doc: /* Return the line number at POSITION.
-If POSITION is nil, use the current buffer location.
+       doc: /* Return the line number at POSITION in the current buffer.
+If POSITION is nil or omitted, it defaults to point's position in the
+current buffer.
 
-If the buffer is narrowed, the position returned is the position in the
-visible part of the buffer.  If ABSOLUTE is non-nil, count the lines
-from the absolute start of the buffer.  */)
+If the buffer is narrowed, the return value by default counts the lines
+from the beginning of the accessible portion of the buffer.  But if the
+second optional argument ABSOLUTE is non-nil, the value counts the lines
+from the absolute start of the buffer, disregarding the narrowing.  */)
   (register Lisp_Object position, Lisp_Object absolute)
 {
   ptrdiff_t pos, start = BEGV_BYTE;
@@ -5784,9 +5918,9 @@ from the absolute start of the buffer.  */)
   if (!NILP (absolute))
     start = BEG_BYTE;
 
-  /* Check that POSITION is n the visible range of the buffer. */
+  /* Check that POSITION is in the accessible range of the buffer. */
   if (pos < BEGV || pos > ZV)
-    args_out_of_range (make_int (start), make_int (ZV));
+    args_out_of_range_3 (make_int (pos), make_int (BEGV), make_int (ZV));
 
   return make_int (count_lines (start, CHAR_TO_BYTE (pos)) + 1);
 }
@@ -5815,6 +5949,7 @@ syms_of_fns (void)
   defsubr (&Ssxhash_eq);
   defsubr (&Ssxhash_eql);
   defsubr (&Ssxhash_equal);
+  defsubr (&Ssxhash_equal_including_properties);
   defsubr (&Smake_hash_table);
   defsubr (&Scopy_hash_table);
   defsubr (&Shash_table_count);
@@ -5903,6 +6038,15 @@ they are initiated from the keyboard.  If `use-dialog-box' is nil,
 that disables the use of a file dialog, regardless of the value of
 this variable.  */);
   use_file_dialog = true;
+
+  DEFVAR_BOOL ("use-short-answers", use_short_answers,
+    doc: /* Non-nil means `yes-or-no-p' uses shorter answers "y" or "n".
+When non-nil, `yes-or-no-p' will use `y-or-n-p' to read the answer.
+We recommend against setting this variable non-nil, because `yes-or-no-p'
+is intended to be used when users are expected not to respond too
+quickly, but to take their time and perhaps think about the answer.
+The same variable also affects the function `read-answer'.  */);
+  use_short_answers = false;
 
   defsubr (&Sidentity);
   defsubr (&Srandom);

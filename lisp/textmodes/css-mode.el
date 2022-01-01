@@ -1,6 +1,6 @@
 ;;; css-mode.el --- Major mode to edit CSS files  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2006-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2006-2022 Free Software Foundation, Inc.
 
 ;; Author: Stefan Monnier <monnier@iro.umontreal.ca>
 ;; Maintainer: Simen Heggestøyl <simenheg@gmail.com>
@@ -57,7 +57,7 @@
   "Identifiers for pseudo-classes.")
 
 (defconst css-pseudo-element-ids
-  '("after" "before" "first-letter" "first-line")
+  '("after" "before" "first-letter" "first-line" "selection")
   "Identifiers for pseudo-elements.")
 
 (defconst css-at-ids
@@ -274,12 +274,13 @@
     ("color" color)
     ("opacity" alphavalue)
 
-    ;; CSS Containment Module Level 1
-    ;; (https://www.w3.org/TR/css-contain-1/#property-index)
-    ("contain" "none" "strict" "content" "size" "layout" "paint")
+    ;; CSS Containment Module Level 2
+    ;; (https://www.w3.org/TR/css-contain-2/#property-index)
+    ("contain" "none" "strict" "content" "size" "layout" "style" "paint")
+    ("content-visibility" "visible" "auto" "hidden")
 
-    ;; CSS Grid Layout Module Level 1
-    ;; (https://www.w3.org/TR/css-grid-1/#property-index)
+    ;; CSS Grid Layout Module Level 2
+    ;; (https://www.w3.org/TR/css-grid-2/#property-index)
     ("grid" grid-template grid-template-rows "auto-flow" "dense"
      grid-auto-columns grid-auto-rows grid-template-columns)
     ("grid-area" grid-line)
@@ -298,17 +299,32 @@
     ("grid-template" "none" grid-template-rows grid-template-columns
      line-names string track-size line-names explicit-track-list)
     ("grid-template-areas" "none" string)
-    ("grid-template-columns" "none" track-list auto-track-list)
-    ("grid-template-rows" "none" track-list auto-track-list)
+    ("grid-template-columns" "none" track-list auto-track-list "subgrid")
+    ("grid-template-rows" "none" track-list auto-track-list "subgrid")
 
-    ;; CSS Flexible Box Layout Module Level 1
-    ;; (https://www.w3.org/TR/css-flexbox-1/#property-index)
-    ("align-content" "flex-start" "flex-end" "center" "space-between"
-     "space-around" "stretch")
-    ("align-items" "flex-start" "flex-end" "center" "baseline"
-     "stretch")
-    ("align-self" "auto" "flex-start" "flex-end" "center" "baseline"
-     "stretch")
+    ;; CSS Box Alignment Module Level 3
+    ;; (https://www.w3.org/TR/css-align-3/#property-index)
+    ("align-content"
+     baseline-position content-distribution overflow-position content-position)
+    ("align-items"
+     "normal" "stretch" baseline-position overflow-position self-position)
+    ("align-self"
+     "auto" "normal" "stretch"
+     baseline-position overflow-position self-position)
+    ("justify-content" "normal"
+     content-distribution overflow-position content-position "left" "right")
+    ("justify-items"
+     "normal" "stretch" baseline-position overflow-position self-position
+     "left" "right" "legacy")
+    ("justify-self"
+     "auto" "normal" "stretch" baseline-position overflow-position self-position
+     "left" "right")
+    ("place-content" align-content justify-content)
+    ("place-items" align-items justify-items)
+    ("place-self" justify-self align-self)
+
+    ;; CSS Flexible Box Layout Module Level 2
+    ;; (https://www.w3.org/TR/css-flexbox-2/#property-index)
     ("flex" "none" flex-grow flex-shrink flex-basis)
     ("flex-basis" "auto" "content" width)
     ("flex-direction" "row" "row-reverse" "column" "column-reverse")
@@ -316,8 +332,6 @@
     ("flex-grow" number)
     ("flex-shrink" number)
     ("flex-wrap" "nowrap" "wrap" "wrap-reverse")
-    ("justify-content" "flex-start" "flex-end" "center"
-     "space-between" "space-around")
     ("order" integer)
 
     ;; CSS Fonts Module Level 3
@@ -427,7 +441,7 @@
      "paged-y" "paged-x-controls" "paged-y-controls" "fragments")
 
     ;; CSS Text Decoration Module Level 3
-    ;; (http://dev.w3.org/csswg/css-text-decor-3/#property-index)
+    ;; (https://dev.w3.org/csswg/css-text-decor-3/#property-index)
     ("text-decoration" text-decoration-line text-decoration-style
      text-decoration-color)
     ("text-decoration-color" color)
@@ -757,6 +771,13 @@ further value candidates, since that list would be infinite.")
     (padding-width length percentage)
     (position
      "left" "center" "right" "top" "bottom" percentage length)
+    (baseline-position "left" "right" "baseline")
+    (content-distribution
+     "space-between" "space-around" "space-evenly" "stretch")
+    (overflow-position "unsafe" "safe")
+    (content-position "center" "start" "end" "flex-start" "flex-end")
+    (self-position
+     "center" "start" "end" "self-start" "self-end" "flex-start" "flex-end")
     (radial-gradient "radial-gradient()")
     (relative-size "larger" "smaller")
     (repeat-style
@@ -1135,7 +1156,7 @@ by `css--colors-regexp'.  START-POINT is the start of the color,
 and MATCH is the string matched by the regexp.
 
 This function will either return the color, as a hex RGB string;
-or `nil' if no color could be recognized.  When this function
+or nil if no color could be recognized.  When this function
 returns, point will be at the end of the recognized color."
   (cond
    ((eq (aref match 0) ?#)
@@ -1149,7 +1170,7 @@ returns, point will be at the end of the recognized color."
 
 (defcustom css-fontify-colors t
   "Whether CSS colors should be fontified using the color as the background.
-When non-`nil', a text representing CSS color will be fontified
+When non-nil, a text representing CSS color will be fontified
 such that its background is the color itself.  E.g., #ff0000 will
 be fontified with a red background."
   :version "26.1"
@@ -1307,10 +1328,14 @@ for determining whether point is within a selector."
     (let ((pos (point)))
       (skip-chars-backward "-[:alnum:]")
       (when (eq (char-before) ?\:)
-        (list (point) pos
-              (if (eq (char-before (- (point) 1)) ?\:)
-                  css-pseudo-element-ids
-                css-pseudo-class-ids))))))
+        (let ((double-colon (eq (char-before (- (point) 1)) ?\:)))
+          (list (- (point) (if double-colon 2 1))
+                pos
+                (nconc
+                 (unless double-colon
+                   (mapcar (lambda (id) (concat ":" id)) css-pseudo-class-ids))
+                 (mapcar (lambda (id) (concat "::" id)) css-pseudo-element-ids))
+                :company-kind (lambda (_) 'function)))))))
 
 (defun css--complete-at-rule ()
   "Complete at-rule (statement beginning with `@') at point."
@@ -1318,7 +1343,8 @@ for determining whether point is within a selector."
     (let ((pos (point)))
       (skip-chars-backward "-[:alnum:]")
       (when (eq (char-before) ?\@)
-        (list (point) pos css--at-ids)))))
+        (list (point) pos css--at-ids
+              :company-kind (lambda (_) 'keyword))))))
 
 (defvar css--property-value-cache
   (make-hash-table :test 'equal :size (length css-property-alist))
@@ -1366,7 +1392,8 @@ the string PROPERTY."
           (skip-chars-backward "[:graph:]")
           (list (point) end
                 (append '("inherit" "initial" "unset")
-                        (css--property-values (car property)))))))))
+                        (css--property-values (car property)))
+                :company-kind (lambda (_) 'value)))))))
 
 (defvar css--html-tags (mapcar #'car html-tag-alist)
   "List of HTML tags.
@@ -1435,6 +1462,8 @@ tags, classes and IDs."
                     (list prop-beg prop-end)
                   (list sel-beg sel-end))
               ,(completion-table-merge prop-table sel-table)
+              :company-kind
+              ,(lambda (s) (if (test-completion s prop-table) 'property 'keyword))
               :exit-function
               ,(lambda (string status)
                  (and (eq status 'finished)

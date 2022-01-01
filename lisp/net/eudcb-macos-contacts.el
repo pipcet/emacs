@@ -1,6 +1,6 @@
-;;; eudcb-macos-contacts.el --- EUDC - macOS Contacts backend
+;;; eudcb-macos-contacts.el --- EUDC - macOS Contacts backend  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2020-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2020-2022 Free Software Foundation, Inc.
 
 ;; Author: Alexander Adolf
 
@@ -74,7 +74,7 @@ end tell" str))
 		     "`osascript' executable not found. "
 		     "Is this is a macOS 10.0 or later system?"))))
 
-(defun eudc-macos-contacts-query-internal (query &optional return-attrs)
+(defun eudc-macos-contacts-query-internal (query &optional _return-attrs)
   "Query macOS Contacts with QUERY.
 QUERY is a list of cons cells (ATTR . VALUE) where ATTRs should be valid
 macOS Contacts attribute names.

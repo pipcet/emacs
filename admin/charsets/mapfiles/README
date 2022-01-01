@@ -1,4 +1,4 @@
-Copyright (C) 2009-2021 Free Software Foundation, Inc.
+Copyright (C) 2009-2022 Free Software Foundation, Inc.
 Copyright (C) 2009, 2010, 2011
   National Institute of Advanced Industrial Science and Technology (AIST)
   Registration Number H13PRO009
@@ -63,8 +63,8 @@ to "JIS X 0213:2004".
 
 * MULE-*.map
 
-Created by using ../mule-charsets.el in Emacs 22 as this:
-    % emacs-22 -batch -l ../mule-charsets.el
+Created by using ../mule-charsets.el in Emacs as this:
+    % emacs -batch -l ../mule-charsets.el
 
 
 This file is part of GNU Emacs.

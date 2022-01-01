@@ -1,6 +1,6 @@
 ;;; esh-var.el --- handling of variables  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1999-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1999-2022 Free Software Foundation, Inc.
 
 ;; Author: John Wiegley <johnw@gnu.org>
 
@@ -45,7 +45,7 @@
 ;;
 ;;   $(lisp)
 ;;
-;; Returns result of lisp evaluation.  Note: Used alone like this, it
+;; Returns result of Lisp evaluation.  Note: Used alone like this, it
 ;; is identical to just saying (lisp); but with the variable expansion
 ;; form, the result may be interpolated a larger string, such as
 ;; '$(lisp)/other'.
@@ -205,14 +205,11 @@ Additionally, each member may specify if it should be copied to the
 environment of created subprocesses."
   :type '(repeat (list string sexp
 		       (choice (const :tag "Copy to environment" t)
-			       (const :tag "Use only in Eshell" nil)))))
+                               (const :tag "Use only in Eshell" nil))))
+  :risky t)
 
-(put 'eshell-variable-aliases-list 'risky-local-variable t)
-
-(defvar eshell-var-mode-map
-  (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "C-c M-v") #'eshell-insert-envvar)
-    map))
+(defvar-keymap eshell-var-mode-map
+  "C-c M-v" #'eshell-insert-envvar)
 
 ;;; Functions:
 
@@ -381,7 +378,7 @@ This function is explicit for adding to `eshell-parse-argument-hook'."
 (defun eshell-envvar-names (&optional environment)
   "Return a list of currently visible environment variable names."
   (mapcar (lambda (x)
-            (substring x 0 (string-match "=" x)))
+            (substring x 0 (string-search "=" x)))
 	  (or environment process-environment)))
 
 (defun eshell-environment-variables ()

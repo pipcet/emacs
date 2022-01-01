@@ -1,6 +1,6 @@
 ;;; dom-tests.el --- Tests for dom.el  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2016-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2016-2022 Free Software Foundation, Inc.
 
 ;; Author: Simen Heggestøyl <simenheg@gmail.com>
 ;; Keywords:
@@ -208,6 +208,14 @@ child results in an error."
     (with-temp-buffer
       (dom-pp node t)
       (should (equal (buffer-string) "(\"foo\" nil)")))))
+
+(ert-deftest dom-test-search ()
+  (let ((dom '(a nil (b nil (c nil)))))
+    (should (equal (dom-search dom (lambda (d) (eq (dom-tag d) 'a)))
+                   (list dom)))
+    (should (equal (dom-search dom (lambda (d) (memq (dom-tag d) '(b c))))
+                   (list (car (dom-children dom))
+                         (car (dom-children (car (dom-children dom)))))))))
 
 (provide 'dom-tests)
 ;;; dom-tests.el ends here

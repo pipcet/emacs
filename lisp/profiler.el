@@ -1,6 +1,6 @@
 ;;; profiler.el --- UI and helper functions for Emacs's native profiler -*- lexical-binding: t -*-
 
-;; Copyright (C) 2012-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2012-2022 Free Software Foundation, Inc.
 
 ;; Author: Tomohiro Matsuyama <tomo@cx4a.org>
 ;; Keywords: lisp
@@ -105,8 +105,8 @@
 ;;; Entries
 
 (defun profiler-format-entry (entry)
-  "Format ENTRY in human readable string.  ENTRY would be a
-function name of a function itself."
+  "Format ENTRY in human readable string.
+ENTRY would be a function name of a function itself."
   (cond ((memq (car-safe entry) '(closure lambda))
 	 (format "#<lambda %#x>" (sxhash entry)))
 	((byte-code-function-p entry)
@@ -463,12 +463,12 @@ Optional argument MODE means only check for the specified mode (cpu or mem)."
   "The current profile.")
 
 (defvar-local profiler-report-reversed nil
-  "True if calltree is rendered in bottom-up.  Do not touch this
-variable directly.")
+  "Non-nil if calltree is rendered in bottom-up.
+Do not touch this variable directly.")
 
 (defvar-local profiler-report-order nil
-  "The value can be `ascending' or `descending'.  Do not touch
-this variable directly.")
+  "The value can be `ascending' or `descending'.
+Do not touch this variable directly.")
 
 (defun profiler-report-make-entry-part (entry)
   (let ((string (cond
@@ -499,7 +499,7 @@ RET: expand or collapse"))
 
 (defun profiler-report-header-line-format (fmt &rest args)
   (let* ((header (apply #'profiler-format fmt args))
-	 (escaped (replace-regexp-in-string "%" "%%" header)))
+	 (escaped (string-replace "%" "%%" header)))
     (concat
      (propertize " "
                  'display '(space :align-to 0)
@@ -618,8 +618,7 @@ RET: expand or collapse"))
     buffer))
 
 (defun profiler-report-setup-buffer (profile)
-  "Make a buffer for PROFILE with rendering the profile and
-return it."
+  "Make a buffer for PROFILE with rendering the profile and return it."
   (let ((buffer (profiler-report-setup-buffer-1 profile)))
     (with-current-buffer buffer
       (profiler-report-render-calltree))
@@ -706,9 +705,9 @@ With a prefix argument, expand the whole subtree."
       t)))
 
 (defun profiler-report-toggle-entry (&optional arg)
-  "Expand entry at point if the tree is collapsed,
-otherwise collapse.  With prefix argument, expand all subentries
-below entry at point."
+  "Expand entry at point if the tree is collapsed, otherwise collapse.
+With prefix argument, expand all subentries below entry at
+point."
   (interactive "P")
   (or (profiler-report-expand-entry arg)
       (profiler-report-collapse-entry)))
@@ -822,8 +821,12 @@ below entry at point."
 (defun profiler-start (mode)
   "Start/restart profilers.
 MODE can be one of `cpu', `mem', or `cpu+mem'.
-If MODE is `cpu' or `cpu+mem', time-based profiler will be started.
-Also, if MODE is `mem' or `cpu+mem', then memory profiler will be started."
+If MODE is `cpu' or `cpu+mem', start the time-based profiler,
+   whereby CPU is sampled periodically using the SIGPROF signal.
+If MODE is `mem' or `cpu+mem', start profiler that samples CPU
+   whenever memory-allocation functions are called -- this is useful
+   if SIGPROF is not supported, or is unreliable, or is not sampling
+   at a high enough frequency."
   (interactive
    (list (if (not (fboundp 'profiler-cpu-start)) 'mem
            (intern (completing-read (format-prompt "Mode" "cpu")

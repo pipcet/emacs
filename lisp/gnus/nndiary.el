@@ -1,6 +1,6 @@
 ;;; nndiary.el --- A diary back end for Gnus  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 1999-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1999-2022 Free Software Foundation, Inc.
 
 ;; Author:        Didier Verna <didier@didierverna.net>
 ;; Created:       Fri Jul 16 18:55:42 1999
@@ -416,6 +416,11 @@ all.  This may very well take some time.")
 
 (deffoo nndiary-open-server (server &optional defs)
   (nnoo-change-server 'nndiary server defs)
+  (dolist (header nndiary-headers)
+    (setq header (intern (format "X-Diary-%s" (car header))))
+    ;; Required for building NOV databases and some other stuff.
+    (add-to-list 'gnus-extra-headers header)
+    (add-to-list 'nnmail-extra-headers header))
   (when (not (file-exists-p nndiary-directory))
     (ignore-errors (make-directory nndiary-directory t)))
   (cond
@@ -558,7 +563,7 @@ all.  This may very well take some time.")
     (nnmail-activate 'nndiary)
     ;; Articles not listed in active-articles are already gone,
     ;; so don't try to expire them.
-    (setq articles (gnus-intersection articles active-articles))
+    (setq articles (nreverse (seq-intersection articles active-articles #'eq)))
     (while articles
       (setq article (nndiary-article-to-file (setq number (pop articles))))
       (if (and (nndiary-deletable-article-p group number)
@@ -1303,7 +1308,7 @@ all.  This may very well take some time.")
   (let ((minute (nndiary-max (nth 0 sched)))
 	(hour (nndiary-max (nth 1 sched)))
 	(year (nndiary-max (nth 4 sched)))
-	(time-zone (or (and (nth 6 sched) (car (nth 6 sched)))
+	(time-zone (or (car (nth 6 sched))
 		       (current-time-zone))))
     (when year
       (or minute (setq minute 59))
@@ -1400,7 +1405,7 @@ all.  This may very well take some time.")
 		  t))
 	 (dow-list (nth 5 sched))
 	 (year (1- this-year))
-	 (time-zone (or (and (nth 6 sched) (car (nth 6 sched)))
+	 (time-zone (or (car (nth 6 sched))
 			(current-time-zone))))
     ;; Special case: an asterisk in one of the days specifications means that
     ;; only the other should be taken into account. If both are unspecified,
@@ -1556,12 +1561,6 @@ all.  This may very well take some time.")
     nil))
 
 ;; The end... ===============================================================
-
-(dolist (header nndiary-headers)
-  (setq header (intern (format "X-Diary-%s" (car header))))
-  ;; Required for building NOV databases and some other stuff.
-  (add-to-list 'gnus-extra-headers header)
-  (add-to-list 'nnmail-extra-headers header))
 
 (unless (assoc "nndiary" gnus-valid-select-methods)
   (gnus-declare-backend "nndiary" 'post-mail 'respool 'address))

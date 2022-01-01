@@ -1,6 +1,6 @@
 ;;; font-lock.el --- Electric font lock mode  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1992-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1992-2022 Free Software Foundation, Inc.
 
 ;; Author: Jamie Zawinski
 ;;	Richard Stallman
@@ -311,6 +311,9 @@ If a number, only buffers greater than this size have fontification messages."
 
 (defvar font-lock-doc-face		'font-lock-doc-face
   "Face name to use for documentation.")
+
+(defvar font-lock-doc-markup-face       'font-lock-doc-markup-face
+  "Face name to use for documentation mark-up.")
 
 (defvar font-lock-keyword-face		'font-lock-keyword-face
   "Face name to use for keywords.")
@@ -694,7 +697,7 @@ comments, and to fontify `and', `or' and `not' words as keywords.
 
 The above procedure will only add the keywords for C mode, not
 for modes derived from C mode.  To add them for derived modes too,
-pass nil for MODE and add the call to c-mode-hook.
+pass nil for MODE and add the call to `c-mode-hook'.
 
 For example:
 
@@ -1036,7 +1039,7 @@ The function is given three parameters, the standard BEG, END, and OLD-LEN
 from `after-change-functions'.  It should return either a cons of the beginning
 and end buffer positions \(in that order) of the region to refontify, or nil
 \(which directs the caller to fontify a default region).
-This function should preserve the match-data.
+This function should preserve the match data.
 The region it returns may start or end in the middle of a line.")
 
 (defun font-lock-fontify-buffer (&optional interactively)
@@ -1100,7 +1103,7 @@ Called with two arguments BEG and END.")
 (defun font-lock-debug-fontify ()
   "Reinitialize the font-lock machinery and (re-)fontify the buffer.
 This functions is a convenience functions when developing font
-locking for a mode, and is not meant to be called from lisp functions."
+locking for a mode, and is not meant to be called from Lisp functions."
   (declare (interactive-only t))
   (interactive)
   ;; Make font-lock recalculate all the mode-specific data.
@@ -1119,6 +1122,18 @@ portion of the buffer."
     (font-lock-set-defaults)
     (funcall font-lock-ensure-function
              (or beg (point-min)) (or end (point-max)))))
+
+(defun font-lock-update (&optional arg)
+  "Update the syntax highlighting in this buffer.
+Refontify the accessible portion of this buffer, or enable Font Lock mode
+in this buffer if it is currently disabled.  With prefix ARG, toggle Font
+Lock mode."
+  (interactive "P")
+  (save-excursion
+    (if (and (not arg) font-lock-mode)
+        (font-lock-fontify-region (point-min) (point-max))
+      (font-lock-unfontify-region (point-min) (point-max))
+      (font-lock-mode 'toggle))))
 
 (defun font-lock-default-fontify-buffer ()
   "Fontify the whole buffer using `font-lock-fontify-region-function'."
@@ -1592,18 +1607,15 @@ START should be at the beginning of a line."
   "If non-nil, Font Lock mode uses this instead of `comment-start-skip'.")
 
 (defvar font-lock-comment-end-skip nil
-  "If non-nil, Font Lock mode uses this instead of `comment-end'.")
+  "If non-nil, Font Lock mode uses this instead of `comment-end-skip'.")
 
 (defun font-lock-fontify-syntactically-region (start end &optional loudly)
   "Put proper face on each string and comment between START and END.
 START should be at the beginning of a line."
   (syntax-propertize end)  ; Apply any needed syntax-table properties.
   (with-syntax-table (or syntax-ppss-table (syntax-table))
-    (let ((comment-end-regexp
-	   (or font-lock-comment-end-skip
-	       (regexp-quote
-	        (replace-regexp-in-string "^ *" "" comment-end))))
-          ;; Find the `start' state.
+    (when (and comment-start (not comment-end-skip)) (comment-normalize-vars))
+    (let (;; Find the `start' state.
           (state (if (or syntax-ppss-table
                          (not font-lock--syntax-table-affects-ppss))
                      (syntax-ppss start)
@@ -1636,7 +1648,9 @@ START should be at the beginning of a line."
 				      comment-start-skip))
 		      (put-text-property beg (match-end 0) 'face
 				         font-lock-comment-delimiter-face)))
-	        (if (looking-back comment-end-regexp (point-at-bol) t)
+	        (if (looking-back (or font-lock-comment-end-skip
+				      comment-end-skip)
+				  (point-at-bol) t)
 		    (put-text-property (match-beginning 0) (point) 'face
 				       font-lock-comment-delimiter-face))))
 	    (< (point) end))
@@ -1992,7 +2006,16 @@ Sets various variables using `font-lock-defaults' and
 
 (defface font-lock-doc-face
   '((t :inherit font-lock-string-face))
-  "Font Lock mode face used to highlight documentation."
+  "Font Lock mode face used to highlight documentation embedded in program code.
+It is typically used for special documentation comments or strings."
+  :group 'font-lock-faces)
+
+(defface font-lock-doc-markup-face
+  '((t :inherit font-lock-constant-face))
+  "Font Lock mode face used to highlight embedded documentation mark-up.
+It is meant for mark-up elements in text that uses `font-lock-doc-face', such
+as the constructs of Haddock, Javadoc and similar systems."
+  :version "28.1"
   :group 'font-lock-faces)
 
 (defface font-lock-keyword-face
@@ -2052,7 +2075,7 @@ Sets various variables using `font-lock-defaults' and
     (((class color) (min-colors 16) (background dark))  :foreground "PaleGreen")
     (((class color) (min-colors 8)) :foreground "green")
     (t :weight bold :underline t))
-  "Font Lock mode face used to highlight type and classes."
+  "Font Lock mode face used to highlight type and class names."
   :group 'font-lock-faces)
 
 (defface font-lock-constant-face
@@ -2318,7 +2341,7 @@ This should be an integer.  Used in `cpp-font-lock-keywords'.")
   "Font lock keywords for C preprocessor directives.
 `c-mode', `c++-mode' and `objc-mode' have their own font lock keywords
 for C preprocessor directives.  This definition is for the other modes
-in which C preprocessor directives are used. e.g. `asm-mode' and
+in which C preprocessor directives are used, e.g. `asm-mode' and
 `ld-script-mode'.")
 
 (provide 'font-lock)

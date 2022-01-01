@@ -1,6 +1,6 @@
-;;; vc-dispatcher.el -- generic command-dispatcher facility.  -*- lexical-binding: t -*-
+;;; vc-dispatcher.el --- generic command-dispatcher facility.  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2008-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2008-2022 Free Software Foundation, Inc.
 
 ;; Author: FSF (see below for full credits)
 ;; Keywords: vc tools
@@ -104,12 +104,13 @@
 ;; will be called with the buffer file name as argument whenever the
 ;; dispatcher resyncs the buffer.
 
-;; To do:
-;;
+;;; Code:
+
+;; TODO:
 ;; - log buffers need font-locking.
-;;
 
 ;; General customization
+
 (defcustom vc-logentry-check-hook nil
   "Normal hook run by `vc-finish-logentry'.
 Use this to impose your own rules on the entry in addition to any the
@@ -126,8 +127,12 @@ preserve the setting."
   :group 'vc)
 
 (defcustom vc-command-messages nil
-  "If non-nil, display run messages from back-end commands."
-  :type 'boolean
+  "If non-nil, display and log messages about running back-end commands.
+If the value is `log', messages about running VC back-end commands are
+logged in the *Messages* buffer, but not displayed."
+  :type '(choice (const :tag "No messages" nil)
+                 (const :tag "Display and log messages" t)
+                 (const :tag "Log messages, but don't display" log))
   :group 'vc)
 
 (defcustom vc-suppress-confirm nil
@@ -242,7 +247,7 @@ CODE should be a function of no arguments."
      ((or (null proc) (eq (process-status proc) 'exit))
       ;; Make sure we've read the process's output before going further.
       (when proc (accept-process-output proc))
-      (if (functionp code) (funcall code) (eval code)))
+      (if (functionp code) (funcall code) (eval code t)))
      ;; If a process is running, add CODE to the sentinel
      ((eq (process-status proc) 'run)
       (vc-set-mode-line-busy-indicator)
@@ -254,7 +259,7 @@ CODE should be a function of no arguments."
   nil)
 
 (defmacro vc-run-delayed (&rest body)
-  (declare (indent 0) (debug t))
+  (declare (indent 0) (debug (def-body)))
   `(vc-exec-after (lambda () ,@body)))
 
 (defvar vc-post-command-functions nil
@@ -267,7 +272,7 @@ and is passed 3 arguments: the COMMAND, the FILES and the FLAGS.")
 (defun vc-delistify (filelist)
   "Smash a FILELIST into a file list string suitable for info messages."
   ;; FIXME what about file names with spaces?
-  (if (not filelist) "."  (mapconcat 'identity filelist " ")))
+  (if (not filelist) "."  (mapconcat #'identity filelist " ")))
 
 (defcustom vc-tor nil
   "If non-nil, communicate with the repository site via Tor.
@@ -310,7 +315,10 @@ case, and the process object in the asynchronous case."
 		      (substring command 0 -1)
 		    command)
 		  " " (vc-delistify flags)
-		  " " (vc-delistify files))))
+		  " " (vc-delistify files)))
+	 (vc-inhibit-message
+	  (or (eq vc-command-messages 'log)
+	      (eq (selected-window) (active-minibuffer-window)))))
     (save-current-buffer
       (unless (or (eq buffer t)
 		  (and (stringp buffer)
@@ -331,27 +339,27 @@ case, and the process object in the asynchronous case."
 	      ;; Run asynchronously.
 	      (let ((proc
 		     (let ((process-connection-type nil))
-		       (apply 'start-file-process command (current-buffer)
+		       (apply #'start-file-process command (current-buffer)
                               command squeezed))))
 		(when vc-command-messages
-		  (let ((inhibit-message (eq (selected-window) (active-minibuffer-window))))
+		  (let ((inhibit-message vc-inhibit-message))
 		    (message "Running in background: %s" full-command)))
                 ;; Get rid of the default message insertion, in case we don't
                 ;; set a sentinel explicitly.
 		(set-process-sentinel proc #'ignore)
-		(set-process-filter proc 'vc-process-filter)
+		(set-process-filter proc #'vc-process-filter)
 		(setq status proc)
 		(when vc-command-messages
 		  (vc-run-delayed
 		    (let ((message-truncate-lines t)
-			  (inhibit-message (eq (selected-window) (active-minibuffer-window))))
+			  (inhibit-message vc-inhibit-message))
 		      (message "Done in background: %s" full-command)))))
 	    ;; Run synchronously
 	    (when vc-command-messages
-	      (let ((inhibit-message (eq (selected-window) (active-minibuffer-window))))
+	      (let ((inhibit-message vc-inhibit-message))
 		(message "Running in foreground: %s" full-command)))
 	    (let ((buffer-undo-list t))
-	      (setq status (apply 'process-file command nil t nil squeezed)))
+	      (setq status (apply #'process-file command nil t nil squeezed)))
 	    (when (and (not (eq t okstatus))
 		       (or (not (integerp status))
 			   (and okstatus (< okstatus status))))
@@ -363,7 +371,7 @@ case, and the process object in the asynchronous case."
 		     (if (integerp status) (format "status %d" status) status)
 		     full-command))
 	    (when vc-command-messages
-	      (let ((inhibit-message (eq (selected-window) (active-minibuffer-window))))
+	      (let ((inhibit-message vc-inhibit-message))
 		(message "Done (status=%d): %s" status full-command)))))
 	(vc-run-delayed
 	  (run-hook-with-args 'vc-post-command-functions
@@ -394,7 +402,7 @@ Display the buffer in some window, but don't select it."
       (insert "\"...\n")
       ;; Run in the original working directory.
       (let ((default-directory dir))
-	(apply 'vc-do-command t 'async command nil args)))
+	(apply #'vc-do-command t 'async command nil args)))
     (setq window (display-buffer buffer))
     (if window
 	(set-window-start window new-window-start))
@@ -403,7 +411,7 @@ Display the buffer in some window, but don't select it."
 (defvar compilation-error-regexp-alist)
 
 (defun vc-compilation-mode (backend)
-  "Setup `compilation-mode' after with the appropriate `compilation-error-regexp-alist'."
+  "Setup `compilation-mode' with the appropriate `compilation-error-regexp-alist'."
   (require 'compile)
   (let* ((error-regexp-alist
           (vc-make-backend-sym backend 'error-regexp-alist))
@@ -662,7 +670,7 @@ contents of the log entry buffer.  If COMMENT is a string and
 INITIAL-CONTENTS is nil, do action immediately as if the user had
 entered COMMENT.  If COMMENT is t, also do action immediately with an
 empty comment.  Remember the file's buffer in `vc-parent-buffer'
-\(current one if no file).  Puts the log-entry buffer in major-mode
+\(current one if no file).  Puts the log-entry buffer in major mode
 MODE, defaulting to `log-edit-mode' if MODE is nil.
 AFTER-HOOK specifies the local value for `vc-log-after-operation-hook'.
 BACKEND, if non-nil, specifies a VC backend for the Log Edit buffer."

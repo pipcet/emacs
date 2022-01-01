@@ -1,6 +1,6 @@
 ;;; gnus-registry.el --- article registry for Gnus  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2002-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2002-2022 Free Software Foundation, Inc.
 
 ;; Author: Ted Zlatanov <tzz@lifelogs.com>
 ;; Keywords: news registry
@@ -88,7 +88,6 @@
 (require 'gnus-art)
 (require 'gnus-util)
 (require 'nnmail)
-(require 'easymenu)
 (require 'registry)
 
 (defvar gnus-adaptive-word-syntax-table)
@@ -320,9 +319,12 @@ Encode names if ENCODE is non-nil, otherwise decode."
       (setf (oref db tracked)
             (append gnus-registry-track-extra
                     '(mark group keyword)))
-      (when (not (equal old (oref db tracked)))
+      (when (not (seq-set-equal-p old (oref db tracked)))
         (gnus-message 9 "Reindexing the Gnus registry (tracked change)")
-        (registry-reindex db))
+	(let ((message-log-max (if (< gnus-verbose 9)
+				   nil
+				 message-log-max)))
+          (registry-reindex db)))
       (gnus-registry--munge-group-names db)))
   db)
 
@@ -770,7 +772,7 @@ possible.  Uses `gnus-registry-split-strategy'."
         nil))))
 
 (defun gnus-registry-follow-group-p (group)
-  "Determines if a group name should be followed.
+  "Determine if a group name should be followed.
 Consults `gnus-registry-unfollowed-groups' and
 `nnmail-split-fancy-with-parent-ignore-groups'."
   (and group
@@ -787,7 +789,7 @@ Consults `gnus-registry-unfollowed-groups' and
 ;; we do special logic for ignoring to accept regular expressions and
 ;; nnmail-split-fancy-with-parent-ignore-groups as well
 (defun gnus-registry-ignore-group-p (group)
-  "Determines if a group name should be ignored.
+  "Determine if a group name should be ignored.
 Consults `gnus-registry-ignored-groups' and
 `nnmail-split-fancy-with-parent-ignore-groups'."
   (and group
@@ -845,7 +847,8 @@ Overrides existing keywords with FORCE set non-nil."
 (defun gnus-registry-register-message-ids ()
   "Register the Message-ID of every article in the group."
   (unless (or (gnus-parameter-registry-ignore gnus-newsgroup-name)
-	      (null gnus-registry-register-all))
+	      (null gnus-registry-register-all)
+              (null (eieio-object-p gnus-registry-db)))
     (dolist (article gnus-newsgroup-articles)
       (let* ((id (gnus-registry-fetch-message-id-fast article))
              (groups (gnus-registry-get-id-key id 'group)))
@@ -988,9 +991,9 @@ Uses `gnus-registry-marks' to find what shortcuts to install."
                    gnus-registry-misc-menus)
              (gnus-message 9 "Defined mark handling function %s"
                            function-name))))))
-    (gnus-define-keys-1
-     '(gnus-registry-mark-map "M" gnus-summary-mark-map)
-     keys-plist)
+    (define-key gnus-summary-mark-map "M"
+      (apply #'define-keymap :prefix 'gnus-summary-mark-map
+             keys-plist))
     (add-hook 'gnus-summary-menu-hook
               (lambda ()
                 (easy-menu-add-item
@@ -1140,7 +1143,7 @@ non-nil."
            entry)
       (while (car-safe old)
         (cl-incf count)
-        ;; don't use progress reporters for backwards compatibility
+        ;; todo: use progress reporters.
         (when (and (< 0 expected)
                    (= 0 (mod count 100)))
           (message "importing: %d of %d (%.2f%%)"
@@ -1291,15 +1294,13 @@ from your existing entries."
       (registry-reindex db)
       (cl-loop for k being the hash-keys of (oref db data)
 	    using (hash-value v)
-	    do (let ((newv (delq nil (mapcar #'(lambda (entry)
-						 (unless (member (car entry) extra)
-						   entry))
+            do (let ((newv (delq nil (mapcar (lambda (entry)
+                                               (unless (member (car entry) extra)
+                                                 entry))
 					     v))))
 		 (registry-delete db (list k) nil)
 		 (gnus-registry-insert db k newv)))
       (registry-reindex db))))
-
-;; TODO: a few things
 
 (provide 'gnus-registry)
 

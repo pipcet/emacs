@@ -1,6 +1,6 @@
-;;; semantic/doc.el --- Routines for documentation strings
+;;; semantic/doc.el --- Routines for documentation strings  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 1999-2003, 2005, 2008-2021 Free Software Foundation,
+;; Copyright (C) 1999-2003, 2005, 2008-2022 Free Software Foundation,
 ;; Inc.
 
 ;; Author: Eric M. Ludlam <zappo@gnu.org>
@@ -85,7 +85,7 @@ just the lexical token and not the string."
     ))
 (define-obsolete-function-alias
   'semantic-documentation-comment-preceeding-tag
-  'semantic-documentation-comment-preceding-tag
+  #'semantic-documentation-comment-preceding-tag
   "25.1")
 
 (defun semantic-doc-snarf-comment-for-tag (nosnarf)

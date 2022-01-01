@@ -1,9 +1,11 @@
 ;;; bs.el --- menu for selecting and displaying buffers -*- lexical-binding: t -*-
 
-;; Copyright (C) 1998-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1998-2022 Free Software Foundation, Inc.
 ;; Author: Olaf Sylvester <Olaf.Sylvester@netsurf.de>
 ;; Maintainer: emacs-devel@gnu.org
 ;; Keywords: convenience
+;; Old-Version: 1.17
+;; URL: http://www.geekware.de/software/emacs
 
 ;; This file is part of GNU Emacs.
 
@@ -22,9 +24,6 @@
 
 ;;; Commentary:
 
-;; Version: 1.17
-;; X-URL: http://www.geekware.de/software/emacs
-;;
 ;; The bs-package contains a main function bs-show for popping up a
 ;; buffer in a way similar to `list-buffers' and `electric-buffer-list':
 ;; The new buffer offers a Buffer Selection Menu for manipulating
@@ -119,8 +118,6 @@
 ;; For example: If you use the configuration called "files-and-scratch" you
 ;; can cycle through all file buffers and *scratch* although your current
 ;; configuration perhaps is "files" which ignores buffer *scratch*.
-
-;;; History:
 
 ;;; Code:
 
@@ -1506,7 +1503,6 @@ name of buffer configuration."
   ;; continue standard unloading
   nil)
 
-;; Now provide feature bs
 (provide 'bs)
 
 ;;; bs.el ends here

@@ -1,6 +1,6 @@
 ;;; gnus-cus.el --- customization commands for Gnus  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 1996, 1999-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1996, 1999-2022 Free Software Foundation, Inc.
 
 ;; Author: Per Abrahamsen <abraham@dina.kvl.dk>
 ;; Keywords: news
@@ -1101,8 +1101,6 @@ articles in the thread.
       (use-local-map widget-keymap)
       (widget-setup)
       (buffer-enable-undo))))
-
-;;; The End:
 
 (provide 'gnus-cus)
 

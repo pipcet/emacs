@@ -1,6 +1,6 @@
 ;;; tildify.el --- adding hard spaces into texts -*- lexical-binding: t -*-
 
-;; Copyright (C) 1997-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1997-2022 Free Software Foundation, Inc.
 
 ;; Author:     Milan Zamazal <pdm@zamazal.org>
 ;;             Michal Nazarewicz <mina86@mina86.com>
@@ -67,7 +67,7 @@ matching the white space).  The pattern is matched case-sensitive regardless of
 the value of `case-fold-search' setting."
   :version "25.1"
   :type 'regexp
-  :safe t)
+  :safe #'stringp)
 
 (defcustom tildify-pattern-alist ()
   "Alist specifying where to insert hard spaces.
@@ -112,7 +112,7 @@ If nil, current major mode has no way to represent a hard space."
                         " ")
                  (const :tag "No-break space (U+00A0)" "\u00A0")
                  (string :tag "Custom string"))
-  :safe t)
+  :safe #'string-or-null-p)
 
 (defcustom tildify-string-alist ()
   "Alist specifying what is a hard space in the current major mode.
@@ -289,7 +289,7 @@ variable.  For example, for an XML file one might use:
   (setq-local tildify-foreach-region-function
     (apply-partially \\='tildify-foreach-ignore-environments
                      \\='((\"<! *--\" . \"-- *>\") (\"<\" . \">\"))))"
-  (let ((beg-re (concat "\\(?:" (mapconcat 'car pairs "\\)\\|\\(?:") "\\)"))
+  (let ((beg-re (concat "\\(?:" (mapconcat #'car pairs "\\)\\|\\(?:") "\\)"))
         p end-re)
     (save-excursion
       (save-restriction
@@ -486,7 +486,7 @@ that space character is replaced by a hard space specified by
 When `tildify-mode' is enabled, if `tildify-string-alist' specifies a hard space
 representation for current major mode, the `tildify-space-string' buffer-local
 variable will be set to the representation."
-  nil " ~" nil
+  :lighter " ~"
   (when tildify-mode
     (let ((space (with-suppressed-warnings ((obsolete
                                              tildify--pick-alist-entry))
@@ -499,11 +499,9 @@ variable will be set to the representation."
                            "mode won't have any effect, disabling.")))
         (setq tildify-mode nil))))
   (if tildify-mode
-      (add-hook 'post-self-insert-hook 'tildify-space nil t)
-    (remove-hook 'post-self-insert-hook 'tildify-space t)))
+      (add-hook 'post-self-insert-hook #'tildify-space nil t)
+    (remove-hook 'post-self-insert-hook #'tildify-space t)))
 
-
-;;; *** Announce ***
 
 (provide 'tildify)
 

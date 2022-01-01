@@ -1,7 +1,6 @@
 ;;; eieio-base.el --- Base classes for EIEIO.  -*- lexical-binding:t -*-
 
-;;; Copyright (C) 2000-2002, 2004-2005, 2007-2021 Free Software
-;;; Foundation, Inc.
+;; Copyright (C) 2000-2022 Free Software Foundation, Inc.
 
 ;; Author: Eric M. Ludlam <zappo@gnu.org>
 ;; Keywords: OO, lisp
@@ -157,7 +156,7 @@ only one object ever exists."
   ;; NOTE TO SELF: In next version, make `slot-boundp' support classes
   ;; with class allocated slots or default values.
   (let ((old (oref-default class singleton)))
-    (if (eq old eieio-unbound)
+    (if (eq old eieio--unbound)
 	(oset-default class singleton (cl-call-next-method))
       old)))
 
@@ -253,7 +252,7 @@ This is used with the `object-write' method.")
 	       :documentation
 	       "Saving this object should make backup files.
 Setting to nil will mean no backups are made."))
-  "This special class enables persistence through save files
+  "This special class enables persistence through save files.
 Use the `object-write' method to write this object to disk.  The save
 format is Emacs Lisp code which calls the constructor for the saved
 object.  For this reason, only slots which do not have an `:initarg'

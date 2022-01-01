@@ -3,7 +3,7 @@
 ;;		 and a venomous VI PERil.
 ;;		 Viper Is also a Package for Emacs Rebels.
 
-;; Copyright (C) 1994-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1994-2022 Free Software Foundation, Inc.
 
 ;; Author: Michael Kifer <kifer@cs.stonybrook.edu>
 ;; Keywords: emulations
@@ -15,7 +15,7 @@
 ;; of the bug report be sent to the maintainer's email address.
 
 (defconst viper-version "3.14.2 of July 4, 2013"
-  "The current version of Viper")
+  "The current version of Viper.")
 
 ;; This file is part of GNU Emacs.
 
@@ -304,7 +304,6 @@
 
 ;; compiler pacifier
 (defvar mark-even-if-inactive)
-(defvar quail-mode)
 (defvar viper-expert-level)
 (defvar viper-mode-string)
 (defvar viper-major-mode-modifier-list)
@@ -516,7 +515,7 @@ If Viper is enabled, turn it off.  Otherwise, turn it on."
 
 ;;;###autoload
 (defun viper-mode ()
-  "Turn on Viper emulation of Vi in Emacs. See Info node `(viper)Top'."
+  "Turn on Viper emulation of Vi in Emacs.  See Info node `(viper)Top'."
   (interactive)
   (if (not noninteractive)
       (progn
@@ -577,7 +576,7 @@ For more information on Viper:
 To submit a bug report or to contact the author, type :submitReport in Vi
 command mode.  To shoo Viper away and return to pure Emacs (horror!), type:
 
-   M-x viper-go-away
+   \\[viper-go-away]
 
 This startup message appears whenever you load Viper, unless you type `y' now."
 		      ))
@@ -1061,9 +1060,7 @@ This may be needed if the previous `:map' command terminated abnormally."
   (if (viper-window-display-p)
       (viper--advice-add
        'handle-switch-frame :before
-       (lambda (&rest _)
-	 "Remember the selected frame before the switch-frame event."
-	 (viper-remember-current-frame (selected-frame)))))
+       #'viper-remember-current-frame))
 
   ) ; end viper-non-hook-settings
 
@@ -1191,7 +1188,7 @@ These two lines must come in the order given."))
 
 ;; The default viper-toggle-key is \C-z; for the novice, it suspends or
 ;; iconifies Emacs
-(define-key viper-vi-intercept-map viper-toggle-key 'viper-toggle-key-action)
+(define-key viper-vi-intercept-map viper-toggle-key #'viper-toggle-key-action)
 (define-key
   viper-emacs-intercept-map viper-toggle-key #'viper-change-state-to-vi)
 

@@ -8,7 +8,7 @@
 @syncodeindex pg cp
 
 @copying
-Copyright @copyright{} 1995--2021 Free Software Foundation, Inc.
+Copyright @copyright{} 1995--2022 Free Software Foundation, Inc.
 
 @quotation
 Permission is granted to copy, distribute and/or modify this document
@@ -815,7 +815,7 @@ Various
 * Undo::                        Some actions can be undone.
 * Predicate Specifiers::        Specifying predicates.
 * Moderation::                  What to do if you're a moderator.
-* Image Enhancements::          Modern versions of Emacs can display images.
+* Image Enhancements::          Emacs can display images.
 * Fuzzy Matching::              What's the big fuzz?
 * Thwarting Email Spam::        Simple ways to avoid unsolicited commercial email.
 * Spam Package::                A package for filtering and processing spam.
@@ -1004,7 +1004,7 @@ The fundamental building blocks of Gnus are @dfn{servers},
 @dfn{groups}, and @dfn{articles}.  Servers can be local or remote.
 Each server maintains a list of groups, and those groups contain
 articles.  Because Gnus presents a unified interface to a wide variety
-of servers, the vocabulary doesn't always quite line up (see @ref{FAQ
+of servers, the vocabulary doesn't always quite line up (@pxref{FAQ
 - Glossary}, for a more complete glossary).  Thus a local maildir is
 referred to as a ``server'' (@pxref{Finding the News}) the same as a
 Usenet or IMAP server is; ``groups'' (@pxref{Group Buffer}) might mean
@@ -2318,19 +2318,18 @@ commands listed in @ref{Browse Foreign Server} at hand.
 @itemx u
 @kindex S t @r{(Group)}
 @kindex u @r{(Group)}
-@findex gnus-group-unsubscribe-current-group
-@c @icon{gnus-group-unsubscribe}
-Toggle subscription to the current group
-(@code{gnus-group-unsubscribe-current-group}).
+@findex gnus-group-toggle-subscription-at-point
+@c @icon{gnus-group-toggle-subscription-at-point}
+Toggle subscription to group under point
+(@code{gnus-group-toggle-subscription-at-point}).
 
 @item S s
 @itemx U
 @kindex S s @r{(Group)}
 @kindex U @r{(Group)}
-@findex gnus-group-unsubscribe-group
-Prompt for a group to subscribe, and then subscribe it.  If it was
-subscribed already, unsubscribe it instead
-(@code{gnus-group-unsubscribe-group}).
+@findex gnus-group-toggle-subscription
+Prompt for group, and toggle its subscription.
+(@code{gnus-group-toggle-subscription}).
 
 @item S k
 @itemx C-k
@@ -2583,25 +2582,28 @@ with the process mark and then execute the command.
 @itemx M m
 @kindex M m @r{(Group)}
 @findex gnus-group-mark-group
-Set the mark on the current group (@code{gnus-group-mark-group}).
+Toggle the process mark for the current group
+(@code{gnus-group-mark-group}).@*
+If @code{gnus-process-mark-toggle} is @code{nil}, set the process mark
+for the current group.
 
 @item M-#
 @kindex M-# @r{(Group)}
 @itemx M u
 @kindex M u @r{(Group)}
 @findex gnus-group-unmark-group
-Remove the mark from the current group
+Remove the process mark, if any, from the current group
 (@code{gnus-group-unmark-group}).
 
 @item M U
 @kindex M U @r{(Group)}
 @findex gnus-group-unmark-all-groups
-Remove the mark from all groups (@code{gnus-group-unmark-all-groups}).
+Remove the process mark from all groups (@code{gnus-group-unmark-all-groups}).
 
 @item M w
 @kindex M w @r{(Group)}
 @findex gnus-group-mark-region
-Mark all groups between point and mark (@code{gnus-group-mark-region}).
+Mark groups in region (@code{gnus-group-mark-region}).
 
 @item M b
 @kindex M b @r{(Group)}
@@ -3733,10 +3735,10 @@ Enter the current group (@code{gnus-browse-select-group}).
 
 @item u
 @kindex u @r{(Browse)}
-@findex gnus-browse-unsubscribe-current-group
+@findex gnus-browse-toggle-subscription
 @vindex gnus-browse-subscribe-newsgroup-method
-Unsubscribe to the current group, or, as will be the case here,
-subscribe to it (@code{gnus-browse-unsubscribe-current-group}).  You
+Toggle subscription of the current group
+(@code{gnus-browse-toggle-subscription}).  You
 can affect the way the new group is entered into the Group buffer
 using the variable @code{gnus-browse-subscribe-newsgroup-method}.  See
 @pxref{Subscription Methods} for available options.
@@ -4041,9 +4043,11 @@ Toggle hiding empty topics
 @item T #
 @kindex T # @r{(Topic)}
 @findex gnus-topic-mark-topic
-Mark all groups in the current topic with the process mark
+Toggle the process mark for all groups in the current topic
 (@code{gnus-topic-mark-topic}).  This command works recursively on
-sub-topics unless given a prefix.
+sub-topics unless given a prefix.@*
+If @code{gnus-process-mark-toggle} is @code{nil}, set the process mark
+for the current topic.
 
 @item T M-#
 @kindex T M-# @r{(Topic)}
@@ -4121,6 +4125,8 @@ Visibility.
 Level.
 @item g
 Number of groups in the topic.
+@item G
+Number of groups in the topic and all its subtopics.
 @item a
 Number of unread articles in the topic.
 @item A
@@ -4139,6 +4145,25 @@ The default is 2.
 The @code{gnus-topic-display-empty-topics} says whether to display even
 topics that have no unread articles in them.  The default is @code{t}.
 
+@vindex gnus-topic-display-predicate
+If @code{gnus-topic-display-predicate} is non-@code{nil}, it should be
+a function that says whether the topic is to be displayed or not.
+The function will be called with one parameter (the name of the topic)
+and should return non-@code{nil} is the topic is to be displayed.
+
+For instance, if you don't even want to be reminded that work exists
+outside of office hours, you can gather all the work-related groups
+into a topic called @samp{"Work"}, and then say something like the
+following:
+
+@lisp
+(setq gnus-topic-display-predicate
+      (lambda (name)
+        (or (not (equal name "Work"))
+            (< 090000
+               (string-to-number (format-time-string "%H%M%S"))
+               170000))))
+@end lisp
 
 @node Topic Sorting
 @subsection Topic Sorting
@@ -4474,7 +4499,7 @@ command or better use it as a prefix key.  For example:
     (gnus-group-jump-to-group "nndraft:drafts")))
 @end lisp
 
-On keys reserved for users in Emacs and on keybindings in general
+On keys reserved for users in Emacs and on key bindings in general
 @xref{Keymaps, Keymaps, , emacs, The Emacs Editor}.
 
 @item ^
@@ -5230,8 +5255,23 @@ Newsgroups:full
 @end example
 
 to the end of her @file{overview.fmt} file, then you can use that just
-as you would the extra headers from the mail groups.
+as you would the extra headers from the mail groups.  Otherwise, you
+have to disable fetching headers with @samp{XOVER}:
 
+@lisp
+(setq nntp-nov-is-evil t
+      gnus-nov-is-evil t)
+@end lisp
+
+Be aware, though, that this will make entering an @acronym{NNTP} group
+much, much slower, so this is not recommended.
+
+One particular scenario in which it can be desirable to not use
+@samp{XOVER} is for @code{nnvirtual} groups in order to support
+limiting by extra headers (e.g., by the newsgroup of its component
+groups).  Because group parameters are not inherited, a separate
+select method for the component groups with the appropriate
+@code{nov-is-evil} set as a method variable is required.
 
 @node Summary Buffer Mode Line
 @subsection Summary Buffer Mode Line
@@ -6608,14 +6648,16 @@ articles into the cache.  For more information,
 @kindex # @r{(Summary)}
 @kindex M P p @r{(Summary)}
 @findex gnus-summary-mark-as-processable
-Mark the current article with the process mark
-(@code{gnus-summary-mark-as-processable}).
-@findex gnus-summary-unmark-as-processable
+Toggle the process mark for the current article
+(@code{gnus-summary-mark-as-processable}).@*
+If @code{gnus-process-mark-toggle} is @code{nil}, set the process mark
+for the current article.
 
 @item M P u
 @itemx M-#
 @kindex M P u @r{(Summary)}
 @kindex M-# @r{(Summary)}
+@findex gnus-summary-unmark-as-processable
 Remove the process mark, if any, from the current article
 (@code{gnus-summary-unmark-as-processable}).
 
@@ -7088,20 +7130,15 @@ as 10, you might consider setting this variable to something sensible:
 (setq gnus-simplify-ignored-prefixes
       (concat
        "\\`\\[?\\("
-       (mapconcat
-        'identity
-        '("looking"
-          "wanted" "followup" "summary\\( of\\)?"
-          "help" "query" "problem" "question"
-          "answer" "reference" "announce"
-          "How can I" "How to" "Comparison of"
-          ;; ...
-          )
-        "\\|")
+       (regexp-opt '("looking"
+                     "wanted" "followup" "summary" "summary of"
+                     "help" "query" "problem" "question"
+                     "answer" "reference" "announce"
+                     "How can I" "How to" "Comparison of"
+                     ;; ...
+                     ))
        "\\)\\s *\\("
-       (mapconcat 'identity
-                  '("for" "for reference" "with" "about")
-                  "\\|")
+       (regexp-opt '("for" "for reference" "with" "about"))
        "\\)?\\]?:?[ \t]*"))
 @end lisp
 
@@ -7503,6 +7540,7 @@ Matching}).
 @findex gnus-thread-sort-by-author
 @findex gnus-thread-sort-by-recipient
 @findex gnus-thread-sort-by-number
+@findex gnus-thread-sort-by-newsgroups
 @findex gnus-thread-sort-by-random
 @vindex gnus-thread-sort-functions
 @findex gnus-thread-sort-by-most-recent-number
@@ -7520,6 +7558,7 @@ predicate functions include @code{gnus-thread-sort-by-number},
 @code{gnus-thread-sort-by-score},
 @code{gnus-thread-sort-by-most-recent-number},
 @code{gnus-thread-sort-by-most-recent-date},
+@code{gnus-thread-sort-by-newsgroups} and
 @code{gnus-thread-sort-by-random} and
 @code{gnus-thread-sort-by-total-score}.
 
@@ -7581,6 +7620,7 @@ tickles your fancy.
 @findex gnus-article-sort-by-score
 @findex gnus-article-sort-by-subject
 @findex gnus-article-sort-by-author
+@findex gnus-article-sort-by-newsgroups
 @findex gnus-article-sort-by-random
 @findex gnus-article-sort-by-number
 @findex gnus-article-sort-by-most-recent-number
@@ -7592,8 +7632,8 @@ different functions for article comparison.  Available sorting
 predicate functions are @code{gnus-article-sort-by-number},
 @code{gnus-article-sort-by-author},
 @code{gnus-article-sort-by-subject}, @code{gnus-article-sort-by-date},
-@code{gnus-article-sort-by-random}, and
-@code{gnus-article-sort-by-score}.
+@code{gnus-article-sort-by-newsgroups}, @code{gnus-article-sort-by-random},
+and @code{gnus-article-sort-by-score}.
 
 If you want to sort an unthreaded summary display by subject, you could
 say something like:
@@ -9329,6 +9369,12 @@ Use html2text---a simple @acronym{HTML} converter included with Gnus.
 
 @end table
 
+@item W D F
+@kindex W D F @r{(Summary)}
+@findex gnus-article-toggle-fonts
+Toggle proportional fonts for @acronym{HTML} articles.  This temporarily
+changes the @code{shr-use-fonts} variable in the current article buffer.
+
 @item W b
 @kindex W b @r{(Summary)}
 @findex gnus-article-add-buttons
@@ -9796,6 +9842,13 @@ Gravatarify the @code{From} header (@code{gnus-treat-from-gravatar}).
 @findex gnus-treat-mail-gravatar
 Gravatarify all mail headers (i.e., @code{Cc}, @code{To})
 (@code{gnus-treat-from-gravatar}).
+
+@item W D e
+@kindex W D e @r{(Summary)}
+@findex gnus-article-emojize-symbols
+Some symbols have both a non-emoji presentation and an emoji
+presentation.  This command will make Gnus choose the emoji presentation
+(@code{gnus-article-emojize-symbols}).
 
 @item W D D
 @kindex W D D @r{(Summary)}
@@ -10381,6 +10434,17 @@ Sort by article ``readedness'' marks (@code{gnus-summary-sort-by-marks}).
 @findex gnus-summary-sort-by-score
 Sort by score (@code{gnus-summary-sort-by-score}).
 
+@item C-c C-s C-u
+@kindex C-c C-s C-u @r{(Summary)}
+@findex gnus-summary-sort-by-newsgroups
+Sort by newsgroups (@code{gnus-summary-sort-by-newsgroups}).
+
+@item C-c C-s C-x
+@kindex C-c C-s C-x @r{(Summary)}
+@findex gnus-summary-sort-by-extra
+Prompts for extra header to sort by (@code{gnus-summary-sort-by-extra}).
+An error will be raised if no sort functions for the header are defined.
+
 @item C-c C-s C-r
 @kindex C-c C-s C-r @r{(Summary)}
 @findex gnus-summary-sort-by-random
@@ -10553,13 +10617,15 @@ Here are the available keystrokes when using pick mode:
 @item .
 @kindex . @r{(Pick)}
 @findex gnus-pick-article-or-thread
-Pick the article or thread on the current line
-(@code{gnus-pick-article-or-thread}).  If the variable
+Pick the article or thread on the current line or unpick it if is
+already picked (@code{gnus-pick-article-or-thread}).  If the variable
 @code{gnus-thread-hide-subtree} is true, then this key selects the
 entire thread when used at the first article of the thread.  Otherwise,
 it selects just the article.  If given a numerical prefix, go to that
 thread or article and pick it.  (The line number is normally displayed
-at the beginning of the summary pick lines.)
+at the beginning of the summary pick lines.)  If
+@code{gnus-process-mark-toggle} is @code{nil}, this key will pick an
+article or thread.
 
 @item @key{SPC}
 @kindex SPC @r{(Pick)}
@@ -12126,6 +12192,7 @@ controlling variable is a predicate list, as described above.
 @vindex gnus-treat-capitalize-sentences
 @vindex gnus-treat-overstrike
 @vindex gnus-treat-strip-cr
+@vindex gnus-treat-emojize-symbols
 @vindex gnus-treat-strip-headers-in-body
 @vindex gnus-treat-strip-leading-blank-lines
 @vindex gnus-treat-strip-multiple-blank-lines
@@ -12178,6 +12245,7 @@ possible but those listed are probably sufficient for most people.
 @item gnus-treat-capitalize-sentences (t, integer)
 @item gnus-treat-overstrike (t, integer)
 @item gnus-treat-strip-cr (t, integer)
+@item gnus-treat-emojize-symbols (t, integer)
 @item gnus-treat-strip-headers-in-body (t, integer)
 @item gnus-treat-strip-leading-blank-lines (t, first, integer)
 @item gnus-treat-strip-multiple-blank-lines (t, integer)
@@ -13409,7 +13477,7 @@ Also @pxref{Formatting Variables}.
 @subsection Server Commands
 @cindex server commands
 
-The following keybinding are available in the server buffer.  Be aware
+The following key bindings are available in the server buffer.  Be aware
 that some of the commands will only work on servers that you've added
 through this interface (with @kbd{a}), not with servers you've defined
 in your init files.
@@ -13811,11 +13879,9 @@ present in this hook.
 @item nntp-authinfo-function
 @vindex nntp-authinfo-function
 @findex nntp-send-authinfo
-@vindex nntp-authinfo-file
 This function will be used to send @samp{AUTHINFO} to the @acronym{NNTP}
 server.  The default function is @code{nntp-send-authinfo}, which looks
-through your @file{~/.authinfo} (or whatever you've set the
-@code{nntp-authinfo-file} variable to) for applicable entries.  If none
+through your @file{~/.authinfo} for applicable entries.  If none
 are found, it will prompt you for a login name and a password.  The
 format of the @file{~/.authinfo} file is (almost) the same as the
 @code{ftp} @file{~/.netrc} file, which is defined in the @code{ftp}
@@ -14477,7 +14543,8 @@ this should be set to @code{anonymous}.  If this variable isn't set,
 the normal login methods will be used.  If you wish to specify a
 specific login method to be used, you can set this variable to either
 @code{login} (the traditional @acronym{IMAP} login method),
-@code{plain} or @code{cram-md5}.
+@code{plain}, @code{cram-md5} or @code{xoauth2}.  (The latter method
+requires using the @file{oauth2.el} library.)
 
 @item nnimap-expunge
 When to expunge deleted messages.  If @code{never}, deleted articles
@@ -14514,6 +14581,17 @@ If non-@code{nil}, omit the IMAP namespace prefix in nnimap group
 names.  If your IMAP mailboxes are called something like @samp{INBOX}
 and @samp{INBOX.Lists.emacs}, but you'd like the nnimap group names to
 be @samp{INBOX} and @samp{Lists.emacs}, you should enable this option.
+
+@item nnimap-keepalive-intervals
+By default, nnimap will send occasional @samp{NOOP} (keepalive)
+commands to the server, to keep the connection alive.  This option
+governs how often that happens.  It is a cons of two integers,
+representing seconds: first how often to run the keepalive check, and
+the second how many seconds of user inactivity are required to
+actually send the command.  The default, @code{(900 . 300)}, means run
+the check every fifteen minutes and, if the user has been inactive for
+five minutes, send the keepalive command.  Set to @code{nil} to
+disable keepalive commands altogether.
 
 @end table
 
@@ -15368,10 +15446,6 @@ and @code{2} in released Gnusae.  @xref{Gnus Development}.
 If non-@code{nil}, ask for confirmation before deleting old incoming
 files.  This variable only applies when
 @code{mail-source-delete-incoming} is a positive number.
-
-@item mail-source-ignore-errors
-@vindex mail-source-ignore-errors
-If non-@code{nil}, ignore errors when reading mail from a mail source.
 
 @item mail-source-directory
 @vindex mail-source-directory
@@ -16237,7 +16311,7 @@ cleaning up the headers.  Functions that can be used include:
 Clear leading white space that ``helpful'' listservs have added to the
 headers to make them look nice.  Aaah.
 
-(Note that this function works on both the header on the body of all
+(Note that this function works on both the header and the body of all
 messages, so it is a potentially dangerous function to use (if a body
 of a message contains something that looks like a header line).  So
 rather than fix the bug, it is of course the right solution to make it
@@ -16269,7 +16343,6 @@ Translate all @samp{@key{TAB}} characters into @samp{@key{SPC}} characters.
 
 @item nnmail-ignore-broken-references
 @findex nnmail-ignore-broken-references
-@c @findex nnmail-fix-eudora-headers
 @cindex Eudora
 @cindex Pegasus
 Some mail user agents (e.g., Eudora and Pegasus) produce broken
@@ -16359,9 +16432,8 @@ If you start using any of the mail back ends, they have the annoying
 habit of assuming that you want to read mail with them.  This might not
 be unreasonable, but it might not be what you want.
 
-If you set @code{mail-sources} and @code{nnmail-spool-file} to
-@code{nil}, none of the back ends will ever attempt to read incoming
-mail, which should help.
+If you set @code{mail-sources} to @code{nil}, none of the back ends
+will ever attempt to read incoming mail, which should help.
 
 @vindex nnbabyl-get-new-mail
 @vindex nnmbox-get-new-mail
@@ -17968,7 +18040,7 @@ This creates a group including all flagged messages from all groups on
 two IMAP servers, "home" and "work".
 
 And one last example.  Here is a function that runs a search query to
-find all message that have been received recently from certain groups:
+find all messages that have been received recently from certain groups:
 
 @lisp
 (defun my-recent-email (args)
@@ -17976,7 +18048,7 @@ find all message that have been received recently from certain groups:
          (list
           (cons 'query
                 (format-time-string "SENTSINCE %d-%b-%Y"
-                                    (time-subtract (current-time)
+                                    (time-subtract nil
                                                    (days-to-time (car args)))))
           (cons 'criteria "")))
         (group-spec (cadr args)))
@@ -21824,7 +21896,7 @@ bound to mairix searches and are automatically updated.
 Mairix is a tool for indexing and searching words in locally stored
 mail.  It was written by Richard Curnow and is licensed under the
 GPL@.  Mairix comes with most popular GNU/Linux distributions, but it also
-runs under Windows (with cygwin), macOS and Solaris.  The homepage can
+runs under Windows (with cygwin), macOS and Solaris.  The website can
 be found at
 @uref{http://www.rpcurnow.force9.co.uk/mairix/index.html}
 
@@ -22507,7 +22579,7 @@ to you, using @kbd{G b u} and updating the group will usually fix this.
 * Predicate Specifiers::        Specifying predicates.
 * Moderation::                  What to do if you're a moderator.
 * Fetching a Group::            Starting Gnus just to read a group.
-* Image Enhancements::          Modern versions of Emacs can display images.
+* Image Enhancements::          Emacs can display images.
 * Fuzzy Matching::              What's the big fuzz?
 * Thwarting Email Spam::        Simple ways to avoid unsolicited commercial email.
 * Spam Package::                A package for filtering and processing spam.
@@ -22652,6 +22724,13 @@ things like @code{gnus-group-line-format} and
 output lines in the various buffers.  There's quite a lot of them.
 Fortunately, they all use the same syntax, so there's not that much to
 be annoyed by.
+
+Gnus does not use the font locking machinery used by most modes in
+Emacs, so switching @code{font-lock-mode} on in the Gnus
+group/summary/article buffers usually doesn't do anything
+useful---instead it'll just mess up the faces that Gnus has already
+put in the buffer.  (This is also the case for other minor modes that
+use the font locking machinery, like @code{whitespace-mode}.)
 
 Here's an example format spec (from the group buffer): @samp{%M%S%5y:
 %(%g%)\n}.  We see that it is indeed extremely ugly, and that there are
@@ -23670,9 +23749,8 @@ It takes the group name as a parameter.
 @node Image Enhancements
 @section Image Enhancements
 
-Emacs 21@footnote{Emacs 21 on MS Windows doesn't
-support images, Emacs 22 does.} and up are able to display pictures and
-stuff, so Gnus has taken advantage of that.
+Emacs is able to display pictures and stuff, so Gnus has taken
+advantage of that.
 
 @menu
 * X-Face::                      Display a funky, teensy black-and-white image.
@@ -26244,7 +26322,7 @@ Fortunately, setting up the Gnus registry is pretty easy:
 @end lisp
 
 This adds registry saves to Gnus newsrc saves (which happen on exit
-and when you press @kbd{s} from the @file{*Group*} buffer.  It also
+and when you press @kbd{s} from the @file{*Group*} buffer).  It also
 adds registry calls to article actions in Gnus (copy, move, etc.)@: so
 it's not easy to undo the initialization.  See
 @code{gnus-registry-initialize} for the gory details.
@@ -26813,9 +26891,10 @@ but at the common table.@*
 
 If you want to investigate the person responsible for this outrage,
 you can point your (feh!) web browser to
-@uref{https://quimby.gnus.org/}.  This is also the primary
-distribution point for the new and spiffy versions of Gnus, and is
-known as The Site That Destroys Newsrcs And Drives People Mad.
+@uref{https://quimby.gnus.org/}.  This used to be the primary
+distribution point for the new and spiffy versions of Gnus, and was
+known as The Site That Destroys Newsrcs And Drives People Mad, but
+these days Gnus is developed in the Emacs repository.
 
 During the first extended alpha period of development, the new Gnus was
 called ``(ding) Gnus''.  @dfn{(ding)} is, of course, short for
@@ -28807,7 +28886,7 @@ gnus-agent-cache nil)} reverts to the old behavior.
 @item
 Dired integration
 
-@code{gnus-dired-minor-mode} (see @ref{Other modes}) installs key
+@code{gnus-dired-minor-mode} (@pxref{Other modes}) installs key
 bindings in dired buffers to send a file as an attachment, open a file
 using the appropriate mailcap entry, and print a file using the mailcap
 entry.

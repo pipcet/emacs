@@ -1,6 +1,6 @@
-;;; semantic/dep.el --- Methods for tracking dependencies (include files)
+;;; semantic/dep.el --- Methods for tracking dependencies (include files)  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2006-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2006-2022 Free Software Foundation, Inc.
 
 ;; Author: Eric M. Ludlam <zappo@gnu.org>
 ;; Keywords: syntax
@@ -82,6 +82,7 @@ users will customize.
 
 Creates a customizable variable users can customize that will
 keep semantic data structures up to date."
+  (declare (indent defun))
   `(progn
      ;; Create a variable users can customize.
      (defcustom ,name ,value
@@ -123,17 +124,17 @@ Changes made by this function are not persistent."
   (if (not mode) (setq mode major-mode))
   (let ((dirtmp (file-name-as-directory dir))
 	(value
-	 (mode-local-value mode 'semantic-dependency-system-include-path))
-	)
-    (add-to-list 'value dirtmp t)
+	 (mode-local-value mode 'semantic-dependency-system-include-path)))
     (eval `(setq-mode-local ,mode
-			    semantic-dependency-system-include-path value))
-    ))
+			    semantic-dependency-system-include-path
+			    ',(if (member dirtmp value) value
+			        (append value (list dirtmp))))
+	  t)))
 
 ;;;###autoload
 (defun semantic-remove-system-include (dir &optional mode)
   "Add a system include DIR to path for MODE.
-Modifies a mode-local version of`semantic-dependency-system-include-path'.
+Modifies a mode-local version of `semantic-dependency-system-include-path'.
 
 Changes made by this function are not persistent."
   (interactive (list
@@ -146,10 +147,10 @@ Changes made by this function are not persistent."
 	(value
 	 (mode-local-value mode 'semantic-dependency-system-include-path))
 	)
-    (setq value (delete dirtmp value))
+    (setq value (remove dirtmp value))
     (eval `(setq-mode-local ,mode semantic-dependency-system-include-path
-			    value))
-    ))
+			    ',value)
+	  t)))
 
 ;;;###autoload
 (defun semantic-reset-system-include (&optional mode)
@@ -157,10 +158,10 @@ Changes made by this function are not persistent."
 Modifies a mode-local version of
 `semantic-dependency-system-include-path'."
   (interactive)
-  (if (not mode) (setq mode major-mode))
-  (eval `(setq-mode-local ,mode semantic-dependency-system-include-path
-			  nil))
-  )
+  (eval `(setq-mode-local ,(or mode major-mode)
+			  semantic-dependency-system-include-path
+			  nil)
+	t))
 
 ;;;###autoload
 (defun semantic-customize-system-include-path (&optional mode)

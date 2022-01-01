@@ -1,6 +1,6 @@
 ;;; keymap-tests.el --- Test suite for src/keymap.c -*- lexical-binding: t -*-
 
-;; Copyright (C) 2015-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2015-2022 Free Software Foundation, Inc.
 
 ;; Author: Juanma Barranquero <lekktu@gmail.com>
 ;;         Stefan Kangas <stefankangas@gmail.com>
@@ -63,10 +63,115 @@
     (keymap--get-keyelt object t)
     (should menu-item-filter-ran)))
 
+(ert-deftest keymap-define-key/undefined ()
+  ;;  nil (means key is undefined in this keymap),
+  (let ((map (make-keymap)))
+    (define-key map [?a] nil)
+    (should-not (lookup-key map [?a]))))
+
+(ert-deftest keymap-define-key/keyboard-macro ()
+  ;;  a string (treated as a keyboard macro),
+  (let ((map (make-keymap)))
+    (define-key map [?a] "abc")
+    (should (equal (lookup-key map [?a]) "abc"))))
+
+(ert-deftest keymap-define-key/lambda ()
+  (let ((map (make-keymap)))
+    (define-key map [?a] (lambda () (interactive) nil))
+    (should (functionp (lookup-key map [?a])))))
+
+(ert-deftest keymap-define-key/keymap ()
+  ;;  a keymap (to define a prefix key),
+  (let ((map (make-keymap))
+        (map2 (make-keymap)))
+    (define-key map [?a] map2)
+    (define-key map2 [?b] 'foo)
+    (should (eq (lookup-key map [?a ?b]) 'foo))))
+
+(ert-deftest keymap-define-key/menu-item ()
+  ;;  or an extended menu item definition.
+  ;;  (See info node ‘(elisp)Extended Menu Items’.)
+  (let ((map (make-sparse-keymap))
+        (menu (make-sparse-keymap)))
+    (define-key menu [new-file]
+      '(menu-item "Visit New File..." find-file
+                  :enable (menu-bar-non-minibuffer-window-p)
+                  :help "Specify a new file's name, to edit the file"))
+    (define-key map [menu-bar file] (cons "File" menu))
+    (should (eq (lookup-key map [menu-bar file new-file]) 'find-file))))
+
 (ert-deftest keymap-lookup-key ()
   (let ((map (make-keymap)))
     (define-key map [?a] 'foo)
-    (should (eq (lookup-key map [?a]) 'foo))))
+    (should (eq (lookup-key map [?a]) 'foo))
+    (should-not (lookup-key map [?b]))))
+
+(ert-deftest keymap-lookup-key/list-of-keymaps ()
+  (let ((map1 (make-keymap))
+        (map2 (make-keymap)))
+    (define-key map1 [?a] 'foo)
+    (define-key map2 [?b] 'bar)
+    (should (eq (lookup-key (list map1 map2) [?a]) 'foo))
+    (should (eq (lookup-key (list map1 map2) [?b]) 'bar))
+    (should-not (lookup-key (list map1 map2) [?c]))))
+
+(ert-deftest keymap-lookup-key/too-long ()
+  (let ((map (make-keymap)))
+    (define-key map (kbd "C-c f") 'foo)
+    (should (= (lookup-key map (kbd "C-c f x")) 2))))
+
+;; TODO: Write test for the ACCEPT-DEFAULT argument.
+;; (ert-deftest keymap-lookup-key/accept-default ()
+;;   ...)
+
+(ert-deftest keymap-lookup-key/mixed-case ()
+  "Backwards compatibility behaviour (Bug#50752)."
+  (let ((map (make-keymap)))
+    (define-key map [menu-bar foo bar] 'foo)
+    (should (eq (lookup-key map [menu-bar foo bar]) 'foo))
+    (should (eq (lookup-key map [menu-bar Foo Bar]) 'foo)))
+  (let ((map (make-keymap)))
+    (define-key map [menu-bar i-bar] 'foo)
+    (should (eq (lookup-key map [menu-bar I-bar]) 'foo))))
+
+(ert-deftest keymap-lookup-key/mixed-case-multibyte ()
+  "Backwards compatibility behaviour (Bug#50752)."
+  (let ((map (make-keymap)))
+    ;; (downcase "Åäö") => "åäö"
+    (define-key map [menu-bar åäö bar] 'foo)
+    (should (eq (lookup-key map [menu-bar åäö bar]) 'foo))
+    (should (eq (lookup-key map [menu-bar Åäö Bar]) 'foo))
+    ;; (downcase "Γ") => "γ"
+    (define-key map [menu-bar γ bar] 'baz)
+    (should (eq (lookup-key map [menu-bar γ bar]) 'baz))
+    (should (eq (lookup-key map [menu-bar Γ Bar]) 'baz))))
+
+(ert-deftest keymap-lookup-key/menu-non-symbol ()
+  "Test for Bug#51527."
+  (let ((map (make-keymap)))
+    (define-key map [menu-bar buffer 1] 'foo)
+    (should (eq (lookup-key map [menu-bar buffer 1]) 'foo))))
+
+(ert-deftest keymap-lookup-keymap/with-spaces ()
+  "Backwards compatibility behaviour (Bug#50752)."
+  (let ((map (make-keymap)))
+    (define-key map [menu-bar foo-bar] 'foo)
+    (should (eq (lookup-key map [menu-bar Foo\ Bar]) 'foo))))
+
+(ert-deftest keymap-lookup-keymap/with-spaces-multibyte ()
+  "Backwards compatibility behaviour (Bug#50752)."
+  (let ((map (make-keymap)))
+    (define-key map [menu-bar åäö-bar] 'foo)
+    (should (eq (lookup-key map [menu-bar Åäö\ Bar]) 'foo))))
+
+(ert-deftest keymap-lookup-keymap/with-spaces-multibyte-lang-env ()
+  "Backwards compatibility behaviour (Bug#50752)."
+  (let ((lang-env current-language-environment))
+    (set-language-environment "Turkish")
+    (let ((map (make-keymap)))
+      (define-key map [menu-bar i-bar] 'foo)
+      (should (eq (lookup-key map [menu-bar I-bar]) 'foo)))
+    (set-language-environment lang-env)))
 
 (ert-deftest describe-buffer-bindings/header-in-current-buffer ()
   "Header should be inserted into the current buffer.
@@ -171,15 +276,11 @@ commit 86c19714b097aa477d339ed99ffb5136c755a046."
     (should (equal (where-is-internal 'foo map t) [?y]))
     (should (equal (where-is-internal 'bar map t) [?y]))))
 
-(defvar keymap-tests-minor-mode-map
-  (let ((map (make-sparse-keymap)))
-    (define-key map "x" 'keymap-tests--command-2)
-    map))
+(defvar-keymap keymap-tests-minor-mode-map
+  "x" 'keymap-tests--command-2)
 
-(defvar keymap-tests-major-mode-map
-  (let ((map (make-sparse-keymap)))
-    (define-key map "x" 'keymap-tests--command-1)
-    map))
+(defvar-keymap keymap-tests-major-mode-map
+  "x" 'keymap-tests--command-1)
 
 (define-minor-mode keymap-tests-minor-mode "Test.")
 
@@ -213,16 +314,17 @@ commit 86c19714b097aa477d339ed99ffb5136c755a046."
         (shadow-map (let ((map (make-keymap)))
                       (define-key map "f" 'bar)
                       map))
-        (text-quoting-style 'grave))
+        (text-quoting-style 'grave)
+        (describe-bindings-check-shadowing-in-ranges 'ignore-self-insert))
     (with-temp-buffer
       (help--describe-vector (cadr orig-map) nil #'help--describe-command
                              t shadow-map orig-map t)
-      (should (equal (buffer-string)
-                     "
+      (should (equal (buffer-substring-no-properties (point-min) (point-max))
+                     (string-replace "\t" "" "
 e		foo
 f		foo  (currently shadowed by `bar')
 g .. h		foo
-")))))
+"))))))
 
 (ert-deftest help--describe-vector/bug-9293-same-command-does-not-shadow ()
   "Check that a command can't be shadowed by the same command."
@@ -243,10 +345,10 @@ g .. h		foo
    (with-temp-buffer
      (help--describe-vector (cadr range-map) nil #'help--describe-command
                             t shadow-map range-map t)
-     (should (equal (buffer-string)
-                    "
+     (should (equal (buffer-substring-no-properties (point-min) (point-max))
+                    (string-replace "\t" "" "
 0 .. 3		foo
-")))))
+"))))))
 
 (ert-deftest keymap--key-description ()
   (should (equal (key-description [right] [?\C-x])
@@ -259,6 +361,62 @@ g .. h		foo
                  "home"))
   (should (equal (single-key-description 'C-s-home)
                  "C-s-<home>")))
+
+(ert-deftest keymap-test-lookups ()
+  (should (eq (lookup-key (current-global-map) "\C-x\C-f") 'find-file))
+  (should (eq (lookup-key (current-global-map) [(control x) (control f)])
+              'find-file))
+  (should (eq (lookup-key (current-global-map) ["C-x C-f"]) 'find-file))
+  (should (eq (lookup-key (current-global-map) [?\C-x ?\C-f]) 'find-file)))
+
+(ert-deftest keymap-removal ()
+  ;; Set to nil.
+  (let ((map (define-keymap "a" 'foo)))
+    (should (equal map '(keymap (97 . foo))))
+    (define-key map "a" nil)
+    (should (equal map '(keymap (97)))))
+  ;; Remove.
+  (let ((map (define-keymap "a" 'foo)))
+    (should (equal map '(keymap (97 . foo))))
+    (define-key map "a" nil t)
+    (should (equal map '(keymap)))))
+
+(ert-deftest keymap-removal-inherit ()
+  ;; Set to nil.
+  (let ((parent (make-sparse-keymap))
+        (child (make-keymap)))
+    (set-keymap-parent child parent)
+    (define-key parent [?a] 'foo)
+    (define-key child  [?a] 'bar)
+
+    (should (eq (lookup-key child [?a]) 'bar))
+    (define-key child [?a] nil)
+    (should (eq (lookup-key child [?a]) nil)))
+  ;; Remove.
+  (let ((parent (make-sparse-keymap))
+        (child (make-keymap)))
+    (set-keymap-parent child parent)
+    (define-key parent [?a] 'foo)
+    (define-key child  [?a] 'bar)
+
+    (should (eq (lookup-key child [?a]) 'bar))
+    (define-key child [?a] nil t)
+    (should (eq (lookup-key child [?a]) 'foo))))
+
+(ert-deftest keymap-text-char-description ()
+  (should (equal (text-char-description ?a) "a"))
+  (should (equal (text-char-description ?\s) " "))
+  (should (equal (text-char-description ?\t) "^I"))
+  (should (equal (text-char-description ?\^C) "^C"))
+  (should (equal (text-char-description ?\^?) "^?"))
+  (should (equal (text-char-description #x80) ""))
+  (should (equal (text-char-description ?å) "å"))
+  (should (equal (text-char-description ?Ş) "Ş"))
+  (should (equal (text-char-description ?Ā) "Ā"))
+  (should-error (text-char-description "c"))
+  (should-error (text-char-description [?\C-x ?l]))
+  (should-error (text-char-description ?\M-c))
+  (should-error (text-char-description ?\s-c)))
 
 (provide 'keymap-tests)
 

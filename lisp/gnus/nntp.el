@@ -1,6 +1,6 @@
 ;;; nntp.el --- nntp access for Gnus  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1987-1990, 1992-1998, 2000-2021 Free Software
+;; Copyright (C) 1987-1990, 1992-1998, 2000-2022 Free Software
 ;; Foundation, Inc.
 
 ;; Author: Lars Magne Ingebrigtsen <larsi@gnus.org>
@@ -233,7 +233,7 @@ server there that you can connect to.  See also
 					  (const :format "" "password")
 					  (string :format "Password: %v")))))))
 
-(make-obsolete 'nntp-authinfo-file nil "Emacs 24.1")
+(make-obsolete 'nntp-authinfo-file nil "24.1")
 
 
 
@@ -331,9 +331,7 @@ retried once before actually displaying the error report."
     (when nntp-record-commands
       (nntp-record-command "*** CALLED nntp-report ***"))
 
-    (nnheader-report 'nntp args)
-
-    (apply #'error args)))
+    (nnheader-report 'nntp args)))
 
 (defsubst nntp-copy-to-buffer (buffer start end)
   "Copy string from unibyte current buffer to multibyte buffer."
@@ -1697,7 +1695,7 @@ If SEND-IF-FORCE, only send authinfo to the server if the
 		   ;; article comes from that group, I'd say.
 		   ((and (setq newsgroups
 			       (mail-fetch-field "newsgroups"))
-			 (not (string-match "," newsgroups)))
+			 (not (string-search "," newsgroups)))
 		    newsgroups)
 		   ;; If there is more than one group in the
 		   ;; Newsgroups header, then the Xref header should
@@ -1725,7 +1723,7 @@ If SEND-IF-FORCE, only send authinfo to the server if the
 		  number (string-to-number (match-string 2 xref))))
 	   ((and (setq newsgroups
 		       (mail-fetch-field "newsgroups"))
-		 (not (string-match "," newsgroups)))
+		 (not (string-search "," newsgroups)))
 	    (setq group newsgroups))
 	   (group)
 	   (t (setq group ""))))

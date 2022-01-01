@@ -1,6 +1,6 @@
-;;; speedbar --- quick access to files and tags in a frame  -*- lexical-binding: t; -*-
+;;; speedbar.el --- quick access to files and tags in a frame  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 1996-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1996-2022 Free Software Foundation, Inc.
 
 ;; Author: Eric M. Ludlam <zappo@gnu.org>
 ;; Keywords: file, tags, tools
@@ -106,7 +106,6 @@
 ;;; TODO:
 ;; - Timeout directories we haven't visited in a while.
 
-(require 'easymenu)
 (require 'dframe)
 (require 'ezimage)
 
@@ -141,25 +140,6 @@
   :type 'boolean)
 
 ;;; Code:
-
-;; Note: `inversion-test' requires parts of the CEDET package that are
-;; not included with Emacs.
-;;
-;; (defun speedbar-require-version (major minor &optional beta)
-;;   "Non-nil if this version of SPEEDBAR does not satisfy a specific version.
-;; Arguments can be:
-;;
-;;   (MAJOR MINOR &optional BETA)
-;;
-;;   Values MAJOR and MINOR must be integers.  BETA can be an integer, or
-;; excluded if a released version is required.
-;;
-;; It is assumed that if the current version is newer than that specified,
-;; everything passes.  Exceptions occur when known incompatibilities are
-;; introduced."
-;;   (inversion-test 'speedbar
-;; 		  (concat major "." minor
-;; 			  (when beta (concat "beta" beta)))))
 
 (defvar speedbar-initial-expansion-mode-alist
   '(("buffers" speedbar-buffer-easymenu-definition speedbar-buffers-key-map
@@ -308,22 +288,6 @@ The default buffer is the buffer in the selected window in the attached frame."
 A nil value means don't show the file in the list."
   :group 'speedbar
   :type 'boolean)
-
-;;; EVENTUALLY REMOVE THESE
-
-;; When I moved to a repeating timer, I had the horrible misfortune
-;; of losing the ability for adaptive speed choice.  This update
-;; speed currently causes long delays when it should have been turned off.
-(defvar speedbar-update-speed dframe-update-speed)
-(make-obsolete-variable 'speedbar-update-speed
-			'dframe-update-speed
-			"speedbar 1.0pre3 (Emacs 23.1)")
-
-(defvar speedbar-navigating-speed dframe-update-speed)
-(make-obsolete-variable 'speedbar-navigating-speed
-			'dframe-update-speed
-			"speedbar 1.0pre3 (Emacs 23.1)")
-;;; END REMOVE THESE
 
 (defcustom speedbar-frame-parameters '((minibuffer . nil)
 				       (width . 20)
@@ -1858,9 +1822,9 @@ matches the user directory ~, then it is replaced with a ~.
 INDEX is not used, but is required by the caller."
   (let* ((tilde (expand-file-name "~/"))
 	 (dd (expand-file-name directory))
-	 (junk (string-prefix-p "~/" dd))
+	 (junk (string-match (regexp-quote tilde) dd))
 	 (displayme (if junk
-			(concat "~/" (substring dd 2 nil))
+			(concat "~/" (substring dd (match-end 0)))
 		      dd))
 	 (p (point)))
     (if (string-match "^~[/\\]?\\'" displayme) (setq displayme tilde))
@@ -2195,10 +2159,13 @@ passes some tests."
 			  ;; way by displaying the range over which we
 			  ;; have grouped them.
 			  (setq work-list
-				(cons (cons (concat short-start-name
-						    " to "
-						    short-end-name)
-					    short-group-list)
+				(cons (cons
+                                       (concat short-start-name
+					       " to " short-end-name)
+                                       (sort (copy-sequence short-group-list)
+                                             (lambda (e1 e2)
+                                               (string< (car e1)
+                                                        (car e2)))))
 				      work-list))))
 		     ;; Reset short group list information every time.
 			(setq short-group-list nil
@@ -3280,7 +3247,7 @@ subdirectory chosen will be at INDENT level."
   ;; in case.
   (let ((speedbar-smart-directory-expand-flag nil))
     (speedbar-update-contents))
-  (speedbar-set-timer speedbar-navigating-speed)
+  (speedbar-set-timer dframe-update-speed)
   (setq speedbar-last-selected-file nil)
   (speedbar-stealthy-updates))
 
@@ -3303,7 +3270,7 @@ Handles end-of-sublist smartly."
 Clicking this button expands or contracts a directory.  TEXT is the
 button clicked which has either a + or -.  TOKEN is the directory to be
 expanded.  INDENT is the current indentation level."
-  (cond ((string-match "\\+" text)	;we have to expand this dir
+  (cond ((string-search "+" text)	;we have to expand this dir
 	 (setq speedbar-shown-directories
 	       (cons (expand-file-name
 		      (concat (speedbar-line-directory indent) token "/"))
@@ -3316,7 +3283,7 @@ expanded.  INDENT is the current indentation level."
 	     (speedbar-default-directory-list
 	      (concat (speedbar-line-directory indent) token "/")
 	      (1+ indent)))))
-	((string-match "-" text)	;we have to contract this node
+	((string-search "-" text)	;we have to contract this node
 	 (speedbar-reset-scanners)
 	 (let ((oldl speedbar-shown-directories)
 	       (newl nil)
@@ -3343,14 +3310,14 @@ INDENT is the current indentation level and is unused."
   ;; update contents will change directory without
   ;; having to touch the attached frame.
   (speedbar-update-contents)
-  (speedbar-set-timer speedbar-navigating-speed))
+  (speedbar-set-timer dframe-update-speed))
 
 (defun speedbar-tag-file (text token indent)
   "The cursor is on a selected line.  Expand the tags in the specified file.
 The parameter TEXT and TOKEN are required, where TEXT is the button
 clicked, and TOKEN is the file to expand.  INDENT is the current
 indentation level."
-  (cond ((string-match "\\+" text)	;we have to expand this file
+  (cond ((string-search "+" text)	;we have to expand this file
 	 (let* ((fn (expand-file-name (concat (speedbar-line-directory indent)
 					      token)))
 		(lst (speedbar-fetch-dynamic-tags fn)))
@@ -3362,7 +3329,7 @@ indentation level."
 	       (save-excursion
 		 (end-of-line) (forward-char 1)
 		 (funcall (car lst) indent (cdr lst)))))))
-	((string-match "-" text)	;we have to contract this node
+	((string-search "-" text)	;we have to contract this node
 	 (speedbar-change-expand-button-char ?+)
 	 (speedbar-delete-subblock indent))
 	(t (error "Ooops...  not sure what to do")))
@@ -3391,14 +3358,14 @@ INDENT is the current indentation level."
   "Expand a tag sublist.  Imenu will return sub-lists of specialized tag types.
 Etags does not support this feature.  TEXT will be the button string.
 TOKEN will be the list, and INDENT is the current indentation level."
-  (cond ((string-match "\\+" text)	;we have to expand this file
+  (cond ((string-search "+" text)	;we have to expand this file
 	 (speedbar-change-expand-button-char ?-)
 	 (speedbar-with-writable
 	   (save-excursion
 	     (end-of-line) (forward-char 1)
 	     (speedbar-insert-generic-list indent token 'speedbar-tag-expand
 					   'speedbar-tag-find))))
-	((string-match "-" text)	;we have to contract this node
+	((string-search "-" text)	;we have to contract this node
 	 (speedbar-change-expand-button-char ?+)
 	 (speedbar-delete-subblock indent))
 	(t (error "Ooops...  not sure what to do")))
@@ -3727,26 +3694,20 @@ regular expression EXPR."
 
 ;;; BUFFER DISPLAY mode.
 ;;
-(defvar speedbar-buffers-key-map nil
+(defvar speedbar-buffers-key-map
+  (let ((map (speedbar-make-specialized-keymap)))
+    ;; Basic tree features
+    (define-key map "e" #'speedbar-edit-line)
+    (define-key map "\C-m" #'speedbar-edit-line)
+    (define-key map "+" #'speedbar-expand-line)
+    (define-key map "=" #'speedbar-expand-line)
+    (define-key map "-" #'speedbar-contract-line)
+    (define-key map " " #'speedbar-toggle-line-expansion)
+    ;; Buffer specific keybindings
+    (define-key map "k" #'speedbar-buffer-kill-buffer)
+    (define-key map "r" #'speedbar-buffer-revert-buffer)
+    map)
   "Keymap used when in the buffers display mode.")
-
-(if speedbar-buffers-key-map
-    nil
-  (setq speedbar-buffers-key-map (speedbar-make-specialized-keymap))
-
-  ;; Basic tree features
-  (define-key speedbar-buffers-key-map "e" 'speedbar-edit-line)
-  (define-key speedbar-buffers-key-map "\C-m" 'speedbar-edit-line)
-  (define-key speedbar-buffers-key-map "+" 'speedbar-expand-line)
-  (define-key speedbar-buffers-key-map "=" 'speedbar-expand-line)
-  (define-key speedbar-buffers-key-map "-" 'speedbar-contract-line)
-  (define-key speedbar-buffers-key-map " " 'speedbar-toggle-line-expansion)
-
-  ;; Buffer specific keybindings
-  (define-key speedbar-buffers-key-map "k" 'speedbar-buffer-kill-buffer)
-  (define-key speedbar-buffers-key-map "r" 'speedbar-buffer-revert-buffer)
-
-  )
 
 (defvar speedbar-buffer-easymenu-definition
   '(["Jump to buffer" speedbar-edit-line t]
@@ -4088,7 +4049,6 @@ this version is not backward compatible to 0.14 or earlier.")
 
 (provide 'speedbar)
 
-;; run load-time hooks
 (run-hooks 'speedbar-load-hook)
 
-;;; speedbar ends here
+;;; speedbar.el ends here

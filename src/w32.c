@@ -1,6 +1,6 @@
 /* Utility and Unix shadow routines for GNU Emacs on the Microsoft Windows API.
 
-Copyright (C) 1994-1995, 2000-2021 Free Software Foundation, Inc.
+Copyright (C) 1994-1995, 2000-2022 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -39,6 +39,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #include <sys/time.h>
 #include <sys/utime.h>
 #include <math.h>
+#include <nproc.h>
 
 /* Include (most) CRT headers *before* ms-w32.h.  */
 #include <ms-w32.h>
@@ -1941,11 +1942,10 @@ buf_prev (int from)
   return prev_idx;
 }
 
-static void
-sample_system_load (ULONGLONG *idle, ULONGLONG *kernel, ULONGLONG *user)
+unsigned
+w32_get_nproc (void)
 {
   SYSTEM_INFO sysinfo;
-  FILETIME ft_idle, ft_user, ft_kernel;
 
   /* Initialize the number of processors on this machine.  */
   if (num_of_processors <= 0)
@@ -1960,6 +1960,25 @@ sample_system_load (ULONGLONG *idle, ULONGLONG *kernel, ULONGLONG *user)
       if (num_of_processors <= 0)
 	num_of_processors = 1;
     }
+  return num_of_processors;
+}
+
+/* Emulate Gnulib's 'num_processors'.  We cannot use the Gnulib
+   version because it unconditionally calls APIs that aren't available
+   on old MS-Windows versions.  */
+unsigned long
+num_processors (enum nproc_query query)
+{
+  /* We ignore QUERY.  */
+  return w32_get_nproc ();
+}
+
+static void
+sample_system_load (ULONGLONG *idle, ULONGLONG *kernel, ULONGLONG *user)
+{
+  FILETIME ft_idle, ft_user, ft_kernel;
+
+  (void) w32_get_nproc ();
 
   /* TODO: Take into account threads that are ready to run, by
      sampling the "\System\Processor Queue Length" performance
@@ -2381,8 +2400,13 @@ rand_as183 (void)
 int
 random (void)
 {
-  /* rand_as183 () gives us 15 random bits...hack together 30 bits.  */
+  /* rand_as183 () gives us 15 random bits...hack together 30 bits for
+     Emacs with 32-bit EMACS_INT, and at least 31 bit for wider EMACS_INT.  */
+#if EMACS_INT_MAX > INT_MAX
+  return ((rand_as183 () << 30) | (rand_as183 () << 15) | rand_as183 ());
+#else
   return ((rand_as183 () << 15) | rand_as183 ());
+#endif
 }
 
 void
@@ -2796,53 +2820,6 @@ sys_putenv (char *str)
 
 #define REG_ROOT "SOFTWARE\\GNU\\Emacs"
 
-LPBYTE
-w32_get_resource (const char *key, LPDWORD lpdwtype)
-{
-  LPBYTE lpvalue;
-  HKEY hrootkey = NULL;
-  DWORD cbData;
-
-  /* Check both the current user and the local machine to see if
-     we have any resources.  */
-
-  if (RegOpenKeyEx (HKEY_CURRENT_USER, REG_ROOT, 0, KEY_READ, &hrootkey) == ERROR_SUCCESS)
-    {
-      lpvalue = NULL;
-
-      if (RegQueryValueEx (hrootkey, key, NULL, NULL, NULL, &cbData) == ERROR_SUCCESS
-	  && (lpvalue = xmalloc (cbData)) != NULL
-	  && RegQueryValueEx (hrootkey, key, NULL, lpdwtype, lpvalue, &cbData) == ERROR_SUCCESS)
-	{
-          RegCloseKey (hrootkey);
-	  return (lpvalue);
-	}
-
-      xfree (lpvalue);
-
-      RegCloseKey (hrootkey);
-    }
-
-  if (RegOpenKeyEx (HKEY_LOCAL_MACHINE, REG_ROOT, 0, KEY_READ, &hrootkey) == ERROR_SUCCESS)
-    {
-      lpvalue = NULL;
-
-      if (RegQueryValueEx (hrootkey, key, NULL, NULL, NULL, &cbData) == ERROR_SUCCESS
-	  && (lpvalue = xmalloc (cbData)) != NULL
-	  && RegQueryValueEx (hrootkey, key, NULL, lpdwtype, lpvalue, &cbData) == ERROR_SUCCESS)
-	{
-          RegCloseKey (hrootkey);
-	  return (lpvalue);
-	}
-
-      xfree (lpvalue);
-
-      RegCloseKey (hrootkey);
-    }
-
-  return (NULL);
-}
-
 /* The argv[] array holds ANSI-encoded strings, and so this function
    works with ANS_encoded strings.  */
 void
@@ -3053,7 +3030,7 @@ init_environment (char ** argv)
 	    int dont_free = 0;
 	    char bufc[SET_ENV_BUF_SIZE];
 
-	    if ((lpval = w32_get_resource (env_vars[i].name, &dwType)) == NULL
+	    if ((lpval = w32_get_resource (REG_ROOT, env_vars[i].name, &dwType)) == NULL
 		/* Also ignore empty environment variables.  */
 		|| *lpval == 0)
 	      {
@@ -4739,7 +4716,7 @@ sys_rename_replace (const char *oldname, const char *newname, BOOL force)
   /* volume_info is set indirectly by map_w32_filename.  */
   oldname_dev = volume_info.serialnum;
 
-  if (os_subtype == OS_9X)
+  if (os_subtype == OS_SUBTYPE_9X)
     {
       char * o;
       char * p;
@@ -6571,7 +6548,8 @@ acl_get_file (const char *fname, acl_type_t type)
 		  xfree (psd);
 		  err = GetLastError ();
 		  if (err == ERROR_NOT_SUPPORTED
-		      || err == ERROR_ACCESS_DENIED)
+		      || err == ERROR_ACCESS_DENIED
+		      || err == ERROR_INVALID_FUNCTION)
 		    errno = ENOTSUP;
 		  else if (err == ERROR_FILE_NOT_FOUND
 			   || err == ERROR_PATH_NOT_FOUND
@@ -6590,10 +6568,11 @@ acl_get_file (const char *fname, acl_type_t type)
 		   || err == ERROR_INVALID_NAME)
 	    errno = ENOENT;
 	  else if (err == ERROR_NOT_SUPPORTED
-		   /* ERROR_ACCESS_DENIED is what we get for a volume
-		      mounted by WebDAV, which evidently doesn't
-		      support ACLs.  */
-		   || err == ERROR_ACCESS_DENIED)
+		   /* ERROR_ACCESS_DENIED or ERROR_INVALID_FUNCTION is
+		      what we get for a volume mounted by WebDAV,
+		      which evidently doesn't support ACLs.  */
+		   || err == ERROR_ACCESS_DENIED
+		   || err == ERROR_INVALID_FUNCTION)
 	    errno = ENOTSUP;
 	  else
 	    errno = EIO;
@@ -8569,7 +8548,7 @@ fcntl (int s, int cmd, int options)
 int
 sys_close (int fd)
 {
-  int rc;
+  int rc = -1;
 
   if (fd < 0)
     {
@@ -8624,14 +8603,31 @@ sys_close (int fd)
 	}
     }
 
-  if (fd >= 0 && fd < MAXDESC)
-    fd_info[fd].flags = 0;
-
   /* Note that sockets do not need special treatment here (at least on
      NT and Windows 95 using the standard tcp/ip stacks) - it appears that
      closesocket is equivalent to CloseHandle, which is to be expected
      because socket handles are fully fledged kernel handles. */
-  rc = _close (fd);
+  if (fd < MAXDESC)
+    {
+      if ((fd_info[fd].flags & FILE_DONT_CLOSE) == 0)
+	{
+	  fd_info[fd].flags = 0;
+	  rc = _close (fd);
+	}
+      else
+	{
+	  /* We don't close here descriptors open by pipe processes
+	     for reading from the pipe, because the reader thread
+	     might be stuck in _sys_read_ahead, and then we will hang
+	     here.  If the reader thread exits normally, it will close
+	     the descriptor; otherwise we will leave a zombie thread
+	     hanging around.  */
+	  rc = 0;
+	  /* Leave the flag set for the reader thread to close the
+	     descriptor.  */
+	  fd_info[fd].flags = FILE_DONT_CLOSE;
+	}
+    }
 
   return rc;
 }
@@ -8745,7 +8741,7 @@ int
 _sys_read_ahead (int fd)
 {
   child_process * cp;
-  int rc;
+  int rc = 0;
 
   if (fd < 0 || fd >= MAXDESC)
     return STATUS_READ_ERROR;
@@ -10247,7 +10243,8 @@ check_windows_init_file (void)
 	 need to ENCODE_FILE here, but we do need to convert the file
 	 names from UTF-8 to ANSI.  */
       init_file = build_string ("term/w32-win");
-      fd = openp (Vload_path, init_file, Fget_load_suffixes (), NULL, Qnil, 0);
+      fd =
+	openp (Vload_path, init_file, Fget_load_suffixes (), NULL, Qnil, 0, 0);
       if (fd < 0)
 	{
 	  Lisp_Object load_path_print = Fprin1_to_string (Vload_path, Qnil);
@@ -10439,6 +10436,13 @@ shutdown_handler (DWORD type)
       || type == CTRL_LOGOFF_EVENT    /* User logs off.  */
       || type == CTRL_SHUTDOWN_EVENT) /* User shutsdown.  */
     {
+      /* If we are being shut down in noninteractive mode, we don't
+	 care about the message stack, so clear it to avoid abort in
+	 shut_down_emacs.  This happens when an noninteractive Emacs
+	 is invoked as a subprocess of Emacs, and the parent wants to
+	 kill us, e.g. because it's about to exit.  */
+      if (noninteractive)
+	clear_message_stack ();
       /* Shut down cleanly, making sure autosave files are up to date.  */
       shut_down_emacs (0, Qnil);
     }
@@ -10452,7 +10456,7 @@ shutdown_handler (DWORD type)
 HANDLE
 maybe_load_unicows_dll (void)
 {
-  if (os_subtype == OS_9X)
+  if (os_subtype == OS_SUBTYPE_9X)
     {
       HANDLE ret = LoadLibrary ("Unicows.dll");
       if (ret)
@@ -10571,6 +10575,45 @@ w32_my_exename (void)
   return exename;
 }
 
+/* Emulate Posix 'realpath'.  This is needed in
+   comp-el-to-eln-rel-filename.  */
+char *
+realpath (const char *file_name, char *resolved_name)
+{
+  char *tgt = chase_symlinks (file_name);
+  char target[MAX_UTF8_PATH];
+
+  if (tgt == file_name)
+    {
+      /* If FILE_NAME is not a symlink, chase_symlinks returns its
+	 argument, possibly not in canonical absolute form.  Make sure
+	 we return a canonical file name.  */
+      if (w32_unicode_filenames)
+	{
+	  wchar_t file_w[MAX_PATH], tgt_w[MAX_PATH];
+
+	  filename_to_utf16 (file_name, file_w);
+	  if (GetFullPathNameW (file_w, MAX_PATH, tgt_w, NULL) == 0)
+	    return NULL;
+	  filename_from_utf16 (tgt_w, target);
+	}
+      else
+	{
+	  char file_a[MAX_PATH], tgt_a[MAX_PATH];
+
+	  filename_to_ansi (file_name, file_a);
+	  if (GetFullPathNameA (file_a, MAX_PATH, tgt_a, NULL) == 0)
+	    return NULL;
+	  filename_from_ansi (tgt_a, target);
+	}
+      tgt = target;
+    }
+
+  if (resolved_name)
+    return strcpy (resolved_name, tgt);
+  return xstrdup (tgt);
+}
+
 /*
 	globals_of_w32 is used to initialize those global variables that
 	must always be initialized on startup even when the global variable
@@ -10657,6 +10700,10 @@ globals_of_w32 (void)
 #endif
 
   w32_crypto_hprov = (HCRYPTPROV)0;
+
+  /* We need to forget about libraries that were loaded during the
+     dumping process (e.g. libgccjit) */
+  Vlibrary_cache = Qnil;
 }
 
 /* For make-serial-process  */
@@ -10868,6 +10915,7 @@ register_aux_fd (int infd)
     }
   fd_info[ infd ].cp = cp;
   fd_info[ infd ].hnd = (HANDLE) _get_osfhandle (infd);
+  fd_info[ infd ].flags |= FILE_DONT_CLOSE;
 }
 
 #ifdef HAVE_GNUTLS

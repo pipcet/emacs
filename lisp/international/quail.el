@@ -1,6 +1,6 @@
 ;;; quail.el --- provides simple input method for multilingual text  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 1997-1998, 2000-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1997-1998, 2000-2022 Free Software Foundation, Inc.
 ;; Copyright (C) 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004,
 ;;   2005, 2006, 2007, 2008, 2009, 2010, 2011
 ;;   National Institute of Advanced Industrial Science and Technology (AIST)
@@ -471,7 +471,8 @@ conversion region is active.  It is an alist of single key character
 vs. corresponding command to be called.
 
 If SIMPLE is non-nil, then we do not alter the meanings of
-commands such as C-f, C-b, C-n, C-p and TAB; they are treated as
+commands such as \\[forward-char], \\[backward-char], \\[next-line], \
+\\[previous-line] and \\[indent-for-tab-command]; they are treated as
 non-Quail commands."
   (let (translation-keymap conversion-keymap)
     (if deterministic (setq forget-last-selection t))
@@ -728,9 +729,9 @@ Available types are listed in the variable `quail-keyboard-layout-alist'."
   :type (cons 'choice (mapcar (lambda (elt)
 				(list 'const (car elt)))
 			      quail-keyboard-layout-alist))
-  :set #'(lambda (symbol value)
-	   (quail-update-keyboard-layout value)
-	   (set symbol value)))
+  :set (lambda (symbol value)
+         (quail-update-keyboard-layout value)
+         (set symbol value)))
 
 ;;;###autoload
 (defun quail-set-keyboard-layout (kbd-type)
@@ -916,7 +917,7 @@ The format of KBD-LAYOUT is the same as `quail-keyboard-layout'."
 The variable `quail-keyboard-layout-type' holds the currently selected
 keyboard type."
   (interactive
-   (list (completing-read "Keyboard type (default current choice): "
+   (list (completing-read (format-prompt "Keyboard type" "current choice")
 			  quail-keyboard-layout-alist
 			  nil t)))
   (or (and keyboard-type (> (length keyboard-type) 0))
@@ -1075,7 +1076,7 @@ The installed decode map can be referred by the function `quail-decode-map'."
 KEY is a string meaning a sequence of keystrokes to be translated.
 TRANSLATION is a character, a string, a vector, a Quail map,
  a function, or a cons.
-It it is a character, it is the sole translation of KEY.
+If it is a character, it is the sole translation of KEY.
 If it is a string, each character is a candidate for the translation.
 If it is a vector, each element (string or character) is a candidate
  for the translation.
@@ -1368,6 +1369,32 @@ If STR has `advice' text property, append the following special event:
       (delete-region (overlay-start quail-overlay)
 		     (overlay-end quail-overlay))))
 
+;; Quail puts keys back in `unread-command-events' to be re-read
+;; again, but these keys have already been recorded in recent-keys and
+;; in the keyboard macro, if one is being defined, which means that
+;; recording them again creates duplicates.  This function is a
+;; wrapper around adding input events to `unread-command-events', but
+;; it makes sure these events will not be recorded a second time.
+(defun quail-add-unread-command-events (key &optional reset)
+  "Add KEY to `unread-command-events', but avoid recording it a second time.
+If KEY is a character, it is prepended to `unread-command-events' as
+a cons cell of the form (no-record . KEY).
+If KEY is a vector of events, the events in the vector are prepended
+to `unread-command-events', after converting each event to a cons cell
+of the form (no-record . EVENT).
+If KEY is an event, it is prepended to `unread-command-events' as a cons
+cell of the form (no-record . EVENT).
+If RESET is non-nil, the events in `unread-command-events' are first
+discarded, i.e. in this case KEY will end up being the only key
+in `unread-command-events'."
+  (if reset (setq unread-command-events nil))
+  (setq unread-command-events
+        (if (characterp key)
+            (cons (cons 'no-record key) unread-command-events)
+          (append (mapcan (lambda (e) (list (cons 'no-record e)))
+                          (append (if (vectorp key) key (vector key)) nil))
+                  unread-command-events))))
+
 (defun quail-start-translation (key)
   "Start translation of the typed character KEY by the current Quail package.
 Return the input string."
@@ -1385,13 +1412,11 @@ Return the input string."
 	     ;; (generated-events nil)     ;FIXME: What is this?
 	     (input-method-function nil)
 	     (modified-p (buffer-modified-p))
-	     last-command-event last-command this-command inhibit-record)
+	     last-command-event last-command this-command)
 	(setq quail-current-key ""
 	      quail-current-str ""
 	      quail-translating t)
-	(if key
-	    (setq unread-command-events (cons key unread-command-events)
-                  inhibit-record t))
+	(if key (quail-add-unread-command-events key))
 	(while quail-translating
 	  (set-buffer-modified-p modified-p)
 	  (quail-show-guidance)
@@ -1400,13 +1425,8 @@ Return the input string."
 				     (or input-method-previous-message "")
 				     quail-current-str
 				     quail-guidance-str)))
-                 ;; We inhibit record_char only for the first key,
-                 ;; because it was already recorded before read_char
-                 ;; called quail-input-method.
-                 (inhibit--record-char inhibit-record)
 		 (keyseq (read-key-sequence prompt nil nil t))
 		 (cmd (lookup-key (quail-translation-keymap) keyseq)))
-            (setq inhibit-record nil)
 	    (if (if key
 		    (and (commandp cmd) (not (eq cmd 'quail-other-command)))
 		  (eq cmd 'quail-self-insert-command))
@@ -1420,9 +1440,7 @@ Return the input string."
 		    (quail-error (message "%s" (cdr err)) (beep))))
 	      ;; KEYSEQ is not defined in the translation keymap.
 	      ;; Let's return the event(s) to the caller.
-	      (setq unread-command-events
-		    (append (this-single-command-raw-keys)
-                            unread-command-events))
+	      (quail-add-unread-command-events (this-single-command-raw-keys))
 	      (setq quail-translating nil))))
 	(quail-delete-region)
 	quail-current-str)
@@ -1450,15 +1468,13 @@ Return the input string."
 	     ;; (generated-events nil)     ;FIXME: What is this?
 	     (input-method-function nil)
 	     (modified-p (buffer-modified-p))
-	     last-command-event last-command this-command inhibit-record)
+	     last-command-event last-command this-command)
 	(setq quail-current-key ""
 	      quail-current-str ""
 	      quail-translating t
 	      quail-converting t
 	      quail-conversion-str "")
-	(if key
-	    (setq unread-command-events (cons key unread-command-events)
-                  inhibit-record t))
+	(if key (quail-add-unread-command-events key))
 	(while quail-converting
 	  (set-buffer-modified-p modified-p)
 	  (or quail-translating
@@ -1474,13 +1490,8 @@ Return the input string."
 				     quail-conversion-str
 				     quail-current-str
 				     quail-guidance-str)))
-                 ;; We inhibit record_char only for the first key,
-                 ;; because it was already recorded before read_char
-                 ;; called quail-input-method.
-                 (inhibit--record-char inhibit-record)
 		 (keyseq (read-key-sequence prompt nil nil t))
 		 (cmd (lookup-key (quail-conversion-keymap) keyseq)))
-            (setq inhibit-record nil)
 	    (if (if key (commandp cmd) (eq cmd 'quail-self-insert-command))
 		(progn
 		  (setq last-command-event (aref keyseq (1- (length keyseq)))
@@ -1503,9 +1514,7 @@ Return the input string."
 			    (setq quail-converting nil)))))
 	      ;; KEYSEQ is not defined in the conversion keymap.
 	      ;; Let's return the event(s) to the caller.
-	      (setq unread-command-events
-		    (append (this-single-command-raw-keys)
-                            unread-command-events))
+	      (quail-add-unread-command-events (this-single-command-raw-keys))
 	      (setq quail-converting nil))))
 	(setq quail-translating nil)
 	(if (overlay-start quail-conv-overlay)
@@ -1551,9 +1560,8 @@ with more keys."
 	       (or input-method-exit-on-first-char
 		   (while (> len control-flag)
 		     (setq len (1- len))
-		     (setq unread-command-events
-			   (cons (aref quail-current-key len)
-				 unread-command-events))))))
+		     (quail-add-unread-command-events
+		      (aref quail-current-key len))))))
 	    ((null control-flag)
 	     (unless quail-current-str
 	       (setq quail-current-str
@@ -1571,12 +1579,12 @@ with more keys."
 	    (let (char)
 	      (if (stringp quail-current-str)
 		  (catch 'tag
-		    (mapc #'(lambda (ch)
-			      (when (/= (unibyte-char-to-multibyte
-					 (multibyte-char-to-unibyte ch))
-					ch)
-				  (setq char ch)
-				  (throw 'tag nil)))
+                    (mapc (lambda (ch)
+                            (when (/= (unibyte-char-to-multibyte
+                                       (multibyte-char-to-unibyte ch))
+                                      ch)
+                              (setq char ch)
+                              (throw 'tag nil)))
 			  quail-current-str))
 		(if (/= (unibyte-char-to-multibyte
 			 (multibyte-char-to-unibyte quail-current-str))
@@ -1799,8 +1807,7 @@ sequence counting from the head."
 	  (setcar indices (1+ (car indices)))
 	  (quail-update-current-translations)
 	  (quail-update-translation nil)))
-    (setq unread-command-events
-	  (cons last-command-event unread-command-events))
+    (quail-add-unread-command-events last-command-event)
     (quail-terminate-translation)))
 
 (defun quail-prev-translation ()
@@ -1814,8 +1821,7 @@ sequence counting from the head."
 	  (setcar indices (1- (car indices)))
 	  (quail-update-current-translations)
 	  (quail-update-translation nil)))
-    (setq unread-command-events
-	  (cons last-command-event unread-command-events))
+    (quail-add-unread-command-events last-command-event)
     (quail-terminate-translation)))
 
 (defun quail-next-translation-block ()
@@ -1830,8 +1836,7 @@ sequence counting from the head."
 	  (setcar indices (+ (nth 2 indices) offset))
 	  (quail-update-current-translations)
 	  (quail-update-translation nil)))
-    (setq unread-command-events
-	  (cons last-command-event unread-command-events))
+    (quail-add-unread-command-events last-command-event)
     (quail-terminate-translation)))
 
 (defun quail-prev-translation-block ()
@@ -1850,8 +1855,7 @@ sequence counting from the head."
 		(setcar indices (+ (nth 1 indices) offset))
 		(quail-update-current-translations)))
 	  (quail-update-translation nil)))
-    (setq unread-command-events
-	  (cons last-command-event unread-command-events))
+    (quail-add-unread-command-events last-command-event)
     (quail-terminate-translation)))
 
 (defun quail-abort-translation ()
@@ -2006,8 +2010,8 @@ Remaining args are for FUNC."
     (sit-for 1000000)
     (delete-region point-max (point-max))
     (when quit-flag
-      (setq quit-flag nil
-	    unread-command-events '(7)))))
+      (setq quit-flag nil)
+      (quail-add-unread-command-events 7 t))))
 
 (defun quail-show-guidance ()
   "Display a guidance for Quail input method in some window.
@@ -2019,7 +2023,7 @@ minibuffer and the selected frame has no other windows)."
   (bury-buffer quail-completion-buf)
 
   ;; Then, show the guidance.
-  (when (and 
+  (when (and
          ;; Don't try to display guidance on an expired minibuffer.  This
          ;; would go into an infinite wait rather than executing the user's
          ;; command.  Bug #45792.
@@ -2827,19 +2831,19 @@ If CHAR is an ASCII character and can be input by typing itself, return t."
 	(key-list nil))
     (if (consp decode-map)
 	(let ((str (string char)))
-	  (mapc #'(lambda (elt)
-		    (if (string= str (car elt))
-			(setq key-list (cons (cdr elt) key-list))))
+          (mapc (lambda (elt)
+                  (if (string= str (car elt))
+                      (setq key-list (cons (cdr elt) key-list))))
 		(cdr decode-map)))
       (let ((key-head (aref decode-map char)))
 	(if (stringp key-head)
 	    (setq key-list (quail-find-key1
 			    (quail-lookup-key key-head nil t)
 			    key-head char nil))
-	  (mapc #'(lambda (elt)
-		    (setq key-list
-			  (quail-find-key1
-			   (quail-lookup-key elt nil t) elt char key-list)))
+          (mapc (lambda (elt)
+                  (setq key-list
+                        (quail-find-key1
+                         (quail-lookup-key elt nil t) elt char key-list)))
 		key-head))))
     (or key-list
 	(and (< char 128)
@@ -3066,28 +3070,31 @@ of each directory."
 	    ;; Don't get fooled by commented-out code.
 	    (while (re-search-forward "^[ \t]*(quail-define-package" nil t)
 	      (goto-char (match-beginning 0))
-	      (condition-case nil
-		  (let ((form (read (current-buffer))))
-		    (with-current-buffer list-buf
-		      (insert
-		       (format "(register-input-method
+              (let (form)
+	        (condition-case err
+		    (progn
+                      (setq form (read (current-buffer)))
+		      (with-current-buffer list-buf
+		        (insert
+		         (format "(register-input-method
  %S %S '%s
  %S %S
  %S)\n"
-			       (nth 1 form) ; PACKAGE-NAME
-			       (nth 2 form) ; LANGUAGE
-			       'quail-use-package ; ACTIVATE-FUNC
-			       (nth 3 form) ; PACKAGE-TITLE
-			       (progn	; PACKAGE-DESCRIPTION (one line)
-				 (string-match ".*" (nth 5 form))
-				 (match-string 0 (nth 5 form)))
-			       (file-relative-name ; PACKAGE-FILENAME
-				(file-name-sans-extension (car pkg-list))
-				(car dirnames))))))
-		(error
-		 ;; Ignore the remaining contents of this file.
-		 (goto-char (point-max))
-		 (message "Some part of \"%s\" is broken" (car pkg-list))))))
+			         (nth 1 form)       ; PACKAGE-NAME
+			         (nth 2 form)       ; LANGUAGE
+			         'quail-use-package ; ACTIVATE-FUNC
+			         (nth 3 form)       ; PACKAGE-TITLE
+			         (progn	; PACKAGE-DESCRIPTION (one line)
+				   (string-match ".*" (nth 5 form))
+				   (match-string 0 (nth 5 form)))
+			         (file-relative-name ; PACKAGE-FILENAME
+				  (file-name-sans-extension (car pkg-list))
+				  (car dirnames))))))
+		  (error
+		   ;; Ignore the remaining contents of this file.
+		   (goto-char (point-max))
+		   (message "Some part of \"%s\" is broken: %s in %s"
+                            (car pkg-list) err form))))))
 	  (setq pkg-list (cdr pkg-list)))
 	(setq quail-dirs (cdr quail-dirs) dirnames (cdr dirnames))))
 

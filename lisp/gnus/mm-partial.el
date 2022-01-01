@@ -1,6 +1,6 @@
 ;;; mm-partial.el --- showing message/partial  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2000-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2000-2022 Free Software Foundation, Inc.
 
 ;; Author: Shenghuo Zhu <zsh@cs.rochester.edu>
 ;; Keywords: message partial
@@ -72,14 +72,14 @@ If NO-DISPLAY is nil, display it.  Otherwise, do nothing after replacing."
 			 id
 			 (with-current-buffer gnus-summary-buffer
 			   (gnus-summary-article-number))))
-		  #'(lambda (a b)
-		      (let ((anumber (string-to-number
-				      (cdr (assq 'number
-						 (cdr (mm-handle-type a))))))
-			    (bnumber (string-to-number
-				      (cdr (assq 'number
-						 (cdr (mm-handle-type b)))))))
-			(< anumber bnumber)))))
+                  (lambda (a b)
+                    (let ((anumber (string-to-number
+                                    (cdr (assq 'number
+                                               (cdr (mm-handle-type a))))))
+                          (bnumber (string-to-number
+                                    (cdr (assq 'number
+                                               (cdr (mm-handle-type b)))))))
+                      (< anumber bnumber)))))
       (setq gnus-article-mime-handles
 	    (mm-merge-handles gnus-article-mime-handles phandles))
       (with-current-buffer (generate-new-buffer " *mm*")

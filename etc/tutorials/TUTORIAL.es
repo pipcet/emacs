@@ -1091,10 +1091,10 @@ ayuda, y entonces teclear C-x 1.
 
 Aquí hay algunas otras opciones útiles de C-h:
 
-   C-h f	Describe una función.  Usted teclea el nombre de la
-		función.
+   C-h x	Describe un comando.  Usted teclea el nombre del
+		comando.
 
->> Intente teclear C-h f previous-line <Return>.
+>> Intente teclear C-h x previous-line <Return>.
    Esto muestra toda la información que Emacs tiene sobre la función
    que implementa el comando C-p
 
@@ -1204,7 +1204,7 @@ Por favor, en caso de duda, solo es válido el original en inglés de la
 siguiente nota de derechos de reproducción (que puede encontrar en el
 archivo TUTORIAL).
 
-Copyright (C) 1985, 1996, 1998, 2001-2021 Free Software Foundation, Inc.
+Copyright (C) 1985, 1996, 1998, 2001-2022 Free Software Foundation, Inc.
 
    Se permite a cualquiera hacer o distribuir copias literales de este
    documento como se recibe, en cualquier medio, siempre que la nota

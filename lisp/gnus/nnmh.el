@@ -1,6 +1,6 @@
 ;;; nnmh.el --- mhspool access for Gnus  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 1995-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1995-2022 Free Software Foundation, Inc.
 
 ;; Author: Lars Magne Ingebrigtsen <larsi@gnus.org>
 ;;	Masanobu UMEDA <umerin@flab.flab.fujitsu.junet>
@@ -502,6 +502,8 @@ as unread by Gnus.")
       ;; Skip past that file.
       (setcdr active (1+ (cdr active))))
     (cdr active)))
+
+(defvar nnmh-newsgroup-articles)
 
 (defun nnmh-update-gnus-unreads (group)
   ;; Go through the .nnmh-articles file and compare with the actual

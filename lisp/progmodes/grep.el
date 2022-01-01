@@ -1,6 +1,6 @@
 ;;; grep.el --- run `grep' and display the results  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1985-1987, 1993-1999, 2001-2021 Free Software
+;; Copyright (C) 1985-1987, 1993-1999, 2001-2022 Free Software
 ;; Foundation, Inc.
 
 ;; Author: Roland McGrath <roland@gnu.org>
@@ -72,7 +72,7 @@ SYMBOL should be one of `grep-command', `grep-template',
 Some grep programs are able to surround matches with special
 markers in grep output.  Such markers can be used to highlight
 matches in grep mode.  This requires `font-lock-mode' to be active
-in grep buffers, so if you have globally disabled font-lock-mode,
+in grep buffers, so if you have globally disabled `font-lock-mode',
 you will not get highlighting.
 
 This option sets the environment variable GREP_COLORS to specify
@@ -88,9 +88,9 @@ To make grep highlight matches even into a pipe, you need the option
 `always' that forces grep to use `--color=always' to unconditionally
 output escape sequences.
 
-In interactive usage, the actual value of this variable is set up
-by `grep-compute-defaults' when the default value is `auto-detect'.
-To change the default value, use \\[customize] or call the function
+If the value is `auto-detect' (the default), `grep' will call
+`grep-compute-defaults' to compute the value.  To change the
+default value, use \\[customize] or call the function
 `grep-apply-setting'."
   :type '(choice (const :tag "Do not highlight matches with grep markers" nil)
 		 (const :tag "Highlight matches with grep markers" t)
@@ -137,7 +137,7 @@ The following place holders should be present in the string:
  <F> - file names and wildcards to search.
  <X> - file names and wildcards to exclude.
  <R> - the regular expression searched for.
- <N> - place to insert null-device.
+ <N> - place to insert `null-device'.
 
 In interactive usage, the actual value of this variable is set up
 by `grep-compute-defaults'; to change the default value, use
@@ -203,7 +203,7 @@ by `grep-compute-defaults'; to change the default value, use
   :version "22.1")
 
 (defcustom grep-files-aliases
-  '(("all" .   "* .[!.]* ..?*") ;; Don't match `..'. See bug#22577
+  '(("all" .   "* .*")
     ("el" .    "*.el")
     ("ch" .    "*.[ch]")
     ("c" .     "*.c")
@@ -279,56 +279,38 @@ See `compilation-error-screen-columns'."
     (define-key map "}" 'compilation-next-file)
     (define-key map "\t" 'compilation-next-error)
     (define-key map [backtab] 'compilation-previous-error)
-
-    ;; Set up the menu-bar
-    (define-key map [menu-bar grep]
-      (cons "Grep" (make-sparse-keymap "Grep")))
-
-    (define-key map [menu-bar grep grep-find-toggle-abbreviation]
-      '(menu-item "Toggle command abbreviation"
-                  grep-find-toggle-abbreviation
-                  :help "Toggle showing verbose command options"))
-    (define-key map [menu-bar grep compilation-separator3] '("----"))
-    (define-key map [menu-bar grep compilation-kill-compilation]
-      '(menu-item "Kill Grep" kill-compilation
-		  :help "Kill the currently running grep process"))
-    (define-key map [menu-bar grep compilation-separator2] '("----"))
-    (define-key map [menu-bar grep compilation-compile]
-      '(menu-item
-        "Compile..." compile
-	:help
-        "Compile the program including the current buffer.  Default: run `make'"))
-    (define-key map [menu-bar grep compilation-rgrep]
-      '(menu-item "Recursive grep..." rgrep
-		  :help "User-friendly recursive grep in directory tree"))
-    (define-key map [menu-bar grep compilation-lgrep]
-      '(menu-item "Local grep..." lgrep
-		  :help "User-friendly grep in a directory"))
-    (define-key map [menu-bar grep compilation-grep-find]
-      '(menu-item "Grep via Find..." grep-find
-		  :help "Run grep via find, with user-specified args"))
-    (define-key map [menu-bar grep compilation-grep]
-      '(menu-item
-        "Another grep..." grep
-	:help
-        "Run grep, with user-specified args, and collect output in a buffer."))
-    (define-key map [menu-bar grep compilation-recompile]
-      '(menu-item "Repeat grep" recompile
-		  :help "Run grep again"))
-    (define-key map [menu-bar grep compilation-separator1] '("----"))
-    (define-key map [menu-bar grep compilation-first-error]
-      '(menu-item
-        "First Match" first-error
-	:help "Restart at the first match, visit corresponding location"))
-    (define-key map [menu-bar grep compilation-previous-error]
-      '(menu-item "Previous Match" previous-error
-		  :help "Visit the previous match and corresponding location"))
-    (define-key map [menu-bar grep compilation-next-error]
-      '(menu-item "Next Match" next-error
-		  :help "Visit the next match and corresponding location"))
     map)
   "Keymap for grep buffers.
 `compilation-minor-mode-map' is a cdr of this.")
+
+(easy-menu-define grep-menu-map grep-mode-map
+  "Menu for grep buffers."
+  '("Grep"
+    ["Next Match" next-error
+     :help "Visit the next match and corresponding location"]
+    ["Previous Match" previous-error
+     :help "Visit the previous match and corresponding location"]
+    ["First Match" first-error
+     :help "Restart at the first match, visit corresponding location"]
+    "----"
+    ["Repeat grep" recompile
+     :help "Run grep again"]
+    ["Another grep..." grep
+     :help "Run grep, with user-specified args, and collect output in a buffer."]
+    ["Grep via Find..." grep-find
+     :help "Run grep via find, with user-specified args"]
+    ["Local grep..." lgrep
+     :help "User-friendly grep in a directory"]
+    ["Recursive grep..." rgrep
+     :help "User-friendly recursive grep in directory tree"]
+    ["Compile..." compile
+     :help "Compile the program including the current buffer.  Default: run `make'"]
+    "----"
+    ["Kill Grep" kill-compilation
+     :help "Kill the currently running grep process"]
+    "----"
+    ["Toggle command abbreviation" grep-find-toggle-abbreviation
+     :help "Toggle showing verbose command options"]))
 
 (defvar grep-mode-tool-bar-map
   ;; When bootstrapping, tool-bar-map is not properly initialized yet,
@@ -407,7 +389,7 @@ Notice that using \\[next-error] or \\[compile-goto-error] modifies
                    (and mbeg (next-single-property-change
                               mbeg 'font-lock-face nil end))))
              (when mend
-               (- mend beg))))))
+               (- mend beg 1))))))
      nil nil
      (3 '(face nil display ":")))
     ("^Binary file \\(.+\\) matches" 1 nil nil 0 1))
@@ -491,7 +473,7 @@ buffer `default-directory'."
       (1 (if (eq (char-after (match-beginning 1)) ?\0)
              `(face nil display ,(match-string 2)))))
      ;; Hide excessive part of rgrep command
-     ("^find \\(\\. -type d .*\\\\)\\)"
+     ("^find \\(\\(?:-H \\)?\\. -type d .*\\(?:\\\\)\\|\")\"\\)\\)"
       (1 (if grep-find-abbreviate grep-find-abbreviate-properties
            '(face nil abbreviated-command t))))
      ;; Hide excessive part of lgrep command
@@ -541,7 +523,7 @@ This variable's value takes effect when `grep-compute-defaults' is called."
 ;;;###autoload
 (defvar grep-history nil "History list for grep.")
 ;;;###autoload
-(defvar grep-find-history nil "History list for grep-find.")
+(defvar grep-find-history nil "History list for `grep-find'.")
 
 ;; History of lgrep and rgrep regexp and files args.
 (defvar grep-regexp-history nil)
@@ -714,11 +696,12 @@ The value depends on `grep-command', `grep-template',
     (when (eq grep-highlight-matches 'auto-detect)
       (setq grep-highlight-matches
 	    (with-temp-buffer
-	      (and (grep-probe grep-program '(nil t nil "--help"))
-		   (progn
-		     (goto-char (point-min))
-		     (search-forward "--color" nil t))
-		   ;; Windows and DOS pipes fail `isatty' detection in Grep.
+              ;; The "grep --help" exit status varies; pay no attention to it.
+              (grep-probe grep-program '(nil t nil "--help"))
+	      (goto-char (point-min))
+	      (and (let ((case-fold-search nil))
+                     (re-search-forward (rx "--color" (not (in "a-z"))) nil t))
+	           ;; Windows and DOS pipes fail `isatty' detection in Grep.
 		   (if (memq system-type '(windows-nt ms-dos))
 		       'always 'auto)))))
 
@@ -792,25 +775,24 @@ The value depends on `grep-command', `grep-template',
 		(let ((gcmd (format "%s <C> %s <R>"
 				    grep-program grep-options))
 		      (null (if grep-use-null-device
-				(format "%s " (null-device))
-			      "")))
-		  (cond ((eq grep-find-use-xargs 'gnu)
-			 (format "%s <D> <X> -type f <F> -print0 | \"%s\" -0 %s"
-				 find-program xargs-program gcmd))
-			((eq grep-find-use-xargs 'gnu-sort)
-			 (format "%s <D> <X> -type f <F> -print0 | sort -z | \"%s\" -0 %s"
-				 find-program xargs-program gcmd))
-			((eq grep-find-use-xargs 'exec)
-			 (format "%s <D> <X> -type f <F> -exec %s %s %s%s"
-				 find-program gcmd quot-braces null quot-scolon))
-			((eq grep-find-use-xargs 'exec-plus)
-			 (format "%s <D> <X> -type f <F> -exec %s %s%s +"
-				 find-program gcmd null quot-braces))
-			(t
-			 (format "%s <D> <X> -type f <F> -print | \"%s\" %s"
-				 find-program xargs-program gcmd))))))))
-
-    ;; Save defaults for this host.
+                                (format "%s " (null-device))
+                              "")))
+                  (cond ((eq grep-find-use-xargs 'gnu)
+                         (format "%s -H <D> <X> -type f <F> -print0 | \"%s\" -0 %s"
+                                 find-program xargs-program gcmd))
+                        ((eq grep-find-use-xargs 'gnu-sort)
+                         (format "%s -H <D> <X> -type f <F> -print0 | sort -z | \"%s\" -0 %s"
+                                 find-program xargs-program gcmd))
+                        ((eq grep-find-use-xargs 'exec)
+                         (format "%s -H <D> <X> -type f <F> -exec %s %s %s%s"
+                                 find-program gcmd quot-braces null quot-scolon))
+                        ((eq grep-find-use-xargs 'exec-plus)
+                         (format "%s -H <D> <X> -type f <F> -exec %s %s%s +"
+                                 find-program gcmd null quot-braces))
+                        (t
+                         (format "%s -H <D> <X> -type f <F> -print | \"%s\" %s"
+                                 find-program xargs-program gcmd))))))))
+     ;; Save defaults for this host.
     (setq grep-host-defaults-alist
 	  (delete (assq host-id grep-host-defaults-alist)
 		  grep-host-defaults-alist))
@@ -933,7 +915,10 @@ list is empty)."
                                  (if current-prefix-arg default grep-command)
                                  'grep-history
                                  (if current-prefix-arg nil default))))))
-
+  ;; If called non-interactively, also compute the defaults if we
+  ;; haven't already.
+  (when (eq grep-highlight-matches 'auto-detect)
+    (grep-compute-defaults))
   (grep--save-buffers)
   ;; Setting process-setup-function makes exit-message-function work
   ;; even when async processes aren't supported.
@@ -1072,11 +1057,9 @@ REGEXP is used as a string in the prompt."
 	       default-extension
 	       (car grep-files-history)
 	       (car (car grep-files-aliases))))
-	 (files (completing-read
-		 (concat "Search for \"" regexp
-			 "\" in files matching wildcard"
-			 (if default (concat " (default " default ")"))
-			 ": ")
+         (files (completing-read
+                 (format-prompt "Search for \"%s\" in files matching wildcard"
+                                default regexp)
 		 #'read-file-name-internal
 		 nil nil nil 'grep-files-history
 		 (delete-dups
@@ -1149,13 +1132,13 @@ command before it's run."
 		       (and grep-find-ignored-files
 			    (concat " --exclude="
 				    (mapconcat
-				     #'(lambda (ignore)
-					 (cond ((stringp ignore)
-						(shell-quote-argument ignore))
-					       ((consp ignore)
-						(and (funcall (car ignore) dir)
-						     (shell-quote-argument
-						      (cdr ignore))))))
+                                     (lambda (ignore)
+                                       (cond ((stringp ignore)
+                                              (shell-quote-argument ignore))
+                                             ((consp ignore)
+                                              (and (funcall (car ignore) dir)
+                                                   (shell-quote-argument
+                                                    (cdr ignore))))))
 				     grep-find-ignored-files
 				     " --exclude=")))
 		       (and (eq grep-use-directories-skip t)
@@ -1289,13 +1272,13 @@ command before it's run."
                  ;; we should use shell-quote-argument here
                  " -name "
                  (mapconcat
-                  #'(lambda (ignore)
-                      (cond ((stringp ignore)
-                             (shell-quote-argument ignore))
-                            ((consp ignore)
-                             (and (funcall (car ignore) dir)
-                                  (shell-quote-argument
-                                   (cdr ignore))))))
+                  (lambda (ignore)
+                    (cond ((stringp ignore)
+                           (shell-quote-argument ignore))
+                          ((consp ignore)
+                           (and (funcall (car ignore) dir)
+                                (shell-quote-argument
+                                 (cdr ignore))))))
                   grep-find-ignored-files
                   " -o -name ")
                  " "
@@ -1360,6 +1343,13 @@ command before it's run."
         ;; since `zgrep' puts filters in the grep output.
         (grep-highlight-matches 'always))
     (rgrep regexp files dir confirm)))
+
+(defun grep-file-at-point (point)
+  "Return the name of the file at POINT a `grep-mode' buffer.
+The returned file name is relative."
+  (when-let ((msg (get-text-property point 'compilation-message))
+             (loc (compilation--message->loc msg)))
+    (caar (compilation--loc->file-struct loc))))
 
 ;;;###autoload
 (defalias 'rzgrep 'zrgrep)

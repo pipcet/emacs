@@ -1,6 +1,6 @@
-;;; uce.el --- facilitate reply to unsolicited commercial email
+;;; uce.el --- facilitate reply to unsolicited commercial email  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 1996, 1998, 2000-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1996, 1998, 2000-2022 Free Software Foundation, Inc.
 
 ;; Author: stanislav shalunov <shalunov@mccme.ru>
 ;; Created: 10 Dec 1996
@@ -29,6 +29,9 @@
 ;; with other mail readers, see the mail-client dependent section of
 ;; uce-reply-to-uce.  Please let me know about your changes so I can
 ;; incorporate them.  I'd appreciate it.
+
+;; NOTE: We don't recommend using this feature; see the message in
+;; 'uce-reply-to-uce' for the reasons.
 
 ;; The command uce-reply-to-uce, if called when the current message
 ;; buffer is a UCE, will setup a reply *mail* buffer as follows.  It
@@ -127,14 +130,12 @@
   "A symbol indicating which mail reader you are using.
 Choose from: `gnus', `rmail'."
   :type '(choice (const gnus) (const rmail))
-  :version "20.3"
-  :group 'uce)
+  :version "20.3")
 
 (defcustom uce-setup-hook nil
   "Hook to run after UCE rant message is composed.
 This hook is run after `mail-setup-hook', which is run as well."
-  :type 'hook
-  :group 'uce)
+  :type 'hook)
 
 (defcustom uce-message-text
   "Recently, I have received an Unsolicited Commercial E-mail from you.
@@ -180,36 +181,31 @@ on beginning of some line from the spamming list.  So, when you set it
 up, it might be a good idea to actually use this feature.
 
 Value nil means insert no text by default, lets you type it in."
-  :type '(choice (const nil) string)
-  :group 'uce)
+  :type '(choice (const nil) string))
 
 (defcustom uce-uce-separator
   "----- original unsolicited commercial email follows -----"
   "Line that will begin quoting of the UCE.
 Value nil means use no separator."
-  :type '(choice (const nil) string)
-  :group 'uce)
+  :type '(choice (const nil) string))
 
 (defcustom uce-signature mail-signature
 "Text to put as your signature after the note to UCE sender.
 Value nil means none, t means insert `~/.signature' file (if it happens
 to exist), if this variable is a string this string will be inserted
 as your signature."
-  :type '(choice (const nil) (const t) string)
-  :group 'uce)
+  :type '(choice (const nil) (const t) string))
 
 (defcustom uce-default-headers
   "Errors-To: nobody@localhost\nPrecedence: bulk\n"
   "Additional headers to use when responding to a UCE with \\[uce-reply-to-uce].
 These are mostly meant for headers that prevent delivery errors reporting."
-  :type '(choice (const nil) string)
-  :group 'uce)
+  :type '(choice (const nil) string))
 
 (defcustom uce-subject-line
   "Spam alert: unsolicited commercial e-mail"
   "Subject of the message that will be sent in response to a UCE."
-  :type 'string
-  :group 'uce)
+  :type 'string)
 
 ;; End of user options.
 
@@ -220,8 +216,10 @@ These are mostly meant for headers that prevent delivery errors reporting."
 (declare-function rmail-maybe-set-message-counters "rmail" ())
 (declare-function rmail-toggle-header "rmail" (&optional arg))
 
+(defvar uce--usage-warning-displayed nil)
+
 ;;;###autoload
-(defun uce-reply-to-uce (&optional ignored)
+(defun uce-reply-to-uce (&optional _ignored)
   "Compose a reply to unsolicited commercial email (UCE).
 Sets up a reply buffer addressed to: the sender, his postmaster,
 his abuse@ address, and the postmaster of the mail relay used.
@@ -253,10 +251,10 @@ You might need to set `uce-mail-reader' before using this."
       (if reply-to
 	  (setq to (format "%s, %s" to (mail-strip-quoted-names reply-to))))
       (let (first-at-sign end-of-hostname sender-host)
-	(setq first-at-sign (string-match "@" to)
+	(setq first-at-sign (string-search "@" to)
 	      end-of-hostname (string-match "[ ,>]" to first-at-sign)
 	      sender-host (substring to first-at-sign end-of-hostname))
-	(if (string-match "\\." sender-host)
+	(if (string-search "." sender-host)
 	    (setq to (format "%s, postmaster%s, abuse%s"
 			     to sender-host sender-host))))
       (setq mail-send-actions nil)
@@ -298,7 +296,7 @@ You might need to set `uce-mail-reader' before using this."
       (search-forward " ")
       (forward-char -1)
       ;; And add its postmaster to the list of addresses.
-      (if (string-match "\\." (buffer-substring temp (point)))
+      (if (string-search "." (buffer-substring temp (point)))
 	  (setq to (format "%s, postmaster@%s"
 			   to (buffer-substring temp (point)))))
       ;; Also look at the message-id, it helps *very* often.
@@ -309,7 +307,7 @@ You might need to set `uce-mail-reader' before using this."
 	     (setq temp (point))
 	     (search-forward ">")
 	     (forward-char -1)
-	     (if (string-match "\\." (buffer-substring temp (point)))
+	     (if (string-search "." (buffer-substring temp (point)))
 		 (setq to (format "%s, postmaster@%s"
 				  to (buffer-substring temp (point)))))))
       (when (eq uce-mail-reader 'gnus)
@@ -365,9 +363,34 @@ You might need to set `uce-mail-reader' before using this."
       ;; Run hooks before we leave buffer for editing.  Reasonable usage
       ;; might be to set up special key bindings, replace standard
       ;; functions in mail-mode, etc.
-      (run-hooks 'mail-setup-hook 'uce-setup-hook))))
+      (run-hooks 'mail-setup-hook 'uce-setup-hook)))
+  (unless uce--usage-warning-displayed
+    (setq uce--usage-warning-displayed t)
+    (pop-to-buffer (get-buffer-create "uce-reply-to-uce warning"))
+    (insert "\
+-- !!! NOTE !!! ---------------------------------------------
 
-(defun uce-insert-ranting (&optional ignored)
+Replying to spam is at best pointless, but most likely actively
+harmful.
+
+- You will confirm that your email address is valid, thus ensuring
+  you get more spam.
+
+- You will leak information and open yourself up for further
+  attack.  For example, they could use your \"geolocation\" to find
+  your home address and phone number.
+
+- The sender address is likely fake.
+
+- You help them refine their methods of spamming.
+
+Therefore, we strongly recommend that you do not use this package.
+Use a spam filter instead, or just delete the spam.
+
+-------------------------------------------------------------
+")))
+
+(defun uce-insert-ranting (&optional _ignored)
   "Insert text of the usual reply to UCE into current buffer."
   (interactive "P")
   (insert uce-message-text))

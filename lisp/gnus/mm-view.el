@@ -1,6 +1,6 @@
 ;;; mm-view.el --- functions for viewing MIME objects  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 1998-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1998-2022 Free Software Foundation, Inc.
 
 ;; Author: Lars Magne Ingebrigtsen <larsi@gnus.org>
 ;; This file is part of GNU Emacs.
@@ -50,9 +50,7 @@
     (w3m . mm-inline-text-html-render-with-w3m)
     (w3m-standalone . mm-inline-text-html-render-with-w3m-standalone)
     (gnus-w3m . gnus-article-html)
-    (links mm-inline-render-with-file
-	   mm-links-remove-leading-blank
-	   "links" "-dump" file)
+    (links . mm-inline-render-with-links)
     (lynx mm-inline-render-with-stdin nil
 	  "lynx" "-dump" "-force_html" "-stdin" "-nolist")
     (html2text mm-inline-render-with-function html2text))
@@ -264,6 +262,7 @@ This is only used if `mm-inline-large-images' is set to
     (mm-inline-render-with-stdin handle nil "w3m" "-dump" "-T" "text/html")))
 
 (defun mm-links-remove-leading-blank ()
+  (declare (obsolete nil "28.1"))
   ;; Delete the annoying three spaces preceding each line of links
   ;; output.
   (goto-char (point-min))
@@ -271,15 +270,18 @@ This is only used if `mm-inline-large-images' is set to
     (delete-region (match-beginning 0) (match-end 0))))
 
 (defun mm-inline-wash-with-file (post-func cmd &rest args)
-  (let ((file (make-temp-file
-	       (expand-file-name "mm" mm-tmp-directory))))
-    (let ((coding-system-for-write 'binary))
-      (write-region (point-min) (point-max) file nil 'silent))
-    (delete-region (point-min) (point-max))
-    (unwind-protect
-	(apply #'call-process cmd nil t nil (mapcar (lambda (e) (eval e t)) args))
-      (delete-file file))
-    (and post-func (funcall post-func))))
+  (declare (obsolete nil "28.1"))
+  (with-suppressed-warnings ((lexical file))
+    (dlet ((file (make-temp-file
+	          (expand-file-name "mm" mm-tmp-directory))))
+      (let ((coding-system-for-write 'binary))
+        (write-region (point-min) (point-max) file nil 'silent))
+      (delete-region (point-min) (point-max))
+      (unwind-protect
+	  (apply #'call-process cmd nil t nil
+                 (mapcar (lambda (e) (eval e t)) args))
+        (delete-file file))
+      (and post-func (funcall post-func)))))
 
 (defun mm-inline-wash-with-stdin (post-func cmd &rest args)
   (let ((coding-system-for-write 'binary))
@@ -288,12 +290,41 @@ This is only used if `mm-inline-large-images' is set to
   (and post-func (funcall post-func)))
 
 (defun mm-inline-render-with-file (handle post-func cmd &rest args)
+  (declare (obsolete nil "28.1"))
   (let ((source (mm-get-part handle)))
     (mm-insert-inline
      handle
      (mm-with-unibyte-buffer
        (insert source)
-       (apply #'mm-inline-wash-with-file post-func cmd args)
+       (with-suppressed-warnings ((obsolete mm-inline-wash-with-file))
+         (apply #'mm-inline-wash-with-file post-func cmd args))
+       (buffer-string)))))
+
+(defun mm-inline-render-with-links (handle)
+  (let ((source (mm-get-part handle))
+        file charset)
+    (mm-insert-inline
+     handle
+     (with-temp-buffer
+       (setq charset (mail-content-type-get (mm-handle-type handle) 'charset))
+       (insert source)
+       (unwind-protect
+           (progn
+             (setq file (make-temp-file (expand-file-name
+                                         "mm" mm-tmp-directory)))
+             (let ((coding-system-for-write 'binary))
+               (write-region (point-min) (point-max) file nil 'silent))
+             (delete-region (point-min) (point-max))
+             (if charset
+                 (with-environment-variables (("LANG" (format "en-US.%s"
+                                                              charset)))
+	           (call-process "links" nil t nil "-dump" file))
+               (call-process "links" nil t nil "-dump" file))
+             (goto-char (point-min))
+             (while (re-search-forward "^   " nil t)
+               (delete-region (match-beginning 0) (match-end 0))))
+         (when (and file (file-exists-p file))
+           (delete-file file)))
        (buffer-string)))))
 
 (defun mm-inline-render-with-stdin (handle post-func cmd &rest args)
@@ -418,16 +449,18 @@ This is only used if `mm-inline-large-images' is set to
   (fundamental-mode)
   (goto-char (point-min)))
 
-(defvar gnus-original-article-buffer)
-(defvar gnus-article-prepare-hook)
-(defvar gnus-displaying-mime)
+(defvar mm-inline-message-prepare-function nil
+  "Function called by `mm-inline-message' to do client specific setup.
+It is called with two parameters -- the MIME handle and the charset.")
 
 (defun mm-inline-message (handle)
+  "Insert HANDLE (a message/rfc822 part) into the current buffer.
+This function will call `mm-inline-message-prepare-function'
+after inserting the part."
   (let ((b (point))
 	(bolp (bolp))
 	(charset (mail-content-type-get
-		  (mm-handle-type handle) 'charset))
-	gnus-displaying-mime handles)
+		  (mm-handle-type handle) 'charset)))
     (when (and charset
 	       (stringp charset))
       (setq charset (intern (downcase charset)))
@@ -437,16 +470,8 @@ This is only used if `mm-inline-large-images' is set to
       (save-restriction
 	(narrow-to-region b b)
 	(mm-insert-part handle)
-	(let (gnus-article-mime-handles
-	      ;; disable prepare hook
-	      gnus-article-prepare-hook
-	      (gnus-newsgroup-charset
-	       (unless (eq charset 'gnus-decoded) ;; mm-uu might set it.
-		 (or charset gnus-newsgroup-charset))))
-	  (let ((gnus-original-article-buffer (mm-handle-buffer handle)))
-	    (run-hooks 'gnus-article-decode-hook))
-	  (gnus-article-prepare-display)
-	  (setq handles gnus-article-mime-handles))
+        (when mm-inline-message-prepare-function
+	  (funcall mm-inline-message-prepare-function handle charset))
 	(goto-char (point-min))
 	(unless bolp
 	  (insert "\n"))
@@ -454,9 +479,6 @@ This is only used if `mm-inline-large-images' is set to
 	(unless (bolp)
 	  (insert "\n"))
 	(insert "----------\n\n")
-	(when handles
-	  (setq gnus-article-mime-handles
-		(mm-merge-handles gnus-article-mime-handles handles)))
 	(mm-handle-set-undisplayer
 	 handle
 	 (let ((beg (point-min-marker))
@@ -612,12 +634,9 @@ If MODE is not set, try to find mode automatically."
 		 (context (epg-make-context 'CMS)))
 	     (prog1
 		 (epg-verify-string context part)
-	       (let ((result (car (epg-context-result-for context 'verify))))
+	       (let ((result (epg-context-result-for context 'verify)))
 		 (mm-sec-status
-		  'gnus-info (epg-signature-status result)
-		  'gnus-details
-		  (format "%s:%s" (epg-signature-validity result)
-			  (epg-signature-key-id result))))))))
+		  'gnus-info (epg-verify-result-to-string result)))))))
       (with-temp-buffer
 	(insert "MIME-Version: 1.0\n")
 	(mm-insert-headers "application/pkcs7-mime" "base64" "smime.p7m")
@@ -637,7 +656,11 @@ If MODE is not set, try to find mode automatically."
       ;; Use EPG/gpgsm
       (let ((part (base64-decode-string (buffer-string))))
 	(erase-buffer)
-	(insert (epg-decrypt-string (epg-make-context 'CMS) part)))
+	(insert
+         (let ((context (epg-make-context 'CMS)))
+           (prog1
+               (epg-decrypt-string context part)
+             (mm-sec-status 'gnus-info "OK")))))
     ;; Use openssl
     (insert "MIME-Version: 1.0\n")
     (mm-insert-headers "application/pkcs7-mime" "base64" "smime.p7m")

@@ -1,6 +1,6 @@
 ;;; font-core.el --- Core interface to font-lock  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 1992-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1992-2022 Free Software Foundation, Inc.
 
 ;; Maintainer: emacs-devel@gnu.org
 ;; Keywords: languages, faces
@@ -20,6 +20,8 @@
 
 ;; You should have received a copy of the GNU General Public License
 ;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
+
+;;; Commentary:
 
 ;;; Code:
 
@@ -126,7 +128,6 @@ buffer local value for `font-lock-defaults', via its mode hook.
 The above is the default behavior of `font-lock-mode'; you may
 specify your own function which is called when `font-lock-mode'
 is toggled via `font-lock-function'."
-  nil nil nil
   :after-hook (font-lock-initial-fontify)
   ;; Don't turn on Font Lock mode if we don't have a display (we're running a
   ;; batch job) or if the buffer is invisible (the name starts with a space).

@@ -1,6 +1,6 @@
 ;;; paragraphs.el --- paragraph and sentence parsing  -*- lexical-binding: t -*-
 
-;; Copyright (C) 1985-1987, 1991, 1994-1997, 1999-2021 Free Software
+;; Copyright (C) 1985-1987, 1991, 1994-1997, 1999-2022 Free Software
 ;; Foundation, Inc.
 
 ;; Maintainer: emacs-devel@gnu.org
@@ -97,7 +97,7 @@ lines that start paragraphs from lines that separate them.
 If the variable `use-hard-newlines' is non-nil, then only lines following a
 hard newline are considered to match."
   :type 'regexp)
-(put 'paragraph-start 'safe-local-variable 'stringp)
+(put 'paragraph-start 'safe-local-variable #'stringp)
 
 ;; paragraph-start requires a hard newline, but paragraph-separate does not:
 ;; It is assumed that paragraph-separate is distinctive enough to be believed
@@ -114,7 +114,7 @@ the beginning of the line, so it should not use \"^\" as an anchor.  This
 ensures that the paragraph functions will work equally within a region of
 text indented by a margin setting."
   :type 'regexp)
-(put 'paragraph-separate 'safe-local-variable 'stringp)
+(put 'paragraph-separate 'safe-local-variable #'stringp)
 
 (defcustom sentence-end-double-space t
   "Non-nil means a single space does not end a sentence.
@@ -126,7 +126,7 @@ regexp describing the end of a sentence, when the value of the variable
 `sentence-end' is nil.  See Info node `(elisp)Standard Regexps'."
   :type 'boolean
   :group 'fill)
-(put 'sentence-end-double-space 'safe-local-variable 'booleanp)
+(put 'sentence-end-double-space 'safe-local-variable #'booleanp)
 
 (defcustom sentence-end-without-period nil
   "Non-nil means a sentence will end without a period.
@@ -138,7 +138,7 @@ regexp describing the end of a sentence, when the value of the variable
 `sentence-end' is nil.  See Info node `(elisp)Standard Regexps'."
   :type 'boolean
   :group 'fill)
-(put 'sentence-end-without-period 'safe-local-variable 'booleanp)
+(put 'sentence-end-without-period 'safe-local-variable #'booleanp)
 
 (defcustom sentence-end-without-space
   "。．？！"
@@ -148,7 +148,7 @@ This value is used by the function `sentence-end' to construct the
 regexp describing the end of a sentence, when the value of the variable
 `sentence-end' is nil.  See Info node `(elisp)Standard Regexps'."
   :type 'string)
-(put 'sentence-end-without-space 'safe-local-variable 'stringp)
+(put 'sentence-end-without-space 'safe-local-variable #'stringp)
 
 (defcustom sentence-end nil
   "Regexp describing the end of a sentence.
@@ -159,13 +159,13 @@ The value nil means to use the default value defined by the
 function `sentence-end'.  You should always use this function
 to obtain the value of this variable."
   :type '(choice regexp (const :tag "Use default value" nil)))
-(put 'sentence-end 'safe-local-variable 'string-or-null-p)
+(put 'sentence-end 'safe-local-variable #'string-or-null-p)
 
 (defcustom sentence-end-base "[.?!…‽][]\"'”’)}»›]*"
   "Regexp matching the basic end of a sentence, not including following space."
   :type 'regexp
   :version "25.1")
-(put 'sentence-end-base 'safe-local-variable 'stringp)
+(put 'sentence-end-base 'safe-local-variable #'stringp)
 
 (defun sentence-end ()
   "Return the regexp describing the end of a sentence.
@@ -193,17 +193,15 @@ in between.  See Info node `(elisp)Standard Regexps'."
 (defcustom page-delimiter "^\014"
   "Regexp describing line-beginnings that separate pages."
   :type 'regexp)
-(put 'page-delimiter 'safe-local-variable 'stringp)
+(put 'page-delimiter 'safe-local-variable #'stringp)
 
 (defcustom paragraph-ignore-fill-prefix nil
   "Non-nil means the paragraph commands are not affected by `fill-prefix'.
 This is desirable in modes where blank lines are the paragraph delimiters."
   :type 'boolean)
-(put 'paragraph-ignore-fill-prefix 'safe-local-variable 'booleanp)
+(put 'paragraph-ignore-fill-prefix 'safe-local-variable #'booleanp)
 
 ;; Silence the compiler.
-(defvar multiple-lines)
-
 (defun forward-paragraph (&optional arg)
   "Move forward to end of paragraph.
 With argument ARG, do it ARG times;
@@ -262,13 +260,13 @@ Returns the count of paragraphs left to move."
 	  ;; Search back for line that starts or separates paragraphs.
 	  (if (if fill-prefix-regexp
 		  ;; There is a fill prefix; it overrides parstart.
-		  (let (multiple-lines)
+		  (let () ;; multiple-lines
 		    (while (and (progn (beginning-of-line) (not (bobp)))
 				(progn (move-to-left-margin)
 				       (not (looking-at parsep)))
 				(looking-at fill-prefix-regexp))
-		      (unless (= (point) start)
-			(setq multiple-lines t))
+		      ;; (unless (= (point) start)
+		      ;;   (setq multiple-lines t))
 		      (forward-line -1))
 		    (move-to-left-margin)
 		    ;; This deleted code caused a long hanging-indent line
@@ -481,18 +479,38 @@ sentences.  Also, every paragraph boundary terminates sentences as well."
       (setq arg (1- arg)))
     (constrain-to-field nil opoint t)))
 
-(defun repunctuate-sentences (&optional no-query)
+(defun repunctuate-sentences-filter (_start _end)
+  "Search filter used by `repunctuate-sentences' to skip unneeded spaces.
+By default, it skips occurrences that already have two spaces.
+It is advised to put `advice-add' on this function to add more filters,
+for example, `(looking-back (rx (or \"e.g.\" \"i.e.\") \" \") 5)'
+with a set of predefined abbreviations to skip from adding two spaces."
+  (not (length= (match-string 4) 2)))
+
+(defun repunctuate-sentences (&optional no-query start end)
   "Put two spaces at the end of sentences from point to the end of buffer.
-It works using `query-replace-regexp'.
+It works using `query-replace-regexp'.  In Transient Mark mode,
+if the mark is active, operate on the contents of the region.
+Second and third arg START and END specify the region to operate on.
 If optional argument NO-QUERY is non-nil, make changes without
 asking for confirmation."
-  (interactive)
-  (let ((regexp "\\([]\"')]?\\)\\([.?!]\\)\\([]\"')]?\\) +")
+  (interactive (list nil
+                     (if (use-region-p) (region-beginning))
+                     (if (use-region-p) (region-end))))
+  (let ((regexp "\\([]\"')]?\\)\\([.?!]\\)\\([]\"')]?\\)\\( +\\)")
         (to-string "\\1\\2\\3  "))
     (if no-query
-        (while (re-search-forward regexp nil t)
-          (replace-match to-string))
-      (query-replace-regexp regexp to-string))))
+        (progn
+          (when start (goto-char start))
+          (while (re-search-forward regexp end t)
+            (replace-match to-string)))
+      (unwind-protect
+          (progn
+            (add-function :after-while isearch-filter-predicate
+                          #'repunctuate-sentences-filter)
+            (query-replace-regexp regexp to-string nil start end))
+        (remove-function isearch-filter-predicate
+                         #'repunctuate-sentences-filter)))))
 
 
 (defun backward-sentence (&optional arg)

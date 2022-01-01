@@ -1,6 +1,6 @@
-;;; loadhist.el --- lisp functions for working with feature groups
+;;; loadhist.el --- lisp functions for working with feature groups  -*- lexical-binding: t -*-
 
-;; Copyright (C) 1995, 1998, 2000-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1995, 1998, 2000-2022 Free Software Foundation, Inc.
 
 ;; Author: Eric S. Raymond <esr@snark.thyrsus.com>
 ;; Maintainer: emacs-devel@gnu.org
@@ -82,12 +82,6 @@ A library name is equivalent to the file name that `load-library' would load."
       (when (eq (car-safe x) 'require)
 	(push (cdr x) requires)))))
 
-(defsubst file-set-intersect (p q)
-  "Return the set intersection of two lists."
-  (let (ret)
-    (dolist (x p ret)
-      (when (memq x q) (push x ret)))))
-
 (defun file-dependents (file)
   "Return the list of loaded libraries that depend on FILE.
 This can include FILE itself.
@@ -97,7 +91,7 @@ A library name is equivalent to the file name that `load-library' would load."
 	(dependents nil))
     (dolist (x load-history dependents)
       (when (and (stringp (car x))
-                 (file-set-intersect provides (file-requires (car x))))
+                 (seq-intersection provides (file-requires (car x)) #'eq))
 	(push (car x) dependents)))))
 
 (defun read-feature (prompt &optional loaded-p)
@@ -174,8 +168,7 @@ documentation of `unload-feature' for details.")
 ;; So we use this auxiliary variable to keep track of the last (t . SYMBOL)
 ;; that occurred.
 (defvar loadhist--restore-autoload nil
-  "If non-nil, this is a symbol for which we should
-restore a previous autoload if possible.")
+  "If non-nil, is a symbol for which to try to restore a previous autoload.")
 
 (cl-defmethod loadhist-unload-element ((x (head t)))
   (setq loadhist--restore-autoload (cdr x)))
@@ -321,6 +314,13 @@ something strange, such as redefining an Emacs function."
       (setq load-history (delq (assoc file load-history) load-history))))
   ;; Don't return load-history, it is not useful.
   nil)
+
+;; Obsolete.
+
+(defsubst file-set-intersect (p q)
+  "Return the set intersection of two lists."
+  (declare (obsolete seq-intersection "28.1"))
+  (nreverse (seq-intersection p q #'eq)))
 
 (provide 'loadhist)
 

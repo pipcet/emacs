@@ -1,6 +1,6 @@
 ;;; netrc-tests.el --- Tests for netrc.el  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2020-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2020-2022 Free Software Foundation, Inc.
 
 ;; Author: Stefan Kangas <stefankangas@gmail.com>
 
@@ -47,6 +47,13 @@
                    '("jrh@example.org" "*foobar*")))
     (should (equal (netrc-credentials "ftp.example.org")
                    '("jrh" "*baz*")))))
+
+(ert-deftest test-netrc-credentials-2 ()
+  (let ((netrc-file (ert-resource-file "netrc-folding")))
+    (should
+     (equal (netrc-parse netrc-file)
+            '((("machine" . "XM") ("login" . "XL") ("password" . "XP"))
+              (("machine" . "YM")) (("login" . "YL")) (("password" . "YP")))))))
 
 (provide 'netrc-tests)
 

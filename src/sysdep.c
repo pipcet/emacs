@@ -1,5 +1,5 @@
 /* Interfaces to system-dependent kernel and library entries.
-   Copyright (C) 1985-1988, 1993-1995, 1999-2021 Free Software
+   Copyright (C) 1985-1988, 1993-1995, 1999-2022 Free Software
    Foundation, Inc.
 
 This file is part of GNU Emacs.
@@ -657,7 +657,7 @@ sys_subshell (void)
 #endif
   pid_t pid;
   struct save_signal saved_handlers[5];
-  char *str = SSDATA (encode_current_directory ());
+  char *str = SSDATA (get_current_directory (true));
 
 #ifdef DOS_NT
   pid = 0;
@@ -677,6 +677,9 @@ sys_subshell (void)
   saved_handlers[2].code = SIGTERM;
 #ifdef USABLE_SIGIO
   saved_handlers[3].code = SIGIO;
+  saved_handlers[4].code = 0;
+#elif defined (USABLE_SIGPOLL)
+  saved_handlers[3].code = SIGPOLL;
   saved_handlers[4].code = 0;
 #else
   saved_handlers[3].code = 0;
@@ -788,6 +791,7 @@ init_sigio (int fd)
 }
 
 #ifndef DOS_NT
+#ifdef F_SETOWN
 static void
 reset_sigio (int fd)
 {
@@ -795,12 +799,13 @@ reset_sigio (int fd)
   fcntl (fd, F_SETFL, old_fcntl_flags[fd]);
 #endif
 }
+#endif /* F_SETOWN */
 #endif
 
 void
 request_sigio (void)
 {
-#ifdef USABLE_SIGIO
+#if defined (USABLE_SIGIO) || defined (USABLE_SIGPOLL)
   sigset_t unblocked;
 
   if (noninteractive)
@@ -810,7 +815,11 @@ request_sigio (void)
 # ifdef SIGWINCH
   sigaddset (&unblocked, SIGWINCH);
 # endif
+# ifdef USABLE_SIGIO
   sigaddset (&unblocked, SIGIO);
+# else
+  sigaddset (&unblocked, SIGPOLL);
+# endif
   pthread_sigmask (SIG_UNBLOCK, &unblocked, 0);
 
   interrupts_deferred = 0;
@@ -820,7 +829,7 @@ request_sigio (void)
 void
 unrequest_sigio (void)
 {
-#ifdef USABLE_SIGIO
+#if defined (USABLE_SIGIO) || defined (USABLE_SIGPOLL)
   sigset_t blocked;
 
   if (noninteractive)
@@ -830,7 +839,11 @@ unrequest_sigio (void)
 # ifdef SIGWINCH
   sigaddset (&blocked, SIGWINCH);
 # endif
+# ifdef USABLE_SIGIO
   sigaddset (&blocked, SIGIO);
+# else
+  sigaddset (&blocked, SIGPOLL);
+# endif
   pthread_sigmask (SIG_BLOCK, &blocked, 0);
   interrupts_deferred = 1;
 #endif
@@ -1256,9 +1269,12 @@ init_sys_modes (struct tty_display_info *tty_out)
   /* This code added to insure that, if flow-control is not to be used,
      we have an unlocked terminal at the start. */
 
+#ifndef HAIKU /* On Haiku, TCXONC is a no-op and causes spurious
+		 compiler warnings. */
 #ifdef TCXONC
   if (!tty_out->flow_control) ioctl (fileno (tty_out->input), TCXONC, 1);
 #endif
+#endif /* HAIKU */
 #ifdef TIOCSTART
   if (!tty_out->flow_control) ioctl (fileno (tty_out->input), TIOCSTART, 0);
 #endif
@@ -1674,6 +1690,8 @@ emacs_sigaction_init (struct sigaction *action, signal_handler_t handler)
       sigaddset (&action->sa_mask, SIGQUIT);
 #ifdef USABLE_SIGIO
       sigaddset (&action->sa_mask, SIGIO);
+#elif defined (USABLE_SIGPOLL)
+      sigaddset (&action->sa_mask, SIGPOLL);
 #endif
     }
 
@@ -1785,7 +1803,15 @@ handle_arith_signal (int sig)
 
 /* Alternate stack used by SIGSEGV handler below.  */
 
-static unsigned char sigsegv_stack[SIGSTKSZ];
+/* Storage for the alternate signal stack.
+   64 KiB is not too large for Emacs, and is large enough
+   for all known platforms.  Smaller sizes may run into trouble.
+   For example, libsigsegv 2.6 through 2.8 have a bug where some
+   architectures use more than the Linux default of an 8 KiB alternate
+   stack when deciding if a fault was caused by stack overflow.  */
+static max_align_t sigsegv_stack[(64 * 1024
+				  + sizeof (max_align_t) - 1)
+				 / sizeof (max_align_t)];
 
 
 /* Return true if SIGINFO indicates a stack overflow.  */
@@ -2662,6 +2688,13 @@ void
 errputc (int c)
 {
   fputc_unlocked (c, errstream ());
+
+#ifdef WINDOWSNT
+  /* Flush stderr after outputting a newline since stderr is fully
+     buffered when redirected to a pipe, contrary to POSIX.  */
+  if (c == '\n')
+    fflush_unlocked (stderr);
+#endif
 }
 
 void
@@ -2729,6 +2762,140 @@ cfsetspeed (struct termios *termios_p, speed_t vitesse)
 }
 #endif
 
+/* The following is based on the glibc implementation of cfsetspeed.  */
+
+struct speed_struct
+{
+  speed_t value;
+  speed_t internal;
+};
+
+static const struct speed_struct speeds[] =
+  {
+#ifdef B0
+    { 0, B0 },
+#endif
+#ifdef B50
+    { 50, B50 },
+#endif
+#ifdef B75
+    { 75, B75 },
+#endif
+#ifdef B110
+    { 110, B110 },
+#endif
+#ifdef B134
+    { 134, B134 },
+#endif
+#ifdef B150
+    { 150, B150 },
+#endif
+#ifndef HAVE_TINY_SPEED_T
+#ifdef B200
+    { 200, B200 },
+#endif
+#ifdef B300
+    { 300, B300 },
+#endif
+#ifdef B600
+    { 600, B600 },
+#endif
+#ifdef B1200
+    { 1200, B1200 },
+#endif
+#ifdef B1200
+    { 1200, B1200 },
+#endif
+#ifdef B1800
+    { 1800, B1800 },
+#endif
+#ifdef B2400
+    { 2400, B2400 },
+#endif
+#ifdef B4800
+    { 4800, B4800 },
+#endif
+#ifdef B9600
+    { 9600, B9600 },
+#endif
+#ifdef B19200
+    { 19200, B19200 },
+#endif
+#ifdef B38400
+    { 38400, B38400 },
+#endif
+#ifdef B57600
+    { 57600, B57600 },
+#endif
+#ifdef B76800
+    { 76800, B76800 },
+#endif
+#ifdef B115200
+    { 115200, B115200 },
+#endif
+#ifdef B153600
+    { 153600, B153600 },
+#endif
+#ifdef B230400
+    { 230400, B230400 },
+#endif
+#ifdef B307200
+    { 307200, B307200 },
+#endif
+#ifdef B460800
+    { 460800, B460800 },
+#endif
+#ifdef B500000
+    { 500000, B500000 },
+#endif
+#ifdef B576000
+    { 576000, B576000 },
+#endif
+#ifdef B921600
+    { 921600, B921600 },
+#endif
+#ifdef B1000000
+    { 1000000, B1000000 },
+#endif
+#ifdef B1152000
+    { 1152000, B1152000 },
+#endif
+#ifdef B1500000
+    { 1500000, B1500000 },
+#endif
+#ifdef B2000000
+    { 2000000, B2000000 },
+#endif
+#ifdef B2500000
+    { 2500000, B2500000 },
+#endif
+#ifdef B3000000
+    { 3000000, B3000000 },
+#endif
+#ifdef B3500000
+    { 3500000, B3500000 },
+#endif
+#ifdef B4000000
+    { 4000000, B4000000 },
+#endif
+#endif /* HAVE_TINY_SPEED_T */
+  };
+
+/* Convert a numerical speed (e.g., 9600) to a Bnnn constant (e.g.,
+   B9600); see bug#49524.  */
+static speed_t
+convert_speed (speed_t speed)
+{
+  for (size_t i = 0; i < sizeof speeds / sizeof speeds[0]; i++)
+    {
+      if (speed == speeds[i].internal)
+	return speed;
+      else if (speed == speeds[i].value)
+	return speeds[i].internal;
+    }
+  return speed;
+}
+
 /* For serial-process-configure  */
 void
 serial_configure (struct Lisp_Process *p,
@@ -2760,7 +2927,7 @@ serial_configure (struct Lisp_Process *p,
   else
     tem = Fplist_get (p->childp, QCspeed);
   CHECK_FIXNUM (tem);
-  err = cfsetspeed (&attr, XFIXNUM (tem));
+  err = cfsetspeed (&attr, convert_speed (XFIXNUM (tem)));
   if (err != 0)
     report_file_error ("Failed cfsetspeed", tem);
   childp2 = Fplist_put (childp2, QCspeed, tem);
@@ -2973,8 +3140,9 @@ list_system_processes (void)
 }
 
 /* The WINDOWSNT implementation is in w32.c.
-   The MSDOS implementation is in dosfns.c.  */
-#elif !defined (WINDOWSNT) && !defined (MSDOS)
+   The MSDOS implementation is in dosfns.c.
+   The Haiku implementation is in haiku.c.  */
+#elif !defined (WINDOWSNT) && !defined (MSDOS) && !defined (HAIKU)
 
 Lisp_Object
 list_system_processes (void)
@@ -3611,7 +3779,7 @@ system_process_attributes (Lisp_Object pid)
   ttyname = proc.ki_tdev == NODEV ? NULL : devname (proc.ki_tdev, S_IFCHR);
   unblock_input ();
   if (ttyname)
-    attrs = Fcons (Fcons (Qtty, build_string (ttyname)), attrs);
+    attrs = Fcons (Fcons (Qttname, build_string (ttyname)), attrs);
 
   attrs = Fcons (Fcons (Qtpgid,   INT_TO_INTEGER (proc.ki_tpgid)), attrs);
   attrs = Fcons (Fcons (Qminflt,  INT_TO_INTEGER (proc.ki_rusage.ru_minflt)),
@@ -3883,20 +4051,19 @@ system_process_attributes (Lisp_Object pid)
 Lisp_Object
 system_process_attributes (Lisp_Object pid)
 {
-  int proc_id;
+  int proc_id, i;
   struct passwd *pw;
   struct group  *gr;
   char *ttyname;
   struct timeval starttime;
   struct timespec t, now;
-  struct rusage *rusage;
   dev_t tdev;
   uid_t uid;
   gid_t gid;
 
   int mib[4] = {CTL_KERN, KERN_PROC, KERN_PROC_PID};
   struct kinfo_proc proc;
-  size_t proclen = sizeof proc;
+  size_t len = sizeof proc;
 
   Lisp_Object attrs = Qnil;
   Lisp_Object decoded_comm;
@@ -3905,7 +4072,7 @@ system_process_attributes (Lisp_Object pid)
   CONS_TO_INTEGER (pid, int, proc_id);
   mib[3] = proc_id;
 
-  if (sysctl (mib, 4, &proc, &proclen, NULL, 0) != 0 || proclen == 0)
+  if (sysctl (mib, 4, &proc, &len, NULL, 0) != 0 || len == 0)
     return attrs;
 
   uid = proc.kp_eproc.e_ucred.cr_uid;
@@ -3942,8 +4109,8 @@ system_process_attributes (Lisp_Object pid)
   decoded_comm = (code_convert_string_norecord
 		  (build_unibyte_string (comm),
 		   Vlocale_coding_system, 0));
-
   attrs = Fcons (Fcons (Qcomm, decoded_comm), attrs);
+
   {
     char state[2] = {'\0', '\0'};
     switch (proc.kp_proc.p_stat)
@@ -3979,27 +4146,24 @@ system_process_attributes (Lisp_Object pid)
   ttyname = tdev == NODEV ? NULL : devname (tdev, S_IFCHR);
   unblock_input ();
   if (ttyname)
-    attrs = Fcons (Fcons (Qtty, build_string (ttyname)), attrs);
+    attrs = Fcons (Fcons (Qttname, build_string (ttyname)), attrs);
 
   attrs = Fcons (Fcons (Qtpgid, INT_TO_INTEGER (proc.kp_eproc.e_tpgid)),
 		 attrs);
 
-  rusage = proc.kp_proc.p_ru;
-  if (rusage)
+  rusage_info_current ri;
+  if (proc_pid_rusage(proc_id, RUSAGE_INFO_CURRENT, (rusage_info_t *) &ri) == 0)
     {
-      attrs = Fcons (Fcons (Qminflt, INT_TO_INTEGER (rusage->ru_minflt)),
-		     attrs);
-      attrs = Fcons (Fcons (Qmajflt, INT_TO_INTEGER (rusage->ru_majflt)),
-		     attrs);
+      struct timespec utime = make_timespec (ri.ri_user_time / TIMESPEC_HZ,
+					     ri.ri_user_time % TIMESPEC_HZ);
+      struct timespec stime = make_timespec (ri.ri_system_time / TIMESPEC_HZ,
+					     ri.ri_system_time % TIMESPEC_HZ);
+      attrs = Fcons (Fcons (Qutime, make_lisp_time (utime)), attrs);
+      attrs = Fcons (Fcons (Qstime, make_lisp_time (stime)), attrs);
+      attrs = Fcons (Fcons (Qtime, make_lisp_time (timespec_add (utime, stime))), attrs);
 
-      attrs = Fcons (Fcons (Qutime, make_lisp_timeval (rusage->ru_utime)),
-		     attrs);
-      attrs = Fcons (Fcons (Qstime, make_lisp_timeval (rusage->ru_stime)),
-		     attrs);
-      t = timespec_add (timeval_to_timespec (rusage->ru_utime),
-			timeval_to_timespec (rusage->ru_stime));
-      attrs = Fcons (Fcons (Qtime, make_lisp_time (t)), attrs);
-    }
+      attrs = Fcons (Fcons (Qmajflt, INT_TO_INTEGER (ri.ri_pageins)), attrs);
+  }
 
   starttime = proc.kp_proc.p_starttime;
   attrs = Fcons (Fcons (Qnice,  make_fixnum (proc.kp_proc.p_nice)), attrs);
@@ -4009,12 +4173,57 @@ system_process_attributes (Lisp_Object pid)
   t = timespec_sub (now, timeval_to_timespec (starttime));
   attrs = Fcons (Fcons (Qetime, make_lisp_time (t)), attrs);
 
+  struct proc_taskinfo taskinfo;
+  if (proc_pidinfo (proc_id, PROC_PIDTASKINFO, 0, &taskinfo, sizeof (taskinfo)) > 0)
+    {
+      attrs = Fcons (Fcons (Qvsize, make_fixnum (taskinfo.pti_virtual_size / 1024)), attrs);
+      attrs = Fcons (Fcons (Qrss, make_fixnum (taskinfo.pti_resident_size / 1024)), attrs);
+      attrs = Fcons (Fcons (Qthcount, make_fixnum (taskinfo.pti_threadnum)), attrs);
+    }
+
+#ifdef KERN_PROCARGS2
+  char args[ARG_MAX];
+  mib[1] = KERN_PROCARGS2;
+  mib[2] = proc_id;
+  len = sizeof args;
+
+  if (sysctl (mib, 3, &args, &len, NULL, 0) == 0 && len != 0)
+    {
+      char *start, *end;
+
+      int argc = *(int*)args; /* argc is the first int */
+      start = args + sizeof (int);
+
+      start += strlen (start) + 1; /* skip executable name and any '\0's */
+      while ((start - args < len) && ! *start) start++;
+
+      /* skip argv to find real end */
+      for (i = 0, end = start; i < argc && (end - args) < len; i++)
+	{
+	  end += strlen (end) + 1;
+	}
+
+      len = end - start;
+      for (int i = 0; i < len; i++)
+	{
+	  if (! start[i] && i < len - 1)
+	    start[i] = ' ';
+	}
+
+      AUTO_STRING (comm, start);
+      decoded_comm = code_convert_string_norecord (comm,
+						   Vlocale_coding_system, 0);
+      attrs = Fcons (Fcons (Qargs, decoded_comm), attrs);
+    }
+#endif	/* KERN_PROCARGS2 */
+
   return attrs;
 }
 
 /* The WINDOWSNT implementation is in w32.c.
-   The MSDOS implementation is in dosfns.c.  */
-#elif !defined (WINDOWSNT) && !defined (MSDOS)
+   The MSDOS implementation is in dosfns.c.
+   The HAIKU implementation is in haiku.c.  */
+#elif !defined (WINDOWSNT) && !defined (MSDOS) && !defined (HAIKU)
 
 Lisp_Object
 system_process_attributes (Lisp_Object pid)

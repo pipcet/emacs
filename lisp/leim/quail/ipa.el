@@ -1,6 +1,6 @@
 ;;; ipa.el --- Quail package for inputting IPA characters  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2009-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2009-2022 Free Software Foundation, Inc.
 ;; Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005,
 ;;   2006, 2007, 2008, 2009, 2010, 2011
 ;;   National Institute of Advanced Industrial Science and Technology (AIST)
@@ -278,10 +278,10 @@ string."
   (list
    (apply #'vector
 	  (mapcar
-	   #'(lambda (entry)
-               (cl-assert (char-or-string-p entry) t)
-               (format "%s%s" to-prepend
-                       (if (integerp entry) (string entry) entry)))
+           (lambda (entry)
+             (cl-assert (char-or-string-p entry) t)
+             (format "%s%s" to-prepend
+                     (if (integerp entry) (string entry) entry)))
 	   quail-keymap))))
 
 (defun ipa-x-sampa-underscore-implosive (input-string length)
@@ -336,12 +336,12 @@ exchange in environments where Unicode is not available.  This input method
 uses this transliteration to allow you to produce the IPA in your editor
 with a keyboard that's limited to ASCII.
 
-See http://www.phon.ucl.ac.uk/home/sampa/ipasam-x.pdf for a full definition
+See https://www.phon.ucl.ac.uk/home/sampa/ipasam-x.pdf for a full definition
 of the mapping.")
 
 (quail-define-rules
  ;; Table taken from https://en.wikipedia.org/wiki/X-SAMPA, checked with
- ;; http://www.phon.ucl.ac.uk/home/sampa/ipasam-x.pdf
+ ;; https://www.phon.ucl.ac.uk/home/sampa/ipasam-x.pdf
 
  ("d`" "ɖ")	;; Voiced retroflex plosive		U+0256
  ("g" "ɡ")	;; Voiced velar plosive			U+0261

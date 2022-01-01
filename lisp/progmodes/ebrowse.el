@@ -1,6 +1,6 @@
 ;;; ebrowse.el --- Emacs C++ class browser & tags facility  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1992-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1992-2022 Free Software Foundation, Inc.
 
 ;; Author: Gerd Moellmann <gerd@gnu.org>
 ;; Maintainer: emacs-devel@gnu.org
@@ -35,7 +35,6 @@
 
 (require 'cl-lib)
 (require 'seq)
-(require 'easymenu)
 (require 'view)
 (require 'ebuff-menu)
 
@@ -795,7 +794,7 @@ and TREE is a list of `ebrowse-ts' structures forming the class tree."
 	     (ebrowse-hs-version header) ebrowse-version-string))
     ;; Read Lisp objects.  Temporarily increase `gc-cons-threshold' to
     ;; prevent a GC that would not free any memory.
-    (let ((gc-cons-threshold 2000000))
+    (let ((gc-cons-threshold (max gc-cons-threshold 2000000)))
       (while (not (progn (skip-chars-forward " \t\n") (eobp)))
 	(let* ((root (read (current-buffer)))
 	       (old-root-ptr (ebrowse-class-in-tree root tree)))
@@ -1331,9 +1330,9 @@ Pop to member buffer if no prefix ARG, to tree buffer otherwise."
   "Set the indentation width of the tree display."
   (interactive)
   (let ((width (string-to-number (read-string
-                                  (concat "Indentation (default "
-                                          (int-to-string ebrowse--indentation)
-                                          "): ")
+                                  (format-prompt
+                                   "Indentation"
+                                   (int-to-string ebrowse--indentation))
                                   nil nil ebrowse--indentation))))
     (when (cl-plusp width)
       (setq-local ebrowse--indentation width)
@@ -3063,7 +3062,7 @@ the first derived class."
 
 (easy-menu-define
  ebrowse-member-name-object-menu ebrowse-member-mode-map
- "Object menu for member names"
+ "Object menu for member names."
  '("Ebrowse"
    ["Find Definition" ebrowse-find-member-definition
     :help "Find this member's definition in the source files"
@@ -3185,8 +3184,8 @@ MEMBER-NAME is the name of the member found."
     (let* ((start (point))
 	   (name (progn (skip-chars-forward "a-zA-Z0-9_")
 			(buffer-substring start (point))))
-	   class)
-      (list class name))))
+	   ) ;; class
+      (list nil name)))) ;; class
 
 
 (defun ebrowse-tags-choose-class (_tree header name initial-class-name)
@@ -4046,23 +4045,27 @@ NUMBER-OF-STATIC-VARIABLES:"
 (defvar ebrowse-global-map nil
   "Keymap for Ebrowse commands.")
 
-
 (defvar ebrowse-global-prefix-key "\C-c\C-m"
   "Prefix key for Ebrowse commands.")
 
+(defvar-keymap ebrowse-global-submap-4
+  :doc "Keymap used for `ebrowse-global-prefix' followed by `4'."
+  "." #'ebrowse-tags-find-definition-other-window
+  "f" #'ebrowse-tags-find-definition-other-window
+  "v" #'ebrowse-tags-find-declaration-other-window
+  "F" #'ebrowse-tags-view-definition-other-window
+  "V" #'ebrowse-tags-view-declaration-other-window)
 
-(defvar ebrowse-global-submap-4 nil
-  "Keymap used for `ebrowse-global-prefix' followed by `4'.")
-
-
-(defvar ebrowse-global-submap-5 nil
-  "Keymap used for `ebrowse-global-prefix' followed by `5'.")
-
+(defvar-keymap ebrowse-global-submap-5
+  :doc "Keymap used for `ebrowse-global-prefix' followed by `5'."
+  "." #'ebrowse-tags-find-definition-other-frame
+  "f" #'ebrowse-tags-find-definition-other-frame
+  "v" #'ebrowse-tags-find-declaration-other-frame
+  "F" #'ebrowse-tags-view-definition-other-frame
+  "V" #'ebrowse-tags-view-declaration-other-frame)
 
 (unless ebrowse-global-map
   (setq ebrowse-global-map (make-sparse-keymap))
-  (setq ebrowse-global-submap-4 (make-sparse-keymap))
-  (setq ebrowse-global-submap-5 (make-sparse-keymap))
   (define-key ebrowse-global-map "a" 'ebrowse-tags-apropos)
   (define-key ebrowse-global-map "b" 'ebrowse-pop-to-browser-buffer)
   (define-key ebrowse-global-map "-" 'ebrowse-back-in-position-stack)
@@ -4083,17 +4086,7 @@ NUMBER-OF-STATIC-VARIABLES:"
   (define-key ebrowse-global-map " " 'ebrowse-electric-buffer-list)
   (define-key ebrowse-global-map "\t" 'ebrowse-tags-complete-symbol)
   (define-key ebrowse-global-map "4" ebrowse-global-submap-4)
-  (define-key ebrowse-global-submap-4 "." 'ebrowse-tags-find-definition-other-window)
-  (define-key ebrowse-global-submap-4 "f" 'ebrowse-tags-find-definition-other-window)
-  (define-key ebrowse-global-submap-4 "v" 'ebrowse-tags-find-declaration-other-window)
-  (define-key ebrowse-global-submap-4 "F" 'ebrowse-tags-view-definition-other-window)
-  (define-key ebrowse-global-submap-4 "V" 'ebrowse-tags-view-declaration-other-window)
   (define-key ebrowse-global-map "5" ebrowse-global-submap-5)
-  (define-key ebrowse-global-submap-5 "." 'ebrowse-tags-find-definition-other-frame)
-  (define-key ebrowse-global-submap-5 "f" 'ebrowse-tags-find-definition-other-frame)
-  (define-key ebrowse-global-submap-5 "v" 'ebrowse-tags-find-declaration-other-frame)
-  (define-key ebrowse-global-submap-5 "F" 'ebrowse-tags-view-definition-other-frame)
-  (define-key ebrowse-global-submap-5 "V" 'ebrowse-tags-view-declaration-other-frame)
   (define-key global-map ebrowse-global-prefix-key ebrowse-global-map))
 
 
@@ -4201,7 +4194,7 @@ EVENT is the mouse event."
 
 (easy-menu-define
  ebrowse-tree-buffer-class-object-menu ebrowse-tree-mode-map
- "Object menu for classes in the tree buffer"
+ "Object menu for classes in the tree buffer."
  '("Class"
    ["Functions" ebrowse-tree-command:show-member-functions
     :help "Display a list of member functions"
@@ -4243,7 +4236,7 @@ EVENT is the mouse event."
 
 (easy-menu-define
  ebrowse-tree-buffer-object-menu ebrowse-tree-mode-map
- "Object menu for tree buffers"
+ "Object menu for tree buffers."
  '("Ebrowse"
    ["Filename Display" ebrowse-toggle-file-name-display
     :help "Toggle display of source files names"

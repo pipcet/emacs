@@ -1,6 +1,6 @@
 ;;; json-tests.el --- unit tests for json.c          -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2017-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2017-2022 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -252,7 +252,7 @@ Test with both unibyte and multibyte strings."
   (let* ((input
           "{ \"abc\" : [9, false] , \"def\" : null }")
          (output
-          (replace-regexp-in-string " " "" input)))
+          (string-replace " " "" input)))
     (should (equal (json-parse-string input
                                       :object-type 'plist
                                       :null-object :json-null

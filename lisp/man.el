@@ -1,6 +1,6 @@
 ;;; man.el --- browse UNIX manual pages -*- lexical-binding: t -*-
 
-;; Copyright (C) 1993-1994, 1996-1997, 2001-2021 Free Software
+;; Copyright (C) 1993-1994, 1996-1997, 2001-2022 Free Software
 ;; Foundation, Inc.
 
 ;; Author: Barry A. Warsaw <bwarsaw@cen.com>
@@ -141,11 +141,21 @@ the manpage buffer."
   :group 'man
   :version "24.3")
 
-(defvar Man-ansi-color-map (let ((ansi-color-faces-vector
-				  [ default Man-overstrike default Man-underline
-				    Man-underline default default Man-reverse ]))
-			     (ansi-color-make-color-map))
-  "The value used here for `ansi-color-map'.")
+(defvar Man-ansi-color-basic-faces-vector
+  [nil Man-overstrike nil Man-underline Man-underline nil nil Man-reverse]
+  "The value used here for `ansi-color-basic-faces-vector'.")
+
+(defvar Man-ansi-color-map
+  (with-no-warnings
+    (let ((ansi-color-faces-vector
+           [ default Man-overstrike default Man-underline
+             Man-underline default default Man-reverse ]))
+      (ansi-color-make-color-map)))
+  "The value formerly used here for `ansi-color-map'.
+This variable is obsolete.  To customize the faces used by ansi-color,
+set `Man-ansi-color-basic-faces-vector'.")
+(make-obsolete-variable 'Man-ansi-color-map
+                        'Man-ansi-color-basic-faces-vector "28.1")
 
 (defcustom Man-notify-method 'friendly
   "Selects the behavior when manpage is ready.
@@ -801,8 +811,8 @@ POS defaults to `point'."
           ;; doesn't include a hyphen, we consider the hyphen to be
           ;; added by troff, and remove it.
           (or (not (eq (string-to-char (substring 1st-part -1)) ?-))
-              (string-match-p "-" (substring 1st-part 0 -1))
-              (setq word (replace-regexp-in-string "-" "" word))))
+              (string-search "-" (substring 1st-part 0 -1))
+              (setq word (string-replace "-" "" word))))
 	;; Make sure the section number gets included by the code below.
 	(goto-char (match-end 1)))
       (when (string-match "[-._‐]+$" word)
@@ -1024,7 +1034,7 @@ to auto-complete your input based on the installed manual pages."
 ;;;###autoload
 (defun man-follow (man-args)
   "Get a Un*x manual page of the item under point and put it in a buffer."
-  (interactive (list (Man-default-man-entry)) Man-mode)
+  (interactive (list (Man-default-man-entry)) man-common)
   (if (or (not man-args)
 	  (string= man-args ""))
       (error "No item under point")
@@ -1143,7 +1153,7 @@ Return the buffer in which the manpage will appear."
 
 (defun Man-update-manpage ()
   "Reformat current manpage by calling the man command again synchronously."
-  (interactive nil Man-mode)
+  (interactive nil man-common)
   (when (eq Man-arguments nil)
     ;;this shouldn't happen unless it is not in a Man buffer."
     (error "Man-arguments not initialized"))
@@ -1239,11 +1249,11 @@ See the variable `Man-notify-method' for the different notification behaviors."
 (defun Man-fontify-manpage ()
   "Convert overstriking and underlining to the correct fonts.
 Same for the ANSI bold and normal escape sequences."
-  (interactive nil Man-mode)
+  (interactive nil man-common)
   (goto-char (point-min))
   ;; Fontify ANSI escapes.
   (let ((ansi-color-apply-face-function #'ansi-color-apply-text-property-face)
-	(ansi-color-map Man-ansi-color-map))
+	(ansi-color-basic-faces-vector Man-ansi-color-basic-faces-vector))
     (ansi-color-apply-on-region (point-min) (point-max)))
   ;; Other highlighting.
   (let ((buffer-undo-list t))
@@ -1324,7 +1334,7 @@ default type, `Man-xref-man-page' is used for the buttons."
 
 (defun Man-highlight-references0 (start-section regexp button-pos target type)
   ;; Based on `Man-build-references-alist'
-  (when (or (null start-section)        ;; Search regardless of sections.
+  (when (or (null start-section) ;; Search regardless of sections.
             ;; Section header is in this chunk.
             (Man-find-section start-section))
     (let ((end (if start-section
@@ -1337,25 +1347,31 @@ default type, `Man-xref-man-page' is used for the buttons."
 		 (goto-char (point-min))
 		 nil)))
       (while (re-search-forward regexp end t)
-	;; An overlay button is preferable because the underlying text
-	;; may have text property highlights (Bug#7881).
-	(make-button
-	 (match-beginning button-pos)
-	 (match-end button-pos)
-	 'type type
-	 'Man-target-string (cond
-			     ((numberp target)
-			      (match-string target))
-			     ((functionp target)
-			      target)
-			     (t nil)))))))
+        (let ((b (match-beginning button-pos))
+              (e (match-end button-pos))
+              (match (match-string button-pos)))
+          ;; Some lists of references end with ", and ...".  Chop the
+          ;; "and" bit off before making a button.
+          (when (string-match "\\`and +" match)
+            (setq b (+ b (- (match-end 0) (match-beginning 0)))))
+	  ;; An overlay button is preferable because the underlying text
+	  ;; may have text property highlights (Bug#7881).
+	  (make-button
+	   b e
+	   'type type
+	   'Man-target-string (cond
+			       ((numberp target)
+			        (match-string target))
+			       ((functionp target)
+			        target)
+			       (t nil))))))))
 
 (defun Man-cleanup-manpage (&optional interactive)
   "Remove overstriking and underlining from the current buffer.
 Normally skip any jobs that should have been done by the sed script,
 but when called interactively, do those jobs even if the sed
 script would have done them."
-  (interactive "p" Man-mode)
+  (interactive "p" man-common)
   (if (or interactive (not Man-sed-script))
       (progn
 	(goto-char (point-min))
@@ -1503,7 +1519,9 @@ manpage command."
               (quit-restore-window
                (get-buffer-window Man-buffer t) 'kill)
               ;; Ensure that we end up in the correct window.
-              (select-window (old-selected-window)))
+              (let ((old-window (old-selected-window)))
+                (when (window-live-p old-window)
+                  (select-window old-window))))
           (kill-buffer Man-buffer)))
 
       (when message
@@ -1527,7 +1545,14 @@ manpage command."
 
 (defvar bookmark-make-record-function)
 
-(define-derived-mode Man-mode special-mode "Man"
+(define-derived-mode man-common special-mode "Man Shared"
+  "Parent mode for `Man-mode' like modes.
+This mode is here to be inherited by modes that need to use
+commands from `Man-mode'.  Used by `woman'.
+(In itself, this mode currently does nothing.)"
+  :interactive nil)
+
+(define-derived-mode Man-mode man-common "Man"
   "A mode for browsing Un*x manual pages.
 
 The following man commands are available in the buffer.  Try
@@ -1723,7 +1748,7 @@ The following key bindings are currently in effect in the buffer:
 
 (defun Man-next-section (n)
   "Move point to Nth next section (default 1)."
-  (interactive "p" Man-mode)
+  (interactive "p" man-common)
   (let ((case-fold-search nil)
         (start (point)))
     (if (looking-at Man-heading-regexp)
@@ -1739,7 +1764,7 @@ The following key bindings are currently in effect in the buffer:
 
 (defun Man-previous-section (n)
   "Move point to Nth previous section (default 1)."
-  (interactive "p" Man-mode)
+  (interactive "p" man-common)
   (let ((case-fold-search nil))
     (if (looking-at Man-heading-regexp)
 	(forward-line -1))
@@ -1767,11 +1792,11 @@ Returns t if section is found, nil otherwise."
                        Man--last-section
                      (car Man--sections)))
           (completion-ignore-case t)
-          (prompt (concat "Go to section (default " default "): "))
+          (prompt (format-prompt "Go to section" default))
           (chosen (completing-read prompt Man--sections
                                    nil nil nil nil default)))
      (list chosen))
-   Man-mode)
+   man-common)
   (setq Man--last-section section)
   (unless (Man-find-section section)
     (error "Section %s not found" section)))
@@ -1780,7 +1805,7 @@ Returns t if section is found, nil otherwise."
 (defun Man-goto-see-also-section ()
   "Move point to the \"SEE ALSO\" section.
 Actually the section moved to is described by `Man-see-also-regexp'."
-  (interactive nil Man-mode)
+  (interactive nil man-common)
   (if (not (Man-find-section Man-see-also-regexp))
       (error "%s" (concat "No " Man-see-also-regexp
 		     " section found in the current manpage"))))
@@ -1831,11 +1856,11 @@ Specify which REFERENCE to use; default is based on word at point."
 	     (defaults
 	       (mapcar 'substring-no-properties
                        (cons default Man--refpages)))
-	     (prompt (concat "Refer to (default " default "): "))
+             (prompt (format-prompt "Refer to" default))
 	     (chosen (completing-read prompt Man--refpages
 				      nil nil nil nil defaults)))
         chosen)))
-   Man-mode)
+   man-common)
   (if (not Man--refpages)
       (error "Can't find any references in the current manpage")
     (setq Man--last-refpage reference)
@@ -1844,7 +1869,7 @@ Specify which REFERENCE to use; default is based on word at point."
 
 (defun Man-kill ()
   "Kill the buffer containing the manpage."
-  (interactive nil Man-mode)
+  (interactive nil man-common)
   (quit-window t))
 
 (defun Man-goto-page (page &optional noerror)
@@ -1856,7 +1881,7 @@ Specify which REFERENCE to use; default is based on word at point."
 	 (error "You're looking at the only manpage in the buffer")
        (list (read-minibuffer (format "Go to manpage [1-%d]: "
                                       (length Man-page-list))))))
-    Man-mode)
+    man-common)
   (if (and (not Man-page-list) (not noerror))
       (error "Not a man page buffer"))
   (when Man-page-list
@@ -1878,7 +1903,7 @@ Specify which REFERENCE to use; default is based on word at point."
 
 (defun Man-next-manpage ()
   "Find the next manpage entry in the buffer."
-  (interactive nil Man-mode)
+  (interactive nil man-common)
   (if (= (length Man-page-list) 1)
       (error "This is the only manpage in the buffer"))
   (if (< Man-current-page (length Man-page-list))
@@ -1889,7 +1914,7 @@ Specify which REFERENCE to use; default is based on word at point."
 
 (defun Man-previous-manpage ()
   "Find the previous manpage entry in the buffer."
-  (interactive nil Man-mode)
+  (interactive nil man-common)
   (if (= (length Man-page-list) 1)
       (error "This is the only manpage in the buffer"))
   (if (> Man-current-page 1)

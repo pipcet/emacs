@@ -1,6 +1,6 @@
 ;;; mode-local.el --- Support for mode local facilities  -*- lexical-binding:t -*-
 ;;
-;; Copyright (C) 2004-2005, 2007-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2004-2005, 2007-2022 Free Software Foundation, Inc.
 ;;
 ;; Author: David Ponce <david@dponce.com>
 ;; Created: 27 Apr 2004
@@ -91,13 +91,13 @@ MODES can be a symbol or a list of symbols.
 FUNCTION does not have arguments."
   (or (listp modes) (setq modes (list modes)))
   (mode-local-map-file-buffers
-   function #'(lambda ()
-		(let ((mm (mode-local-equivalent-mode-p major-mode))
-		      (ans nil))
-		  (while (and (not ans) mm)
-		    (setq ans (memq (car mm) modes)
-			  mm (cdr mm)) )
-		  ans))))
+   function (lambda ()
+              (let ((mm (mode-local-equivalent-mode-p major-mode))
+                    (ans nil))
+                (while (and (not ans) mm)
+                  (setq ans (memq (car mm) modes)
+                        mm (cdr mm)) )
+                ans))))
 
 ;;; Hook machinery
 ;;
@@ -156,7 +156,7 @@ local variables have been defined."
 DOCSTRING is optional and not used.
 To work properly, this should be put after PARENT mode local variables
 definition."
-  (declare (obsolete define-derived-mode "27.1"))
+  (declare (obsolete define-derived-mode "27.1") (indent 2))
   `(mode-local--set-parent ',mode ',parent))
 
 (defun mode-local-use-bindings-p (this-mode desired-mode)
@@ -323,14 +323,14 @@ Elements are (SYMBOL . PREVIOUS-VALUE), describing one variable."
       (dolist (mode modes)
 	(when (setq table (get mode 'mode-local-symbol-table))
 	  (mapatoms
-	   #'(lambda (var)
-	       (when (get var 'mode-variable-flag)
-		 (let ((v (intern (symbol-name var))))
-		   ;; Save the current buffer-local value of the
-		   ;; mode-local variable.
-		   (and (local-variable-p v (current-buffer))
-			(push (cons v (symbol-value v)) old-locals))
-		   (set (make-local-variable v) (symbol-value var)))))
+           (lambda (var)
+             (when (get var 'mode-variable-flag)
+               (let ((v (intern (symbol-name var))))
+                 ;; Save the current buffer-local value of the
+                 ;; mode-local variable.
+                 (and (local-variable-p v (current-buffer))
+                      (push (cons v (symbol-value v)) old-locals))
+                 (set (make-local-variable v) (symbol-value var)))))
 	   table)))
       old-locals)))
 
@@ -348,9 +348,9 @@ If MODE is not specified it defaults to current `major-mode'."
     (while mode
       (when (setq table (get mode 'mode-local-symbol-table))
         (mapatoms
-         #'(lambda (var)
-             (when (get var 'mode-variable-flag)
-               (kill-local-variable (intern (symbol-name var)))))
+         (lambda (var)
+           (when (get var 'mode-variable-flag)
+             (kill-local-variable (intern (symbol-name var)))))
          table))
       (setq mode (get-mode-local-parent mode)))))
 
@@ -428,7 +428,7 @@ Return the value of the last VAL."
          ;; Save mode bindings
          (mode-local-bind (list ,@bl) '(mode-variable-flag t) ',mode)
          ;; Assign to local variables in all existing buffers in MODE
-         (mode-local-map-mode-buffers #'(lambda () ,@sl) ',mode)
+         (mode-local-map-mode-buffers (lambda () ,@sl) ',mode)
          ;; Return the last value
          ,tmp)
       )))
@@ -567,6 +567,7 @@ appropriate arguments deduced from ARGS.
 OVERARGS is a list of arguments passed to the override and
 `NAME-default' function, in place of those deduced from ARGS."
   (declare (doc-string 3)
+           (indent defun)
            (debug (&define name lambda-list stringp def-body)))
   `(eval-and-compile
      (defun ,name ,args
@@ -576,7 +577,7 @@ OVERARGS is a list of arguments passed to the override and
 (put :override-with-args 'lisp-indent-function 1)
 
 (define-obsolete-function-alias 'define-overload
-  'define-overloadable-function "27.1")
+  #'define-overloadable-function "27.1")
 
 (define-obsolete-function-alias 'function-overload-p
   #'mode-local--function-overload-p "27.1")
@@ -595,21 +596,23 @@ DOCSTRING is the documentation string.
 BODY is the implementation of this function."
   ;; FIXME: Make this obsolete and use cl-defmethod with &context instead.
   (declare (doc-string 4)
+           (indent defun)
            (debug (&define name symbolp lambda-list stringp def-body)))
   (let ((newname (intern (format "%s-%s" name mode))))
     `(progn
        (eval-and-compile
 	 (defun ,newname ,args
-	   ,(format "%s\n\nOverride %s in `%s' buffers."
-		    docstring name mode)
+           ,(concat docstring "\n"
+                    (internal--format-docstring-line
+                     "Override `%s' in `%s' buffers."
+                     name mode))
 	   ;; The body for this implementation
 	   ,@body)
          ;; For find-func to locate the definition of NEWNAME.
          (put ',newname 'definition-name ',name))
        (mode-local-bind '((,name . ,newname))
                         '(override-flag t)
-                        ',mode))
-    ))
+                        ',mode))))
 
 ;;; Read/Query Support
 (defun mode-local-read-function (prompt &optional initial hist default)
@@ -773,11 +776,11 @@ SYMBOL is a function that can be overridden."
 (defconst xref-mode-local-find-overloadable-regexp
   "(define-overload\\(able-function\\)? +%s"
   "Regexp used by `xref-find-definitions' when searching for a
-  mode-local overloadable function definition.")
+mode-local overloadable function definition.")
 
 (defun xref-mode-local-find-override (meta-name)
   "Function used by `xref-find-definitions' when searching for an
-  override of a mode-local overloadable function.
+override of a mode-local overloadable function.
 META-NAME is a cons (OVERLOADABLE-SYMBOL . MAJOR-MODE)."
   (let* ((override (car meta-name))
 	 (mode (cdr meta-name))
@@ -893,7 +896,7 @@ invoked interactively."
   (interactive
    (list (completing-read
           "Mode: " obarray
-          #'(lambda (s) (get s 'mode-local-symbol-table))
+          (lambda (s) (get s 'mode-local-symbol-table))
           t (symbol-name major-mode))))
   (when (setq mode (intern-soft mode))
     (mode-local-describe-bindings-1 mode (called-interactively-p 'any))))

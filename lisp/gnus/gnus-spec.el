@@ -1,6 +1,6 @@
 ;;; gnus-spec.el --- format spec functions for Gnus  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 1996-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1996-2022 Free Software Foundation, Inc.
 
 ;; Author: Lars Magne Ingebrigtsen <larsi@gnus.org>
 ;; Keywords: news
@@ -582,7 +582,7 @@ or to characters when given a pad value."
       ((string= fstring "")
        nil)
       ;; Not a format string.
-      ((not (string-match "%" fstring))
+      ((not (string-search "%" fstring))
        (list fstring))
       ;; A format string with just a single string spec.
       ((string= fstring "%s")

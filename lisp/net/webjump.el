@@ -1,6 +1,6 @@
 ;;; webjump.el --- programmable Web hotlist  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 1996-1997, 2001-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1996-1997, 2001-2022 Free Software Foundation, Inc.
 
 ;; Author:     Neil W. Van Dyke <nwv@acm.org>
 ;; Maintainer: emacs-devel@gnu.org
@@ -61,6 +61,13 @@
 
 ;;; Code:
 
+;; TODO:
+;; - Add a menu bar and tool bar for this library.
+;; - Add commands to create/delete link from the hotlist.
+;; - Add something like a bookmark folder in modern browsers.
+;;    - Add a command that can open/follow all links in a folder.
+;; - Add tags for Web sites in the hotlist.
+
 ;;-------------------------------------------------------- Package Dependencies
 
 (require 'browse-url)
@@ -79,10 +86,10 @@
      ;; GNU FTP Mirror List from https://www.gnu.org/order/ftp.html
      [mirrors "https://ftp.gnu.org/pub/gnu/"
               "https://ftpmirror.gnu.org"])
-    ("GNU Project Home Page" . "www.gnu.org")
+    ("GNU Project Website" . "www.gnu.org")
 
     ;; Emacs.
-    ("Emacs Home Page" .
+    ("Emacs Website" .
      "www.gnu.org/software/emacs/emacs.html")
     ("Savannah Emacs page" .
      "savannah.gnu.org/projects/emacs")
@@ -252,7 +259,7 @@ Please submit bug reports and other feedback to the author, Neil W. Van Dyke
 		 (cond ((not expr) "")
 		       ((stringp expr) expr)
 		       ((vectorp expr) (webjump-builtin expr name))
-		       ((listp expr) (eval expr))
+		       ((listp expr) (eval expr t))
 		       ((symbolp expr)
 			(if (fboundp expr)
 			    (funcall expr name)

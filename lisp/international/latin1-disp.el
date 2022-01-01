@@ -1,6 +1,6 @@
 ;;; latin1-disp.el --- display tables for other ISO 8859 on Latin-1 terminals -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2000-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2000-2022 Free Software Foundation, Inc.
 
 ;; Author: Dave Love <fx@gnu.org>
 ;; Keywords: i18n
@@ -186,8 +186,8 @@ character set."
 		     'arabic-iso8859-6
 		   (car (remq 'ascii (get-language-info language
 							'charset))))))
-    (map-charset-chars #'(lambda (range _arg)
-			   (standard-display-default (car range) (cdr range)))
+    (map-charset-chars (lambda (range _arg)
+                         (standard-display-default (car range) (cdr range)))
 		       charset))
   (sit-for 0))
 

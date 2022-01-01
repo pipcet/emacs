@@ -1,6 +1,6 @@
 @c -*-texinfo-*-
 @c This is part of the GNU Emacs Lisp Reference Manual.
-@c Copyright (C) 1990--1995, 1998--1999, 2001--2021 Free Software
+@c Copyright (C) 1990--1995, 1998--1999, 2001--2022 Free Software
 @c Foundation, Inc.
 @c See the file elisp.texi for copying conditions.
 @node System Interface
@@ -813,7 +813,7 @@ Here is an example of how you could use these hooks:
 @smallexample
 @group
 (add-hook 'suspend-hook
-          (lambda () (or (y-or-n-p "Really suspend? ")
+          (lambda () (or (y-or-n-p "Really suspend?")
                          (error "Suspend canceled"))))
 @end group
 (add-hook 'suspend-resume-hook (lambda () (message "Resumed!")
@@ -947,6 +947,9 @@ actually Linux is just the kernel, not the whole system.)
 @item gnu/kfreebsd
 A GNU (glibc-based) system with a FreeBSD kernel.
 
+@item haiku
+The Haiku operating system, a derivative of the Be Operating System.
+
 @item hpux
 Hewlett-Packard HPUX operating system.
 
@@ -1041,6 +1044,21 @@ that variable with @code{let} is also reasonable practice.
 @code{setenv} returns the new value of @var{variable}, or @code{nil}
 if it removed @var{variable} from the environment.
 @end deffn
+
+@defmac with-environment-variables variables body@dots{}
+This macro sets the environment variables according to @var{variables}
+temporarily when executing @var{body}.  The previous values are
+restored when the form finishes.  The argument @var{variables} should
+be a list of pairs of strings of the form
+@w{@code{(@var{var} @var{value})}}, where @var{var} is the name of the
+environment variable and @var{value} is that variable's value.
+
+@lisp
+(with-environment-variables (("LANG" "C")
+                             ("LANGUAGE" "en_US:en"))
+  (call-process "ls" nil t))
+@end lisp
+@end defmac
 
 @defvar process-environment
 This variable is a list of strings, each describing one environment
@@ -1334,7 +1352,7 @@ may change as higher-resolution clocks become available.
 
 @cindex time value
   Function arguments, e.g., the @var{time} argument to
-@code{current-time-string}, accept a more-general @dfn{time value}
+@code{format-time-string}, accept a more-general @dfn{time value}
 format, which can be a Lisp timestamp, @code{nil} for the current
 time, a single floating-point number for seconds, or a list
 @code{(@var{high} @var{low} @var{micro})} or @code{(@var{high}
@@ -1489,10 +1507,7 @@ The optional @var{form} argument specifies the timestamp form to be
 returned.  If @var{form} is the symbol @code{integer}, this function
 returns an integer count of seconds.  If @var{form} is a positive
 integer, it specifies a clock frequency and this function returns an
-integer-pair timestamp @code{(@var{ticks}
-. @var{form})}.@footnote{Currently a positive integer @var{form}
-should be at least 65536 if the returned value is intended to be given
-to standard functions expecting Lisp timestamps.}  If @var{form} is
+integer-pair timestamp @code{(@var{ticks} . @var{form})}.  If @var{form} is
 @code{t}, this function treats it as a positive integer suitable for
 representing the timestamp; for example, it is treated as 1000000000
 if @var{time} is nil and the platform timestamp has nanosecond
@@ -1706,7 +1721,8 @@ This function parses the time-string @var{string} and returns the
 corresponding Lisp timestamp.  The argument @var{string} should represent
 a date-time, and should be in one of the forms recognized by
 @code{parse-time-string} (see below).  This function assumes Universal
-Time if @var{string} lacks explicit time zone information.
+Time if @var{string} lacks explicit time zone information,
+and assumes earliest values if @var{string} lacks month, day, or time.
 The operating system limits the range of time and zone values.
 @end defun
 
@@ -2165,7 +2181,18 @@ In most cases, @var{repeat} has no effect on when @emph{first} call
 takes place---@var{time} alone specifies that.  There is one exception:
 if @var{time} is @code{t}, then the timer runs whenever the time is a
 multiple of @var{repeat} seconds after the epoch.  This is useful for
-functions like @code{display-time}.
+functions like @code{display-time}.  For instance, the following will
+make @var{function} run at every ``whole'' minute (e.g.,
+@samp{11:03:00}, @samp{11:04:00}, etc):
+
+@example
+(run-at-time t 60 @var{function})
+@end example
+
+If Emacs didn't get any CPU time when the timer would have run (for
+example if the system was busy running another process or if the
+computer was sleeping or in a suspended state), the timer will run as
+soon as Emacs resumes and is idle.
 
 The function @code{run-at-time} returns a timer value that identifies
 the particular scheduled future action.  You can use this value to call
@@ -2369,11 +2396,17 @@ has no effect except in @sc{cbreak} mode.
 
 The argument @var{meta} controls support for input character codes
 above 127.  If @var{meta} is @code{t}, Emacs converts characters with
-the 8th bit set into Meta characters.  If @var{meta} is @code{nil},
+the 8th bit set into Meta characters, before it decodes them as needed
+(@pxref{Terminal I/O Encoding}).  If @var{meta} is @code{nil},
 Emacs disregards the 8th bit; this is necessary when the terminal uses
-it as a parity bit.  If @var{meta} is neither @code{t} nor @code{nil},
-Emacs uses all 8 bits of input unchanged.  This is good for terminals
-that use 8-bit character sets.
+it as a parity bit.  If @var{meta} is the symbol @code{encoded}, Emacs
+first decodes the characters using all the 8 bits of each byte, and
+then converts the decoded single-byte characters into Meta characters
+if they have their eighth bit set.  Finally, if @var{meta} is neither
+@code{t} nor @code{nil} nor @code{encoded}, Emacs uses all 8 bits of
+input unchanged, both before and after decoding them.  This is good
+for terminals that use 8-bit character sets and don't encode the Meta
+modifier as the eighth bit.
 
 If @var{quit-char} is non-@code{nil}, it specifies the character to
 use for quitting.  Normally this character is @kbd{C-g}.
@@ -2398,9 +2431,11 @@ flow control for output to the terminal.  This value is meaningful only
 when @var{interrupt} is @code{nil}.
 @item meta
 is @code{t} if Emacs treats the eighth bit of input characters as
-the meta bit; @code{nil} means Emacs clears the eighth bit of every
-input character; any other value means Emacs uses all eight bits as the
-basic character code.
+the Meta bit before decoding input; @code{encoded} if Emacs treats the
+eighth bit of the decoded single-byte characters as the Meta bit;
+@code{nil} if Emacs clears the eighth bit of every input character;
+any other value means Emacs uses all eight bits as the basic character
+code.
 @item quit
 is the character Emacs currently uses for quitting, usually @kbd{C-g}.
 @end table
@@ -3096,8 +3131,9 @@ watch for file attribute changes, like permissions or modification
 time
 @end table
 
-If @var{file} is a directory, changes for all files in that directory
-will be notified.  This does not work recursively.
+If @var{file} is a directory, @code{change} watches for file creation
+or deletion in that directory.  Some of the file notification backends
+report also file changes.  This does not work recursively.
 
 When any event happens, Emacs will call the @var{callback} function
 passing it a single argument @var{event}, which is of the form
@@ -3201,6 +3237,14 @@ Removes an existing file watch specified by its @var{descriptor}.
 @var{descriptor} should be an object returned by
 @code{file-notify-add-watch}.
 @end defun
+
+@deffn Command file-notify-rm-all-watches
+Removes all existing file notification watches from Emacs.
+
+Use this command with caution, because it could have unexpected side
+effects on packages relying on file watches.  It is intended mainly
+for debugging purposes, or when Emacs has been stalled.
+@end deffn
 
 @defun file-notify-valid-p descriptor
 Checks a watch specified by its @var{descriptor} for validity.

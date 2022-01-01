@@ -1,6 +1,6 @@
 ;;; edebug.el --- a source-level debugger for Emacs Lisp  -*- lexical-binding: t -*-
 
-;; Copyright (C) 1988-1995, 1997, 1999-2021 Free Software Foundation,
+;; Copyright (C) 1988-1995, 1997, 1999-2022 Free Software Foundation,
 ;; Inc.
 
 ;; Author: Daniel LaLiberte <liberte@holonexus.org>
@@ -88,6 +88,7 @@ using, but only when you also use Edebug."
 ;; because the byte compiler binds them; as a result, if edebug
 ;; is first loaded for a require in a compilation, they will be left unbound.
 
+;;;###autoload
 (defcustom edebug-all-defs nil
   "If non-nil, evaluating defining forms instruments for Edebug.
 This applies to `eval-defun', `eval-region', `eval-buffer', and
@@ -100,6 +101,7 @@ variable.  You may wish to make it local to each buffer with
 `emacs-lisp-mode-hook'."
   :type 'boolean)
 
+;;;###autoload
 (defcustom edebug-all-forms nil
   "Non-nil means evaluation of all forms will instrument for Edebug.
 This doesn't apply to loading or evaluations in the minibuffer.
@@ -459,12 +461,15 @@ invoked without a prefix argument.
 If acting on a `defun' for FUNCTION, and the function was instrumented,
 `Edebug: FUNCTION' is printed in the minibuffer.  If not instrumented,
 just FUNCTION is printed."
+  ;; Re-install our advice, in case `debug' re-bound `load-read-function' to
+  ;; its default value.
+  (add-function :around load-read-function #'edebug--read)
   (let* ((edebug-all-forms (not (eq (not edebug-it) (not edebug-all-defs))))
 	 (edebug-all-defs  edebug-all-forms))
     (funcall orig-fun nil)))
 
 (defun edebug-eval-defun (edebug-it)
-  (declare (obsolete "use eval-defun or edebug--eval-defun instead" "28.1"))
+  (declare (obsolete "use `eval-defun' or `edebug--eval-defun' instead" "28.1"))
   (interactive "P")
   (if (advice-member-p #'edebug--eval-defun 'eval-defun)
       (eval-defun edebug-it)
@@ -1726,7 +1731,7 @@ contains a circular object."
 
 (defsubst edebug-match-body (cursor) (edebug-forms cursor))
 
-(cl-defmethod edebug--match-&-spec-op ((_ (eql &optional)) cursor specs)
+(cl-defmethod edebug--match-&-spec-op ((_ (eql '&optional)) cursor specs)
   ;; Keep matching until one spec fails.
   (edebug-&optional-wrapper cursor specs #'edebug-&optional-wrapper))
 
@@ -1750,7 +1755,7 @@ contains a circular object."
   "Handle &foo spec operators.
 &foo spec operators operate on all the subsequent SPECS.")
 
-(cl-defmethod edebug--match-&-spec-op ((_ (eql &rest)) cursor specs)
+(cl-defmethod edebug--match-&-spec-op ((_ (eql '&rest)) cursor specs)
   ;; Repeatedly use specs until failure.
   (let (edebug-best-error
 	edebug-error-point)
@@ -1763,7 +1768,7 @@ contains a circular object."
        (edebug-&optional-wrapper c (or s specs) rh)))))
 
 
-(cl-defmethod edebug--match-&-spec-op ((_ (eql &or)) cursor specs)
+(cl-defmethod edebug--match-&-spec-op ((_ (eql '&or)) cursor specs)
   ;; Keep matching until one spec succeeds, and return its results.
   ;; If none match, fail.
   ;; This needs to be optimized since most specs spend time here.
@@ -1787,7 +1792,7 @@ contains a circular object."
       (apply #'edebug-no-match cursor "Expected one of" original-specs))
     ))
 
-(cl-defmethod edebug--match-&-spec-op ((_ (eql &interpose)) cursor specs)
+(cl-defmethod edebug--match-&-spec-op ((_ (eql '&interpose)) cursor specs)
   "Compute the specs for `&interpose SPEC FUN ARGS...'.
 Extracts the head of the data by matching it against SPEC,
 and then matches the rest by calling (FUN HEAD PF ARGS...)
@@ -1812,7 +1817,7 @@ a sequence of elements."
                     (append instrumented-head (edebug-match cursor newspecs)))
                  ,@args))))
 
-(cl-defmethod edebug--match-&-spec-op ((_ (eql &not)) cursor specs)
+(cl-defmethod edebug--match-&-spec-op ((_ (eql '&not)) cursor specs)
   ;; If any specs match, then fail
   (if (null (catch 'no-match
 	      (let ((edebug-gate nil))
@@ -1824,7 +1829,7 @@ a sequence of elements."
   ;; This means nothing matched, so it is OK.
   nil) ;; So, return nothing
 
-(cl-defmethod edebug--match-&-spec-op ((_ (eql &key)) cursor specs)
+(cl-defmethod edebug--match-&-spec-op ((_ (eql '&key)) cursor specs)
   ;; Following specs must look like (<name> <spec>) ...
   ;; where <name> is the name of a keyword, and spec is its spec.
   ;; This really doesn't save much over the expanded form and takes time.
@@ -1837,7 +1842,7 @@ a sequence of elements."
                            (car (cdr pair))))
 		 specs))))
 
-(cl-defmethod edebug--match-&-spec-op ((_ (eql &error)) cursor specs)
+(cl-defmethod edebug--match-&-spec-op ((_ (eql '&error)) cursor specs)
   ;; Signal an error, using the following string in the spec as argument.
   (let ((error-string (car specs))
         (edebug-error-point (edebug-before-offset cursor)))
@@ -1937,21 +1942,23 @@ a sequence of elements."
 (defun edebug-match-function (_cursor)
   (error "Use function-form instead of function in edebug spec"))
 
-(cl-defmethod edebug--match-&-spec-op ((_ (eql &define)) cursor specs)
+(cl-defmethod edebug--match-&-spec-op ((_ (eql '&define)) cursor specs)
   ;; Match a defining form.
   ;; Normally, &define is interpreted specially other places.
   ;; This should only be called inside of a spec list to match the remainder
   ;; of the current list.  e.g. ("lambda" &define args def-body)
-   (edebug-make-form-wrapper
-    cursor
-    (edebug-before-offset cursor)
-    ;; Find the last offset in the list.
-    (let ((offsets (edebug-cursor-offsets cursor)))
-      (while (consp offsets) (setq offsets (cdr offsets)))
-      offsets)
-    specs))
+  (prog1 (edebug-make-form-wrapper
+          cursor
+          (edebug-before-offset cursor)
+          ;; Find the last offset in the list.
+          (let ((offsets (edebug-cursor-offsets cursor)))
+            (while (consp offsets) (setq offsets (cdr offsets)))
+            offsets)
+          specs)
+    ;; Stop backtracking here (Bug#41988).
+    (setq edebug-gate t)))
 
-(cl-defmethod edebug--match-&-spec-op ((_ (eql &name)) cursor specs)
+(cl-defmethod edebug--match-&-spec-op ((_ (eql '&name)) cursor specs)
   "Compute the name for `&name SPEC FUN` spec operator.
 
 The full syntax of that operator is:
@@ -3508,11 +3515,12 @@ canceled the first time the function is entered."
 
 (defun edebug-cancel-on-entry (function)
   "Cause Edebug to not stop when FUNCTION is called.
-The removes the effect of `edebug-on-entry'.  If FUNCTION is is
+The removes the effect of `edebug-on-entry'.  If FUNCTION is
 nil, remove `edebug-on-entry' on all functions."
   (interactive
    (list (let ((name (completing-read
-                      "Cancel edebug on entry to (default all functions): "
+                      (format-prompt "Cancel edebug on entry to"
+                                     "all functions")
                       (let ((functions (edebug--edebug-on-entry-functions)))
                         (unless functions
                           (user-error "No functions have `edebug-on-entry'"))
@@ -3564,7 +3572,7 @@ This is useful for exiting even if `unwind-protect' code may be executed."
 (defun edebug-set-initial-mode ()
   "Set the initial execution mode of Edebug.
 The mode is requested via the key that would be used to set the mode in
-edebug-mode."
+`edebug-mode'."
   (interactive)
   (let* ((old-mode edebug-initial-mode)
 	 (key (read-key-sequence
@@ -4114,12 +4122,12 @@ This should be a list of `edebug---frame' objects.")
   "Stack frames of the current Edebug Backtrace buffer with instrumentation.
 This should be a list of `edebug---frame' objects.")
 
-;; Data structure for backtrace frames with information
-;; from Edebug instrumentation found in the backtrace.
 (cl-defstruct
     (edebug--frame
      (:constructor edebug--make-frame)
      (:include backtrace-frame))
+  "Data structure for backtrace frames with information
+from Edebug instrumentation found in the backtrace."
   def-name before-index after-index)
 
 (defun edebug-pop-to-backtrace ()
@@ -4369,10 +4377,6 @@ It is removed when you hit any char."
   (set variable (not (symbol-value variable)))
   (message "%s: %s" variable (symbol-value variable)))
 
-;; We have to require easymenu (even for Emacs 18) just so
-;; the easy-menu-define macro call is compiled correctly.
-(require 'easymenu)
-
 (defconst edebug-mode-menus
   '("Edebug"
      ["Stop" edebug-stop t]
@@ -4465,7 +4469,7 @@ With prefix argument, make it a temporary breakpoint."
 	       'read-expression-history)))))))
   (edebug-modify-breakpoint t condition arg))
 
-(easy-menu-define edebug-menu edebug-mode-map "Edebug menus" edebug-mode-menus)
+(easy-menu-define edebug-menu edebug-mode-map "Edebug menus." edebug-mode-menus)
 
 
 ;;; Finalize Loading
@@ -4545,7 +4549,8 @@ instrumentation for, defaulting to all functions."
         (user-error "Found no functions to remove instrumentation from"))
       (let ((name
              (completing-read
-              "Remove instrumentation from (default all functions): "
+              (format-prompt "Remove instrumentation from"
+                             "all functions")
               functions)))
         (if (and name
                  (not (equal name "")))

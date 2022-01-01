@@ -1,6 +1,6 @@
 @c -*- coding: utf-8 -*-
 @c This is part of the Emacs manual.
-@c Copyright (C) 1985--1987, 1993--1995, 1997, 2000--2021 Free Software
+@c Copyright (C) 1985--1987, 1993--1995, 1997, 2000--2022 Free Software
 @c Foundation, Inc.
 @c See file emacs.texi for copying conditions.
 @node Search
@@ -201,6 +201,14 @@ something before the starting point, type @kbd{C-r} to switch to a
 backward search, leaving the search string unchanged.  Similarly,
 @kbd{C-s} in a backward search switches to a forward search.
 
+@cindex search, changing direction
+@vindex isearch-repeat-on-direction-change
+  When you change the direction of a search, the first command you
+type will, by default, remain on the same match, and the cursor will
+move to the other end of the match.  To move to another match
+immediately, customize the variable
+@code{isearch-repeat-on-direction-change} to @code{t}.
+
 @cindex search, wrapping around
 @cindex search, overwrapped
 @cindex wrapped search
@@ -213,6 +221,15 @@ appears in the search prompt once this has happened.  If you keep on
 going past the original starting point of the search, it changes to
 @samp{Overwrapped}, which means that you are revisiting matches that
 you have already seen.
+
+@vindex isearch-wrap-pause
+  You can control what happens when there are no more matches by
+customizing the @code{isearch-wrap-pause} user option.  If it is
+@code{t} (the default), signal an error.  (Repeating the search will
+wrap around.)  If @code{no}, issue a @code{ding} and wrap immediately
+after reaching the last match.  If @code{no-ding}, wrap immediately,
+but don't @code{ding}.  Finally, if @code{nil}, never wrap, but just
+stop at the last match.
 
 @cindex search ring
 @findex isearch-ring-advance
@@ -293,13 +310,11 @@ from point to the @var{n}th occurrence of the specified character.
 @findex isearch-yank-x-selection
   Within incremental search, @kbd{C-y} (@code{isearch-yank-kill})
 appends the current kill to the search string.  @kbd{M-y}
-(@code{isearch-yank-pop}), if called after @kbd{C-y}, replaces that
-appended text with an earlier kill, similar to the usual @kbd{M-y}
-(@code{yank-pop}) command.  When @kbd{M-y} is called not after
-@kbd{C-y}, then it activates the minibuffer where you can select
-a previous kill to append to the search string (@pxref{Earlier
-Kills}).  Clicking @kbd{mouse-2} in the echo area appends the current
-X selection (@pxref{Primary Selection}) to the search string
+(@code{isearch-yank-pop}), if called after @kbd{C-y} during
+incremental search, replaces that appended text with an earlier kill,
+similar to the usual @kbd{M-y} (@code{yank-pop}) command.  Clicking
+@kbd{mouse-2} in the echo area appends the current X selection
+(@pxref{Primary Selection}) to the search string
 (@code{isearch-yank-x-selection}).
 
 @kindex C-M-d @r{(Incremental search)}
@@ -321,6 +336,16 @@ case-insensitive (@pxref{Lax Search, case folding}).  However, if the
 value of the variable @code{search-upper-case} (@pxref{Lax Search,
 search-upper-case}) is other than @code{not-yanks}, that disables this
 down-casing.
+
+@kindex M-s M-.
+@findex isearch-forward-thing-at-point
+  To begin a new incremental search with the text near point yanked
+into the initial search string, type @kbd{M-s M-.} that runs the
+command @code{isearch-forward-thing-at-point}.  If the region was
+active, then it yanks the text from the region into the search string.
+Otherwise, it tries to yank a URL, a symbol or an expression found
+near point.  What to yank is defined by the user option
+@code{isearch-forward-thing-at-point}.
 
 @node Error in Isearch
 @subsection Errors in Incremental Search
@@ -586,6 +611,19 @@ change point, the buffer contents, the match data, the current buffer,
 or the selected window and frame.  The command must not itself attempt
 an incremental search.  This feature is disabled if
 @code{isearch-allow-scroll} is @code{nil} (which it is by default).
+
+@vindex isearch-allow-motion
+@vindex isearch-motion-changes-direction
+  Likewise, if you change the variable @code{isearch-allow-motion}
+to a non-@code{nil} value, this enables the use of the keyboard motion
+commands @kbd{M-<}, @kbd{M->}, @kbd{C-v} and @kbd{M-v}, to move
+respectively to the first occurrence of the current search string in
+the buffer, the last one, the first one after the current window,
+and the last one before the current window.  The search direction
+does not change when these motion commands are used, unless you change
+the variable @code{isearch-motion-changes-direction} to a non-@code{nil}
+value, in which case the search direction is forward after @kbd{M-<} and
+@kbd{C-v}, and backward after @kbd{M->} and @kbd{M-v}.
 
 @item Motion Commands
 @cindex motion commands, during incremental search
@@ -1303,10 +1341,9 @@ matches @w{@samp{foo bar}}, @w{@samp{foo@ @ bar}},
 precisely, Emacs matches each sequence of space characters in the
 search string to a regular expression specified by the variable
 @code{search-whitespace-regexp}.  For example, to make spaces match
-sequences of newlines as well as spaces, set it to
-@samp{"[[:space:]\n]+"}.  The default value of this variable depends
-on the buffer's major mode; most major modes classify spaces, tabs,
-and formfeed characters as whitespace.
+sequences of newlines as well as spaces, set it to the regular expression
+@samp{[[:space:]\n]+}.  The default value of this variable considers
+any sequence of spaces and tab characters as whitespace.
 
   If you want whitespace characters to match exactly, you can turn lax
 space matching off by typing @kbd{M-s @key{SPC}}
@@ -1411,9 +1448,13 @@ letter @code{a} as well as all the other variants like @code{@'a}.
 
 @vindex char-fold-include
 @vindex char-fold-exclude
+@vindex char-fold-override
   You can add new foldings using the customizable variable
 @code{char-fold-include}, or remove the existing ones using the
-customizable variable @code{char-fold-exclude}.
+customizable variable @code{char-fold-exclude}.  You can also
+customize @code{char-fold-override} to @code{t} to disable all the
+character equivalences except those you add yourself using
+@code{char-fold-include}.
 
 @node Replace
 @section Replacement Commands
@@ -1965,6 +2006,17 @@ it never deletes lines that are only partially contained in the region
 (a newline that ends a line counts as part of that line).
 
 If a match is split across lines, this command keeps all those lines.
+
+@findex kill-matching-lines
+@item M-x kill-matching-lines
+Like @code{flush-lines}, but also add the matching lines to the kill
+ring.  The command adds the matching lines to the kill ring as a
+single string, including the newlines that separated the lines.
+
+@findex copy-matching-lines
+@item M-x copy-matching-lines
+Like @code{kill-matching-lines}, but the matching lines are not
+removed from the buffer.
 @end table
 
 @node Search Customizations

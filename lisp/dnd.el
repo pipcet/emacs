@@ -1,6 +1,6 @@
 ;;; dnd.el --- drag and drop support  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2005-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2005-2022 Free Software Foundation, Inc.
 
 ;; Author: Jan Djärv <jan.h.d@swipnet.se>
 ;; Maintainer: emacs-devel@gnu.org
@@ -77,7 +77,7 @@ and is the default except for MS-Windows."
 
 
 (defcustom dnd-open-file-other-window nil
-  "If non-nil, always use find-file-other-window to open dropped files."
+  "If non-nil, always use `find-file-other-window' to open dropped files."
   :version "22.1"
   :type 'boolean)
 
@@ -180,6 +180,7 @@ An alternative for systems that do not support unc file names is
 	  (if dnd-open-file-other-window
 	      (find-file-other-window f)
 	    (find-file f))
+          (file-name-history--add f)
 	  'private)
       (error "Can not read %s" uri))))
 

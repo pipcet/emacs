@@ -1,17 +1,18 @@
-/* Copyright (C) 1992-2021 Free Software Foundation, Inc.
+/* Copyright (C) 1992-2022 Free Software Foundation, Inc.
+   Copyright The GNU Toolchain Authors.
    This file is part of the GNU C Library.
 
    The GNU C Library is free software; you can redistribute it and/or
-   modify it under the terms of the GNU General Public
+   modify it under the terms of the GNU Lesser General Public
    License as published by the Free Software Foundation; either
-   version 3 of the License, or (at your option) any later version.
+   version 2.1 of the License, or (at your option) any later version.
 
    The GNU C Library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   General Public License for more details.
+   Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public
+   You should have received a copy of the GNU Lesser General Public
    License along with the GNU C Library; if not, see
    <https://www.gnu.org/licenses/>.  */
 
@@ -150,6 +151,53 @@
 # define __glibc_objsize(__o) __bos (__o)
 #endif
 
+/* Compile time conditions to choose between the regular, _chk and _chk_warn
+   variants.  These conditions should get evaluated to constant and optimized
+   away.  */
+
+#define __glibc_safe_len_cond(__l, __s, __osz) ((__l) <= (__osz) / (__s))
+#define __glibc_unsigned_or_positive(__l) \
+  ((__typeof (__l)) 0 < (__typeof (__l)) -1				      \
+   || (__builtin_constant_p (__l) && (__l) > 0))
+
+/* Length is known to be safe at compile time if the __L * __S <= __OBJSZ
+   condition can be folded to a constant and if it is true.  The -1 check is
+   redundant because since it implies that __glibc_safe_len_cond is true.  */
+#define __glibc_safe_or_unknown_len(__l, __s, __osz) \
+  (__glibc_unsigned_or_positive (__l)					      \
+   && __builtin_constant_p (__glibc_safe_len_cond ((__SIZE_TYPE__) (__l),     \
+						   __s, __osz))		      \
+   && __glibc_safe_len_cond ((__SIZE_TYPE__) (__l), __s, __osz))
+
+/* Conversely, we know at compile time that the length is unsafe if the
+   __L * __S <= __OBJSZ condition can be folded to a constant and if it is
+   false.  */
+#define __glibc_unsafe_len(__l, __s, __osz) \
+  (__glibc_unsigned_or_positive (__l)					      \
+   && __builtin_constant_p (__glibc_safe_len_cond ((__SIZE_TYPE__) (__l),     \
+						   __s, __osz))		      \
+   && !__glibc_safe_len_cond ((__SIZE_TYPE__) (__l), __s, __osz))
+
+/* Fortify function f.  __f_alias, __f_chk and __f_chk_warn must be
+   declared.  */
+
+#define __glibc_fortify(f, __l, __s, __osz, ...) \
+  (__glibc_safe_or_unknown_len (__l, __s, __osz)			      \
+   ? __ ## f ## _alias (__VA_ARGS__)					      \
+   : (__glibc_unsafe_len (__l, __s, __osz)				      \
+      ? __ ## f ## _chk_warn (__VA_ARGS__, __osz)			      \
+      : __ ## f ## _chk (__VA_ARGS__, __osz)))			      \
+
+/* Fortify function f, where object size argument passed to f is the number of
+   elements and not total size.  */
+
+#define __glibc_fortify_n(f, __l, __s, __osz, ...) \
+  (__glibc_safe_or_unknown_len (__l, __s, __osz)			      \
+   ? __ ## f ## _alias (__VA_ARGS__)					      \
+   : (__glibc_unsafe_len (__l, __s, __osz)				      \
+      ? __ ## f ## _chk_warn (__VA_ARGS__, (__osz) / (__s))		      \
+      : __ ## f ## _chk (__VA_ARGS__, (__osz) / (__s))))		      \
+
 #if __GNUC_PREREQ (4,3)
 # define __warnattr(msg) __attribute__((__warning__ (msg)))
 # define __errordecl(name, msg) \
@@ -243,6 +291,15 @@
 # define __attribute_alloc_size__(params) /* Ignore.  */
 #endif
 
+/* Tell the compiler which argument to an allocation function
+   indicates the alignment of the allocation.  */
+#if __GNUC_PREREQ (4, 9) || __glibc_has_attribute (__alloc_align__)
+# define __attribute_alloc_align__(param) \
+  __attribute__ ((__alloc_align__ param))
+#else
+# define __attribute_alloc_align__(param) /* Ignore.  */
+#endif
+
 /* At some point during the gcc 2.96 development the `pure' attribute
    for functions was introduced.  We don't want to use it unconditionally
    (although this would be possible) since it generates warnings.  */
@@ -259,9 +316,7 @@
 # define __attribute_const__ /* Ignore */
 #endif
 
-#if defined __STDC_VERSION__ && 201710L < __STDC_VERSION__
-# define __attribute_maybe_unused__ [[__maybe_unused__]]
-#elif __GNUC_PREREQ (2,7) || __glibc_has_attribute (__unused__)
+#if __GNUC_PREREQ (2,7) || __glibc_has_attribute (__unused__)
 # define __attribute_maybe_unused__ __attribute__ ((__unused__))
 #else
 # define __attribute_maybe_unused__ /* Ignore */
@@ -320,16 +375,28 @@
 #endif
 
 /* The nonnull function attribute marks pointer parameters that
-   must not be NULL.  */
-#ifndef __nonnull
+   must not be NULL.  This has the name __nonnull in glibc,
+   and __attribute_nonnull__ in files shared with Gnulib to avoid
+   collision with a different __nonnull in DragonFlyBSD 5.9.  */
+#ifndef __attribute_nonnull__
 # if __GNUC_PREREQ (3,3) || __glibc_has_attribute (__nonnull__)
-#  define __nonnull(params) __attribute__ ((__nonnull__ params))
+#  define __attribute_nonnull__(params) __attribute__ ((__nonnull__ params))
 # else
-#  define __nonnull(params)
+#  define __attribute_nonnull__(params)
 # endif
-#elif !defined __GLIBC__
-# undef __nonnull
-# define __nonnull(params) _GL_ATTRIBUTE_NONNULL (params)
+#endif
+#ifndef __nonnull
+# define __nonnull(params) __attribute_nonnull__ (params)
+#endif
+
+/* The returns_nonnull function attribute marks the return type of the function
+   as always being non-null.  */
+#ifndef __returns_nonnull
+# if __GNUC_PREREQ (4, 9) || __glibc_has_attribute (__returns_nonnull__)
+# define __returns_nonnull __attribute__ ((__returns_nonnull__))
+# else
+# define __returns_nonnull
+# endif
 #endif
 
 /* If fortification mode, we warn about unused results of certain
@@ -485,9 +552,9 @@
       [!!sizeof (struct { int __error_if_negative: (expr) ? 2 : -1; })]
 #endif
 
-/* The #ifndef lets Gnulib avoid including these on non-glibc
-   platforms, where the includes typically do not exist.  */
-#ifndef __WORDSIZE
+/* Gnulib avoids including these, as they don't work on non-glibc or
+   older glibc platforms.  */
+#ifndef __GNULIB_CDEFS
 # include <bits/wordsize.h>
 # include <bits/long-double.h>
 #endif
@@ -594,9 +661,36 @@ _Static_assert (0, "IEEE 128-bits long double requires redirection on this platf
    array according to access mode, or at least one element when
    size-index is not provided:
      access (access-mode, <ref-index> [, <size-index>])  */
-#define __attr_access(x) __attribute__ ((__access__ x))
+#  define __attr_access(x) __attribute__ ((__access__ x))
+/* For _FORTIFY_SOURCE == 3 we use __builtin_dynamic_object_size, which may
+   use the access attribute to get object sizes from function definition
+   arguments, so we can't use them on functions we fortify.  Drop the object
+   size hints for such functions.  */
+#  if __USE_FORTIFY_LEVEL == 3
+#    define __fortified_attr_access(a, o, s) __attribute__ ((__access__ (a, o)))
+#  else
+#    define __fortified_attr_access(a, o, s) __attr_access ((a, o, s))
+#  endif
+#  if __GNUC_PREREQ (11, 0)
+#    define __attr_access_none(argno) __attribute__ ((__access__ (__none__, argno)))
+#  else
+#    define __attr_access_none(argno)
+#  endif
 #else
+#  define __fortified_attr_access(a, o, s)
 #  define __attr_access(x)
+#  define __attr_access_none(argno)
+#endif
+
+#if __GNUC_PREREQ (11, 0)
+/* Designates dealloc as a function to call to deallocate objects
+   allocated by the declared function.  */
+# define __attr_dealloc(dealloc, argno) \
+    __attribute__ ((__malloc__ (dealloc, argno)))
+# define __attr_dealloc_free __attr_dealloc (__builtin_free, 1)
+#else
+# define __attr_dealloc(dealloc, argno)
+# define __attr_dealloc_free
 #endif
 
 /* Specify that a function such as setjmp or vfork may return

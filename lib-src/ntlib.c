@@ -1,6 +1,6 @@
 /* Utility and Unix shadow routines for GNU Emacs support programs on NT.
 
-Copyright (C) 1994, 2001-2021 Free Software Foundation, Inc.
+Copyright (C) 1994, 2001-2022 Free Software Foundation, Inc.
 
 Author: Geoff Voelker (voelker@cs.washington.edu)
 Created: 10-8-94
@@ -19,6 +19,9 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
+
+#define DEFER_MS_W32_H
+#include <config.h>
 
 #include <windows.h>
 #include <stdlib.h>
@@ -286,9 +289,6 @@ is_exec (const char * name)
 	 stricmp (p, ".bat") == 0 ||
 	 stricmp (p, ".cmd") == 0));
 }
-
-/* FIXME?  This is in configure.ac now - is this still needed?  */
-#define IS_DIRECTORY_SEP(x) ((x) == '/' || (x) == '\\')
 
 /* We need stat/fsfat below because nt/inc/sys/stat.h defines struct
    stat that is incompatible with the MS run-time libraries.  */

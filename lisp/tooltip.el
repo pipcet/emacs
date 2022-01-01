@@ -1,6 +1,6 @@
 ;;; tooltip.el --- show tooltip windows  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1997, 1999-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1997, 1999-2022 Free Software Foundation, Inc.
 
 ;; Author: Gerd Moellmann <gerd@acm.org>
 ;; Keywords: help c mouse tools
@@ -131,7 +131,11 @@ of the `tooltip' face are used instead."
      :inherit variable-pitch)
     (t
      :inherit variable-pitch))
-  "Face for tooltips."
+  "Face for tooltips.
+
+When using the GTK toolkit, this face will only be used if
+`x-gtk-use-system-tooltips' is non-nil."
+  :group 'tooltip
   :group 'basic-faces)
 
 (defcustom tooltip-use-echo-area nil
@@ -248,7 +252,12 @@ in echo area."
 	    (setf (alist-get 'border-color params) fg))
 	  (when (stringp bg)
 	    (setf (alist-get 'background-color params) bg))
-	  (x-show-tip (propertize text 'face 'tooltip)
+          ;; Use non-nil APPEND argument below to avoid overriding any
+          ;; faces used in our TEXT.  Among other things, this allows
+          ;; tooltips to use the `help-key-binding' face used in
+          ;; `substitute-command-keys' substitutions.
+          (add-face-text-property 0 (length text) 'tooltip t text)
+          (x-show-tip text
 		      (selected-frame)
 		      params
 		      tooltip-hide-delay
@@ -337,7 +346,7 @@ It is also called if Tooltip mode is on, for text-only displays."
              (not cursor-in-echo-area))  ;Don't overwrite a prompt.
     (cond
      ((stringp help)
-      (setq help (replace-regexp-in-string "\n" ", " help))
+      (setq help (string-replace "\n" ", " help))
       (unless (or tooltip-previous-message
 		  (equal-including-properties help (current-message))
 		  (and (stringp tooltip-help-message)
@@ -359,10 +368,15 @@ It is also called if Tooltip mode is on, for text-only displays."
      ((equal-including-properties tooltip-help-message (current-message))
       (message nil)))))
 
+(declare-function menu-or-popup-active-p "xmenu.c" ())
+
 (defun tooltip-show-help (msg)
   "Function installed as `show-help-function'.
 MSG is either a help string to display, or nil to cancel the display."
-  (if (display-graphic-p)
+  (if (and (display-graphic-p)
+           (or (not (eq window-system 'haiku)) ;; On Haiku, there isn't a reliable way to show tooltips
+                                               ;; above menus.
+               (not (menu-or-popup-active-p))))
       (let ((previous-help tooltip-help-message))
 	(setq tooltip-help-message msg)
 	(cond ((null msg)

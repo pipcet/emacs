@@ -1,5 +1,5 @@
 /* xfont.c -- X core font driver.
-   Copyright (C) 2006-2021 Free Software Foundation, Inc.
+   Copyright (C) 2006-2022 Free Software Foundation, Inc.
    Copyright (C) 2006, 2007, 2008, 2009, 2010, 2011
      National Institute of Advanced Industrial Science and Technology (AIST)
      Registration Number H13PRO009
@@ -596,7 +596,10 @@ xfont_list_family (struct frame *f)
   char **names;
   int num_fonts, i;
   Lisp_Object list;
-  char *last_family UNINIT;
+  char const *last_family;
+#if defined GCC_LINT || defined lint
+  last_family = "";
+#endif
   int last_len;
 
   block_input ();

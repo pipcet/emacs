@@ -1,7 +1,7 @@
 /* Output like sprintf to a buffer of specified size.    -*- coding: utf-8 -*-
    Also takes args differently: pass one pointer to the end
    of the format string in addition to the format string itself.
-   Copyright (C) 1985, 2001-2021 Free Software Foundation, Inc.
+   Copyright (C) 1985, 2001-2022 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -563,7 +563,7 @@ esprintf (char *buf, char const *format, ...)
    BUFSIZE_MAX.  */
 ptrdiff_t
 exprintf (char **buf, ptrdiff_t *bufsize,
-	  char const *nonheapbuf, ptrdiff_t bufsize_max,
+	  char *nonheapbuf, ptrdiff_t bufsize_max,
 	  char const *format, ...)
 {
   ptrdiff_t nbytes;
@@ -579,7 +579,7 @@ exprintf (char **buf, ptrdiff_t *bufsize,
 /* Act like exprintf, except take a va_list.  */
 ptrdiff_t
 evxprintf (char **buf, ptrdiff_t *bufsize,
-	   char const *nonheapbuf, ptrdiff_t bufsize_max,
+	   char *nonheapbuf, ptrdiff_t bufsize_max,
 	   char const *format, va_list ap)
 {
   for (;;)

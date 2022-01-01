@@ -1,6 +1,6 @@
-;;; reftex-parse.el --- parser functions for RefTeX
+;;; reftex-parse.el --- parser functions for RefTeX  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 1997-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1997-2022 Free Software Foundation, Inc.
 
 ;; Author: Carsten Dominik <dominik@science.uva.nl>
 ;; Maintainer: auctex-devel@gnu.org
@@ -143,7 +143,7 @@ When allowed, do only a partial scan from FILE."
                       (car (push (list 'is-multi is-multi) docstruct)))))
       (setcdr entry (cons is-multi nil)))
     (and reftex--index-tags
-         (setq reftex--index-tags (sort reftex--index-tags 'string<)))
+         (setq reftex--index-tags (sort reftex--index-tags #'string<)))
     (let ((index-tag-cell (assq 'index-tags docstruct)))
       (if index-tag-cell
           (setcdr index-tag-cell reftex--index-tags)
@@ -160,10 +160,10 @@ When allowed, do only a partial scan from FILE."
                          nil))
                      allxr))
              (alist (delq nil alist))
-             (allprefix (delq nil (mapcar 'car alist)))
+             (allprefix (delq nil (mapcar #'car alist)))
              (regexp (if allprefix
                          (concat "\\`\\("
-                                 (mapconcat 'identity allprefix "\\|")
+                                 (mapconcat #'identity allprefix "\\|")
                                  "\\)")
                        "\\\\\\\\\\\\")))   ; this will never match
         (push (list 'xr alist regexp) docstruct)))
@@ -209,7 +209,7 @@ of master file."
     (catch 'exit
       (setq file-found (reftex-locate-file file "tex" master-dir))
       (if (and (not file-found)
-               (setq buf (reftex-get-buffer-visiting file)))
+               (setq buf (find-buffer-visiting file)))
           (setq file-found (buffer-file-name buf)))
 
       (unless file-found
@@ -345,7 +345,17 @@ of master file."
 
              ;; Find external document specifications
              (goto-char 1)
-             (while (re-search-forward "[\n\r][ \t]*\\\\externaldocument\\(\\[\\([^]]*\\)\\]\\)?{\\([^}]+\\)}" nil t)
+             (while (re-search-forward
+                     (concat "[\n\r][ \t]*"
+                             ;; Support \externalcitedocument macro
+                             "\\\\external\\(?:cite\\)?document"
+                             ;; The optional prefix
+                             "\\(\\[\\([^]]*\\)\\]\\)?"
+                             ;; The 2nd opt. arg can only be nocite
+                             "\\(?:\\[nocite\\]\\)?"
+                             ;; Mandatory file argument
+                             "{\\([^}]+\\)}")
+                     nil t)
                (push (list 'xr-doc (reftex-match-string 2)
                            (reftex-match-string 3))
                      docstruct))
@@ -384,8 +394,9 @@ of master file."
 		     (concat
 		      ;;           "\\(\\`\\|[\n\r]\\)[^%]*\\\\\\("
 		      "\\(^\\)[^%\n\r]*\\\\\\("
-		      (mapconcat 'identity reftex-bibliography-commands "\\|")
-		      "\\)\\(\\[.+?\\]\\)?{[ \t]*\\([^}]+\\)") nil t))
+		      (mapconcat #'identity reftex-bibliography-commands "\\|")
+		      "\\)\\(\\[.+?\\]\\)?{[ \t]*\\([^}]+\\)")
+		     nil t))
 	  (setq files
 		(append files
 			(split-string (reftex-match-string 4)
@@ -434,7 +445,8 @@ This function also makes sure the old toc markers do not point anywhere."
 ;;;###autoload
 (defun reftex-section-info (file)
   "Return a section entry for the current match.
-Careful: This function expects the match-data to be still in place!"
+Careful: This function expects the `match-data' to still be in
+place!"
   (let* ((marker (set-marker (make-marker) (1- (match-beginning 3))))
          (macro (reftex-match-string 3))
          (prefix (save-match-data
@@ -493,7 +505,8 @@ will rescan the entire document."
 ;;;###autoload
 (defun reftex-index-info (file)
   "Return an index entry for the current match.
-Careful: This function expects the match-data to be still in place!"
+Careful: This function expects the `match-data' to still be in
+place!"
   (catch 'exit
     (let* ((macro (reftex-match-string 10))
            (bom (match-beginning 10))
@@ -532,7 +545,7 @@ Careful: This function expects the match-data to be still in place!"
 
            (key (if prefix (concat prefix rawkey) rawkey))
            (sortkey (downcase key))
-           (showkey (mapconcat 'identity
+           (showkey (mapconcat #'identity
                                (split-string key reftex-index-level-re)
                                " ! ")))
       (goto-char end-of-args)
@@ -756,7 +769,7 @@ if the information is exact (t) or approximate (nil)."
              (while (and (setq tail (memq (assq 'toc (cdr tail)) tail))
                          (setq entry (car tail))
                          (>= (nth 5 entry) level))
-               (setq star (string-match "\\*" (nth 6 entry))
+               (setq star (string-search "*" (nth 6 entry))
                      context (nth 2 entry)
                      section-number
                      (reftex-section-number (nth 5 entry) star))

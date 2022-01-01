@@ -1,6 +1,6 @@
 ;;; mule-cmds.el --- commands for multilingual environment  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1997-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1997-2022 Free Software Foundation, Inc.
 ;; Copyright (C) 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004,
 ;;   2005, 2006, 2007, 2008, 2009, 2010, 2011
 ;;   National Institute of Advanced Industrial Science and Technology (AIST)
@@ -88,7 +88,7 @@
     (bindings--define-key map [separator-3] menu-bar-separator)
     (bindings--define-key map [set-terminal-coding-system]
       '(menu-item "For Terminal" set-terminal-coding-system
-        :enable (null (memq initial-window-system '(x w32 ns)))
+        :enable (null (memq initial-window-system '(x w32 ns haiku pgtk)))
         :help "How to encode terminal output"))
     (bindings--define-key map [set-keyboard-coding-system]
       '(menu-item "For Keyboard" set-keyboard-coding-system
@@ -662,6 +662,26 @@ overrides that argument.")
                   (delq 'no-conversion (copy-sequence codings))))
       codings))
 
+(defun select-safe-coding-system--format-list (list)
+  (let ((spec1 "  %-20s %6s  %-10s %s\n")
+        (spec2 "  %-20s %6s  #x%-8X %c\n")
+        (nmax 5))
+    (insert (format spec1 "Coding System" "Pos" "Codepoint" "Char"))
+    (cl-loop for (coding . pairs) in list
+             do (cl-loop for pair in pairs
+                         ;; If there's a lot, only do the first five.
+                         for i from 1 upto nmax
+                         do (insert
+                             (format spec2
+                                     (if (= i 1) coding "")
+                                     (car pair)
+                                     (cdr pair)
+                                     (cdr pair))))
+             (if (> (length pairs) nmax)
+                 (insert (format spec1 "" "..." "" "")))))
+
+  (insert "\n"))
+
 (defun select-safe-coding-system-interactively (from to codings unsafe
 						&optional rejected default)
   "Select interactively a coding system for the region FROM ... TO.
@@ -679,18 +699,18 @@ DEFAULT is the coding system to use by default in the query."
   ;;	((CODING (POS . CHAR) (POS . CHAR) ...) ...)
   (if unsafe
       (setq unsafe
-	    (mapcar #'(lambda (coding)
-			(cons coding
-			      (if (stringp from)
-				  (mapcar #'(lambda (pos)
-					      (cons pos (aref from pos)))
-					  (unencodable-char-position
-					   0 (length from) coding
-					   11 from))
-				(mapcar #'(lambda (pos)
-					    (cons pos (char-after pos)))
-					(unencodable-char-position
-					 from to coding 11)))))
+            (mapcar (lambda (coding)
+                      (cons coding
+                            (if (stringp from)
+                                (mapcar (lambda (pos)
+                                          (cons pos (aref from pos)))
+                                        (unencodable-char-position
+                                         0 (length from) coding
+                                         11 from))
+                              (mapcar (lambda (pos)
+                                        (cons pos (char-after pos)))
+                                      (unencodable-char-position
+                                       from to coding 11)))))
 		    unsafe)))
 
   (setq codings (sanitize-coding-system-list codings))
@@ -720,21 +740,18 @@ DEFAULT is the coding system to use by default in the query."
 		 (concat " \"" (if (> (length from) 10)
 				   (concat (substring from 0 10) "...\"")
 				 (concat from "\"")))
-	       (format-message " text\nin the buffer `%s'" bufname))
+	       (format-message
+                " the following\nproblematic characters in the buffer `%s'"
+                bufname))
 	     ":\n")
-	    (let ((pos (point))
-		  (fill-prefix "  "))
-	      (dolist (x (append rejected unsafe))
-		(princ "  ") (princ x))
-	      (insert "\n")
-	      (fill-region-as-paragraph pos (point)))
+            (select-safe-coding-system--format-list unsafe)
 	    (when rejected
 	      (insert "These safely encode the text in the buffer,
 but are not recommended for encoding text in this context,
 e.g., for sending an email message.\n ")
-	      (dolist (x rejected)
-		(princ " ") (princ x))
-	      (insert "\n"))
+              (dolist (x rejected)
+                (princ " ") (princ x))
+              (insert "\n"))
 	    (when unsafe
 	      (insert (if rejected "The other coding systems"
 			"However, each of them")
@@ -744,19 +761,19 @@ e.g., for sending an email message.\n ")
 		(insert (format "  %s cannot encode these:" (car coding)))
 		(let ((i 0)
 		      (func1
-		       #'(lambda (bufname pos)
-			   (when (buffer-live-p (get-buffer bufname))
-			     (pop-to-buffer bufname)
-			     (goto-char pos))))
+                       (lambda (bufname pos)
+                         (when (buffer-live-p (get-buffer bufname))
+                           (pop-to-buffer bufname)
+                           (goto-char pos))))
 		      (func2
-		       #'(lambda (bufname pos coding)
-			   (when (buffer-live-p (get-buffer bufname))
-			     (pop-to-buffer bufname)
-			     (if (< (point) pos)
-				 (goto-char pos)
-			       (forward-char 1)
-			       (search-unencodable-char coding)
-			       (forward-char -1))))))
+                       (lambda (bufname pos coding)
+                         (when (buffer-live-p (get-buffer bufname))
+                           (pop-to-buffer bufname)
+                           (if (< (point) pos)
+                               (goto-char pos)
+                             (forward-char 1)
+                             (search-unencodable-char coding)
+                             (forward-char -1))))))
 		  (dolist (elt (cdr coding))
 		    (insert " ")
 		    (if (stringp from)
@@ -1524,7 +1541,7 @@ To deactivate it programmatically, use `deactivate-input-method'."
   (interactive
    (let* ((default (or (car input-method-history) default-input-method)))
      (list (read-input-method-name
-	    (if default "Select input method (default %s): " "Select input method: ")
+	    (format-prompt "Select input method" default)
 	    default t)
 	   t)))
   (activate-input-method input-method)
@@ -1569,7 +1586,7 @@ which marks the variable `default-input-method' as set for Custom buffers."
        (if (or arg (not default))
 	   (progn
 	     (read-input-method-name
-	      (if default "Input method (default %s): " "Input method: " )
+	      (format-prompt "Input method" default)
 	      default t))
 	 default))
       (unless default-input-method
@@ -1620,31 +1637,32 @@ If `default-transient-input-method' was not yet defined, prompt for it."
   "Describe input method INPUT-METHOD."
   (interactive
    (list (read-input-method-name
-	  "Describe input method (default current choice): ")))
-  (if (and input-method (symbolp input-method))
-      (setq input-method (symbol-name input-method)))
-  (help-setup-xref (list #'describe-input-method
-			 (or input-method current-input-method))
-		   (called-interactively-p 'interactive))
+          (format-prompt "Describe input method" current-input-method))))
+  (let ((help-buffer-under-preparation t))
+    (if (and input-method (symbolp input-method))
+	(setq input-method (symbol-name input-method)))
+    (help-setup-xref (list #'describe-input-method
+			   (or input-method current-input-method))
+		     (called-interactively-p 'interactive))
 
-  (if (null input-method)
-      (describe-current-input-method)
-    (let ((current current-input-method))
-      (condition-case nil
-	  (progn
-	    (save-excursion
-	      (activate-input-method input-method)
-	      (describe-current-input-method))
-	    (activate-input-method current))
-	(error
-	 (activate-input-method current)
-	 (help-setup-xref (list #'describe-input-method input-method)
-			  (called-interactively-p 'interactive))
-	 (with-output-to-temp-buffer (help-buffer)
-	   (let ((elt (assoc input-method input-method-alist)))
-	     (princ (format-message
-		     "Input method: %s (`%s' in mode line) for %s\n  %s\n"
-		     input-method (nth 3 elt) (nth 1 elt) (nth 4 elt))))))))))
+    (if (null input-method)
+	(describe-current-input-method)
+      (let ((current current-input-method))
+	(condition-case nil
+	    (progn
+	      (save-excursion
+		(activate-input-method input-method)
+		(describe-current-input-method))
+	      (activate-input-method current))
+	  (error
+	   (activate-input-method current)
+	   (help-setup-xref (list #'describe-input-method input-method)
+			    (called-interactively-p 'interactive))
+	   (with-output-to-temp-buffer (help-buffer)
+	     (let ((elt (assoc input-method input-method-alist)))
+	       (princ (format-message
+		       "Input method: %s (`%s' in mode line) for %s\n  %s\n"
+		       input-method (nth 3 elt) (nth 1 elt) (nth 4 elt)))))))))))
 
 (defun describe-current-input-method ()
   "Describe the input method currently in use.
@@ -1856,7 +1874,7 @@ The default status is as follows:
   (set-default-coding-systems nil)
   (setq default-sendmail-coding-system 'utf-8)
   (setq default-file-name-coding-system (if (memq system-type
-                                                  '(window-nt ms-dos))
+                                                  '(windows-nt ms-dos))
                                             'iso-latin-1-unix
                                           'utf-8-unix))
   ;; Preserve eol-type from existing default-process-coding-systems.
@@ -1875,9 +1893,9 @@ The default status is as follows:
 	 (condition-case nil
 	     (coding-system-change-text-conversion
 	      (cdr default-process-coding-system)
-	      (if (memq system-type '(window-nt ms-dos)) 'iso-latin-1 'utf-8))
+	      (if (memq system-type '(windows-nt ms-dos)) 'iso-latin-1 'utf-8))
 	   (coding-system-error
-	    (if (memq system-type '(window-nt ms-dos)) 'iso-latin-1 'utf-8)))))
+	    (if (memq system-type '(windows-nt ms-dos)) 'iso-latin-1 'utf-8)))))
     (setq default-process-coding-system
 	  (cons output-coding input-coding)))
 
@@ -1929,7 +1947,7 @@ runs the hook `exit-language-environment-hook'.  After setting up
 the new language environment, it runs `set-language-environment-hook'."
   (interactive (list (read-language-name
 		      nil
-		      "Set language environment (default English): ")))
+		      (format-prompt "Set language environment" "English"))))
   (if language-name
       (if (symbolp language-name)
 	  (setq language-name (symbol-name language-name)))
@@ -2144,90 +2162,91 @@ See `set-language-info-alist' for use in programs."
   (interactive
    (list (read-language-name
 	  'documentation
-	  "Describe language environment (default current choice): ")))
-  (if (null language-name)
-      (setq language-name current-language-environment))
-  (if (or (null language-name)
-	  (null (get-language-info language-name 'documentation)))
-      (error "No documentation for the specified language"))
-  (if (symbolp language-name)
-      (setq language-name (symbol-name language-name)))
-  (dolist (feature (get-language-info language-name 'features))
-    (require feature))
-  (let ((doc (get-language-info language-name 'documentation)))
-    (help-setup-xref (list #'describe-language-environment language-name)
-		     (called-interactively-p 'interactive))
-    (with-output-to-temp-buffer (help-buffer)
-      (with-current-buffer standard-output
-	(insert language-name " language environment\n\n")
-	(if (stringp doc)
-	    (insert (substitute-command-keys doc) "\n\n"))
-	(condition-case nil
-	    (let ((str (eval (get-language-info language-name 'sample-text))))
-	      (if (stringp str)
-		  (insert "Sample text:\n  "
-			  (replace-regexp-in-string "\n" "\n  " str)
-			  "\n\n")))
-	  (error nil))
-	(let ((input-method (get-language-info language-name 'input-method))
-	      (l (copy-sequence input-method-alist))
-	      (first t))
-	  (when (and input-method
-		     (setq input-method (assoc input-method l)))
-	    (insert "Input methods (default " (car input-method) ")\n")
-	    (setq l (cons input-method (delete input-method l))
-		  first nil))
-	  (dolist (elt l)
-	    (when (or (eq input-method elt)
-		      (eq t (compare-strings language-name nil nil
-					     (nth 1 elt) nil nil t)))
-	      (when first
-		(insert "Input methods:\n")
-		(setq first nil))
-	      (insert "  " (car elt))
-	      (search-backward (car elt))
-	      (help-xref-button 0 'help-input-method (car elt))
-	      (goto-char (point-max))
-	      (insert " (\""
-		      (if (stringp (nth 3 elt)) (nth 3 elt) (car (nth 3 elt)))
-		      "\" in mode line)\n")))
-	  (or first
-	      (insert "\n")))
-	(insert "Character sets:\n")
-	(let ((l (get-language-info language-name 'charset)))
-	  (if (null l)
-	      (insert "  nothing specific to " language-name "\n")
-	    (while l
-	      (insert "  " (symbol-name (car l)))
-	      (search-backward (symbol-name (car l)))
-	      (help-xref-button 0 'help-character-set (car l))
-	      (goto-char (point-max))
-	      (insert ": " (charset-description (car l)) "\n")
-	      (setq l (cdr l)))))
-	(insert "\n")
-	(insert "Coding systems:\n")
-	(let ((l (get-language-info language-name 'coding-system)))
-	  (if (null l)
-	      (insert "  nothing specific to " language-name "\n")
-	    (while l
-	      (insert "  " (symbol-name (car l)))
-	      (search-backward (symbol-name (car l)))
-	      (help-xref-button 0 'help-coding-system (car l))
-	      (goto-char (point-max))
-	      (insert (substitute-command-keys " (`")
-		      (coding-system-mnemonic (car l))
-		      (substitute-command-keys "' in mode line):\n\t")
-                      (substitute-command-keys
-                       (coding-system-doc-string (car l)))
-		      "\n")
-	      (let ((aliases (coding-system-aliases (car l))))
-		(when aliases
-		  (insert "\t(alias:")
-		  (while aliases
-		    (insert " " (symbol-name (car aliases)))
-		    (setq aliases (cdr aliases)))
-		  (insert ")\n")))
-	      (setq l (cdr l)))))))))
+	  (format-prompt "Describe language environment" current-language-environment))))
+  (let ((help-buffer-under-preparation t))
+    (if (null language-name)
+	(setq language-name current-language-environment))
+    (if (or (null language-name)
+	    (null (get-language-info language-name 'documentation)))
+	(error "No documentation for the specified language"))
+    (if (symbolp language-name)
+	(setq language-name (symbol-name language-name)))
+    (dolist (feature (get-language-info language-name 'features))
+      (require feature))
+    (let ((doc (get-language-info language-name 'documentation)))
+      (help-setup-xref (list #'describe-language-environment language-name)
+		       (called-interactively-p 'interactive))
+      (with-output-to-temp-buffer (help-buffer)
+	(with-current-buffer standard-output
+	  (insert language-name " language environment\n\n")
+	  (if (stringp doc)
+	      (insert (substitute-command-keys doc) "\n\n"))
+	  (condition-case nil
+	      (let ((str (eval (get-language-info language-name 'sample-text))))
+		(if (stringp str)
+		    (insert "Sample text:\n  "
+			    (string-replace "\n" "\n  " str)
+			    "\n\n")))
+	    (error nil))
+	  (let ((input-method (get-language-info language-name 'input-method))
+		(l (copy-sequence input-method-alist))
+		(first t))
+	    (when (and input-method
+		       (setq input-method (assoc input-method l)))
+	      (insert "Input methods (default " (car input-method) ")\n")
+	      (setq l (cons input-method (delete input-method l))
+		    first nil))
+	    (dolist (elt l)
+	      (when (or (eq input-method elt)
+			(eq t (compare-strings language-name nil nil
+					       (nth 1 elt) nil nil t)))
+		(when first
+		  (insert "Input methods:\n")
+		  (setq first nil))
+		(insert "  " (car elt))
+		(search-backward (car elt))
+		(help-xref-button 0 'help-input-method (car elt))
+		(goto-char (point-max))
+		(insert " (\""
+			(if (stringp (nth 3 elt)) (nth 3 elt) (car (nth 3 elt)))
+			"\" in mode line)\n")))
+	    (or first
+		(insert "\n")))
+	  (insert "Character sets:\n")
+	  (let ((l (get-language-info language-name 'charset)))
+	    (if (null l)
+		(insert "  nothing specific to " language-name "\n")
+	      (while l
+		(insert "  " (symbol-name (car l)))
+		(search-backward (symbol-name (car l)))
+		(help-xref-button 0 'help-character-set (car l))
+		(goto-char (point-max))
+		(insert ": " (charset-description (car l)) "\n")
+		(setq l (cdr l)))))
+	  (insert "\n")
+	  (insert "Coding systems:\n")
+	  (let ((l (get-language-info language-name 'coding-system)))
+	    (if (null l)
+		(insert "  nothing specific to " language-name "\n")
+	      (while l
+		(insert "  " (symbol-name (car l)))
+		(search-backward (symbol-name (car l)))
+		(help-xref-button 0 'help-coding-system (car l))
+		(goto-char (point-max))
+		(insert (substitute-command-keys " (`")
+			(coding-system-mnemonic (car l))
+			(substitute-command-keys "' in mode line):\n\t")
+			(substitute-command-keys
+			 (coding-system-doc-string (car l)))
+			"\n")
+		(let ((aliases (coding-system-aliases (car l))))
+		  (when aliases
+		    (insert "\t(alias:")
+		    (while aliases
+		      (insert " " (symbol-name (car aliases)))
+		      (setq aliases (cdr aliases)))
+		    (insert ")\n")))
+		(setq l (cdr l))))))))))
 
 ;;; Locales.
 
@@ -2245,7 +2264,7 @@ See `set-language-info-alist' for use in programs."
      ;; LANGUAGE is a language code taken from ISO 639:1988 (E/F)
      ;; with additions from ISO 639/RA Newsletter No.1/1989;
      ;; see Internet RFC 2165 (1997-06) and
-     ;; http://www.evertype.com/standards/iso639/iso639-en.html
+     ;; https://www.evertype.com/standards/iso639/iso639-en.html
      ;; TERRITORY is a country code taken from ISO 3166
      ;; http://www.din.de/gremien/nas/nabd/iso3166ma/codlstp1/en_listp1.html.
      ;; CODESET and MODIFIER are implementation-dependent.
@@ -2610,6 +2629,31 @@ is returned.  Thus, for instance, if charset \"ISO8859-2\",
 (declare-function w32-get-console-codepage "w32proc.c" ())
 (declare-function w32-get-console-output-codepage "w32proc.c" ())
 
+(defun get-locale-names ()
+  "Return a list of locale names."
+  (cond
+   ;; On Windows we have a built-in method to get the names.
+   ((and (fboundp 'w32-get-locale-info)
+         (fboundp 'w32-get-valid-locale-ids))
+    (delete-dups (mapcar #'w32-get-locale-info (w32-get-valid-locale-ids))))
+   ;; Unix-ey hosts should have a command to output locales currently
+   ;; defined by the OS.
+   ((executable-find "locale")
+    (split-string (shell-command-to-string "locale -a")))
+   ;; Fall back on the list of all defined locales.
+   ((and locale-translation-file-name
+         (file-exists-p locale-translation-file-name))
+    (with-temp-buffer
+      (insert-file-contents locale-translation-file-name)
+      (let ((locales nil))
+        (while (not (eobp))
+          (unless (looking-at-p "#")
+            (push (cadr (split-string (buffer-substring
+                                       (point) (line-end-position))))
+                  locales))
+          (forward-line 1))
+        (nreverse locales))))))
+
 (defun locale-translate (locale)
   "Expand LOCALE according to `locale-translation-file-name', if possible.
 For example, translate \"swedish\" into \"sv_SE.ISO8859-1\"."
@@ -2622,6 +2666,20 @@ For example, translate \"swedish\" into \"sv_SE.ISO8859-1\"."
             (buffer-substring (point) (line-end-position))
           locale))
     locale))
+
+(defvar current-locale-environment nil
+  "The currently set locale environment.")
+
+(defmacro with-locale-environment (locale-name &rest body)
+  "Execute BODY with the locale set to LOCALE-NAME."
+  (declare (indent 1) (debug (sexp def-body)))
+  (let ((current (gensym)))
+    `(let ((,current current-locale-environment))
+       (unwind-protect
+           (progn
+             (set-locale-environment ,locale-name)
+             ,@body)
+         (set-locale-environment ,current)))))
 
 (defun set-locale-environment (&optional locale-name frame)
   "Set up multilingual environment for using LOCALE-NAME.
@@ -2648,10 +2706,14 @@ If FRAME is non-nil, only set the keyboard coding system and the
 terminal coding system for the terminal of that frame, and don't
 touch session-global parameters like the language environment.
 
+This function sets the `current-locale-environment' variable.  To
+change the locale temporarily, `with-locale-environment' can be
+used.
+
 See also `locale-charset-language-names', `locale-language-names',
 `locale-preferred-coding-systems' and `locale-coding-system'."
-  (interactive "sSet environment for locale: ")
-
+  (interactive (list (completing-read "Set environment for locale: "
+                                      (get-locale-names))))
   ;; Do this at runtime for the sake of binaries possibly transported
   ;; to a system without X.
   (setq locale-translation-file-name
@@ -2681,6 +2743,7 @@ See also `locale-charset-language-names', `locale-language-names',
 
     (when locale
       (setq locale (locale-translate locale))
+      (setq current-locale-environment locale)
 
       ;; Leave the system locales alone if the caller did not specify
       ;; an explicit locale name, as their defaults are set from
@@ -2885,6 +2948,7 @@ Optional 3rd argument DOCSTRING is a documentation string of the property.
 
 See also the documentation of `get-char-code-property' and
 `put-char-code-property'."
+  (declare (indent defun))
   (or (symbolp name)
       (error "Not a symbol: %s" name))
   (if (char-table-p table)
@@ -2963,18 +3027,22 @@ STR should be a unibyte string."
    str " "))
 
 (defun encode-coding-char (char coding-system &optional charset)
-  "Encode CHAR by CODING-SYSTEM and return the resulting string.
+  "Encode CHAR by CODING-SYSTEM and return the resulting string of bytes.
 If CODING-SYSTEM can't safely encode CHAR, return nil.
 The 3rd optional argument CHARSET, if non-nil, is a charset preferred
 on encoding."
   (let* ((str1 (string char))
 	 (str2 (string char char))
 	 (found (find-coding-systems-string str1))
-	enc1 enc2 i1 i2)
-    (if (eq (car-safe found) 'undecided) ;Aka (not (multibyte-string-p str1))
-        ;; `char' is ASCII.
+         (bom-p (coding-system-get coding-system :bom))
+	 enc1 enc2 i0 i1 i2)
+    ;; If CHAR is ASCII and CODING-SYSTEM doesn't prepend a BOM, just
+    ;; encode CHAR.
+    (if (and (eq (car-safe found) 'undecided)
+             (null bom-p))
 	(encode-coding-string str1 coding-system)
-      (when (memq (coding-system-base coding-system) found)
+      (when (or (eq (car-safe found) 'undecided)
+                (memq (coding-system-base coding-system) found))
 	;; We must find the encoded string of CHAR.  But, just encoding
 	;; CHAR will put extra control sequences (usually to designate
 	;; ASCII charset) at the tail if type of CODING is ISO 2022.
@@ -2995,23 +3063,19 @@ on encoding."
 	;; Now (substring enc1 i1) and (substring enc2 i2) are the same,
 	;; and they are the extra control sequences at the tail to
 	;; exclude.
-	(substring enc2 0 i2)))))
 
-;; Backwards compatibility.  These might be better with :init-value t,
-;; but that breaks loadup.
-(define-minor-mode unify-8859-on-encoding-mode
-  "Exists only for backwards compatibility."
-  :group 'mule
-  :global t)
-;; Doc said "obsolete" in 23.1, this statement only added in 24.1.
-(make-obsolete 'unify-8859-on-encoding-mode "don't use it." "23.1")
-
-(define-minor-mode unify-8859-on-decoding-mode
-  "Exists only for backwards compatibility."
-  :group 'mule
-  :global t)
-;; Doc said "obsolete" in 23.1, this statement only added in 24.1.
-(make-obsolete 'unify-8859-on-decoding-mode "don't use it." "23.1")
+        ;; We also need to exclude the leading 2 or 3 bytes if they
+        ;; come from a BOM.
+        (setq i0
+              (if bom-p
+                  (cond
+                   ((eq (coding-system-type coding-system) 'utf-8)
+                    3)
+                   ((eq (coding-system-type coding-system) 'utf-16)
+                    2)
+                   (t 0))
+                0))
+	(substring enc2 i0 i2)))))
 
 (defvar ucs-names nil
   "Hash table of cached CHAR-NAME keys to CHAR-CODE values.")
@@ -3036,18 +3100,18 @@ on encoding."
                ;; (#x18800 . #x18AFF) Tangut Components
                ;; (#x18B00 . #x18CFF) Khitan Small Script
                ;; (#x18D00 . #x18D0F) Tangut Ideograph Supplement
-	       ;; (#x18D10 . #x1AFFF) unused
-	       (#x1B000 . #x1B11F)
-               ;; (#x1B120 . #x1B14F) unused
+	       ;; (#x18D10 . #x1AFEF) unused
+	       (#x1AFF0 . #x1B12F)
+               ;; (#x1B130 . #x1B14F) unused
                (#x1B150 . #x1B16F)
                (#x1B170 . #x1B2FF)
 	       ;; (#x1B300 . #x1BBFF) unused
                (#x1BC00 . #x1BCAF)
-	       ;; (#x1BCB0 . #x1CFFF) unused
-	       (#x1D000 . #x1FFFF)
+	       ;; (#x1BCB0 . #x1CEFF) unused
+	       (#x1CF00 . #x1FFFF)
 	       ;; (#x20000 . #xDFFFF) CJK Ideograph Extension A, B, etc, unused
 	       (#xE0000 . #xE01FF)))
-	    (gc-cons-threshold 10000000)
+            (gc-cons-threshold (max gc-cons-threshold 10000000))
 	    (names (make-hash-table :size 42943 :test #'equal)))
         (dolist (range ranges)
           (let ((c (car range))
@@ -3088,35 +3152,12 @@ on encoding."
               (list name (concat (if char (list char) " ") "\t") "")))
           names))
 
-(defun mule--ucs-names-group (names)
-  (let* ((codes-and-names
-          (mapcar (lambda (name) (cons (gethash name ucs-names) name)) names))
-         (grouped
-          (seq-group-by
-           (lambda (code-name)
-             (let ((script (aref char-script-table (car code-name))))
-               (if script (symbol-name script) "ungrouped")))
-           codes-and-names))
-         names-with-header header)
-    (dolist (group (sort grouped (lambda (a b) (string< (car a) (car b)))))
-      (setq header t)
-      (dolist (code-name (cdr group))
-        (push (list
-               (cdr code-name)
-               (concat
-                (if header
-                    (progn
-                      (setq header nil)
-                      (concat "\n" (propertize
-                                    (format "* %s\n" (car group))
-                                    'face 'header-line)))
-                  "")
-                ;; prefix
-                (if (car code-name) (format "%c" (car code-name)) " ") "\t")
-               ;; suffix
-               "")
-              names-with-header)))
-    (nreverse names-with-header)))
+(defun mule--ucs-names-group (name transform)
+  (if transform
+      name
+    (let* ((char (gethash name ucs-names))
+           (script (and char (aref char-script-table char))))
+      (if script (symbol-name script) "ungrouped"))))
 
 (defun char-from-name (string &optional ignore-case)
   "Return a character as a number from its Unicode name STRING.
@@ -3148,14 +3189,6 @@ Defines the sorting order either by character names or their codepoints."
   :group 'mule
   :version "28.1")
 
-(defcustom read-char-by-name-group nil
-  "How to group characters for `read-char-by-name' completion.
-When t, split characters to sections of Unicode blocks
-sorted alphabetically."
-  :type 'boolean
-  :group 'mule
-  :version "28.1")
-
 (defun read-char-by-name (prompt)
   "Read a character by its Unicode name or hex number string.
 Display PROMPT and read a string that represents a character by its
@@ -3169,8 +3202,9 @@ preceded by an asterisk `*' and use completion, it will show all
 the characters whose names include that substring, not necessarily
 at the beginning of the name.
 
-The options `read-char-by-name-sort' and `read-char-by-name-group'
-define the sorting order of completion characters and how to group them.
+The options `read-char-by-name-sort', `completions-group', and
+`completions-group-sort' define the sorting order of completion characters,
+whether to group them, and how to sort groups.
 
 Accept a name like \"CIRCULATION FUNCTION\", a hexadecimal
 number like \"2A10\", or a number in hash notation (e.g.,
@@ -3188,11 +3222,12 @@ as names, not numbers."
 		 `(metadata
 		   (display-sort-function
 		    . ,(when (eq read-char-by-name-sort 'code)
-                         #'mule--ucs-names-sort-by-code))
+			 #'mule--ucs-names-sort-by-code))
 		   (affixation-function
-		    . ,(if read-char-by-name-group
-                           #'mule--ucs-names-group
-                         #'mule--ucs-names-affixation))
+		    . ,#'mule--ucs-names-affixation)
+		   (group-function
+		    . ,(when completions-group
+			 #'mule--ucs-names-group))
 		   (category . unicode-name))
 	       (complete-with-action action (ucs-names) string pred)))))
 	 (char
@@ -3209,5 +3244,116 @@ as names, not numbers."
 
 (define-obsolete-function-alias 'ucs-insert 'insert-char "24.3")
 (define-key ctl-x-map "8\r" 'insert-char)
+(define-key ctl-x-map "8e"
+            (define-keymap
+              "e" #'emoji-insert
+              "i" #'emoji-insert
+              "s" #'emoji-search
+              "d" #'emoji-describe
+              "r" #'emoji-recent
+              "l" #'emoji-list))
+
+(defface confusingly-reordered
+  '((((supports :underline (:style wave)))
+     :underline (:style wave :color "Red1"))
+    (t
+     :inherit warning))
+  "Face for highlighting text that was bidi-reordered in confusing ways."
+  :version "29.1")
+
+(defvar reorder-starters "[\u202A\u202B\u202D\u202E\u2066-\u2068]+"
+  "Regular expression for characters that start forced-reordered text.")
+(defvar reorder-enders "[\u202C\u2069]+\\|\n"
+  "Regular expression for characters that end forced-reordered text.")
+
+(autoload 'text-property-search-forward "text-property-search")
+(autoload 'prop-match-beginning "text-property-search")
+(autoload 'prop-match-end "text-property-search")
+
+(defun highlight-confusing-reorderings (beg end &optional remove)
+  "Highlight text in region that might be bidi-reordered in suspicious ways.
+This command find and highlights segments of buffer text that could have
+been reordered on display by using directional control characters, such
+as RLO and LRI, in a way that their display is deliberately meant to
+confuse the reader.  These techniques can be used for obfuscating
+malicious source code.  The suspicious stretches of buffer text are
+highlighted using the `confusingly-reordered' face.
+
+If the region is active, check the text inside the region.  Otherwise
+check the entire buffer.  When called from Lisp, pass BEG and END to
+specify the portion of the buffer to check.
+
+Optional argument REMOVE, if non-nil (interactively, prefix argument),
+means remove the highlighting from the region between BEG and END,
+or the active region if that is set."
+  (interactive
+   (if (use-region-p)
+       (list (region-beginning) (region-end) current-prefix-arg)
+     (list (point-min) (point-max) current-prefix-arg)))
+  (save-excursion
+    (if remove
+        (let (prop-match)
+          (goto-char beg)
+          (while (and
+                  (setq prop-match
+                        (text-property-search-forward 'font-lock-face
+                                                      'confusingly-reordered t))
+                  (< (prop-match-beginning prop-match) end))
+            (with-silent-modifications
+              (remove-list-of-text-properties (prop-match-beginning prop-match)
+                                              (prop-match-end prop-match)
+                                              '(font-lock-face face mouse-face
+                                                               help-echo)))))
+      (let ((count 0)
+            next)
+        (goto-char beg)
+        (while (setq next
+                     (bidi-find-overridden-directionality
+                      (point) end nil
+                      (current-bidi-paragraph-direction)))
+          (goto-char next)
+          ;; We detect the problematic parts by watching directional
+          ;; properties of strong L2R and R2L characters.  But
+          ;; malicious reordering in source buffers can, and usuually
+          ;; does, include syntactically-important punctuation
+          ;; characters.  Those have "weak" directionality, so we
+          ;; cannot easily detect when they are affected in malicious
+          ;; ways.  Therefore, once we find a strong directional
+          ;; character whose directionality was tweaked, we highlight
+          ;; the text around it, between the first bidi control
+          ;; character we find before it that starts an
+          ;; override/embedding/isolate, and the first control after
+          ;; it that ends these.  This could sometimes highlight only
+          ;; part of the affected text.  An alternative would be to
+          ;; find the first "starter" following BOL and the last
+          ;; "ender" before EOL, and highlight everything in between
+          ;; them -- this could sometimes highlight too much.
+          (let ((start
+                 (save-excursion
+                   (re-search-backward reorder-starters nil t)))
+                (finish
+                 (save-excursion
+                   (let ((fin (re-search-forward reorder-enders nil t)))
+                     (if fin (1- fin)
+                       (point-max))))))
+            (with-silent-modifications
+              (add-text-properties start finish
+                                   '(font-lock-face
+                                     confusingly-reordered
+                                     face confusingly-reordered
+                                     mouse-face highlight
+                                     help-echo "\
+This text is reordered on display in a way that could change its semantics;
+use \\[forward-char] and \\[backward-char] to see the actual order of characters.")))
+            (goto-char finish)
+            (setq count (1+ count))))
+        (message
+         (if (> count 0)
+             (ngettext
+              "Highlighted %d confusingly-reordered text string"
+              "Highlighted %d confusingly-reordered text strings"
+              count)
+           "No confusingly-reordered text strings were found")
+         count)))))
 
 ;;; mule-cmds.el ends here

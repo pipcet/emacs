@@ -1,6 +1,6 @@
 ;;; eudc.el --- Emacs Unified Directory Client  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1998-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1998-2022 Free Software Foundation, Inc.
 
 ;; Author: Oscar Figueiredo <oscar@cpe.fr>
 ;;         Pavel Janík <Pavel@Janik.cz>
@@ -25,7 +25,7 @@
 ;;; Commentary:
 ;;    This package provides a common interface to query directory servers using
 ;;    different protocols such as LDAP, CCSO PH/QI or BBDB.  Queries can be
-;;    made through an interactive form or inline. Inline query strings in
+;;    made through an interactive form or inline.  Inline query strings in
 ;;    buffers are expanded with appropriately formatted query results
 ;;    (especially used to expand email addresses in message buffers).  EUDC
 ;;    also interfaces with the BBDB package to let you register query results
@@ -46,19 +46,8 @@
 ;;; Code:
 
 (require 'wid-edit)
-
 (require 'cl-lib)
-
-(eval-and-compile
-  (if (not (fboundp 'make-overlay))
-      (require 'overlay)))
-
-(unless (fboundp 'custom-menu-create)
-  (autoload 'custom-menu-create "cus-edit"))
-
 (require 'eudc-vars)
-
-
 
 ;;{{{      Internal cooking
 
@@ -69,12 +58,12 @@
 (defvar eudc-mode-map
   (let ((map (make-sparse-keymap)))
     (set-keymap-parent map widget-keymap)
-    (define-key map "q" 'kill-current-buffer)
-    (define-key map "x" 'kill-current-buffer)
-    (define-key map "f" 'eudc-query-form)
-    (define-key map "b" 'eudc-try-bbdb-insert)
-    (define-key map "n" 'eudc-move-to-next-record)
-    (define-key map "p" 'eudc-move-to-previous-record)
+    (define-key map "q" #'kill-current-buffer)
+    (define-key map "x" #'kill-current-buffer)
+    (define-key map "f" #'eudc-query-form)
+    (define-key map "b" #'eudc-try-bbdb-insert)
+    (define-key map "n" #'eudc-move-to-next-record)
+    (define-key map "p" #'eudc-move-to-previous-record)
     map))
 
 (defvar mode-popup-menu)
@@ -411,7 +400,7 @@ if any, is called to print the value in cdr of FIELD."
 	(val (cdr field)))
     (if match
 	(progn
-	  (eval (list (cdr match) val))
+	  (funcall (cdr match) val)
 	  (insert "\n"))
       (mapc
        (lambda (val-elem)
@@ -668,7 +657,7 @@ If ERROR is non-nil, report an error if there is none."
   (let ((result (eudc-query (list (cons 'name name)) '(email)))
 	email)
     (if (null (cdr result))
-	(setq email (cl-cdaar result))
+        (setq email (cdaar result))
       (error "Multiple match--use the query form"))
     (if error
 	(if email
@@ -686,7 +675,7 @@ If ERROR is non-nil, report an error if there is none."
   (let ((result (eudc-query (list (cons 'name name)) '(phone)))
 	phone)
     (if (null (cdr result))
-	(setq phone (cl-cdaar result))
+        (setq phone (cdaar result))
       (error "Multiple match--use the query form"))
     (if error
 	(if phone
@@ -802,8 +791,9 @@ see `eudc-inline-expansion-servers'."
   "Query the directory server, and return the matching responses.
 The variable `eudc-inline-query-format' controls how to associate the
 individual QUERY-WORDS with directory attribute names.
-After querying the server for the given string, the expansion specified by
-`eudc-inline-expansion-format' is applied to the matches before returning them.inserted in the buffer at point.
+After querying the server for the given string, the expansion
+specified by `eudc-inline-expansion-format' is applied to the
+matches before returning them.inserted in the buffer at point.
 Multiple servers can be tried with the same query until one finds a match,
 see `eudc-inline-expansion-servers'."
   (cond
@@ -1056,8 +1046,6 @@ queries the server for the existing fields and displays a corresponding form."
 
 ;;{{{      Menus and keymaps
 
-(require 'easymenu)
-
 (defconst eudc-custom-generated-menu (cdr (custom-menu-create 'eudc)))
 
 (defconst eudc-tail-menu
@@ -1114,12 +1102,12 @@ queries the server for the existing fields and displays a corresponding form."
                                                  proto-name)))
                    (if (not (fboundp command))
                        (fset command
-                             `(lambda ()
-                                (interactive)
-                                (eudc-set-server ,server (quote ,protocol))
-                                (message "Selected directory server is now %s (%s)"
-                                         ,server
-                                         ,proto-name))))
+                             (lambda ()
+                               (interactive)
+                               (eudc-set-server server protocol)
+                               (message "Selected directory server is now %s (%s)"
+                                        server
+                                        proto-name))))
                    (vector (format "%s (%s)" server proto-name)
                            command
                            :style 'radio
@@ -1135,7 +1123,9 @@ queries the server for the existing fields and displays a corresponding form."
     (cons "Directory Servers"
 	  (easy-menu-create-menu "Directory Servers" (cdr (eudc-menu))))))
 
-;;; Load time initializations :
+;;}}}
+
+;;{{{ Load time initializations
 
 ;; Load the options file
 (if (and (not noninteractive)

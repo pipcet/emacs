@@ -1,6 +1,6 @@
 ;;; cal-coptic.el --- calendar functions for the Coptic/Ethiopic calendars  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 1995, 1997, 2001-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1995, 1997, 2001-2022 Free Software Foundation, Inc.
 
 ;; Author: Edward M. Reingold <reingold@cs.uiuc.edu>
 ;; Maintainer: emacs-devel@gnu.org
@@ -116,7 +116,7 @@ Defaults to today's date if DATE is not given."
          (m (calendar-extract-month coptic-date)))
     (if (< y 1)
         ""
-      (calendar-dlet*
+      (calendar-dlet
           ((monthname (aref calendar-coptic-month-name-array (1- m)))
            (day (number-to-string (calendar-extract-day coptic-date)))
            (dayname nil)

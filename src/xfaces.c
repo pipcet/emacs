@@ -1,6 +1,6 @@
 /* xfaces.c -- "Face" primitives.
 
-Copyright (C) 1993-1994, 1998-2021 Free Software Foundation, Inc.
+Copyright (C) 1993-1994, 1998-2022 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -95,9 +95,10 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
    with the symbol `face' in slot 0, and a slot for each of the face
    attributes mentioned above.
 
-   There is also a global face alist `Vface_new_frame_defaults'.  Face
-   definitions from this list are used to initialize faces of newly
-   created frames.
+   There is also a global face map `Vface_new_frame_defaults',
+   containing conses of (FACE_ID . FACE_DEFINITION).  Face definitions
+   from this table are used to initialize faces of newly created
+   frames.
 
    A face doesn't have to specify all attributes.  Those not specified
    have a value of `unspecified'.  Faces specifying all attributes but
@@ -245,6 +246,14 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #ifdef HAVE_NS
 #define GCGraphicsExposures 0
 #endif /* HAVE_NS */
+
+#ifdef HAVE_PGTK
+#define GCGraphicsExposures 0
+#endif /* HAVE_PGTK */
+
+#ifdef HAVE_HAIKU
+#define GCGraphicsExposures 0
+#endif /* HAVE_HAIKU */
 #endif /* HAVE_WINDOW_SYSTEM */
 
 #include "buffer.h"
@@ -353,10 +362,13 @@ static bool menu_face_changed_default;
 
 struct named_merge_point;
 
-static struct face *realize_face (struct face_cache *, Lisp_Object *,
+static struct face *realize_face (struct face_cache *,
+				  Lisp_Object [LFACE_VECTOR_SIZE],
 				  int);
-static struct face *realize_gui_face (struct face_cache *, Lisp_Object *);
-static struct face *realize_tty_face (struct face_cache *, Lisp_Object *);
+static struct face *realize_gui_face (struct face_cache *,
+				      Lisp_Object [LFACE_VECTOR_SIZE]);
+static struct face *realize_tty_face (struct face_cache *,
+				      Lisp_Object [LFACE_VECTOR_SIZE]);
 static bool realize_basic_faces (struct frame *);
 static bool realize_default_face (struct frame *);
 static void realize_named_face (struct frame *, Lisp_Object, int);
@@ -551,8 +563,8 @@ x_free_gc (struct frame *f, Emacs_GC *gc)
 
 #endif  /* HAVE_NTGUI */
 
-#ifdef HAVE_NS
-/* NS emulation of GCs */
+#if defined (HAVE_NS) || defined (HAVE_HAIKU)
+/* NS and Haiku emulation of GCs */
 
 static Emacs_GC *
 x_create_gc (struct frame *f,
@@ -561,6 +573,26 @@ x_create_gc (struct frame *f,
 {
   Emacs_GC *gc = xmalloc (sizeof *gc);
   *gc = *egc;
+  return gc;
+}
+
+static void
+x_free_gc (struct frame *f, Emacs_GC *gc)
+{
+  xfree (gc);
+}
+#endif  /* HAVE_NS */
+
+#ifdef HAVE_PGTK
+/* PGTK emulation of GCs */
+
+static Emacs_GC *
+x_create_gc (struct frame *f,
+	     unsigned long mask,
+	     Emacs_GC *xgcv)
+{
+  Emacs_GC *gc = xmalloc (sizeof *gc);
+  *gc = *xgcv;
   return gc;
 }
 
@@ -670,7 +702,8 @@ clear_face_cache (bool clear_fonts_p)
 	{
 	  struct frame *f = XFRAME (frame);
 	  if (FRAME_WINDOW_P (f)
-	      && FRAME_DISPLAY_INFO (f)->n_fonts > CLEAR_FONT_TABLE_NFONTS)
+	      && FRAME_DISPLAY_INFO (f)->n_fonts > CLEAR_FONT_TABLE_NFONTS
+	      && !f->inhibit_clear_image_cache)
 	    {
 	      clear_font_cache (f);
 	      free_all_realized_faces (frame);
@@ -1411,52 +1444,6 @@ enum xlfd_field
   XLFD_LAST
 };
 
-/* An enumerator for each possible slant value of a font.  Taken from
-   the XLFD specification.  */
-
-enum xlfd_slant
-{
-  XLFD_SLANT_UNKNOWN,
-  XLFD_SLANT_ROMAN,
-  XLFD_SLANT_ITALIC,
-  XLFD_SLANT_OBLIQUE,
-  XLFD_SLANT_REVERSE_ITALIC,
-  XLFD_SLANT_REVERSE_OBLIQUE,
-  XLFD_SLANT_OTHER
-};
-
-/* Relative font weight according to XLFD documentation.  */
-
-enum xlfd_weight
-{
-  XLFD_WEIGHT_UNKNOWN,
-  XLFD_WEIGHT_ULTRA_LIGHT,	/* 10 */
-  XLFD_WEIGHT_EXTRA_LIGHT,	/* 20 */
-  XLFD_WEIGHT_LIGHT,		/* 30 */
-  XLFD_WEIGHT_SEMI_LIGHT,	/* 40: SemiLight, Book, ...  */
-  XLFD_WEIGHT_MEDIUM,		/* 50: Medium, Normal, Regular, ...  */
-  XLFD_WEIGHT_SEMI_BOLD,	/* 60: SemiBold, DemiBold, ...  */
-  XLFD_WEIGHT_BOLD,		/* 70: Bold, ... */
-  XLFD_WEIGHT_EXTRA_BOLD,	/* 80: ExtraBold, Heavy, ...  */
-  XLFD_WEIGHT_ULTRA_BOLD	/* 90: UltraBold, Black, ...  */
-};
-
-/* Relative proportionate width.  */
-
-enum xlfd_swidth
-{
-  XLFD_SWIDTH_UNKNOWN,
-  XLFD_SWIDTH_ULTRA_CONDENSED,	/* 10 */
-  XLFD_SWIDTH_EXTRA_CONDENSED,	/* 20 */
-  XLFD_SWIDTH_CONDENSED,	/* 30: Condensed, Narrow, Compressed, ... */
-  XLFD_SWIDTH_SEMI_CONDENSED,	/* 40: semicondensed */
-  XLFD_SWIDTH_MEDIUM,		/* 50: Medium, Normal, Regular, ... */
-  XLFD_SWIDTH_SEMI_EXPANDED,	/* 60: SemiExpanded, DemiExpanded, ... */
-  XLFD_SWIDTH_EXPANDED,		/* 70: Expanded... */
-  XLFD_SWIDTH_EXTRA_EXPANDED,	/* 80: ExtraExpanded, Wide...  */
-  XLFD_SWIDTH_ULTRA_EXPANDED	/* 90: UltraExpanded... */
-};
-
 /* Order by which font selection chooses fonts.  The default values
    mean `first, find a best match for the font width, then for the
    font height, then for weight, then for slant.'  This variable can be
@@ -1962,13 +1949,11 @@ lface_from_face_name_no_resolve (struct frame *f, Lisp_Object face_name,
   Lisp_Object lface;
 
   if (f)
-    lface = assq_no_quit (face_name, f->face_alist);
+    lface = Fgethash (face_name, f->face_hash_table, Qnil);
   else
-    lface = assq_no_quit (face_name, Vface_new_frame_defaults);
+    lface = CDR (Fgethash (face_name, Vface_new_frame_defaults, Qnil));
 
-  if (CONSP (lface))
-    lface = XCDR (lface);
-  else if (signal_p)
+  if (signal_p && NILP (lface))
     signal_error ("Invalid face", face_name);
 
   check_lface (lface);
@@ -2417,11 +2402,11 @@ evaluate_face_filter (Lisp_Object filter, struct window *w,
 /* Determine whether FACE_REF is a "filter" face specification (case
    #4 in merge_face_ref).  If it is, evaluate the filter, and if the
    filter matches, return the filtered face spec.  If the filter does
-   not match, return `nil'.  If FACE_REF is not a filtered face
+   not match, return nil.  If FACE_REF is not a filtered face
    specification, return FACE_REF.
 
    On error, set *OK to false, having logged an error message if
-   ERR_MSGS is true, and return `nil'.  Otherwise, *OK is not touched.
+   ERR_MSGS is true, and return nil.  Otherwise, *OK is not touched.
 
    W is either NULL or a window used to evaluate filters.  If W is
    NULL, no window-based face specification filter matches.
@@ -2706,7 +2691,7 @@ merge_face_ref (struct window *w,
 		{
 		  if (EQ (value, Qt))
 		    value = make_fixnum (1);
-		  if (FIXNUMP (value)
+		  if ((FIXNUMP (value) && XFIXNUM (value) != 0)
 		      || STRINGP (value)
 		      || CONSP (value)
 		      || NILP (value))
@@ -2867,11 +2852,6 @@ Value is a vector of face attributes.  */)
   /* Add a global definition if there is none.  */
   if (NILP (global_lface))
     {
-      global_lface = make_vector (LFACE_VECTOR_SIZE, Qunspecified);
-      ASET (global_lface, 0, Qface);
-      Vface_new_frame_defaults = Fcons (Fcons (face, global_lface),
-					Vface_new_frame_defaults);
-
       /* Assign the new Lisp face a unique ID.  The mapping from Lisp
 	 face id to Lisp face is given by the vector lface_id_to_name.
 	 The mapping from Lisp face to Lisp face id is given by the
@@ -2881,9 +2861,14 @@ Value is a vector of face attributes.  */)
 	  xpalloc (lface_id_to_name, &lface_id_to_name_size, 1, MAX_FACE_ID,
 		   sizeof *lface_id_to_name);
 
+      Lisp_Object face_id = make_fixnum (next_lface_id);
       lface_id_to_name[next_lface_id] = face;
-      Fput (face, Qface, make_fixnum (next_lface_id));
+      Fput (face, Qface, face_id);
       ++next_lface_id;
+
+      global_lface = make_vector (LFACE_VECTOR_SIZE, Qunspecified);
+      ASET (global_lface, 0, Qface);
+      Fputhash (face, Fcons (face_id, global_lface), Vface_new_frame_defaults);
     }
   else if (f == NULL)
     for (i = 1; i < LFACE_VECTOR_SIZE; ++i)
@@ -2896,7 +2881,7 @@ Value is a vector of face attributes.  */)
 	{
 	  lface = make_vector (LFACE_VECTOR_SIZE, Qunspecified);
 	  ASET (lface, 0, Qface);
-	  fset_face_alist (f, Fcons (Fcons (face, lface), f->face_alist));
+          Fputhash (face, lface, f->face_hash_table);
 	}
       else
 	for (i = 1; i < LFACE_VECTOR_SIZE; ++i)
@@ -3057,7 +3042,7 @@ FRAME 0 means change the face on all frames, and change the default
       f = NULL;
       lface = lface_from_face_name (NULL, face, true);
 
-      /* When updating face-new-frame-defaults, we put :ignore-defface
+      /* When updating face--new-frame-defaults, we put :ignore-defface
 	 where the caller wants `unspecified'.  This forces the frame
 	 defaults to ignore the defface value.  Otherwise, the defface
 	 will take effect, which is generally not what is intended.
@@ -3642,7 +3627,7 @@ update_face_from_frame_parameter (struct frame *f, Lisp_Object param,
   /* If there are no faces yet, give up.  This is the case when called
      from Fx_create_frame, and we do the necessary things later in
      face-set-after-frame-defaults.  */
-  if (NILP (f->face_alist))
+  if (XFIXNAT (Fhash_table_count (f->face_hash_table)) == 0)
     return;
 
   if (EQ (param, Qforeground_color))
@@ -4308,14 +4293,13 @@ If FRAME is omitted or nil, use the selected frame.  */)
   return i == LFACE_VECTOR_SIZE ? Qt : Qnil;
 }
 
-
-DEFUN ("frame-face-alist", Fframe_face_alist, Sframe_face_alist,
+DEFUN ("frame--face-hash-table", Fframe_face_hash_table, Sframe_face_hash_table,
        0, 1, 0,
-       doc: /* Return an alist of frame-local faces defined on FRAME.
+       doc: /* Return a hash table of frame-local faces defined on FRAME.
 For internal use only.  */)
   (Lisp_Object frame)
 {
-  return decode_live_frame (frame)->face_alist;
+  return decode_live_frame (frame)->face_hash_table;
 }
 
 
@@ -4822,7 +4806,7 @@ face_for_font (struct frame *f, Lisp_Object font_object,
                struct face *base_face)
 {
   struct face_cache *cache = FRAME_FACE_CACHE (f);
-  unsigned hash;
+  uintptr_t hash;
   int i;
   struct face *face;
 
@@ -4881,7 +4865,7 @@ lookup_named_face (struct window *w, struct frame *f,
 
 /* Return the display face-id of the basic face whose canonical face-id
    is FACE_ID.  The return value will usually simply be FACE_ID, unless that
-   basic face has bee remapped via Vface_remapping_alist.  This function is
+   basic face has been remapped via Vface_remapping_alist.  This function is
    conservative: if something goes wrong, it will simply return FACE_ID
    rather than signal an error.  Window W, if non-NULL, is used to filter
    face specifications for remapping.  */
@@ -4897,7 +4881,7 @@ lookup_basic_face (struct window *w, struct frame *f, int face_id)
   switch (face_id)
     {
     case DEFAULT_FACE_ID:		name = Qdefault;		break;
-    case MODE_LINE_FACE_ID:		name = Qmode_line;		break;
+    case MODE_LINE_ACTIVE_FACE_ID:	name = Qmode_line_active;      	break;
     case MODE_LINE_INACTIVE_FACE_ID:	name = Qmode_line_inactive;	break;
     case HEADER_LINE_FACE_ID:		name = Qheader_line;		break;
     case TAB_LINE_FACE_ID:		name = Qtab_line;		break;
@@ -5091,8 +5075,8 @@ gui_supports_face_attributes_p (struct frame *f,
 {
   Lisp_Object *def_attrs = def_face->lface;
 
-  /* Check that other specified attributes are different that the default
-     face.  */
+  /* Check that other specified attributes are different from the
+     default face.  */
   if ((!UNSPECIFIEDP (attrs[LFACE_UNDERLINE_INDEX])
        && face_attr_equal_p (attrs[LFACE_UNDERLINE_INDEX],
 			     def_attrs[LFACE_UNDERLINE_INDEX]))
@@ -5371,6 +5355,10 @@ DEFUN ("display-supports-face-attributes-p",
 The optional argument DISPLAY can be a display name, a frame, or
 nil (meaning the selected frame's display).
 
+For instance, to check whether the display supports underlining:
+
+  (display-supports-face-attributes-p \\='(:underline t))
+
 The definition of `supported' is somewhat heuristic, but basically means
 that a face containing all the attributes in ATTRIBUTES, when merged
 with the default face for display, can be represented in a way that's
@@ -5605,6 +5593,7 @@ realize_basic_faces (struct frame *f)
   if (realize_default_face (f))
     {
       realize_named_face (f, Qmode_line, MODE_LINE_FACE_ID);
+      realize_named_face (f, Qmode_line_active, MODE_LINE_ACTIVE_FACE_ID);
       realize_named_face (f, Qmode_line_inactive, MODE_LINE_INACTIVE_FACE_ID);
       realize_named_face (f, Qtool_bar, TOOL_BAR_FACE_ID);
       realize_named_face (f, Qfringe, FRINGE_FACE_ID);
@@ -6034,10 +6023,11 @@ realize_gui_face (struct face_cache *cache, Lisp_Object attrs[LFACE_VECTOR_SIZE]
 		face->box = FACE_RAISED_BOX;
 	      else if (EQ (value, Qpressed_button))
 		face->box = FACE_SUNKEN_BOX;
-	      else if (EQ (value, Qflat_button)) {
-		face->box = FACE_SIMPLE_BOX;
-		face->box_color = face->background;
-	      }
+	      else if (EQ (value, Qflat_button))
+		{
+		  face->box = FACE_SIMPLE_BOX;
+		  face->box_color = face->background;
+		}
 	    }
 	}
     }
@@ -6407,20 +6397,19 @@ face_at_buffer_position (struct window *w, ptrdiff_t pos,
     int face_id;
 
     if (base_face_id >= 0)
-      {
-	face_id = base_face_id;
-	/* Make sure the base face ID is usable: if someone freed the
-	   cached faces since we've looked up the base face, we need
-	   to look it up again.  */
-	if (!FACE_FROM_ID_OR_NULL (f, face_id))
-	  face_id = lookup_basic_face (w, f, DEFAULT_FACE_ID);
-      }
+      face_id = base_face_id;
     else if (NILP (Vface_remapping_alist))
       face_id = DEFAULT_FACE_ID;
     else
       face_id = lookup_basic_face (w, f, DEFAULT_FACE_ID);
 
-    default_face = FACE_FROM_ID (f, face_id);
+    default_face = FACE_FROM_ID_OR_NULL (f, face_id);
+    /* Make sure the default face ID is usable: if someone freed the
+       cached faces since we've looked up these faces, we need to look
+       them up again.  */
+    if (!default_face)
+      default_face = FACE_FROM_ID (f,
+				   lookup_basic_face (w, f, DEFAULT_FACE_ID));
   }
 
   /* Optimize common cases where we can use the default face.  */
@@ -6605,7 +6594,9 @@ face_at_string_position (struct window *w, Lisp_Object string,
   else
     *endptr = -1;
 
-  base_face = FACE_FROM_ID (f, base_face_id);
+  base_face = FACE_FROM_ID_OR_NULL (f, base_face_id);
+  if (!base_face)
+    base_face = FACE_FROM_ID (f, lookup_basic_face (w, f, DEFAULT_FACE_ID));
 
   /* Optimize the default case that there is no face property.  */
   if (NILP (prop)
@@ -6831,30 +6822,32 @@ DEFUN ("show-face-resources", Fshow_face_resources, Sshow_face_resources,
 
 #ifdef HAVE_PDUMPER
 /* All the faces defined during loadup are recorded in
-   face-new-frame-defaults, with the last face first in the list.  We
-   need to set next_lface_id to the next face ID number, so that any
-   new faces defined in this session will have face IDs different from
-   those defined during loadup.  We also need to set up the
-   lface_id_to_name[] array for the faces that were defined during
-   loadup.  */
+   face-new-frame-defaults.  We need to set next_lface_id to the next
+   face ID number, so that any new faces defined in this session will
+   have face IDs different from those defined during loadup.  We also
+   need to set up the lface_id_to_name[] array for the faces that were
+   defined during loadup.  */
 void
 init_xfaces (void)
 {
-  if (CONSP (Vface_new_frame_defaults))
+  int nfaces = XFIXNAT (Fhash_table_count (Vface_new_frame_defaults));
+  if (nfaces > 0)
     {
       /* Allocate the lface_id_to_name[] array.  */
-      lface_id_to_name_size = next_lface_id =
-	XFIXNAT (Flength (Vface_new_frame_defaults));
+      lface_id_to_name_size = next_lface_id = nfaces;
       lface_id_to_name = xnmalloc (next_lface_id, sizeof *lface_id_to_name);
 
       /* Store the faces.  */
-      Lisp_Object tail;
-      int i = next_lface_id - 1;
-      for (tail = Vface_new_frame_defaults; CONSP (tail); tail = XCDR (tail))
+      struct Lisp_Hash_Table* table = XHASH_TABLE (Vface_new_frame_defaults);
+      for (ptrdiff_t idx = 0; idx < nfaces; ++idx)
 	{
-	  Lisp_Object lface = XCAR (tail);
-	  eassert (i >= 0);
-	  lface_id_to_name[i--] = XCAR (lface);
+	  Lisp_Object lface = HASH_KEY (table, idx);
+	  Lisp_Object face_id = CAR (HASH_VALUE (table, idx));
+          if (FIXNATP (face_id)) {
+              int id = XFIXNAT (face_id);
+              eassert (id >= 0);
+              lface_id_to_name[id] = lface;
+            }
 	}
     }
   face_attr_sym[0] = Qface;
@@ -6928,13 +6921,20 @@ syms_of_xfaces (void)
   DEFSYM (Qpressed_button, "pressed-button");
   DEFSYM (Qflat_button, "flat-button");
   DEFSYM (Qnormal, "normal");
+  DEFSYM (Qthin, "thin");
   DEFSYM (Qextra_light, "extra-light");
+  DEFSYM (Qultra_light, "ultra-light");
   DEFSYM (Qlight, "light");
   DEFSYM (Qsemi_light, "semi-light");
+  DEFSYM (Qmedium, "medium");
   DEFSYM (Qsemi_bold, "semi-bold");
+  DEFSYM (Qbook, "book");
   DEFSYM (Qbold, "bold");
   DEFSYM (Qextra_bold, "extra-bold");
   DEFSYM (Qultra_bold, "ultra-bold");
+  DEFSYM (Qheavy, "heavy");
+  DEFSYM (Qultra_heavy, "ultra-heavy");
+  DEFSYM (Qblack, "black");
   DEFSYM (Qoblique, "oblique");
   DEFSYM (Qitalic, "italic");
 
@@ -6970,6 +6970,7 @@ syms_of_xfaces (void)
   DEFSYM (Qborder, "border");
   DEFSYM (Qmouse, "mouse");
   DEFSYM (Qmode_line_inactive, "mode-line-inactive");
+  DEFSYM (Qmode_line_active, "mode-line-active");
   DEFSYM (Qvertical_border, "vertical-border");
   DEFSYM (Qwindow_divider, "window-divider");
   DEFSYM (Qwindow_divider_first_pixel, "window-divider-first-pixel");
@@ -7010,7 +7011,7 @@ syms_of_xfaces (void)
   defsubr (&Sinternal_copy_lisp_face);
   defsubr (&Sinternal_merge_in_global_face);
   defsubr (&Sface_font);
-  defsubr (&Sframe_face_alist);
+  defsubr (&Sframe_face_hash_table);
   defsubr (&Sdisplay_supports_face_attributes_p);
   defsubr (&Scolor_distance);
   defsubr (&Sinternal_set_font_selection_order);
@@ -7034,9 +7035,12 @@ This variable is intended for use only by code that evaluates
 the "specifity" of a face specification and should be let-bound
 only for this purpose.  */);
 
-  DEFVAR_LISP ("face-new-frame-defaults", Vface_new_frame_defaults,
-    doc: /* List of global face definitions (for internal use only.)  */);
-  Vface_new_frame_defaults = Qnil;
+  DEFVAR_LISP ("face--new-frame-defaults", Vface_new_frame_defaults,
+    doc: /* Hash table of global face definitions (for internal use only.)  */);
+  Vface_new_frame_defaults =
+    /* 33 entries is enough to fit all basic faces */
+    make_hash_table (hashtest_eq, 33, DEFAULT_REHASH_SIZE,
+                     DEFAULT_REHASH_THRESHOLD, Qnil, false);
 
   DEFVAR_LISP ("face-default-stipple", Vface_default_stipple,
     doc: /* Default stipple pattern used on monochrome displays.

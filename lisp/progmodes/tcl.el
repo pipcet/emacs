@@ -1,6 +1,6 @@
 ;;; tcl.el --- Tcl code editing commands for Emacs  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 1994, 1998-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1994, 1998-2022 Free Software Foundation, Inc.
 
 ;; Author: Tom Tromey <tromey@redhat.com>
 ;;    Chris Lindblad <cjl@lcs.mit.edu>
@@ -288,7 +288,7 @@ quoted for Tcl."
     ["Tcl help" tcl-help-on-word tcl-help-directory-list]))
 
 (defvar inferior-tcl-buffer nil
-  "The current inferior-tcl process buffer.
+  "The current `inferior-tcl' process buffer.
 
 MULTIPLE PROCESS SUPPORT
 ===========================================================================
@@ -1413,7 +1413,7 @@ Prefix argument means switch to the Tcl buffer afterwards."
    (list
     ;; car because comint-get-source returns a list holding the
     ;; filename.
-    (car (comint-get-source "Load Tcl file: "
+    (car (comint-get-source "Load Tcl file"
 			    (or (and
 				 (derived-mode-p 'tcl-mode)
 				 (buffer-file-name))
@@ -1433,7 +1433,7 @@ If an inferior Tcl process exists, it is killed first.
 Prefix argument means switch to the Tcl buffer afterwards."
   (interactive
    (list
-    (car (comint-get-source "Restart with Tcl file: "
+    (car (comint-get-source "Restart with Tcl file"
 			    (or (and
 				 (derived-mode-p 'tcl-mode)
 				 (buffer-file-name))

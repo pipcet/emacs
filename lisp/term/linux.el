@@ -1,4 +1,6 @@
-;; The Linux console handles Latin-1 by default.  -*- lexical-binding:t -*-
+;;; linux.el  -*- lexical-binding:t -*-
+
+;; The Linux console handles Latin-1 by default.
 
 (declare-function gpm-mouse-enable "t-mouse" ())
 
@@ -9,6 +11,9 @@
 
   ;; It can't really display underlines.
   (tty-no-underline)
+
+  ;; Compositions confuse cursor movement.
+  (setq-default auto-composition-mode "linux")
 
   (ignore-errors (when gpm-mouse-mode (require 't-mouse) (gpm-mouse-enable)))
 

@@ -1,6 +1,6 @@
 ;;; sgml-mode.el --- SGML- and HTML-editing modes -*- lexical-binding:t -*-
 
-;; Copyright (C) 1992, 1995-1996, 1998, 2001-2021 Free Software
+;; Copyright (C) 1992, 1995-1996, 1998, 2001-2022 Free Software
 ;; Foundation, Inc.
 
 ;; Author: James Clark <jjc@jclark.com>
@@ -34,6 +34,7 @@
 
 (require 'dom)
 (require 'seq)
+(require 'facemenu)
 (eval-when-compile (require 'subr-x))
 (eval-when-compile
   (require 'skeleton)
@@ -74,7 +75,8 @@ a DOCTYPE or an XML declaration."
   :type 'boolean
   :version "22.1")
 
-(defvaralias 'sgml-transformation 'sgml-transformation-function)
+(define-obsolete-variable-alias 'sgml-transformation
+  'sgml-transformation-function "29.1")
 
 (defcustom sgml-transformation-function 'identity
   "Default value for `skeleton-transformation-function' in SGML mode."
@@ -117,8 +119,7 @@ definitions.  So we normally turn it off.")
 This takes effect when first loading the `sgml-mode' library.")
 
 (defvar sgml-mode-map
-  (let ((map (make-keymap))	;`sparse' doesn't allow binding to charsets.
-	(menu-map (make-sparse-keymap "SGML")))
+  (let ((map (make-keymap)))	;`sparse' doesn't allow binding to charsets.
     (define-key map "\C-c\C-i" 'sgml-tags-invisible)
     (define-key map "/" 'sgml-slash)
     (define-key map "\C-c\C-n" 'sgml-name-char)
@@ -153,25 +154,23 @@ This takes effect when first loading the `sgml-mode' library.")
 	  (map (nth 1 map)))
       (while (< (setq c (1+ c)) 256)
 	(aset map c 'sgml-maybe-name-self)))
-    (define-key map [menu-bar sgml] (cons "SGML" menu-map))
-    (define-key menu-map [sgml-validate] '("Validate" . sgml-validate))
-    (define-key menu-map [sgml-name-8bit-mode]
-      '("Toggle 8 Bit Insertion" . sgml-name-8bit-mode))
-    (define-key menu-map [sgml-tags-invisible]
-      '("Toggle Tag Visibility" . sgml-tags-invisible))
-    (define-key menu-map [sgml-tag-help]
-      '("Describe Tag" . sgml-tag-help))
-    (define-key menu-map [sgml-delete-tag]
-      '("Delete Tag" . sgml-delete-tag))
-    (define-key menu-map [sgml-skip-tag-forward]
-      '("Forward Tag" . sgml-skip-tag-forward))
-    (define-key menu-map [sgml-skip-tag-backward]
-      '("Backward Tag" . sgml-skip-tag-backward))
-    (define-key menu-map [sgml-attributes]
-      '("Insert Attributes" . sgml-attributes))
-    (define-key menu-map [sgml-tag] '("Insert Tag" . sgml-tag))
     map)
   "Keymap for SGML mode.  See also `sgml-specials'.")
+
+(easy-menu-define sgml-mode-menu sgml-mode-map
+  "Menu for SGML mode."
+  '("SGML"
+    ["Insert Tag" sgml-tag]
+    ["Insert Attributes" sgml-attributes]
+    ["Backward Tag" sgml-skip-tag-backward]
+    ["Forward Tag" sgml-skip-tag-forward]
+    ["Delete Tag" sgml-delete-tag]
+    ["Describe Tag" sgml-tag-help]
+    "---"
+    ["Toggle Tag Visibility" sgml-tags-invisible]
+    ["Toggle 8 Bit Insertion" sgml-name-8bit-mode]
+    "---"
+    ["Validate" sgml-validate]))
 
 (defun sgml-make-syntax-table (specials)
   (let ((table (make-syntax-table text-mode-syntax-table)))
@@ -192,8 +191,19 @@ This takes effect when first loading the `sgml-mode' library.")
   "Syntax table used in SGML mode.  See also `sgml-specials'.")
 
 (defconst sgml-tag-syntax-table
-  (let ((table (sgml-make-syntax-table sgml-specials)))
-    (dolist (char '(?\( ?\) ?\{ ?\} ?\[ ?\] ?$ ?% ?& ?* ?+ ?/))
+  (let ((table (sgml-make-syntax-table sgml-specials))
+	brackets)
+    (map-char-table
+     (lambda (key value)
+       (setq brackets (cons (list
+			     (if (consp key)
+				 (list (car key) (cdr key))
+			       key)
+			     value)
+			    brackets)))
+     (unicode-property-table-internal 'paired-bracket))
+    (setq brackets (delete-dups (flatten-tree brackets)))
+    (dolist (char (append brackets (list ?$ ?% ?& ?* ?+ ?/)))
       (modify-syntax-entry char "." table))
     (unless (memq ?' sgml-specials)
       ;; Avoid that skipping a tag backwards skips any "'" prefixing it.
@@ -431,7 +441,8 @@ These have to be run via `sgml-syntax-propertize'"))
 
 ;; internal
 (defvar sgml-face-tag-alist ()
-  "Alist of face and tag name for facemenu.")
+  "Alist of face and tag name for facemenu.
+The tag name can be a string or a list of strings.")
 
 (defvar sgml-tag-face-alist ()
   "Tag names and face or list of faces to fontify with when invisible.
@@ -519,11 +530,13 @@ an optional alist of possible values."
     (comment-indent-new-line soft)))
 
 (defun sgml-mode-facemenu-add-face-function (face _end)
-  (let ((tag-face (cdr (assq face sgml-face-tag-alist))))
+  "Add \"face\" tags with `facemenu-keymap' commands."
+  (let ((tag-face (ensure-list (cdr (assq face sgml-face-tag-alist)))))
     (cond (tag-face
 	   (setq tag-face (funcall skeleton-transformation-function tag-face))
-	   (setq facemenu-end-add-face (concat "</" tag-face ">"))
-	   (concat "<" tag-face ">"))
+           (setq facemenu-end-add-face
+                 (mapconcat (lambda (f) (concat "</" f ">")) (reverse tag-face) ""))
+           (mapconcat (lambda (f) (concat "<" f ">")) tag-face ""))
 	  ((and (consp face)
 		(consp (car face))
 		(null  (cdr face))
@@ -611,6 +624,7 @@ Do \\[describe-key] on the following bindings to discover what they do.
   (setq-local comment-indent-function 'sgml-comment-indent)
   (setq-local comment-line-break-function 'sgml-comment-indent-new-line)
   (setq-local skeleton-further-elements '((completion-ignore-case t)))
+  (setq-local skeleton-end-newline nil)
   (setq-local skeleton-end-hook
 	      (lambda ()
 		(or (eolp)
@@ -625,7 +639,8 @@ Do \\[describe-key] on the following bindings to discover what they do.
   (setq-local syntax-propertize-function #'sgml-syntax-propertize)
   (setq-local syntax-ppss-table sgml-tag-syntax-table)
   (setq-local facemenu-add-face-function 'sgml-mode-facemenu-add-face-function)
-  (setq-local sgml-xml-mode (sgml-xml-guess))
+  (when (sgml-xml-guess)
+    (setq-local sgml-xml-mode t))
   (unless sgml-xml-mode
     (setq-local skeleton-transformation-function sgml-transformation-function))
   ;; This will allow existing comments within declarations to be
@@ -1198,7 +1213,7 @@ and move to the line in the SGML document that caused it."
   (compilation-start command))
 
 (defsubst sgml-at-indentation-p ()
-  "Return true if point is at the first non-whitespace character on the line."
+  "Return t if point is at the first non-whitespace character on the line."
   (save-excursion
     (skip-chars-backward " \t")
     (bolp)))
@@ -1788,8 +1803,7 @@ This defaults to `sgml-quick-keys'.
 This takes effect when first loading the library.")
 
 (defvar html-mode-map
-  (let ((map (make-sparse-keymap))
-	(menu-map (make-sparse-keymap "HTML")))
+  (let ((map (make-sparse-keymap)))
     (set-keymap-parent map  sgml-mode-map)
     (define-key map "\C-c6" 'html-headline-6)
     (define-key map "\C-c5" 'html-headline-5)
@@ -1826,37 +1840,40 @@ This takes effect when first loading the library.")
       (define-key map "\C-cs" 'html-span))
     (define-key map "\C-c\C-s" 'html-autoview-mode)
     (define-key map "\C-c\C-v" 'browse-url-of-buffer)
-    (define-key map [menu-bar html] (cons "HTML" menu-map))
-    (define-key menu-map [html-autoview-mode]
-      '("Toggle Autoviewing" . html-autoview-mode))
-    (define-key menu-map [browse-url-of-buffer]
-      '("View Buffer Contents" . browse-url-of-buffer))
-    (define-key menu-map [nil] '("--"))
-    ;;(define-key menu-map "6" '("Heading 6" . html-headline-6))
-    ;;(define-key menu-map "5" '("Heading 5" . html-headline-5))
-    ;;(define-key menu-map "4" '("Heading 4" . html-headline-4))
-    (define-key menu-map "3" '("Heading 3" . html-headline-3))
-    (define-key menu-map "2" '("Heading 2" . html-headline-2))
-    (define-key menu-map "1" '("Heading 1" . html-headline-1))
-    (define-key menu-map "l" '("Radio Buttons" . html-radio-buttons))
-    (define-key menu-map "c" '("Checkboxes" . html-checkboxes))
-    (define-key menu-map "l" '("List Item" . html-list-item))
-    (define-key menu-map "u" '("Unordered List" . html-unordered-list))
-    (define-key menu-map "o" '("Ordered List" . html-ordered-list))
-    (define-key menu-map "-" '("Horizontal Rule" . html-horizontal-rule))
-    (define-key menu-map "\n" '("Line Break" . html-line))
-    (define-key menu-map "\r" '("Paragraph" . html-paragraph))
-    (define-key menu-map "i" '("Image" . html-image))
-    (define-key menu-map "h" '("Href Anchor URL" . html-href-anchor))
-    (define-key menu-map "f" '("Href Anchor File" . html-href-anchor-file))
-    (define-key menu-map "n" '("Name Anchor" . html-name-anchor))
-    (define-key menu-map "#" '("ID Anchor" . html-id-anchor))
+    (define-key map "\M-o" 'facemenu-keymap)
     map)
   "Keymap for commands for use in HTML mode.")
+
+(easy-menu-define html-mode-menu html-mode-map
+  "Menu for HTML mode."
+  '("HTML"
+    ["ID Anchor" html-id-anchor]
+    ["Name Anchor" html-name-anchor]
+    ["Href Anchor File" html-href-anchor-file]
+    ["Href Anchor URL" html-href-anchor]
+    ["Image" html-image]
+    ["Paragraph" html-paragraph]
+    ["Line Break" html-line]
+    ["Horizontal Rule" html-horizontal-rule]
+    ["Ordered List" html-ordered-list]
+    ["Unordered List" html-unordered-list]
+    ["List Item" html-list-item]
+    ["Checkboxes" html-checkboxes]
+    ["Radio Buttons" html-radio-buttons]
+    ["Heading 1" html-headline-1]
+    ["Heading 2" html-headline-2]
+    ["Heading 3" html-headline-3]
+    ;; ["Heading 4" html-headline-4]
+    ;; ["Heading 5" html-headline-5]
+    ;; ["Heading 6" html-headline-6]
+    "---"
+    ["View Buffer Contents" browse-url-of-buffer]
+    ["Toggle Autoviewing" html-autoview-mode]))
 
 (defvar html-face-tag-alist
   '((bold . "strong")
     (italic . "em")
+    (bold-italic . ("strong" "em"))
     (underline . "u")
     (mode-line . "rev"))
   "Value of `sgml-face-tag-alist' for HTML mode.")
@@ -2362,15 +2379,16 @@ can also view with a browser to see what happens:
 have <h1>Very Major Headlines</h1> through <h6>Very Minor Headlines</h6>
 <hr> Parts can be separated with horizontal rules.
 
-<p>Paragraphs only need an opening tag.  Line breaks and multiple spaces are
-ignored unless the text is <pre>preformatted.</pre>  Text can be marked as
-<strong>bold</strong>, <em>italic</em> or <u>underlined</u> using the normal M-o
-or Edit/Text Properties/Face commands.
+<p>Paragraphs only need an opening tag.  Line breaks and multiple
+spaces are ignored unless the text is <pre>preformatted.</pre>
+Text can be marked as <strong>bold</strong>, <em>italic</em> or
+<u>underlined</u> using the facemenu M-o or Edit/Text
+Properties/Face commands.
 
 Pages can have <a name=\"SOMENAME\">named points</a> and can link other points
 to them with <a href=\"#SOMENAME\">see also somename</a>.  In the same way <a
 href=\"URL\">see also URL</a> where URL is a filename relative to current
-directory, or absolute as in `http://www.cs.indiana.edu/elisp/w3/docs.html'.
+directory, or absolute as in `https://www.cs.indiana.edu/elisp/w3/docs.html'.
 
 Images in many formats can be inlined with <img src=\"URL\">.
 
@@ -2399,6 +2417,8 @@ To work around that, do:
     (setq-local css-id-list-function #'html-current-buffer-ids))
 
   (setq imenu-create-index-function 'html-imenu-index)
+  (yank-media-handler 'text/html #'html-mode--html-yank-handler)
+  (yank-media-handler "image/.*" #'html-mode--image-yank-handler)
 
   (setq-local sgml-empty-tags
 	      ;; From HTML-4.01's loose.dtd, parsed with
@@ -2413,6 +2433,30 @@ To work around that, do:
   ;; (make-local-variable 'imenu-sort-function)
   ;; (setq imenu-sort-function nil) ; sorting the menu defeats the purpose
   )
+
+(defun html-mode--html-yank-handler (_type html)
+  (save-restriction
+    (insert html)
+    (ignore-errors
+      (sgml-pretty-print (point-min) (point-max)))))
+
+(defun html-mode--image-yank-handler (type image)
+  (let ((file (read-file-name (format "Save %s image to: " type))))
+    (when (file-directory-p file)
+      (user-error "%s is a directory"))
+    (when (and (file-exists-p file)
+               (not (yes-or-no-p (format "%s exists; overwrite?" file))))
+      (user-error "%s exists"))
+    (with-temp-buffer
+      (set-buffer-multibyte nil)
+      (insert image)
+      (write-region (point-min) (point-max) file))
+    (insert (format "<img src=%S>\n" (file-relative-name file)))
+    (insert-image
+     (create-image file (mailcap-mime-type-to-extension type) nil
+		   :max-width 200
+		   :max-height 200)
+     " ")))
 
 (defvar html-imenu-regexp
   "\\s-*<h\\([1-9]\\)[^\n<>]*>\\(<[^\n<>]*>\\)*\\s-*\\([^\n<>]*\\)"
@@ -2442,7 +2486,7 @@ The third `match-string' will be the used in the menu.")
 HTML Autoview mode is a buffer-local minor mode for use with
 `html-mode'.  If enabled, saving the file automatically runs
 `browse-url-of-buffer' to view it."
-  nil nil nil
+  :lighter nil
   (if html-autoview-mode
       (add-hook 'after-save-hook #'browse-url-of-buffer nil t)
     (remove-hook 'after-save-hook #'browse-url-of-buffer t)))
@@ -2604,7 +2648,7 @@ HTML Autoview mode is a buffer-local minor mode for use with
   "</nav>")
 
 (define-skeleton html-html5-template
-  "Initial HTML5 template"
+  "Initial HTML5 template."
   nil
   "<!DOCTYPE html>" \n
   "<html lang=\"en\">" \n

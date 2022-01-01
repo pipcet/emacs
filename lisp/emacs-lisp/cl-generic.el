@@ -1,6 +1,6 @@
 ;;; cl-generic.el --- CLOS-style generic functions for Elisp  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2015-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2015-2022 Free Software Foundation, Inc.
 
 ;; Author: Stefan Monnier <monnier@iro.umontreal.ca>
 ;; Version: 1.0
@@ -86,6 +86,14 @@
 
 ;;; Code:
 
+;; We provide a mechanism to define new specializers.
+;; Related work can be found in:
+;; - http://www.p-cos.net/documents/filtered-dispatch.pdf
+;; - Generalizers: New metaobjects for generalized dispatch
+;;   http://research.gold.ac.uk/9924/1/els-specializers.pdf
+;; This second one is closely related to what we do here (and that's
+;; the name "generalizer" comes from).
+
 ;; The autoloads.el mechanism which adds package--builtin-versions
 ;; maintenance to loaddefs.el doesn't work for preloaded packages (such
 ;; as this one), so we have to do it by hand!
@@ -100,6 +108,7 @@
 (eval-when-compile (require 'cl-lib))
 (eval-when-compile (require 'cl-macs))  ;For cl--find-class.
 (eval-when-compile (require 'pcase))
+(eval-when-compile (require 'subr-x))
 
 (cl-defstruct (cl--generic-generalizer
                (:constructor nil)
@@ -277,7 +286,9 @@ DEFAULT-BODY, if present, is used as the body of a default method.
          (progn
            (defalias ',name
              (cl-generic-define ',name ',args ',(nreverse options))
-             ,(help-add-fundoc-usage doc args))
+             ,(if (consp doc)           ;An expression rather than a constant.
+                  `(help-add-fundoc-usage ,doc ',args)
+                (help-add-fundoc-usage doc args)))
            :autoload-end
            ,@(mapcar (lambda (method) `(cl-defmethod ,name ,@method))
                      (nreverse methods)))
@@ -425,10 +436,20 @@ the specializer used will be the one returned by BODY."
 (defun cl-generic--method-qualifier-p (x)
   (not (listp x)))
 
+(defun cl--defmethod-doc-pos ()
+  "Return the index of the docstring for a `cl-defmethod'.
+Presumes point is at the end of the `cl-defmethod' symbol."
+  (save-excursion
+    (let ((n 2))
+      (while (and (ignore-errors (forward-sexp 1) t)
+                  (not (eq (char-before) ?\))))
+        (cl-incf n))
+      n)))
+
 ;;;###autoload
 (defmacro cl-defmethod (name args &rest body)
   "Define a new method for generic function NAME.
-This it defines an implementation of NAME to use for invocations
+This defines an implementation of NAME to use for invocations
 of specific types of arguments.
 
 ARGS is a list of dispatch arguments (see `cl-defun'), but where
@@ -445,8 +466,12 @@ all methods of NAME have to use the same set of arguments for dispatch.
 Each dispatch argument and TYPE are specified in ARGS where the corresponding
 formal argument appears as (VAR TYPE) rather than just VAR.
 
-The optional second argument QUALIFIER is a specifier that
-modifies how the method is combined with other methods, including:
+The optional EXTRA element, on the form `:extra STRING', allows
+you to add more methods for the same specializers and qualifiers.
+These are distinguished by STRING.
+
+The optional argument QUALIFIER is a specifier that modifies how
+the method is combined with other methods, including:
    :before  - Method will be called before the primary
    :after   - Method will be called after the primary
    :around  - Method will be called around everything else
@@ -463,8 +488,8 @@ method to be applicable.
 The set of acceptable TYPEs (also called \"specializers\") is defined
 \(and can be extended) by the various methods of `cl-generic-generalizers'.
 
-\(fn NAME [QUALIFIER] ARGS &rest [DOCSTRING] BODY)"
-  (declare (doc-string 3) (indent defun)
+\(fn NAME [EXTRA] [QUALIFIER] ARGS &rest [DOCSTRING] BODY)"
+  (declare (doc-string cl--defmethod-doc-pos) (indent defun)
            (debug
             (&define                    ; this means we are defining something
              [&name [sexp   ;Allow (setf ...) additionally to symbols.
@@ -487,7 +512,7 @@ The set of acceptable TYPEs (also called \"specializers\") is defined
                (or (not (fboundp 'byte-compile-warning-enabled-p))
                    (byte-compile-warning-enabled-p 'obsolete name))
                (let* ((obsolete (get name 'byte-obsolete-info)))
-                 (macroexp--warn-and-return
+                 (macroexp-warn-and-return
                   (macroexp--obsolete-warning name obsolete "generic function")
                   nil)))
          ;; You could argue that `defmethod' modifies rather than defines the
@@ -554,17 +579,17 @@ The set of acceptable TYPEs (also called \"specializers\") is defined
               (cons method mt)
             ;; Keep the ordering; important for methods with :extra qualifiers.
             (mapcar (lambda (x) (if (eq x (car me)) method x)) mt)))
-    (let ((sym (cl--generic-name generic))) ; Actual name (for aliases).
+    (let ((sym (cl--generic-name generic)) ; Actual name (for aliases).
+          ;; FIXME: Try to avoid re-constructing a new function if the old one
+          ;; is still valid (e.g. still empty method cache)?
+          (gfun (cl--generic-make-function generic)))
       (unless (symbol-function sym)
         (defalias sym 'dummy))   ;Record definition into load-history.
       (cl-pushnew `(cl-defmethod . ,(cl--generic-load-hist-format
                                      (cl--generic-name generic)
                                      qualifiers specializers))
                   current-load-list :test #'equal)
-      ;; FIXME: Try to avoid re-constructing a new function if the old one
-      ;; is still valid (e.g. still empty method cache)?
-      (let ((gfun (cl--generic-make-function generic))
-            ;; Prevent `defalias' from recording this as the definition site of
+      (let (;; Prevent `defalias' from recording this as the definition site of
             ;; the generic function.
             current-load-list
             ;; BEWARE!  Don't purify this function definition, since that leads
@@ -575,19 +600,10 @@ The set of acceptable TYPEs (also called \"specializers\") is defined
         ;; e.g. for tracing/debug-on-entry.
         (defalias sym gfun)))))
 
-(defmacro cl--generic-with-memoization (place &rest code)
-  (declare (indent 1) (debug t))
-  (gv-letplace (getter setter) place
-    `(or ,getter
-         ,(macroexp-let2 nil val (macroexp-progn code)
-            `(progn
-               ,(funcall setter val)
-               ,val)))))
-
 (defvar cl--generic-dispatchers (make-hash-table :test #'equal))
 
 (defun cl--generic-get-dispatcher (dispatch)
-  (cl--generic-with-memoization
+  (with-memoization
       (gethash dispatch cl--generic-dispatchers)
     ;; (message "cl--generic-get-dispatcher (%S)" dispatch)
     (let* ((dispatch-arg (car dispatch))
@@ -630,10 +646,13 @@ The set of acceptable TYPEs (also called \"specializers\") is defined
       ;; overkill: better just use a `cl-typep' test.
       (byte-compile
        `(lambda (generic dispatches-left methods)
+          ;; FIXME: We should find a way to expand `with-memoize' once
+          ;; and forall so we don't need `subr-x' when we get here.
+          (eval-when-compile (require 'subr-x))
           (let ((method-cache (make-hash-table :test #'eql)))
             (lambda (,@fixedargs &rest args)
               (let ,bindings
-                (apply (cl--generic-with-memoization
+                (apply (with-memoization
                            (gethash ,tag-exp method-cache)
                          (cl--generic-cache-miss
                           generic ',dispatch-arg dispatches-left methods
@@ -670,14 +689,14 @@ This is particularly useful when many different tags select the same set
 of methods, since this table then allows us to share a single combined-method
 for all those different tags in the method-cache.")
 
-(define-error 'cl--generic-cyclic-definition "Cyclic definition: %S")
+(define-error 'cl--generic-cyclic-definition "Cyclic definition")
 
 (defun cl--generic-build-combined-method (generic methods)
   (if (null methods)
       ;; Special case needed to fix a circularity during bootstrap.
       (cl--generic-standard-method-combination generic methods)
     (let ((f
-           (cl--generic-with-memoization
+           (with-memoization
                ;; FIXME: Since the fields of `generic' are modified, this
                ;; hash-table won't work right, because the hashes will change!
                ;; It's not terribly serious, but reduces the effectiveness of
@@ -946,7 +965,7 @@ Can only be used from within the lexical body of a primary or around method."
 ;;; Add support for describe-function
 
 (defun cl--generic-search-method (met-name)
-  "For `find-function-regexp-alist'.  Searches for a cl-defmethod.
+  "For `find-function-regexp-alist'.  Search for a `cl-defmethod'.
 MET-NAME is as returned by `cl--generic-load-hist-format'."
   (let ((base-re (concat "(\\(?:cl-\\)?defmethod[ \t]+"
                          (regexp-quote (format "%s" (car met-name)))
@@ -1012,7 +1031,10 @@ MET-NAME is as returned by `cl--generic-load-hist-format'."
     (when generic
       (require 'help-mode)              ;Needed for `help-function-def' button!
       (save-excursion
-        (insert "\n\nThis is a generic function.\n\n")
+        ;; Ensure that we have two blank lines (but not more).
+        (unless (looking-back "\n\n" (- (point) 2))
+          (insert "\n"))
+        (insert "This is a generic function.\n\n")
         (insert (propertize "Implementations:\n\n" 'face 'bold))
         ;; Loop over fanciful generics
         (dolist (method (cl--generic-method-table generic))
@@ -1126,7 +1148,7 @@ These match if the argument is a cons cell whose car is `eql' to VAL."
   ;; since we can't use the `head' specializer to implement itself.
   (if (not (eq (car-safe specializer) 'head))
       (cl-call-next-method)
-    (cl--generic-with-memoization
+    (with-memoization
         (gethash (cadr specializer) cl--generic-head-used)
       specializer)
     (list cl--generic-head-generalizer)))
@@ -1139,12 +1161,27 @@ These match if the argument is a cons cell whose car is `eql' to VAL."
 
 (cl-generic-define-generalizer cl--generic-eql-generalizer
   100 (lambda (name &rest _) `(gethash ,name cl--generic-eql-used))
-  (lambda (tag &rest _) (if (eq (car-safe tag) 'eql) (list tag))))
+  (lambda (tag &rest _) (if (eq (car-safe tag) 'eql) (cdr tag))))
 
 (cl-defmethod cl-generic-generalizers ((specializer (head eql)))
   "Support for (eql VAL) specializers.
 These match if the argument is `eql' to VAL."
-  (puthash (cadr specializer) specializer cl--generic-eql-used)
+  (let* ((form (cadr specializer))
+         (val (if (or (not (symbolp form)) (macroexp-const-p form))
+                  (eval form t)
+                ;; FIXME: Compatibility with Emacs<28.  For now emitting
+                ;; a warning would be annoying for third party packages
+                ;; which can't use the new form without breaking compatibility
+                ;; with older Emacsen, but in the future we should emit
+                ;; a warning.
+                ;; (message "Quoting obsolete `eql' form: %S" specializer)
+                form))
+         (specializers (cdr (gethash val cl--generic-eql-used))))
+    ;; The `specializers-function' needs to return all the (eql EXP) that
+    ;; were used for the same VALue (bug#49866).
+    ;; So we keep this info in `cl--generic-eql-used'.
+    (cl-pushnew specializer specializers :test #'equal)
+    (puthash val `(eql . ,specializers) cl--generic-eql-used))
   (list cl--generic-eql-generalizer))
 
 (cl--generic-prefill-dispatchers 0 (eql nil))

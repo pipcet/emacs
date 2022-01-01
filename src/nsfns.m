@@ -1,6 +1,6 @@
 /* Functions for the NeXT/Open/GNUstep and macOS window system.
 
-Copyright (C) 1989, 1992-1994, 2005-2006, 2008-2021 Free Software
+Copyright (C) 1989, 1992-1994, 2005-2006, 2008-2022 Free Software
 Foundation, Inc.
 
 This file is part of GNU Emacs.
@@ -236,7 +236,6 @@ static void
 ns_set_foreground_color (struct frame *f, Lisp_Object arg, Lisp_Object oldval)
 {
   NSColor *col;
-  EmacsCGFloat r, g, b, alpha;
 
   /* Must block_input, because ns_lisp_to_color does block/unblock_input
      which means that col may be deallocated in its unblock_input if there
@@ -253,12 +252,7 @@ ns_set_foreground_color (struct frame *f, Lisp_Object arg, Lisp_Object oldval)
   [f->output_data.ns->foreground_color release];
   f->output_data.ns->foreground_color = col;
 
-  [col getRed: &r green: &g blue: &b alpha: &alpha];
-  FRAME_FOREGROUND_PIXEL (f) =
-    ARGB_TO_ULONG ((unsigned long) (alpha * 0xff),
-                   (unsigned long) (r * 0xff),
-                   (unsigned long) (g * 0xff),
-                   (unsigned long) (b * 0xff));
+  FRAME_FOREGROUND_PIXEL (f) = [col unsignedLong];
 
   if (FRAME_NS_VIEW (f))
     {
@@ -277,7 +271,7 @@ ns_set_background_color (struct frame *f, Lisp_Object arg, Lisp_Object oldval)
   struct face *face;
   NSColor *col;
   NSView *view = FRAME_NS_VIEW (f);
-  EmacsCGFloat r, g, b, alpha;
+  EmacsCGFloat alpha;
 
   block_input ();
   if (ns_lisp_to_color (arg, &col))
@@ -291,12 +285,8 @@ ns_set_background_color (struct frame *f, Lisp_Object arg, Lisp_Object oldval)
   [f->output_data.ns->background_color release];
   f->output_data.ns->background_color = col;
 
-  [col getRed: &r green: &g blue: &b alpha: &alpha];
-  FRAME_BACKGROUND_PIXEL (f) =
-    ARGB_TO_ULONG ((unsigned long) (alpha * 0xff),
-                   (unsigned long) (r * 0xff),
-                   (unsigned long) (g * 0xff),
-                   (unsigned long) (b * 0xff));
+  FRAME_BACKGROUND_PIXEL (f) = [col unsignedLong];
+  alpha = [col alphaComponent];
 
   if (view != nil)
     {
@@ -310,9 +300,9 @@ ns_set_background_color (struct frame *f, Lisp_Object arg, Lisp_Object oldval)
       face = FRAME_DEFAULT_FACE (f);
       if (face)
         {
-          col = ns_lookup_indexed_color (NS_FACE_BACKGROUND (face), f);
-          face->background = ns_index_color
-            ([col colorWithAlphaComponent: alpha], f);
+          col = [NSColor colorWithUnsignedLong:NS_FACE_BACKGROUND (face)];
+          face->background = [[col colorWithAlphaComponent: alpha]
+                               unsignedLong];
 
           update_face_from_frame_parameter (f, Qbackground_color, arg);
         }
@@ -609,13 +599,72 @@ ns_set_menu_bar_lines (struct frame *f, Lisp_Object value, Lisp_Object oldval)
     }
 }
 
+void
+ns_change_tab_bar_height (struct frame *f, int height)
+{
+  int unit = FRAME_LINE_HEIGHT (f);
+  int old_height = FRAME_TAB_BAR_HEIGHT (f);
+  int lines = (height + unit - 1) / unit;
+  Lisp_Object fullscreen = get_frame_param (f, Qfullscreen);
+
+  /* Make sure we redisplay all windows in this frame.  */
+  fset_redisplay (f);
+
+  /* Recalculate tab bar and frame text sizes.  */
+  FRAME_TAB_BAR_HEIGHT (f) = height;
+  FRAME_TAB_BAR_LINES (f) = lines;
+  store_frame_param (f, Qtab_bar_lines, make_fixnum (lines));
+
+  if (FRAME_NS_WINDOW (f) && FRAME_TAB_BAR_HEIGHT (f) == 0)
+    {
+      clear_frame (f);
+      clear_current_matrices (f);
+    }
+
+  if ((height < old_height) && WINDOWP (f->tab_bar_window))
+    clear_glyph_matrix (XWINDOW (f->tab_bar_window)->current_matrix);
+
+  if (!f->tab_bar_resized)
+    {
+      /* As long as tab_bar_resized is false, effectively try to change
+	 F's native height.  */
+      if (NILP (fullscreen) || EQ (fullscreen, Qfullwidth))
+	adjust_frame_size (f, FRAME_TEXT_WIDTH (f), FRAME_TEXT_HEIGHT (f),
+			   1, false, Qtab_bar_lines);
+      else
+	adjust_frame_size (f, -1, -1, 4, false, Qtab_bar_lines);
+
+      f->tab_bar_resized = f->tab_bar_redisplayed;
+    }
+  else
+    /* Any other change may leave the native size of F alone.  */
+    adjust_frame_size (f, -1, -1, 3, false, Qtab_bar_lines);
+
+  /* adjust_frame_size might not have done anything, garbage frame
+     here.  */
+  adjust_frame_glyphs (f);
+  SET_FRAME_GARBAGED (f);
+}
 
 /* tabbar support */
 static void
 ns_set_tab_bar_lines (struct frame *f, Lisp_Object value, Lisp_Object oldval)
 {
-  /* Currently unimplemented.  */
-  NSTRACE ("ns_set_tab_bar_lines");
+  int olines = FRAME_TAB_BAR_LINES (f);
+  int nlines;
+
+  /* Treat tab bars like menu bars.  */
+  if (FRAME_MINIBUF_ONLY_P (f))
+    return;
+
+  /* Use VALUE only if an int >= 0.  */
+  if (RANGED_FIXNUMP (0, value, INT_MAX))
+    nlines = XFIXNAT (value);
+  else
+    nlines = 0;
+
+  if (nlines != olines && (olines == 0 || nlines == 0))
+    ns_change_tab_bar_height (f, nlines * FRAME_LINE_HEIGHT (f));
 }
 
 
@@ -668,23 +717,7 @@ ns_set_tool_bar_lines (struct frame *f, Lisp_Object value, Lisp_Object oldval)
        }
     }
 
-  {
-    int inhibit
-      = ((f->after_make_frame
-	  && !f->tool_bar_resized
-	  && (EQ (frame_inhibit_implied_resize, Qt)
-	      || (CONSP (frame_inhibit_implied_resize)
-		  && !NILP (Fmemq (Qtool_bar_lines,
-				   frame_inhibit_implied_resize))))
-	  && NILP (get_frame_param (f, Qfullscreen)))
-	 ? 0
-	 : 2);
-
-    NSTRACE_MSG ("inhibit:%d", inhibit);
-
-    frame_size_history_add (f, Qupdate_frame_tool_bar, 0, 0, Qnil);
-    adjust_frame_size (f, -1, -1, inhibit, 0, Qtool_bar_lines);
-  }
+  adjust_frame_size (f, -1, -1, 2, false, Qtool_bar_lines);
 }
 
 static void
@@ -963,11 +996,7 @@ frame_parm_handler ns_frame_parm_handlers[] =
   0, /* x_set_sticky */
   0, /* x_set_tool_bar_position */
   0, /* x_set_inhibit_double_buffering */
-#ifdef NS_IMPL_COCOA
   ns_set_undecorated,
-#else
-  0, /* ns_set_undecorated */
-#endif
   ns_set_parent_frame,
   0, /* x_set_skip_taskbar */
   ns_set_no_focus_on_map,
@@ -1082,7 +1111,6 @@ DEFUN ("x-create-frame", Fx_create_frame, Sx_create_frame,
   Lisp_Object parent, parent_frame;
   struct kboard *kb;
   static int desc_ctr = 1;
-  int x_width = 0, x_height = 0;
 
   /* gui_display_get_arg modifies parms.  */
   parms = Fcopy_alist (parms);
@@ -1198,6 +1226,7 @@ DEFUN ("x-create-frame", Fx_create_frame, Sx_create_frame,
                          "fontBackend", "FontBackend", RES_TYPE_STRING);
 
   {
+#ifdef NS_IMPL_COCOA
     /* use for default font name */
     id font = [NSFont userFixedPitchFontOfSize: -1.0]; /* default */
     gui_default_parameter (f, parms, Qfontsize,
@@ -1212,6 +1241,11 @@ DEFUN ("x-create-frame", Fx_create_frame, Sx_create_frame,
                            build_string (fontname),
                            "font", "Font", RES_TYPE_STRING);
     xfree (fontname);
+#else
+    gui_default_parameter (f, parms, Qfont,
+                           build_string ("fixed"),
+                           "font", "Font", RES_TYPE_STRING);
+#endif
   }
   unblock_input ();
 
@@ -1321,6 +1355,10 @@ DEFUN ("x-create-frame", Fx_create_frame, Sx_create_frame,
                          NILP (Vmenu_bar_mode)
                          ? make_fixnum (0) : make_fixnum (1),
                          NULL, NULL, RES_TYPE_NUMBER);
+  gui_default_parameter (f, parms, Qtab_bar_lines,
+                         NILP (Vtab_bar_mode)
+                         ? make_fixnum (0) : make_fixnum (1),
+			 NULL, NULL, RES_TYPE_NUMBER);
   gui_default_parameter (f, parms, Qtool_bar_lines,
                          NILP (Vtool_bar_mode)
                          ? make_fixnum (0) : make_fixnum (1),
@@ -1332,8 +1370,7 @@ DEFUN ("x-create-frame", Fx_create_frame, Sx_create_frame,
                          RES_TYPE_STRING);
 
   parms = get_geometry_from_preferences (dpyinfo, parms);
-  window_prompting = gui_figure_window_size (f, parms, false, true,
-                                             &x_width, &x_height);
+  window_prompting = gui_figure_window_size (f, parms, false, true);
 
   tem = gui_display_get_arg (dpyinfo, parms, Qunsplittable, 0, 0,
                              RES_TYPE_BOOLEAN);
@@ -1364,6 +1401,11 @@ DEFUN ("x-create-frame", Fx_create_frame, Sx_create_frame,
   f->output_data.ns->current_pointer = f->output_data.ns->text_cursor;
 
   f->output_data.ns->in_animation = NO;
+
+#ifdef NS_IMPL_COCOA
+  /* If the app has previously been disabled, start it up again.  */
+  [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
+#endif
 
   [[EmacsView alloc] initFrameFromEmacs: f];
 
@@ -1400,13 +1442,8 @@ DEFUN ("x-create-frame", Fx_create_frame, Sx_create_frame,
   /* Allow set_window_size_hook, now.  */
   f->can_set_window_size = true;
 
-  if (x_width > 0)
-    SET_FRAME_WIDTH (f, x_width);
-  if (x_height > 0)
-    SET_FRAME_HEIGHT (f, x_height);
-
-  adjust_frame_size (f, FRAME_TEXT_WIDTH (f), FRAME_TEXT_HEIGHT (f), 0, 1,
-		     Qx_create_frame_2);
+  adjust_frame_size (f, FRAME_TEXT_WIDTH (f), FRAME_TEXT_HEIGHT (f),
+		     0, true, Qx_create_frame_2);
 
   if (! f->output_data.ns->explicit_parent)
     {
@@ -1427,6 +1464,7 @@ DEFUN ("x-create-frame", Fx_create_frame, Sx_create_frame,
       else
         {
 	  /* Must have been Qnil.  */
+	  f->was_invisible = true;
         }
     }
 
@@ -1975,8 +2013,11 @@ DEFUN ("ns-hide-emacs", Fns_hide_emacs, Sns_hide_emacs,
        doc: /* If ON is non-nil, the entire Emacs application is hidden.
 Otherwise if Emacs is hidden, it is unhidden.
 If ON is equal to `activate', Emacs is unhidden and becomes
-the active application.  */)
-     (Lisp_Object on)
+the active application.
+If ON is equal to `activate-front', Emacs is unhidden and
+becomes the active application, but only the selected frame
+is layered in front of the windows of other applications.  */)
+  (Lisp_Object on)
 {
   check_window_system (NULL);
   if (EQ (on, intern ("activate")))
@@ -1984,6 +2025,14 @@ the active application.  */)
       [NSApp unhide: NSApp];
       [NSApp activateIgnoringOtherApps: YES];
     }
+#if GNUSTEP_GUI_MAJOR_VERSION > 0 || GNUSTEP_GUI_MINOR_VERSION >= 27
+  else if (EQ (on, intern ("activate-front")))
+    {
+      [NSApp unhide: NSApp];
+      [[NSRunningApplication currentApplication]
+        activateWithOptions: NSApplicationActivateIgnoringOtherApps];
+    }
+#endif
   else if (NILP (on))
     [NSApp unhide: NSApp];
   else
@@ -2302,6 +2351,47 @@ ns_get_string_resource (void *_rdb, const char *name, const char *class)
 
    ========================================================================== */
 
+
+#if defined (NS_IMPL_COCOA) && MAC_OS_X_VERSION_MAX_ALLOWED >= 1080
+/* Moving files to the system recycle bin.
+   Used by `move-file-to-trash' instead of the default moving to ~/.Trash  */
+DEFUN ("system-move-file-to-trash", Fsystem_move_file_to_trash,
+       Ssystem_move_file_to_trash, 1, 1, 0,
+       doc: /* Move file or directory named FILENAME to the recycle bin.  */)
+  (Lisp_Object filename)
+{
+  Lisp_Object handler;
+  Lisp_Object operation;
+
+  operation = Qdelete_file;
+  if (!NILP (Ffile_directory_p (filename))
+      && NILP (Ffile_symlink_p (filename)))
+    {
+      operation = intern ("delete-directory");
+      filename = Fdirectory_file_name (filename);
+    }
+
+  /* Must have fully qualified file names for moving files to Trash. */
+  filename = Fexpand_file_name (filename, Qnil);
+
+  handler = Ffind_file_name_handler (filename, operation);
+  if (!NILP (handler))
+    return call2 (handler, operation, filename);
+  else
+    {
+      NSFileManager *fm = [NSFileManager defaultManager];
+      BOOL result = NO;
+      NSURL *fileURL = [NSURL fileURLWithPath:[NSString stringWithLispString:filename]
+                                  isDirectory:!NILP (Ffile_directory_p (filename))];
+      if ([fm respondsToSelector:@selector(trashItemAtURL:resultingItemURL:error:)])
+        result = [fm trashItemAtURL:fileURL resultingItemURL:nil error:nil];
+
+      if (!result)
+	report_file_error ("Removing old name", list1 (filename));
+    }
+  return Qnil;
+}
+#endif
 
 DEFUN ("xw-color-defined-p", Fxw_color_defined_p, Sxw_color_defined_p, 1, 2, 0,
        doc: /* SKIP: real doc in xfns.c.  */)
@@ -3046,9 +3136,13 @@ all_nonzero_ascii (unsigned char *str, ptrdiff_t n)
 }
 
 @implementation NSString (EmacsString)
-/* Make an NSString from a Lisp string.  */
+/* Make an NSString from a Lisp string.  STRING must not be in an
+   encoded form (e.g. UTF-8).  */
 + (NSString *)stringWithLispString:(Lisp_Object)string
 {
+  if (!STRINGP (string))
+    return nil;
+
   /* Shortcut for the common case.  */
   if (all_nonzero_ascii (SDATA (string), SBYTES (string)))
     return [NSString stringWithCString: SSDATA (string)
@@ -3182,6 +3276,10 @@ Default is t.  */);
 
   defsubr (&Sx_show_tip);
   defsubr (&Sx_hide_tip);
+
+#if defined (NS_IMPL_COCOA) && MAC_OS_X_VERSION_MAX_ALLOWED >= 1080
+  defsubr (&Ssystem_move_file_to_trash);
+#endif
 
   as_status = 0;
   as_script = Qnil;

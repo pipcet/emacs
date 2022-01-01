@@ -1,6 +1,6 @@
 ;;; x-win.el --- parse relevant switches and set up for X  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1993-1994, 2001-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1993-1994, 2001-2022 Free Software Foundation, Inc.
 
 ;; Author: FSF
 ;; Keywords: terminals, i18n
@@ -131,7 +131,7 @@ When a session manager tells Emacs that the window system is shutting
 down, this function is called.  It calls the functions in the hook
 `emacs-save-session-functions'.  Functions are called with the current
 buffer set to a temporary buffer.  Functions should use `insert' to insert
-lisp code to save the session state.  The buffer is saved in a file in the
+Lisp code to save the session state.  The buffer is saved in a file in the
 home directory of the user running Emacs.  The file is evaluated when
 Emacs is restarted by the session manager.
 
@@ -1355,7 +1355,7 @@ This returns an error if any Emacs frames are X frames."
 (declare-function x-get-selection-internal "xselect.c"
 		  (selection-symbol target-type &optional time-stamp terminal))
 
-(add-to-list 'display-format-alist '("\\`[^:]*:[0-9]+\\(\\.[0-9]+\\)?\\'" . x))
+(add-to-list 'display-format-alist '("\\`.*:[0-9]+\\(\\.[0-9]+\\)?\\'" . x))
 (cl-defmethod handle-args-function (args &context (window-system x))
   (x-handle-args args))
 

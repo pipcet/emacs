@@ -1,6 +1,6 @@
 ;;; doctor.el --- psychological help for frustrated users  -*- lexical-binding: t -*-
 
-;; Copyright (C) 1985, 1987, 1994, 1996, 2000-2021 Free Software
+;; Copyright (C) 1985, 1987, 1994, 1996, 2000-2022 Free Software
 ;; Foundation, Inc.
 
 ;; Maintainer: emacs-devel@gnu.org
@@ -115,7 +115,7 @@
 (defun doc// (x) x)
 
 (defmacro doc$ (what)
-  "Quoted arg form of doctor-$."
+  "Quoted arg form of `doctor-$'."
   `(doctor-$ ',what))
 
 (defun doctor-$ (what)
@@ -126,17 +126,16 @@
     (set what ww)
     first))
 
-(defvar doctor-mode-map
-  (let ((map (make-sparse-keymap)))
-    (define-key map "\n" 'doctor-read-print)
-    (define-key map "\r" 'doctor-ret-or-read)
-    map))
+(defvar-keymap doctor-mode-map
+  "C-j" #'doctor-read-print
+  "RET" #'doctor-ret-or-read)
 
 (define-derived-mode doctor-mode text-mode "Doctor"
   "Major mode for running the Doctor (Eliza) program.
 Like Text mode with Auto Fill mode
 except that RET when point is after a newline, or LFD at any time,
 reads the sentence before point, and prints the Doctor's answer."
+  :interactive nil
   (make-doctor-variables)
   (turn-on-auto-fill)
   (doctor-type '(i am the psychotherapist \.
@@ -827,14 +826,14 @@ reads the sentence before point, and prints the Doctor's answer."
 (defun doctor-ret-or-read (arg)
   "Insert a newline if preceding character is not a newline.
 Otherwise call the Doctor to parse preceding sentence."
-  (interactive "*p")
+  (interactive "*p" doctor-mode)
   (if (= (preceding-char) ?\n)
       (doctor-read-print)
     (newline arg)))
 
 (defun doctor-read-print ()
   "Top level loop."
-  (interactive)
+  (interactive nil doctor-mode)
   (setq doctor-sent (doctor-readin))
   (insert "\n")
   (setq doctor--lincount (1+ doctor--lincount))
@@ -1010,8 +1009,8 @@ Put dialogue in buffer."
 
 (defun doctor-subjsearch (sent key type)
   "Search for the subject of a sentence SENT, looking for the noun closest
-to and preceding KEY by at least TYPE words.  Set global variable doctor-subj to
-the subject noun, and return the portion of the sentence following it."
+to and preceding KEY by at least TYPE words.  Set global variable `doctor-subj'
+to the subject noun, and return the portion of the sentence following it."
   (let ((i (- (length sent) (length (memq key sent)) type)))
     (while (and (> i -1) (not (doctor-nounp (nth i sent))))
       (setq i (1- i)))
@@ -1583,7 +1582,7 @@ Hack on previous word, setting global variable DOCTOR-OWNER to correct result."
 			   E-mail: jo@samaritans.org or\, at your option\,
 			   anonymous E-mail: samaritans@anon.twwells.com\ \.
                            or find a Befrienders crisis center at
-			   http://www.befrienders.org/\ \.
+                           https://www.befrienders.org/\ \.
 			   (doc$ doctor--please) (doc$ doctor--continue) \.)))
 	(t (doctor-type (doc$ doctor--deathlst)))))
 

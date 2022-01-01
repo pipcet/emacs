@@ -1,6 +1,6 @@
 ;;; face-remap.el --- Functions for managing `face-remapping-alist'  -*- lexical-binding: t -*-
 ;;
-;; Copyright (C) 2008-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2008-2022 Free Software Foundation, Inc.
 ;;
 ;; Author: Miles Bader <miles@gnu.org>
 ;; Keywords: faces, face remapping, display, user commands
@@ -23,7 +23,6 @@
 
 ;;; Commentary:
 
-;;
 ;; This file defines some simple operations that can be used for
 ;; maintaining the `face-remapping-alist' in a cooperative way.  This is
 ;; especially important for the `default' face.
@@ -52,8 +51,6 @@
 ;; mode setting face remappings, e.g., of the default face.
 ;;
 ;; All modifications cause face-remapping-alist to be made buffer-local.
-;;
-
 
 ;;; Code:
 
@@ -218,13 +215,13 @@ Each positive or negative step scales the default face height by this amount."
   :version "23.1")
 
 (defvar-local text-scale-mode-remapping nil
-  "Current remapping cookie for text-scale-mode.")
+  "Current remapping cookie for `text-scale-mode'.")
 
 (defvar-local text-scale-mode-lighter "+0"
-  "Lighter displayed for text-scale-mode in mode-line minor-mode list.")
+  "Lighter displayed for `text-scale-mode' in mode-line minor-mode list.")
 
 (defvar-local text-scale-mode-amount 0
-  "Number of steps that text-scale-mode will increase/decrease text height.")
+  "Number of steps that `text-scale-mode' will increase/decrease text height.")
 
 (defvar-local text-scale-remap-header-line nil
   "If non-nil, text scaling may change font size of header lines too.")
@@ -352,7 +349,7 @@ See `text-scale-increase' for more details."
 INC may be passed as a numeric prefix argument.
 
 The actual adjustment made depends on the final component of the
-key-binding used to invoke the command, with all modifiers removed:
+keybinding used to invoke the command, with all modifiers removed:
 
    +, =   Increase the height of the default face by one step
    -      Decrease the height of the default face by one step
@@ -393,6 +390,40 @@ a top-level keymap, `text-scale-increase' or
                (lambda () (interactive) (text-scale-adjust (abs inc))))))
          map))))) ;; )
 
+(defvar-local text-scale--pinch-start-scale 0
+  "The text scale at the start of a pinch sequence.")
+
+;;;###autoload (define-key global-map [pinch] 'text-scale-pinch)
+;;;###autoload
+(defun text-scale-pinch (event)
+  "Adjust the height of the default face by the scale in the pinch event EVENT."
+  (interactive "e")
+  (when (not (eq (event-basic-type event) 'pinch))
+    (error "`text-scale-pinch' bound to bad event type"))
+  (let ((evt))
+    (catch 'done
+      (while t
+        (unless (and (setq evt (read-event nil nil 0.01))
+                     (eq (car evt) 'pinch))
+          (throw 'done nil))))
+    (when (and (consp evt)
+               (eq (car evt) 'pinch))
+      (setq event evt)))
+  (let ((window (posn-window (nth 1 event)))
+        (scale (nth 4 event))
+        (dx (nth 2 event))
+        (dy (nth 3 event))
+        (angle (nth 5 event)))
+    (with-selected-window window
+      (when (and (zerop dx)
+                 (zerop dy)
+                 (zerop angle))
+        (setq text-scale--pinch-start-scale
+              (if text-scale-mode text-scale-mode-amount 0)))
+      (text-scale-set
+       (+ text-scale--pinch-start-scale
+          (round (log scale text-scale-mode-step)))))))
+
 
 ;; ----------------------------------------------------------------
 ;; buffer-face-mode
@@ -400,7 +431,7 @@ a top-level keymap, `text-scale-increase' or
 (defcustom buffer-face-mode-face 'variable-pitch
   "The face specification used by `buffer-face-mode'.
 It may contain any value suitable for a `face' text property,
-including a face name, a list of face names, a face-attribute
+including a face name, a list of face names, a face attribute
 plist, etc."
   :type '(choice (face)
 		 (repeat :tag "List of faces" face)

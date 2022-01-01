@@ -1,6 +1,6 @@
 ;;; perl-mode.el --- Perl code editing commands for GNU Emacs  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1990, 1994, 2001-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1990, 1994, 2001-2022 Free Software Foundation, Inc.
 
 ;; Author: William F. Mann
 ;; Maintainer: emacs-devel@gnu.org
@@ -101,7 +101,7 @@
   :version "28.1")
 
 (defvar perl-mode-abbrev-table nil
-  "Abbrev table in use in perl-mode buffers.")
+  "Abbrev table in use in `perl-mode' buffers.")
 (define-abbrev-table 'perl-mode-abbrev-table ())
 
 (defvar perl-mode-map
@@ -170,33 +170,34 @@
     ;;  (1 font-lock-constant-face) (2 font-lock-variable-name-face nil t))
     ;;
     ;; Fontify function and package names in declarations.
-    ("\\<\\(package\\|sub\\)\\>[ \t]*\\(\\sw+\\)?"
+    ("\\<\\(package\\|sub\\)\\>[ \t]*\\(\\(?:\\sw\\|::\\)+\\)?"
      (1 font-lock-keyword-face) (2 font-lock-function-name-face nil t))
-    ("\\(^\\|[^$@%&\\]\\)\\<\\(import\\|no\\|require\\|use\\)\\>[ \t]*\\(\\sw+\\)?"
+    ("\\(?:^\\|[^$@%&\\]\\)\\<\\(import\\|no\\|require\\|use\\)\\>[ \t]*\\(\\(?:\\sw\\|::\\)+\\)?"
      (1 font-lock-keyword-face) (2 font-lock-constant-face nil t)))
   "Subdued level highlighting for Perl mode.")
 
 (defconst perl-font-lock-keywords-2
   (append
+   '(;; Fontify function, variable and file name references. They have to be
+     ;; handled first because they might conflict with keywords.
+     ("&\\(\\sw+\\(::\\sw+\\)*\\)" 1 font-lock-function-name-face)
+     ;; Additionally fontify non-scalar variables.  `perl-non-scalar-variable'
+     ;; will underline them by default.
+     ("[$*]{?\\(\\sw+\\(::\\sw+\\)*\\)" 1 font-lock-variable-name-face)
+     ("\\([@%]\\|\\$#\\)\\(\\sw+\\(::\\sw+\\)*\\)"
+      (2 'perl-non-scalar-variable)))
    perl-font-lock-keywords-1
    `( ;; Fontify keywords, except those fontified otherwise.
      ,(concat "\\<"
               (regexp-opt '("if" "until" "while" "elsif" "else" "unless"
                             "do" "dump" "for" "foreach" "exit" "die"
-                            "BEGIN" "END" "return" "exec" "eval") t)
+                            "BEGIN" "END" "return" "exec" "eval"
+                            "when" "given" "default")
+                          t)
               "\\>")
      ;;
      ;; Fontify declarators and prefixes as types.
-     ("\\<\\(has\\|local\\|my\\|our\\|state\\)\\>" . font-lock-type-face) ; declarators
-          ;;
-     ;; Fontify function, variable and file name references.
-     ("&\\(\\sw+\\(::\\sw+\\)*\\)" 1 font-lock-function-name-face)
-     ;; Additionally fontify non-scalar variables.  `perl-non-scalar-variable'
-     ;; will underline them by default.
-     ;;'("[$@%*][#{]?\\(\\sw+\\)" 1 font-lock-variable-name-face)
-     ("[$*]{?\\(\\sw+\\(::\\sw+\\)*\\)" 1 font-lock-variable-name-face)
-     ("\\([@%]\\|\\$#\\)\\(\\sw+\\(::\\sw+\\)*\\)"
-      (2 'perl-non-scalar-variable))
+     ("\\<\\(has\\|local\\|my\\|our\\|state\\)\\>" . font-lock-keyword-face) ; declarators
      ("<\\(\\sw+\\)>" 1 font-lock-constant-face)
      ;;
      ;; Fontify keywords with/and labels as we do in `c++-font-lock-keywords'.
@@ -213,7 +214,7 @@
 
 (eval-and-compile
   (defconst perl--syntax-exp-intro-keywords
-    '("split" "if" "unless" "until" "while" "print"
+    '("split" "if" "unless" "until" "while" "print" "printf"
       "grep" "map" "not" "or" "and" "for" "foreach" "return"))
 
   (defconst perl--syntax-exp-intro-regexp
@@ -285,7 +286,7 @@
              (put-text-property (match-beginning 2) (match-end 2)
                                 'syntax-table (string-to-syntax "\""))
              (perl-syntax-propertize-special-constructs end)))))
-      ("\\(^\\|[?:.,;=!~({[ \t]\\)\\([msy]\\|q[qxrw]?\\|tr\\)\\>\\s-*\\(?:\\([^])}>= \n\t]\\)\\|\\(?3:=\\)[^>]\\)"
+      ("\\(^\\|[?:.,;=|&!~({[ \t]\\|=>\\)\\([msy]\\|q[qxrw]?\\|tr\\)\\>\\(?:\\s-\\|\n\\)*\\(?:\\([^])}>= \n\t]\\)\\|\\(?3:=\\)[^>]\\)"
        ;; Nasty cases:
        ;; /foo/m  $a->m  $#m $m @m %m
        ;; \s (appears often in regexps).
@@ -510,7 +511,7 @@
 
 (defface perl-heredoc
   '((t (:inherit font-lock-string-face)))
-  "The face for here-documents.  Inherits from font-lock-string-face.")
+  "The face for here-documents.  Inherits from `font-lock-string-face'.")
 
 (defun perl-font-lock-syntactic-face-function (state)
   (cond
@@ -645,10 +646,10 @@ the Perl source to be checked as its standard input."
 
 ;;;###autoload
 (defun perl-flymake (report-fn &rest _args)
-  "Perl backend for Flymake.  Launches
-`perl-flymake-command' (which see) and passes to its standard
-input the contents of the current buffer.  The output of this
-command is analyzed for error and warning messages."
+  "Perl backend for Flymake.
+Launch `perl-flymake-command' (which see) and pass to its
+standard input the contents of the current buffer.  The output of
+this command is analyzed for error and warning messages."
   (unless (executable-find (car perl-flymake-command))
     (error "Cannot find a suitable checker"))
 

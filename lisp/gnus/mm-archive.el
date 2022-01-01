@@ -1,6 +1,6 @@
 ;;; mm-archive.el --- Functions for parsing archive files as MIME  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2012-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2012-2022 Free Software Foundation, Inc.
 
 ;; Author: Lars Magne Ingebrigtsen <larsi@gnus.org>
 ;; This file is part of GNU Emacs.
@@ -108,4 +108,4 @@
 
 (provide 'mm-archive)
 
-;; mm-archive.el ends here
+;;; mm-archive.el ends here

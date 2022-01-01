@@ -1,6 +1,6 @@
 ;;; cal-menu.el --- calendar functions for menu bar and popup menu support  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 1994-1995, 2001-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1994-1995, 2001-2022 Free Software Foundation, Inc.
 
 ;; Author: Edward M. Reingold <reingold@cs.uiuc.edu>
 ;;         Lara Rios <lrios@coewl.cen.uiuc.edu>
@@ -104,9 +104,9 @@
         ;; The bug has since been fixed.
         (dotimes (i 11)
           (push (vector (format "hol-year-%d" i)
-                        `(lambda ()
-                           (interactive)
-                           (holiday-list (+ displayed-year ,(- i 5))))
+                        (lambda ()
+                          (interactive)
+                          (holiday-list (+ displayed-year (- i 5))))
                         :label `(format "For Year %d"
                                        (+ displayed-year ,(- i 5))))
                 l))

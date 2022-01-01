@@ -1,6 +1,6 @@
 ;;; semantic/scope.el --- Analyzer Scope Calculations  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2007-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2007-2022 Free Software Foundation, Inc.
 
 ;; Author: Eric M. Ludlam <zappo@gnu.org>
 
@@ -562,7 +562,7 @@ such as `public' or `private'."
 	   ;; @TODO - is this line needed??  Try w/out for a while
 	   ;; @note - I think C++ says no.  elisp might, but methods
 	   ;;         look like defuns, so it makes no difference.
-	   (extmeth nil) ; (semantic-tag-external-member-children type t))
+	   ;;(extmeth nil) ; (semantic-tag-external-member-children type t))
 
 	   ;; INHERITED are tags found in classes that our TYPE tag
 	   ;; inherits from.  Do not do this if it was not requested.
@@ -584,7 +584,7 @@ such as `public' or `private'."
 	  (setq slots (nreverse copyslots))
 	  ))
       ;; Flatten the database output.
-      (append slots extmeth inherited)
+      (append slots nil inherited) ;; extmeth
       )))
 
 (defun semantic-analyze-scoped-inherited-tags (type scope access)

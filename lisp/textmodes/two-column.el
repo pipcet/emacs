@@ -1,6 +1,6 @@
-;;; two-column.el --- minor mode for editing of two-column text
+;;; two-column.el --- minor mode for editing of two-column text  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 1992-1995, 2001-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1992-1995, 2001-2022 Free Software Foundation, Inc.
 
 ;; Author: Daniel Pfeiffer <occitan@esperanto.org>
 ;; Adapted-By: ESR, Daniel Pfeiffer
@@ -165,10 +165,10 @@ minus this value."
 
 (defvar 2C-mode-map
   (let ((map (make-sparse-keymap)))
-    (define-key map "2" '2C-two-columns)
-    (define-key map [f2] '2C-two-columns)
-    (define-key map "b" '2C-associate-buffer)
-    (define-key map "s" '2C-split)
+    (define-key map "2" #'2C-two-columns)
+    (define-key map [f2] #'2C-two-columns)
+    (define-key map "b" #'2C-associate-buffer)
+    (define-key map "s" #'2C-split)
     map)
   "Keymap for commands for setting up two-column mode.")
 
@@ -178,19 +178,19 @@ minus this value."
 ;; This one is for historical reasons and simple keyboards, it is not
 ;; at all mnemonic.  All usual sequences containing 2 were used, and
 ;; f2 could not be set up in a standard way under Emacs 18.
-;;;###autoload (global-set-key "\C-x6" '2C-command)
+;;;###autoload (global-set-key "\C-x6" #'2C-command)
 
-;;;###autoload (global-set-key [f2] '2C-command)
+;;;###autoload (global-set-key [f2] #'2C-command)
 
 (defvar 2C-minor-mode-map
   (let ((map (make-sparse-keymap)))
-    (define-key map "1" '2C-merge)
-    (define-key map "d" '2C-dissociate)
-    (define-key map "o" '2C-associated-buffer)
-    (define-key map "\^m" '2C-newline)
-    (define-key map "|" '2C-toggle-autoscroll)
-    (define-key map "{" '2C-shrink-window-horizontally)
-    (define-key map "}" '2C-enlarge-window-horizontally)
+    (define-key map "1" #'2C-merge)
+    (define-key map "d" #'2C-dissociate)
+    (define-key map "o" #'2C-associated-buffer)
+    (define-key map "\^m" #'2C-newline)
+    (define-key map "|" #'2C-toggle-autoscroll)
+    (define-key map "{" #'2C-shrink-window-horizontally)
+    (define-key map "}" #'2C-enlarge-window-horizontally)
     map)
   "Keymap for commands for use in two-column mode.")
 
@@ -275,7 +275,7 @@ some prefix.
 The appearance of the screen can be customized by the variables
 `2C-window-width', `2C-beyond-fill-column', `2C-mode-line-format' and
 `truncate-partial-width-windows'."
-  (add-hook 'post-command-hook '2C-autoscroll nil t)
+  (add-hook 'post-command-hook #'2C-autoscroll nil t)
   (setq fill-column (- 2C-window-width
 		       2C-beyond-fill-column)
 	mode-line-format 2C-mode-line-format
@@ -319,16 +319,17 @@ first and the associated buffer to its right."
 
 
 ;;;###autoload
-(defun 2C-associate-buffer ()
-  "Associate another buffer with this one in two-column minor mode.
+(defun 2C-associate-buffer (buffer)
+  "Associate another BUFFER with this one in two-column minor mode.
 Can also be used to associate a just previously visited file, by
 accepting the proposed default buffer.
 
 \(See  \\[describe-mode] .)"
-  (interactive)
+  (interactive
+   (list (or (2C-other)
+	     (read-buffer "Associate buffer: " (other-buffer)))))
   (let ((b1 (current-buffer))
-	(b2 (or (2C-other)
-		(read-buffer "Associate buffer: " (other-buffer)))))
+	(b2 buffer))
     (setq 2C-mode nil)
     (with-current-buffer b2
       (and (2C-other)

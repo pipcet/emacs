@@ -1,6 +1,6 @@
 ;;; spam-stat.el --- detecting spam based on statistics  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2002-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2002-2022 Free Software Foundation, Inc.
 
 ;; Author: Alex Schroeder <alex@gnu.org>
 ;; Keywords: network
@@ -492,7 +492,7 @@ Add user supplied modifications if supplied."
   (let* ((probs (mapcar #'cadr spam-stat-score-data))
 	 (prod (apply #'* probs))
 	 (score0
-	  (/ prod (+ prod (apply #'* (mapcar #'(lambda (x) (- 1 x))
+          (/ prod (+ prod (apply #'* (mapcar (lambda (x) (- 1 x))
 					     probs)))))
 	 (score1s
 	  (condition-case nil

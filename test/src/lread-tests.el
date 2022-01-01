@@ -1,6 +1,6 @@
 ;;; lread-tests.el --- tests for lread.c -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2016-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2016-2022 Free Software Foundation, Inc.
 
 ;; Author: Philipp Stephani <phst@google.com>
 
@@ -115,17 +115,13 @@
   (should-error (read "#24r") :type 'invalid-read-syntax)
   (should-error (read "#") :type 'invalid-read-syntax))
 
+(ert-deftest lread-char-modifiers ()
+  (should (eq ?\C-\M-é (+ (- ?\M-a ?a) ?\C-é)))
+  (should (eq (- ?\C-ŗ ?ŗ) (- ?\C-é ?é))))
+
 (ert-deftest lread-record-1 ()
   (should (equal '(#s(foo) #s(foo))
                  (read "(#1=#s(foo) #1#)"))))
-
-(defmacro lread-tests--with-temp-file (file-name-var &rest body)
-  (declare (indent 1))
-  (cl-check-type file-name-var symbol)
-  `(let ((,file-name-var (make-temp-file "emacs")))
-     (unwind-protect
-         (progn ,@body)
-       (delete-file ,file-name-var))))
 
 (defun lread-tests--last-message ()
   (with-current-buffer "*Messages*"
@@ -137,7 +133,7 @@
 (ert-deftest lread-tests--unescaped-char-literals ()
   "Check that loading warns about unescaped character
 literals (Bug#20852)."
-  (lread-tests--with-temp-file file-name
+  (ert-with-temp-file file-name
     (write-region "?) ?( ?; ?\" ?[ ?]" nil file-name)
     (should (equal (load file-name nil :nomessage :nosuffix) t))
     (should (equal (lread-tests--last-message)
@@ -195,5 +191,72 @@ literals (Bug#20852)."
     (should-error (read-char "foo: "))
     (should-error (read-event "foo: "))
     (should-error (read-char-exclusive "foo: "))))
+
+(ert-deftest lread-float ()
+  (should (equal (read "13") 13))
+  (should (equal (read "+13") 13))
+  (should (equal (read "-13") -13))
+  (should (equal (read "13.") 13))
+  (should (equal (read "+13.") 13))
+  (should (equal (read "-13.") -13))
+  (should (equal (read "13.25") 13.25))
+  (should (equal (read "+13.25") 13.25))
+  (should (equal (read "-13.25") -13.25))
+  (should (equal (read ".25") 0.25))
+  (should (equal (read "+.25") 0.25))
+  (should (equal (read "-.25") -0.25))
+  (should (equal (read "13e4") 130000.0))
+  (should (equal (read "+13e4") 130000.0))
+  (should (equal (read "-13e4") -130000.0))
+  (should (equal (read "13e+4") 130000.0))
+  (should (equal (read "+13e+4") 130000.0))
+  (should (equal (read "-13e+4") -130000.0))
+  (should (equal (read "625e-4") 0.0625))
+  (should (equal (read "+625e-4") 0.0625))
+  (should (equal (read "-625e-4") -0.0625))
+  (should (equal (read "1.25e2") 125.0))
+  (should (equal (read "+1.25e2") 125.0))
+  (should (equal (read "-1.25e2") -125.0))
+  (should (equal (read "1.25e+2") 125.0))
+  (should (equal (read "+1.25e+2") 125.0))
+  (should (equal (read "-1.25e+2") -125.0))
+  (should (equal (read "1.25e-1") 0.125))
+  (should (equal (read "+1.25e-1") 0.125))
+  (should (equal (read "-1.25e-1") -0.125))
+  (should (equal (read "4.e3") 4000.0))
+  (should (equal (read "+4.e3") 4000.0))
+  (should (equal (read "-4.e3") -4000.0))
+  (should (equal (read "4.e+3") 4000.0))
+  (should (equal (read "+4.e+3") 4000.0))
+  (should (equal (read "-4.e+3") -4000.0))
+  (should (equal (read "5.e-1") 0.5))
+  (should (equal (read "+5.e-1") 0.5))
+  (should (equal (read "-5.e-1") -0.5))
+  (should (equal (read "0") 0))
+  (should (equal (read "+0") 0))
+  (should (equal (read "-0") 0))
+  (should (equal (read "0.") 0))
+  (should (equal (read "+0.") 0))
+  (should (equal (read "-0.") 0))
+  (should (equal (read "0.0") 0.0))
+  (should (equal (read "+0.0") 0.0))
+  (should (equal (read "-0.0") -0.0))
+  (should (equal (read "0e5") 0.0))
+  (should (equal (read "+0e5") 0.0))
+  (should (equal (read "-0e5") -0.0))
+  (should (equal (read "0e-5") 0.0))
+  (should (equal (read "+0e-5") 0.0))
+  (should (equal (read "-0e-5") -0.0))
+  (should (equal (read ".0e-5") 0.0))
+  (should (equal (read "+.0e-5") 0.0))
+  (should (equal (read "-.0e-5") -0.0))
+  (should (equal (read "0.0e-5") 0.0))
+  (should (equal (read "+0.0e-5") 0.0))
+  (should (equal (read "-0.0e-5") -0.0))
+  (should (equal (read "0.e-5") 0.0))
+  (should (equal (read "+0.e-5") 0.0))
+  (should (equal (read "-0.e-5") -0.0))
+  )
+
 
 ;;; lread-tests.el ends here

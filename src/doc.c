@@ -1,6 +1,6 @@
 /* Record indices of function doc strings stored in a file. -*- coding: utf-8 -*-
 
-Copyright (C) 1985-1986, 1993-1995, 1997-2021 Free Software Foundation,
+Copyright (C) 1985-1986, 1993-1995, 1997-2022 Free Software Foundation,
 Inc.
 
 This file is part of GNU Emacs.
@@ -84,16 +84,19 @@ get_doc_string (Lisp_Object filepos, bool unibyte, bool definition)
   char *from, *to, *name, *p, *p1;
   Lisp_Object file, pos;
   ptrdiff_t count = SPECPDL_INDEX ();
+  Lisp_Object dir;
   USE_SAFE_ALLOCA;
 
   if (FIXNUMP (filepos))
     {
       file = Vdoc_file_name;
+      dir = Vdoc_directory;
       pos = filepos;
     }
   else if (CONSP (filepos))
     {
       file = XCAR (filepos);
+      dir = Fsymbol_value (Qlisp_directory);
       pos = XCDR (filepos);
     }
   else
@@ -101,7 +104,7 @@ get_doc_string (Lisp_Object filepos, bool unibyte, bool definition)
 
   EMACS_INT position = eabs (XFIXNUM (pos));
 
-  if (!STRINGP (Vdoc_directory))
+  if (!STRINGP (dir))
     return Qnil;
 
   if (!STRINGP (file))
@@ -113,7 +116,7 @@ get_doc_string (Lisp_Object filepos, bool unibyte, bool definition)
   Lisp_Object tem = Ffile_name_absolute_p (file);
   file = ENCODE_FILE (file);
   Lisp_Object docdir
-    = NILP (tem) ? ENCODE_FILE (Vdoc_directory) : empty_unibyte_string;
+    = NILP (tem) ? ENCODE_FILE (dir) : empty_unibyte_string;
   ptrdiff_t docdir_sizemax = SBYTES (docdir) + 1;
   if (will_dump_p ())
     docdir_sizemax = max (docdir_sizemax, sizeof sibling_etc);
@@ -327,6 +330,11 @@ string is passed through `substitute-command-keys'.  */)
     xsignal1 (Qvoid_function, function);
   if (CONSP (fun) && EQ (XCAR (fun), Qmacro))
     fun = XCDR (fun);
+#ifdef HAVE_NATIVE_COMP
+  if (!NILP (Fsubr_native_elisp_p (fun)))
+    doc = native_function_doc (fun);
+  else
+#endif
   if (SUBRP (fun))
     doc = make_fixnum (XSUBR (fun)->doc);
 #ifdef HAVE_MODULES
@@ -495,10 +503,11 @@ store_function_docstring (Lisp_Object obj, EMACS_INT offset)
 	    XSETCAR (tem, make_fixnum (offset));
 	}
     }
-
   /* Lisp_Subrs have a slot for it.  */
-  else if (SUBRP (fun))
-    XSUBR (fun)->doc = offset;
+  else if (SUBRP (fun) && !SUBR_NATIVE_COMPILEDP (fun))
+    {
+      XSUBR (fun)->doc = offset;
+    }
 
   /* Bytecode objects sometimes have slots for it.  */
   else if (COMPILEDP (fun))
@@ -544,7 +553,7 @@ the same file name is found in the `doc-directory'.  */)
   Lisp_Object delayed_init =
     find_symbol_value (intern ("custom-delayed-init-variables"));
 
-  if (EQ (delayed_init, Qunbound)) delayed_init = Qnil;
+  if (!CONSP (delayed_init)) delayed_init = Qnil;
 
   CHECK_STRING (filename);
 
@@ -697,6 +706,7 @@ See variable `text-quoting-style'.  */)
 void
 syms_of_doc (void)
 {
+  DEFSYM (Qlisp_directory, "lisp-directory");
   DEFSYM (Qsubstitute_command_keys, "substitute-command-keys");
   DEFSYM (Qfunction_documentation, "function-documentation");
   DEFSYM (Qgrave, "grave");
@@ -713,17 +723,19 @@ syms_of_doc (void)
 
   DEFVAR_LISP ("text-quoting-style", Vtext_quoting_style,
                doc: /* Style to use for single quotes in help and messages.
-Its value should be a symbol.  It works by substituting certain single
-quotes for grave accent and apostrophe.  This is done in help output
-\(but not for display of Info manuals) and in functions like `message'
-and `format-message'.  It is not done in `format'.
 
-`curve' means quote with curved single quotes ‘like this’.
-`straight' means quote with straight apostrophes \\='like this\\='.
-`grave' means quote with grave accent and apostrophe \\=`like this\\=';
-i.e., do not alter quote marks.  The default value nil acts like
-`curve' if curved single quotes are displayable, and like `grave'
-otherwise.  */);
+The value of this variable determines substitution of grave accents
+and apostrophes in help output (but not for display of Info
+manuals) and in functions like `message' and `format-message', but not
+in `format'.
+
+The value should be one of these symbols:
+  `curve':    quote with curved single quotes ‘like this’.
+  `straight': quote with straight apostrophes \\='like this\\='.
+  `grave':    quote with grave accent and apostrophe \\=`like this\\=';
+	      i.e., do not alter the original quote marks.
+  nil:        like `curve' if curved single quotes are displayable,
+	      and like `grave' otherwise.  This is the default.  */);
   Vtext_quoting_style = Qnil;
 
   DEFVAR_BOOL ("internal--text-quoting-flag", text_quoting_flag,

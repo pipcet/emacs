@@ -1,6 +1,6 @@
 ;;; solar.el --- calendar functions for solar events  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1992-1993, 1995, 1997, 2001-2021 Free Software
+;; Copyright (C) 1992-1993, 1995, 1997, 2001-2022 Free Software
 ;; Foundation, Inc.
 
 ;; Author: Edward M. Reingold <reingold@cs.uiuc.edu>
@@ -552,7 +552,7 @@ degrees to find out if polar regions have 24 hours of sun or only night."
 Format used is given by `calendar-time-display-form'."
   (let* ((time (round (* 60 time)))
          (24-hours (/ time 60)))
-    (calendar-dlet*
+    (calendar-dlet
         ((time-zone time-zone)
          (minutes (format "%02d" (% time 60)))
          (12-hours (format "%d" (1+ (% (+ 24-hours 11) 12))))

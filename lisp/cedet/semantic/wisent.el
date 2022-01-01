@@ -1,6 +1,6 @@
 ;;; semantic/wisent.el --- Wisent - Semantic gateway  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2001-2007, 2009-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2001-2007, 2009-2022 Free Software Foundation, Inc.
 
 ;; Author: David Ponce <david@dponce.com>
 ;; Created: 30 Aug 2001
@@ -22,12 +22,9 @@
 ;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
-;;
+
 ;; Here are functions necessary to use the Wisent LALR parser from
 ;; Semantic environment.
-
-;;; History:
-;;
 
 ;;; Code:
 
@@ -69,7 +66,7 @@ Returned tokens must have the form:
   (TOKSYM VALUE START . END)
 
 where VALUE is the buffer substring between START and END positions."
-  (declare (debug (&define name stringp def-body)))
+  (declare (debug (&define name stringp def-body)) (indent 1))
   `(defun
      ,name () ,doc
      (cond
@@ -224,7 +221,7 @@ the standard function `semantic-parse-stream'."
                                     (error-message-string error-to-filter))
                            (message "wisent-parse-max-stack-size \
 might need to be increased"))
-                       (apply 'signal error-to-filter))))))
+                       (apply #'signal error-to-filter))))))
     ;; Manage returned lookahead token
     (if wisent-lookahead
         (if (eq (caar la-elt) wisent-lookahead)
@@ -251,6 +248,17 @@ might need to be increased"))
     (list wisent-lex-istream
           (if (consp cache) cache '(nil))
           )))
+
+(defmacro wisent-compiled-grammar (grammar &optional start-list)
+  "Return a compiled form of the LALR(1) Wisent GRAMMAR.
+See `wisent--compile-grammar' for a description of the arguments
+and return value."
+  ;; Ensure that the grammar compiler is available.
+  (require 'semantic/wisent/comp)
+  (declare-function wisent-automaton-lisp-form "semantic/wisent/comp" (x))
+  (declare-function wisent--compile-grammar "semantic/wisent/comp" (grm st))
+  (wisent-automaton-lisp-form
+   (wisent--compile-grammar grammar start-list)))
 
 (defun wisent-parse-region (start end &optional goal depth returnonerror)
   "Parse the area between START and END using the Wisent LALR parser.

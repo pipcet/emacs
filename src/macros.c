@@ -1,6 +1,6 @@
 /* Keyboard macros.
 
-Copyright (C) 1985-1986, 1993, 2000-2021 Free Software Foundation, Inc.
+Copyright (C) 1985-1986, 1993, 2000-2022 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -324,7 +324,7 @@ buffer before the macro is executed.  */)
 	    break;
 	}
 
-      command_loop_1 ();
+      command_loop_2 (list1 (Qminibuffer_quit));
 
       executing_kbd_macro_iterations = ++success_count;
 

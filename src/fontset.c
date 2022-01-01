@@ -1,6 +1,6 @@
 /* Fontset handler.
 
-Copyright (C) 2001-2021 Free Software Foundation, Inc.
+Copyright (C) 2001-2022 Free Software Foundation, Inc.
 Copyright (C) 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004,
   2005, 2006, 2007, 2008, 2009, 2010, 2011
   National Institute of Advanced Industrial Science and Technology (AIST)
@@ -1361,7 +1361,11 @@ check_fontset_name (Lisp_Object name, Lisp_Object *frame)
   if (EQ (name, Qt))
     return Vdefault_fontset;
   if (NILP (name))
-    id = FRAME_FONTSET (f);
+    {
+      if (!FRAME_WINDOW_P (f))
+	error ("Can't use fontsets in non-GUI frames");
+      id = FRAME_FONTSET (f);
+    }
   else
     {
       CHECK_STRING (name);

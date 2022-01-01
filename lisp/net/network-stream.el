@@ -1,6 +1,6 @@
 ;;; network-stream.el --- open network processes, possibly with encryption -*- lexical-binding: t -*-
 
-;; Copyright (C) 2010-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2010-2022 Free Software Foundation, Inc.
 
 ;; Author: Lars Magne Ingebrigtsen <larsi@gnus.org>
 ;; Keywords: network
@@ -248,8 +248,7 @@ gnutls-boot (as returned by `gnutls-boot-parameters')."
 	     (list key cert)))))))
 
 ;;;###autoload
-(defalias 'open-protocol-stream 'open-network-stream)
-(define-obsolete-function-alias 'open-protocol-stream 'open-network-stream
+(define-obsolete-function-alias 'open-protocol-stream #'open-network-stream
   "26.1")
 
 (defun network-stream-open-plain (name buffer host service parameters)

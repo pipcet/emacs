@@ -1,6 +1,6 @@
 ;;; sendmail.el --- mail sending commands for Emacs  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1985-1986, 1992-1996, 1998, 2000-2021 Free Software
+;; Copyright (C) 1985-1986, 1992-1996, 1998, 2000-2022 Free Software
 ;; Foundation, Inc.
 
 ;; Maintainer: emacs-devel@gnu.org
@@ -30,6 +30,7 @@
 (require 'mail-utils)
 (require 'rfc2047)
 (autoload 'message-make-date "message")
+(autoload 'message-narrow-to-headers "message")
 
 (defgroup sendmail nil
   "Mail sending commands for Emacs."
@@ -276,6 +277,7 @@ The default value matches citations like `foo-bar>' plus whitespace."
     (define-key map "\C-c\C-f\C-r" 'mail-reply-to)
     (define-key map "\C-c\C-f\C-a" 'mail-mail-reply-to)    ; author
     (define-key map "\C-c\C-f\C-l" 'mail-mail-followup-to) ; list
+    (define-key map "\C-c\C-f\C-d" 'mail-insert-disposition-notification-to)
     (define-key map "\C-c\C-t" 'mail-text)
     (define-key map "\C-c\C-y" 'mail-yank-original)
     (define-key map "\C-c\C-r" 'mail-yank-region)
@@ -323,6 +325,9 @@ The default value matches citations like `foo-bar>' plus whitespace."
 
     (define-key map [menu-bar headers expand-aliases]
       '("Expand Aliases" . expand-mail-aliases))
+
+    (define-key map [menu-bar headers disposition-notification]
+      '("Disposition-Notification-To" . mail-insert-disposition-notification-to))
 
     (define-key map [menu-bar headers mail-reply-to]
       '("Mail-Reply-To" . mail-mail-reply-to))
@@ -725,14 +730,21 @@ Turning on Mail mode runs the normal hooks `text-mode-hook' and
   ;; Lines containing just >= 3 dashes, perhaps after whitespace,
   ;; are also sometimes used and should be separators.
   (setq paragraph-separate
-	(concat (regexp-quote mail-header-separator)
+        (if (zerop (length mail-header-separator))
+	    (concat
 		;; This is based on adaptive-fill-regexp (presumably
 		;; the idea is to allow navigation etc of cited paragraphs).
-		"$\\|\t*[-–!|#%;>*·•‣⁃◦ ]+$"
+		"\t*[-–!|#%;>*·•‣⁃◦ ]+$"
 		"\\|[ \t]*[-[:alnum:]]*>+[ \t]*$\\|[ \t]*$\\|"
 		"--\\( \\|-+\\)$\\|"
-		page-delimiter)))
-
+		page-delimiter)
+	  (concat (regexp-quote mail-header-separator)
+                  ;; This is based on adaptive-fill-regexp (presumably
+                  ;; the idea is to allow navigation etc of cited paragraphs).
+                  "$\\|\t*[-–!|#%;>*·•‣⁃◦ ]+$"
+                  "\\|[ \t]*[-[:alnum:]]*>+[ \t]*$\\|[ \t]*$\\|"
+                  "--\\( \\|-+\\)$\\|"
+                  page-delimiter))))
 
 (defun mail-header-end ()
   "Return the buffer location of the end of headers, as a number."
@@ -762,10 +774,11 @@ Concretely: replace the first blank line in the header with the separator."
   "Remove header separator to put the message in correct form for sendmail.
 Leave point at the start of the delimiter line."
   (goto-char (point-min))
-  (when (re-search-forward
-	 (concat "^" (regexp-quote mail-header-separator) "\n")
-	 nil t)
-    (replace-match "\n"))
+  (unless (zerop (length mail-header-separator))
+    (when (re-search-forward
+           (concat "^" (regexp-quote mail-header-separator) "\n")
+           nil t)
+      (replace-match "\n")))
   (rfc822-goto-eoh))
 
 (defun mail-mode-auto-fill ()
@@ -887,8 +900,9 @@ the user from the mailer."
                 (concat "\\(?:[[:space:];,]\\|\\`\\)"
                         (regexp-opt mail-mailing-lists t)
                         "\\(?:[[:space:];,]\\|\\'\\)"))))
-        (mail-combine-fields "To")
-        (mail-combine-fields "Cc")
+        (unless noninteractive
+          (mail-combine-fields "To")
+          (mail-combine-fields "Cc"))
 	;; If there are mailing lists defined
 	(when ml
 	  (save-excursion
@@ -930,7 +944,9 @@ the user from the mailer."
 		(error "Message contains non-ASCII characters"))))
 	;; Complain about any invalid line.
 	(goto-char (point-min))
-	(re-search-forward (regexp-quote mail-header-separator) (point-max) t)
+        ;; Search for mail-header-eeparator as whole line.
+	(re-search-forward (concat "^" (regexp-quote mail-header-separator) "$")
+                           (point-max) t)
 	(let ((header-end (or (match-beginning 0) (point-max))))
 	  (goto-char (point-min))
 	  (while (< (point) header-end)
@@ -961,7 +977,10 @@ the user from the mailer."
 
 (defun mail-envelope-from ()
   "Return the envelope mail address to use when sending mail.
-This function uses `mail-envelope-from'."
+This function uses the `mail-envelope-from' variable.
+
+The buffer should be narrowed to the headers of the mail message
+before this function is called."
   (if (eq mail-envelope-from 'header)
       (nth 1 (mail-extract-address-components
  	      (mail-fetch-field "From")))
@@ -1177,7 +1196,12 @@ external program defined by `sendmail-program'."
 	;; local binding in the mail buffer will take effect.
 	(envelope-from
 	 (and mail-specify-envelope-from
-	      (or (mail-envelope-from) user-mail-address))))
+	      (or (save-restriction
+                    ;; Only look at the headers when fetching the
+                    ;; envelope address.
+                    (message-narrow-to-headers)
+                    (mail-envelope-from))
+                  user-mail-address))))
     (unwind-protect
 	(with-current-buffer tembuf
 	  (erase-buffer)
@@ -1367,8 +1391,7 @@ just append to the file, in Babyl format if necessary."
   (unless (markerp header-end)
     (error "Value of `header-end' must be a marker"))
   (let (fcc-list
-	(mailbuf (current-buffer))
-	(time (current-time)))
+	(mailbuf (current-buffer)))
     (save-excursion
       (goto-char (point-min))
       (let ((case-fold-search t))
@@ -1384,14 +1407,11 @@ just append to the file, in Babyl format if necessary."
       (with-temp-buffer
 	;; This initial newline is not written out if we create a new
 	;; file (see below).
-	(insert "\nFrom " (user-login-name) " " (current-time-string time) "\n")
-	;; Insert the time zone before the year.
-	(forward-char -1)
-	(forward-word-strictly -1)
 	(require 'mail-utils)
-	(insert (mail-rfc822-time-zone time) " ")
-	(goto-char (point-max))
-	(insert "Date: " (message-make-date) "\n")
+	(insert "\nFrom " (user-login-name) " "
+		(let ((system-time-locale "C"))
+		  (format-time-string "%a %b %e %T %z %Y"))
+		"\nDate: " (message-make-date) "\n")
 	(insert-buffer-substring mailbuf)
 	;; Make sure messages are separated.
 	(goto-char (point-max))
@@ -1578,6 +1598,25 @@ Returns non-nil if FIELD was originally present."
   (interactive)
   (expand-abbrev)
   (goto-char (mail-text-start)))
+
+(defun mail-insert-disposition-notification-to ()
+  "Insert a Disposition-Notification-To header, if it doesn't already exist."
+  (interactive)
+  (expand-abbrev)
+  (save-excursion
+    (or (mail-position-on-field "Disposition-Notification-To")
+        (insert
+	 (format
+	  "%s"
+	  (save-excursion
+            (save-restriction
+              (message-narrow-to-headers)
+              (or (mail-fetch-field "Reply-To")
+                  (mail-fetch-field "From")
+                  (with-temp-buffer
+                    (mail-insert-from-field)
+                    (substring (buffer-string) (length "From: ") -1))))))))))
+
 
 (defun mail-signature (&optional atpoint)
   "Sign letter with signature.
@@ -1907,7 +1946,8 @@ The seventh argument ACTIONS is a list of actions to take
 	   (setq initialized t)))
     (if (and buffer-auto-save-file-name
 	     (file-exists-p buffer-auto-save-file-name))
-	(message "Auto save file for draft message exists; consider M-x mail-recover"))
+        (message (substitute-command-keys
+                  "Auto save file for draft message exists; consider \\[mail-recover]")))
     initialized))
 
 (declare-function dired-view-file "dired" ())

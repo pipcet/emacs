@@ -1,6 +1,6 @@
 ;;; cal-html.el --- functions for printing HTML calendars  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2002-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2002-2022 Free Software Foundation, Inc.
 
 ;; Author: Anna M. Bigatti <bigatti@dima.unige.it>
 ;; Keywords: calendar
@@ -151,7 +151,7 @@
 (defun cal-html-comment (string)
   "Return STRING as html comment."
   (format "<!--  ======  %s  ======  -->\n"
-          (replace-regexp-in-string "--" "++" string)))
+          (string-replace "--" "++" string)))
 
 (defun cal-html-href (link string)
   "Return a hyperlink to url LINK with text STRING."

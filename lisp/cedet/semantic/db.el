@@ -1,6 +1,6 @@
 ;;; semantic/db.el --- Semantic tag database manager  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2000-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2000-2022 Free Software Foundation, Inc.
 
 ;; Author: Eric M. Ludlam <zappo@gnu.org>
 ;; Keywords: tags
@@ -321,12 +321,12 @@ Adds the number of tags in this file to the object print name."
   '(list-of semanticdb-abstract-table))
 
 (defclass semanticdb-project-database (eieio-instance-tracker)
-  ((tracking-symbol :initform semanticdb-database-list)
+  ((tracking-symbol :initform 'semanticdb-database-list)
    (reference-directory :type string
 			:documentation "Directory this database refers to.
 When a cache directory is specified, then this refers to the directory
 this database contains symbols for.")
-   (new-table-class :initform semanticdb-table
+   (new-table-class :initform 'semanticdb-table
 		    :type class
 		    :documentation
 		    "New tables created for this database are of this class.")
