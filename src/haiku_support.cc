@@ -92,6 +92,26 @@ static BLocker key_map_lock;
 
 static BLocker child_frame_lock;
 
+/* A LeaveNotify event (well, the closest equivalent on Haiku, which
+   is a B_MOUSE_MOVED event with `transit' set to B_EXITED_VIEW) might
+   be sent out-of-order with regards to motion events from other
+   windows, such as when the mouse pointer rapidly moves from an
+   undecorated child frame to its parent.  This can cause a failure to
+   clear the mouse face on the former if an event for the latter is
+   read by Emacs first and ends up showing the mouse face there.
+
+   While this lock doesn't really ensure that the events will be
+   delivered in the correct order, it makes them arrive in the correct
+   order "most of the time" on my machine, which is good enough and
+   preferable to adding a lot of extra complexity to the event
+   handling code to sort motion events by their timestamps.
+
+   Obviously this depends on the number of execution units that are
+   available, and the scheduling priority of each thread involved in
+   the input handling, but it will be good enough for most people.  */
+
+static BLocker movement_locker;
+
 extern "C"
 {
   extern _Noreturn void emacs_abort (void);
@@ -1181,7 +1201,11 @@ public:
       ToolTip ()->SetMouseRelativeLocation (BPoint (-(point.x - tt_absl_pos.x),
 						    -(point.y - tt_absl_pos.y)));
 
-    haiku_write (MOUSE_MOTION, &rq);
+    if (movement_locker.Lock ())
+      {
+	haiku_write (MOUSE_MOTION, &rq);
+	movement_locker.Unlock ();
+      }
   }
 
   void
@@ -1570,7 +1594,7 @@ BWindow_new (void *_view)
   if (!vw)
     {
       *v = NULL;
-      window->Lock ();
+      window->LockLooper ();
       window->Quit ();
       return NULL;
     }
@@ -1590,7 +1614,7 @@ BWindow_new (void *_view)
 void
 BWindow_quit (void *window)
 {
-  ((BWindow *) window)->Lock ();
+  ((BWindow *) window)->LockLooper ();
   ((BWindow *) window)->Quit ();
 }
 
@@ -2624,7 +2648,8 @@ char *
 be_popup_file_dialog (int open_p, const char *default_dir, int must_match_p, int dir_only_p,
 		      void *window, const char *save_text, const char *prompt,
 		      void (*block_input_function) (void),
-		      void (*unblock_input_function) (void))
+		      void (*unblock_input_function) (void),
+		      void (*maybe_quit_function) (void))
 {
   ptrdiff_t idx = c_specpdl_idx_from_cxx ();
   /* setjmp/longjmp is UB with automatic objects. */
@@ -2635,7 +2660,6 @@ be_popup_file_dialog (int open_p, const char *default_dir, int must_match_p, int
   BMessage *msg = new BMessage ('FPSE');
   BFilePanel *panel = new BFilePanel (open_p ? B_OPEN_PANEL : B_SAVE_PANEL,
 				      NULL, NULL, mode);
-  unblock_input_function ();
 
   struct popup_file_dialog_data dat;
   dat.entry = path;
@@ -2660,6 +2684,7 @@ be_popup_file_dialog (int open_p, const char *default_dir, int must_match_p, int
 
   panel->Show ();
   panel->Window ()->Show ();
+  unblock_input_function ();
 
   void *buf = alloca (200);
   while (1)
@@ -2669,19 +2694,26 @@ be_popup_file_dialog (int open_p, const char *default_dir, int must_match_p, int
 
       if (!haiku_read_with_timeout (&type, buf, 200, 100000))
 	{
+	  block_input_function ();
 	  if (type != FILE_PANEL_EVENT)
 	    haiku_write (type, buf);
 	  else if (!ptr)
 	    ptr = (char *) ((struct haiku_file_panel_event *) buf)->ptr;
+	  unblock_input_function ();
+
+	  maybe_quit_function ();
 	}
 
       ssize_t b_s;
+      block_input_function ();
       haiku_read_size (&b_s);
-      if (!b_s || b_s == -1 || ptr || panel->Window ()->IsHidden ())
+      if (!b_s || ptr || panel->Window ()->IsHidden ())
 	{
 	  c_unbind_to_nil_from_cxx (idx);
+	  unblock_input_function ();
 	  return ptr;
 	}
+      unblock_input_function ();
     }
 }
 
