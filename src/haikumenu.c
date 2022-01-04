@@ -324,9 +324,8 @@ haiku_menu_show (struct frame *f, int x, int y, int menuflags,
     }
   digest_menu_items (menu, 0, menu_items_used, 0);
   BView_convert_to_screen (view, &x, &y);
-  unblock_input ();
-
   menu_item_selection = BMenu_run (menu, x, y);
+  unblock_input ();
 
   FRAME_DISPLAY_INFO (f)->grabbed = 0;
 
@@ -376,7 +375,9 @@ haiku_menu_show (struct frame *f, int x, int y, int menuflags,
 			if (!NILP (subprefix_stack[j]))
 			  entry = Fcons (subprefix_stack[j], entry);
 		    }
+		  block_input ();
 		  BPopUpMenu_delete (menu);
+		  unblock_input ();
 		  return entry;
 		}
 	      i += MENU_ITEMS_ITEM_LENGTH;
@@ -385,10 +386,14 @@ haiku_menu_show (struct frame *f, int x, int y, int menuflags,
     }
   else if (!(menuflags & MENU_FOR_CLICK))
     {
+      block_input ();
       BPopUpMenu_delete (menu);
+      unblock_input ();
       quit ();
     }
+  block_input ();
   BPopUpMenu_delete (menu);
+  unblock_input ();
   return Qnil;
 }
 
@@ -625,12 +630,12 @@ DEFUN ("menu-or-popup-active-p", Fmenu_or_popup_active_p, Smenu_or_popup_active_
 }
 
 DEFUN ("haiku-menu-bar-open", Fhaiku_menu_bar_open, Shaiku_menu_bar_open, 0, 1, "i",
-       doc: /* Show the menu bar in FRAME.
-
-Move the mouse pointer onto the first element of FRAME's menu bar, and
-cause it to be opened.  If FRAME is nil or not given, use the selected
-frame.  If FRAME has no menu bar, a pop-up is displayed at the position
-of the last non-menu event instead.  */)
+       doc: /* Show and start key navigation of the menu bar in FRAME.
+This initially opens the first menu bar item and you can then navigate
+with the arrow keys, select a menu entry with the return key, or
+cancel with the escape key.  If FRAME is nil or not given, use the
+selected frame.  If FRAME has no menu bar, a pop-up is displayed at
+the position of the last non-menu event instead.  */)
   (Lisp_Object frame)
 {
   struct frame *f = decode_window_system_frame (frame);

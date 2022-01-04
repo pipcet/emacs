@@ -2277,6 +2277,7 @@ term_header=
 HAVE_X_WINDOWS=no
 HAVE_X11=no
 USE_X_TOOLKIT=none
+HAVE_PGTK=no
 
 case "${window_system}" in
   x11 )
@@ -2320,6 +2321,7 @@ dnl use the toolkit if we have gtk, or X11R5 or newer.
     term_header=haikuterm.h
   ;;
 esac
+AC_SUBST(HAVE_PGTK)
 
 if test "$window_system" = none && test "X$with_x" != "Xno"; then
    AC_CHECK_PROG(HAVE_XSERVER, X, true, false)
@@ -3013,6 +3015,7 @@ if test "${HAVE_X11}" = "yes" -o "${window_system}" = "pgtk" && test "${with_gse
       LIBS=$old_LIBS
    fi
 fi
+AC_SUBST(HAVE_GSETTINGS)
 
 dnl GConf has been tested under GNU/Linux only.
 dnl The version is really arbitrary, it is about the same age as Gtk+ 2.6.

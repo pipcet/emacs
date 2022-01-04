@@ -1238,7 +1238,7 @@ haiku_get_pixel (haiku bitmap, int x, int y)
   BBitmap_dimensions (bitmap, &left, &top, &right, &bottom,
 		      &bytes_per_row, &mono_p);
 
-  if (x < left || x > right || y < top || y > bottom)
+  if (x < 0 || x > right - left || y < 0 || y > bottom - top)
     emacs_abort ();
 
   if (!mono_p)
@@ -1263,7 +1263,7 @@ haiku_put_pixel (haiku bitmap, int x, int y, unsigned long pixel)
   BBitmap_dimensions (bitmap, &left, &top, &right, &bottom,
 		      &bytes_per_row, &mono_p);
 
-  if (x < left || x > right || y < top || y > bottom)
+  if (x < 0 || x > right - left || y < 0 || y > bottom - top)
     emacs_abort ();
 
   if (mono_p)
@@ -1291,8 +1291,8 @@ haiku_free_frame_resources (struct frame *f)
   Lisp_Object bar;
   struct scroll_bar *b;
 
-  block_input ();
   check_window_system (f);
+  block_input ();
 
   hlinfo = MOUSE_HL_INFO (f);
   window = FRAME_HAIKU_WINDOW (f);
@@ -1393,6 +1393,7 @@ haiku_visualize_frame (struct frame *f)
       if (FRAME_NO_FOCUS_ON_MAP (f) &&
 	  !FRAME_NO_ACCEPT_FOCUS (f))
 	BWindow_set_avoid_focus (FRAME_HAIKU_WINDOW (f), 0);
+      BWindow_sync (FRAME_HAIKU_WINDOW (f));
 
       haiku_set_offset (f, f->left_pos, f->top_pos, 0);
 
@@ -1409,6 +1410,7 @@ haiku_unvisualize_frame (struct frame *f)
   block_input ();
 
   BWindow_set_visible (FRAME_HAIKU_WINDOW (f), 0);
+  BWindow_sync (FRAME_HAIKU_WINDOW (f));
   SET_FRAME_VISIBLE (f, 0);
   SET_FRAME_ICONIFIED (f, 0);
 
@@ -2319,6 +2321,67 @@ DEFUN ("x-display-save-under", Fx_display_save_under,
   return Qnil;
 }
 
+DEFUN ("haiku-frame-restack", Fhaiku_frame_restack, Shaiku_frame_restack, 2, 3, 0,
+       doc: /* Restack FRAME1 below FRAME2.
+This means that if both frames are visible and the display areas of
+these frames overlap, FRAME2 (partially) obscures FRAME1.  If optional
+third argument ABOVE is non-nil, restack FRAME1 above FRAME2.  This
+means that if both frames are visible and the display areas of these
+frames overlap, FRAME1 (partially) obscures FRAME2.
+
+Some window managers may refuse to restack windows.  */)
+     (Lisp_Object frame1, Lisp_Object frame2, Lisp_Object above)
+{
+  struct frame *f1 = decode_live_frame (frame1);
+  struct frame *f2 = decode_live_frame (frame2);
+
+  check_window_system (f1);
+  check_window_system (f2);
+
+  block_input ();
+
+  if (NILP (above))
+    {
+      /* If the window that is currently active will be sent behind
+	 another window, make the window that it is being sent behind
+	 active first, to avoid both windows being moved to the back of
+	 the display.  */
+
+      if (BWindow_is_active (FRAME_HAIKU_WINDOW (f1))
+	  /* But don't do this if any of the frames involved have
+	     child frames, since they are guaranteed to be in front of
+	     their toplevel parents.  */
+	  && !FRAME_PARENT_FRAME (f1)
+	  && !FRAME_PARENT_FRAME (f2))
+	{
+	  BWindow_activate (FRAME_HAIKU_WINDOW (f2));
+	  BWindow_sync (FRAME_HAIKU_WINDOW (f2));
+	}
+
+      BWindow_send_behind (FRAME_HAIKU_WINDOW (f1),
+			   FRAME_HAIKU_WINDOW (f2));
+    }
+  else
+    {
+      if (BWindow_is_active (FRAME_HAIKU_WINDOW (f2))
+	  && !FRAME_PARENT_FRAME (f1)
+	  && !FRAME_PARENT_FRAME (f2))
+	{
+	  BWindow_activate (FRAME_HAIKU_WINDOW (f1));
+	  BWindow_sync (FRAME_HAIKU_WINDOW (f1));
+	}
+
+      BWindow_send_behind (FRAME_HAIKU_WINDOW (f2),
+			   FRAME_HAIKU_WINDOW (f1));
+    }
+  BWindow_sync (FRAME_HAIKU_WINDOW (f1));
+  BWindow_sync (FRAME_HAIKU_WINDOW (f2));
+
+  unblock_input ();
+
+  return Qnil;
+}
+
 frame_parm_handler haiku_frame_parm_handlers[] =
   {
     gui_set_autoraise,
@@ -2413,6 +2476,7 @@ syms_of_haikufns (void)
   defsubr (&Shaiku_put_resource);
   defsubr (&Shaiku_frame_list_z_order);
   defsubr (&Sx_display_save_under);
+  defsubr (&Shaiku_frame_restack);
 
   tip_timer = Qnil;
   staticpro (&tip_timer);

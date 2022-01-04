@@ -50,13 +50,21 @@
   :group 'tools)
 
 (defcustom elide-head-headers-to-hide
-  `(("is free software[:;] you can redistribute it" . ; GNU boilerplate
-     "\\(If not, see <https?://www\\.gnu\\.org/licenses/>\\|\
-Boston, MA 0211\\(1-1307\\|0-1301\\), USA\\|\
-675 Mass Ave, Cambridge, MA 02139, USA\\)\\.")
+  `(;; GNU GPL
+    ("is free software[:;] you can redistribute it" .
+     ,(rx (or (seq "If not, see " (? "<")
+                   "http" (? "s") "://www.gnu.org/licenses/"
+                   (? ">") (? " "))
+              (seq "Boston, MA " (? " ")
+                   "0211" (or "1-1307" "0-1301")
+                   (or "  " ", ") "USA")
+              "675 Mass Ave, Cambridge, MA 02139, USA")
+          (? ".")))
+    ;; FreeBSD license / Modified BSD license (3-clause)
     (,(rx (or "The Regents of the University of California.  All rights reserved."
               "Redistribution and use in source and binary"))
-     . "THE POSSIBILITY OF SUCH DAMAGE\\.") ; BSD
+     . "POSSIBILITY OF SUCH DAMAGE\\.")
+    ;; X11 and Expat
     ("Permission is hereby granted, free of charge" .
      ,(rx (or "authorization from the X Consortium."           ; X11
               "THE USE OR OTHER DEALINGS IN THE SOFTWARE.")))) ; Expat
