@@ -1,6 +1,6 @@
 ;;; mml.el --- A package for parsing and validating MML documents  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 1998-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1998-2022 Free Software Foundation, Inc.
 
 ;; Author: Lars Magne Ingebrigtsen <larsi@gnus.org>
 ;; This file is part of GNU Emacs.
@@ -500,7 +500,8 @@ type detected."
       (when (and (consp (car cont))
 		 (= (length cont) 1)
 		 content-type)
-	(setcdr (assq 'type (cdr (car cont))) content-type))
+        (when-let ((spec (assq 'type (cdr (car cont)))))
+	  (setcdr spec content-type)))
       (when (fboundp 'libxml-parse-html-region)
 	(setq cont (mapcar #'mml-expand-all-html-into-multipart-related cont)))
       (prog1

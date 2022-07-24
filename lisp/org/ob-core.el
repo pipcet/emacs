@@ -1,6 +1,6 @@
 ;;; ob-core.el --- Working with Code Blocks          -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2009-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2009-2022 Free Software Foundation, Inc.
 
 ;; Authors: Eric Schulte
 ;;	Dan Davison
@@ -480,7 +480,7 @@ value.  The value can either be a string or a closure that
 evaluates to a string.  The closure is evaluated when the source
 block is being evaluated (e.g. during execution or export), with
 point at the source block.  It is not possible to use an
-arbitrary function symbol (e.g. 'some-func), since org uses
+arbitrary function symbol (e.g. `some-func'), since org uses
 lexical binding.  To achieve the same functionality, call the
 function within a closure (e.g. (lambda () (some-func))).
 

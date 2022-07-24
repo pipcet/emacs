@@ -1,6 +1,6 @@
 ;;; vc-bzr-tests.el --- tests for vc/vc-bzr.el  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2011-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2011-2022 Free Software Foundation, Inc.
 
 ;; Author: Glenn Morris <rgm@gnu.org>
 ;; Maintainer: emacs-devel@gnu.org
@@ -140,7 +140,7 @@
       ;; causes bzr status to fail.  This simulates a broken bzr
       ;; installation.
       (delete-file ".bzr/checkout/dirstate")
-      (should (progn (make-directory-autoloads
+      (should (progn (loaddefs-generate
                       default-directory
                       (expand-file-name "loaddefs.el" bzrdir))
                      t)))))

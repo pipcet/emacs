@@ -1,6 +1,6 @@
 /* Interface definitions for display code.
 
-Copyright (C) 1985, 1993-1994, 1997-2021 Free Software Foundation, Inc.
+Copyright (C) 1985, 1993-1994, 1997-2022 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -1075,6 +1075,9 @@ struct glyph_row
      right-to-left paragraph.  */
   bool_bf reversed_p : 1;
 
+  /* Whether or not a stipple was drawn in this row at some point.  */
+  bool_bf stipple_p : 1;
+
   /* Continuation lines width at the start of the row.  */
   int continuation_lines_width;
 
@@ -1720,6 +1723,12 @@ struct face
   int box_vertical_line_width;
   int box_horizontal_line_width;
 
+
+  /* The amount of pixels above the descent line the underline should
+     be displayed.  It does not take effect unless
+     `underline_at_descent_line_p` is t.  */
+  int underline_pixels_above_descent_line;
+
   /* Type of box drawn.  A value of FACE_NO_BOX means no box is drawn
      around text in this face.  A value of FACE_SIMPLE_BOX means a box
      of width box_line_width is drawn in color box_color.  A value of
@@ -1752,6 +1761,9 @@ struct face
   bool_bf overline_color_defaulted_p : 1;
   bool_bf strike_through_color_defaulted_p : 1;
   bool_bf box_color_defaulted_p : 1;
+
+  /* True means the underline should be drawn at the descent line.  */
+  bool_bf underline_at_descent_line_p : 1;
 
   /* TTY appearances.  Colors are found in `lface' with empty color
      string meaning the default color of the TTY.  */
@@ -1844,7 +1856,6 @@ enum face_id
   CHILD_FRAME_BORDER_FACE_ID,
   TAB_BAR_FACE_ID,
   TAB_LINE_FACE_ID,
-  MODE_LINE_FACE_ID,
   BASIC_FACE_ID_SENTINEL
 };
 
@@ -2321,6 +2332,10 @@ struct it
      with which display_string was called.  */
   ptrdiff_t end_charpos;
 
+  /* Alternate begin position of the buffer that may be used to
+     optimize display (see the SET_WITH_NARROWED_BEGV macro).  */
+  ptrdiff_t narrowed_begv;
+
   /* C string to iterate over.  Non-null means get characters from
      this string, otherwise characters are read from current_buffer
      or it->string.  */
@@ -2731,11 +2746,11 @@ struct it
   /* The line number of point's line, or zero if not computed yet.  */
   ptrdiff_t pt_lnum;
 
-  /* Number of pixels to offset tab stops due to width fixup of the
-     first glyph that crosses first_visible_x.  This is only needed on
-     GUI frames, only when display-line-numbers is in effect, and only
-     in hscrolled windows.  */
-  int tab_offset;
+  /* Number of pixels to adjust tab stops and stretch glyphs due to
+     width fixup of the first stretch glyph that crosses first_visible_x.
+     This is only needed on GUI frames, only when display-line-numbers
+     is in effect, and only in hscrolled windows.  */
+  int stretch_adjust;
 
   /* Left fringe bitmap number (enum fringe_bitmap_type).  */
   unsigned left_user_fringe_bitmap : FRINGE_ID_BITS;
@@ -3074,12 +3089,15 @@ struct image
   XFORM xform;
 #endif
 #ifdef HAVE_HAIKU
-  /* Non-zero if the image has not yet been transformed for display.  */
-  int have_be_transforms_p;
+  /* The affine transformation to apply to this image.  */
+  double transform[3][3];
 
-  double be_rotate;
-  double be_scale_x;
-  double be_scale_y;
+  /* The original width and height of the image.  */
+  int original_width, original_height;
+
+  /* Whether or not bilinear filtering should be used to "smooth" the
+     image.  */
+  bool use_bilinear_filtering;
 #endif
 
   /* Colors allocated for this image, if any.  Allocated via xmalloc.  */
@@ -3382,6 +3400,7 @@ void mark_window_display_accurate (Lisp_Object, bool);
 void redisplay_preserve_echo_area (int);
 void init_iterator (struct it *, struct window *, ptrdiff_t,
                     ptrdiff_t, struct glyph_row *, enum face_id);
+ptrdiff_t get_narrowed_begv (struct window *w);
 void init_iterator_to_row_start (struct it *, struct window *,
                                  struct glyph_row *);
 void start_display (struct it *, struct window *, struct text_pos);
@@ -3396,6 +3415,8 @@ int partial_line_height (struct it *it_origin);
 bool in_display_vector_p (struct it *);
 int frame_mode_line_height (struct frame *);
 extern bool redisplaying_p;
+extern bool display_working_on_window_p;
+extern void unwind_display_working_on_window (void);
 extern bool help_echo_showing_p;
 extern Lisp_Object help_echo_string, help_echo_window;
 extern Lisp_Object help_echo_object, previous_help_echo_string;
@@ -3452,11 +3473,14 @@ extern Lisp_Object handle_tab_bar_click (struct frame *,
 					 int, int, bool, int);
 extern void handle_tool_bar_click (struct frame *,
                                    int, int, bool, int);
+extern void handle_tool_bar_click_with_device (struct frame *, int, int, bool,
+					       int, Lisp_Object);
 
 extern void expose_frame (struct frame *, int, int, int, int);
 extern bool gui_intersect_rectangles (const Emacs_Rectangle *,
                                       const Emacs_Rectangle *,
                                       Emacs_Rectangle *);
+extern void gui_consider_frame_title (Lisp_Object);
 #endif	/* HAVE_WINDOW_SYSTEM */
 
 extern void note_mouse_highlight (struct frame *, int, int);
@@ -3480,6 +3504,9 @@ bool update_window_fringes (struct window *, bool);
 
 void gui_init_fringe (struct redisplay_interface *);
 
+extern int max_used_fringe_bitmap;
+void gui_define_fringe_bitmap (struct frame *, int);
+
 #ifdef HAVE_NTGUI
 void w32_reset_fringes (void);
 #endif
@@ -3487,6 +3514,8 @@ void w32_reset_fringes (void);
 extern unsigned row_hash (struct glyph_row *);
 
 extern bool buffer_flipping_blocked_p (void);
+
+extern void update_redisplay_ticks (int, struct window *);
 
 /* Defined in image.c */
 
@@ -3516,6 +3545,7 @@ struct image_cache *make_image_cache (void);
 void free_image_cache (struct frame *);
 void clear_image_caches (Lisp_Object);
 void mark_image_cache (struct image_cache *);
+void image_prune_animation_caches (bool);
 bool valid_image_p (Lisp_Object);
 void prepare_image_for_display (struct frame *, struct image *);
 ptrdiff_t lookup_image (struct frame *, Lisp_Object, int);
@@ -3598,6 +3628,9 @@ void gamma_correct (struct frame *, XColor *);
 #endif
 #ifdef HAVE_NTGUI
 void gamma_correct (struct frame *, COLORREF *);
+#endif
+#ifdef HAVE_HAIKU
+void gamma_correct (struct frame *, Emacs_Color *);
 #endif
 
 #ifdef HAVE_WINDOW_SYSTEM

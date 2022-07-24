@@ -1,6 +1,6 @@
 ;;; js.el --- Major mode for editing JavaScript  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2008-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2008-2022 Free Software Foundation, Inc.
 
 ;; Author: Karl Landstrom <karl.landstrom@brgeight.se>
 ;;         Daniel Colascione <dancol@dancol.org>
@@ -660,13 +660,11 @@ This variable is like `sgml-attribute-offset'."
   :type 'integer
   :safe 'integerp)
 
-;;; KeyMap
+;;; Keymap
 
-(defvar js-mode-map
-  (let ((keymap (make-sparse-keymap)))
-    (define-key keymap [(meta ?.)] #'js-find-symbol)
-    keymap)
-  "Keymap for `js-mode'.")
+(defvar-keymap js-mode-map
+  :doc "Keymap for `js-mode'."
+  "M-." #'js-find-symbol)
 
 ;;; Syntax table and parsing
 

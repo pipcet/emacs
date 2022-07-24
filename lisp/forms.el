@@ -1,6 +1,6 @@
 ;;; forms.el --- Forms mode: edit a file as a form to fill in  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 1991-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1991-2022 Free Software Foundation, Inc.
 
 ;; Author: Johan Vromans <jvromans@squirrel.nl>
 
@@ -2009,7 +2009,7 @@ It returns the highest number.
 
 Usage: (setq forms-number-of-fields
              (forms-enumerate
-              '(field1 field2 field2 ...)))"
+              \\='(field1 field2 field2 ...)))"
 
   (let ((the-index 0))
     (while the-fields

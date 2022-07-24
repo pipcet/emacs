@@ -1,6 +1,6 @@
 ;;; gnus-salt.el --- alternate summary mode interfaces for Gnus  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 1996-1999, 2001-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1996-1999, 2001-2022 Free Software Foundation, Inc.
 
 ;; Author: Lars Magne Ingebrigtsen <larsi@gnus.org>
 ;; Keywords: news
@@ -133,9 +133,7 @@ It accepts the same format specs that `gnus-summary-line-format' does."
 (defun gnus-pick-start-reading (&optional catch-up)
   "Start reading the picked articles.
 If given a prefix, mark all unpicked articles as read."
-  (interactive "P")
-  (declare (completion (lambda (s b)
-			 (completion-minor-mode-active-p s b 'gnus-pick-mode))))
+  (interactive "P" gnus-pick-mode)
   (if gnus-newsgroup-processable
       (progn
 	(gnus-summary-limit-to-articles nil)

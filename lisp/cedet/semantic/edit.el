@@ -1,6 +1,6 @@
 ;;; semantic/edit.el --- Edit Management for Semantic  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 1999-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1999-2022 Free Software Foundation, Inc.
 
 ;; Author: Eric M. Ludlam <zappo@gnu.org>
 
@@ -610,7 +610,7 @@ This function is for internal use by `semantic-edits-incremental-parser'."
 		(setq last-cond "Beginning of buffer")
                 (setq parse-start
                       ;; Don't worry about parents since
-                      ;; there there would be an exact
+                      ;; there would be an exact
                       ;; match in the tag list otherwise
                       ;; and the routine would fail.
                       (point-min)

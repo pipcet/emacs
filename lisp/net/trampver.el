@@ -1,7 +1,7 @@
 ;;; trampver.el --- Transparent Remote Access, Multiple Protocol  -*- lexical-binding:t -*-
 ;;; lisp/trampver.el.  Generated from trampver.el.in by configure.
 
-;; Copyright (C) 2003-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2003-2022 Free Software Foundation, Inc.
 
 ;; Author: Kai Großjohann <kai.grossjohann@gmx.net>
 ;; Maintainer: Michael Albinus <michael.albinus@gmx.de>
@@ -52,12 +52,13 @@
     ;; Suppress message from `emacs-repository-get-branch'.  We must
     ;; also handle out-of-tree builds.
     (let ((inhibit-message t)
-	  (debug-on-error nil)
 	  (dir (or (locate-dominating-file (locate-library "tramp") ".git")
-		   source-directory)))
+		   source-directory))
+	  debug-on-error)
       ;; `emacs-repository-get-branch' has been introduced with Emacs 27.1.
       (with-no-warnings
 	(and (stringp dir) (file-directory-p dir)
+	     (executable-find "git")
 	     (emacs-repository-get-branch dir)))))
   "The repository branch of the Tramp sources.")
 
@@ -66,10 +67,11 @@
     ;; Suppress message from `emacs-repository-get-version'.  We must
     ;; also handle out-of-tree builds.
     (let ((inhibit-message t)
-	  (debug-on-error nil)
 	  (dir (or (locate-dominating-file (locate-library "tramp") ".git")
-		   source-directory)))
+		   source-directory))
+	  debug-on-error)
       (and (stringp dir) (file-directory-p dir)
+	   (executable-find "git")
 	   (emacs-repository-get-version dir))))
   "The repository revision of the Tramp sources.")
 
@@ -102,7 +104,7 @@
          ("2.3.3" . "26.1") ("2.3.3.26.1" . "26.1") ("2.3.5.26.2" . "26.2")
          ("2.3.5.26.3" . "26.3")
          ("2.4.3.27.1" . "27.1") ("2.4.5.27.2" . "27.2")
-         ("2.5.2.28.1" . "28.1")))
+         ("2.5.2.28.1" . "28.1") ("2.5.3.28.2" . "28.2")))
 
 (add-hook 'tramp-unload-hook
 	  (lambda ()

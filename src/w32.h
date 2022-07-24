@@ -2,7 +2,7 @@
 #define EMACS_W32_H
 
 /* Support routines for the NT version of Emacs.
-   Copyright (C) 1994, 2001-2021 Free Software Foundation, Inc.
+   Copyright (C) 1994, 2001-2022 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -243,6 +243,9 @@ extern unsigned w32_get_nproc (void);
 extern int w32_init_random (void *, ptrdiff_t);
 
 extern Lisp_Object w32_read_registry (HKEY, Lisp_Object, Lisp_Object);
+
+/* Used instead of execvp to restart Emacs.  */
+extern int w32_reexec_emacs (char *, const char *);
 
 #ifdef HAVE_GNUTLS
 #include <gnutls/gnutls.h>

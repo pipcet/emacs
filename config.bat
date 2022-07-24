@@ -1,7 +1,7 @@
 @echo off
 rem   ----------------------------------------------------------------------
 rem   Configuration script for MSDOS
-rem   Copyright (C) 1994-1999, 2001-2021 Free Software Foundation, Inc.
+rem   Copyright (C) 1994-1999, 2001-2022 Free Software Foundation, Inc.
 
 rem   This file is part of GNU Emacs.
 
@@ -310,6 +310,9 @@ rm -f makefile.tmp
 sed -f ../msdos/sedlibcf.inp < gnulib.mk-in > gnulib.tmp
 sed -f ../msdos/sedlibmk.inp < gnulib.tmp > gnulib.mk
 rm -f gnulib.tmp
+Rem Create directories in lib/ that MKDIR_P is supposed to create
+Rem but I have no idea how to do that on MS-DOS.
+mkdir sys
 Rem Create .d files for new files in lib/ and lib/malloc/
 If Not Exist deps\stamp mkdir deps
 for %%f in (*.c) do @call ..\msdos\depfiles.bat %%f

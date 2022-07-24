@@ -1,6 +1,6 @@
 ;;; vc-cvs.el --- non-resident support for CVS version-control  -*- lexical-binding: t -*-
 
-;; Copyright (C) 1995, 1998-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1995, 1998-2022 Free Software Foundation, Inc.
 
 ;; Author: FSF (see vc.el for full credits)
 ;; Package: vc
@@ -26,6 +26,7 @@
 
 (require 'vc-rcs)
 (eval-when-compile (require 'vc))
+(require 'log-view)
 
 (declare-function vc-checkout "vc" (file &optional rev))
 (declare-function vc-expand-dirs "vc" (file-or-dir-list backend))
@@ -308,7 +309,7 @@ to the CVS command."
          (vc-switches 'CVS 'register)))
 
 (defun vc-cvs-responsible-p (file)
-  "Return non-nil if CVS thinks it is responsible for FILE."
+  "Return the directory if CVS thinks it is responsible for FILE."
   (let ((dir (if (file-directory-p file)
 	         file
 	       (file-name-directory file))))
@@ -1256,6 +1257,14 @@ ignore file."
         (insert str (if old-dir "/\n" "\n"))
         (if sort (sort-lines nil (point-min) (point-max)))
         (save-buffer)))))
+
+(defvar-keymap vc-cvs-log-view-mode-map
+  "N" #'log-view-file-next
+  "P" #'log-view-file-prev
+  "M-n" #'log-view-file-next
+  "M-p" #'log-view-file-prev)
+
+(define-derived-mode vc-cvs-log-view-mode log-view-mode "CVS-Log-View")
 
 (provide 'vc-cvs)
 

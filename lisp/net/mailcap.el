@@ -1,6 +1,6 @@
 ;;; mailcap.el --- MIME media types configuration -*- lexical-binding: t -*-
 
-;; Copyright (C) 1998-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1998-2022 Free Software Foundation, Inc.
 
 ;; Author: William M. Perry <wmperry@aventail.com>
 ;;	Lars Magne Ingebrigtsen <larsi@gnus.org>
@@ -87,11 +87,9 @@ you have an entry for \"image/*\" in your ~/.mailcap file."
 
 (defcustom mailcap-user-mime-data nil
   "A list of viewers preferred for different MIME types.
-The elements of the list are alists of the following structure
+The elements of the list are lists of the following structure
 
-  ((viewer . VIEWER)
-   (type   . MIME-TYPE)
-   (test   . TEST))
+  (VIEWER MIME-TYPE TEST)
 
 where VIEWER is either a Lisp command, e.g., a major mode, or a
 string containing a shell command for viewing files of the
@@ -319,8 +317,9 @@ attribute name (viewer, test, etc).  This looks like:
 
 Where VIEWERINFO specifies how the content-type is viewed.  Can be
 a string, in which case it is run through a shell, with appropriate
-parameters, or a symbol, in which case the symbol is `funcall'ed if
-and only if it exists as a function, with the buffer as an argument.
+parameters, or a symbol, in which case the symbol must name a function
+of zero arguments which is called in a buffer holding the MIME part's
+content.
 
 TESTINFO is a test for the viewer's applicability, or nil.  If nil, it
 means the viewer is always valid.  If it is a Lisp function, it is
@@ -439,9 +438,10 @@ MAILCAPS if set; otherwise (on Unix) use the path from RFC 1524, plus
 	      ("/usr/local/etc/mailcap" system)))))
     (when (stringp path)
       (setq path (mapcar #'list (split-string path path-separator t))))
-    (when (seq-some (lambda (f)
-                      (file-has-changed-p (car f) 'mail-parse-mailcaps))
-                    path)
+    (when (or (null mailcap--computed-mime-data)
+              (seq-some (lambda (f)
+                          (file-has-changed-p (car f) 'mail-parse-mailcaps))
+                        path))
       ;; Clear out all old data.
       (setq mailcap--computed-mime-data nil)
       ;; Add the Emacs-distributed defaults (which will be used as
@@ -972,6 +972,7 @@ If NO-DECODE is non-nil, don't decode STRING."
     (".ai"    . "application/postscript")
     (".jpe"   . "image/jpeg")
     (".jpeg"  . "image/jpeg")
+    (".webp"  . "image/webp")
     (".org"   . "text/x-org"))
   "An alist of file extensions and corresponding MIME content-types.
 This exists for you to customize the information in Lisp.  It is
@@ -1096,11 +1097,12 @@ For instance, `image/png' will result in `png'."
   (mailcap-parse-mimetypes)
   (let* ((all-mime-type
 	  ;; All unique MIME types from file extensions
-	  (delete-dups
-	   (mapcar (lambda (file)
-		     (mailcap-extension-to-mime
-		      (file-name-extension file t)))
-		   files)))
+          (delq nil
+	        (delete-dups
+	         (mapcar (lambda (file)
+		           (mailcap-extension-to-mime
+		            (file-name-extension file t)))
+		         files))))
 	 (all-mime-info
 	  ;; All MIME info lists
 	  (delete-dups
@@ -1174,34 +1176,45 @@ See \"~/.mailcap\", `mailcap-mime-data' and related files and variables."
   (mailcap-parse-mailcaps)
   (let ((command (mailcap-mime-info
                   (mailcap-extension-to-mime (file-name-extension file)))))
-    (unless command
-      (error "No viewer for %s" (file-name-extension file)))
-    ;; Remove quotes around the file name - we'll use shell-quote-argument.
-    (while (string-match "['\"]%s['\"]" command)
-      (setq command (replace-match "%s" t t command)))
-    (setq command (replace-regexp-in-string
-		   "%s"
-		   (shell-quote-argument (convert-standard-filename file))
-		   command
-		   nil t))
-    ;; Handlers such as "gio open" and kde-open5 start viewer in background
-    ;; and exit immediately.  Avoid `start-process' since it assumes
-    ;; :connection-type `pty' and kills children processes with SIGHUP
-    ;; when temporary terminal session is finished (Bug#44824).
-    ;; An alternative is `process-connection-type' let-bound to nil for
-    ;; `start-process-shell-command' call (with no chance to report failure).
-    (make-process
-     :name "mailcap-view-file"
-     :connection-type 'pipe
-     :buffer nil ; "*Messages*" may be suitable for debugging
-     :sentinel (lambda (proc event)
-                 (when (and (memq (process-status proc) '(exit signal))
-                            (/= (process-exit-status proc) 0))
-                   (message
-                    "Command %s: %s."
-                    (mapconcat #'identity (process-command proc) " ")
-                    (substring event 0 -1))))
-     :command (list shell-file-name shell-command-switch command))))
+    (if (functionp command)
+        ;; command is a viewer function (a mode) expecting the file
+        ;; contents to be in the current buffer.
+        (let ((buf (generate-new-buffer (file-name-nondirectory file))))
+          (set-buffer buf)
+          (insert-file-contents file)
+          (setq buffer-file-name file)
+          (funcall command)
+          (set-buffer-modified-p nil)
+          (pop-to-buffer buf))
+      ;; command is a program to run with file as an argument.
+      (unless command
+        (error "No viewer for %s" (file-name-extension file)))
+      ;; Remove quotes around the file name - we'll use shell-quote-argument.
+      (while (string-match "['\"]%s['\"]" command)
+        (setq command (replace-match "%s" t t command)))
+      (setq command (replace-regexp-in-string
+		     "%s"
+		     (shell-quote-argument (convert-standard-filename file))
+		     command
+		     nil t))
+      ;; Handlers such as "gio open" and kde-open5 start viewer in background
+      ;; and exit immediately.  Avoid `start-process' since it assumes
+      ;; :connection-type `pty' and kills children processes with SIGHUP
+      ;; when temporary terminal session is finished (Bug#44824).
+      ;; An alternative is `process-connection-type' let-bound to nil for
+      ;; `start-process-shell-command' call (with no chance to report failure).
+      (make-process
+       :name "mailcap-view-file"
+       :connection-type 'pipe
+       :buffer nil ; "*Messages*" may be suitable for debugging
+       :sentinel (lambda (proc event)
+                   (when (and (memq (process-status proc) '(exit signal))
+                              (/= (process-exit-status proc) 0))
+                     (message
+                      "Command %s: %s."
+                      (mapconcat #'identity (process-command proc) " ")
+                      (substring event 0 -1))))
+       :command (list shell-file-name shell-command-switch command)))))
 
 (provide 'mailcap)
 

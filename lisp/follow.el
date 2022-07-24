@@ -1,6 +1,6 @@
 ;;; follow.el --- synchronize windows showing the same buffer  -*- lexical-binding: t -*-
 
-;; Copyright (C) 1995-1997, 1999, 2001-2021 Free Software Foundation,
+;; Copyright (C) 1995-1997, 1999, 2001-2022 Free Software Foundation,
 ;; Inc.
 
 ;; Author: Anders Lindgren
@@ -1552,7 +1552,7 @@ non-first windows in Follow mode."
 (declare-function scroll-bar-drag "scroll-bar" (event))
 (declare-function scroll-bar-scroll-up "scroll-bar" (event))
 (declare-function scroll-bar-scroll-down "scroll-bar" (event))
-(declare-function mwheel-scroll "mwheel" (event))
+(declare-function mwheel-scroll "mwheel" (event &optional arg))
 
 (defun follow-scroll-bar-toolkit-scroll (event)
   (interactive "e")

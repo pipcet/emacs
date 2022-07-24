@@ -1,6 +1,6 @@
 ;;; reftex-sel.el --- the selection modes for RefTeX  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 1997-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1997-2022 Free Software Foundation, Inc.
 
 ;; Author: Carsten Dominik <dominik@science.uva.nl>
 ;; Maintainer: auctex-devel@gnu.org
@@ -59,8 +59,6 @@
     (define-key map [follow-link] 'mouse-face)
     map))
 
-(define-obsolete-variable-alias
-  'reftex-select-label-map 'reftex-select-label-mode-map "24.1")
 (defvar reftex-select-label-mode-map
   (let ((map (make-sparse-keymap)))
     (set-keymap-parent map reftex-select-shared-map)
@@ -109,8 +107,6 @@ During a selection process, these are the local bindings.
   ;; We do not set a local map - reftex-select-item does this.
   )
 
-(define-obsolete-variable-alias
-  'reftex-select-bib-map 'reftex-select-bib-mode-map "24.1")
 (defvar reftex-select-bib-mode-map
   (let ((map (make-sparse-keymap)))
     (set-keymap-parent map reftex-select-shared-map)

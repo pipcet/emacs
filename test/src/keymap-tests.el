@@ -1,6 +1,6 @@
 ;;; keymap-tests.el --- Test suite for src/keymap.c -*- lexical-binding: t -*-
 
-;; Copyright (C) 2015-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2015-2022 Free Software Foundation, Inc.
 
 ;; Author: Juanma Barranquero <lekktu@gmail.com>
 ;;         Stefan Kangas <stefankangas@gmail.com>
@@ -125,7 +125,7 @@
 ;;   ...)
 
 (ert-deftest keymap-lookup-key/mixed-case ()
-  "Backwards compatibility behaviour (Bug#50752)."
+  "Backwards compatibility behavior (Bug#50752)."
   (let ((map (make-keymap)))
     (define-key map [menu-bar foo bar] 'foo)
     (should (eq (lookup-key map [menu-bar foo bar]) 'foo))
@@ -135,7 +135,7 @@
     (should (eq (lookup-key map [menu-bar I-bar]) 'foo))))
 
 (ert-deftest keymap-lookup-key/mixed-case-multibyte ()
-  "Backwards compatibility behaviour (Bug#50752)."
+  "Backwards compatibility behavior (Bug#50752)."
   (let ((map (make-keymap)))
     ;; (downcase "Åäö") => "åäö"
     (define-key map [menu-bar åäö bar] 'foo)
@@ -153,19 +153,19 @@
     (should (eq (lookup-key map [menu-bar buffer 1]) 'foo))))
 
 (ert-deftest keymap-lookup-keymap/with-spaces ()
-  "Backwards compatibility behaviour (Bug#50752)."
+  "Backwards compatibility behavior (Bug#50752)."
   (let ((map (make-keymap)))
     (define-key map [menu-bar foo-bar] 'foo)
     (should (eq (lookup-key map [menu-bar Foo\ Bar]) 'foo))))
 
 (ert-deftest keymap-lookup-keymap/with-spaces-multibyte ()
-  "Backwards compatibility behaviour (Bug#50752)."
+  "Backwards compatibility behavior (Bug#50752)."
   (let ((map (make-keymap)))
     (define-key map [menu-bar åäö-bar] 'foo)
     (should (eq (lookup-key map [menu-bar Åäö\ Bar]) 'foo))))
 
 (ert-deftest keymap-lookup-keymap/with-spaces-multibyte-lang-env ()
-  "Backwards compatibility behaviour (Bug#50752)."
+  "Backwards compatibility behavior (Bug#50752)."
   (let ((lang-env current-language-environment))
     (set-language-environment "Turkish")
     (let ((map (make-keymap)))
@@ -276,15 +276,11 @@ commit 86c19714b097aa477d339ed99ffb5136c755a046."
     (should (equal (where-is-internal 'foo map t) [?y]))
     (should (equal (where-is-internal 'bar map t) [?y]))))
 
-(defvar keymap-tests-minor-mode-map
-  (let ((map (make-sparse-keymap)))
-    (define-key map "x" 'keymap-tests--command-2)
-    map))
+(defvar-keymap keymap-tests-minor-mode-map
+  "x" 'keymap-tests--command-2)
 
-(defvar keymap-tests-major-mode-map
-  (let ((map (make-sparse-keymap)))
-    (define-key map "x" 'keymap-tests--command-1)
-    map))
+(defvar-keymap keymap-tests-major-mode-map
+  "x" 'keymap-tests--command-1)
 
 (define-minor-mode keymap-tests-minor-mode "Test.")
 
@@ -406,6 +402,33 @@ g .. h		foo
     (should (eq (lookup-key child [?a]) 'bar))
     (define-key child [?a] nil t)
     (should (eq (lookup-key child [?a]) 'foo))))
+
+(ert-deftest keymap-text-char-description ()
+  (should (equal (text-char-description ?a) "a"))
+  (should (equal (text-char-description ?\s) " "))
+  (should (equal (text-char-description ?\t) "^I"))
+  (should (equal (text-char-description ?\^C) "^C"))
+  (should (equal (text-char-description ?\^?) "^?"))
+  (should (equal (text-char-description #x80) ""))
+  (should (equal (text-char-description ?å) "å"))
+  (should (equal (text-char-description ?Ş) "Ş"))
+  (should (equal (text-char-description ?Ā) "Ā"))
+  (should-error (text-char-description "c"))
+  (should-error (text-char-description [?\C-x ?l]))
+  (should-error (text-char-description ?\M-c))
+  (should-error (text-char-description ?\s-c)))
+
+(ert-deftest test-non-key-events ()
+  ;; Dummy command.
+  (declare-function keymap-tests-command nil)
+  (should (null (where-is-internal 'keymap-tests-command)))
+  (keymap-set global-map "C-c g" #'keymap-tests-command)
+  (should (equal (where-is-internal 'keymap-tests-command) '([3 103])))
+  (keymap-set global-map "<keymap-tests-event>" #'keymap-tests-command)
+  (should (equal (where-is-internal 'keymap-tests-command)
+                 '([keymap-tests-event] [3 103])))
+  (make-non-key-event 'keymap-tests-event)
+  (should (equal (where-is-internal 'keymap-tests-command) '([3 103]))))
 
 (provide 'keymap-tests)
 

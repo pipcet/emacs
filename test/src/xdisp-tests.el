@@ -1,6 +1,6 @@
 ;;; xdisp-tests.el --- tests for xdisp.c functions -*- lexical-binding: t -*-
 
-;; Copyright (C) 2020-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2020-2022 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -169,5 +169,14 @@ int main () {
                                    (space-width 20)]))
     (should (equal (get-display-property 2 'height) 2.0))
     (should (equal (get-display-property 2 'space-width) 20))))
+
+(ert-deftest test-messages-buffer-name ()
+  (should
+   (equal
+    (let ((messages-buffer-name "test-message"))
+      (message "foo")
+      (with-current-buffer messages-buffer-name
+        (buffer-string)))
+    "foo\n")))
 
 ;;; xdisp-tests.el ends here

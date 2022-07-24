@@ -1,6 +1,6 @@
 ;;; electric-tests.el --- tests for electric.el  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2013-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2013-2022 Free Software Foundation, Inc.
 
 ;; Author: João Távora <joaotavora@gmail.com>
 ;; Keywords:
@@ -79,7 +79,7 @@
     (should (equal (point)
                    expected-point))))
 
-(eval-when-compile
+(eval-and-compile
   (defun electric-pair-define-test-form (name fixture
                                               char
                                               pos

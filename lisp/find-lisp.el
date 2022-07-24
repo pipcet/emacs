@@ -4,7 +4,7 @@
 ;; Created: Fri Mar 26 1999
 ;; Keywords: unix
 
-;; Copyright (C) 1999-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1999-2022 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -231,8 +231,8 @@ It is a function which takes two arguments, the directory and its parent."
 	(dired-simple-subdir-alist)
       ;; else we have an ancient tree dired (or classic dired, where
       ;; this does no harm)
-      (setq-local dired-subdir-alist
-                  (list (cons default-directory (point-min-marker)))))
+      (setq dired-subdir-alist
+            (list (cons default-directory (point-min-marker)))))
     (find-lisp-insert-directory
      dir file-predicate directory-predicate 'ignore)
     (goto-char (point-min))

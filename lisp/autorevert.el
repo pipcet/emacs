@@ -1,6 +1,6 @@
 ;;; autorevert.el --- revert buffers when files on disk change  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1997-1999, 2001-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1997-1999, 2001-2022 Free Software Foundation, Inc.
 
 ;; Author: Anders Lindgren
 ;; Keywords: convenience
@@ -692,7 +692,7 @@ system.")
 
 (defun auto-revert-notify-handler (event)
   "Handle an EVENT returned from file notification."
-  (with-demoted-errors
+  (with-demoted-errors "Error while auto-reverting: %S"
     (let* ((descriptor (car event))
 	   (action (nth 1 event))
 	   (file (nth 2 event))

@@ -1,6 +1,6 @@
 ;;; nnheader.el --- header access macros for Gnus and its backends  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 1987-1990, 1993-1998, 2000-2021 Free Software
+;; Copyright (C) 1987-1990, 1993-1998, 2000-2022 Free Software
 ;; Foundation, Inc.
 
 ;; Author: Masanobu UMEDA <umerin@flab.flab.fujitsu.junet>
@@ -27,6 +27,7 @@
 ;;; Code:
 
 (eval-when-compile (require 'cl-lib))
+(require 'range)
 
 (defvar gnus-decode-encoded-word-function)
 (defvar gnus-decode-encoded-address-function)
@@ -44,8 +45,6 @@
 (require 'mm-util)
 (require 'gnus-util)
 (autoload 'gnus-remove-odd-characters "gnus-sum")
-(autoload 'gnus-range-add "gnus-range")
-(autoload 'gnus-remove-from-range "gnus-range")
 ;; FIXME none of these are used explicitly in this file.
 (autoload 'gnus-sorted-intersection "gnus-range")
 (autoload 'gnus-intersection "gnus-range")
@@ -1044,10 +1043,9 @@ See `find-file-noselect' for the arguments."
 	       mark
 	       (cond
 		((eq what 'add)
-		 (gnus-range-add (cdr (assoc mark backend-marks)) range))
+		 (range-concat (cdr (assoc mark backend-marks)) range))
 		((eq what 'del)
-		 (gnus-remove-from-range
-		  (cdr (assoc mark backend-marks)) range))
+		 (range-remove (cdr (assoc mark backend-marks)) range))
 		((eq what 'set)
 		 range))
 	       backend-marks)))))

@@ -1,6 +1,6 @@
 ;;; cc-langs.el --- language specific settings for CC Mode -*- lexical-binding: t; coding: utf-8 -*-
 
-;; Copyright (C) 1985, 1987, 1992-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1985, 1987, 1992-2022 Free Software Foundation, Inc.
 
 ;; Authors:    2002- Alan Mackenzie
 ;;             1998- Martin Stjernholm
@@ -458,12 +458,14 @@ so that all identifiers are recognized as words.")
 	c-before-change-check-<>-operators
 	c-truncate-bs-cache
 	c-before-change-check-unbalanced-strings
-	c-parse-quotes-before-change)
+	c-parse-quotes-before-change
+	c-before-change-fix-comment-escapes)
   (c objc) '(c-extend-region-for-CPP
 	     c-depropertize-CPP
 	     c-truncate-bs-cache
 	     c-before-change-check-unbalanced-strings
-	     c-parse-quotes-before-change)
+	     c-parse-quotes-before-change
+	     c-before-change-fix-comment-escapes)
   java '(c-parse-quotes-before-change
 	 c-before-change-check-unbalanced-strings
 	 c-before-change-check-<>-operators)
@@ -500,6 +502,7 @@ parameters \(point-min) and \(point-max).")
       c-after-change-mark-abnormal-strings
       c-change-expand-fl-region)
   (c objc) '(c-depropertize-new-text
+	     c-after-change-fix-comment-escapes
 	     c-after-change-escape-NL-in-string
 	     c-parse-quotes-after-change
 	     c-after-change-mark-abnormal-strings
@@ -507,6 +510,7 @@ parameters \(point-min) and \(point-max).")
 	     c-neutralize-syntax-in-CPP
 	     c-change-expand-fl-region)
   c++ '(c-depropertize-new-text
+	c-after-change-fix-comment-escapes
 	c-after-change-escape-NL-in-string
 	c-after-change-unmark-ml-strings
 	c-parse-quotes-after-change
@@ -3180,8 +3184,8 @@ Note that Java specific rules are currently applied to tell this from
       (append
        (c-lang-const c-flat-decl-block-kwds)
        (if (c-lang-const c-recognize-<>-arglists)
-	   '("{" "}" ";" "," ")" ":" "<")
-	 '("{" "}" ";" "," ")" ":")))))
+	   '("{" "}" ";" "*" "," ")" ":" "<")
+	 '("{" "}" ";" "*" "," ")" ":")))))
 (c-lang-defvar c-brace-stack-thing-key (c-lang-const c-brace-stack-thing-key))
 
 (c-lang-defconst c-brace-stack-no-semi-key

@@ -1,6 +1,6 @@
 ;;; quail.el --- provides simple input method for multilingual text  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 1997-1998, 2000-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1997-1998, 2000-2022 Free Software Foundation, Inc.
 ;; Copyright (C) 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004,
 ;;   2005, 2006, 2007, 2008, 2009, 2010, 2011
 ;;   National Institute of Advanced Industrial Science and Technology (AIST)
@@ -412,8 +412,8 @@ If it is nil, the current key is shown.
 
 DOCSTRING is the documentation string of this package.  The command
 `describe-input-method' shows this string while replacing the form
-\\=\\<VAR> in the string by the value of VAR.  That value should be a
-string.  For instance, the form \\=\\<quail-translation-docstring> is
+\\=\\=\\=\\<VAR> in the string by the value of VAR.  That value should be a
+string.  For instance, the form \\=\\=\\=\\<quail-translation-docstring> is
 replaced by a description about how to select a translation from a
 list of candidates.
 

@@ -1,6 +1,6 @@
 ;;; vc-annotate.el --- VC Annotate Support  -*- lexical-binding: t -*-
 
-;; Copyright (C) 1997-1998, 2000-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1997-1998, 2000-2022 Free Software Foundation, Inc.
 
 ;; Author: Martin Lorentzson <emwson@emw.ericsson.se>
 ;; Maintainer: emacs-devel@gnu.org
@@ -57,7 +57,7 @@ is applied to the background."
   :set (lambda (symbol value)
 	 (set-default symbol value)
 	 (when (boundp 'vc-annotate-color-map)
-	   (with-demoted-errors
+	   (with-demoted-errors "VC color map error: %S"
 	     ;; Update the value of the dependent variable.
 	     (custom-reevaluate-setting 'vc-annotate-color-map))))
   :version "25.1"
@@ -451,7 +451,8 @@ should be applied to the background or to the foreground."
           (setq-local vc-annotate-backend backend)
           (setq-local vc-annotate-parent-file file)
           (setq-local vc-annotate-parent-rev rev)
-          (setq-local vc-annotate-parent-display-mode display-mode))))
+          (setq-local vc-annotate-parent-display-mode display-mode)
+          (kill-local-variable 'revert-buffer-function))))
 
     (with-current-buffer temp-buffer-name
       (vc-run-delayed

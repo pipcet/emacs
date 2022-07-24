@@ -1,6 +1,6 @@
 ;;; semantic/db.el --- Semantic tag database manager  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2000-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2000-2022 Free Software Foundation, Inc.
 
 ;; Author: Eric M. Ludlam <zappo@gnu.org>
 ;; Keywords: tags
@@ -729,7 +729,7 @@ Exit the save between databases if there is user input."
 (defvar semanticdb-project-predicate-functions nil
   "List of predicates to try that indicate a directory belongs to a project.
 This list is used when `semanticdb-persistent-path' contains the value
-'project.  If the predicate list is nil, then presume all paths are valid.
+`project'.  If the predicate list is nil, then presume all paths are valid.
 
 Project Management software (such as EDE and JDE) should add their own
 predicates with `add-hook' to this variable, and semanticdb will save tag

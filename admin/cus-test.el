@@ -1,6 +1,6 @@
 ;;; cus-test.el --- tests for custom types and load problems  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 1998, 2000, 2002-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1998, 2000, 2002-2022 Free Software Foundation, Inc.
 
 ;; Author: Markus Rost <rost@math.uni-bielefeld.de>
 ;; Created: 13 Sep 1998
@@ -156,7 +156,7 @@ Names should be as they appear in loaddefs.el.")
   "Set by `cus-test-apropos' to a list of options with :get property.")
 
 (defvar cus-test-vars-with-changed-state nil
-  "Set by `cus-test-apropos' to a list of options with state 'changed.")
+  "Set by `cus-test-apropos' to a list of options with state \\='changed.")
 
 (defvar cus-test-deps-errors nil
   "List of require/load problems found by `cus-test-deps'.")

@@ -1,6 +1,6 @@
 ;;; ibuffer-tests.el --- Test suite. -*- lexical-binding: t -*-
 
-;; Copyright (C) 2015-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2015-2022 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -785,7 +785,7 @@
                                               (funcall tag
                                                        (funcall description
                                                                 'starred-name)
-                                                       ": " "nil"))
+                                                       "" ""))
                                      (funcall tag
                                               (funcall description 'directory)
                                               ": " "\\<org\\>")))))
@@ -806,7 +806,7 @@
                             (funcall tag "AND"
                                      (funcall tag
                                               (funcall description 'starred-name)
-                                              ": " "nil")
+                                              "" "")
                                      (funcall tag
                                               (funcall description 'name)
                                               ": " "elisp"))

@@ -1,6 +1,6 @@
 ;;; rx.el --- S-exp notation for regexps           --*- lexical-binding: t -*-
 
-;; Copyright (C) 2001-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2001-2022 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -1109,6 +1109,15 @@ can expand to any number of values."
 (defconst rx--builtin-names
   (append rx--builtin-forms rx--builtin-symbols)
   "List of built-in rx names.  These cannot be redefined by the user.")
+
+;; Declare Lisp indentation rules for constructs that take 1 or 2
+;; parameters before a body of RX forms.
+;; (`>=' and `=' are omitted because they are more likely to be used
+;; as Lisp functions than RX constructs; `repeat' is a `defcustom' type.)
+(put 'group-n 'lisp-indent-function 1)
+(put 'submatch-n 'lisp-indent-function 1)
+(put '** 'lisp-indent-function 2)
+
 
 (defun rx--translate (item)
   "Translate the rx-expression ITEM.  Return (REGEXP . PRECEDENCE)."

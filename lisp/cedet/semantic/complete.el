@@ -1,6 +1,6 @@
 ;;; semantic/complete.el --- Routines for performing tag completion  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2003-2005, 2007-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2003-2005, 2007-2022 Free Software Foundation, Inc.
 
 ;; Author: Eric M. Ludlam <zappo@gnu.org>
 ;; Keywords: syntax
@@ -1638,8 +1638,10 @@ This will not happen if you directly set this variable via `setq'."
   :set (lambda (sym var)
          (set-default sym var)
          (when (boundp 'x-max-tooltip-size)
-           (setcdr x-max-tooltip-size (max (1+ var) (cdr x-max-tooltip-size))))))
-
+           (if (not (consp x-max-tooltip-size))
+               (setq x-max-tooltip-size '(80 . 40)))
+           (setcdr x-max-tooltip-size
+                   (max (1+ var) (cdr x-max-tooltip-size))))))
 
 (defclass semantic-displayer-tooltip (semantic-displayer-traditional)
   ((mode :initarg :mode
@@ -1761,7 +1763,8 @@ Return a cons cell (X . Y)."
 
 
 (defvar tooltip-frame-parameters)
-(declare-function tooltip-show "tooltip" (text &optional use-echo-area))
+(declare-function tooltip-show "tooltip" (text &optional use-echo-area
+                                               text-face default-face))
 
 (defun semantic-displayer-tooltip-show (text)
   "Display a tooltip with TEXT near cursor."

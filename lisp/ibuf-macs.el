@@ -1,6 +1,6 @@
 ;;; ibuf-macs.el --- macros for ibuffer  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2000-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2000-2022 Free Software Foundation, Inc.
 
 ;; Author: Colin Walters <walters@verbum.org>
 ;; Maintainer: John Paul Wallington <jpw@gnu.org>
@@ -321,10 +321,15 @@ bound to the current value of the filter.
          (when (cdr qualifier) ; Compose individual filters with `or'.
            (setq ,filter `(or ,@(mapcar (lambda (m) (cons ',name m)) qualifier))))))
        (if (null (ibuffer-push-filter ,filter))
-           (message ,(format "Filter by %s already applied:  %%s" description)
-                ,qualifier-str)
-         (message ,(format "Filter by %s added:  %%s" description)
-              ,qualifier-str)
+           (if ,qualifier-str
+               (message ,(format "Filter by %s already applied:  %%s"
+                                 description)
+                        ,qualifier-str)
+             (message ,(format "Filter by %s already applied" description)))
+         (if ,qualifier-str
+             (message ,(format "Filter by %s added:  %%s" description)
+                      ,qualifier-str)
+           (message ,(format "Filter by %s added" description)))
          (ibuffer-update nil t))))
        (push (list ',name ,description
            (lambda (buf qualifier)

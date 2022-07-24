@@ -1110,7 +1110,7 @@ mentre fai riferimento al testo di aiuto e poi usare un C-x 1.
 
 Ecco altre utili opzioni di C-h:
 
-	C-h x   Descrive un comando.  Inserisci il nome della comando.
+	C-h x   Descrive un comando.  Inserisci il nome del comando.
 
 >> Prova con C-h x previous-line <Invio>.
    Questo mostrerà tutte le informazioni che Emacs possiede sulla
@@ -1219,7 +1219,7 @@ distribuito con il permesso di farne copie a determinate condizioni:
    indicativo, restando comunque inteso il fatto che è quella
    originale a fare fede.
 
-Copyright (C) 2003-2021 Free Software Foundation, Inc.
+Copyright (C) 2003-2022 Free Software Foundation, Inc.
 
    È permesso a chiunque copiare e distribuire attraverso ogni mezzo
    copie fedeli di questo documento così come viene ricevuto, a

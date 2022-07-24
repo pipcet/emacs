@@ -1,11 +1,11 @@
 ;;; xwidget.el --- api functions for xwidgets  -*- lexical-binding: t -*-
-;;
-;; Copyright (C) 2011-2021 Free Software Foundation, Inc.
-;;
-;; Author: Joakim Verona (joakim@verona.se)
-;;
+
+;; Copyright (C) 2011-2022 Free Software Foundation, Inc.
+
+;; Author: Joakim Verona <joakim@verona.se>
+
 ;; This file is part of GNU Emacs.
-;;
+
 ;; GNU Emacs is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
 ;; the Free Software Foundation, either version 3 of the License, or
@@ -18,8 +18,6 @@
 
 ;; You should have received a copy of the GNU General Public License
 ;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
-;;
-;; --------------------------------------------------------------------
 
 ;;; Commentary:
 ;;
@@ -36,7 +34,7 @@
 (require 'format-spec)
 
 (declare-function make-xwidget "xwidget.c"
-                  (type title width height arguments &optional buffer related))
+                  (type title width height &optional arguments buffer related))
 (declare-function xwidget-buffer "xwidget.c" (xwidget))
 (declare-function set-xwidget-buffer "xwidget.c" (xwidget buffer))
 (declare-function xwidget-size-request "xwidget.c" (xwidget))
@@ -60,6 +58,7 @@
 (declare-function xwidget-webkit-set-cookie-storage-file "xwidget.c" (xwidget file))
 (declare-function xwidget-live-p "xwidget.c" (xwidget))
 (declare-function xwidget-webkit-stop-loading "xwidget.c" (xwidget))
+(declare-function xwidget-info "xwidget.c" (xwidget))
 
 (defgroup xwidget nil
   "Displaying native widgets in Emacs buffers."
@@ -133,12 +132,14 @@ Interactively, URL defaults to the string looking like a url around point."
         (xwidget-webkit-new-session url)
       (xwidget-webkit-goto-url url))))
 
+(function-put 'xwidget-webkit-browse-url 'browse-url-browser-kind 'internal)
+
 (defun xwidget-webkit-clone-and-split-below ()
   "Clone current URL into a new widget place in new window below.
 Get the URL of current session, then browse to the URL
 in `split-window-below' with a new xwidget webkit session."
   (interactive nil xwidget-webkit-mode)
-  (let ((url (xwidget-webkit-current-url)))
+  (let ((url (xwidget-webkit-uri (xwidget-webkit-current-session))))
     (with-selected-window (split-window-below)
       (xwidget-webkit-new-session url))))
 
@@ -147,7 +148,7 @@ in `split-window-below' with a new xwidget webkit session."
 Get the URL of current session, then browse to the URL
 in `split-window-right' with a new xwidget webkit session."
   (interactive nil xwidget-webkit-mode)
-  (let ((url (xwidget-webkit-current-url)))
+  (let ((url (xwidget-webkit-uri (xwidget-webkit-current-session))))
     (with-selected-window (split-window-right)
       (xwidget-webkit-new-session url))))
 
@@ -347,23 +348,36 @@ If N is omitted or nil, scroll down by one line."
 
 (defun xwidget-webkit-scroll-forward (&optional n)
   "Scroll webkit horizontally by N chars.
-The width of char is calculated with `window-font-width'.
-If N is omitted or nil, scroll forwards by one char."
+If the widget is larger than the window, hscroll by N columns
+instead.  The width of char is calculated with
+`window-font-width'.  If N is omitted or nil, scroll forwards by
+one char."
   (interactive "p" xwidget-webkit-mode)
-  (xwidget-webkit-execute-script
-   (xwidget-webkit-current-session)
-   (format "window.scrollBy(%d, 0);"
-           (* n (window-font-width)))))
+  (let ((session (xwidget-webkit-current-session)))
+    (if (> (- (aref (xwidget-info session) 2)
+              (window-text-width nil t))
+           (window-font-width))
+        (set-window-hscroll nil (+ (window-hscroll) n))
+      (xwidget-webkit-execute-script session
+                                     (format "window.scrollBy(%d, 0);"
+                                             (* n (window-font-width)))))))
 
 (defun xwidget-webkit-scroll-backward (&optional n)
   "Scroll webkit back by N chars.
-The width of char is calculated with `window-font-width'.
-If N is omitted or nil, scroll backwards by one char."
+If the widget is larger than the window, hscroll backwards by N
+columns instead.  The width of char is calculated with
+`window-font-width'.  If N is omitted or nil, scroll backwards by
+one char."
   (interactive "p" xwidget-webkit-mode)
-  (xwidget-webkit-execute-script
-   (xwidget-webkit-current-session)
-   (format "window.scrollBy(-%d, 0);"
-           (* n (window-font-width)))))
+  (let ((session (xwidget-webkit-current-session)))
+    (if (and (> (- (aref (xwidget-info session) 2)
+                   (window-text-width nil t))
+                (window-font-width))
+             (> (window-hscroll) 0))
+        (set-window-hscroll nil (- (window-hscroll) n))
+      (xwidget-webkit-execute-script session
+                                     (format "window.scrollBy(%-d, 0);"
+                                             (* n (window-font-width)))))))
 
 (defun xwidget-webkit-scroll-top ()
   "Scroll webkit to the very top."
@@ -437,7 +451,7 @@ XWIDGET instance, XWIDGET-EVENT-TYPE depends on the originating xwidget."
                          xwidget-webkit--progress-update-timer
                          (run-at-time 0.5 0.5 #'xwidget-webkit--update-progress-timer-function
                                       xwidget)))))
-             ;; This funciton will be called multi times, so only
+             ;; This function will be called multi times, so only
              ;; change buffer name when the load actually completes
              ;; this can limit buffer-name flicker in mode-line.
              (when (or (string-equal (nth 3 last-input-event)
@@ -531,24 +545,31 @@ directory, URL is saved at the specified directory as FILE-NAME."
 ;;; Bookmarks integration
 
 (defcustom xwidget-webkit-bookmark-jump-new-session nil
-  "Control bookmark jump to use new session or not.
-If non-nil, use a new xwidget webkit session after bookmark jump.
-Otherwise, it will use `xwidget-webkit-last-session'.
-When you set this variable to nil, consider further customization with
-`xwidget-webkit-last-session-buffer'."
+  "Whether to jump to a bookmarked URL in a new xwidget webkit session.
+If non-nil, create a new xwidget webkit session, otherwise use
+the value of `xwidget-webkit-last-session'."
   :version "28.1"
   :type 'boolean)
 
 (defun xwidget-webkit-bookmark-make-record ()
-  "Create bookmark record in webkit xwidget.
-See `xwidget-webkit-bookmark-jump-new-session' for whether this
-should create a new session or not."
+  "Create a bookmark record for a webkit xwidget."
   (nconc (bookmark-make-record-default t t)
          `((page . ,(xwidget-webkit-uri (xwidget-webkit-current-session)))
-           (handler  . (lambda (bmk)
-                         (xwidget-webkit-browse-url
-                          (bookmark-prop-get bmk 'page)
-                          xwidget-webkit-bookmark-jump-new-session))))))
+           (handler . xwidget-webkit-bookmark-jump-handler))))
+
+;;;###autoload
+(defun xwidget-webkit-bookmark-jump-handler (bookmark)
+  "Jump to the web page bookmarked by the bookmark record BOOKMARK.
+If `xwidget-webkit-bookmark-jump-new-session' is non-nil, create
+a new xwidget-webkit session, otherwise use an existing session."
+  (let* ((url (bookmark-prop-get bookmark 'page))
+	 (xwbuf (if (or xwidget-webkit-bookmark-jump-new-session
+                        (not (xwidget-webkit-current-session)))
+	            (xwidget-webkit--create-new-session-buffer url)
+                  (xwidget-buffer (xwidget-webkit-current-session)))))
+    (with-current-buffer xwbuf
+      (xwidget-webkit-goto-uri (xwidget-webkit-current-session) url))
+    (set-buffer xwbuf)))
 
 ;;; xwidget webkit session
 
@@ -796,37 +817,44 @@ For example, use this to display an anchor."
   (add-to-list 'window-size-change-functions
                'xwidget-webkit-adjust-size-in-frame))
 
-(defun xwidget-webkit-new-session (url &optional callback)
-  "Create a new webkit session buffer with URL."
+(defun xwidget-webkit--create-new-session-buffer (url &optional callback)
+  "Create a new webkit session buffer to display URL in an xwidget.
+Optional function CALLBACK specifies the callback for webkit xwidgets;
+see `xwidget-webkit-callback'."
   (let* ((bufname
-          ;; Generate a temp-name based on current buffer name. it
-          ;; will be renamed by `xwidget-webkit-callback' in the
-          ;; future. This approach can limit flicker of buffer-name in
-          ;; mode-line.
+          ;; Generate a temp-name based on current buffer name.  The
+          ;; buffer will subsequently be renamed by
+          ;; `xwidget-webkit-callback'.  This approach can avoid
+          ;; flicker of buffer-name in mode-line.
           (generate-new-buffer-name (buffer-name)))
          (callback (or callback #'xwidget-webkit-callback))
          (current-session (xwidget-webkit-current-session))
          xw)
-    (setq xwidget-webkit-last-session-buffer (switch-to-buffer
-                                              (get-buffer-create bufname)))
+    (setq xwidget-webkit-last-session-buffer (get-buffer-create bufname))
     ;; The xwidget id is stored in a text property, so we need to have
     ;; at least character in this buffer.
     ;; Insert invisible url, good default for next `g' to browse url.
-    (let ((start (point)))
-      (insert url)
-      (put-text-property start (+ start (length url)) 'invisible t)
-      (setq xw (xwidget-insert
-                start 'webkit bufname
-                (xwidget-window-inside-pixel-width (selected-window))
-                (xwidget-window-inside-pixel-height (selected-window))
-                nil current-session)))
-    (when xwidget-webkit-cookie-file
-      (xwidget-webkit-set-cookie-storage-file
-       xw (expand-file-name xwidget-webkit-cookie-file)))
-    (xwidget-put xw 'callback callback)
-    (xwidget-put xw 'display-callback #'xwidget-webkit-display-callback)
-    (xwidget-webkit-mode)
-    (xwidget-webkit-goto-uri (xwidget-webkit-last-session) url)))
+    (with-current-buffer xwidget-webkit-last-session-buffer
+      (let ((start (point)))
+        (insert url)
+        (put-text-property start (+ start (length url)) 'invisible t)
+        (setq xw (xwidget-insert
+                  start 'webkit bufname
+                  (xwidget-window-inside-pixel-width (selected-window))
+                  (xwidget-window-inside-pixel-height (selected-window))
+                  nil current-session)))
+      (when xwidget-webkit-cookie-file
+        (xwidget-webkit-set-cookie-storage-file
+         xw (expand-file-name xwidget-webkit-cookie-file)))
+      (xwidget-put xw 'callback callback)
+      (xwidget-put xw 'display-callback #'xwidget-webkit-display-callback)
+      (xwidget-webkit-mode))
+    xwidget-webkit-last-session-buffer))
+
+(defun xwidget-webkit-new-session (url)
+  "Display URL in a new webkit xwidget."
+  (switch-to-buffer (xwidget-webkit--create-new-session-buffer url))
+  (xwidget-webkit-goto-uri (xwidget-webkit-last-session) url))
 
 (defun xwidget-webkit-import-widget (xwidget)
   "Create a new webkit session buffer from XWIDGET, an existing xwidget.
@@ -935,7 +963,7 @@ You can retrieve the value with `xwidget-get'."
   (set-xwidget-plist xwidget
                      (plist-put (xwidget-plist xwidget) propname value)))
 
-(defvar xwidget-webkit-edit-mode-map (make-keymap))
+(defvar-keymap xwidget-webkit-edit-mode-map :full t)
 
 (define-key xwidget-webkit-edit-mode-map [backspace] 'xwidget-webkit-pass-command-event)
 (define-key xwidget-webkit-edit-mode-map [tab] 'xwidget-webkit-pass-command-event)
@@ -959,6 +987,7 @@ You can retrieve the value with `xwidget-get'."
 (define-key xwidget-webkit-edit-mode-map [M-up] 'xwidget-webkit-pass-command-event)
 (define-key xwidget-webkit-edit-mode-map [M-down] 'xwidget-webkit-pass-command-event)
 (define-key xwidget-webkit-edit-mode-map [M-return] 'xwidget-webkit-pass-command-event)
+(define-key xwidget-webkit-edit-mode-map [C-backspace] 'xwidget-webkit-pass-command-event)
 
 (define-minor-mode xwidget-webkit-edit-mode
   "Minor mode for editing the content of WebKit buffers.
@@ -1080,8 +1109,9 @@ With argument, add COUNT copies of CHAR."
   (interactive)
   (xwidget-webkit-isearch-mode 0))
 
-(defvar xwidget-webkit-isearch-mode-map (make-keymap)
-  "The keymap used inside xwidget-webkit-isearch-mode.")
+(defvar-keymap xwidget-webkit-isearch-mode-map
+  :doc "The keymap used inside `xwidget-webkit-isearch-mode'."
+  :full t)
 
 (set-char-table-range (nth 1 xwidget-webkit-isearch-mode-map)
                       (cons 0 (max-char))

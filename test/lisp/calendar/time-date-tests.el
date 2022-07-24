@@ -1,6 +1,6 @@
 ;;; time-date-tests.el --- tests for calendar/time-date.el    -*- lexical-binding:t -*-
 
-;; Copyright (C) 2019-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2019-2022 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -88,14 +88,19 @@
 (ert-deftest test-format-seconds ()
   (should (equal (format-seconds "%y %d %h %m %s %%" 0) "0 0 0 0 0 %"))
   (should (equal (format-seconds "%y %d %h %m %s %%" 9999999) "0 115 17 46 39 %"))
-  (should (equal (format-seconds "%y %d %h %m %z %s %%" 1) " 1 %"))
+  (should (equal (format-seconds "%y %d %h %m %z %s %%" 1) "1 %"))
   (should (equal (format-seconds "%mm %ss" 66) "1m 6s"))
   (should (equal (format-seconds "%mm %5ss" 66) "1m     6s"))
   (should (equal (format-seconds "%mm %.5ss" 66.4) "1m 00006s"))
 
   (should (equal (format-seconds "%mm %,1ss" 66.4) "1m 6.4s"))
   (should (equal (format-seconds "%mm %5,1ss" 66.4) "1m   6.4s"))
-  (should (equal (format-seconds "%mm %.5,1ss" 66.4) "1m 006.4s")))
+  (should (equal (format-seconds "%mm %.5,1ss" 66.4) "1m 006.4s"))
+
+  (should (equal (format-seconds "%hh %z%x%mm %ss" (* 60 2)) "2m"))
+  (should (equal (format-seconds "%hh %z%mm %ss" (* 60 2)) "2m 0s"))
+  (should (equal (format-seconds "%hh %x%mm %ss" (* 60 2)) "0h 2m"))
+  (should (equal (format-seconds "%hh %x%mm %ss" 0) "0h 0m 0s")))
 
 (ert-deftest test-ordinal ()
   (should (equal (date-ordinal-to-time 2008 271)

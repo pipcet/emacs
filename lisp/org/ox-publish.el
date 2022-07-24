@@ -1,5 +1,5 @@
 ;;; ox-publish.el --- Publish Related Org Mode Files as a Website -*- lexical-binding: t; -*-
-;; Copyright (C) 2006-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2006-2022 Free Software Foundation, Inc.
 
 ;; Author: David O'Toole <dto@gnu.org>
 ;; Maintainer: Nicolas Goaziou <n.goaziou at gmail dot com>
@@ -839,7 +839,7 @@ in `org-export-options-alist' or in export back-ends.  In the
 latter case, optional argument BACKEND has to be set to the
 back-end where the option is defined, e.g.,
 
-  (org-publish-find-property file :subtitle 'latex)
+  (org-publish-find-property file :subtitle \\='latex)
 
 Return value may be a string or a list, depending on the type of
 PROPERTY, i.e. \"behavior\" parameter from `org-export-options-alist'."

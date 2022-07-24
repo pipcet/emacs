@@ -1,6 +1,6 @@
 ;;; gnus-draft.el --- draft message support for Gnus  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 1997-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1997-2022 Free Software Foundation, Inc.
 
 ;; Author: Lars Magne Ingebrigtsen <larsi@gnus.org>
 ;; Keywords: news
@@ -200,7 +200,7 @@ Obeys the standard process/prefix convention."
     (gnus-activate-group "nndraft:queue")
     (save-excursion
       (let* ((articles (nndraft-articles))
-	     (unsendable (gnus-uncompress-range
+	     (unsendable (range-uncompress
 			  (cdr (assq 'unsend
 				     (gnus-info-marks
 				      (gnus-get-info "nndraft:queue"))))))

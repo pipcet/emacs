@@ -1,6 +1,6 @@
 ;;; multisession.el --- Multisession storage for variables  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2021 Free Software Foundation, Inc.
+;; Copyright (C) 2021-2022 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -218,10 +218,9 @@ DOC should be a doc string, and ARGS are keywords as applicable to
            (let ((print-length nil)
                  (print-circle t)
                  (print-level nil))
-             (prin1-to-string value))))
-      (condition-case nil
-          (ignore (read-from-string pvalue))
-        (error (error "Unable to store unreadable value: %s" pvalue)))
+             (readablep value))))
+      (when (and value (not pvalue))
+        (error "Unable to store unreadable value: %s" value))
       (sqlite-execute
        multisession--db
        "insert into multisession(package, key, sequence, value) values(?, ?, 1, ?) on conflict(package, key) do update set sequence = sequence + 1, value = ?"
@@ -260,16 +259,19 @@ DOC should be a doc string, and ARGS are keywords as applicable to
                    (with-temp-buffer
                      (let* ((time (file-attribute-modification-time
                                    (file-attributes file)))
-                            (coding-system-for-read 'utf-8))
+                            (coding-system-for-read 'utf-8-emacs-unix))
                        (insert-file-contents file)
                        (let ((stored (read (current-buffer))))
                          (setf (multisession--cached-value object) stored
                                (multisession--cached-sequence object) time)
                          stored))))
           ;; Windows uses OS-level file locking that may preclude
-          ;; reading the file in some circumstances.  So when that
-          ;; happens, wait a bit and try again.
-          (permission-denied
+          ;; reading the file in some circumstances.  In addition,
+          ;; rename-file is not an atomic operation on MS-Windows,
+          ;; when the target file already exists, so there could be a
+          ;; small race window when the file to read doesn't yet
+          ;; exist.  So when these problems happen, wait a bit and retry.
+          ((permission-denied file-missing)
            (setq i (1+ i)
                  last-error err)
            (sleep-for (+ 0.1 (/ (float (random 10)) 10))))))
@@ -326,7 +328,7 @@ DOC should be a doc string, and ARGS are keywords as applicable to
         (error (error "Unable to store unreadable value: %s" (buffer-string))))
       ;; Write to a temp file in the same directory and rename to the
       ;; file for somewhat better atomicity.
-      (let ((coding-system-for-write 'utf-8)
+      (let ((coding-system-for-write 'utf-8-emacs-unix)
             (create-lockfiles nil)
             (temp (make-temp-name file))
             (write-region-inhibit-fsync nil))
@@ -343,7 +345,7 @@ DOC should be a doc string, and ARGS are keywords as applicable to
                     (url-unhex-string
                      (file-name-sans-extension (car (last bits))))
                     (with-temp-buffer
-                      (let ((coding-system-for-read 'utf-8))
+                      (let ((coding-system-for-read 'utf-8-emacs-unix))
                         (insert-file-contents file)
                         (read (current-buffer)))))))
           (directory-files-recursively
@@ -431,10 +433,16 @@ storage method to list."
                multisession-edit-mode)
   (unless id
     (error "No value on the current line"))
-  (let* ((object (make-multisession
-                  :package (car id)
-                  :key (cdr id)
-                  :storage multisession-storage))
+  (let* ((object (or
+                  ;; If the multisession variable already exists, use
+                  ;; it (so that we update it).
+                  (and (intern-soft (cdr id))
+                       (bound-and-true-p (intern (cdr id))))
+                  ;; Create a new object.
+                  (make-multisession
+                   :package (car id)
+                   :key (cdr id)
+                   :storage multisession-storage)))
          (value (multisession-value object)))
     (setf (multisession-value object)
           (car (read-from-string

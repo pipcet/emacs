@@ -1,6 +1,6 @@
 ;;; sort.el --- commands to sort text in an Emacs buffer -*- lexical-binding: t -*-
 
-;; Copyright (C) 1986-1987, 1994-1995, 2001-2021 Free Software
+;; Copyright (C) 1986-1987, 1994-1995, 2001-2022 Free Software
 ;; Foundation, Inc.
 
 ;; Author: Howie Kaye
@@ -28,6 +28,8 @@
 ;; user's manual.
 
 ;;; Code:
+
+(eval-when-compile (require 'subr-x))
 
 (defgroup sort nil
   "Commands to sort text in an Emacs buffer."
@@ -111,7 +113,8 @@ as start and end positions), and with `string<' otherwise."
 			     (lambda (a b) (string< (car a) (car b)))))))
 	  (if reverse (setq sort-lists (nreverse sort-lists)))
 	  (if messages (message "Reordering buffer..."))
-	  (sort-reorder-buffer sort-lists old)))
+          (with-buffer-unmodified-if-unchanged
+	    (sort-reorder-buffer sort-lists old))))
       (if messages (message "Reordering buffer... Done"))))
   nil)
 
@@ -286,25 +289,30 @@ FIELD, BEG and END.  BEG and END specify region to sort."
   (interactive "p\nr")
   (let ;; To make `end-of-line' and etc. to ignore fields.
       ((inhibit-field-text-motion t))
-    (sort-fields-1 field beg end
-		   (lambda ()
-		     (sort-skip-fields field)
-		     (let* ((case-fold-search t)
-			    (base
-			     (if (looking-at "\\(0x\\)[0-9a-f]\\|\\(0\\)[0-7]")
-				 (cond ((match-beginning 1)
-					(goto-char (match-end 1))
-					16)
-				       ((match-beginning 2)
-					(goto-char (match-end 2))
-					8)
-				       (t nil)))))
-		       (string-to-number (buffer-substring (point)
-							   (save-excursion
-							     (forward-sexp 1)
-							     (point)))
-					 (or base sort-numeric-base))))
-		   nil)))
+    (sort-fields-1
+     field beg end
+     (lambda ()
+       ;; Don't try to parse blank lines (they'll be
+       ;; sorted at the start).
+       (if (looking-at "[\t ]*$")
+           0
+	 (sort-skip-fields field)
+	 (let* ((case-fold-search t)
+		(base
+		 (if (looking-at "\\(0x\\)[0-9a-f]\\|\\(0\\)[0-7]")
+		     (cond ((match-beginning 1)
+			    (goto-char (match-end 1))
+			    16)
+			   ((match-beginning 2)
+			    (goto-char (match-end 2))
+			    8)
+			   (t nil)))))
+	   (string-to-number (buffer-substring (point)
+					       (save-excursion
+						 (forward-sexp 1)
+						 (point)))
+			     (or base sort-numeric-base)))))
+     nil)))
 
 ;;;;;###autoload
 ;;(defun sort-float-fields (field beg end)

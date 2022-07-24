@@ -1,6 +1,6 @@
 /* System description file for Windows NT.
 
-Copyright (C) 1993-1995, 2001-2021 Free Software Foundation, Inc.
+Copyright (C) 1993-1995, 2001-2022 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -295,6 +295,7 @@ extern int sys_unlink (const char *);
 #undef umask
 #define umask   sys_umask
 extern int sys_umask (int);
+#define clock   sys_clock
 
 /* Subprocess calls that are emulated.  */
 #define spawnve sys_spawnve

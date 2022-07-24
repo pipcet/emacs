@@ -1,6 +1,6 @@
 ;;; help-tests.el --- Tests for help.el  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2019-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2019-2022 Free Software Foundation, Inc.
 
 ;; Author: Juanma Barranquero <lekktu@gmail.com>
 ;;         Eli Zaretskii <eliz@gnu.org>
@@ -95,16 +95,26 @@
    (test "\\`C-m'\\`C-j'" "C-mC-j")
    (test "foo\\`C-m'bar\\`C-j'baz" "fooC-mbarC-jbaz")))
 
-(ert-deftest help-tests-substitute-command-keys/literal-key-sequence-errors ()
-  (should-error (substitute-command-keys "\\`'"))
-  (should-error (substitute-command-keys "\\`c-c'"))
-  (should-error (substitute-command-keys "\\`<foo bar baz>'")))
+(ert-deftest help-tests-substitute-command-keys/literal-key-sequence-ignore-invalid ()
+  "Ignore any invalid literal key sequence."
+  (with-substitute-command-keys-test
+   (test-re "ab\\`'cd" "ab\\\\[`'‘]['’]cd")
+   (test-re "\\`c-c'" "\\\\[`'‘]c-c['’]")
+   (test-re "\\`<foo bar baz>'" "\\\\[`'‘]<foo bar baz>['’]")))
 
-(ert-deftest help-tests-substitute-key-bindings/face-help-key-binding ()
-  (should (eq (get-text-property 0 'face (substitute-command-keys "\\[next-line]"))
-              'help-key-binding))
-  (should (eq (get-text-property 0 'face (substitute-command-keys "\\`f'"))
-              'help-key-binding)))
+(ert-deftest help-tests-substitute-key-bindings/help-key-binding-face ()
+  (let ((A (substitute-command-keys "\\[next-line]"))
+        (B (substitute-command-keys "\\`f'")))
+    (should (eq (get-text-property 0 'face A) 'help-key-binding))
+    (should (eq (get-text-property 0 'face B) 'help-key-binding))))
+
+(ert-deftest help-tests-substitute-key-bindings/help-key-binding-no-face ()
+  (let ((A (substitute-command-keys "\\[next-line]" t))
+        (B (substitute-command-keys "\\`f'" t)))
+    (should (eq (get-text-property 0 'face A) nil))
+    (should (eq (get-text-property 0 'face B) nil))
+    (should (equal A "C-n"))
+    (should (equal B "f"))))
 
 (defvar-keymap help-tests--test-keymap
   :doc "Just some keymap for testing."
@@ -166,12 +176,11 @@ M-g M-c		switch-to-completions
    (test "\\<minibuffer-local-must-match-map>\\[abort-recursive-edit]" "C-]")
    (test "\\<emacs-lisp-mode-map>\\[eval-defun]" "C-M-x")))
 
-(defvar help-tests-remap-map
-  (let ((map (make-keymap)))
-    (define-key map (kbd "x") 'foo)
-    (define-key map (kbd "y") 'bar)
-    (define-key map [remap foo] 'bar)
-    map))
+(defvar-keymap help-tests-remap-map
+  :full t
+  "x" 'foo
+  "y" 'bar
+  "<remap> <foo>" 'bar)
 
 (ert-deftest help-tests-substitute-command-keys/remap ()
   (should (equal (substitute-command-keys "\\<help-tests-remap-map>\\[foo]") "y"))
@@ -235,30 +244,28 @@ M-g M-c		switch-to-completions
     (goto-char (point-min))
     (should (looking-at "Type RET on"))))
 
-(defvar help-tests-major-mode-map
-  (let ((map (make-keymap)))
-    (define-key map "x" 'foo-original)
-    (define-key map "1" 'foo-range)
-    (define-key map "2" 'foo-range)
-    (define-key map "3" 'foo-range)
-    (define-key map "4" 'foo-range)
-    (define-key map (kbd "C-e") 'foo-something)
-    (define-key map '[F1] 'foo-function-key1)
-    (define-key map "(" 'short-range)
-    (define-key map ")" 'short-range)
-    (define-key map "a" 'foo-other-range)
-    (define-key map "b" 'foo-other-range)
-    (define-key map "c" 'foo-other-range)
-    map))
+(defvar-keymap help-tests-major-mode-map
+  :full t
+  "x"    'foo-original
+  "1"    'foo-range
+  "2"    'foo-range
+  "3"    'foo-range
+  "4"    'foo-range
+  "C-e"  'foo-something
+  "<f1>" 'foo-function-key1
+  "("    'short-range
+  ")"    'short-range
+  "a"    'foo-other-range
+  "b"    'foo-other-range
+  "c"    'foo-other-range)
 
 (define-derived-mode help-tests-major-mode nil
   "Major mode for testing shadowing.")
 
-(defvar help-tests-minor-mode-map
-  (let ((map (make-keymap)))
-    (define-key map "x" 'foo-shadow)
-    (define-key map (kbd "C-e") 'foo-shadow)
-    map))
+(defvar-keymap help-tests-minor-mode-map
+  :full t
+  "x"   'foo-shadow
+  "C-e" 'foo-shadow)
 
 (define-minor-mode help-tests-minor-mode
   "Minor mode for testing shadowing.")
@@ -289,11 +296,11 @@ M-g M-c		switch-to-completions
            "
 Key             Binding
 -+
-( .. )		short-range
 1 .. 4		foo-range
 a .. c		foo-other-range
 
 C-e		foo-something
+( .. )		short-range
 x		foo-original
 <F1>		foo-function-key1
 "))))
@@ -307,12 +314,12 @@ x		foo-original
            "
 Key             Binding
 -+
-( .. )		short-range
 1 .. 4		foo-range
 a .. c		foo-other-range
 
 C-e		foo-something
   (this binding is currently shadowed)
+( .. )		short-range
 x		foo-original
   (this binding is currently shadowed)
 <F1>		foo-function-key1

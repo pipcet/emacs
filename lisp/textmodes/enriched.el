@@ -1,6 +1,6 @@
 ;;; enriched.el --- read and save files in text/enriched format  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 1994-1996, 2001-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1994-1996, 2001-2022 Free Software Foundation, Inc.
 
 ;; Author: Boris Goldowsky <boris@gnu.org>
 ;; Keywords: wp, faces
@@ -538,6 +538,30 @@ the range of text to assign text property SYMBOL with value VALUE."
     (if enriched-allow-eval-in-display-props
         (list start end 'display prop)
       (list start end 'display (list 'disable-eval prop)))))
+
+(defvar enriched--markup-shown)
+(defun enriched-toggle-markup ()
+  "Toggle whether to see markup in the current buffer."
+  (interactive)
+  (save-excursion
+    (save-restriction
+      (widen)
+      (with-silent-modifications
+        (if (bound-and-true-p enriched--markup-shown)
+            (progn
+              (setq-local enriched--markup-shown nil)
+              ;; Remove any faces, because they will be decoded, too.
+              (goto-char (point-min))
+              (let (match)
+                (while (setq match (text-property-search-forward 'face))
+                  (put-text-property (prop-match-beginning match)
+                                     (prop-match-end match)
+                                     'face nil)))
+              (enriched-decode (point-min) (point-max))
+              (enriched-mode 1))
+          (setq-local enriched--markup-shown t)
+          (enriched-encode (point-min) (point-max) (current-buffer))
+          (enriched-mode -1))))))
 
 (provide 'enriched)
 

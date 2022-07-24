@@ -1,6 +1,6 @@
 ;;; fortran.el --- Fortran mode for GNU Emacs -*- lexical-binding: t -*-
 
-;; Copyright (C) 1986, 1993-1995, 1997-2021 Free Software Foundation,
+;; Copyright (C) 1986, 1993-1995, 1997-2022 Free Software Foundation,
 ;; Inc.
 
 ;; Author: Michael D. Prange <prange@erl.mit.edu>
@@ -2213,7 +2213,6 @@ arg DO-SPACE prevents stripping the whitespace."
      :style toggle :help "Expand abbreviations while typing in this buffer"]
     ["Add Imenu Menu" imenu-add-menubar-index
      :active   (not (lookup-key (current-local-map) [menu-bar index]))
-     :included (fboundp 'imenu-add-to-menubar)
      :help "Add an index menu to the menu-bar"]))
 
 (provide 'fortran)

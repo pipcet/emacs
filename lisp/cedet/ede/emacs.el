@@ -1,6 +1,6 @@
 ;;; ede/emacs.el --- Special project for Emacs  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2008-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2008-2022 Free Software Foundation, Inc.
 
 ;; Author: Eric M. Ludlam <zappo@gnu.org>
 
@@ -59,7 +59,7 @@ Return a tuple of ( EMACSNAME . VERSION )."
 	    (file-exists-p (setq configure_ac "configure.in")))
 	(insert-file-contents configure_ac)
 	(goto-char (point-min))
-	(re-search-forward "AC_INIT(\\(?:GNU \\)?[eE]macs,\\s-*\\([0-9.]+\\)\\s-*[,)]")
+	(re-search-forward "AC_INIT(\\[?\\(?:GNU \\)?[eE]macs]?,\\s-*\\[?\\([0-9.]+\\)]?\\s-*[,)]")
 	(setq ver (match-string 1))
 	)
        )

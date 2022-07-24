@@ -1,6 +1,6 @@
 ;;; ede/files.el --- Associate projects with files and directories.  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2008-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2008-2022 Free Software Foundation, Inc.
 
 ;; Author: Eric M. Ludlam <zappo@gnu.org>
 
@@ -257,7 +257,7 @@ If optional EXACT is non-nil, only return exact matches for DIR."
 (defun ede-flush-directory-hash ()
   "Flush the project directory hash.
 Do this only when developing new projects that are incorrectly putting
-'nomatch tokens into the hash."
+`nomatch' tokens into the hash."
   (interactive)
   (setq ede-project-directory-hash (make-hash-table :test 'equal))
   ;; Also slush the current project's locator hash.

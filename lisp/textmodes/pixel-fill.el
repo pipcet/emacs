@@ -1,6 +1,6 @@
 ;;; pixel-fill.el --- variable pitch filling functions  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2021 Free Software Foundation, Inc.
+;; Copyright (C) 2021-2022 Free Software Foundation, Inc.
 
 ;; Maintainer: emacs-devel@gnu.org
 ;; Keywords: filling
@@ -45,9 +45,9 @@ of a line or the end of a line."
 
 (defun pixel-fill-width (&optional columns window)
   "Return the pixel width corresponding to COLUMNS in WINDOW.
-If COLUMNS in nil, use the enture window width.
+If COLUMNS is nil or omitted, use the entire window width.
 
-If WINDOW is nil, this defaults to the current window."
+If WINDOW is nil or omitted, this defaults to the selected window."
   (unless window
     (setq window (selected-window)))
   (let ((frame (window-frame window)))

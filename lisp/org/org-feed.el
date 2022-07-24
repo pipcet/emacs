@@ -1,6 +1,6 @@
 ;;; org-feed.el --- Add RSS feed items to Org files  -*- lexical-binding: t; -*-
 ;;
-;; Copyright (C) 2009-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2009-2022 Free Software Foundation, Inc.
 ;;
 ;; Author: Carsten Dominik <carsten.dominik@gmail.com>
 ;; Keywords: outlines, hypermedia, calendar, wp
@@ -406,7 +406,7 @@ it can be a list structured like an entry in `org-feed-alist'."
 
 	  ;; Write the new status
 	  ;; We do this only now, in case something goes wrong above, so
-	  ;; that would would end up with a status that does not reflect
+          ;; that would end up with a status that does not reflect
 	  ;; which items truly have been handled
 	  (org-feed-write-status inbox-pos drawer status)
 

@@ -1,6 +1,6 @@
 @c -*-texinfo-*-
 @c This is part of the GNU Emacs Lisp Reference Manual.
-@c Copyright (C) 1997--2021 Free Software Foundation, Inc.
+@c Copyright (C) 1997--2022 Free Software Foundation, Inc.
 @c See the file elisp.texi for copying conditions.
 @node Customization
 @chapter Customization Settings
@@ -376,7 +376,7 @@ name) and the new value, and should do whatever is necessary to update
 the value properly for this option (which may not mean simply setting
 the option as a Lisp variable); preferably, though, it should not
 modify its value argument destructively.  The default for
-@var{setfunction} is @code{set-default}.
+@var{setfunction} is @code{set-default-toplevel-value}.
 
 If you specify this keyword, the variable's documentation string
 should describe how to do the same job in hand-written Lisp code.
@@ -387,7 +387,7 @@ Specify @var{getfunction} as the way to extract the value of this
 option.  The function @var{getfunction} should take one argument, a
 symbol, and should return whatever customize should use as the
 current value for that symbol (which need not be the symbol's Lisp
-value).  The default is @code{default-value}.
+value).  The default is @code{default-toplevel-value}.
 
 You have to really understand the workings of Custom to use
 @code{:get} correctly.  It is meant for values that are treated in
@@ -409,11 +409,11 @@ do not reinitialize it if it is already non-void.
 
 @item custom-initialize-default
 Like @code{custom-initialize-set}, but use the function
-@code{set-default} to set the variable, instead of the variable's
-@code{:set} function.  This is the usual choice for a variable whose
-@code{:set} function enables or disables a minor mode; with this choice,
-defining the variable will not call the minor mode function, but
-customizing the variable will do so.
+@code{set-default-toplevel-value} to set the variable, instead of the
+variable's @code{:set} function.  This is the usual choice for a
+variable whose @code{:set} function enables or disables a minor mode;
+with this choice, defining the variable will not call the minor mode
+function, but customizing the variable will do so.
 
 @item custom-initialize-reset
 Always use the @code{:set} function to initialize the variable.  If
@@ -424,7 +424,7 @@ This is the default @code{:initialize} function.
 @item custom-initialize-changed
 Use the @code{:set} function to initialize the variable, if it is
 already set or has been customized; otherwise, just use
-@code{set-default}.
+@code{set-default-toplevel-value}.
 
 @item custom-initialize-delay
 This function behaves like @code{custom-initialize-set}, but it
@@ -654,10 +654,14 @@ you can specify that the value must be @code{nil} or @code{t}, but also
 specify the text to describe each value in a way that fits the specific
 meaning of the alternative.
 
+@item key
+The value is a valid key according to @kbd{key-valid-p}, and suitable
+for use with, for example @code{keymap-set}.
+
 @item key-sequence
 The value is a key sequence.  The customization buffer shows the key
 sequence using the same syntax as the @kbd{kbd} function.  @xref{Key
-Sequences}.
+Sequences}.  This is a legacy type; use @code{key} instead.
 
 @item coding-system
 The value must be a coding-system name, and you can do completion with

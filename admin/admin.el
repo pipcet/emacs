@@ -1,6 +1,6 @@
 ;;; admin.el --- utilities for Emacs administration  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2001-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2001-2022 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -88,6 +88,9 @@ Optional argument DATE is the release date, default today."
     (kill-buffer)
     (message "No need to update `%s'" file)))
 
+(defvar admin-git-command (executable-find "git")
+  "The `git' program to use.")
+
 (defun set-version (root version)
   "Set Emacs version to VERSION in relevant files under ROOT.
 Root must be the root of an Emacs source tree."
@@ -96,6 +99,8 @@ Root must be the root of an Emacs source tree."
 		(read-string "Version number: " emacs-version)))
   (unless (file-exists-p (expand-file-name "src/emacs.c" root))
     (user-error "%s doesn't seem to be the root of an Emacs source tree" root))
+  (unless admin-git-command
+    (user-error "Could not find git; please install git and move NEWS manually"))
   (message "Setting version numbers...")
   ;; There's also a "version 3" (standing for GPLv3) at the end of
   ;; `README', but since `set-version-in-file' only replaces the first
@@ -157,7 +162,13 @@ Root must be the root of an Emacs source tree."
 Documentation changes might not have been completed!"))))
     (when (and majorbump
                (not (file-exists-p oldnewsfile)))
-      (rename-file newsfile oldnewsfile)
+      (call-process admin-git-command nil nil nil
+                    "mv" newsfile oldnewsfile)
+      (when (y-or-n-p "Commit move of NEWS file?")
+        (call-process admin-git-command nil nil nil
+                      "commit" "-m" (format "; Move etc/%s to etc/%s"
+                                            (file-name-nondirectory newsfile)
+                                            (file-name-nondirectory oldnewsfile))))
       (find-file oldnewsfile)           ; to prompt you to commit it
       (copy-file oldnewsfile newsfile)
       (with-temp-buffer
@@ -340,11 +351,13 @@ Optional argument TYPE is type of output (nil means all)."
 \"https://www.w3.org/TR/html4/loose.dtd\">\n\n")
 
 (defconst manual-meta-string
-  "<meta http-equiv=\"content-type\" content=\"text/html; charset=utf-8\">
-<link rev=\"made\" href=\"mailto:bug-gnu-emacs@gnu.org\">
+  "<meta http-equiv=\"content-type\" content=\"text/html; charset=utf-8\">\n")
+
+(defconst manual-links-string
+  "<link rev=\"made\" href=\"mailto:bug-gnu-emacs@gnu.org\">
 <link rel=\"icon\" type=\"image/png\" href=\"/graphics/gnu-head-mini.png\">
 <meta name=\"ICBM\" content=\"42.256233,-71.006581\">
-<meta name=\"DC.title\" content=\"gnu.org\">\n\n")
+<meta name=\"DC.title\" content=\"gnu.org\">\n")
 
 (defconst manual-style-string "<style type=\"text/css\">
 @import url('/software/emacs/manual.css');\n</style>\n")
@@ -475,6 +488,13 @@ the @import directive."
       (delete-region opoint (point))
       (search-forward "<meta http-equiv=\"Content-Style")
       (setq opoint (match-beginning 0)))
+    (search-forward "<title>")
+    (delete-region opoint (match-beginning 0))
+    (search-forward "</title>\n")
+    (when (search-forward "<link href=" nil t)
+      (goto-char (match-beginning 0)))
+    (insert manual-links-string)
+    (setq opoint (point))
     (search-forward "</head>")
     (goto-char (match-beginning 0))
     (delete-region opoint (point))
@@ -591,76 +611,81 @@ style=\"text-align:left\">")
 		 (forward-line 1)
 		 (setq done t)))))
     (let (done open-td tag desc)
-      ;; Convert the list that Makeinfo made into a table.
-      (or (search-forward "<ul class=\"menu\">" nil t)
-	  ;; FIXME?  The following search seems dangerously lax.
-	  (search-forward "<ul>"))
-      (replace-match "<table style=\"float:left\" width=\"100%\">")
-      (forward-line 1)
-      (while (not done)
-	(cond
-	 ((or (looking-at "<li>\\(<a.+</a>\\):[ \t]+\\(.*\\)$")
-	      (looking-at "<li>\\(<a.+</a>\\)$"))
-	  (setq tag (match-string 1))
-	  (setq desc (match-string 2))
-	  (replace-match "" t t)
-	  (when open-td
-	    (save-excursion
-	      (forward-char -1)
-	      (skip-chars-backward " ")
-	      (delete-region (point) (line-end-position))
-	      (insert "</td>\n  </tr>")))
-	  (insert "  <tr>\n    ")
-	  (if table-workaround
-	      ;; This works around a Firefox bug in the mono file.
-	      (insert "<td bgcolor=\"white\">")
-	    (insert "<td>"))
-	  (insert tag "</td>\n    <td>" (or desc ""))
-	  (setq open-td t))
-	 ((eq (char-after) ?\n)
-	  (delete-char 1)
-	  ;; Negate the following `forward-line'.
-	  (forward-line -1))
-	 ((looking-at "<!-- ")
-	  (search-forward "-->"))
-	 ((looking-at "<p>[- ]*The Detailed Node Listing[- \n]*")
-	  (replace-match "  </td></tr></table>\n
+      ;; Texinfo 6.8 and later doesn't produce <ul class="menu"> lists
+      ;; for the TOC menu, and the "description" part of each menu
+      ;; item is not there anymore.  So for HTML manuals produced by
+      ;; those newer versions of Texinfo we punt and leave the menu in
+      ;; its original form.
+      (when (or (search-forward "<ul class=\"menu\">" nil t)
+	        ;; FIXME?  The following search seems dangerously lax.
+	        (search-forward "<ul>" nil t))
+        ;; Convert the list that Makeinfo made into a table.
+        (replace-match "<table style=\"float:left\" width=\"100%\">")
+        (forward-line 1)
+        (while (not done)
+	  (cond
+	   ((or (looking-at "<li>\\(<a.+</a>\\):[ \t]+\\(.*\\)$")
+	        (looking-at "<li>\\(<a.+</a>\\)$"))
+	    (setq tag (match-string 1))
+	    (setq desc (match-string 2))
+	    (replace-match "" t t)
+	    (when open-td
+	      (save-excursion
+	        (forward-char -1)
+	        (skip-chars-backward " ")
+	        (delete-region (point) (line-end-position))
+	        (insert "</td>\n  </tr>")))
+	    (insert "  <tr>\n    ")
+	    (if table-workaround
+	        ;; This works around a Firefox bug in the mono file.
+	        (insert "<td bgcolor=\"white\">")
+	      (insert "<td>"))
+	    (insert tag "</td>\n    <td>" (or desc ""))
+	    (setq open-td t))
+	   ((eq (char-after) ?\n)
+	    (delete-char 1)
+	    ;; Negate the following `forward-line'.
+	    (forward-line -1))
+	   ((looking-at "<!-- ")
+	    (search-forward "-->"))
+	   ((looking-at "<p>[- ]*The Detailed Node Listing[- \n]*")
+	    (replace-match "  </td></tr></table>\n
 <h3>Detailed Node Listing</h3>\n\n" t t)
-	  (search-forward "<p>")
-	  ;; FIXME Fragile!
-	  ;; The Emacs and Elisp manual have some text at the
-	  ;; start of the detailed menu that is not part of the menu.
-	  ;; Other manuals do not.
-	  (if (looking-at "Here are some other nodes")
-	      (search-forward "<p>"))
-	  (goto-char (match-beginning 0))
-	  (skip-chars-backward "\n ")
-	  (setq open-td nil)
-	  (insert "</p>\n\n<table  style=\"float:left\" width=\"100%\">"))
-	 ((looking-at "</li></ul>")
-	  (replace-match "" t t))
-	 ((looking-at "<p>")
-	  (replace-match "" t t)
-	  (when open-td
-	    (insert "  </td></tr>")
-	    (setq open-td nil))
-	  (insert "  <tr>
+	    (search-forward "<p>")
+	    ;; FIXME Fragile!
+	    ;; The Emacs and Elisp manual have some text at the
+	    ;; start of the detailed menu that is not part of the menu.
+	    ;; Other manuals do not.
+	    (if (looking-at "Here are some other nodes")
+	        (search-forward "<p>"))
+	    (goto-char (match-beginning 0))
+	    (skip-chars-backward "\n ")
+	    (setq open-td nil)
+	    (insert "</p>\n\n<table  style=\"float:left\" width=\"100%\">"))
+	   ((looking-at "</li></ul>")
+	    (replace-match "" t t))
+	   ((looking-at "<p>")
+	    (replace-match "" t t)
+	    (when open-td
+	      (insert "  </td></tr>")
+	      (setq open-td nil))
+	    (insert "  <tr>
     <th colspan=\"2\" align=\"left\" style=\"text-align:left\">")
-	  (if (re-search-forward "</p>[ \t\n]*<ul class=\"menu\">" nil t)
-	      (replace-match "  </th></tr>")))
-	 ((looking-at "[ \t]*</ul>[ \t]*$")
-	  (replace-match
-	   (if open-td
-	       "  </td></tr>\n</table>"
-	     "</table>") t t)
-	  (setq done t))
-	 (t
-	  (if (eobp)
-	      (error "Parse error in %s"
-		     (file-name-nondirectory buffer-file-name)))
-	  (unless open-td
-	    (setq done t))))
-	(forward-line 1)))))
+	    (if (re-search-forward "</p>[ \t\n]*<ul class=\"menu\">" nil t)
+	        (replace-match "  </th></tr>")))
+	   ((looking-at "[ \t]*</ul>[ \t]*$")
+	    (replace-match
+	     (if open-td
+	         "  </td></tr>\n</table>"
+	       "</table>") t t)
+	    (setq done t))
+	   (t
+	    (if (eobp)
+	        (error "Parse error in %s"
+		       (file-name-nondirectory buffer-file-name)))
+	    (unless open-td
+	      (setq done t))))
+	  (forward-line 1))))))
 
 
 (defconst make-manuals-dist-output-variables

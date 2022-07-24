@@ -1,6 +1,6 @@
 ;;; mule.el --- basic commands for multilingual environment  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 1997-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1997-2022 Free Software Foundation, Inc.
 ;; Copyright (C) 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004,
 ;;   2005, 2006, 2007, 2008, 2009, 2010, 2011
 ;;   National Institute of Advanced Industrial Science and Technology (AIST)
@@ -298,13 +298,21 @@ attribute."
 (defvar hack-read-symbol-shorthands-function nil
   "Holds function to compute `read-symbol-shorthands'.")
 
-(defun load-with-code-conversion (fullname file &optional noerror nomessage)
+(defun load-with-code-conversion (fullname file &optional noerror nomessage
+                                           eval-function)
   "Execute a file of Lisp code named FILE whose absolute name is FULLNAME.
 The file contents are decoded before evaluation if necessary.
-If optional third arg NOERROR is non-nil,
- report no error if FILE doesn't exist.
-Print messages at start and end of loading unless
- optional fourth arg NOMESSAGE is non-nil.
+
+If optional third arg NOERROR is non-nil, report no error if FILE
+doesn't exist.
+
+Print messages at start and end of loading unless optional fourth
+arg NOMESSAGE is non-nil.
+
+If EVAL-FUNCTION, call that instead of calling `eval-buffer'
+directly.  It is called with two parameters: The buffer object
+and the file name.
+
 Return t if file exists."
   (if (null (file-readable-p fullname))
       (and (null noerror)
@@ -353,10 +361,13 @@ Return t if file exists."
 	    ;; Have the original buffer current while we eval,
             ;; but consider shorthands of the eval'ed one.
 	    (let ((read-symbol-shorthands shorthands))
-              (eval-buffer buffer nil
-			   ;; This is compatible with what `load' does.
-                           (if dump-mode file fullname)
-			   nil t)))
+              (if eval-function
+                  (funcall eval-function buffer
+                           (if dump-mode file fullname))
+                (eval-buffer buffer nil
+			     ;; This is compatible with what `load' does.
+                             (if dump-mode file fullname)
+			     nil t))))
 	(let (kill-buffer-hook kill-buffer-query-functions)
 	  (kill-buffer buffer)))
       (do-after-load-evaluation fullname)

@@ -1,6 +1,6 @@
 ;;; gitmerge.el --- help merge one Emacs branch into another  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2010-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2010-2022 Free Software Foundation, Inc.
 
 ;; Authors: David Engster <deng@randomsample.de>
 ;;          Stefan Monnier <monnier@iro.umontreal.ca>
@@ -124,7 +124,7 @@ If nil, the function `gitmerge-default-branch' guesses.")
       (let ((coding-system-for-read vc-git-log-output-coding-system))
 	(call-process "git" nil t nil "show" (format "%s:configure.ac" branch)))
       (goto-char (point-min)))
-    (re-search-forward "^AC_INIT([^,]+, \\([0-9]+\\)\\.")
+    (re-search-forward "^AC_INIT([^,]+, \\[?\\([0-9]+\\)\\.")
     (string-to-number (match-string 1))))
 
 (defun gitmerge-default-branch ()

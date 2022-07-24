@@ -1,6 +1,6 @@
 ;;; hideif.el --- hides selected code within ifdef  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1988, 1994, 2001-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1988, 1994, 2001-2022 Free Software Foundation, Inc.
 
 ;; Author: Brian Marick
 ;;	Daniel LaLiberte <liberte@holonexus.org>
@@ -109,7 +109,7 @@
 ;;
 ;; Extensively modified by Luke Lee in 2013 to support complete C expression
 ;; evaluation and argumented macro expansion; C++11, C++14, C++17, GCC
-;; extension literals and gcc/clang matching behaviours are supported in 2021.
+;; extension literals and gcc/clang matching behaviors are supported in 2021.
 ;; Various floating point types and operations are also supported but the
 ;; actual precision is limited by the Emacs internal floating representation,
 ;; which is the C data type "double" or IEEE binary64 format.

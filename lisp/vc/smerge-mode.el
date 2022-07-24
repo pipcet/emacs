@@ -1,6 +1,6 @@
 ;;; smerge-mode.el --- Minor mode to resolve diff3 conflicts -*- lexical-binding: t -*-
 
-;; Copyright (C) 1999-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1999-2022 Free Software Foundation, Inc.
 
 ;; Author: Stefan Monnier <monnier@iro.umontreal.ca>
 ;; Keywords: vc, tools, revision control, merge, diff3, cvs, conflict
@@ -925,8 +925,11 @@ Its behavior has mainly two restrictions:
   to `smerge-refine-regions'.
   This only matters if `smerge-refine-weight-hack' is nil.")
 
-(defvar smerge-refine-ignore-whitespace t
-  "If non-nil, `smerge-refine' should try to ignore change in whitespace.")
+(defcustom smerge-refine-ignore-whitespace t
+  "If non-nil, `smerge-refine' should try to ignore change in whitespace."
+  :type 'boolean
+  :version "29.1"
+  :group 'diff)
 
 (defvar smerge-refine-weight-hack t
   "If non-nil, pass to diff as many lines as there are chars in the region.

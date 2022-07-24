@@ -1,6 +1,6 @@
 ;;; calc-prog.el --- user programmability functions for Calc  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1990-1993, 2001-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1990-1993, 2001-2022 Free Software Foundation, Inc.
 
 ;; Author: David Gillespie <daveg@synaptics.com>
 
@@ -678,7 +678,7 @@
   (or last-kbd-macro
       (error "No keyboard macro defined"))
   (setq calc-invocation-macro last-kbd-macro)
-  (message "Use `C-x * Z' to invoke this macro"))
+  (message (substitute-command-keys "Use \\`C-x * Z' to invoke this macro")))
 
 (defun calc-user-define-edit ()
   (interactive)  ; but no calc-wrapper!
@@ -1949,7 +1949,7 @@ Redefine the corresponding command."
 
 ;; The variable math-exp-env is local to math-define-body, but is
 ;; used by math-define-exp, which is called (indirectly) by
-;; by math-define-body.
+;; math-define-body.
 (defvar math-exp-env)
 
 (defun math-define-body (body exp-env)

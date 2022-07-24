@@ -1,6 +1,6 @@
 ;;; cc-defs.el --- compile time definitions for CC Mode -*- lexical-binding: t -*-
 
-;; Copyright (C) 1985, 1987, 1992-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1985, 1987, 1992-2022 Free Software Foundation, Inc.
 
 ;; Authors:    2003- Alan Mackenzie
 ;;             1998- Martin Stjernholm
@@ -1561,6 +1561,28 @@ with value CHAR in the region [FROM to)."
 	     `((setq c-syntax-table-hwm (min c-syntax-table-hwm (point)))))
 	 (c-put-char-property (point) ,property ,value)
 	 (forward-char)))))
+
+
+;; Miscellaneous macro(s)
+(defvar c-string-fences-set-flag nil)
+;; Non-nil when we have set string fences with `c-restore-string-fences'.
+(defmacro c-with-string-fences (&rest forms)
+  ;; Restore the string fences, evaluate FORMS, then remove them again.  It
+  ;; should only be used at the top level of "boundary" functions in CC Mode,
+  ;; i.e. those called from outside CC Mode which directly or indirectly need
+  ;; unbalanced string markers to have their string-fence syntax-table text
+  ;; properties.  This includes all calls to `c-parse-state'.  This macro will
+  ;; be invoked recursively; however the `c-string-fences-set-flag' mechanism
+  ;; should ensure consistency, when this happens.
+  (declare (debug t))
+  `(unwind-protect
+       (progn
+	 (unless c-string-fences-set-flag
+	   (c-restore-string-fences))
+	 (let ((c-string-fences-set-flag t))
+	   ,@forms))
+     (unless c-string-fences-set-flag
+       (c-clear-string-fences))))
 
 
 ;; Macros to put overlays (Emacs) or extents (XEmacs) on buffer text.

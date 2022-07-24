@@ -1,6 +1,6 @@
 ;;; linum.el --- display line numbers in the left margin -*- lexical-binding: t -*-
 
-;; Copyright (C) 2008-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2008-2022 Free Software Foundation, Inc.
 
 ;; Author: Markus Triska <markus.triska@gmx.at>
 ;; Maintainer: emacs-devel@gnu.org
@@ -74,6 +74,9 @@ and you have to scroll or press \\[recenter-top-bottom] to update the numbers."
 ;;;###autoload
 (define-minor-mode linum-mode
   "Toggle display of line numbers in the left margin (Linum mode).
+This mode has been largely replaced by `display-line-numbers-mode'
+(which is much faster and has fewer interaction problems with other
+modes).
 
 Linum mode is a buffer-local minor mode."
   :lighter ""                           ; for desktop.el

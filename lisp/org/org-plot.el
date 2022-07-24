@@ -1,6 +1,6 @@
 ;;; org-plot.el --- Support for Plotting from Org -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2008-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2008-2022 Free Software Foundation, Inc.
 ;;
 ;; Author: Eric Schulte <schulte dot eric at gmail dot com>
 ;; Maintainer: TEC <tecosaur@gmail.com>
@@ -272,15 +272,15 @@ argument for the FUNCTION."
 	     for k in keys collect
 	     (cons k (funcall function (lookup k alist1) (lookup k alist2))))))
 
-(defun org--plot/item-frequencies (values &optional normalise)
+(defun org--plot/item-frequencies (values &optional normalize)
   "Return an alist indicating the frequency of values in VALUES list.
-When NORMALISE is non-nil, the count is divided by the number of values."
-  (let ((normaliser (if normalise (float (length values)) 1)))
+When NORMALIZE is non-nil, the count is divided by the number of values."
+  (let ((normaliser (if normalize (float (length values)) 1)))
     (cl-loop for (n . m) in (seq-group-by #'identity values)
 	     collect (cons n (/ (length m) normaliser)))))
 
 (defun org--plot/prime-factors (value)
-  "Return the prime decomposition of VALUE, e.g. for 12, '(3 2 2)."
+  "Return the prime decomposition of VALUE, e.g. for 12, \\='(3 2 2)."
   (let ((factors '(1)) (i 1))
     (while (/= 1 value)
       (setq i (1+ i))

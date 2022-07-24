@@ -1,6 +1,6 @@
 ;;; advice.el --- An overloading mechanism for Emacs Lisp functions  -*- lexical-binding: t -*-
 
-;; Copyright (C) 1993-1994, 2000-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1993-1994, 2000-2022 Free Software Foundation, Inc.
 
 ;; Author: Hans Chalupsky <hans@cs.buffalo.edu>
 ;; Maintainer: emacs-devel@gnu.org
@@ -1814,8 +1814,7 @@ Redefining advices affect the construction of an advised definition."
   (if (symbolp function)
       (setq function (if (fboundp function)
                          (advice--strip-macro (symbol-function function)))))
-  (while (advice--p function) (setq function (advice--cdr function)))
-  function)
+  (advice--cd*r function))
 
 (defun ad-clear-advicefunname-definition (function)
   (let ((advicefunname (ad-get-advice-info-field function 'advicefunname)))

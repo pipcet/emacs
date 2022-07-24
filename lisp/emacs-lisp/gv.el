@@ -1,6 +1,6 @@
 ;;; gv.el --- generalized variables  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2012-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2012-2022 Free Software Foundation, Inc.
 
 ;; Author: Stefan Monnier <monnier@iro.umontreal.ca>
 ;; Keywords: extensions
@@ -594,7 +594,7 @@ binding mode."
         code
       (macroexp-warn-and-return
        "Use of gv-ref probably requires lexical-binding"
-       code))))
+       code nil nil place))))
 
 (defsubst gv-deref (ref)
   "Dereference REF, returning the referenced value.
@@ -602,7 +602,7 @@ This is like the `*' operator of the C language.
 REF must have been previously obtained with `gv-ref'."
   (funcall (car ref)))
 ;; Don't use `declare' because it seems to introduce circularity problems:
-;; Warning: Eager macro-expansion skipped due to cycle:
+;; Eager macro-expansion skipped due to cycle:
 ;;  … => (load "gv.el") => (macroexpand-all (defsubst gv-deref …)) => (macroexpand (defun …)) => (load "gv.el")
 (gv-define-setter gv-deref (v ref) `(funcall (cdr ,ref) ,v))
 

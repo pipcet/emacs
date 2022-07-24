@@ -1,6 +1,6 @@
 ;;; cl-extra.el --- Common Lisp features, part 2  -*- lexical-binding: t -*-
 
-;; Copyright (C) 1993, 2000-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1993, 2000-2022 Free Software Foundation, Inc.
 
 ;; Author: Dave Gillespie <daveg@synaptics.com>
 ;; Keywords: extensions
@@ -553,10 +553,14 @@ too large if positive or too small if negative)."
 			,new)))))
   (seq-subseq seq start end))
 
+;;; This isn't a defalias because autoloading defalises doesn't work
+;;; very well.
+
 ;;;###autoload
-(defalias 'cl-concatenate #'seq-concatenate
+(defun cl-concatenate (type &rest sequences)
   "Concatenate, into a sequence of type TYPE, the argument SEQUENCEs.
-\n(fn TYPE SEQUENCE...)")
+\n(fn TYPE SEQUENCE...)"
+  (apply #'seq-concatenate type sequences))
 
 ;;; List functions.
 

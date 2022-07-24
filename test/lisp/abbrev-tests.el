@@ -1,6 +1,6 @@
 ;;; abbrev-tests.el --- Test suite for abbrevs  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2015-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2015-2022 Free Software Foundation, Inc.
 
 ;; Author: Eli Zaretskii <eliz@gnu.org>
 ;; Keywords: abbrevs
@@ -300,6 +300,10 @@
       (cl-letf (((symbol-function 'read-string) (lambda (&rest _) "bar")))
         (inverse-add-abbrev table "Global" -1)))
     (should (string= (abbrev-expansion "text" table) "bar"))))
+
+(ert-deftest test-abbrev-table-p ()
+  (should-not (abbrev-table-p translation-table-vector))
+  (should (abbrev-table-p (make-abbrev-table))))
 
 (provide 'abbrev-tests)
 

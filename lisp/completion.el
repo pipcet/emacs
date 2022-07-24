@@ -1,6 +1,6 @@
 ;;; completion.el --- dynamic word-completion code  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 1990-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1990-2022 Free Software Foundation, Inc.
 
 ;; Maintainer: emacs-devel@gnu.org
 ;; Keywords: abbrev convenience
@@ -925,10 +925,6 @@ Each symbol is bound to a single completion entry.")
 (defun make-completion (string)
   "Return a completion entry."
   (list string 0 nil current-completion-source))
-
-;; Obsolete
-;;(defmacro cmpl-prefix-entry-symbol (completion-entry)
-;;  (list 'car (list 'cdr completion-entry)))
 
 
 

@@ -1,6 +1,6 @@
 ;;; ruby-mode-tests.el --- Test suite for ruby-mode  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2012-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2012-2022 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -406,6 +406,13 @@ VALUES-PLIST is a list with alternating index and value elements."
     (beginning-of-line)
     (ruby-toggle-block)
     (should (string= "foo { \"#{bar}\" }" (buffer-string)))))
+
+(ert-deftest ruby-toggle-block-to-brace-no-space ()
+  (ruby-with-temp-buffer "foo do |b|\n  b + 2\nend"
+    (beginning-of-line)
+    (let (ruby-toggle-block-space-before-parameters)
+      (ruby-toggle-block))
+    (should (string= "foo {|b| b + 2 }" (buffer-string)))))
 
 (ert-deftest ruby-recognize-symbols-starting-with-at-character ()
   (ruby-assert-face ":@abc" 3 font-lock-constant-face))

@@ -1,6 +1,6 @@
 ;;; spam.el --- Identifying spam  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2002-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2002-2022 Free Software Foundation, Inc.
 
 ;; Author: Lars Magne Ingebrigtsen <larsi@gnus.org>
 ;; Maintainer: Ted Zlatanov <tzz@lifelogs.com>
@@ -852,7 +852,7 @@ The value nil means that the check does not yield a decision, and
 so, that further checks are needed.  The value t means that the
 message is definitely not spam, and that further spam checks
 should be inhibited.  Otherwise, a mailgroup name or the symbol
-'spam (depending on `spam-split-symbolic-return') is returned where
+`spam' (depending on `spam-split-symbolic-return') is returned where
 the mail should go, and further checks are also inhibited.  The
 usual mailgroup name is the value of `spam-split-group', meaning
 that the message is definitely a spam."

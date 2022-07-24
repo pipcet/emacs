@@ -1,6 +1,6 @@
 ;;; reftex.el --- minor mode for doing \label, \ref, \cite, \index in LaTeX  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 1997-2000, 2003-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1997-2000, 2003-2022 Free Software Foundation, Inc.
 
 ;; Author: Carsten Dominik <dominik@science.uva.nl>
 ;; Maintainer: auctex-devel@gnu.org
@@ -2257,8 +2257,7 @@ IGNORE-WORDS List of words which should be removed from the string."
    ("Customize"
     ["Browse RefTeX Group" reftex-customize t]
     "--"
-    ["Build Full Customize Menu" reftex-create-customize-menu
-     (fboundp 'customize-menu-create)])
+    ["Build Full Customize Menu" reftex-create-customize-menu])
    ("Documentation"
     ["Info" reftex-info t]
     ["Commentary" reftex-show-commentary t])))

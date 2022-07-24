@@ -1,6 +1,6 @@
 ;;; mail-hist.el --- headers and message body history for outgoing mail  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 1994, 2001-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1994, 2001-2022 Free Software Foundation, Inc.
 
 ;; Author: Karl Fogel <kfogel@red-bean.com>
 ;; Created: March, 1994
@@ -80,7 +80,7 @@ previous/next input.")
 (defcustom mail-hist-history-size (or kill-ring-max 1729)
   "The maximum number of elements in a mail field's history.
 Oldest elements are dumped first."
-  :type 'integer)
+  :type 'natnum)
 
 ;;;###autoload
 (defcustom mail-hist-keep-history t

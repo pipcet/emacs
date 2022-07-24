@@ -1,6 +1,6 @@
 @c -*- coding: utf-8 -*-
 @c This is part of the Emacs manual.
-@c Copyright (C) 2005--2021 Free Software Foundation, Inc.
+@c Copyright (C) 2005--2022 Free Software Foundation, Inc.
 @c See file emacs.texi for copying conditions.
 
 @node Antinews
@@ -29,10 +29,6 @@ for complete removal of HarfBuzz support in previous Emacs versions.
 Fancy text shaping and display is becoming less important as you move
 back in time.  The @code{ftx} font backend is again part of Emacs, for
 the same reasons.
-
-@item
-As Motif becomes more and more important with moving farther into the
-past, we've reinstated the code which supports Motif in Emacs.
 
 @item
 Emacs once again supports versions 5.3 and older OpenBSD systems,

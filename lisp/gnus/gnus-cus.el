@@ -1,6 +1,6 @@
 ;;; gnus-cus.el --- customization commands for Gnus  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 1996, 1999-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1996, 1999-2022 Free Software Foundation, Inc.
 
 ;; Author: Per Abrahamsen <abraham@dina.kvl.dk>
 ;; Keywords: news
@@ -273,7 +273,7 @@ DOC is a documentation string for the parameter.")
        gnus-agent-cat-predicate)
       (agent-score
        (choice :tag "Score File" :value nil
-               (const file :tag "Use group's score files")
+               (const :value file :tag "Use group's score files")
                (repeat (list (string :format "%v" :tag "File name"))))
        "Which score files to use when using score to select articles to fetch.
 

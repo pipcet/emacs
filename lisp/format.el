@@ -1,6 +1,6 @@
 ;;; format.el --- read and save files in multiple formats  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 1994-1995, 1997, 1999, 2001-2021 Free Software
+;; Copyright (C) 1994-1995, 1997, 1999, 2001-2022 Free Software
 ;; Foundation, Inc.
 
 ;; Author: Boris Goldowsky <boris@gnu.org>
@@ -139,6 +139,7 @@ MODE-FN, if specified, is called when visiting a file with that format.
 
 PRESERVE, if non-nil, means that `format-write-file' should not remove
           this format from `buffer-file-format'.")
+;; Autoload if this file no longer dumped.
 ;;;###autoload
 (put 'format-alist 'risky-local-variable t)
 

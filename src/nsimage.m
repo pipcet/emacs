@@ -1,5 +1,5 @@
 /* Image support for the NeXT/Open/GNUstep and macOS window system.
-   Copyright (C) 1989, 1992-1994, 2005-2006, 2008-2021 Free Software
+   Copyright (C) 1989, 1992-1994, 2005-2006, 2008-2022 Free Software
    Foundation, Inc.
 
 This file is part of GNU Emacs.
@@ -142,7 +142,7 @@ ns_load_image (struct frame *f, struct image *img,
 
   eassert (valid_image_p (img->spec));
 
-  lisp_index = Fplist_get (XCDR (img->spec), QCindex);
+  lisp_index = plist_get (XCDR (img->spec), QCindex);
   index = FIXNUMP (lisp_index) ? XFIXNAT (lisp_index) : 0;
 
   if (STRINGP (spec_file))

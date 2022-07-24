@@ -1,6 +1,6 @@
 ;;; semantic/lex.el --- Lexical Analyzer builder  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1999-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1999-2022 Free Software Foundation, Inc.
 
 ;; Author: Eric M. Ludlam <zappo@gnu.org>
 
@@ -574,25 +574,24 @@ may need to be overridden for some special languages.")
 (defvar-local semantic-lex-number-expression
   ;; This expression was written by David Ponce for Java, and copied
   ;; here for C and any other similar language.
-  (eval-when-compile
-    (concat "\\("
-            "\\<[0-9]+[.][0-9]+\\([eE][-+]?[0-9]+\\)?[fFdD]?\\>"
-            "\\|"
-            "\\<[0-9]+[.][eE][-+]?[0-9]+[fFdD]?\\>"
-            "\\|"
-            "\\<[0-9]+[.][fFdD]\\>"
-            "\\|"
-            "\\<[0-9]+[.]"
-            "\\|"
-            "[.][0-9]+\\([eE][-+]?[0-9]+\\)?[fFdD]?\\>"
-            "\\|"
-            "\\<[0-9]+[eE][-+]?[0-9]+[fFdD]?\\>"
-            "\\|"
-            "\\<0[xX][[:xdigit:]]+[lL]?\\>"
-            "\\|"
-            "\\<[0-9]+[lLfFdD]?\\>"
-            "\\)"
-            ))
+  (concat "\\("
+          "\\<[0-9]+[.][0-9]+\\([eE][-+]?[0-9]+\\)?[fFdD]?\\>"
+          "\\|"
+          "\\<[0-9]+[.][eE][-+]?[0-9]+[fFdD]?\\>"
+          "\\|"
+          "\\<[0-9]+[.][fFdD]\\>"
+          "\\|"
+          "\\<[0-9]+[.]"
+          "\\|"
+          "[.][0-9]+\\([eE][-+]?[0-9]+\\)?[fFdD]?\\>"
+          "\\|"
+          "\\<[0-9]+[eE][-+]?[0-9]+[fFdD]?\\>"
+          "\\|"
+          "\\<0[xX][[:xdigit:]]+[lL]?\\>"
+          "\\|"
+          "\\<[0-9]+[lLfFdD]?\\>"
+          "\\)"
+          )
   "Regular expression for matching a number.
 If this value is nil, no number extraction is done during lex.
 This expression tries to match C and Java like numbers.

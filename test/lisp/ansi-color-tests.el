@@ -1,6 +1,6 @@
 ;;; ansi-color-tests.el --- Test suite for ansi-color  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2020-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2020-2022 Free Software Foundation, Inc.
 
 ;; Author: Pablo Barbáchano <pablob@amazon.com>
 
@@ -171,7 +171,25 @@ strings with `eq', this function compares them with `equal'."
           (insert str)
           (ansi-color-apply-on-region opoint (point))))
       (should (ansi-color-tests-equal-props
-               propertized-str (buffer-string))))))
+               propertized-str (buffer-string))))
+
+    ;; \e not followed by '[' and invalid ANSI escape sequences
+    (dolist (fun (list ansi-filt ansi-app))
+      (with-temp-buffer
+        (should (equal (funcall fun "\e") ""))
+        (should (equal (funcall fun "\e[33m test \e[0m")
+                       (with-temp-buffer
+                         (concat "\e" (funcall fun "\e[33m test \e[0m"))))))
+      (with-temp-buffer
+        (should (equal (funcall fun "\e[") ""))
+        (should (equal (funcall fun "\e[33m Z \e[0m")
+                       (with-temp-buffer
+                         (concat "\e[" (funcall fun "\e[33m Z \e[0m"))))))
+      (with-temp-buffer
+        (should (equal (funcall fun "\e a \e\e[\e[") "\e a \e\e["))
+        (should (equal (funcall fun "\e[33m Z \e[0m")
+                       (with-temp-buffer
+                         (concat "\e[" (funcall fun "\e[33m Z \e[0m")))))))))
 
 (provide 'ansi-color-tests)
 

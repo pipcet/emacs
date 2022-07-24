@@ -1,6 +1,6 @@
 @c -*-texinfo-*-
 @c This is part of the GNU Emacs Lisp Reference Manual.
-@c Copyright (C) 1990--1995, 1998--1999, 2001--2021 Free Software
+@c Copyright (C) 1990--1995, 1998--1999, 2001--2022 Free Software
 @c Foundation, Inc.
 @c See the file elisp.texi for copying conditions.
 @node Sequences Arrays Vectors
@@ -573,6 +573,20 @@ starting from the first one for which @var{predicate} returns @code{nil}.
 @group
 (seq-drop-while (lambda (elt) (< elt 0)) [1 4 6])
 @result{} [1 4 6]
+@end group
+@end example
+@end defun
+
+@defun seq-split sequence length
+  This function returns a list consisting of sub-sequences of
+@var{sequence} of (at most) length @var{length}.  (The final element
+may be shorter than @var{length} if the length of @var{sequence} isn't
+a multiple of @var{length}.
+
+@example
+@group
+(seq-split [0 1 2 3 4] 2)
+@result{} ([0 1] [2 3] [4])
 @end group
 @end example
 @end defun

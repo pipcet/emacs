@@ -1,6 +1,6 @@
 ;;; midnight.el --- run something every midnight, e.g., kill old buffers  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1998, 2001-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1998, 2001-2022 Free Software Foundation, Inc.
 
 ;; Author: Sam Steingold <sds@gnu.org>
 ;; Created: 1998-05-18
@@ -67,14 +67,14 @@ The autokilling is done by `clean-buffer-list' when it is in `midnight-hook'.
 Currently displayed and/or modified (unsaved) buffers, as well as buffers
 matching `clean-buffer-list-kill-never-buffer-names' and
 `clean-buffer-list-kill-never-regexps' are excluded."
-  :type 'integer)
+  :type 'natnum)
 
 (defcustom clean-buffer-list-delay-special 3600
   "The number of seconds before some buffers become eligible for autokilling.
 Buffers matched by `clean-buffer-list-kill-regexps' and
 `clean-buffer-list-kill-buffer-names' are killed if they were last
 displayed more than this many seconds ago."
-  :type 'integer)
+  :type 'natnum)
 
 (defcustom clean-buffer-list-kill-regexps '("\\`\\*Man ")
   "List of regexps saying which buffers will be killed at midnight.

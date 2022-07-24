@@ -1,6 +1,6 @@
 ;;; profiler.el --- UI and helper functions for Emacs's native profiler -*- lexical-binding: t -*-
 
-;; Copyright (C) 2012-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2012-2022 Free Software Foundation, Inc.
 
 ;; Author: Tomohiro Matsuyama <tomo@cx4a.org>
 ;; Keywords: lisp
@@ -38,7 +38,7 @@
 
 (defcustom profiler-sampling-interval 1000000
   "Default sampling interval in nanoseconds."
-  :type 'integer
+  :type 'natnum
   :group 'profiler)
 
 

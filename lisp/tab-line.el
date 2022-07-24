@@ -1,6 +1,6 @@
 ;;; tab-line.el --- window-local tabs with window buffers -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2019-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2019-2022 Free Software Foundation, Inc.
 
 ;; Author: Juri Linkov <juri@linkov.net>
 ;; Keywords: windows tabs
@@ -288,7 +288,7 @@ variable `tab-line-tab-name-function'."
   "Maximum length of the tab name from the current buffer.
 Effective when `tab-line-tab-name-function' is customized
 to `tab-line-tab-name-truncated-buffer'."
-  :type 'integer
+  :type 'natnum
   :group 'tab-line
   :version "27.1")
 
@@ -486,7 +486,7 @@ which the tab will represent."
                    (funcall tab-line-tab-name-function tab tabs)
                  (cdr (assq 'name tab))))
          (face (if selected-p
-                   (if (eq (selected-window) (old-selected-window))
+                   (if (mode-line-window-selected-p)
                        'tab-line-tab-current
                      'tab-line-tab)
                  'tab-line-tab-inactive)))
@@ -495,6 +495,8 @@ which the tab will represent."
     (apply 'propertize
            (concat (propertize name
                                'keymap tab-line-tab-map
+                               'help-echo (if selected-p "Current tab"
+                                            "Click to select tab")
                                ;; Don't turn mouse-1 into mouse-2 (bug#49247)
                                'follow-link 'ignore)
                    (or (and (or buffer-p (assq 'buffer tab) (assq 'close tab))
@@ -556,8 +558,9 @@ inherit from `tab-line-tab-inactive-alternate'.  For use in
 When TAB is a non-file-visiting buffer, make FACE inherit from
 `tab-line-tab-special'.  For use in
 `tab-line-tab-face-functions'."
-  (when (and buffer-p (not (buffer-file-name tab)))
-    (setf face `(:inherit (tab-line-tab-special ,face))))
+  (let ((buffer (if buffer-p tab (cdr (assq 'buffer tab)))))
+    (when (and buffer (not (buffer-file-name buffer)))
+      (setf face `(:inherit (tab-line-tab-special ,face)))))
   face)
 
 (defun tab-line-tab-face-modified (tab _tabs face buffer-p _selected-p)
@@ -565,8 +568,9 @@ When TAB is a non-file-visiting buffer, make FACE inherit from
 When TAB is a modified, file-backed buffer, make FACE inherit
 from `tab-line-tab-modified'.  For use in
 `tab-line-tab-face-functions'."
-  (when (and buffer-p (buffer-file-name tab) (buffer-modified-p tab))
-    (setf face `(:inherit (tab-line-tab-modified ,face))))
+  (let ((buffer (if buffer-p tab (cdr (assq 'buffer tab)))))
+    (when (and buffer (buffer-file-name buffer) (buffer-modified-p buffer))
+      (setf face `(:inherit (tab-line-tab-modified ,face)))))
   face)
 
 (defun tab-line-tab-face-group (tab _tabs face _buffer-p _selected-p)
@@ -587,7 +591,7 @@ For use in `tab-line-tab-face-functions'."
                           ;; handle tab-line scrolling
                           (window-parameter nil 'tab-line-hscroll)
                           ;; for setting face 'tab-line-tab-current'
-                          (eq (selected-window) (old-selected-window))
+                          (mode-line-window-selected-p)
                           (and (memq 'tab-line-tab-face-modified
                                      tab-line-tab-face-functions)
                                (buffer-file-name) (buffer-modified-p))))
@@ -615,6 +619,12 @@ the selected tab visible."
 
 (defvar tab-line-auto-hscroll-buffer (generate-new-buffer " *tab-line-hscroll*"))
 
+(defun tab-line--get-tab-property (prop string)
+  (or (get-pos-property 1 prop string) ;; for most cases of 1-char separator
+      (get-pos-property 0 prop string) ;; for empty separator
+      (let ((pos (next-single-property-change 0 prop string))) ;; long separator
+        (and pos (get-pos-property pos prop string)))))
+
 (defun tab-line-auto-hscroll (strings hscroll)
   (with-current-buffer tab-line-auto-hscroll-buffer
     (let ((truncate-partial-width-windows nil)
@@ -636,7 +646,7 @@ the selected tab visible."
                  (not (integerp hscroll)))
         (let ((selected (seq-position strings 'selected
                                       (lambda (str prop)
-                                        (get-pos-property 1 prop str)))))
+                                        (tab-line--get-tab-property prop str)))))
           (cond
            ((null selected)
             ;; Do nothing if no tab is selected
@@ -656,7 +666,7 @@ the selected tab visible."
                        (new-hscroll (when tab-prop
                                       (seq-position strings tab-prop
                                                     (lambda (str tab)
-                                                      (eq (get-pos-property 1 'tab str) tab))))))
+                                                      (eq (tab-line--get-tab-property 'tab str) tab))))))
                   (when new-hscroll
                     (setq hscroll (float new-hscroll))
                     (set-window-parameter nil 'tab-line-hscroll hscroll)))
@@ -683,7 +693,7 @@ the selected tab visible."
                        (new-hscroll (when tab-prop
                                       (seq-position strings tab-prop
                                                     (lambda (str tab)
-                                                      (eq (get-pos-property 1 'tab str) tab))))))
+                                                      (eq (tab-line--get-tab-property 'tab str) tab))))))
                   (when new-hscroll
                     (setq hscroll (float new-hscroll))
                     (set-window-parameter nil 'tab-line-hscroll hscroll)))))))))
@@ -742,7 +752,7 @@ So, for example, switching to a previous tab is equivalent to
 using the `previous-buffer' command."
   (interactive "e")
   (let* ((posnp (event-start event))
-         (tab (get-pos-property 1 'tab (car (posn-string posnp))))
+         (tab (tab-line--get-tab-property 'tab (car (posn-string posnp))))
          (buffer (if (bufferp tab) tab (cdr (assq 'buffer tab)))))
     (if buffer
         (tab-line-select-tab-buffer buffer (posn-window posnp))
@@ -858,7 +868,7 @@ sight of the tab line."
   (interactive (list last-nonmenu-event))
   (let* ((posnp (and (listp event) (event-start event)))
          (window (and posnp (posn-window posnp)))
-         (tab (get-pos-property 1 'tab (car (posn-string posnp))))
+         (tab (tab-line--get-tab-property 'tab (car (posn-string posnp))))
          (buffer (if (bufferp tab) tab (cdr (assq 'buffer tab))))
          (close-function (unless (bufferp tab) (cdr (assq 'close tab)))))
     (with-selected-window (or window (selected-window))

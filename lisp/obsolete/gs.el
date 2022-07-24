@@ -1,6 +1,6 @@
 ;;; gs.el --- interface to Ghostscript  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 1998, 2001-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1998, 2001-2022 Free Software Foundation, Inc.
 
 ;; Maintainer: emacs-devel@gnu.org
 ;; Keywords: internal
@@ -116,7 +116,7 @@ FILE is the value to substitute for the place-holder `<file>'."
     (/ (* 25.4 mm) 72.0)))
 
 (declare-function x-change-window-property "xfns.c"
-		  (prop value &optional frame type format outer-p))
+		  (prop value &optional frame type format outer-p window-id))
 
 (defun gs-set-ghostview-window-prop (frame spec img-width img-height)
   "Set the `GHOSTVIEW' window property of FRAME.

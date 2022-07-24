@@ -1,6 +1,6 @@
 ;;; mh-utils-tests.el --- tests for mh-utils.el -*- lexical-binding: t -*-
 
-;; Copyright (C) 2021 Free Software Foundation, Inc.
+;; Copyright (C) 2021-2022 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -48,8 +48,10 @@
 ;;; Code:
 
 (require 'ert)
-(eval-when-compile (require 'cl-lib))
 (require 'mh-utils)
+(eval-when-compile
+  (require 'cl-lib)
+  (require 'subr-x))
 
 (ert-deftest mh-quote-pick-expr ()
   "Test `mh-quote-pick-expr'."

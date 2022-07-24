@@ -1,6 +1,6 @@
 ;;; gamegrid.el --- library for implementing grid-based games on Emacs  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1997-1998, 2001-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1997-1998, 2001-2022 Free Software Foundation, Inc.
 
 ;; Author: Glynn Clements <glynn@sensei.co.uk>
 ;; Old-Version: 1.02
@@ -343,11 +343,17 @@ format."
 	   (gamegrid-colorize-glyph color))
 	  ((listp data)
 	   (find-image data)) ;untested!
-	  ((vectorp data)
-	   (gamegrid-make-image-from-vector data)))))
+          ;; Remove when `gamegrid-make-image-from-vector' is removed:
+          ((vectorp data)
+           (lwarn 'gamegrid :warning
+                  "Using obsolete XEmacs style \"glyph\"; \
+convert to an Emacs image-spec instead")
+           (with-suppressed-warnings ((obsolete gamegrid-make-image-from-vector))
+             (gamegrid-make-image-from-vector data))))))
 
 (defun gamegrid-make-image-from-vector (vect)
   "Convert an XEmacs style \"glyph\" to an image-spec."
+  (declare (obsolete nil "29.1"))
   (let ((l (list 'image :type)))
     (dotimes (n (length vect))
       (setf l (nconc l (list (aref vect n)))))
@@ -452,6 +458,7 @@ format."
     ;; Adjust the height of the default face to the height of the
     ;; images. Unlike XEmacs, Emacs doesn't allow making the default
     ;; face buffer-local; so we do this with an overlay.
+    ;; FIXME: This is not correct.  See face-remap.el.
     (when (eq gamegrid-display-mode 'glyph)
       (overlay-put (make-overlay (point-min) (point-max))
 		   'face gamegrid-face))

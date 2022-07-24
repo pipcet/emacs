@@ -825,7 +825,7 @@
 
 2015-03-10  Paul Eggert  <eggert@cs.ucla.edu>
 
-	Prefer "initialize" to "initialise"
+	Prefer "initialize"
 	* progmodes/js.el (js-indent-first-init):
 	Rename from js-indent-first-initialiser, to avoid worrying about
 	American vs British spelling.  All uses changed.
@@ -26294,7 +26294,7 @@ See ChangeLog.16 for earlier changes.
 ;; coding: utf-8
 ;; End:
 
-  Copyright (C) 2011-2021 Free Software Foundation, Inc.
+  Copyright (C) 2011-2022 Free Software Foundation, Inc.
 
   This file is part of GNU Emacs.
 

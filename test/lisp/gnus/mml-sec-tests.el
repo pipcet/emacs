@@ -1,6 +1,6 @@
 ;;; mml-sec-tests.el --- Tests mml-sec.el, see README-mml-secure.txt.  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2015, 2020-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2015, 2020-2022 Free Software Foundation, Inc.
 
 ;; Author: Jens Lechtenbörger <jens.lechtenboerger@fsfe.org>
 
@@ -605,6 +605,9 @@ In this test, the encryption key needs to fixed among multiple ones."
 (ert-deftest mml-secure-en-decrypt-3 ()
   "Encrypt message; then decrypt and test for expected result.
 In this test, encrypt-to-self variables are set to t."
+  ;; Random failures with "wrong-type-argument stringp nil".
+  ;; Seems unlikely to be specific to hydra.nixos.org...
+  :tags (if (getenv "EMACS_HYDRA_CI") '(:unstable))
   (skip-unless (test-conf))
   (skip-unless (ignore-errors (epg-find-configuration 'CMS)))
   ;; sub@example.org with multiple candidate keys,

@@ -1,6 +1,6 @@
 ;;; cua-rect.el --- CUA unified rectangle support  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 1997-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1997-2022 Free Software Foundation, Inc.
 
 ;; Author: Kim F. Storm <storm@cua.dk>
 ;; Keywords: keyboard emulations convenience CUA
@@ -572,7 +572,7 @@ Only call fct for visible lines if VISIBLE==t.
 Set undo boundary if UNDO is non-nil.
 Rectangle is padded if PAD = t or numeric and (cua--rectangle-virtual-edges)
 Perform auto-tabify after operation if TABIFY is non-nil.
-Mark is kept if keep-clear is 'keep and cleared if keep-clear is 'clear."
+Mark is kept if keep-clear is `keep' and cleared if keep-clear is `clear'."
   (declare (indent 4))
   (let* ((inhibit-field-text-motion t)
 	 (start (cua--rectangle-top))

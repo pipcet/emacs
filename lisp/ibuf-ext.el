@@ -1,6 +1,6 @@
 ;;; ibuf-ext.el --- extensions for ibuffer  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2000-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2000-2022 Free Software Foundation, Inc.
 
 ;; Author: Colin Walters <walters@verbum.org>
 ;; Maintainer: John Paul Wallington <jpw@gnu.org>
@@ -1211,7 +1211,9 @@ Interactively, prompt for NAME, and use the current filters."
      (let ((type (assq (car qualifier) ibuffer-filtering-alist)))
        (unless qualifier
          (error "Ibuffer: Bad qualifier %s" qualifier))
-       (concat " [" (cadr type) ": " (format "%s]" (cdr qualifier)))))))
+       (if (cdr qualifier)
+           (format " [%s: %s]" (cadr type) (cdr qualifier))
+         (format " [%s]" (cadr type)))))))
 
 (defun ibuffer-list-buffer-modes (&optional include-parents)
   "Create a completion table of buffer modes currently in use.

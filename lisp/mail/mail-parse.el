@@ -1,6 +1,6 @@
 ;;; mail-parse.el --- Interface functions for parsing mail  -*- lexical-binding: t -*-
 
-;; Copyright (C) 1998-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1998-2022 Free Software Foundation, Inc.
 
 ;; Author: Lars Magne Ingebrigtsen <larsi@gnus.org>
 ;; This file is part of GNU Emacs.
@@ -76,7 +76,8 @@
 The return value is a list with mail/name pairs."
   (delq nil
         (mapcar (lambda (elem)
-                  (or (mail-header-parse-address elem)
+                  (or (ignore-errors
+                        (mail-header-parse-address elem))
                       (mail-header-parse-address-lax elem)))
                 (mail-header-parse-addresses string t))))
 

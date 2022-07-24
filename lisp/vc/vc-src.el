@@ -1,6 +1,6 @@
 ;;; vc-src.el --- support for SRC version-control  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1992-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1992-2022 Free Software Foundation, Inc.
 
 ;; Author: FSF (see vc.el for full credits)
 ;; Maintainer: emacs-devel@gnu.org
@@ -120,7 +120,7 @@ If nil, use the value of `vc-diff-switches'.  If t, use no switches."
   "Where to look for SRC master files.
 For a description of possible values, see `vc-check-master-templates'."
   :type '(choice (const :tag "Use standard SRC file names"
-			'("%s.src/%s,v"))
+			("%s.src/%s,v"))
 		 (repeat :tag "User-specified"
 			 (choice string
 				 function))))
@@ -242,11 +242,13 @@ This function differs from vc-do-command in that it invokes `vc-src-program'."
   (vc-src-command nil files "add"))
 
 (defun vc-src-responsible-p (file)
-  "Return non-nil if SRC thinks it would be responsible for registering FILE."
-  (file-directory-p (expand-file-name ".src"
-                                      (if (file-directory-p file)
-                                          file
-                                        (file-name-directory file)))))
+  "Return the directory if SRC thinks it would be responsible for FILE."
+  (let ((dir (expand-file-name ".src"
+                               (if (file-directory-p file)
+                                   file
+                                 (file-name-directory file)))))
+    (and (file-directory-p dir)
+         dir)))
 
 (defun vc-src-checkin (files comment &optional _rev)
   "SRC-specific version of `vc-backend-checkin'.

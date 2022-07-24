@@ -1,6 +1,6 @@
 ;;; ol-eww.el --- Store URL and kill from Eww mode    -*- lexical-binding: t -*-
 
-;; Copyright (C) 2014-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2014-2022 Free Software Foundation, Inc.
 
 ;; Author: Marco Wahl <marcowahlsoft>a<gmailcom>
 ;; Keywords: link, eww
@@ -115,7 +115,7 @@ keep the structure of the Org file."
       (setq transform-start (region-beginning))
       (setq transform-end (region-end))
       ;; Deactivate mark if current mark is activate.
-      (when (fboundp 'deactivate-mark) (deactivate-mark)))
+      (deactivate-mark))
     (message "Transforming links...")
     (save-excursion
       (goto-char transform-start)

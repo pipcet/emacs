@@ -1,6 +1,6 @@
 ;;; etags.el --- etags facility for Emacs  -*- lexical-binding: t -*-
 
-;; Copyright (C) 1985-1986, 1988-1989, 1992-1996, 1998, 2000-2021 Free
+;; Copyright (C) 1985-1986, 1988-1989, 1992-1996, 1998, 2000-2022 Free
 ;; Software Foundation, Inc.
 
 ;; Author: Roland McGrath <roland@gnu.org>
@@ -1839,7 +1839,13 @@ Also see the documentation of the `tags-file-name' variable."
 Third arg DELIMITED (prefix arg) means replace only word-delimited matches.
 If you exit (\\[keyboard-quit], RET or q), you can resume the query replace
 with the command \\[fileloop-continue].
-For non-interactive use, superseded by `fileloop-initialize-replace'."
+
+As each match is found, the user must type a character saying
+what to do with it.  Type SPC or `y' to replace the match,
+DEL or `n' to skip and go to the next match.  For more directions,
+type \\[help-command] at that time.
+
+For non-interactive use, this is superseded by `fileloop-initialize-replace'."
   (declare (advertised-calling-convention (from to &optional delimited) "27.1"))
   (interactive (query-replace-read-args "Tags query replace (regexp)" t t))
   (fileloop-initialize-replace
@@ -2088,14 +2094,15 @@ file name, add `tag-partial-file-name-match-p' to the list value.")
         (definitions (etags--xref-find-definitions symbol))
         same-file-definitions)
     (when (and etags-xref-prefer-current-file file)
-      (cl-delete-if
-       (lambda (definition)
-         (when (equal file
-                      (xref-location-group
-                       (xref-item-location definition)))
-           (push definition same-file-definitions)
-           t))
-       definitions)
+      (setq definitions
+            (cl-delete-if
+             (lambda (definition)
+               (when (equal file
+                            (xref-location-group
+                             (xref-item-location definition)))
+                 (push definition same-file-definitions)
+                 t))
+             definitions))
       (setq definitions (nconc (nreverse same-file-definitions)
                                definitions)))
     definitions))

@@ -1,6 +1,6 @@
 ;;; reftex-cite.el --- creating citations with RefTeX  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 1997-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1997-2022 Free Software Foundation, Inc.
 
 ;; Author: Carsten Dominik <dominik@science.uva.nl>
 ;; Maintainer: auctex-devel@gnu.org
@@ -360,7 +360,7 @@ The name of the first different author/editor is used."
 
 ;; Parse the bibliography environment
 (defun reftex-extract-bib-entries-from-thebibliography (files)
-  "Extract bib-entries from the \begin{thebibliography} environment.
+  "Extract bib-entries from the \\begin{thebibliography} environment.
 Parsing is not as good as for the BibTeX database stuff.
 The environment should be located in FILES."
   (let* (start end buf entries re re-list file default)
@@ -580,7 +580,7 @@ If FORMAT is non-nil `format' entry accordingly."
     (concat key "\n     " authors " " year " " extra "\n     " title "\n\n")))
 
 (defun reftex-parse-bibitem (item)
-  "Parse a \bibitem entry in ITEM."
+  "Parse a \\bibitem entry in ITEM."
   (let ((key "") (text ""))
     (when (string-match "\\`{\\([^}]+\\)}\\([^\000]*\\)" item)
       (setq key (match-string 1 item)
@@ -596,7 +596,7 @@ If FORMAT is non-nil `format' entry accordingly."
      (cons "&entry" (concat key " " text)))))
 
 (defun reftex-format-bibitem (item)
-  "Format a \bibitem entry in ITEM so that it is (relatively) nice to look at."
+  "Format a \\bibitem entry in ITEM so that it is (relatively) nice to look at."
   (let ((text (reftex-get-bib-field "&text" item))
         (key  (reftex-get-bib-field "&key" item))
         (lines nil))

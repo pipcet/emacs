@@ -1,6 +1,6 @@
 ;;; semantic/grammar.el --- Major mode framework for Semantic grammars  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2002-2005, 2007-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2002-2005, 2007-2022 Free Software Foundation, Inc.
 
 ;; Author: David Ponce <david@dponce.com>
 
@@ -1123,8 +1123,6 @@ END is the limit of the search."
 ;;;; Define major mode
 ;;;;
 
-(define-obsolete-variable-alias 'semantic-grammar-syntax-table
-  'semantic-grammar-mode-syntax-table "24.1")
 (defvar semantic-grammar-mode-syntax-table
   (let ((table (make-syntax-table (standard-syntax-table))))
     (modify-syntax-entry ?\: "."     table) ;; COLON
@@ -1197,8 +1195,6 @@ END is the limit of the search."
   semantic-grammar-mode-keywords-1
   "Font Lock keywords used to highlight Semantic grammar buffers.")
 
-(define-obsolete-variable-alias 'semantic-grammar-map
-  'semantic-grammar-mode-map "24.1")
 (defvar semantic-grammar-mode-map
   (let ((km (make-sparse-keymap)))
 

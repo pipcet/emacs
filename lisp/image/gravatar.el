@@ -1,6 +1,6 @@
 ;;; gravatar.el --- Get Gravatars -*- lexical-binding: t -*-
 
-;; Copyright (C) 2010-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2010-2022 Free Software Foundation, Inc.
 
 ;; Author: Julien Danjou <julien@danjou.info>
 ;; Keywords: comm, multimedia
@@ -45,7 +45,7 @@
   "Time to live in seconds for gravatar cache entries.
 If a requested gravatar has been cached for longer than this, it
 is retrieved anew.  The default value is 30 days."
-  :type 'integer
+  :type 'natnum
   ;; Restricted :type to number of seconds.
   :version "27.1"
   :group 'gravatar)

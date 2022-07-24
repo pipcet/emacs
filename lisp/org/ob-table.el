@@ -1,6 +1,6 @@
 ;;; ob-table.el --- Support for Calling Babel Functions from Tables -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2009-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2009-2022 Free Software Foundation, Inc.
 
 ;; Author: Eric Schulte
 ;; Keywords: literate programming, reproducible research
@@ -84,7 +84,7 @@ is the equivalent of the following source code block:
  #+end_src
 
 NOTE: The quotation marks around the function name,
-'source-block', are optional.
+`source-block', are optional.
 
 NOTE: By default, string variable names are interpreted as
 references to source-code blocks, to force interpretation of a

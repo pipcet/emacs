@@ -1,6 +1,6 @@
 ;;; custom-tests.el --- tests for custom.el  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2018-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2018-2022 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -24,6 +24,7 @@
 
 (require 'wid-edit)
 (require 'cus-edit)
+(require 'bytecomp)
 
 (ert-deftest custom-theme--load-path ()
   "Test `custom-theme--load-path' behavior."

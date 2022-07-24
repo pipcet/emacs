@@ -1,6 +1,6 @@
 ;;; pcmpl-gnu.el --- completions for GNU project tools -*- lexical-binding: t -*-
 
-;; Copyright (C) 1999-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1999-2022 Free Software Foundation, Inc.
 
 ;; Package: pcomplete
 
@@ -134,7 +134,7 @@ Return the new list."
   "Add to TARGETS the list of target names in MAKEFILE and files it includes.
 Return the new list."
   (with-temp-buffer
-    (with-demoted-errors			;Could be a directory or something.
+    (with-demoted-errors "Error inserting makefile: %S"
         (insert-file-contents makefile))
 
     (let ((filenames (when pcmpl-gnu-makefile-includes (pcmpl-gnu-make-includes))))

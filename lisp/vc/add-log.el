@@ -1,6 +1,6 @@
 ;;; add-log.el --- change log maintenance commands for Emacs  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 1985-1986, 1988, 1993-1994, 1997-1998, 2000-2021 Free
+;; Copyright (C) 1985-1986, 1988, 1993-1994, 1997-1998, 2000-2022 Free
 ;; Software Foundation, Inc.
 
 ;; Maintainer: emacs-devel@gnu.org
@@ -789,9 +789,8 @@ Optional arg BUFFER-FILE overrides `buffer-file-name'."
 If a ChangeLog file does not already exist, a non-nil value
 means to put log entries in a suitably named buffer."
   :type 'boolean
+  :safe #'booleanp
   :version "27.1")
-
-(put 'add-log-dont-create-changelog-file 'safe-local-variable #'booleanp)
 
 (defun add-log--pseudo-changelog-buffer-name (changelog-file-name)
   "Compute a suitable name for a non-file visiting ChangeLog buffer.
@@ -1068,8 +1067,23 @@ the change log file in another window."
 	    (insert-before-markers "("))
 	(error nil)))))
 
+;; If we're filling a line that has a whole bunch of file names, and
+;; we're still in the file names, then transform this so that it'll
+;; still font-lock properly.
+(defun change-log-fill-file-list ()
+  (save-excursion
+    (unless (bobp)
+      (forward-line -1)
+      (when (looking-at change-log-file-names-re)
+        (goto-char (match-end 0))
+        (while (looking-at "\\=, \\([^ ,:([\n]+\\)")
+          (goto-char (match-end 0)))
+        (when (looking-at ", *\n")
+          (replace-match ":\n *" t t))))))
+
 (defun change-log-indent ()
   (change-log-fill-parenthesized-list)
+  (change-log-fill-file-list)
   (let* ((indent
 	  (save-excursion
 	    (beginning-of-line)

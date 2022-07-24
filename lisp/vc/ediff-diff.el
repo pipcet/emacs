@@ -1,6 +1,6 @@
 ;;; ediff-diff.el --- diff-related utilities  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1994-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1994-2022 Free Software Foundation, Inc.
 
 ;; Author: Michael Kifer <kifer@cs.stonybrook.edu>
 ;; Package: ediff
@@ -85,7 +85,10 @@ options after the default ones.
 
 This variable is not for customizing the look of the differences produced by
 the command \\[ediff-show-diff-output].  Use the variable
-`ediff-custom-diff-options' for that."
+`ediff-custom-diff-options' for that.
+
+Setting this variable directly may not yield the expected
+results.  It should be set via the Customize interface instead."
   :set #'ediff-set-diff-options
   :type 'string)
 

@@ -1,6 +1,6 @@
 ;;; rmailsum.el --- make summary buffers for the mail reader  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1985, 1993-1996, 2000-2021 Free Software Foundation,
+;; Copyright (C) 1985, 1993-1996, 2000-2022 Free Software Foundation,
 ;; Inc.
 
 ;; Maintainer: emacs-devel@gnu.org
@@ -1475,7 +1475,7 @@ argument says to read a file name and use that file as the inbox."
   (forward-line -1))
 
 (declare-function rmail-abort-edit "rmailedit" ())
-(declare-function rmail-cease-edit "rmailedit"())
+(declare-function rmail-cease-edit "rmailedit" (&optional abort))
 (declare-function rmail-set-label "rmailkwd" (l state &optional n))
 (declare-function rmail-output-read-file-name "rmailout" ())
 (declare-function mail-send-and-exit "sendmail" (&optional arg))

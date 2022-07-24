@@ -1,6 +1,6 @@
 @c -*- mode: texinfo; coding: utf-8 -*-
 @c This is part of the GNU Emacs Lisp Reference Manual.
-@c Copyright (C) 1990--1995, 1998--1999, 2001--2021 Free Software
+@c Copyright (C) 1990--1995, 1998--1999, 2001--2022 Free Software
 @c Foundation, Inc.
 @c See the file elisp.texi for copying conditions.
 @node Lisp Data Types
@@ -178,6 +178,12 @@ files.
 Skip the next @samp{N} characters (@pxref{Comments}).  This is used in
 byte-compiled files, and is not meant to be used in Emacs Lisp source
 files.
+
+@item #f
+Indicates that the following form isn't readable by the Emacs Lisp
+reader.  This is only in text for display purposes (when that would
+look prettier than alternative ways of indicating an unreadable form)
+and will never appear in any Lisp file.
 @end table
 
 

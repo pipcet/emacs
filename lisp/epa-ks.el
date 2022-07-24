@@ -1,6 +1,6 @@
 ;;; epa-ks.el --- EasyPG Key Server Client -*- lexical-binding: t -*-
 
-;; Copyright (C) 2021 Free Software Foundation, Inc.
+;; Copyright (C) 2021-2022 Free Software Foundation, Inc.
 
 ;; Author: Philip K. <philipk@posteo.net>
 ;; Keywords: PGP, GnuPG
@@ -337,5 +337,7 @@ enough, since keyservers have strict timeout settings."
        (t (error "Invalid server response")))
       (forward-line))
     keys))
+
+(provide 'epa-ks)
 
 ;;; epa-ks.el ends here

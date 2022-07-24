@@ -1,6 +1,6 @@
 ;;; eieio-test-methodinvoke.el --- eieio tests for method invocation  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2005, 2008, 2010, 2013-2021 Free Software Foundation,
+;; Copyright (C) 2005, 2008, 2010, 2013-2022 Free Software Foundation,
 ;; Inc.
 
 ;; Author: Eric M. Ludlam <zappo@gnu.org>
@@ -55,6 +55,9 @@
 ;;; Code:
 
 (require 'eieio)
+;; FIXME: See Bug#52971.
+(with-no-warnings
+  (require 'eieio-compat))
 (require 'ert)
 
 (defvar eieio-test-method-order-list nil

@@ -1,6 +1,6 @@
 ;;; mspools.el --- show mail spools waiting to be read  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 1997, 2001-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1997, 2001-2022 Free Software Foundation, Inc.
 
 ;; Author: Stephen Eglen <stephen@gnu.org>
 ;; Created: 22 Jan 1997
@@ -55,7 +55,6 @@
 ;; `mspools-using-vm' for details.
 
 ;;; Basic installation.
-;; (autoload 'mspools-show "mspools" "Show outstanding mail spools." t)
 ;; (setq mspools-folder-directory "~/MAIL/")
 ;;
 ;; If you use VM, mspools-folder-directory will default to vm-folder-directory

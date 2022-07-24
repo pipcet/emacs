@@ -1,6 +1,6 @@
 ;;; saveplace.el --- automatically save place in files  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1993-1994, 2001-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1993-1994, 2001-2022 Free Software Foundation, Inc.
 
 ;; Author: Karl Fogel <kfogel@red-bean.com>
 ;; Maintainer: emacs-devel@gnu.org
@@ -290,7 +290,11 @@ may have changed) back to `save-place-alist'."
               ;; adding hooks to it.
               (with-current-buffer (get-buffer-create " *Saved Places*")
                 (delete-region (point-min) (point-max))
-                (insert-file-contents file)
+                ;; Make sure our 'coding:' cookie in the save-place
+                ;; file will take effect, in case the caller binds
+                ;; coding-system-for-read.
+                (let (coding-system-for-read)
+                  (insert-file-contents file))
                 (goto-char (point-min))
                 (setq save-place-alist
                       (with-demoted-errors "Error reading save-place-file: %S"
@@ -342,7 +346,12 @@ may have changed) back to `save-place-alist'."
 	  (save-place-to-alist))
 	(setq buf-list (cdr buf-list))))))
 
+(defvar save-place-after-find-file-hook nil
+  "Hook run at the end of `save-place-find-file-hook'.")
+
 (defun save-place-find-file-hook ()
+  "Function added to `find-file-hook' by `save-place-mode'.
+It runs the hook `save-place-after-find-file-hook'."
   (or save-place-loaded (load-save-place-alist-from-file))
   (let ((cell (assoc buffer-file-name save-place-alist)))
     (if cell
@@ -351,7 +360,8 @@ may have changed) back to `save-place-alist'."
 	      (and (integerp (cdr cell))
 		   (goto-char (cdr cell))))
           ;; and make sure it will be saved again for later
-          (setq save-place-mode t)))))
+          (setq save-place-mode t))))
+  (run-hooks 'save-place-after-find-file-hook))
 
 (declare-function dired-goto-file "dired" (file))
 

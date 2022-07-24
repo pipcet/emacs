@@ -1,6 +1,6 @@
 /* Interface of a lightweight menubar widget.
 
-Copyright (C) 2002-2021 Free Software Foundation, Inc.
+Copyright (C) 2002-2022 Free Software Foundation, Inc.
 Copyright (C) 1992 Lucid, Inc.
 
 This file is part of the Lucid Widget Library.
@@ -58,6 +58,10 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #define XtCAllowResize "AllowResize"
 #define XtNborderThickness "borderThickness"
 #define XtCBorderThickness "BorderThickness"
+#define XtNhighlightForeground "highlightForeground"
+#define XtCHighlightForeground "HighlightForeground"
+#define XtNhighlightBackground "highlightBackground"
+#define XtCHighlightBackground "HighlightBackground"
 
 /* Motif-compatible resource names */
 #define XmNshadowThickness	"shadowThickness"

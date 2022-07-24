@@ -1,6 +1,6 @@
 ;;; mixal-mode.el --- Major mode for the mix asm language.  -*- lexical-binding:t -*-
 
-;; Copyright (C) 2003-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2003-2022 Free Software Foundation, Inc.
 
 ;; Author: Pieter E.J. Pareit <pieter.pareit@gmail.com>
 ;; Maintainer: Jose A Ortega Ruiz <jao@gnu.org>
@@ -78,16 +78,13 @@
 ;;; Code:
 (defvar compile-command)
 
-;;; Key map
-(defvar mixal-mode-map
-  (let ((map (make-sparse-keymap)))
-    (define-key map "\C-c\C-c" 'compile)
-    (define-key map "\C-c\C-r" 'mixal-run)
-    (define-key map "\C-c\C-d" 'mixal-debug)
-    (define-key map "\C-h\C-o" 'mixal-describe-operation-code)
-    map)
-  "Keymap for `mixal-mode'.")
-;; (makunbound 'mixal-mode-map)
+;;; Keymap
+(defvar-keymap mixal-mode-map
+  :doc "Keymap for `mixal-mode'."
+  "C-c C-c" #'compile
+  "C-c C-r" #'mixal-run
+  "C-c C-d" #'mixal-debug
+  "C-h C-o" #'mixal-describe-operation-code)
 
 ;;; Syntax table
 (defvar mixal-mode-syntax-table

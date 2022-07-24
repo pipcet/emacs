@@ -1,6 +1,6 @@
 ;;; cconv-tests.el --- Tests for cconv.el  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2018-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2018-2022 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -24,6 +24,7 @@
 (require 'ert)
 (require 'cl-lib)
 (require 'generator)
+(require 'bytecomp)
 
 (ert-deftest cconv-tests-lambda-:documentation ()
   "Docstring for lambda can be specified with :documentation."

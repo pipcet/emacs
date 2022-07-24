@@ -1,6 +1,6 @@
 ;;; find-func-tests.el --- Unit tests for find-func.el  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2020-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2020-2022 Free Software Foundation, Inc.
 
 ;; Author: Stefan Monnier <monnier@iro.umontreal.ca>
 ;; Keywords:
@@ -95,6 +95,13 @@ expected function symbol and function library, respectively."
   (advice-remove #'mark-sexp 'my-message))
 
 (ert-deftest find-func-tests--find-library-verbose ()
+  (unwind-protect
+      (progn
+        (advice-add 'dired :before #'ignore)
+        ;; bug#41104
+        (should (equal (find-function-library #'dired) '(dired . "dired"))))
+    (advice-remove 'dired #'ignore))
+
   (find-function-library #'join-line nil t)
   (with-current-buffer "*Messages*"
     (save-excursion

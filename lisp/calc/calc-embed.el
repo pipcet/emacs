@@ -1,6 +1,6 @@
 ;;; calc-embed.el --- embed Calc in a buffer  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1990-1993, 2001-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1990-1993, 2001-2022 Free Software Foundation, Inc.
 
 ;; Author: David Gillespie <daveg@synaptics.com>
 
@@ -335,7 +335,8 @@
 	  (message (concat
                     "Embedded Calc mode enabled; "
                     (if calc-embedded-quiet
-                        "Type `C-x * x'"
+                        (substitute-command-keys
+                         "Type \\`C-x * x'")
                       "Give this command again")
                     " to return to normal")))))
   (scroll-down 0)))    ; fix a bug which occurs when truncate-lines is changed.

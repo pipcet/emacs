@@ -1,6 +1,6 @@
 ;;; multisession-tests.el --- Tests for multisession.el  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2021 Free Software Foundation, Inc.
+;; Copyright (C) 2021-2022 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -62,7 +62,7 @@
         (setq multisession--db nil)))))
 
 (ert-deftest multi-test-sqlite-busy ()
-  (skip-unless (and t (sqlite-available-p)))
+  (skip-unless (sqlite-available-p))
   (ert-with-temp-file dir
     :directory t
     (let ((user-init-file "/tmp/foo.el")
@@ -116,6 +116,10 @@
       (should (= (multisession-value multisession--sfoo) 0))
       (cl-incf (multisession-value multisession--sfoo))
       (should (= (multisession-value multisession--sfoo) 1))
+      ;; On Windows and Haiku, we don't have sub-second resolution, so
+      ;; let some time pass to make the "later" logic work.
+      (when (memq system-type '(windows-nt haiku))
+        (sleep-for 0.6))
       (call-process
        (concat invocation-directory invocation-name)
        nil t nil
@@ -133,7 +137,7 @@
       (should (= (multisession-value multisession--sfoo) 2)))))
 
 (ert-deftest multi-test-files-busy ()
-  (skip-unless (and t (sqlite-available-p)))
+  (skip-unless (sqlite-available-p))
   (ert-with-temp-file dir
     :directory t
     (let ((user-init-file "/tmp/foo.el")
@@ -160,14 +164,14 @@
                                 (user-init-file "/tmp/sbar.el"))
                             (define-multisession-variable multisession--sbar 0
                               "" :synchronized t)
-                            (dotimes (i 1000)
+                            (dotimes (i 100)
                               (cl-incf (multisession-value multisession--sbar))))))))
       (while (process-live-p proc)
         (message "multisession--sbar %s" (multisession-value multisession--sbar))
         ;;(cl-incf (multisession-value multisession--sbar))
         (sleep-for 0.1))
       (message "multisession--sbar ends up as %s" (multisession-value multisession--sbar))
-      (should (< (multisession-value multisession--sbar) 2000)))))
+      (should (< (multisession-value multisession--sbar) 200)))))
 
 (ert-deftest multi-test-files-some-values ()
   (ert-with-temp-file dir

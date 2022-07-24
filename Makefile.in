@@ -1,6 +1,6 @@
 ### @configure_input@
 
-# Copyright (C) 1992-2021 Free Software Foundation, Inc.
+# Copyright (C) 1992-2022 Free Software Foundation, Inc.
 
 # This file is part of GNU Emacs.
 
@@ -103,6 +103,9 @@ HAVE_NATIVE_COMP = @HAVE_NATIVE_COMP@
 USE_STARTUP_NOTIFICATION = @USE_STARTUP_NOTIFICATION@
 
 HAVE_BE_APP = @HAVE_BE_APP@
+
+HAVE_PGTK = @HAVE_PGTK@
+HAVE_GSETTINGS = @HAVE_GSETTINGS@
 
 # ==================== Where To Install Things ====================
 
@@ -213,7 +216,7 @@ icondir=$(datarootdir)/icons
 iconsrcdir=$(srcdir)/etc/images/icons
 
 # Where to install the gsettings schema file.
-gsettingsschemadir = @gsettingsschemadir@
+gsettingsschemadir = $(datadir)/glib-2.0/schemas
 
 # ==================== Emacs-specific directories ====================
 
@@ -315,6 +318,9 @@ GLIB_COMPILE_SCHEMAS = glib-compile-schemas
 
 # Program name transformation.
 TRANSFORM = @program_transform_name@
+
+# Prevent any settings in the user environment causing problems.
+unexport EMACSDATA EMACSDOC EMACSLOADPATH EMACSPATH
 
 # What emacs should be called when installed.
 EMACS_NAME = `echo emacs | sed '$(TRANSFORM)'`
@@ -688,8 +694,6 @@ install-etcdoc: src install-arch-indep
 	   printf 'Copying %s to %s ...\n' "etc/$$docfile" \
 	     "$(DESTDIR)${etcdocdir}"; \
 	   ${INSTALL_DATA} etc/$${docfile} "$(DESTDIR)${etcdocdir}/$${docfile}"; \
-	   $(set_installuser); \
-	     chown $${installuser} "$(DESTDIR)${etcdocdir}/$${docfile}" || true ; \
 	else true; fi
 
 ## FIXME:
@@ -949,7 +953,7 @@ distclean_dirs = $(clean_dirs) leim lisp admin/grammars
 
 $(foreach dir,$(distclean_dirs),$(eval $(call submake_template,$(dir),distclean)))
 
-distclean: $(distclean_dirs:=_distclean)
+distclean: $(distclean_dirs:=_distclean) clean-gsettings-schemas
 	${top_distclean}
 
 ### 'bootstrap-clean'
@@ -961,6 +965,7 @@ bootstrap-clean: $(distclean_dirs:=_bootstrap-clean)
 	[ ! -f config.log ] || mv -f config.log config.log~
 	rm -rf ${srcdir}/info
 	rm -f ${srcdir}/etc/refcards/emacsver.tex
+	rm -rf native-lisp/ lisp/leim/ja-dic/
 	${top_bootclean}
 
 ### 'maintainer-clean'
@@ -1245,9 +1250,30 @@ gitmerge:
 	  -l ${srcdir}/admin/gitmerge.el \
 	  --eval '(setq gitmerge-minimum-missing ${GITMERGE_NMIN})' -f gitmerge
 
-@GSETTINGS_RULES@
-
 install-gsettings-schemas:
+ifeq ($(HAVE_PGTK)$(HAVE_GSETTINGS),yesyes)
+	$(MKDIR_P) "$(DESTDIR)$(gsettingsschemadir)"
+	$(INSTALL_DATA) $(srcdir)/$(gsettings_SCHEMAS) "$(DESTDIR)$(gsettingsschemadir)"
+	if [ -z "$(DESTDIR)" ]; then $(GLIB_COMPILE_SCHEMAS) $(gsettingsschemadir); fi
+endif
+
 uninstall-gsettings-schemas:
+ifeq ($(HAVE_PGTK)$(HAVE_GSETTINGS),yesyes)
+	for x in $(gsettings_SCHEMAS); do \
+	  xx=`echo $$x | sed -e 's|.*/||'`; \
+	  rm -f "$(DESTDIR)$(gsettingsschemadir)/$${xx}"; \
+	done
+	if [ -z "$(DESTDIR)" ]; then $(GLIB_COMPILE_SCHEMAS) $(gsettingsschemadir); fi
+endif
+
 clean-gsettings-schemas:
-$(gsettings_SCHEMAS:.xml=.valid):
+ifeq ($(HAVE_PGTK)$(HAVE_GSETTINGS),yesyes)
+	rm -f $(gsettings_SCHEMAS:.xml=.valid)
+endif
+
+$(gsettings_SCHEMAS:.xml=.valid): $(srcdir)/$(gsettings_SCHEMAS)
+ifeq ($(HAVE_PGTK)$(HAVE_GSETTINGS),yesyes)
+	$(GLIB_COMPILE_SCHEMAS) --strict --dry-run --schema-file=$(srcdir)/$(gsettings_SCHEMAS)
+	$(MKDIR_P) $(@D)
+	touch $@
+endif

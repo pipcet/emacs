@@ -1,6 +1,6 @@
 /* MS-DOS specific C utilities.          -*- coding: cp850 -*-
 
-Copyright (C) 1993-1997, 1999-2021 Free Software Foundation, Inc.
+Copyright (C) 1993-1997, 1999-2022 Free Software Foundation, Inc.
 
 This file is part of GNU Emacs.
 
@@ -2725,7 +2725,8 @@ dos_rawgetc (void)
 		event.x = make_fixnum (x);
 		event.y = make_fixnum (y);
 		event.frame_or_window = selected_frame;
-		event.arg = Qnil;
+		event.arg = tty_handle_tab_bar_click (SELECTED_FRAME (),
+						      x, y, press, &event);
 		event.timestamp = event_timestamp ();
 		kbd_buffer_store_event (&event);
 	      }

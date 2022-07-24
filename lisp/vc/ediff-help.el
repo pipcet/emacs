@@ -1,6 +1,6 @@
 ;;; ediff-help.el --- Code related to the contents of Ediff help buffers  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1996-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1996-2022 Free Software Foundation, Inc.
 
 ;; Author: Michael Kifer <kifer@cs.stonybrook.edu>
 ;; Package: ediff
@@ -152,7 +152,7 @@ the value of this variable and the variables `ediff-help-message-*' in
 
 
 ;; the keymap that defines clicks over the quick help regions
-(defvar ediff-help-region-map (make-sparse-keymap))
+(defvar-keymap ediff-help-region-map)
 
 (define-key ediff-help-region-map [mouse-2] #'ediff-help-for-quick-help)
 

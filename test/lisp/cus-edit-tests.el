@@ -1,6 +1,6 @@
 ;;; cus-edit-tests.el --- Tests for cus-edit.el  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2020-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2020-2022 Free Software Foundation, Inc.
 
 ;; This file is part of GNU Emacs.
 
@@ -75,6 +75,15 @@
     (cl-letf (((get 'cus-edit-tests--obsolete-option-tag 'saved-value) '(t)))
       (customize-saved)
       (should (search-forward cus-edit-tests--obsolete-option-tag nil t)))))
+
+(defcustom cus-edit-test-foo1 0
+  ""
+  :type 'number)
+
+(ert-deftest test-setopt ()
+  (should (= (setopt cus-edit-test-foo1 1) 1))
+  (should (= cus-edit-test-foo1 1))
+  (should-error (setopt cus-edit-test-foo1 :foo)))
 
 (provide 'cus-edit-tests)
 ;;; cus-edit-tests.el ends here

@@ -1,6 +1,6 @@
 ;;; ob-comint.el --- Babel Functions for Interaction with Comint Buffers -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2009-2021 Free Software Foundation, Inc.
+;; Copyright (C) 2009-2022 Free Software Foundation, Inc.
 
 ;; Author: Eric Schulte
 ;; Keywords: literate programming, reproducible research, comint
@@ -166,7 +166,7 @@ source block, and the name of the temp file.")
 (defvar-local org-babel-comint-async-chunk-callback nil
   "Callback function to clean Babel async output results before insertion.
 Its single argument is a string consisting of output from the
-comint process.  It should return a string that will be be passed
+comint process.  It should return a string that will be passed
 to `org-babel-insert-result'.")
 
 (defvar-local org-babel-comint-async-dangling nil
